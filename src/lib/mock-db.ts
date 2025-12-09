@@ -34,7 +34,8 @@ const KEYS = {
     PRODUCTS: 'saas_products',
     CURRENT_TENANT: 'saas_current_tenant_id',
     USERS: 'saas_users',
-    CURRENT_USER: 'saas_current_user_id'
+    CURRENT_USER: 'saas_current_user_id',
+    VIEWING_AS_TENANT: 'saas_viewing_as_tenant_id'
 }
 
 export const MockDB = {
@@ -164,5 +165,21 @@ export const MockDB = {
 
         localStorage.setItem(KEYS.PRODUCTS, JSON.stringify([...allProducts, newProduct]))
         return newProduct
+    },
+
+    // --- Super Admin Viewing As Tenant ---
+    setViewingAsTenant: (tenantId: string) => {
+        localStorage.setItem(KEYS.VIEWING_AS_TENANT, tenantId)
+        localStorage.setItem(KEYS.CURRENT_TENANT, tenantId) // Also set current tenant for data loading
+    },
+
+    getViewingAsTenant: (): string | null => {
+        if (typeof window === 'undefined') return null
+        return localStorage.getItem(KEYS.VIEWING_AS_TENANT)
+    },
+
+    clearViewingAsTenant: () => {
+        localStorage.removeItem(KEYS.VIEWING_AS_TENANT)
+        localStorage.removeItem(KEYS.CURRENT_TENANT)
     }
 }

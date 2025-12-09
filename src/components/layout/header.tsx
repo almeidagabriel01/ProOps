@@ -1,10 +1,13 @@
 "use client"
 
-import { Search, Bell, User as UserIcon, LogOut } from "lucide-react"
+import * as React from "react"
+import { Search, Bell, User as UserIcon, LogOut, ArrowLeft } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/providers/auth-provider"
 import { useTenant } from "@/providers/tenant-provider"
+import { MockDB } from "@/lib/mock-db"
+import { useRouter } from "next/navigation"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,12 +19,37 @@ import {
 
 export function Header() {
     const { user, logout } = useAuth()
-    const { tenant } = useTenant()
+    const { tenant, refreshTenant } = useTenant()
+    const router = useRouter()
+    const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false)
+
+    React.useEffect(() => {
+        setIsViewingAsTenant(!!MockDB.getViewingAsTenant())
+    }, [tenant])
+
+    const handleBackToAdmin = () => {
+        MockDB.clearViewingAsTenant()
+        refreshTenant()
+        router.push('/admin')
+    }
 
     return (
         <header className="fixed top-0 right-0 left-64 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4 w-96">
-                <div className="relative w-full">
+            <div className="flex items-center gap-4">
+                {/* Super Admin Viewing Banner */}
+                {isViewingAsTenant && user?.role === 'superadmin' && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBackToAdmin}
+                        className="border-amber-500/50 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Voltar ao Admin
+                    </Button>
+                )}
+
+                <div className="relative w-64">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Buscar..."

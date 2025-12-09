@@ -4,6 +4,7 @@ import * as React from "react"
 import { useAuth } from "@/providers/auth-provider"
 import { useRouter, usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { MockDB } from "@/lib/mock-db"
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { user, isLoading } = useAuth()
@@ -18,8 +19,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         } else if (user) {
             // Role Based Protection
             const isAdminRoute = pathname.startsWith('/admin')
+            const isViewingAsTenant = MockDB.getViewingAsTenant()
 
-            if (user.role === 'superadmin' && !isAdminRoute) {
+            if (user.role === 'superadmin' && !isAdminRoute && !isViewingAsTenant) {
+                // Super admin not viewing a tenant - redirect to admin
                 router.push('/admin')
             } else if (user.role !== 'superadmin' && isAdminRoute) {
                 router.push('/')

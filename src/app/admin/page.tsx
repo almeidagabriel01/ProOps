@@ -64,7 +64,7 @@ export default function AdminPage() {
     }
 
     const handleLoginAs = (tenant: Tenant) => {
-        MockDB.setCurrentTenantId(tenant.id)
+        MockDB.setViewingAsTenant(tenant.id)
         refreshTenant()
         router.push('/')
     }
