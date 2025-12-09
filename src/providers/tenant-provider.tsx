@@ -55,7 +55,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     }
 
     const logout = () => {
-        MockDB.clearSession()
+        MockDB.logout()
         setTenant(null)
         window.location.href = '/admin' // Redirect to "Super Admin" login
     }
