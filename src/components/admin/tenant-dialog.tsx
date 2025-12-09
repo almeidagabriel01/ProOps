@@ -1,0 +1,154 @@
+"use client"
+
+import * as React from "react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tenant } from "@/lib/mock-db"
+
+export interface TenantFormData {
+    name: string
+    color: string
+    logoUrl?: string
+    email?: string
+    password?: string
+}
+
+interface TenantDialogProps {
+    isOpen: boolean
+    onClose: () => void
+    initialData?: Tenant | null
+    onSave: (data: TenantFormData) => void
+}
+
+export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDialogProps) {
+    const [formData, setFormData] = React.useState({
+        name: "",
+        color: "#3b82f6",
+        logoUrl: "",
+        email: "",
+        password: ""
+    })
+
+    // Reset or Load data when dialog opens
+    React.useEffect(() => {
+        if (isOpen) {
+            if (initialData) {
+                setFormData({
+                    name: initialData.name,
+                    color: initialData.primaryColor,
+                    logoUrl: initialData.logoUrl || "",
+                    email: "", // User details not editable here for simplicity
+                    password: "" // User details not editable here for simplicity
+                })
+            } else {
+                setFormData({
+                    name: "",
+                    color: "#3b82f6",
+                    logoUrl: "",
+                    email: "",
+                    password: ""
+                })
+            }
+        }
+    }, [isOpen, initialData])
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        onSave(formData)
+        onClose()
+    }
+
+    const isEditing = !!initialData
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                    <DialogTitle>{isEditing ? "Editar Empresa" : "Nova Empresa"}</DialogTitle>
+                    <DialogDescription>
+                        {isEditing
+                            ? "Atualize as informações da empresa."
+                            : "Preencha os dados criar um novo ambiente isolado."}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">Nome</Label>
+                            <Input
+                                id="name"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="col-span-3"
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="color" className="text-right">Cor</Label>
+                            <div className="col-span-3 flex gap-2">
+                                <Input
+                                    id="color"
+                                    type="color"
+                                    value={formData.color}
+                                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                    className="w-12 h-10 p-1 cursor-pointer"
+                                />
+                                <Input
+                                    value={formData.color}
+                                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                    className="font-mono"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="logo" className="text-right">Logo URL</Label>
+                            <Input
+                                id="logo"
+                                placeholder="https://..."
+                                value={formData.logoUrl}
+                                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                                className="col-span-3"
+                            />
+                        </div>
+
+                        {/* Credenciais apenas na criação */}
+                        {!isEditing && (
+                            <>
+                                <div className="border-t my-2"></div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="email" className="text-right">Admin Email</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="admin@empresa.com"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        className="col-span-3"
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="password" className="text-right">Senha</Label>
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        className="col-span-3"
+                                        required
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+                        <Button type="submit">{isEditing ? "Salvar Alterações" : "Criar Empresa"}</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
