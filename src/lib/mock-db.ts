@@ -141,6 +141,7 @@ export type ProposalTemplate = {
     theme: 'modern' | 'classic' | 'minimal' | 'tech' | 'elegant' | 'bold'
     primaryColor: string
     fontFamily: string
+    repeatHeader?: boolean
 }
 
 // Product selection for proposals
@@ -152,6 +153,8 @@ export type ProposalProduct = {
     quantity: number
     unitPrice: number
     total: number
+    manufacturer?: string
+    category?: string
 }
 
 
