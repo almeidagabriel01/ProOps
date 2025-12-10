@@ -4,12 +4,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useTenant } from "@/providers/tenant-provider" // Import added
-import { LayoutDashboard, ShoppingBag, Settings, LogOut, Package, Users } from "lucide-react"
+import { LayoutDashboard, ShoppingBag, Settings, LogOut, Package, Users, FileText } from "lucide-react"
 import { useAuth } from "@/providers/auth-provider"
 
 const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: Package, label: "Produtos", href: "/products/new" },
+    { icon: FileText, label: "Propostas", href: "/proposals" },
     { icon: Users, label: "Clientes", href: "/customers" },
     { icon: ShoppingBag, label: "Estoque", href: "/inventory" },
     { icon: Settings, label: "Configurações", href: "/settings" },
