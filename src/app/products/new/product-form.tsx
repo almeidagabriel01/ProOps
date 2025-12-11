@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DynamicSelect } from "@/components/features/dynamic-select";
-import { MockDB } from "@/lib/mock-db";
+import { ProductService } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Save, X } from "lucide-react";
 
@@ -68,39 +68,37 @@ export function ProductForm() {
     }
     setIsSubmitting(true);
 
-    // Simulate API call & Save to MockDB
-    console.log("Submitting Product:", formData);
+    try {
+      await ProductService.createProduct({
+        tenantId: tenant.id,
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        manufacturer: formData.manufacturer,
+        category: formData.category,
+        sku: formData.sku,
+        stock: formData.stock,
+        image: imageBase64, // Caution: Firestore 1MB limit. Recommended: Firebase Storage.
+      });
 
-    // In real app, we would upload image first and get URL.
-    // For now we just ignore the file object in JSON stringify or mocked save.
-
-    MockDB.createProduct(tenant.id, {
-      ...formData,
-      image: imageBase64, // Save base64 string
-      name: formData.name,
-      price: formData.price,
-      description: formData.description,
-      manufacturer: formData.manufacturer,
-      category: formData.category,
-      sku: formData.sku,
-      stock: formData.stock,
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setIsSubmitting(false);
-    alert(`Produto cadastrado para ${tenant.name} com sucesso!`);
-    setFormData({
-      name: "",
-      description: "",
-      price: "",
-      manufacturer: "",
-      category: "",
-      sku: "",
-      stock: "",
-      image: null,
-    });
-    setImageBase64(null);
+      alert(`Produto cadastrado para ${tenant.name} com sucesso!`);
+      setFormData({
+        name: "",
+        description: "",
+        price: "",
+        manufacturer: "",
+        category: "",
+        sku: "",
+        stock: "",
+        image: null,
+      });
+      setImageBase64(null);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao salvar produto. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

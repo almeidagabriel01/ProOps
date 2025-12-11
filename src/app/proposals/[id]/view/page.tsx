@@ -4,10 +4,12 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MockDB, Proposal, ProposalTemplate } from "@/lib/mock-db";
+import { ProposalTemplate } from "@/lib/mock-db"; // Types only
 import { useTenant } from "@/providers/tenant-provider";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { ArrowLeft, FileDown, Edit, Loader2, Palette } from "lucide-react";
+import { ProposalService, Proposal } from "@/services/proposal-service";
+import { ProposalDefaults } from "@/lib/proposal-defaults";
 
 export default function ViewProposalPage() {
   const params = useParams();
@@ -22,17 +24,25 @@ export default function ViewProposalPage() {
 
   React.useEffect(() => {
     if (proposalId && tenant) {
-      const p = MockDB.getProposalById(proposalId);
-      if (p) {
-        setProposal(p);
-        const t = p.templateId
-          ? MockDB.getProposalTemplateById(p.templateId)
-          : MockDB.getDefaultTemplate(tenant.id);
-        if (t) {
-          setTemplate(t);
+      const fetchProposal = async () => {
+        try {
+          const p = await ProposalService.getProposalById(proposalId);
+          if (p) {
+            setProposal(p);
+            // Synthesize template
+            const t = ProposalDefaults.createDefaultTemplate(
+              tenant.id,
+              tenant.name,
+              tenant.primaryColor
+            );
+            setTemplate(t);
+          }
+        } catch (error) {
+          console.error("Error fetching proposal", error);
         }
-      }
-      setIsLoading(false);
+        setIsLoading(false);
+      };
+      fetchProposal();
     }
   }, [proposalId, tenant]);
 
@@ -208,8 +218,10 @@ export default function ViewProposalPage() {
           >
             <ProposalPdfViewer
               proposal={proposal}
-              template={template}
+              template={template} // Keep for fallback or minimal defaults
               tenant={tenant}
+              // Inject saved settings from Firestore if available
+              customSettings={proposal.pdfSettings as any}
             />
           </div>
         </CardContent>

@@ -9,14 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MockDB, Proposal, ProposalTemplate } from "@/lib/mock-db";
+import { MockDB, ProposalTemplate } from "@/lib/mock-db"; // Types only
+import { ProposalService, Proposal } from "@/services/proposal-service";
+import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { useTenant } from "@/providers/tenant-provider";
 import {
   PdfSectionEditor,
   PdfSection,
   createDefaultSections,
 } from "@/components/features/proposal/pdf-section-editor";
-import { RenderPagedContent } from "@/components/pdf/render-paged-content";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import {
   ArrowLeft,
@@ -124,50 +125,104 @@ export default function EditPdfPage() {
 
   React.useEffect(() => {
     if (proposalId && tenant) {
-      const p = MockDB.getProposalById(proposalId);
-      if (p) {
-        // Inject placeholders for missing images (for demo purposes)
-        p.products = p.products.map((prod) => ({
-          ...prod,
-          productImage:
-            prod.productImage ||
-            "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
-        }));
+      const fetchProposal = async () => {
+        try {
+          const p = await ProposalService.getProposalById(proposalId);
+          if (p) {
+            // Inject placeholders for missing images (for demo purposes)
+            if (p.products) {
+              p.products = p.products.map((prod) => ({
+                ...prod,
+                productImage:
+                  prod.productImage ||
+                  "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
+              }));
+            } else {
+              p.products = [];
+            }
 
-        setProposal(p);
-        const t = p.templateId
-          ? MockDB.getProposalTemplateById(p.templateId)
-          : MockDB.initializeDefaultTemplate(
-              tenant.id,
-              tenant.name,
-              tenant.primaryColor
-            );
+            setProposal(p);
 
-        if (t) {
-          setTemplate(t);
-          setCoverTitle(p.title || "");
-          setPrimaryColor(t.primaryColor);
-          setFontFamily(t.fontFamily);
-          setTheme(t.theme as ThemeType);
-          if (t.coverImage) setCoverImage(t.coverImage);
-          if ((t as any).coverLogo) setCoverLogo((t as any).coverLogo);
-          else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+            // 1. Check if we have saved PDF settings in the proposal
+            if (p.pdfSettings) {
+              const s = p.pdfSettings;
 
-          if ((t as any).coverImageSettings) {
-            const s = (t as any).coverImageSettings;
-            if (s.opacity !== undefined) setCoverImageOpacity(s.opacity);
-            if (s.fit) setCoverImageFit(s.fit);
-            if (s.fit) setCoverImageFit(s.fit);
-            if (s.position) setCoverImagePosition(s.position);
+              // We MUST set a template object because the render guard requires it (if (!proposal || !template))
+              // effectively we treat the saved settings as an "override" on top of a base template
+              const baseTemplate = ProposalDefaults.createDefaultTemplate(
+                tenant.id,
+                tenant.name,
+                s.primaryColor || tenant.primaryColor
+              );
+              setTemplate(baseTemplate);
+
+              // Load saved settings
+              setCoverTitle(p.title || ""); // Title is always from proposal
+              if (s.primaryColor) setPrimaryColor(s.primaryColor);
+              if (s.fontFamily) setFontFamily(s.fontFamily);
+              if (s.theme) setTheme(s.theme as ThemeType);
+
+              if (s.coverImage) setCoverImage(s.coverImage);
+              if (s.coverLogo) setCoverLogo(s.coverLogo);
+              else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+
+              if (s.coverImageOpacity !== undefined)
+                setCoverImageOpacity(s.coverImageOpacity);
+              if (s.coverImageFit) setCoverImageFit(s.coverImageFit);
+              if (s.coverImagePosition)
+                setCoverImagePosition(s.coverImagePosition);
+              if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+
+              // Load sections if saved, otherwise regenerate default sections but with saved colors
+              if (s.sections && s.sections.length > 0) {
+                setSections(s.sections);
+              } else {
+                // Fallback to default sections if for some reason they weren't saved
+                // We need a dummy template object or just call createDefaultSections with basic info
+                // Since createDefaultSections expects a template, let's create a temporary one or refactor.
+                // Ideally we should just reuse the logic below for defaults if sections are missing.
+                const t = ProposalDefaults.createDefaultTemplate(
+                  tenant.id,
+                  tenant.name,
+                  s.primaryColor || tenant.primaryColor
+                );
+                setSections(createDefaultSections(t, t.primaryColor));
+              }
+            } else {
+              // 2. No saved settings, initialize from Defaults (as before)
+              const t = ProposalDefaults.createDefaultTemplate(
+                tenant.id,
+                tenant.name,
+                tenant.primaryColor
+              );
+
+              if (t) {
+                setTemplate(t);
+                setCoverTitle(p.title || "");
+                setPrimaryColor(t.primaryColor);
+                setFontFamily(t.fontFamily);
+                setTheme(t.theme as ThemeType);
+                if (t.coverImage) setCoverImage(t.coverImage);
+
+                if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+
+                // Defaults
+                setCoverImageOpacity(30);
+                setCoverImageFit("cover");
+                setCoverImagePosition("center");
+                setRepeatHeader(false);
+
+                // Create default sections from template
+                setSections(createDefaultSections(t, t.primaryColor));
+              }
+            }
           }
-          if ((t as any).repeatHeader !== undefined)
-            setRepeatHeader((t as any).repeatHeader);
-
-          // Create default sections from template
-          setSections(createDefaultSections(t, t.primaryColor));
+        } catch (error) {
+          console.error("Error fetching proposal for edit-pdf", error);
         }
-      }
-      setIsLoading(false);
+        setIsLoading(false);
+      };
+      fetchProposal();
     }
   }, [proposalId, tenant]);
 
@@ -198,26 +253,29 @@ export default function EditPdfPage() {
     setIsSaving(true);
 
     try {
-      MockDB.updateProposalTemplate(template.id, {
-        primaryColor,
-        fontFamily,
-        theme,
-        coverImage,
-        coverLogo,
-        coverImageSettings: {
-          opacity: coverImageOpacity,
-          fit: coverImageFit,
-          position: coverImagePosition,
-        },
-        repeatHeader,
-      } as any);
+      // NOTE: We are NOT saving the template changes to Firestore yet because we haven't migrated Templates completely.
+      // We only save the Proposal changes (title, etc).
+      // If we want to persist PDF settings, we need to add a 'pdfSettings' field to the Proposal schema in Firestore.
 
-      MockDB.updateProposal(proposal.id, {
+      await ProposalService.updateProposal(proposal.id, {
         title: coverTitle,
+        pdfSettings: {
+          theme,
+          primaryColor,
+          fontFamily,
+          coverTitle, // Redundant but useful for PDF context
+          coverImage,
+          coverLogo,
+          coverImageOpacity,
+          coverImageFit,
+          coverImagePosition,
+          repeatHeader,
+          sections, // Saving the edited sections structure
+        },
       });
 
       await new Promise((r) => setTimeout(r, 300));
-      alert("Alterações salvas!");
+      alert("Proposta e personalizações salvas com sucesso!");
     } catch (error) {
       console.error(error);
       alert("Erro ao salvar");
@@ -740,57 +798,59 @@ export default function EditPdfPage() {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 p-4 border rounded-lg bg-muted/10">
-                    <Label className="font-semibold">
-                      Ajustes da Imagem de Fundo
-                    </Label>
+                  {coverImage && (
+                    <div className="grid gap-4 p-4 border rounded-lg bg-muted/10">
+                      <Label className="font-semibold">
+                        Ajustes da Imagem de Fundo
+                      </Label>
 
-                    <div className="grid gap-2">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">
-                          Opacidade ({coverImageOpacity}%)
-                        </Label>
+                      <div className="grid gap-2">
+                        <div className="flex justify-between">
+                          <Label className="text-xs">
+                            Opacidade ({coverImageOpacity}%)
+                          </Label>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={coverImageOpacity}
+                          onChange={(e) =>
+                            setCoverImageOpacity(parseInt(e.target.value))
+                          }
+                          className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={coverImageOpacity}
-                        onChange={(e) =>
-                          setCoverImageOpacity(parseInt(e.target.value))
-                        }
-                        className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Ajuste</Label>
-                        <Select
-                          value={coverImageFit}
-                          onChange={(e) =>
-                            setCoverImageFit(e.target.value as any)
-                          }
-                        >
-                          <option value="cover">Preencher (Cover)</option>
-                          <option value="contain">Conter (Contain)</option>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label className="text-xs">Posição</Label>
-                        <Select
-                          value={coverImagePosition}
-                          onChange={(e) =>
-                            setCoverImagePosition(e.target.value)
-                          }
-                        >
-                          <option value="top">Topo</option>
-                          <option value="center">Centro</option>
-                          <option value="bottom">Base</option>
-                        </Select>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Ajuste</Label>
+                          <Select
+                            value={coverImageFit}
+                            onChange={(e) =>
+                              setCoverImageFit(e.target.value as any)
+                            }
+                          >
+                            <option value="cover">Preencher (Cover)</option>
+                            <option value="contain">Conter (Contain)</option>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label className="text-xs">Posição</Label>
+                          <Select
+                            value={coverImagePosition}
+                            onChange={(e) =>
+                              setCoverImagePosition(e.target.value)
+                            }
+                          >
+                            <option value="top">Topo</option>
+                            <option value="center">Centro</option>
+                            <option value="bottom">Base</option>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid gap-2">
                     <Label>Tema da Capa</Label>

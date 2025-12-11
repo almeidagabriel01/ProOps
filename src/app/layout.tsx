@@ -32,13 +32,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <TenantProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <TenantProvider>
             <ProtectedRoute>
               {isLoginPage ? (
-                <main className="min-h-screen flex flex-col">
-                  {children}
-                </main>
+                <main className="min-h-screen flex flex-col">{children}</main>
               ) : (
                 <div className="flex min-h-screen">
                   <Sidebar />
@@ -51,8 +49,8 @@ export default function RootLayout({
                 </div>
               )}
             </ProtectedRoute>
-          </AuthProvider>
-        </TenantProvider>
+          </TenantProvider>
+        </AuthProvider>
       </body>
     </html>
   );
