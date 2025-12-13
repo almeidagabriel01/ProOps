@@ -23,7 +23,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function Header() {
+interface HeaderProps {
+  sidebarWidth?: number;
+}
+
+export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const { user, logout } = useAuth();
   const { tenant, refreshTenant, clearViewingTenant } = useTenant();
   const router = useRouter();
@@ -48,7 +52,10 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between">
+    <header
+      style={{ left: sidebarWidth }}
+      className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-all duration-300 ease-in-out rounded-tl-[2rem] rounded-tr-[2rem]"
+    >
       <div className="flex items-center gap-4">
         {/* Super Admin Viewing Banner */}
         {isViewingAsTenant && user?.role === "superadmin" && (
