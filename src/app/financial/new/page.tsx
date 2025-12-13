@@ -37,7 +37,7 @@ export default function NewTransactionPage() {
     type: "income" as TransactionType,
     description: "",
     amount: "",
-    date: new Date().toISOString().split("T")[0],
+    date: "",
     dueDate: "",
     status: "pending" as TransactionStatus,
     clientId: undefined as string | undefined,
@@ -117,7 +117,7 @@ export default function NewTransactionPage() {
           await TransactionService.createTransaction({
             tenantId: tenant.id,
             type: formData.type,
-            description: `${formData.description} (${i + 1}/${formData.installmentCount})`,
+            description: formData.description.trim(),
             amount: Math.round(installmentAmount * 100) / 100,
             date: installmentDate.toISOString().split("T")[0],
             dueDate: installmentDate.toISOString().split("T")[0],
@@ -325,13 +325,6 @@ export default function NewTransactionPage() {
               name="wallet"
               value={formData.wallet}
               onChange={handleChange}
-              defaultOptions={[
-                { id: "pix", label: "PIX" },
-                { id: "dinheiro", label: "Dinheiro" },
-                { id: "cartao_credito", label: "Cartão de Crédito" },
-                { id: "cartao_debito", label: "Cartão de Débito" },
-                { id: "boleto", label: "Boleto" },
-              ]}
             />
 
             <div className="border rounded-lg p-4 space-y-4">

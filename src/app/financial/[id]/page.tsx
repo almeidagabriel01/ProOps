@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   CreditCard,
+  Clock,
 } from "lucide-react";
 
 export default function EditTransactionPage() {
@@ -37,6 +39,9 @@ export default function EditTransactionPage() {
   const [transaction, setTransaction] = React.useState<Transaction | null>(
     null
   );
+  const [relatedInstallments, setRelatedInstallments] = React.useState<
+    Transaction[]
+  >([]);
 
   const [formData, setFormData] = React.useState({
     type: "income" as TransactionType,
@@ -71,6 +76,20 @@ export default function EditTransactionPage() {
             wallet: data.wallet || "",
             notes: data.notes || "",
           });
+
+          // If this is an installment, fetch all related installments
+          if (data.isInstallment && data.installmentGroupId) {
+            const allTransactions = await TransactionService.getTransactions(
+              data.tenantId
+            );
+            const related = allTransactions
+              .filter((t) => t.installmentGroupId === data.installmentGroupId)
+              .sort(
+                (a, b) =>
+                  (a.installmentNumber || 0) - (b.installmentNumber || 0)
+              );
+            setRelatedInstallments(related);
+          }
         }
       } catch (error) {
         console.error("Error fetching transaction:", error);
@@ -180,12 +199,6 @@ export default function EditTransactionPage() {
             Atualize as informações do lançamento
           </p>
         </div>
-        {transaction.isInstallment && (
-          <Badge variant="outline" className="text-primary">
-            Parcela {transaction.installmentNumber}/
-            {transaction.installmentCount}
-          </Badge>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -330,16 +343,73 @@ export default function EditTransactionPage() {
               name="wallet"
               value={formData.wallet}
               onChange={handleChange}
-              defaultOptions={[
-                { id: "pix", label: "PIX" },
-                { id: "dinheiro", label: "Dinheiro" },
-                { id: "cartao_credito", label: "Cartão de Crédito" },
-                { id: "cartao_debito", label: "Cartão de Débito" },
-                { id: "boleto", label: "Boleto" },
-              ]}
             />
           </CardContent>
         </Card>
+
+        {/* Related Installments */}
+        {relatedInstallments.length > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Parcelas ({relatedInstallments.length}x)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {relatedInstallments.map((installment) => (
+                  <Link
+                    key={installment.id}
+                    href={`/financial/${installment.id}`}
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                      installment.id === transactionId
+                        ? "bg-primary/10 border-primary"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`text-sm font-medium ${
+                          installment.id === transactionId ? "text-primary" : ""
+                        }`}
+                      >
+                        Parcela {installment.installmentNumber}/
+                        {installment.installmentCount}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {new Date(installment.date).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          installment.status === "paid"
+                            ? "success"
+                            : installment.status === "overdue"
+                              ? "destructive"
+                              : "warning"
+                        }
+                        className="text-xs"
+                      >
+                        {installment.status === "paid"
+                          ? "Pago"
+                          : installment.status === "overdue"
+                            ? "Atrasado"
+                            : "Pendente"}
+                      </Badge>
+                      {installment.id === transactionId && (
+                        <Badge variant="outline" className="text-xs">
+                          Editando
+                        </Badge>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Client */}
         <Card>

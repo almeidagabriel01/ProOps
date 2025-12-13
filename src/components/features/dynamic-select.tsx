@@ -85,12 +85,9 @@ export function DynamicSelect({
   const handleAdd = async () => {
     if (!newOption.trim() || !tenant) return;
     try {
-      const added = await OptionService.createOption(
-        tenant.id,
-        storageKey,
-        newOption.trim()
-      );
-      setOptions((prev) => [...prev, added]);
+      await OptionService.createOption(tenant.id, storageKey, newOption.trim());
+      // Reload from Firestore to get fresh data
+      await loadOptions();
       setNewOption("");
     } catch (error) {
       console.error("Failed to add option", error);

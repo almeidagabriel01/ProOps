@@ -23,10 +23,10 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  CheckCircle,
   AlertCircle,
   ArrowUpCircle,
   ArrowDownCircle,
+  Eye,
 } from "lucide-react";
 
 const typeConfig: Record<
@@ -102,6 +102,11 @@ export default function FinancialPage() {
 
   const filteredTransactions = React.useMemo(() => {
     let filtered = transactions;
+
+    // Filter out subsequent installments (show only installmentNumber === 1 or non-installments)
+    filtered = filtered.filter(
+      (t) => !t.isInstallment || t.installmentNumber === 1
+    );
 
     if (filterType !== "all") {
       filtered = filtered.filter((t) => t.type === filterType);
@@ -375,6 +380,16 @@ export default function FinancialPage() {
                   </div>
 
                   <div className="flex items-center gap-1">
+                    <Link href={`/financial/${transaction.id}/view`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Visualizar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </Link>
                     <Link href={`/financial/${transaction.id}`}>
                       <Button
                         variant="ghost"
