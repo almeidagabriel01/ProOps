@@ -18,8 +18,7 @@ import { useAuth } from "@/providers/auth-provider";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: ShoppingBag, label: "Estoque", href: "/products" },
-  { icon: Package, label: "Produtos", href: "/products/new" },
+  { icon: Package, label: "Produtos", href: "/products" },
   { icon: FileText, label: "Propostas", href: "/proposals" },
   { icon: Users, label: "Clientes", href: "/customers" },
   { icon: Wallet, label: "Financeiro", href: "/financial" },
