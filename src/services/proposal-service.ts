@@ -15,6 +15,8 @@ export type ProposalProduct = {
     total: number;
     manufacturer?: string;
     category?: string;
+    systemInstanceId?: string;
+    isExtra?: boolean;
 }
 
 export type Proposal = {
@@ -32,8 +34,16 @@ export type Proposal = {
     discount?: number;
     createdAt: string;
     updatedAt: string;
+    // Sistemas de automação (para nicho automacao_residencial)
+    sistemas?: {
+        sistemaId: string;
+        sistemaName: string;
+        ambienteId: string;
+        ambienteName: string;
+        description?: string;
+        productIds: string[]; // IDs dos produtos que pertencem a este sistema
+    }[];
     // Add other fields as needed from the original MockDB type
-    // PDF Customization Settings
     // PDF Customization Settings
     pdfSettings?: {
         theme?: string;

@@ -545,6 +545,7 @@ function getDefaultTitle(type: ProposalSectionType): string {
         list: "Lista",
         "custom-field": "Campo Personalizado",
         "hierarchical-field": "Ambientes e Sistemas",
+        "product-table": "Tabela de Produtos",
         separator: ""
     }
     return titles[type]
@@ -559,6 +560,7 @@ function getDefaultContent(type: ProposalSectionType): string {
         list: { items: [""] },
         "custom-field": { fieldTypeId: "", selectedItems: [] },
         "hierarchical-field": { environmentTypeId: "", systemTypeId: "", entries: [] },
+        "product-table": { products: [] },
         separator: {}
     }
     return JSON.stringify(defaults[type])

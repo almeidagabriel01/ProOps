@@ -1,9 +1,18 @@
+// Nichos disponíveis no sistema
+export type TenantNiche = 'automacao_residencial' | 'varejo';
+
+export const NICHE_LABELS: Record<TenantNiche, string> = {
+    automacao_residencial: 'Automação Residencial',
+    varejo: 'Varejo',
+};
+
 export type Tenant = {
     id: string
     name: string
     slug: string
     primaryColor: string // Hex code
     logoUrl?: string
+    niche: TenantNiche
     createdAt: string
 }
 
@@ -18,7 +27,7 @@ export type User = {
 }
 
 // Proposals
-export type ProposalSectionType = 'text' | 'table' | 'image' | 'list' | 'separator' | 'header' | 'custom-field' | 'hierarchical-field'
+export type ProposalSectionType = 'text' | 'table' | 'image' | 'list' | 'separator' | 'header' | 'custom-field' | 'hierarchical-field' | 'product-table'
 
 export type TextStyle = {
     color?: string

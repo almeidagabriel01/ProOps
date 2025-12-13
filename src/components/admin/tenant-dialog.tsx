@@ -5,11 +5,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tenant } from "@/types"; // Use global types
+import { Select } from "@/components/ui/select"
+import { Tenant, TenantNiche, NICHE_LABELS } from "@/types"
 export interface TenantFormData {
     name: string
     color: string
     logoUrl?: string
+    niche: TenantNiche
     email?: string
     password?: string
 }
@@ -26,6 +28,7 @@ export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDia
         name: "",
         color: "#3b82f6",
         logoUrl: "",
+        niche: "automacao_residencial" as TenantNiche,
         email: "",
         password: ""
     })
@@ -38,6 +41,7 @@ export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDia
                     name: initialData.name,
                     color: initialData.primaryColor,
                     logoUrl: initialData.logoUrl || "",
+                    niche: initialData.niche || "automacao_residencial",
                     email: "", // User details not editable here for simplicity
                     password: "" // User details not editable here for simplicity
                 })
@@ -46,6 +50,7 @@ export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDia
                     name: "",
                     color: "#3b82f6",
                     logoUrl: "",
+                    niche: "automacao_residencial" as TenantNiche,
                     email: "",
                     password: ""
                 })
@@ -110,6 +115,22 @@ export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDia
                                 onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
                                 className="col-span-3"
                             />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="niche" className="text-right">Nicho</Label>
+                            <Select
+                                id="niche"
+                                value={formData.niche}
+                                onChange={(e) => setFormData({ ...formData, niche: e.target.value as TenantNiche })}
+                                className="col-span-3"
+                                required
+                            >
+                                {(Object.keys(NICHE_LABELS) as TenantNiche[]).map((key) => (
+                                    <option key={key} value={key}>
+                                        {NICHE_LABELS[key]}
+                                    </option>
+                                ))}
+                            </Select>
                         </div>
 
                         {/* Credenciais apenas na criação */}

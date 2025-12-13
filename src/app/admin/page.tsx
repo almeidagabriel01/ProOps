@@ -46,6 +46,7 @@ export default function AdminPage() {
           name: data.name,
           primaryColor: data.color,
           logoUrl: data.logoUrl,
+          niche: data.niche,
         });
         alert("Empresa atualizada com sucesso!");
       } else {
@@ -63,6 +64,7 @@ export default function AdminPage() {
           name: data.name,
           primaryColor: data.color,
           logoUrl: data.logoUrl,
+          niche: data.niche,
           slug: data.name
             .toLowerCase()
             .replace(/ /g, "-")
