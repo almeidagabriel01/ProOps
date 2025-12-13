@@ -105,6 +105,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signOut(auth);
       setUser(null);
+      
+      // Clear any "Viewing As" tenant from localStorage
+      localStorage.removeItem("viewingAsTenant");
+      
+      // Reset theme colors to default (remove tenant customization)
+      document.documentElement.style.removeProperty("--primary");
+      const styleTag = document.getElementById("tenant-styles");
+      if (styleTag) {
+        styleTag.remove();
+      }
+      
       router.push("/login");
     } catch (error) {
       console.error("Logout failed", error);
