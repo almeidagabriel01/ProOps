@@ -21,6 +21,7 @@ export type Proposal = {
     id: string;
     tenantId: string;
     title: string;
+    clientId?: string; // Reference to the client in the clients collection
     clientName: string;
     clientEmail?: string;
     clientPhone?: string;

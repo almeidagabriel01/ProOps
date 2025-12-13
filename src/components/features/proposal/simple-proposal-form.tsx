@@ -15,10 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ProposalTemplate } from "@/types";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
-import { ProposalService, Proposal, ProposalProduct } from "@/services/proposal-service";
+import {
+  ProposalService,
+  Proposal,
+  ProposalProduct,
+} from "@/services/proposal-service";
 import { ProposalStatus } from "@/types";
 import { ProductService, Product } from "@/services/product-service";
 import { ProposalTemplateService } from "@/services/proposal-template-service";
+import { ClientService } from "@/services/client-service";
+import { ClientSelect } from "@/components/features/client-select";
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Save,
@@ -44,6 +50,10 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
+  const [selectedClientId, setSelectedClientId] = React.useState<
+    string | undefined
+  >(undefined);
+  const [isNewClient, setIsNewClient] = React.useState(true);
 
   const [formData, setFormData] = React.useState<Partial<Proposal>>({
     title: "",
@@ -71,17 +81,19 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
 
           // Use new helper instead of MockDB
           const load = async () => {
-            if (!tenant) return
+            if (!tenant) return;
             try {
-              const templates = await ProposalTemplateService.getTemplates(tenant.id)
-              const defaultTemplate = templates.find(t => t.isDefault) || templates[0]
-              setTemplate(defaultTemplate || null)
+              const templates = await ProposalTemplateService.getTemplates(
+                tenant.id
+              );
+              const defaultTemplate =
+                templates.find((t) => t.isDefault) || templates[0];
+              setTemplate(defaultTemplate || null);
             } catch (error) {
-              console.error("Failed to load template", error)
+              console.error("Failed to load template", error);
             }
-          }
+          };
           load();
-
         } catch (error) {
           console.error("Error loading products", error);
         }
@@ -133,7 +145,11 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
         productId: product.id,
         productName: product.name,
         productImage: product.images?.[0] || product.image || "",
-        productImages: product.images?.length ? product.images : (product.image ? [product.image] : []),
+        productImages: product.images?.length
+          ? product.images
+          : product.image
+            ? [product.image]
+            : [],
         productDescription: product.description || "",
         quantity: 1,
         unitPrice: price,
@@ -204,6 +220,24 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
     setIsSaving(true);
 
     try {
+      // Determine client ID - use existing if selected, or create new if needed
+      let clientId: string | undefined = selectedClientId;
+
+      if (!proposalId && isNewClient && formData.clientName) {
+        // Only create client if it's a new one
+        const { client } = await ClientService.findOrCreateClient(
+          tenant.id,
+          {
+            name: formData.clientName,
+            email: formData.clientEmail,
+            phone: formData.clientPhone,
+            address: formData.clientAddress,
+          },
+          "proposal"
+        );
+        clientId = client.id;
+      }
+
       if (proposalId) {
         await ProposalService.updateProposal(proposalId, {
           ...formData, // types should match or be partial
@@ -215,6 +249,7 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
         await ProposalService.createProposal({
           tenantId: tenant.id,
           title: formData.title!,
+          clientId,
           clientName: formData.clientName!,
           clientEmail: formData.clientEmail,
           clientPhone: formData.clientPhone,
@@ -296,14 +331,22 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="clientName">Nome do Cliente *</Label>
-                <Input
-                  id="clientName"
-                  name="clientName"
-                  value={formData.clientName}
-                  onChange={handleChange}
-                  placeholder="Nome completo ou empresa"
-                  required
+                <Label>Cliente *</Label>
+                <ClientSelect
+                  value={formData.clientName || ""}
+                  clientId={selectedClientId}
+                  onChange={(data) => {
+                    setSelectedClientId(data.clientId);
+                    setIsNewClient(data.isNew);
+                    setFormData((prev) => ({
+                      ...prev,
+                      clientId: data.clientId,
+                      clientName: data.clientName,
+                      clientEmail: data.clientEmail || prev.clientEmail,
+                      clientPhone: data.clientPhone || prev.clientPhone,
+                      clientAddress: data.clientAddress || prev.clientAddress,
+                    }));
+                  }}
                 />
               </div>
             </div>
@@ -392,10 +435,11 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                   return (
                     <div
                       key={product.id}
-                      className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${selected
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/50"
-                        }`}
+                      className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        selected
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/50"
+                      }`}
                       onClick={() => toggleProduct(product)}
                     >
                       <div className="flex justify-between items-start mb-2">
