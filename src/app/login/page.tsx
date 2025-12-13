@@ -30,7 +30,7 @@ export default function LoginPage() {
       if (user.role === "superadmin") {
         router.replace("/admin");
       } else {
-        router.replace("/");
+        router.replace("/dashboard");
       }
     }
   }, [user, isLoading, router]);

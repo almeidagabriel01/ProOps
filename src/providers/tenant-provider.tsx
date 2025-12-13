@@ -5,7 +5,6 @@ import { Tenant } from "@/types"; // Keep Type
 import { TenantService } from "@/services/tenant-service";
 import { useAuth } from "@/providers/auth-provider";
 
-
 interface TenantContextType {
   tenant: Tenant | null;
   isLoading: boolean;
@@ -17,9 +16,9 @@ interface TenantContextType {
 const TenantContext = React.createContext<TenantContextType>({
   tenant: null,
   isLoading: true,
-  refreshTenant: () => { },
-  clearViewingTenant: () => { },
-  setViewingTenant: () => { },
+  refreshTenant: () => {},
+  clearViewingTenant: () => {},
+  setViewingTenant: () => {},
 });
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
@@ -28,9 +27,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user } = useAuth();
 
-  const loadTenant = React.useCallback(async () => {
-    setIsLoading(true);
+  // Use ref to track current tenant ID without causing re-renders
+  const currentTenantIdRef = React.useRef<string | null>(null);
 
+  const loadTenant = React.useCallback(async () => {
     // Check for "Viewing As" override (Super Admin feature)
     const viewingAsId =
       typeof window !== "undefined"
@@ -49,31 +49,36 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Skip if we already have the correct tenant loaded
+    if (currentTenantIdRef.current === tenantIdToLoad && !isLoading) {
+      return;
+    }
+
+    setIsLoading(true);
+
     if (tenantIdToLoad) {
       try {
-        // Optimization: If we already have the correct tenant loaded, don't re-fetch
-        if (tenant && tenant.id === tenantIdToLoad) {
-          setIsLoading(false);
-          return;
-        }
-
         const fetchedTenant = await TenantService.getTenantById(tenantIdToLoad);
         if (fetchedTenant) {
           setTenant(fetchedTenant);
+          currentTenantIdRef.current = fetchedTenant.id;
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
           setTenant(null);
+          currentTenantIdRef.current = null;
         }
       } catch (error) {
         console.error("Error loading tenant", error);
         setTenant(null);
+        currentTenantIdRef.current = null;
       }
     } else {
       setTenant(null);
+      currentTenantIdRef.current = null;
     }
 
     setIsLoading(false);
-  }, [user, refreshTrigger, tenant]);
+  }, [user, refreshTrigger]);
 
   React.useEffect(() => {
     loadTenant();
