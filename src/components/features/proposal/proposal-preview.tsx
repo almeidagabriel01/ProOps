@@ -77,9 +77,14 @@ export function ProposalPreview({ proposal, sections }: ProposalPreviewProps) {
                 )}
 
                 {/* Sections */}
-                <div className="space-y-6">
-                    {sections.map((section) => (
-                        <PreviewSection key={section.id} section={section} primaryColor={tenant?.primaryColor} />
+                <div className="space-y-8">
+                    {sections.map((section, index) => (
+                        <PreviewSection 
+                            key={index} 
+                            section={section} 
+                            primaryColor={tenant?.primaryColor} 
+                            proposal={proposal} 
+                        />
                     ))}
                 </div>
 
@@ -98,9 +103,10 @@ export function ProposalPreview({ proposal, sections }: ProposalPreviewProps) {
 interface PreviewSectionProps {
     section: ProposalSection
     primaryColor?: string
+    proposal: Partial<Proposal>
 }
 
-function PreviewSection({ section, primaryColor }: PreviewSectionProps) {
+const PreviewSection = ({ section, primaryColor, proposal }: PreviewSectionProps) => {
     const content = parseContent(section.content)
     const color = primaryColor || "#333"
     const textStyle = section.textStyle || {}
@@ -117,6 +123,101 @@ function PreviewSection({ section, primaryColor }: PreviewSectionProps) {
     })
 
     switch (section.type) {
+        case "product-table": {
+            const products = proposal?.products || []
+            const sistemas = proposal?.sistemas || []
+            const hasSistemas = sistemas.length > 0
+            
+            if (products.length === 0) return <div className="text-gray-500 italic text-center py-4">Nenhum produto selecionado</div>
+
+            const renderProductTable = (items: any[], title?: string, sistemaInfo?: any) => {
+                 const total = items.reduce((sum, item) => sum + (item.total || (item.quantity * item.unitPrice)), 0)
+                 return (
+                    <div className="mb-6">
+                        {sistemaInfo ? (
+                             <div className="flex items-center gap-3 p-3 rounded-t-lg border-x border-t" style={{ borderColor: color, backgroundColor: `${color}10` }}>
+                                <div className="font-bold text-lg" style={{ color: color }}>{sistemaInfo.sistemaName}</div>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-white border" style={{ borderColor: color, color: color }}>{sistemaInfo.ambienteName}</span>
+                             </div>
+                        ) : title ? (
+                             <div className="flex items-center gap-3 p-3 rounded-t-lg border-x border-t bg-gray-50 border-gray-200">
+                                <div className="font-bold text-lg text-gray-700">{title}</div>
+                             </div>
+                        ) : null}
+                        
+                        <table className="w-full border-collapse">
+                            <thead>
+                                <tr style={{ backgroundColor: color }} className="text-white">
+                                    <th className="text-left px-3 py-2 font-medium first:rounded-tl-none">Item</th>
+                                    <th className="text-center px-3 py-2 font-medium w-20">Qtd</th>
+                                    <th className="text-right px-3 py-2 font-medium w-28">Preço Unit.</th>
+                                    <th className="text-right px-3 py-2 font-medium w-28 last:rounded-tr-none">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((item, i) => (
+                                    <tr key={item.productId || i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                                        <td className="px-3 py-2 border-b border-gray-200">{item.productName || item.name}</td>
+                                        <td className="px-3 py-2 border-b border-gray-200 text-center">{item.quantity}</td>
+                                        <td className="px-3 py-2 border-b border-gray-200 text-right">
+                                            R$ {(item.unitPrice || 0).toFixed(2)}
+                                        </td>
+                                        <td className="px-3 py-2 border-b border-gray-200 text-right font-medium">
+                                            R$ {(item.total || (item.quantity * item.unitPrice)).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot>
+                                <tr style={{ backgroundColor: `${color}10` }}>
+                                    <td colSpan={3} className="px-3 py-2 text-right font-semibold" style={{ color: color }}>
+                                        Subtotal
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-bold text-lg" style={{ color: color }}>
+                                        R$ {total.toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                 )
+            }
+
+            if (hasSistemas) {
+                const sistemaProductIds = new Set(sistemas.flatMap((s: any) => s.productIds || []))
+                const extraProducts = products.filter((p: any) => !p.systemInstanceId && !sistemaProductIds.has(p.productId))
+
+                return (
+                    <div>
+                        {section.title && <h2 className="text-xl font-bold mb-4 pb-2 border-b-2" style={{ borderColor: color, color: color }}>{section.title}</h2>}
+                        
+                        {sistemas.map((sistema: any) => {
+                             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
+                             let sistemaProducts = products.filter((p: any) => p.systemInstanceId === systemInstanceId);
+                             
+                             // Fallback for legacy proposals (only if no products have instance IDs)
+                             const isLegacy = !products.some((p: any) => p.systemInstanceId);
+                             if (sistemaProducts.length === 0 && isLegacy) {
+                                sistemaProducts = products.filter((p: any) => sistema.productIds?.includes(p.productId));
+                             }
+
+                             if (sistemaProducts.length === 0) return null
+                             return <React.Fragment key={`${sistema.sistemaId}-${sistema.ambienteId}`}>{renderProductTable(sistemaProducts, undefined, sistema)}</React.Fragment>
+                        })}
+
+                        {extraProducts.length > 0 && renderProductTable(extraProducts, "Produtos Extras")}
+                    </div>
+                )
+            } else {
+                return (
+                     <div>
+                        {section.title && <h2 className="text-xl font-bold mb-4 pb-2 border-b-2" style={{ borderColor: color, color: color }}>{section.title}</h2>}
+                        {renderProductTable(products)}
+                     </div>
+                )
+            }
+        }
+
         case "header":
             return (
                 <div>
@@ -261,6 +362,8 @@ function PreviewSection({ section, primaryColor }: PreviewSectionProps) {
             return null
     }
 }
+
+
 
 // Helper Components for Async Data
 const CustomFieldBlock = ({ section }: { section: ProposalSection }) => {

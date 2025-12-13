@@ -27,7 +27,7 @@ export type User = {
 }
 
 // Proposals
-export type ProposalSectionType = 'text' | 'table' | 'image' | 'list' | 'separator' | 'header' | 'custom-field' | 'hierarchical-field'
+export type ProposalSectionType = 'text' | 'table' | 'image' | 'list' | 'separator' | 'header' | 'custom-field' | 'hierarchical-field' | 'product-table'
 
 export type TextStyle = {
     color?: string
