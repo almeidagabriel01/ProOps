@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Package, label: "Produtos", href: "/products" },
   { icon: FileText, label: "Propostas", href: "/proposals" },
   { icon: Users, label: "Clientes", href: "/customers" },
