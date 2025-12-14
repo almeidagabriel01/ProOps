@@ -1,9 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
+import {
+  Sidebar,
+  COLLAPSED_WIDTH,
+  EXPANDED_WIDTH,
+} from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { AuthProvider } from "@/providers/auth-provider";
@@ -31,6 +36,7 @@ export default function RootLayout({
 
   // Login page - needs auth provider but no sidebar
   const isLoginPage = pathname === "/login";
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
     <html lang="en">
@@ -44,25 +50,32 @@ export default function RootLayout({
           // All other pages - wrapped with providers
           <AuthProvider>
             <TenantProvider>
-              {isLoginPage ? (
-                // Login page - no sidebar, no protected route
-                <main className="min-h-screen flex flex-col bg-background text-foreground">
-                  {children}
-                </main>
-              ) : (
-                // Protected ERP pages - full layout with sidebar/header
-                <ProtectedRoute>
-                  <div className="flex min-h-screen bg-background text-foreground">
-                    <Sidebar />
-                    <div className="flex-1 flex flex-col ml-64">
-                      <Header />
+              <ProtectedRoute>
+                {isLoginPage ? (
+                  <main className="min-h-screen flex flex-col">{children}</main>
+                ) : (
+                  <div className="flex h-screen overflow-hidden bg-card">
+                    <Sidebar onExpandChange={setSidebarExpanded} />
+                    <div
+                      className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
+                      style={{
+                        marginLeft: sidebarExpanded
+                          ? EXPANDED_WIDTH
+                          : COLLAPSED_WIDTH,
+                      }}
+                    >
+                      <Header
+                        sidebarWidth={
+                          sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
+                        }
+                      />
                       <main className="flex-1 mt-16 p-8 overflow-y-auto">
                         {children}
                       </main>
                     </div>
                   </div>
-                </ProtectedRoute>
-              )}
+                )}
+              </ProtectedRoute>
             </TenantProvider>
           </AuthProvider>
         )}
