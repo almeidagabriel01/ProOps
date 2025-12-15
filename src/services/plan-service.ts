@@ -5,12 +5,16 @@ import { UserPlan, PlanFeatures } from "@/types";
 const COLLECTION_NAME = "plans";
 
 // Default plans - these will be seeded if the collection is empty
-const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
+export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
   {
     name: "Starter",
     tier: "starter",
     description: "Ideal para pequenos negócios em crescimento",
-    price: 49,
+    price: 97,
+    pricing: {
+      monthly: 97,
+      yearly: 931,  // ~20% desconto (12 meses * 97 * 0.8)
+    },
     order: 1,
     features: {
       maxProposals: 50,
@@ -28,7 +32,11 @@ const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     name: "Pro",
     tier: "pro",
     description: "Para empresas que precisam de mais poder",
-    price: 149,
+    price: 197,
+    pricing: {
+      monthly: 197,
+      yearly: 1891,  // ~20% desconto (12 meses * 197 * 0.8)
+    },
     order: 2,
     highlighted: true,
     features: {
@@ -47,7 +55,11 @@ const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     name: "Enterprise",
     tier: "enterprise",
     description: "Solução completa para grandes operações",
-    price: 399,
+    price: 497,
+    pricing: {
+      monthly: 497,
+      yearly: 4771,  // ~20% desconto (12 meses * 497 * 0.8)
+    },
     order: 3,
     features: {
       maxProposals: -1,
@@ -68,18 +80,37 @@ export const PlanService = {
    * Get all available plans, ordered by hierarchy
    */
   getPlans: async (): Promise<UserPlan[]> => {
+    try {
+      // Try to fetch from API first (which syncs with Stripe)
+      const response = await fetch('/api/plans');
+      if (response.ok) {
+        const plans = await response.json();
+        if (plans && plans.length > 0) return plans;
+      }
+    } catch (error) {
+      console.warn("Failed to fetch plans from API, falling back to Firestore/Defaults", error);
+    }
+
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     
     // If no plans exist, seed with defaults
     if (querySnapshot.empty) {
       await PlanService.seedDefaultPlans();
-      return PlanService.getPlans();
+      // Return defaults directly to avoid recursion loop if API fails
+      return DEFAULT_PLANS.map(p => ({...p, id: p.tier} as UserPlan));
     }
     
-    const plans = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as UserPlan[];
+    const plans = querySnapshot.docs.map((doc) => {
+      const data = doc.data() as UserPlan;
+      const defaultPlan = DEFAULT_PLANS.find(p => p.tier === data.tier);
+      
+      return {
+        ...data,
+        id: doc.id,
+        // Fallback to default pricing if missing (handles old data)
+        pricing: data.pricing || defaultPlan?.pricing,
+      };
+    }) as UserPlan[];
     
     // Sort by order
     return plans.sort((a, b) => a.order - b.order);
@@ -93,7 +124,15 @@ export const PlanService = {
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as UserPlan;
+      const data = docSnap.data() as UserPlan;
+      const defaultPlan = DEFAULT_PLANS.find(p => p.tier === data.tier);
+      
+      return { 
+        ...data,
+        id: docSnap.id, 
+        // Fallback to default pricing
+        pricing: data.pricing || defaultPlan?.pricing,
+      } as UserPlan;
     }
     return null;
   },

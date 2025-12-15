@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +34,27 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const { tenant, refreshTenant, clearViewingTenant } = useTenant();
   const router = useRouter();
   const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false);
+  const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
+
+  // Fetch user's plan name
+  React.useEffect(() => {
+    const fetchPlanName = async () => {
+      if (!user?.planId) {
+        setUserPlanName(user?.role === 'free' ? 'Gratuito' : null);
+        return;
+      }
+      try {
+        const planDoc = await getDoc(doc(db, 'plans', user.planId));
+        if (planDoc.exists()) {
+          const planData = planDoc.data();
+          setUserPlanName(planData.name || planData.tier);
+        }
+      } catch (error) {
+        console.error('Error fetching plan:', error);
+      }
+    };
+    fetchPlanName();
+  }, [user?.planId, user?.role]);
 
   React.useEffect(() => {
     // Check localStorage directly
@@ -95,7 +118,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
               {user ? user.name : "Visitante"}
             </span>
             <span className="text-xs text-muted-foreground capitalize">
-              {user ? user.role : "Guest"}
+              {userPlanName || (user?.role === 'superadmin' ? 'Super Admin' : user?.role || 'Guest')}
             </span>
           </div>
           <DropdownMenu>

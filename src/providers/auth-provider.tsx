@@ -15,9 +15,11 @@ export type User = {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "user" | "superadmin";
-  tenantId: string;
+  role: "admin" | "user" | "superadmin" | "free";
+  tenantId?: string; // Optional for free users
   planId?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 };
 
 interface AuthContextType {
@@ -25,6 +27,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextType>({
@@ -32,6 +35,7 @@ const AuthContext = React.createContext<AuthContextType>({
   isLoading: true,
   login: async () => false,
   logout: async () => { },
+  refreshUser: async () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -39,48 +43,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
+  const fetchUserData = async (firebaseUser: FirebaseUser): Promise<User | null> => {
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          name: userData.name || firebaseUser.displayName || "User",
+          role: userData.role || "admin",
+          tenantId: userData.tenantId || "default-tenant",
+          planId: userData.planId || undefined,
+          stripeCustomerId: userData.stripeCustomerId || undefined,
+          stripeSubscriptionId: userData.stripeSubscriptionId || undefined,
+          billingInterval: userData.billingInterval || undefined,
+        } as User;
+      } else {
+        console.warn("User document not found in Firestore, treating as free user.");
+        return {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          name: firebaseUser.displayName || "Usuário",
+          role: "free",
+          tenantId: undefined,
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        name: firebaseUser.displayName || "Usuário",
+        role: "free",
+        tenantId: undefined,
+      };
+    }
+  };
+
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        try {
-          // Try to fetch user data from Firestore
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: userData.name || firebaseUser.displayName || "User",
-              role: userData.role || "admin",
-              tenantId: userData.tenantId || "default-tenant",
-              planId: userData.planId || undefined,
-            } as User);
-          } else {
-            // Fallback/Default for new integration (Mocking the DB part until real data exists)
-            console.warn(
-              "User document not found in Firestore, using default profile."
-            );
-            setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              name: firebaseUser.displayName || "Admin User",
-              role: "admin",
-              tenantId: "default-tenant-id",
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          // Fallback on error
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email || "",
-            name: firebaseUser.displayName || "User",
-            role: "admin",
-            tenantId: "default-tenant-id",
-          });
-        }
+        const userData = await fetchUserData(firebaseUser);
+        setUser(userData);
       } else {
         setUser(null);
       }
@@ -89,6 +96,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribe();
   }, []);
+
+  const refreshUser = async () => {
+    const firebaseUser = auth.currentUser;
+    if (firebaseUser) {
+      const userData = await fetchUserData(firebaseUser);
+      setUser(userData);
+    }
+  };
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
@@ -125,10 +140,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => React.useContext(AuthContext);
+

@@ -3,16 +3,22 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { HeroParallax } from "@/components/ui/hero-parallax";
-import { Check, ArrowRight, Sparkles, Loader2, FileText, Users, Package, BarChart3, Shield, Zap } from "lucide-react";
+import { ArrowRight, Check, Play, Star, Zap, Shield, Users, BarChart, Sparkles, Menu, X, ChevronDown, LogOut, FileText, Package } from "lucide-react";
 import { motion } from "motion/react";
 import { AnimatedText, AnimatedGradientText } from "@/components/ui/animated-text";
 import { ParticlesBackground } from "@/components/ui/particles-background";
 import { MobileMenu } from "@/components/ui/mobile-menu";
 import { SpotlightCard } from "@/components/ui/feature-card";
 import ScrollStack, { ScrollStackItem } from "@/components/ui/scroll-stack";
+import { BillingToggle } from "@/components/ui/billing-toggle";
+
+import { cn } from "@/lib/utils";
+
+import { PlanService } from "@/services/plan-service";
+import { UserPlan } from "@/types";
 
 // Screenshots/Features para o Hero Parallax
 const products = [
@@ -108,12 +114,15 @@ const products = [
   },
 ];
 
-// Planos
-const plans = [
+// Planos com preços por intervalo
+const INITIAL_PLANS = [
   {
     name: "Starter",
-    price: "R$97",
-    period: "/mês",
+    tier: "starter",
+    prices: {
+      monthly: 97,
+      yearly: 931,  // ~20% desconto
+    },
     description: "Ideal para pequenos negócios",
     features: [
       "Até 100 propostas/mês",
@@ -121,13 +130,16 @@ const plans = [
       "Relatórios básicos",
       "Suporte por email",
     ],
-    cta: "Começar Grátis",
+    cta: "Assinar Agora",
     popular: false,
   },
   {
     name: "Professional",
-    price: "R$197",
-    period: "/mês",
+    tier: "pro",
+    prices: {
+      monthly: 197,
+      yearly: 1891,  // ~20% desconto
+    },
     description: "Para empresas em crescimento",
     features: [
       "Propostas ilimitadas",
@@ -142,8 +154,11 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "R$497",
-    period: "/mês",
+    tier: "enterprise",
+    prices: {
+      monthly: 497,
+      yearly: 4771,  // ~20% desconto
+    },
     description: "Para grandes operações",
     features: [
       "Tudo do Professional",
@@ -153,7 +168,7 @@ const plans = [
       "SLA garantido",
       "Onboarding dedicado",
     ],
-    cta: "Falar com Vendas",
+    cta: "Assinar Agora",
     popular: false,
   },
 ];
@@ -168,13 +183,72 @@ const navLinks = [
 export default function LandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
 
   useEffect(() => {
-    // Check if user is logged in, redirect to dashboard if so
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const fetchPlans = async () => {
+      try {
+        const fetchedPlans = await PlanService.getPlans();
+        if (fetchedPlans && fetchedPlans.length > 0) {
+          const mappedPlans = fetchedPlans.map(p => ({
+            name: p.name,
+            tier: p.tier,
+            prices: p.pricing || { monthly: p.price, yearly: p.price * 12 },
+            description: p.description,
+            features: [
+              p.features.maxProposals === -1 ? "Propostas ilimitadas" : `Até ${p.features.maxProposals} propostas/mês`,
+              p.features.maxUsers === -1 ? "Usuários ilimitados" : `${p.features.maxUsers} usuários`,
+              p.features.customBranding ? "Customização de marca" : null,
+              p.features.prioritySupport ? "Suporte prioritário" : "Suporte por email",
+              p.features.apiAccess ? "API de integração" : null,
+              p.features.advancedReports ? "Relatórios avançados" : "Relatórios básicos",
+              // Adicionar features extras se existirem no objeto features (ex: enterprise)
+              ...(p.tier === 'enterprise' ? ["Multi-tenant", "SLA garantido", "Onboarding dedicado"] : [])
+            ].filter(Boolean),
+            cta: "Assinar Agora",
+            popular: p.highlighted
+          }));
+          setPlans(mappedPlans);
+        }
+      } catch (error) {
+        console.error("Failed to fetch plans:", error);
+      }
+    };
+    fetchPlans();
+  }, []);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        router.replace("/dashboard");
+        // Fetch user data from Firestore to check role
+        const { doc, getDoc } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            // Only redirect to dashboard if user has ERP access (not free)
+            if (userData.role !== "free") {
+              router.replace("/dashboard");
+              return;
+            }
+            setCurrentUser({ id: user.uid, ...userData });
+          } else {
+            // User exists in Firebase Auth but not in Firestore - sign them out
+            console.warn("User document not found in Firestore, signing out...");
+            await signOut(auth);
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+        setIsCheckingAuth(false);
       } else {
+        setCurrentUser(null);
         setIsCheckingAuth(false);
       }
     });
@@ -186,7 +260,7 @@ export default function LandingPage() {
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+        <Sparkles className="h-10 w-10 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -228,19 +302,59 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          {/* Buttons */}
+          {/* Buttons / User Menu */}
           <div className="flex items-center gap-3">
-            <Link href="/login" className="hidden md:block">
-              <button className="px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg font-medium transition-all duration-200 cursor-pointer">
-                Entrar
-              </button>
-            </Link>
-            <Link href="/login" className="hidden md:block">
-              <button className="group relative px-5 py-2.5 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105">
-                <span>Começar Agora</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </button>
-            </Link>
+            {currentUser ? (
+              // Logged in user - show profile
+              <div className="relative group">
+                <button className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 transition-all duration-200">
+                  <div className="flex flex-col items-end hidden sm:flex">
+                    <span className="text-sm font-medium text-white">{currentUser.name}</span>
+                    <span className="text-xs text-neutral-400 capitalize">
+                      {currentUser.role === 'free' ? 'Conta Gratuita' : currentUser.role}
+                    </span>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-neutral-400 hidden sm:block" />
+                </button>
+                {/* Dropdown */}
+                <div className="absolute right-0 top-full mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="p-3 border-b border-neutral-800">
+                    <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
+                    <p className="text-xs text-neutral-400 truncate">{currentUser.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={async () => {
+                        await signOut(auth);
+                        setCurrentUser(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Not logged in - show login buttons
+              <>
+                <Link href="/login" className="hidden md:block">
+                  <button className="px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg font-medium transition-all duration-200 cursor-pointer">
+                    Entrar
+                  </button>
+                </Link>
+                <Link href="/login" className="hidden md:block">
+                  <button className="group relative px-5 py-2.5 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105">
+                    <span>Começar Agora</span>
+                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </button>
+                </Link>
+              </>
+            )}
             {/* Mobile Menu */}
             <MobileMenu links={navLinks} />
           </div>
@@ -302,7 +416,7 @@ export default function LandingPage() {
             />
             <SpotlightCard
               index={3}
-              icon={<BarChart3 className="w-7 h-7" />}
+              icon={<BarChart className="w-7 h-7" />}
               title="Dashboard Inteligente"
               description="Visualize métricas importantes em tempo real. Acompanhe vendas, metas e desempenho da equipe."
             />
@@ -405,7 +519,7 @@ export default function LandingPage() {
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 group-hover:shadow-amber-500/50 transition-shadow">
-                    <BarChart3 className="w-8 h-8 text-white" />
+                    <BarChart className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">Acompanhe resultados</h3>
@@ -447,6 +561,21 @@ export default function LandingPage() {
               Escolha o plano ideal para sua empresa e comece a transformar sua
               gestão hoje mesmo.
             </motion.p>
+
+            {/* Billing Interval Toggle */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-8"
+            >
+              <BillingToggle
+                id="home-toggle"
+                value={billingInterval}
+                onChange={setBillingInterval}
+              />
+            </motion.div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -486,10 +615,27 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mb-6">
+                  {billingInterval === 'yearly' && (
+                    <div className="text-sm text-neutral-500 line-through mb-1">
+                      R${(plan.prices.monthly * 12).toLocaleString('pt-BR')}/ano
+                    </div>
+                  )}
                   <span className="text-3xl md:text-4xl font-bold">
-                    <AnimatedGradientText>{plan.price}</AnimatedGradientText>
+                    <AnimatedGradientText>
+                      R${billingInterval === 'yearly'
+                        ? plan.prices.yearly.toLocaleString('pt-BR')
+                        : plan.prices.monthly.toLocaleString('pt-BR')
+                      }
+                    </AnimatedGradientText>
                   </span>
-                  <span className="text-neutral-400">{plan.period}</span>
+                  <span className="text-neutral-400">
+                    {billingInterval === 'yearly' ? '/ano' : '/mês'}
+                  </span>
+                  {billingInterval === 'yearly' && (
+                    <div className="text-sm text-emerald-400 mt-1">
+                      Equivale a R${Math.round(plan.prices.yearly / 12).toLocaleString('pt-BR')}/mês
+                    </div>
+                  )}
                 </div>
 
                 {/* Features list with flex-grow to push button to bottom */}
@@ -517,7 +663,7 @@ export default function LandingPage() {
                 </ul>
 
                 {/* Button always at bottom */}
-                <Link href="/login" className="mt-auto">
+                <Link href={`/subscribe?plan=${plan.tier}&interval=${billingInterval}`} className="mt-auto">
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
