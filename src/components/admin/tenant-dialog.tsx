@@ -107,14 +107,64 @@ export function TenantDialog({ isOpen, onClose, initialData, onSave }: TenantDia
                             </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="logo" className="text-right">Logo URL</Label>
-                            <Input
-                                id="logo"
-                                placeholder="https://..."
-                                value={formData.logoUrl}
-                                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                                className="col-span-3"
-                            />
+                            <Label htmlFor="logo" className="text-right">Logo</Label>
+                            <div className="col-span-3 space-y-2">
+                                <div className="flex items-center gap-3">
+                                    {/* Preview */}
+                                    {formData.logoUrl ? (
+                                        <div className="relative w-16 h-16 rounded-lg border overflow-hidden bg-muted">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={formData.logoUrl}
+                                                alt="Logo preview"
+                                                className="w-full h-full object-contain"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, logoUrl: "" })}
+                                                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center hover:bg-destructive/80"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="w-16 h-16 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50">
+                                            <span className="text-2xl text-muted-foreground">
+                                                {formData.name ? formData.name.charAt(0).toUpperCase() : "?"}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {/* Upload button */}
+                                    <div className="flex-1">
+                                        <Input
+                                            id="logo"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) {
+                                                    // Validate size (max 300KB)
+                                                    if (file.size > 300 * 1024) {
+                                                        alert("O logo deve ter no máximo 300KB.")
+                                                        e.target.value = ""
+                                                        return
+                                                    }
+                                                    // Convert to Base64
+                                                    const reader = new FileReader()
+                                                    reader.onload = (event) => {
+                                                        setFormData({ ...formData, logoUrl: event.target?.result as string })
+                                                    }
+                                                    reader.readAsDataURL(file)
+                                                }
+                                            }}
+                                            className="cursor-pointer"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            PNG, JPG ou SVG. Máximo 300KB.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="niche" className="text-right">Nicho</Label>

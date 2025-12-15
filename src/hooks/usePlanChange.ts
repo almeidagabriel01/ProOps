@@ -9,6 +9,9 @@ import { PlanService } from "@/services/plan-service";
 import { UserService } from "@/services/user-service";
 
 interface UsePlanChangeReturn {
+    // User data
+    effectiveUser: User | null;
+    
     // Plan data
     userPlan: UserPlan | null;
     allPlans: UserPlan[];
@@ -282,6 +285,7 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
     };
 
     return {
+        effectiveUser,
         userPlan,
         allPlans,
         isLoading,

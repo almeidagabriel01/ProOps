@@ -16,6 +16,7 @@ export default function ProfilePage() {
     const { tenant } = useTenant();
 
     const {
+        effectiveUser,
         userPlan,
         allPlans,
         isLoading,
@@ -47,8 +48,8 @@ export default function ProfilePage() {
                     </p>
                 </div>
 
-                {/* Profile Card */}
-                <ProfileHeader user={user} tenant={tenant} />
+                {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
+                <ProfileHeader user={effectiveUser} tenant={tenant} />
 
                 {/* Plans Section */}
                 {!isLoading && allPlans.length > 0 && (

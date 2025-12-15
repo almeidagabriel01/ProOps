@@ -26,10 +26,19 @@ export function ProfileHeader({ user, tenant }: ProfileHeaderProps) {
         <Card>
             <CardHeader className="pb-4">
                 <div className="flex items-start gap-4">
-                    {/* Avatar */}
-                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/20 flex items-center justify-center shrink-0">
-                        <UserIcon className="w-10 h-10 text-primary" />
-                    </div>
+                    {/* Avatar - Show tenant logo if available */}
+                    {tenant?.logoUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                            src={tenant.logoUrl}
+                            alt={tenant.name}
+                            className="h-20 w-20 object-contain shrink-0"
+                        />
+                    ) : (
+                        <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/20 flex items-center justify-center shrink-0">
+                            <UserIcon className="w-10 h-10 text-primary" />
+                        </div>
+                    )}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                             <div>
