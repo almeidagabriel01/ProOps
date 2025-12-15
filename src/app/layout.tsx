@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
 import {
   Sidebar,
   COLLAPSED_WIDTH,
@@ -79,6 +81,18 @@ export default function RootLayout({
             </TenantProvider>
           </AuthProvider>
         )}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
       </body>
     </html>
   );

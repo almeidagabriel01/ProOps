@@ -24,7 +24,9 @@ export type User = {
     password?: string // Kept for types compatibility, but Firebase Auth handles passwords
     role: 'admin' | 'user' | 'superadmin'
     planId?: string // Reference to user's subscription plan
-    // Firebase related fields might be added here later
+    stripeCustomerId?: string // Stripe customer ID
+    stripeSubscriptionId?: string // Active Stripe subscription ID
+    planUpdatedAt?: string // Last plan change date
 }
 
 // Subscription Plans
@@ -48,8 +50,9 @@ export type UserPlan = {
     description: string
     price: number              // Monthly price in BRL
     features: PlanFeatures
-    order: number              // For sorting/hierarchy (1 = lowest, 4 = highest)
+    order: number              // For sorting/hierarchy (1 = lowest, 3 = highest)
     highlighted?: boolean      // To highlight a recommended plan
+    stripePriceId?: string     // Stripe Price ID for checkout
     createdAt: string
 }
 
