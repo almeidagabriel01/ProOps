@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 // Routes that free users CAN access (besides home page which is public)
-const FREE_USER_ALLOWED_ROUTES = ["/subscribe", "/profile", "/checkout-success"];
+const FREE_USER_ALLOWED_ROUTES = ["/subscribe", "/checkout-success"];
 
 // Routes that handle their own auth logic (don't need protection layer)
 const SELF_HANDLED_AUTH_ROUTES = ["/login", "/subscribe", "/checkout-success"];

@@ -2,21 +2,27 @@ import { UserPlan } from "@/types";
 
 // Plan preview data from Stripe
 export interface PlanPreview {
-    currentPlan: { tier: string; price: number };
-    newPlan: { tier: string; price: number };
+    currentPlan: {
+        tier: string;
+        price: number;
+        interval: 'monthly' | 'yearly';
+    };
+    newPlan: {
+        tier: string;
+        price: number;
+        interval: 'monthly' | 'yearly';
+    };
     amountDue: number;
     creditAmount: number;
     isUpgrade: boolean;
     isDowngrade: boolean;
-    paymentMethod: PaymentMethod | null;
+    paymentMethod: {
+        brand: string;
+        last4: string;
+        expMonth: number;
+        expYear: number;
+    } | null;
     nextBillingDate: string;
-}
-
-export interface PaymentMethod {
-    brand: string;
-    last4: string;
-    expMonth: number;
-    expYear: number;
 }
 
 // Plan change modal state

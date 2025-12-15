@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripe, getPriceIdForTier } from '@/lib/stripe';
+import { getStripe, getPriceIdForTier, BillingInterval } from '@/lib/stripe';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
@@ -17,7 +17,7 @@ async function getPlanIdByTier(tier: string): Promise<string | null> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, planTier, userEmail } = body;
+    const { userId, planTier, userEmail, billingInterval = 'monthly' } = body;
 
     if (!userId || !planTier) {
       return NextResponse.json(
@@ -26,8 +26,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the price ID for the selected plan
-    const priceId = getPriceIdForTier(planTier);
+    // Validate billing interval
+    const validInterval: BillingInterval = billingInterval === 'yearly' ? 'yearly' : 'monthly';
+
+    // Get the price ID for the selected plan and interval
+    const priceId = getPriceIdForTier(planTier, validInterval);
     if (!priceId) {
       return NextResponse.json(
         { error: 'Invalid plan tier or price not configured' },
@@ -76,6 +79,7 @@ export async function POST(request: NextRequest) {
               metadata: {
                 userId: userId,
                 planTier: planTier,
+                billingInterval: validInterval,
               },
             });
 
@@ -84,6 +88,7 @@ export async function POST(request: NextRequest) {
             if (planId) {
               await updateDoc(userRef, {
                 planId: planId,
+                billingInterval: validInterval,
                 planUpdatedAt: new Date().toISOString(),
               });
             }
@@ -133,11 +138,13 @@ export async function POST(request: NextRequest) {
       metadata: {
         userId: userId,
         planTier: planTier,
+        billingInterval: validInterval,
       },
       subscription_data: {
         metadata: {
           userId: userId,
           planTier: planTier,
+          billingInterval: validInterval,
         },
       },
     });

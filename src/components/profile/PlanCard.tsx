@@ -1,5 +1,3 @@
-"use client";
-
 import {
     Card,
     CardContent,
@@ -15,7 +13,7 @@ import {
     Check,
     Loader2,
 } from "lucide-react";
-import { UserPlan } from "@/types";
+import { UserPlan, BillingInterval } from "@/types";
 import { TIER_COLORS } from "@/types/plan";
 import { formatPrice, formatLimit } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -28,6 +26,7 @@ const tierIcons: Record<string, React.ElementType> = {
 
 interface PlanCardProps {
     plan: UserPlan;
+    billingInterval: BillingInterval;
     isCurrent: boolean;
     canUpgrade: boolean;
     isProcessing: boolean;
@@ -38,6 +37,7 @@ interface PlanCardProps {
 
 export function PlanCard({
     plan,
+    billingInterval,
     isCurrent,
     canUpgrade,
     isProcessing,
@@ -46,6 +46,15 @@ export function PlanCard({
     onDowngrade,
 }: PlanCardProps) {
     const Icon = tierIcons[plan.tier];
+
+    // Get display price based on billing interval
+    const displayPrice = billingInterval === 'yearly' && plan.pricing
+        ? plan.pricing.yearly
+        : plan.pricing?.monthly || plan.price;
+
+    const monthlyEquivalent = billingInterval === 'yearly' && plan.pricing
+        ? Math.round(plan.pricing.yearly / 12)
+        : null;
 
     return (
         <Card
@@ -88,11 +97,23 @@ export function PlanCard({
             <CardContent className="space-y-4 pt-0 flex-1">
                 {/* Price */}
                 <div className="text-center">
+                    {billingInterval === 'yearly' && plan.pricing && (
+                        <div className="text-sm text-muted-foreground line-through mb-1">
+                            {formatPrice(plan.pricing.monthly * 12)}/ano
+                        </div>
+                    )}
                     <span className="text-2xl font-bold">
-                        {formatPrice(plan.price)}
+                        {formatPrice(displayPrice)}
                     </span>
-                    {plan.price > 0 && (
-                        <span className="text-muted-foreground text-sm">/mês</span>
+                    {displayPrice > 0 && (
+                        <span className="text-muted-foreground text-sm">
+                            {billingInterval === 'yearly' ? '/ano' : '/mês'}
+                        </span>
+                    )}
+                    {monthlyEquivalent && (
+                        <div className="text-sm text-emerald-600 mt-1">
+                            Equivale a {formatPrice(monthlyEquivalent)}/mês
+                        </div>
                     )}
                 </div>
 

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
-import { UserPlan, User, Tenant } from "@/types";
+import { UserPlan, User, Tenant, BillingInterval } from "@/types";
 import { PlanPreview } from "@/types/plan";
 import { PlanService } from "@/services/plan-service";
 import { UserService } from "@/services/user-service";
@@ -16,6 +16,10 @@ interface UsePlanChangeReturn {
     userPlan: UserPlan | null;
     allPlans: UserPlan[];
     isLoading: boolean;
+    
+    // Billing interval
+    billingInterval: BillingInterval;
+    setBillingInterval: (interval: BillingInterval) => void;
     
     // Plan change modal
     dialogOpen: boolean;
@@ -56,6 +60,9 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
     const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
     const [downgradingPlan, setDowngradingPlan] = useState<string | null>(null);
     const [openingPortal, setOpeningPortal] = useState(false);
+    
+    // Billing interval
+    const [billingInterval, setBillingInterval] = useState<BillingInterval>('monthly');
     
     // Modal state
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -146,17 +153,28 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
         loadPlans();
     }, [effectiveUser?.planId]);
 
-    const isCurrentPlan = useCallback((plan: UserPlan) => {
-        return (
-            userPlan?.id === plan.id ||
-            (!userPlan && plan.tier === "starter") ||
-            userPlan?.tier === plan.tier
-        );
-    }, [userPlan]);
+    const isCurrentPlan = (plan: UserPlan) => {
+        // Check if plan tier matches AND billing interval matches
+        // If user has no billingInterval set (legacy), default to monthly
+        const userInterval = effectiveUser?.billingInterval || 'monthly';
+        return userPlan?.tier === plan.tier && userInterval === billingInterval;
+    };
 
     const canUpgrade = useCallback((plan: UserPlan) => {
-        return userPlan ? plan.order > userPlan.order : plan.tier !== "starter";
-    }, [userPlan]);
+        if (!userPlan) return true;
+        
+        if (plan.order > userPlan.order) return true;
+        if (plan.order < userPlan.order) return false;
+        
+        // Same tier: check billing interval
+        // If user is Monthly and viewing Yearly -> Upgrade
+        const currentInterval = effectiveUser?.billingInterval || 'monthly';
+        if (currentInterval === 'monthly' && billingInterval === 'yearly') {
+            return true;
+        }
+        
+        return false;
+    }, [userPlan, effectiveUser, billingInterval]);
 
     const showPlanChangeConfirmation = async (plan: UserPlan) => {
         if (!effectiveUser) return;
@@ -183,6 +201,7 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
                     body: JSON.stringify({
                         userId: effectiveUser.id,
                         newPlanTier: plan.tier,
+                        billingInterval: billingInterval,
                     }),
                 });
 
@@ -235,6 +254,7 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
                     userId: effectiveUser.id,
                     planTier: selectedPlan.tier,
                     userEmail: effectiveUser.email,
+                    billingInterval: billingInterval,
                 }),
             });
 
@@ -290,6 +310,8 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
         userPlan,
         allPlans,
         isLoading,
+        billingInterval,
+        setBillingInterval,
         dialogOpen,
         selectedPlan,
         planPreview,

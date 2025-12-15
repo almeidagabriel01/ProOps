@@ -6,7 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, newPlanTier } = body;
+    const { userId, newPlanTier, billingInterval } = body;
 
     if (!userId || !newPlanTier) {
       return NextResponse.json(
@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // Default to monthly if not specified, ensuring valid type
+    const targetInterval: 'monthly' | 'yearly' = billingInterval === 'yearly' ? 'yearly' : 'monthly';
 
     const stripe = getStripe();
 
@@ -41,16 +44,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Get new price ID
-    const newPriceId = getPriceIdForTier(newPlanTier);
+    const newPriceId = getPriceIdForTier(newPlanTier, targetInterval);
     if (!newPriceId) {
       return NextResponse.json(
-        { error: 'Invalid plan tier' },
+        { error: 'Invalid plan tier or interval' },
         { status: 400 }
       );
     }
 
     // Get current subscription
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    
+    // Use the customer ID from the subscription to ensure match
+    // This fixes "subscription does not belong to customer" errors if DB is out of sync
+    const activeCustomerId = typeof subscription.customer === 'string' 
+      ? subscription.customer 
+      : subscription.customer.id;
+
     const subscriptionItemId = subscription.items.data[0]?.id;
     const currentPriceId = subscription.items.data[0]?.price?.id;
 
@@ -63,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Get proration preview using upcoming invoice
     const preview = await stripe.invoices.createPreview({
-      customer: customerId,
+      customer: activeCustomerId,
       subscription: subscriptionId,
       subscription_details: {
         items: [
@@ -124,10 +134,12 @@ export async function POST(request: NextRequest) {
         currentPlan: {
           tier: subscription.metadata?.planTier || 'unknown',
           price: currentAmount,
+          interval: currentPrice.recurring?.interval === 'year' ? 'yearly' : 'monthly',
         },
         newPlan: {
           tier: newPlanTier,
           price: newAmount,
+          interval: targetInterval,
         },
         amountDue,
         creditAmount,
@@ -140,7 +152,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating preview:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create preview' },
+      { 
+        error: error.message || 'Failed to create preview',
+        details: error.type || 'Unknown error type' 
+      },
       { status: 500 }
     );
   }

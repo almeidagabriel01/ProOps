@@ -24,6 +24,7 @@ export type User = {
     password?: string // Kept for types compatibility, but Firebase Auth handles passwords
     role: 'admin' | 'user' | 'superadmin' | 'free'
     planId?: string // Reference to user's subscription plan
+    billingInterval?: BillingInterval // 'monthly' | 'yearly'
     stripeCustomerId?: string // Stripe customer ID
     stripeSubscriptionId?: string // Active Stripe subscription ID
     planUpdatedAt?: string // Last plan change date
@@ -31,6 +32,13 @@ export type User = {
 
 // Subscription Plans
 export type PlanTier = 'starter' | 'pro' | 'enterprise'
+
+export type BillingInterval = 'monthly' | 'yearly'
+
+export type PlanPricing = {
+    monthly: number;  // Preço mensal
+    yearly: number;   // Preço anual total
+}
 
 export type PlanFeatures = {
     maxProposals: number      // -1 for unlimited
@@ -48,11 +56,12 @@ export type UserPlan = {
     name: string
     tier: PlanTier
     description: string
-    price: number              // Monthly price in BRL
+    price: number              // Monthly price in BRL (for compatibility)
+    pricing?: PlanPricing      // Multi-interval pricing
     features: PlanFeatures
     order: number              // For sorting/hierarchy (1 = lowest, 3 = highest)
     highlighted?: boolean      // To highlight a recommended plan
-    stripePriceId?: string     // Stripe Price ID for checkout
+    stripePriceId?: string     // Legacy: Stripe Price ID for checkout
     createdAt: string
 }
 

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { DEFAULT_PLANS } from '@/services/plan-service';
+
+import { fetchPlansFromStripe } from '@/lib/stripe-sync';
 
 async function getPlanIdByTier(tier: string): Promise<string | null> {
   const plansRef = collection(db, 'plans');
@@ -11,6 +14,34 @@ async function getPlanIdByTier(tier: string): Promise<string | null> {
   if (!snapshot.empty) {
     return snapshot.docs[0].id;
   }
+
+  // If plan not found in Firestore, try to find in defaults and create it
+  // BUT use Stripe prices if available to ensure consistency
+  const defaultPlan = DEFAULT_PLANS.find(p => p.tier === tier);
+  
+  if (defaultPlan) {
+    try {
+      // Try to fetch fresh data from Stripe to get correct pricing
+      const stripePlans = await fetchPlansFromStripe();
+      const stripePlan = stripePlans.find(p => p.tier === tier);
+      
+      const planToSeed = {
+        ...defaultPlan,
+        ...(stripePlan ? {
+            price: stripePlan.price,
+            pricing: stripePlan.pricing
+        } : {})
+      };
+
+      const docRef = await addDoc(plansRef, planToSeed);
+      console.log(`Seeded missing plan: ${tier} (${docRef.id}) with price ${planToSeed.price}`);
+      return docRef.id;
+    } catch (error) {
+      console.error(`Error seeding plan ${tier}:`, error);
+      return null;
+    }
+  }
+
   return null;
 }
 
@@ -63,6 +94,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine billing interval from session metadata or subscription
+    let billingInterval = session.metadata?.billingInterval;
+    
+    // Fallback: try to determine from subscription items if not in metadata
+    if (!billingInterval && session.subscription && typeof session.subscription !== 'string') {
+       const price = session.subscription.items.data[0]?.price;
+       if (price?.recurring?.interval === 'year') {
+         billingInterval = 'yearly';
+       } else {
+         billingInterval = 'monthly';
+       }
+    }
+
     // Update user in Firestore
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
@@ -70,6 +114,7 @@ export async function POST(request: NextRequest) {
       stripeSubscriptionId: subscriptionId || null,
       planUpdatedAt: new Date().toISOString(),
       role: 'admin', // Upgrade from free to admin
+      billingInterval: billingInterval || 'monthly', // Save the interval!
     });
 
     console.log(`Confirmed checkout for user ${userId}, upgraded to ${planTier} (${planId})`);

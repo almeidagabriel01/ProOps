@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           planId: userData.planId || undefined,
           stripeCustomerId: userData.stripeCustomerId || undefined,
           stripeSubscriptionId: userData.stripeSubscriptionId || undefined,
+          billingInterval: userData.billingInterval || undefined,
         } as User;
       } else {
         console.warn("User document not found in Firestore, treating as free user.");
