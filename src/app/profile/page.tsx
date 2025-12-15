@@ -10,8 +10,9 @@ import {
     PlanCard,
     PlanChangeDialog
 } from "@/components/profile";
+import { Suspense } from "react";
 
-export default function ProfilePage() {
+function ProfileContent() {
     const { user } = useAuth();
     const { tenant } = useTenant();
 
@@ -49,7 +50,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
-                <ProfileHeader user={effectiveUser} tenant={tenant} />
+                <ProfileHeader user={effectiveUser} tenant={tenant} userPlan={userPlan} />
 
                 {/* Plans Section */}
                 {!isLoading && allPlans.length > 0 && (
@@ -115,5 +116,17 @@ export default function ProfilePage() {
                 onManagePayment={handleManagePayment}
             />
         </>
+    );
+}
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        }>
+            <ProfileContent />
+        </Suspense>
     );
 }

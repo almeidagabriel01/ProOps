@@ -27,8 +27,10 @@ async function updateUserPlan(userId: string, planTier: string, stripeSubscripti
       planId: planId,
       stripeSubscriptionId: stripeSubscriptionId,
       planUpdatedAt: new Date().toISOString(),
+      // Update role from 'free' to 'admin' when user subscribes
+      role: 'admin',
     });
-    console.log(`Updated user ${userId} to plan ${planTier} (${planId})`);
+    console.log(`Updated user ${userId} to plan ${planTier} (${planId}) with role admin`);
   } else {
     console.error(`Plan not found for tier: ${planTier}`);
   }

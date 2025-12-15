@@ -36,8 +36,8 @@ export default function RootLayout({
   // Landing page - completely isolated from ERP (no providers)
   const isLandingPage = pathname === "/";
 
-  // Login page - needs auth provider but no sidebar
-  const isLoginPage = pathname === "/login";
+  // Pages that need auth provider but no sidebar/header (login, subscribe, checkout-success)
+  const isAuthOnlyPage = pathname === "/login" || pathname.startsWith("/subscribe") || pathname.startsWith("/checkout-success");
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
@@ -53,7 +53,7 @@ export default function RootLayout({
           <AuthProvider>
             <TenantProvider>
               <ProtectedRoute>
-                {isLoginPage ? (
+                {isAuthOnlyPage ? (
                   <main className="min-h-screen flex flex-col">{children}</main>
                 ) : (
                   <div className="flex h-screen overflow-hidden bg-card">

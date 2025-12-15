@@ -18,11 +18,11 @@ export type Tenant = {
 
 export type User = {
     id: string
-    tenantId: string
+    tenantId?: string // Optional for free users
     name: string
     email: string
     password?: string // Kept for types compatibility, but Firebase Auth handles passwords
-    role: 'admin' | 'user' | 'superadmin'
+    role: 'admin' | 'user' | 'superadmin' | 'free'
     planId?: string // Reference to user's subscription plan
     stripeCustomerId?: string // Stripe customer ID
     stripeSubscriptionId?: string // Active Stripe subscription ID

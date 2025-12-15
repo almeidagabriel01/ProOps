@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { HeroParallax } from "@/components/ui/hero-parallax";
-import { Check, ArrowRight, Sparkles, Loader2, FileText, Users, Package, BarChart3, Shield, Zap } from "lucide-react";
+import { Check, ArrowRight, Sparkles, Loader2, FileText, Users, Package, BarChart3, Shield, Zap, User as UserIcon, LogOut, ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
 import { AnimatedText, AnimatedGradientText } from "@/components/ui/animated-text";
 import { ParticlesBackground } from "@/components/ui/particles-background";
@@ -112,6 +112,7 @@ const products = [
 const plans = [
   {
     name: "Starter",
+    tier: "starter",
     price: "R$97",
     period: "/mês",
     description: "Ideal para pequenos negócios",
@@ -121,11 +122,12 @@ const plans = [
       "Relatórios básicos",
       "Suporte por email",
     ],
-    cta: "Começar Grátis",
+    cta: "Assinar Agora",
     popular: false,
   },
   {
     name: "Professional",
+    tier: "pro",
     price: "R$197",
     period: "/mês",
     description: "Para empresas em crescimento",
@@ -142,6 +144,7 @@ const plans = [
   },
   {
     name: "Enterprise",
+    tier: "enterprise",
     price: "R$497",
     period: "/mês",
     description: "Para grandes operações",
@@ -153,7 +156,7 @@ const plans = [
       "SLA garantido",
       "Onboarding dedicado",
     ],
-    cta: "Falar com Vendas",
+    cta: "Assinar Agora",
     popular: false,
   },
 ];
@@ -168,13 +171,38 @@ const navLinks = [
 export default function LandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
-    // Check if user is logged in, redirect to dashboard if so
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Check if user is logged in
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        router.replace("/dashboard");
+        // Fetch user data from Firestore to check role
+        const { doc, getDoc } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            // Only redirect to dashboard if user has ERP access (not free)
+            if (userData.role !== "free") {
+              router.replace("/dashboard");
+              return;
+            }
+            setCurrentUser({ id: user.uid, ...userData });
+          } else {
+            // User exists in Firebase Auth but not in Firestore - sign them out
+            console.warn("User document not found in Firestore, signing out...");
+            await signOut(auth);
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+        setIsCheckingAuth(false);
       } else {
+        setCurrentUser(null);
         setIsCheckingAuth(false);
       }
     });
@@ -228,19 +256,59 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          {/* Buttons */}
+          {/* Buttons / User Menu */}
           <div className="flex items-center gap-3">
-            <Link href="/login" className="hidden md:block">
-              <button className="px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg font-medium transition-all duration-200 cursor-pointer">
-                Entrar
-              </button>
-            </Link>
-            <Link href="/login" className="hidden md:block">
-              <button className="group relative px-5 py-2.5 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105">
-                <span>Começar Agora</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </button>
-            </Link>
+            {currentUser ? (
+              // Logged in user - show profile
+              <div className="relative group">
+                <button className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 transition-all duration-200">
+                  <div className="flex flex-col items-end hidden sm:flex">
+                    <span className="text-sm font-medium text-white">{currentUser.name}</span>
+                    <span className="text-xs text-neutral-400 capitalize">
+                      {currentUser.role === 'free' ? 'Conta Gratuita' : currentUser.role}
+                    </span>
+                  </div>
+                  <div className="h-9 w-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-neutral-400 hidden sm:block" />
+                </button>
+                {/* Dropdown */}
+                <div className="absolute right-0 top-full mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="p-3 border-b border-neutral-800">
+                    <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
+                    <p className="text-xs text-neutral-400 truncate">{currentUser.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={async () => {
+                        await signOut(auth);
+                        setCurrentUser(null);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sair
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Not logged in - show login buttons
+              <>
+                <Link href="/login" className="hidden md:block">
+                  <button className="px-4 py-2 text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg font-medium transition-all duration-200 cursor-pointer">
+                    Entrar
+                  </button>
+                </Link>
+                <Link href="/login" className="hidden md:block">
+                  <button className="group relative px-5 py-2.5 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 rounded-xl font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 hover:scale-105">
+                    <span>Começar Agora</span>
+                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </button>
+                </Link>
+              </>
+            )}
             {/* Mobile Menu */}
             <MobileMenu links={navLinks} />
           </div>
@@ -517,7 +585,7 @@ export default function LandingPage() {
                 </ul>
 
                 {/* Button always at bottom */}
-                <Link href="/login" className="mt-auto">
+                <Link href={`/subscribe?plan=${plan.tier}`} className="mt-auto">
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}

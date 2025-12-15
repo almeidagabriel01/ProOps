@@ -27,6 +27,8 @@ export function getRoleLabel(role: string): string {
             return "Administrador";
         case "user":
             return "Usuário";
+        case "free":
+            return "Gratuito";
         default:
             return role;
     }
@@ -35,12 +37,14 @@ export function getRoleLabel(role: string): string {
 /**
  * Get role badge variant
  */
-export function getRoleBadgeVariant(role: string): "default" | "outline" | "destructive" {
+export function getRoleBadgeVariant(role: string): "default" | "outline" | "destructive" | "secondary" {
     switch (role) {
         case "superadmin":
             return "destructive";
         case "admin":
             return "default";
+        case "free":
+            return "secondary";
         default:
             return "outline";
     }

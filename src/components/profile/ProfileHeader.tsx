@@ -12,16 +12,18 @@ import {
     Mail,
     Building2,
     Shield,
+    Crown,
 } from "lucide-react";
-import { User, Tenant } from "@/types";
+import { User, Tenant, UserPlan } from "@/types";
 import { getRoleLabel, getRoleBadgeVariant } from "@/utils/format";
 
 interface ProfileHeaderProps {
     user: User | null;
     tenant: Tenant | null;
+    userPlan?: UserPlan | null;
 }
 
-export function ProfileHeader({ user, tenant }: ProfileHeaderProps) {
+export function ProfileHeader({ user, tenant, userPlan }: ProfileHeaderProps) {
     return (
         <Card>
             <CardHeader className="pb-4">
@@ -60,12 +62,22 @@ export function ProfileHeader({ user, tenant }: ProfileHeaderProps) {
                             )}
                         </div>
                         <div className="flex gap-2 mt-3">
-                            <Badge
-                                variant={getRoleBadgeVariant(user?.role || "user")}
-                            >
-                                <Shield className="w-3 h-3 mr-1" />
-                                {getRoleLabel(user?.role || "user")}
-                            </Badge>
+                            {/* Plan badge - only show if not free */}
+                            {userPlan && (
+                                <Badge variant="success">
+                                    <Crown className="w-3 h-3 mr-1" />
+                                    {userPlan.name}
+                                </Badge>
+                            )}
+                            {/* Role badge - only show for non-standard roles */}
+                            {(user?.role === "superadmin" || user?.role === "free") && (
+                                <Badge
+                                    variant={getRoleBadgeVariant(user?.role || "user")}
+                                >
+                                    <Shield className="w-3 h-3 mr-1" />
+                                    {getRoleLabel(user?.role || "user")}
+                                </Badge>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -73,3 +85,4 @@ export function ProfileHeader({ user, tenant }: ProfileHeaderProps) {
         </Card>
     );
 }
+

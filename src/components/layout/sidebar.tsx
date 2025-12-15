@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/providers/tenant-provider";
 import {
@@ -15,6 +15,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -36,8 +38,29 @@ interface SidebarProps {
 export function Sidebar({ onExpandChange }: SidebarProps) {
   const pathname = usePathname();
   const { tenant } = useTenant();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [userPlanName, setUserPlanName] = useState<string | null>(null);
+
+  // Fetch user's current plan name
+  useEffect(() => {
+    const fetchPlanName = async () => {
+      if (!user?.planId) {
+        setUserPlanName(user?.role === 'free' ? 'Gratuito' : null);
+        return;
+      }
+      try {
+        const planDoc = await getDoc(doc(db, 'plans', user.planId));
+        if (planDoc.exists()) {
+          const planData = planDoc.data();
+          setUserPlanName(planData.name || planData.tier);
+        }
+      } catch (error) {
+        console.error('Error fetching plan:', error);
+      }
+    };
+    fetchPlanName();
+  }, [user?.planId, user?.role]);
 
   const handleMouseEnter = () => {
     setIsExpanded(true);
@@ -90,9 +113,9 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
             <span className="text-sm font-bold tracking-tight whitespace-nowrap">
               {tenant ? tenant.name : "ERP PRO"}
             </span>
-            {tenant && (
+            {tenant && userPlanName && (
               <span className="text-[10px] text-muted-foreground uppercase whitespace-nowrap">
-                Enterprise
+                {userPlanName}
               </span>
             )}
           </div>

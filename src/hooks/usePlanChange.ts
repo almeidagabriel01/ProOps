@@ -132,8 +132,9 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
                     const plan = await PlanService.getPlanById(targetPlanId);
                     setUserPlan(plan);
                 } else {
-                    const starterPlan = plans.find((p) => p.tier === "starter");
-                    setUserPlan(starterPlan || plans[0] || null);
+                    // Don't default to starter - leave null if no plan assigned
+                    // This prevents flash when user's data is still loading
+                    setUserPlan(null);
                 }
             } catch (error) {
                 console.error("Error loading plans:", error);
