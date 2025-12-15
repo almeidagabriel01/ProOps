@@ -136,11 +136,11 @@ function PreviewContent({
             <div className="p-4 bg-muted rounded-lg space-y-3">
                 <div className="flex justify-between text-sm">
                     <span>Plano atual ({preview.currentPlan.tier})</span>
-                    <span>{formatPrice(preview.currentPlan.price)}/mês</span>
+                    <span>{formatPrice(preview.currentPlan.price)}/{preview.currentPlan.interval === 'yearly' ? 'ano' : 'mês'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                     <span>Novo plano ({preview.newPlan.tier})</span>
-                    <span>{formatPrice(preview.newPlan.price)}/mês</span>
+                    <span>{formatPrice(preview.newPlan.price)}/{preview.newPlan.interval === 'yearly' ? 'ano' : 'mês'}</span>
                 </div>
                 {preview.creditAmount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-600">

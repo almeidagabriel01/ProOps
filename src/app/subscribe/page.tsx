@@ -13,6 +13,11 @@ const PLAN_NAMES: Record<string, string> = {
     enterprise: "Enterprise",
 };
 
+const INTERVAL_LABELS: Record<string, string> = {
+    monthly: "mensal",
+    yearly: "anual",
+};
+
 function SubscribeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -21,6 +26,7 @@ function SubscribeContent() {
     const [error, setError] = useState<string | null>(null);
 
     const planTier = searchParams.get("plan");
+    const billingInterval = searchParams.get("interval") || "monthly";
 
     useEffect(() => {
         // If no plan specified, redirect to home
@@ -34,7 +40,7 @@ function SubscribeContent() {
 
         // If not logged in, redirect to login with return URL
         if (!user) {
-            const returnUrl = encodeURIComponent(`/subscribe?plan=${planTier}`);
+            const returnUrl = encodeURIComponent(`/subscribe?plan=${planTier}&interval=${billingInterval}`);
             router.push(`/login?redirect=${returnUrl}`);
             return;
         }
@@ -57,6 +63,7 @@ function SubscribeContent() {
                     userId: user.id,
                     planTier: planTier,
                     userEmail: user.email,
+                    billingInterval: billingInterval,
                 }),
             });
 
@@ -119,7 +126,7 @@ function SubscribeContent() {
                 </h1>
                 <p className="text-neutral-400">
                     {planTier && PLAN_NAMES[planTier] ? (
-                        <>Você está assinando o plano <span className="text-violet-400 font-semibold">{PLAN_NAMES[planTier]}</span></>
+                        <>Você está assinando o plano <span className="text-violet-400 font-semibold">{PLAN_NAMES[planTier]}</span> ({INTERVAL_LABELS[billingInterval] || billingInterval})</>
                     ) : (
                         "Redirecionando..."
                     )}

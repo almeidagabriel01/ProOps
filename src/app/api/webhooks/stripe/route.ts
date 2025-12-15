@@ -18,19 +18,23 @@ async function getPlanIdByTier(tier: string): Promise<string | null> {
   return null;
 }
 
-async function updateUserPlan(userId: string, planTier: string, stripeSubscriptionId: string) {
+async function updateUserPlan(userId: string, planTier: string, stripeSubscriptionId: string, interval?: string) {
   const planId = await getPlanIdByTier(planTier);
+  
+  // Map Stripe interval to our type
+  const billingInterval = interval === 'year' ? 'yearly' : 'monthly';
   
   if (planId) {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       planId: planId,
+      billingInterval: billingInterval,
       stripeSubscriptionId: stripeSubscriptionId,
       planUpdatedAt: new Date().toISOString(),
       // Update role from 'free' to 'admin' when user subscribes
       role: 'admin',
     });
-    console.log(`Updated user ${userId} to plan ${planTier} (${planId}) with role admin`);
+    console.log(`Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval} with role admin`);
   } else {
     console.error(`Plan not found for tier: ${planTier}`);
   }
@@ -40,9 +44,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
   const planTier = session.metadata?.planTier;
   const subscriptionId = session.subscription as string;
+  const billingInterval = session.metadata?.billingInterval; // passed in checkout
 
   if (userId && planTier && subscriptionId) {
-    await updateUserPlan(userId, planTier, subscriptionId);
+    await updateUserPlan(userId, planTier, subscriptionId, billingInterval === 'yearly' ? 'year' : 'month');
   } else {
     console.error('Missing metadata in checkout session:', { userId, planTier, subscriptionId });
   }
@@ -51,9 +56,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const userId = subscription.metadata?.userId;
   const planTier = subscription.metadata?.planTier;
+  const interval = subscription.items.data[0]?.price.recurring?.interval;
 
   if (userId && planTier) {
-    await updateUserPlan(userId, planTier, subscription.id);
+    await updateUserPlan(userId, planTier, subscription.id, interval);
   }
 }
 

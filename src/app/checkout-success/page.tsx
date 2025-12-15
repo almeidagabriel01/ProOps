@@ -57,7 +57,8 @@ function CheckoutSuccessContent() {
             } catch (error) {
                 console.error("Error confirming checkout:", error);
                 setStatus("error");
-                setTimeout(() => router.push("/profile"), 3000);
+                // Redirect to home on error, as free users shouldn't access ERP
+                setTimeout(() => router.push("/"), 3000);
             }
         };
 

@@ -6,13 +6,19 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { HeroParallax } from "@/components/ui/hero-parallax";
-import { Check, ArrowRight, Sparkles, Loader2, FileText, Users, Package, BarChart3, Shield, Zap, User as UserIcon, LogOut, ChevronDown } from "lucide-react";
+import { ArrowRight, Check, Play, Star, Zap, Shield, Users, BarChart, Sparkles, Menu, X, ChevronDown, LogOut, FileText, Package } from "lucide-react";
 import { motion } from "motion/react";
 import { AnimatedText, AnimatedGradientText } from "@/components/ui/animated-text";
 import { ParticlesBackground } from "@/components/ui/particles-background";
 import { MobileMenu } from "@/components/ui/mobile-menu";
 import { SpotlightCard } from "@/components/ui/feature-card";
 import ScrollStack, { ScrollStackItem } from "@/components/ui/scroll-stack";
+import { BillingToggle } from "@/components/ui/billing-toggle";
+
+import { cn } from "@/lib/utils";
+
+import { PlanService } from "@/services/plan-service";
+import { UserPlan } from "@/types";
 
 // Screenshots/Features para o Hero Parallax
 const products = [
@@ -108,13 +114,15 @@ const products = [
   },
 ];
 
-// Planos
-const plans = [
+// Planos com preços por intervalo
+const INITIAL_PLANS = [
   {
     name: "Starter",
     tier: "starter",
-    price: "R$97",
-    period: "/mês",
+    prices: {
+      monthly: 97,
+      yearly: 931,  // ~20% desconto
+    },
     description: "Ideal para pequenos negócios",
     features: [
       "Até 100 propostas/mês",
@@ -128,8 +136,10 @@ const plans = [
   {
     name: "Professional",
     tier: "pro",
-    price: "R$197",
-    period: "/mês",
+    prices: {
+      monthly: 197,
+      yearly: 1891,  // ~20% desconto
+    },
     description: "Para empresas em crescimento",
     features: [
       "Propostas ilimitadas",
@@ -145,8 +155,10 @@ const plans = [
   {
     name: "Enterprise",
     tier: "enterprise",
-    price: "R$497",
-    period: "/mês",
+    prices: {
+      monthly: 497,
+      yearly: 4771,  // ~20% desconto
+    },
     description: "Para grandes operações",
     features: [
       "Tudo do Professional",
@@ -172,6 +184,40 @@ export default function LandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const fetchedPlans = await PlanService.getPlans();
+        if (fetchedPlans && fetchedPlans.length > 0) {
+          const mappedPlans = fetchedPlans.map(p => ({
+            name: p.name,
+            tier: p.tier,
+            prices: p.pricing || { monthly: p.price, yearly: p.price * 12 },
+            description: p.description,
+            features: [
+              p.features.maxProposals === -1 ? "Propostas ilimitadas" : `Até ${p.features.maxProposals} propostas/mês`,
+              p.features.maxUsers === -1 ? "Usuários ilimitados" : `${p.features.maxUsers} usuários`,
+              p.features.customBranding ? "Customização de marca" : null,
+              p.features.prioritySupport ? "Suporte prioritário" : "Suporte por email",
+              p.features.apiAccess ? "API de integração" : null,
+              p.features.advancedReports ? "Relatórios avançados" : "Relatórios básicos",
+              // Adicionar features extras se existirem no objeto features (ex: enterprise)
+              ...(p.tier === 'enterprise' ? ["Multi-tenant", "SLA garantido", "Onboarding dedicado"] : [])
+            ].filter(Boolean),
+            cta: "Assinar Agora",
+            popular: p.highlighted
+          }));
+          setPlans(mappedPlans);
+        }
+      } catch (error) {
+        console.error("Failed to fetch plans:", error);
+      }
+    };
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     // Check if user is logged in
@@ -214,7 +260,7 @@ export default function LandingPage() {
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
+        <Sparkles className="h-10 w-10 animate-spin text-violet-500" />
       </div>
     );
   }
@@ -269,7 +315,7 @@ export default function LandingPage() {
                     </span>
                   </div>
                   <div className="h-9 w-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-violet-400" />
+                    <Users className="w-5 h-5 text-violet-400" />
                   </div>
                   <ChevronDown className="w-4 h-4 text-neutral-400 hidden sm:block" />
                 </button>
@@ -370,7 +416,7 @@ export default function LandingPage() {
             />
             <SpotlightCard
               index={3}
-              icon={<BarChart3 className="w-7 h-7" />}
+              icon={<BarChart className="w-7 h-7" />}
               title="Dashboard Inteligente"
               description="Visualize métricas importantes em tempo real. Acompanhe vendas, metas e desempenho da equipe."
             />
@@ -473,7 +519,7 @@ export default function LandingPage() {
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 group-hover:shadow-amber-500/50 transition-shadow">
-                    <BarChart3 className="w-8 h-8 text-white" />
+                    <BarChart className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">Acompanhe resultados</h3>
@@ -515,6 +561,21 @@ export default function LandingPage() {
               Escolha o plano ideal para sua empresa e comece a transformar sua
               gestão hoje mesmo.
             </motion.p>
+
+            {/* Billing Interval Toggle */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-8"
+            >
+              <BillingToggle
+                id="home-toggle"
+                value={billingInterval}
+                onChange={setBillingInterval}
+              />
+            </motion.div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -554,10 +615,27 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mb-6">
+                  {billingInterval === 'yearly' && (
+                    <div className="text-sm text-neutral-500 line-through mb-1">
+                      R${(plan.prices.monthly * 12).toLocaleString('pt-BR')}/ano
+                    </div>
+                  )}
                   <span className="text-3xl md:text-4xl font-bold">
-                    <AnimatedGradientText>{plan.price}</AnimatedGradientText>
+                    <AnimatedGradientText>
+                      R${billingInterval === 'yearly'
+                        ? plan.prices.yearly.toLocaleString('pt-BR')
+                        : plan.prices.monthly.toLocaleString('pt-BR')
+                      }
+                    </AnimatedGradientText>
                   </span>
-                  <span className="text-neutral-400">{plan.period}</span>
+                  <span className="text-neutral-400">
+                    {billingInterval === 'yearly' ? '/ano' : '/mês'}
+                  </span>
+                  {billingInterval === 'yearly' && (
+                    <div className="text-sm text-emerald-400 mt-1">
+                      Equivale a R${Math.round(plan.prices.yearly / 12).toLocaleString('pt-BR')}/mês
+                    </div>
+                  )}
                 </div>
 
                 {/* Features list with flex-grow to push button to bottom */}
@@ -585,7 +663,7 @@ export default function LandingPage() {
                 </ul>
 
                 {/* Button always at bottom */}
-                <Link href={`/subscribe?plan=${plan.tier}`} className="mt-auto">
+                <Link href={`/subscribe?plan=${plan.tier}&interval=${billingInterval}`} className="mt-auto">
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}

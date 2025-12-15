@@ -17,15 +17,27 @@ export function getStripe(): Stripe {
   return stripeInstance;
 }
 
-// Price IDs mapping - configure these in .env.local
-export const STRIPE_PRICE_IDS: Record<string, string> = {
-  starter: process.env.STRIPE_PRICE_STARTER || '',
-  pro: process.env.STRIPE_PRICE_PRO || '',
-  enterprise: process.env.STRIPE_PRICE_ENTERPRISE || '',
+// Billing interval types
+export type BillingInterval = 'monthly' | 'yearly';
+
+// Price IDs mapping with intervals - configure these in .env.local
+export const STRIPE_PRICE_IDS: Record<string, Record<BillingInterval, string>> = {
+  starter: {
+    monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || '',
+    yearly: process.env.STRIPE_PRICE_STARTER_YEARLY || '',
+  },
+  pro: {
+    monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || '',
+    yearly: process.env.STRIPE_PRICE_PRO_YEARLY || '',
+  },
+  enterprise: {
+    monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || '',
+    yearly: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY || '',
+  },
 };
 
-// Get price ID for a plan tier
-export function getPriceIdForTier(tier: string): string | null {
-  return STRIPE_PRICE_IDS[tier] || null;
+// Get price ID for a plan tier and billing interval
+export function getPriceIdForTier(tier: string, interval: BillingInterval = 'monthly'): string | null {
+  return STRIPE_PRICE_IDS[tier]?.[interval] || null;
 }
 

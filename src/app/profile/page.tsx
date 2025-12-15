@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
@@ -10,7 +11,9 @@ import {
     PlanCard,
     PlanChangeDialog
 } from "@/components/profile";
+import { BillingToggle } from "@/components/ui/billing-toggle";
 import { Suspense } from "react";
+import { BillingInterval } from "@/types";
 
 function ProfileContent() {
     const { user } = useAuth();
@@ -36,7 +39,16 @@ function ProfileContent() {
         setDialogOpen,
         isCurrentPlan,
         canUpgrade,
+        billingInterval,
+        setBillingInterval,
     } = usePlanChange(user, tenant);
+
+    // Sync state with user's actual interval
+    useEffect(() => {
+        if (effectiveUser?.billingInterval) {
+            setBillingInterval(effectiveUser.billingInterval);
+        }
+    }, [effectiveUser?.billingInterval, setBillingInterval]);
 
     return (
         <>
@@ -85,11 +97,21 @@ function ProfileContent() {
                             )}
                         </div>
 
+                        {/* Billing Interval Toggle */}
+                        <div className="py-6 flex justify-center">
+                            <BillingToggle
+                                id="profile-toggle"
+                                value={billingInterval}
+                                onChange={setBillingInterval}
+                            />
+                        </div>
+
                         <div className="grid md:grid-cols-3 gap-4">
                             {allPlans.map((plan) => (
                                 <PlanCard
                                     key={plan.id}
                                     plan={plan}
+                                    billingInterval={billingInterval}
                                     isCurrent={isCurrentPlan(plan)}
                                     canUpgrade={canUpgrade(plan)}
                                     isProcessing={upgradingPlan !== null || downgradingPlan !== null}
