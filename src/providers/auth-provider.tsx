@@ -18,6 +18,8 @@ export type User = {
   role: "admin" | "user" | "superadmin";
   tenantId: string;
   planId?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 };
 
 interface AuthContextType {
@@ -56,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: userData.role || "admin",
               tenantId: userData.tenantId || "default-tenant",
               planId: userData.planId || undefined,
+              stripeCustomerId: userData.stripeCustomerId || undefined,
+              stripeSubscriptionId: userData.stripeSubscriptionId || undefined,
             } as User);
           } else {
             // Fallback/Default for new integration (Mocking the DB part until real data exists)

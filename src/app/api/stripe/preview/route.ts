@@ -99,20 +99,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate amounts
+    // Calculate amounts from preview lines
     const currentAmount = (currentPrice.unit_amount || 0) / 100;
     const newAmount = (newPrice.unit_amount || 0) / 100;
-    const amountDue = preview.amount_due / 100;
     const isUpgrade = newAmount > currentAmount;
     const isDowngrade = newAmount < currentAmount;
 
-    // Calculate credit (for display)
+    // Calculate credit and charge from preview lines
     let creditAmount = 0;
+    let chargeAmount = 0;
     for (const line of preview.lines.data) {
       if (line.amount < 0) {
         creditAmount += Math.abs(line.amount) / 100;
+      } else {
+        chargeAmount += line.amount / 100;
       }
     }
+
+    // The actual amount due from Stripe (this is what will be charged)
+    const amountDue = preview.amount_due / 100;
 
     return NextResponse.json({
       preview: {
