@@ -1,0 +1,371 @@
+/**
+ * Cloud Function: Create Proposal
+ * 
+ * Creates a proposal in a multi-tenant ERP SaaS with:
+ * - Permission verification (canView + canCreate on proposals page)
+ * - Plan limit enforcement (maxProposals)
+ * - Automatic MASTER resolution (for both MASTER and MEMBER users)
+ * - Atomic writes with usage counter increment
+ * 
+ * SECURITY: All sensitive data (createdById, companyId) is derived from
+ * the authenticated user - NEVER trusted from frontend input.
+ * 
+ * DEPLOYMENT:
+ * 1. Copy to functions/src/createProposal.ts
+ * 2. Export from functions/src/index.ts
+ * 3. Deploy: firebase deploy --only functions
+ */
+
+import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+
+// Initialize Firebase Admin (only once)
+if (getApps().length === 0) {
+  initializeApp();
+}
+
+// ============================================
+// TYPES
+// ============================================
+
+/** Proposal section structure */
+interface ProposalSection {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  order: number;
+}
+
+/** Input from frontend - only business data, NO sensitive fields */
+interface CreateProposalInput {
+  title: string;
+  clientId: string;
+  clientName: string;
+  sections?: ProposalSection[];
+  totalValue: number;
+  notes?: string;
+}
+
+/** User document structure */
+interface UserDoc {
+  name: string;
+  role: 'MASTER' | 'MEMBER';
+  masterId: string | null;      // null for MASTER, userId for MEMBER
+  companyId: string;
+  companyName: string;
+  subscription?: {
+    limits: {
+      maxProposals: number;
+      maxUsers: number;
+      maxClients: number;
+      maxProducts: number;
+    };
+    status: 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELED';
+  };
+  usage?: {
+    proposals: number;
+    users: number;
+    clients: number;
+    products: number;
+  };
+}
+
+/** Permission document structure */
+interface PermissionDoc {
+  pageSlug: string;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+// ============================================
+// CLOUD FUNCTION
+// ============================================
+
+/**
+ * Firebase Callable Function to create a Proposal.
+ * 
+ * Both MASTER and MEMBER users can create proposals if they have permission.
+ * Usage always counts against the MASTER's plan limits.
+ * 
+ * @example Frontend call:
+ * ```typescript
+ * import { getFunctions, httpsCallable } from 'firebase/functions';
+ * 
+ * const functions = getFunctions(app, 'southamerica-east1');
+ * const createProposal = httpsCallable(functions, 'createProposal');
+ * 
+ * const result = await createProposal({
+ *   title: "Proposta Comercial",
+ *   clientId: "abc123",
+ *   clientName: "Empresa Cliente",
+ *   sections: [...],
+ *   totalValue: 15000
+ * });
+ * 
+ * console.log(result.data.proposalId);
+ * ```
+ */
+export const createProposal = onCall(
+  {
+    region: "southamerica-east1", // São Paulo
+    memory: "256MiB",
+    timeoutSeconds: 60,
+  },
+  async (request: CallableRequest<CreateProposalInput>) => {
+    const db = getFirestore();
+    
+    // ============================================
+    // STEP 1: Validate Authentication
+    // ============================================
+    
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Você precisa estar logado para criar propostas"
+      );
+    }
+    
+    const userId = request.auth.uid;
+    const input = request.data;
+    
+    // ============================================
+    // STEP 2: Validate Input
+    // ============================================
+    
+    if (!input.title || input.title.trim().length < 3) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Título da proposta deve ter pelo menos 3 caracteres"
+      );
+    }
+    
+    if (!input.clientId || !input.clientName) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Cliente é obrigatório"
+      );
+    }
+    
+    if (typeof input.totalValue !== 'number' || input.totalValue < 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Valor total deve ser um número válido"
+      );
+    }
+    
+    // ============================================
+    // STEP 3: Fetch User Data
+    // ============================================
+    
+    const userRef = db.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "Usuário não encontrado");
+    }
+    
+    const userData = userSnap.data() as UserDoc;
+    
+    // ============================================
+    // STEP 4: Check Page Permission
+    // ============================================
+    
+    // Permission document ID derived from page slug "/proposals"
+    const permissionId = "proposals";
+    const permRef = userRef.collection('permissions').doc(permissionId);
+    const permSnap = await permRef.get();
+    
+    if (!permSnap.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "Você não tem permissão para acessar propostas"
+      );
+    }
+    
+    const permission = permSnap.data() as PermissionDoc;
+    
+    // Must have both canView AND canCreate
+    if (!permission.canView) {
+      throw new HttpsError(
+        "permission-denied",
+        "Você não tem permissão para visualizar propostas"
+      );
+    }
+    
+    if (!permission.canCreate) {
+      throw new HttpsError(
+        "permission-denied",
+        "Você não tem permissão para criar propostas"
+      );
+    }
+    
+    // ============================================
+    // STEP 5: Resolve Effective MASTER
+    // ============================================
+    
+    // If user is MEMBER, we need to get the MASTER's subscription/usage
+    // If user is MASTER, they ARE the effective master
+    let effectiveMasterId: string;
+    let masterData: UserDoc;
+    let masterRef: FirebaseFirestore.DocumentReference;
+    
+    if (userData.role === 'MASTER') {
+      // User IS the master
+      effectiveMasterId = userId;
+      masterData = userData;
+      masterRef = userRef;
+    } else {
+      // User is MEMBER - get MASTER data
+      if (!userData.masterId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Erro na configuração da conta. Contate o administrador."
+        );
+      }
+      
+      effectiveMasterId = userData.masterId;
+      masterRef = db.collection('users').doc(effectiveMasterId);
+      const masterSnap = await masterRef.get();
+      
+      if (!masterSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Conta principal não encontrada. Contate o administrador."
+        );
+      }
+      
+      masterData = masterSnap.data() as UserDoc;
+    }
+    
+    // ============================================
+    // STEP 6: Check Subscription Status
+    // ============================================
+    
+    if (!masterData.subscription) {
+      throw new HttpsError(
+        "failed-precondition",
+        "É necessário um plano ativo para criar propostas"
+      );
+    }
+    
+    const subscriptionStatus = masterData.subscription.status;
+    if (subscriptionStatus !== 'ACTIVE' && subscriptionStatus !== 'TRIALING') {
+      throw new HttpsError(
+        "failed-precondition",
+        "O plano está inativo. Regularize a assinatura para continuar."
+      );
+    }
+    
+    // ============================================
+    // STEP 7: Check Plan Limits (maxProposals)
+    // ============================================
+    
+    const maxProposals = masterData.subscription.limits.maxProposals;
+    const currentProposals = masterData.usage?.proposals ?? 0;
+    
+    // -1 means unlimited
+    if (maxProposals !== -1 && currentProposals >= maxProposals) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Limite de propostas atingido (${currentProposals}/${maxProposals}). ` +
+        `Faça upgrade do plano para criar mais propostas.`
+      );
+    }
+    
+    // ============================================
+    // STEP 8: Create Proposal (Atomic Transaction)
+    // ============================================
+    
+    let proposalId: string;
+    
+    try {
+      proposalId = await db.runTransaction(async (transaction) => {
+        const now = Timestamp.now();
+        
+        // 8a. Re-read MASTER's usage inside transaction for consistency
+        const freshMasterSnap = await transaction.get(masterRef);
+        const freshMasterData = freshMasterSnap.data() as UserDoc;
+        const freshCurrentProposals = freshMasterData.usage?.proposals ?? 0;
+        
+        // Double-check limit inside transaction (prevents race conditions)
+        if (maxProposals !== -1 && freshCurrentProposals >= maxProposals) {
+          throw new HttpsError(
+            "failed-precondition",
+            `Limite de propostas atingido. Tente novamente.`
+          );
+        }
+        
+        // 8b. Create new proposal document
+        const proposalsRef = db.collection('companies').doc(userData.companyId).collection('proposals');
+        const newProposalRef = proposalsRef.doc(); // Auto-generate ID
+        
+        transaction.set(newProposalRef, {
+          // Business data from input
+          title: input.title.trim(),
+          status: 'DRAFT',
+          totalValue: input.totalValue,
+          notes: input.notes?.trim() || null,
+          
+          // Client info (from input, but validated)
+          clientId: input.clientId,
+          clientName: input.clientName,
+          
+          // Sections (optional)
+          sections: input.sections || [],
+          
+          // ===== SECURITY: DERIVED FROM BACKEND, NOT FRONTEND =====
+          // Creator info - derived from authenticated user
+          createdById: userId,
+          createdByName: userData.name,
+          
+          // Company - derived from user's company
+          companyId: userData.companyId,
+          
+          // Timestamps
+          createdAt: now,
+          updatedAt: now,
+        });
+        
+        // 8c. Increment MASTER's usage.proposals
+        transaction.update(masterRef, {
+          'usage.proposals': FieldValue.increment(1),
+          updatedAt: now,
+        });
+        
+        // 8d. Increment Company's usage.proposals
+        const companyRef = db.collection('companies').doc(userData.companyId);
+        transaction.update(companyRef, {
+          'usage.proposals': FieldValue.increment(1),
+          updatedAt: now,
+        });
+        
+        return newProposalRef.id;
+      });
+    } catch (err) {
+      // If it's already an HttpsError, re-throw as-is
+      if (err instanceof HttpsError) {
+        throw err;
+      }
+      
+      console.error('Transaction failed:', err);
+      throw new HttpsError(
+        "internal",
+        "Erro ao criar proposta. Tente novamente."
+      );
+    }
+    
+    // ============================================
+    // STEP 9: Return Success
+    // ============================================
+    
+    return {
+      success: true,
+      proposalId: proposalId,
+      message: `Proposta "${input.title}" criada com sucesso!`,
+    };
+  }
+);

@@ -136,7 +136,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
               </div>
             )}
 
-            {/* Company name - only visible when expanded */}
+            {/* User name - only visible when expanded */}
             <div
               className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300",
@@ -144,7 +144,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
               )}
             >
               <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-                {tenant ? tenant.name : "ERP PRO"}
+                {user?.name || "Usuário"}
               </span>
               {tenant && userPlanName && (
                 <span className="text-[10px] text-muted-foreground uppercase whitespace-nowrap">

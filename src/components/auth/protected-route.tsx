@@ -1,67 +1,91 @@
 "use client";
 
+/**
+ * Enhanced Protected Route
+ * 
+ * Client-side route protection with permission checks.
+ * Works alongside middleware for double-layer security.
+ * 
+ * IMPORTANT: This is a fallback. The middleware.ts provides
+ * server-side protection. This handles client navigation.
+ */
+
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
-import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { getPageConfig, pageRequiresAuth, pageIsMasterOnly } from "@/lib/page-config";
 
-// Routes that free users CAN access (besides home page which is public)
-const FREE_USER_ALLOWED_ROUTES = ["/subscribe", "/checkout-success"];
+// Routes that handle their own auth logic
+const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
 
-// Routes that handle their own auth logic (don't need protection layer)
-const SELF_HANDLED_AUTH_ROUTES = ["/login", "/subscribe", "/checkout-success"];
+// Routes that allow unauthenticated access
+const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing"];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isLoading: isTenantLoading } = useTenant();
+  const { permissions, isLoading: isPermLoading, hasPermission } = usePermissions();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Check if this route handles its own auth
-  const isSelfHandledRoute = SELF_HANDLED_AUTH_ROUTES.some(route => pathname.startsWith(route)) || pathname === "/";
+  // Check route type
+  const isSelfHandled = SELF_HANDLED_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"));
+  const isPublic = PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"));
+  const pageConfig = getPageConfig(pathname);
 
-  // For self-handled routes, only wait for auth, not tenant
-  const isLoading = isSelfHandledRoute ? isAuthLoading : (isAuthLoading || isTenantLoading);
+  // Combine loading states
+  const isLoading = isAuthLoading || (user && isPermLoading);
 
   React.useEffect(() => {
-    if (!isAuthLoading && !user) {
-      // Don't redirect if on routes that handle their own auth
-      if (!isSelfHandledRoute) {
+    // Skip checks for self-handled routes
+    if (isSelfHandled) return;
+
+    // Skip checks while loading
+    if (isAuthLoading) return;
+
+    // Not authenticated
+    if (!user) {
+      if (!isPublic && pageRequiresAuth(pathname)) {
         router.push("/login");
       }
-    } else if (user) {
-      // Role Based Protection
-      const isAdminRoute = pathname.startsWith("/admin");
-      const isHomeRoute = pathname === "/";
-      const isFreeAllowedRoute = FREE_USER_ALLOWED_ROUTES.some(route => pathname.startsWith(route));
+      return;
+    }
 
-      // Check localStorage directly for consistency with TenantProvider
-      const isViewingAsTenant =
-        typeof window !== "undefined"
-          ? localStorage.getItem("viewingAsTenant")
-          : null;
+    // Wait for permissions to load
+    if (isPermLoading) return;
+    if (!permissions) return;
 
-      // Free user protection - can only access home and subscribe pages
-      if (user.role === "free") {
-        if (!isHomeRoute && !isFreeAllowedRoute && pathname !== "/login") {
-          router.push("/");
-        }
-      } else if (user.role === "superadmin" && !isAdminRoute && !isViewingAsTenant) {
-        // Super admin not viewing a tenant - redirect to admin
-        router.push("/admin");
-      } else if (user.role !== "superadmin" && isAdminRoute) {
-        router.push("/dashboard");
+    // MASTER-only page check
+    if (pageIsMasterOnly(pathname) && permissions.role !== 'MASTER') {
+      router.push("/403");
+      return;
+    }
+
+    // Page permission check
+    if (pageConfig?.requiredPermission) {
+      const pageId = pageConfig.pageId;
+      const requiredAction = pageConfig.requiredPermission;
+
+      if (!hasPermission(pageId, requiredAction)) {
+        router.push("/403");
+        return;
       }
     }
-  }, [user, isAuthLoading, router, pathname, isSelfHandledRoute]);
 
-  // For self-handled auth routes, render immediately (they handle their own loading/auth)
-  if (isSelfHandledRoute) {
+  }, [user, isAuthLoading, permissions, isPermLoading, pathname, router, isSelfHandled, isPublic, pageConfig, hasPermission]);
+
+  // Self-handled routes render immediately
+  if (isSelfHandled) {
     return <>{children}</>;
   }
 
-  // Loading Screen - wait for BOTH auth and tenant to load
+  // Public routes with no user
+  if (isPublic && !user && !isAuthLoading) {
+    return <>{children}</>;
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-950">
@@ -75,7 +99,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If no user after loading, show nothing (redirect is happening)
+  // No user after loading (redirect happening)
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-950">
@@ -84,7 +108,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Authenticated AND tenant loaded
+  // Authenticated with permissions loaded
   return <>{children}</>;
 }
-
