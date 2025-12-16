@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import Stripe from 'stripe';
+import { AddonType } from '@/types';
 
 // Disable body parsing, we need the raw body for webhook verification
 export const runtime = 'nodejs';
@@ -40,11 +41,68 @@ async function updateUserPlan(userId: string, planTier: string, stripeSubscripti
   }
 }
 
+// Add-on handlers
+async function saveAddon(tenantId: string, addonType: AddonType, stripeSubscriptionId: string) {
+  const addonId = `${tenantId}_${addonType}`;
+  
+  await setDoc(doc(db, 'addons', addonId), {
+    tenantId,
+    addonType,
+    stripeSubscriptionId,
+    status: 'active',
+    purchasedAt: new Date().toISOString(),
+  });
+  
+  console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
+}
+
+async function cancelAddon(tenantId: string, addonType: AddonType) {
+  const addonId = `${tenantId}_${addonType}`;
+  
+  await updateDoc(doc(db, 'addons', addonId), {
+    status: 'cancelled',
+    expiresAt: new Date().toISOString(),
+  });
+  
+  console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
+}
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  const userId = session.metadata?.userId;
-  const planTier = session.metadata?.planTier;
   const subscriptionId = session.subscription as string;
-  const billingInterval = session.metadata?.billingInterval; // passed in checkout
+  const metadata = session.metadata || {};
+  
+  // Detailed logging for debugging
+  console.log('=== CHECKOUT COMPLETED ===');
+  console.log('Session ID:', session.id);
+  console.log('Subscription ID:', subscriptionId);
+  console.log('Full metadata:', JSON.stringify(metadata, null, 2));
+  console.log('metadata.type:', metadata.type);
+  console.log('Is addon check:', metadata.type === 'addon');
+  
+  // Check if this is an add-on purchase
+  if (metadata.type === 'addon') {
+    const tenantId = metadata.tenantId;
+    const addonType = metadata.addonType as AddonType;
+    
+    console.log('=== PROCESSING ADDON ===');
+    console.log('Tenant ID:', tenantId);
+    console.log('Addon Type:', addonType);
+    
+    if (tenantId && addonType && subscriptionId) {
+      await saveAddon(tenantId, addonType, subscriptionId);
+      console.log('=== ADDON SAVED SUCCESSFULLY ===');
+    } else {
+      console.error('Missing add-on metadata:', { tenantId, addonType, subscriptionId });
+    }
+    return;
+  }
+  
+  console.log('=== PROCESSING PLAN (not addon) ===');
+  
+  // Handle plan checkout (existing logic)
+  const userId = metadata.userId;
+  const planTier = metadata.planTier;
+  const billingInterval = metadata.billingInterval;
 
   if (userId && planTier && subscriptionId) {
     await updateUserPlan(userId, planTier, subscriptionId, billingInterval === 'yearly' ? 'year' : 'month');
@@ -54,8 +112,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const userId = subscription.metadata?.userId;
-  const planTier = subscription.metadata?.planTier;
+  const metadata = subscription.metadata || {};
+  
+  // Add-on subscription updated - just log it
+  if (metadata.type === 'addon') {
+    console.log(`Add-on subscription ${subscription.id} updated for tenant ${metadata.tenantId}`);
+    return;
+  }
+  
+  // Plan subscription updated
+  const userId = metadata.userId;
+  const planTier = metadata.planTier;
   const interval = subscription.items.data[0]?.price.recurring?.interval;
 
   if (userId && planTier) {
@@ -64,7 +131,21 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  const userId = subscription.metadata?.userId;
+  const metadata = subscription.metadata || {};
+  
+  // Check if this is an add-on subscription
+  if (metadata.type === 'addon') {
+    const tenantId = metadata.tenantId;
+    const addonType = metadata.addonType as AddonType;
+    
+    if (tenantId && addonType) {
+      await cancelAddon(tenantId, addonType);
+    }
+    return;
+  }
+  
+  // Plan subscription deleted (existing logic)
+  const userId = metadata.userId;
 
   if (userId) {
     // Downgrade to starter plan when subscription is canceled
