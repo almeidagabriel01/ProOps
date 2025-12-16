@@ -215,10 +215,24 @@ function PagePermissionRow({
                     disabled={saving}
                 />
                 <PermissionToggle
+                    enabled={permission?.canCreate ?? false}
+                    onChange={(v) => onUpdate("canCreate", v)}
+                    label="Criar"
+                    icon={UserPlus}
+                    disabled={saving || !canView}
+                />
+                <PermissionToggle
                     enabled={canEdit}
                     onChange={(v) => onUpdate("canEdit", v)}
                     label="Editar"
                     icon={Edit3}
+                    disabled={saving || !canView}
+                />
+                <PermissionToggle
+                    enabled={permission?.canDelete ?? false}
+                    onChange={(v) => onUpdate("canDelete", v)}
+                    label="Excluir"
+                    icon={Trash2}
                     disabled={saving || !canView}
                 />
             </div>
@@ -377,17 +391,36 @@ function CreateMemberSection({
                                         <span className="text-sm capitalize">
                                             {page.replace("/", "")}
                                         </span>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 flex-wrap justify-end">
                                             <PermissionToggle
                                                 enabled={perms.canView}
                                                 onChange={(v) => {
                                                     setCustomPermissions(prev => ({
                                                         ...prev,
-                                                        [page]: { ...prev[page], canView: v, canEdit: v ? prev[page].canEdit : false }
+                                                        [page]: {
+                                                            ...prev[page],
+                                                            canView: v,
+                                                            // If turning off view, turn off everything
+                                                            canCreate: v ? prev[page].canCreate : false,
+                                                            canEdit: v ? prev[page].canEdit : false,
+                                                            canDelete: v ? prev[page].canDelete : false,
+                                                        }
                                                     }));
                                                 }}
                                                 label="Ver"
                                                 icon={Eye}
+                                            />
+                                            <PermissionToggle
+                                                enabled={perms.canCreate || false}
+                                                onChange={(v) => {
+                                                    setCustomPermissions(prev => ({
+                                                        ...prev,
+                                                        [page]: { ...prev[page], canCreate: v }
+                                                    }));
+                                                }}
+                                                label="Criar"
+                                                icon={UserPlus}
+                                                disabled={!perms.canView}
                                             />
                                             <PermissionToggle
                                                 enabled={perms.canEdit || false}
@@ -399,6 +432,18 @@ function CreateMemberSection({
                                                 }}
                                                 label="Editar"
                                                 icon={Edit3}
+                                                disabled={!perms.canView}
+                                            />
+                                            <PermissionToggle
+                                                enabled={perms.canDelete || false}
+                                                onChange={(v) => {
+                                                    setCustomPermissions(prev => ({
+                                                        ...prev,
+                                                        [page]: { ...prev[page], canDelete: v }
+                                                    }));
+                                                }}
+                                                label="Excluir"
+                                                icon={Trash2}
                                                 disabled={!perms.canView}
                                             />
                                         </div>
@@ -697,6 +742,17 @@ function MemberCard({
 export default function TeamPage() {
     const { user } = useAuth();
     const { isMaster, isLoading: permLoading } = usePermissions();
+
+    React.useEffect(() => {
+        if (user) {
+            console.log("DEBUG: Current User Data:", {
+                uid: user.id,
+                role: user.role,
+                planId: user.planId,
+                email: user.email
+            });
+        }
+    }, [user]);
 
     const [members, setMembers] = React.useState<TeamMember[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);

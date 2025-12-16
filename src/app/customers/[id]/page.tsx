@@ -23,7 +23,13 @@ export default function EditCustomerPage() {
   const router = useRouter();
   const params = useParams();
   const clientId = params.id as string;
-  const { canEdit } = usePagePermission("customers");
+  const { canEdit, canView, isLoading: permLoading } = usePagePermission("clients");
+
+  React.useEffect(() => {
+    if (!permLoading && !canView) {
+      router.push("/customers");
+    }
+  }, [permLoading, canView, router]);
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);

@@ -35,7 +35,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function CustomersPage() {
   const { tenant } = useTenant();
-  const { canCreate, canDelete } = usePagePermission("customers");
+  const { canCreate, canDelete, canEdit } = usePagePermission("clients");
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -219,16 +219,18 @@ export default function CustomersPage() {
                     {formatDate(client.createdAt)}
                   </div>
                   <div className="col-span-2 flex items-center justify-end gap-1">
-                    <Link href={`/customers/${client.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </Link>
+                    {canEdit && (
+                      <Link href={`/customers/${client.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Editar"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    )}
                     {canDelete && (
                       <Button
                         variant="ghost"

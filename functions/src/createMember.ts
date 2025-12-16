@@ -177,37 +177,57 @@ export const createMember = functions
     // STEP 4: Check Plan Limits
     // ============================================
     
-    // Define plan limits locally to avoid external dependency issues in Cloud Functions
-    // This mirrors the structure in src/services/plan-service.ts
-    const PLAN_LIMITS: Record<string, { maxUsers: number }> = {
-        free: { maxUsers: 1 },
-        starter: { maxUsers: 2 },
-        pro: { maxUsers: 10 },
-        enterprise: { maxUsers: -1 }, // Unlimited
+    // ============================================
+    // STEP 4: Check Plan Limits
+    // ============================================
+
+    let maxUsers = 1;
+    const planId = masterData.planId || 'free';
+
+    // 1. Check legacy/hardcoded limits (optimization for default tiers)
+    const LEGACY_LIMITS: Record<string, number> = {
+        free: 1,
+        starter: 2,
+        pro: 10,
+        enterprise: -1
     };
 
-    const planId = masterData.planId || 'free';
-    const planLimits = PLAN_LIMITS[planId] || PLAN_LIMITS['free'];
-    
-    // Check if subscription is valid (simple check: if plan is not free, assume active for now)
-    // Ideally we should check stripeSubscriptionStatus if available, but planId presence is a strong signal
-    console.log(`[createMember] Plan Check: ${planId} (Max Users: ${planLimits.maxUsers})`);
+    if (LEGACY_LIMITS[planId] !== undefined) {
+        maxUsers = LEGACY_LIMITS[planId];
+        console.log(`[createMember] Using legacy limit for ${planId}: ${maxUsers}`);
+    } else {
+        // 2. Fetch dynamic plan from Firestore
+        console.log(`[createMember] Fetching dynamic plan: ${planId}`);
+        const planSnap = await db.collection('plans').doc(planId).get();
+        
+        if (planSnap.exists) {
+            const planData = planSnap.data();
+            const planMaxUsers = planData?.features?.maxUsers;
+            
+            if (planMaxUsers !== undefined) {
+                maxUsers = planMaxUsers;
+            } else {
+                console.warn(`[createMember] Plan ${planId} has no maxUsers feature, defaulting to 1`);
+            }
+        } else {
+            console.warn(`[createMember] Plan ${planId} not found, defaulting to free limit.`);
+        }
+    }
+
+    console.log(`[createMember] Final Max Users: ${maxUsers}`);
 
     // Check Max Users Limit
-    // 4a. Count current users
-    // (Note: This is a potentially expensive read if there are many users, 
-    // but for < 50 users it's negligible. For scaling, use a counter in user doc)
     const usersRef = db.collection('users');
     const usersQuery = usersRef.where('masterId', '==', masterId);
     const usersSnap = await usersQuery.count().get();
     const currentUsers = usersSnap.data().count;
 
-    console.log(`[createMember] Usage: ${currentUsers}/${planLimits.maxUsers}`);
+    console.log(`[createMember] Usage: ${currentUsers}/${maxUsers}`);
 
-    if (planLimits.maxUsers !== -1 && currentUsers >= planLimits.maxUsers) {
+    if (maxUsers !== -1 && currentUsers >= maxUsers) {
          throw new functions.https.HttpsError(
             "failed-precondition",
-            `Limite de usuários atingido (${currentUsers}/${planLimits.maxUsers}). Faça upgrade para adicionar mais membros.`
+            `Limite de usuários atingido (${currentUsers}/${maxUsers}). Faça upgrade para adicionar mais membros.`
         );
     }
     

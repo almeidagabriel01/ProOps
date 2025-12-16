@@ -25,7 +25,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function ProductsPage() {
     const { tenant } = useTenant();
-    const { canCreate, canDelete } = usePagePermission("products");
+    const { canCreate, canDelete, canEdit } = usePagePermission("products");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -202,16 +202,18 @@ export default function ProductsPage() {
                                     R$ {parseFloat(product.price).toFixed(2)}
                                 </div>
                                 <div className="col-span-1 flex items-center justify-end gap-1">
-                                    <Link href={`/products/${product.id}`}>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            title="Editar"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </Button>
-                                    </Link>
+                                    {canEdit && (
+                                        <Link href={`/products/${product.id}`}>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                title="Editar"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </Button>
+                                        </Link>
+                                    )}
                                     {canDelete && (
                                         <AlertDialog open={deleteId === product.id} onOpenChange={(open: boolean) => !open && setDeleteId(null)}>
                                             <AlertDialogTrigger asChild>

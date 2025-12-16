@@ -13,7 +13,13 @@ export default function EditProductPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
-    const { canEdit } = usePagePermission("products");
+    const { canEdit, canView, isLoading } = usePagePermission("products");
+
+    useEffect(() => {
+        if (!isLoading && !canView) {
+            router.push("/products");
+        }
+    }, [isLoading, canView, router]);
 
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
