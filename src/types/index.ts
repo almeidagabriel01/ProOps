@@ -65,6 +65,43 @@ export type UserPlan = {
     createdAt: string
 }
 
+// Add-on Module Types
+export type AddonType = 
+    | 'financial'
+    | 'pdf_editor_partial'   // 3 templates, no content editing
+    | 'pdf_editor_full';     // Full access: all templates + content editing
+
+export type PurchasedAddon = {
+    id: string;
+    tenantId: string;
+    addonType: AddonType;
+    stripeSubscriptionId?: string;
+    stripePriceId?: string;
+    status: 'active' | 'cancelled' | 'past_due';
+    billingInterval?: 'monthly' | 'yearly'; // Track billing interval for upgrade options
+    quantity?: number; // For quantitative add-ons (e.g., extra users)
+    purchasedAt: string;
+    expiresAt?: string;
+}
+
+export type AddonDefinition = {
+    id: AddonType;
+    name: string;
+    description: string;
+    featureKey: keyof PlanFeatures | 'extraUsers';
+    featureValue: boolean | number; // Value to apply when active
+    pricing: {
+        monthly: number;
+        yearly: number;
+    };
+    stripePriceIds?: {
+        monthly: string;
+        yearly: string;
+    };
+    icon: string; // Lucide icon name
+    availableForTiers: PlanTier[]; // Which plans can purchase this
+}
+
 // Proposals
 export type ProposalSectionType = 'text' | 'table' | 'image' | 'list' | 'separator' | 'header' | 'custom-field' | 'hierarchical-field' | 'product-table'
 

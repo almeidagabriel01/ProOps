@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -16,4 +17,14 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-export { app, auth, db };
+// IMPORTANT: Functions must use the same region as deployed Cloud Functions
+// Cloud Functions are deployed to 'southamerica-east1' (São Paulo)
+const functions = getFunctions(app, "southamerica-east1");
+
+// Connect to emulator in development (optional)
+// if (process.env.NODE_ENV === "development") {
+//   connectFunctionsEmulator(functions, "localhost", 5001);
+// }
+
+export { app, auth, db, functions };
+

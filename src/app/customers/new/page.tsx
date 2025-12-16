@@ -13,11 +13,22 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { ArrowLeft, Loader2, Save, User } from "lucide-react";
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function NewCustomerPage() {
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateClient, getClientCount, features } = usePlanLimits();
+  const { canCreate, isLoading: permLoading } = usePagePermission("clients");
   const [isSaving, setIsSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!permLoading && !canCreate) {
+      router.push("/customers");
+    }
+  }, [permLoading, canCreate, router]);
+
+  if (permLoading) return <div className="p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
 
   // Limit modal state
   const [showLimitModal, setShowLimitModal] = React.useState(false);

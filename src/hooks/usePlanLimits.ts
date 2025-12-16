@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { PlanFeatures } from "@/types";
+import { PlanFeatures, AddonType, PlanTier, PurchasedAddon } from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
-import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { AddonService } from "@/services/addon-service";
+import { collection, query, where, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 // Default features for free/no plan users (most restrictive)
@@ -21,11 +22,16 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
 };
 
 interface UsePlanLimitsReturn {
-  // Features
+  // Features (base + add-ons merged)
   features: PlanFeatures | null;
   isLoading: boolean;
   
-  // Quick access checks
+  // Purchased add-ons (just types for compatibility)
+  purchasedAddons: AddonType[];
+  // Full addon data with billing interval
+  purchasedAddonsData: PurchasedAddon[];
+  
+  // Quick access checks (with add-ons applied)
   hasFinancial: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
@@ -47,57 +53,155 @@ interface UsePlanLimitsReturn {
   getClientLimit: () => string;
   getProductLimit: () => string;
   getUserLimit: () => string;
+  
+  // Plan tier (for add-ons filtering)
+  planTier: PlanTier;
+  
+  // Refresh add-ons (call after purchase/cancel)
+  refreshAddons: () => Promise<void>;
 }
 
 export function usePlanLimits(): UsePlanLimitsReturn {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [features, setFeatures] = useState<PlanFeatures | null>(null);
+  const [baseFeatures, setBaseFeatures] = useState<PlanFeatures | null>(null);
+  const [planTier, setPlanTier] = useState<PlanTier>("starter");
+  const [purchasedAddons, setPurchasedAddons] = useState<AddonType[]>([]);
+  const [purchasedAddonsData, setPurchasedAddonsData] = useState<PurchasedAddon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Load purchased add-ons for tenant
+  const loadAddons = useCallback(async () => {
+    if (!tenant?.id) {
+      setPurchasedAddons([]);
+      setPurchasedAddonsData([]);
+      return;
+    }
+
+    try {
+      console.log('[usePlanLimits] Loading addons for tenant:', tenant.id);
+      const addons = await AddonService.getAddonsForTenant(tenant.id);
+      console.log('[usePlanLimits] Loaded addons:', addons);
+      const addonTypes = addons.map(a => a.addonType);
+      console.log('[usePlanLimits] Addon types:', addonTypes);
+      setPurchasedAddons(addonTypes);
+      setPurchasedAddonsData(addons);
+    } catch (error) {
+      console.error("Error loading add-ons:", error);
+      setPurchasedAddons([]);
+      setPurchasedAddonsData([]);
+    }
+  }, [tenant?.id]);
 
   // Load plan features
   useEffect(() => {
     const loadFeatures = async () => {
       setIsLoading(true);
       
-      if (!user?.planId) {
+      // Determine effective plan ID
+      let effectivePlanId = user?.planId;
+
+      // Logic: If user is a member (no planId or free) and has a masterId,
+      // we need to fetch the Master's plan.
+      // We check 'masterId' from the user object (need to cast or ensure it exists).
+      const currentUser = user as any;
+      
+      if ((!effectivePlanId || effectivePlanId === 'free') && currentUser?.masterId) {
+         try {
+             // Fetch master user doc
+             const masterRef = doc(db, "users", currentUser.masterId);
+             const masterSnap = await getDoc(masterRef);
+             if (masterSnap.exists()) {
+                 effectivePlanId = masterSnap.data().planId;
+             }
+         } catch (err) {
+             console.error("Error fetching master plan:", err);
+         }
+      }
+
+      if (!effectivePlanId) {
         // No plan - use free tier features
-        setFeatures(FREE_PLAN_FEATURES);
+        setBaseFeatures(FREE_PLAN_FEATURES);
+        setPlanTier("starter");
         setIsLoading(false);
         return;
       }
 
       try {
         // First try to get plan by ID (if planId is a document ID)
-        let plan = await PlanService.getPlanById(user.planId);
+        let plan = await PlanService.getPlanById(effectivePlanId);
         
         // If not found by ID, try by tier (planId might be "pro", "starter", etc)
         if (!plan) {
-          plan = await PlanService.getPlanByTier(user.planId);
+          plan = await PlanService.getPlanByTier(effectivePlanId);
         }
         
         if (plan?.features) {
-          setFeatures(plan.features);
+          setBaseFeatures(plan.features);
+          setPlanTier(plan.tier as PlanTier);
         } else {
           // Last fallback: use DEFAULT_PLANS by tier
-          const fallbackPlan = DEFAULT_PLANS.find(p => p.tier === user.planId);
+          const fallbackPlan = DEFAULT_PLANS.find(p => p.tier === effectivePlanId);
           if (fallbackPlan?.features) {
-            setFeatures(fallbackPlan.features);
+            setBaseFeatures(fallbackPlan.features);
+            setPlanTier(fallbackPlan.tier as PlanTier);
           } else {
-            console.warn("Could not load plan features for planId:", user.planId);
-            setFeatures(FREE_PLAN_FEATURES);
+            console.warn("Could not load plan features for planId:", effectivePlanId);
+            setBaseFeatures(FREE_PLAN_FEATURES);
+            setPlanTier("starter");
           }
         }
       } catch (error) {
         console.error("Error loading plan features:", error);
-        setFeatures(FREE_PLAN_FEATURES);
+        setBaseFeatures(FREE_PLAN_FEATURES);
       }
       
       setIsLoading(false);
     };
 
     loadFeatures();
-  }, [user?.planId]);
+  }, [user]);
+
+  // Load add-ons when tenant changes
+  useEffect(() => {
+    loadAddons();
+  }, [loadAddons]);
+
+  // Compute effective features (base + add-ons) - MUST use useMemo for reactivity
+  const features = useMemo(() => {
+    if (!baseFeatures) return null;
+    
+    console.log('[usePlanLimits] Computing features with addons:', purchasedAddons);
+    
+    return AddonService.applyAddonsToFeatures(
+      {
+        hasFinancial: baseFeatures.hasFinancial,
+        canEditPdfSections: baseFeatures.canEditPdfSections,
+        maxPdfTemplates: baseFeatures.maxPdfTemplates,
+        canCustomizeTheme: baseFeatures.canCustomizeTheme,
+        maxUsers: baseFeatures.maxUsers,
+      },
+      purchasedAddons
+    ) as unknown as PlanFeatures;
+  }, [baseFeatures, purchasedAddons]);
+
+  // Merge with base features for complete PlanFeatures object
+  const mergedFeatures = useMemo(() => {
+    if (!baseFeatures || !features) return null;
+    
+    const merged = {
+      ...baseFeatures,
+      hasFinancial: features.hasFinancial,
+      canEditPdfSections: features.canEditPdfSections,
+      maxPdfTemplates: features.maxPdfTemplates,
+      canCustomizeTheme: features.canCustomizeTheme,
+      maxUsers: features.maxUsers,
+    };
+    
+    console.log('[usePlanLimits] Merged features - hasFinancial:', merged.hasFinancial);
+    
+    return merged;
+  }, [baseFeatures, features]);
 
   // Count total proposals
   const getProposalCount = useCallback(async (): Promise<number> => {
@@ -193,13 +297,17 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   };
 
   return {
-    features,
+    features: mergedFeatures,
     isLoading,
     
-    // Quick access
-    hasFinancial: features?.hasFinancial ?? false,
-    canCustomizeTheme: features?.canCustomizeTheme ?? false,
-    canEditPdfSections: features?.canEditPdfSections ?? false,
+    // Purchased add-ons
+    purchasedAddons,
+    purchasedAddonsData,
+    
+    // Quick access (with add-ons applied)
+    hasFinancial: mergedFeatures?.hasFinancial ?? false,
+    canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
+    canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,
     
     // Functions
     canCreateProposal,
@@ -213,9 +321,15 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     getUserCount,
     
     // Formatted limits
-    getProposalLimit: () => formatLimit(features?.maxProposals ?? 0),
-    getClientLimit: () => formatLimit(features?.maxClients ?? 0),
-    getProductLimit: () => formatLimit(features?.maxProducts ?? 0),
-    getUserLimit: () => formatLimit(features?.maxUsers ?? 0),
+    getProposalLimit: () => formatLimit(mergedFeatures?.maxProposals ?? 0),
+    getClientLimit: () => formatLimit(mergedFeatures?.maxClients ?? 0),
+    getProductLimit: () => formatLimit(mergedFeatures?.maxProducts ?? 0),
+    getUserLimit: () => formatLimit(mergedFeatures?.maxUsers ?? 0),
+    
+    // Plan tier (for add-ons filtering)
+    planTier,
+    
+    // Refresh add-ons (call after purchase/cancel)
+    refreshAddons: loadAddons,
   };
 }

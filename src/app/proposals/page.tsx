@@ -34,8 +34,11 @@ const statusConfig: Record<
 
 import { ProposalService } from "@/services/proposal-service";
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function ProposalsPage() {
   const { tenant } = useTenant();
+  const { canCreate, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -112,12 +115,14 @@ export default function ProposalsPage() {
             Gerencie suas propostas comerciais
           </p>
         </div>
-        <Link href="/proposals/new">
-          <Button size="lg" className="gap-2">
-            <Plus className="w-5 h-5" />
-            Nova Proposta
-          </Button>
-        </Link>
+        {canCreate && (
+          <Link href="/proposals/new">
+            <Button size="lg" className="gap-2">
+              <Plus className="w-5 h-5" />
+              Nova Proposta
+            </Button>
+          </Link>
+        )}
       </div>
 
       {proposals.length === 0 ? (
@@ -132,12 +137,14 @@ export default function ProposalsPage() {
             <p className="text-muted-foreground text-center mb-6 max-w-md">
               Crie sua primeira proposta comercial e comece a fechar negócios!
             </p>
-            <Link href="/proposals/new">
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Criar Primeira Proposta
-              </Button>
-            </Link>
+            {canCreate && (
+              <Link href="/proposals/new">
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Criar Primeira Proposta
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -206,24 +213,28 @@ export default function ProposalsPage() {
                         <FileText className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleDuplicate(proposal.id)}
-                      title="Duplicar"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(proposal.id)}
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canCreate && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleDuplicate(proposal.id)}
+                        title="Duplicar"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(proposal.id)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
