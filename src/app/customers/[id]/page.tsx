@@ -17,10 +17,13 @@ const sourceLabels: Record<string, string> = {
   financial: "Criado via Financeiro",
 };
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function EditCustomerPage() {
   const router = useRouter();
   const params = useParams();
   const clientId = params.id as string;
+  const { canEdit } = usePagePermission("customers");
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -131,14 +134,14 @@ export default function EditCustomerPage() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">
-              Editar Cliente
+              {canEdit ? "Editar Cliente" : "Detalhes do Cliente"}
             </h1>
             <Badge variant="outline">
               {sourceLabels[client.source] || sourceLabels.manual}
             </Badge>
           </div>
           <p className="text-muted-foreground text-sm">
-            Atualize as informações do cliente
+            {canEdit ? "Atualize as informações do cliente" : "Visualizando informações do cliente"}
           </p>
         </div>
       </div>
@@ -161,6 +164,7 @@ export default function EditCustomerPage() {
                 onChange={handleChange}
                 placeholder="Nome completo ou razão social"
                 required
+                disabled={!canEdit}
               />
             </div>
 
@@ -174,6 +178,7 @@ export default function EditCustomerPage() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="email@exemplo.com"
+                  disabled={!canEdit}
                 />
               </div>
               <div className="grid gap-2">
@@ -184,6 +189,7 @@ export default function EditCustomerPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="(11) 99999-9999"
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -196,6 +202,7 @@ export default function EditCustomerPage() {
                 value={formData.address}
                 onChange={handleChange}
                 placeholder="Endereço completo"
+                disabled={!canEdit}
               />
             </div>
 
@@ -208,6 +215,7 @@ export default function EditCustomerPage() {
                 onChange={handleChange}
                 placeholder="Anotações sobre o cliente..."
                 rows={3}
+                disabled={!canEdit}
               />
             </div>
           </CardContent>
@@ -220,21 +228,23 @@ export default function EditCustomerPage() {
             variant="outline"
             onClick={() => router.push("/customers")}
           >
-            Cancelar
+            {canEdit ? "Cancelar" : "Voltar"}
           </Button>
-          <Button type="submit" disabled={isSaving} className="gap-2">
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Salvar Alterações
-              </>
-            )}
-          </Button>
+          {canEdit && (
+            <Button type="submit" disabled={isSaving} className="gap-2">
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </div>

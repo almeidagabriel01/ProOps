@@ -2,20 +2,35 @@
  * Hook: useCreateMember
  * 
  * React hook for creating MEMBER users linked to the current MASTER.
- * Handles loading states, error handling, and toast notifications.
+ * 
+ * IMPORTANT: Uses Firebase Callable Cloud Functions DIRECTLY.
+ * Does NOT use Next.js API Routes - those don't have Firebase Auth context.
+ * 
+ * The Cloud Function 'createMember' validates:
+ * - User is authenticated
+ * - User has MASTER role
+ * - Plan limits allow creating more users
+ * - All data is valid
  */
 
 import { useState, useCallback } from "react";
-import { getAuth } from "firebase/auth";
+import { httpsCallable, HttpsCallableResult } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 import { toast } from "react-toastify";
 
+// ============================================
+// TYPES
+// ============================================
+
+interface PagePermission {
+  canView: boolean;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+}
+
 interface MemberPermissions {
-  [pageSlug: string]: {
-    canView: boolean;
-    canCreate?: boolean;
-    canEdit?: boolean;
-    canDelete?: boolean;
-  };
+  [pageId: string]: PagePermission;
 }
 
 interface CreateMemberData {
@@ -37,6 +52,39 @@ interface UseCreateMemberReturn {
   error: string | null;
 }
 
+// ============================================
+// ERROR MESSAGE MAPPING
+// ============================================
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'unauthenticated': 'Você precisa estar logado para criar membros.',
+  'permission-denied': 'Apenas administradores podem criar membros.',
+  'resource-exhausted': 'Limite de usuários do plano atingido.',
+  'already-exists': 'Este email já está cadastrado.',
+  'invalid-argument': 'Dados inválidos. Verifique nome e email.',
+  'failed-precondition': 'Sua assinatura não está ativa.',
+  'internal': 'Erro interno. Verifique se as Cloud Functions foram implantadas.',
+};
+
+function getErrorMessage(error: any): string {
+  // Firebase Functions error code
+  const code = error?.code?.replace('functions/', '');
+  if (code && ERROR_MESSAGES[code]) {
+    return ERROR_MESSAGES[code];
+  }
+  
+  // Custom message from Cloud Function
+  if (error?.message) {
+    return error.message;
+  }
+  
+  return 'Erro ao criar membro. Tente novamente.';
+}
+
+// ============================================
+// MAIN HOOK
+// ============================================
+
 export function useCreateMember(): UseCreateMemberReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,38 +94,23 @@ export function useCreateMember(): UseCreateMemberReturn {
     setError(null);
 
     try {
-      // Get current user's token
-      const auth = getAuth();
-      const user = auth.currentUser;
-      
-      if (!user) {
-        throw new Error("Você precisa estar logado para criar membros");
-      }
+      // Use pre-configured functions instance with correct region
+      // (configured in src/lib/firebase.ts as 'southamerica-east1')
+      const createMemberFn = httpsCallable<CreateMemberData, CreateMemberResult>(
+        functions, 
+        'createMember'
+      );
 
-      const token = await user.getIdToken();
-
-      // Call the API
-      const response = await fetch("/api/members/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Erro ao criar membro");
-      }
+      // Call the Cloud Function
+      // Firebase automatically includes the auth token!
+      const result: HttpsCallableResult<CreateMemberResult> = await createMemberFn(data);
 
       // Success!
-      toast.success(result.message || "Membro criado com sucesso!");
-      return result;
+      toast.success(result.data.message || "Membro criado com sucesso!");
+      return result.data;
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro desconhecido";
+    } catch (err: any) {
+      const errorMessage = getErrorMessage(err);
       setError(errorMessage);
       toast.error(errorMessage);
       return null;
@@ -99,34 +132,60 @@ export function useCreateMember(): UseCreateMemberReturn {
 // ============================================
 
 /**
- * Returns default permissions for a new MEMBER based on role type
+ * Returns default permissions for a new MEMBER based on role type.
+ * Uses pageId format (not path format) to match Cloud Function expectations.
  */
 export function getDefaultPermissions(roleType: 'viewer' | 'editor' | 'admin' = 'viewer'): MemberPermissions {
   const basePermissions: MemberPermissions = {
-    '/dashboard': { canView: true },
-    '/proposals': { canView: true },
-    '/clients': { canView: true },
-    '/products': { canView: true },
+    'dashboard': { canView: true },
+    'proposals': { canView: true },
+    'clients': { canView: true },
+    'products': { canView: true },
   };
 
   if (roleType === 'editor') {
     return {
-      '/dashboard': { canView: true },
-      '/proposals': { canView: true, canCreate: true, canEdit: true },
-      '/clients': { canView: true, canCreate: true, canEdit: true },
-      '/products': { canView: true, canCreate: true, canEdit: true },
+      'dashboard': { canView: true },
+      'proposals': { canView: true, canCreate: true, canEdit: true },
+      'clients': { canView: true, canCreate: true, canEdit: true },
+      'products': { canView: true, canCreate: true, canEdit: true },
     };
   }
 
   if (roleType === 'admin') {
     return {
-      '/dashboard': { canView: true },
-      '/proposals': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      '/clients': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      '/products': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      '/settings': { canView: true, canEdit: true },
+      'dashboard': { canView: true },
+      'proposals': { canView: true, canCreate: true, canEdit: true, canDelete: true },
+      'clients': { canView: true, canCreate: true, canEdit: true, canDelete: true },
+      'products': { canView: true, canCreate: true, canEdit: true, canDelete: true },
+      'financial': { canView: true, canCreate: true, canEdit: true, canDelete: true },
+      'settings': { canView: true, canEdit: true },
     };
   }
 
   return basePermissions;
 }
+
+// ============================================
+// USAGE EXAMPLE
+// ============================================
+
+/*
+import { useCreateMember, getDefaultPermissions } from '@/hooks/useCreateMember';
+
+function CreateMemberForm() {
+  const { createMember, isLoading, error } = useCreateMember();
+
+  const handleSubmit = async () => {
+    const result = await createMember({
+      name: "João Silva",
+      email: "joao@empresa.com",
+      permissions: getDefaultPermissions('viewer'),
+    });
+
+    if (result?.success) {
+      console.log("Member created:", result.memberId);
+    }
+  };
+}
+*/

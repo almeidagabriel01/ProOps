@@ -264,9 +264,23 @@ export default function LandingPage() {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            // Only redirect to dashboard if user has ERP access (not free)
+            // Intelligent redirect based on permissions
             if (userData.role !== "free") {
-              router.replace("/dashboard");
+              // Check dashboard access
+              const perms = userData.permissions || {};
+              // console.log("Redirect check - Role:", userData.role, "Perms:", Object.keys(perms));
+
+              const isAdmin = ["admin", "superadmin", "MASTER"].includes(userData.role);
+              const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+
+              if (canViewDashboard) {
+                router.replace("/dashboard");
+              } else {
+                // Find first allowed page
+                const pages = ["proposals", "clients", "products", "financial", "profile"];
+                const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+                router.replace(firstAllowed ? `/${firstAllowed}` : "/403");
+              }
               return;
             }
             setCurrentUser({ id: user.uid, ...userData });
@@ -660,11 +674,10 @@ export default function LandingPage() {
                   scale: 1.02,
                   transition: { duration: 0.2 },
                 }}
-                className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${
-                  plan.popular
-                    ? "border-violet-500 bg-gradient-to-b from-violet-500/20 to-violet-500/5 shadow-xl shadow-violet-500/20 md:scale-105 hover:shadow-violet-500/40"
-                    : "border-neutral-800 bg-neutral-900 hover:border-violet-500/50 hover:bg-neutral-900/80 hover:shadow-lg hover:shadow-violet-500/10"
-                } transition-all duration-300`}
+                className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${plan.popular
+                  ? "border-violet-500 bg-gradient-to-b from-violet-500/20 to-violet-500/5 shadow-xl shadow-violet-500/20 md:scale-105 hover:shadow-violet-500/40"
+                  : "border-neutral-800 bg-neutral-900 hover:border-violet-500/50 hover:bg-neutral-900/80 hover:shadow-lg hover:shadow-violet-500/10"
+                  } transition-all duration-300`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -744,11 +757,10 @@ export default function LandingPage() {
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className={`group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${
-                      plan.popular
-                        ? "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50"
-                        : "bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-violet-500/30"
-                    }`}
+                    className={`group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${plan.popular
+                      ? "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50"
+                      : "bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-violet-500/30"
+                      }`}
                   >
                     <span>{plan.cta}</span>
                     <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />

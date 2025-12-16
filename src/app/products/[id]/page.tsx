@@ -7,10 +7,13 @@ import { Product, ProductService } from "@/services/product-service";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function EditProductPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
+    const { canEdit } = usePagePermission("products");
 
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
@@ -64,16 +67,21 @@ export default function EditProductPage() {
                     <ArrowLeft className="w-4 h-4" />
                 </Button>
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Editar Produto</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">
+                        {canEdit ? "Editar Produto" : "Visualizar Produto"}
+                    </h1>
                     <p className="text-muted-foreground mt-1">
-                        Atualize as informações do produto {product.name}.
+                        {canEdit
+                            ? `Atualize as informações do produto ${product.name}.`
+                            : `Visualizando informações do produto ${product.name}.`
+                        }
                     </p>
                 </div>
             </div>
 
             <div className="h-4" /> {/* Spacer */}
 
-            <ProductForm initialData={product} productId={id} />
+            <ProductForm initialData={product} productId={id} isReadOnly={!canEdit} />
         </div>
     );
 }

@@ -31,8 +31,11 @@ const sourceConfig: Record<
   financial: { label: "Financeiro", variant: "warning" },
 };
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function CustomersPage() {
   const { tenant } = useTenant();
+  const { canCreate, canDelete } = usePagePermission("customers");
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -101,12 +104,14 @@ export default function CustomersPage() {
             Gerencie sua base de clientes
           </p>
         </div>
-        <Link href="/customers/new">
-          <Button size="lg" className="gap-2">
-            <Plus className="w-5 h-5" />
-            Novo Cliente
-          </Button>
-        </Link>
+        {canCreate && (
+          <Link href="/customers/new">
+            <Button size="lg" className="gap-2">
+              <Plus className="w-5 h-5" />
+              Novo Cliente
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Search */}
@@ -135,12 +140,14 @@ export default function CustomersPage() {
               Cadastre seus clientes manualmente ou eles serão adicionados
               automaticamente ao criar propostas.
             </p>
-            <Link href="/customers/new">
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Cadastrar Primeiro Cliente
-              </Button>
-            </Link>
+            {canCreate && (
+              <Link href="/customers/new">
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Cadastrar Primeiro Cliente
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : filteredClients.length === 0 ? (
@@ -222,15 +229,17 @@ export default function CustomersPage() {
                         <Edit className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(client.id)}
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(client.id)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
 import {
     ProfileHeader,
@@ -43,6 +44,8 @@ function ProfileContent() {
         setBillingInterval,
     } = usePlanChange(user, tenant);
 
+    const { isMaster } = usePermissions();
+
     // Sync state with user's actual interval
     useEffect(() => {
         if (effectiveUser?.billingInterval) {
@@ -64,8 +67,8 @@ function ProfileContent() {
                 {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
                 <ProfileHeader user={effectiveUser} tenant={tenant} userPlan={userPlan} />
 
-                {/* Plans Section */}
-                {!isLoading && allPlans.length > 0 && (
+                {/* Plans Section - Only visible to MASTER */}
+                {isMaster && !isLoading && allPlans.length > 0 && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
@@ -97,14 +100,16 @@ function ProfileContent() {
                             )}
                         </div>
 
-                        {/* Billing Interval Toggle */}
-                        <div className="py-6 flex justify-center">
-                            <BillingToggle
-                                id="profile-toggle"
-                                value={billingInterval}
-                                onChange={setBillingInterval}
-                            />
-                        </div>
+                        {/* Billing Interval Toggle - Only for master */}
+                        {isMaster && (
+                            <div className="py-6 flex justify-center">
+                                <BillingToggle
+                                    id="profile-toggle"
+                                    value={billingInterval}
+                                    onChange={setBillingInterval}
+                                />
+                            </div>
+                        )}
 
                         <div className="grid md:grid-cols-3 gap-4">
                             {allPlans.map((plan) => (
@@ -118,6 +123,7 @@ function ProfileContent() {
                                     processingTier={upgradingPlan || downgradingPlan}
                                     onUpgrade={handleUpgrade}
                                     onDowngrade={handleDowngrade}
+                                    isMaster={isMaster}
                                 />
                             ))}
                         </div>

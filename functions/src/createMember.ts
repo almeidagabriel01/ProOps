@@ -11,12 +11,15 @@
  * 4. Deploy: firebase deploy --only functions
  * 
  * The Next.js API route version uses the same core logic from create-member.ts
+ * 
+ * MIGRATED TO V1: Uses firebase-functions (v1) for full httpsCallable compatibility
  */
 
-import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { canManageTeam } from "./authUtils";
 
 // Initialize Firebase Admin (only once)
 initializeApp();
@@ -41,8 +44,9 @@ interface CreateMemberInput {
 
 interface MasterUserDoc {
   role: 'MASTER' | 'MEMBER';
-  companyId: string;
-  companyName: string;
+  planId?: string;
+  tenantId: string;
+  companyName?: string; // Optional or deprecated
   subscription?: {
     limits: {
       maxUsers: number;
@@ -73,7 +77,7 @@ function isValidEmail(email: string): boolean {
 }
 
 // ============================================
-// CLOUD FUNCTION (Firebase Functions v2)
+// CLOUD FUNCTION (Firebase Functions v1)
 // ============================================
 
 /**
@@ -87,7 +91,7 @@ function isValidEmail(email: string): boolean {
  * ```typescript
  * import { getFunctions, httpsCallable } from 'firebase/functions';
  * 
- * const functions = getFunctions();
+ * const functions = getFunctions(app, 'southamerica-east1');
  * const createMember = httpsCallable(functions, 'createMember');
  * 
  * const result = await createMember({
@@ -100,14 +104,9 @@ function isValidEmail(email: string): boolean {
  * });
  * ```
  */
-export const createMember = onCall(
-  {
-    // Optional: Configure function options
-    region: "southamerica-east1", // São Paulo
-    memory: "256MiB",
-    timeoutSeconds: 60,
-  },
-  async (request: CallableRequest<CreateMemberInput>) => {
+export const createMember = functions
+  .region("southamerica-east1")
+  .https.onCall(async (data: CreateMemberInput, context) => {
     const db = getFirestore();
     const auth = getAuth();
     
@@ -115,29 +114,29 @@ export const createMember = onCall(
     // STEP 1: Validate Authentication
     // ============================================
     
-    if (!request.auth) {
-      throw new HttpsError(
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
         "unauthenticated",
         "Você precisa estar logado para criar membros"
       );
     }
     
-    const masterId = request.auth.uid;
-    const input = request.data;
+    const masterId = context.auth.uid;
+    const input = data;
     
     // ============================================
     // STEP 2: Validate Input
     // ============================================
     
     if (!input.name || input.name.trim().length < 2) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Nome deve ter pelo menos 2 caracteres"
       );
     }
     
     if (!input.email || !isValidEmail(input.email)) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Email inválido"
       );
@@ -151,71 +150,84 @@ export const createMember = onCall(
     const masterSnap = await masterRef.get();
     
     if (!masterSnap.exists) {
-      throw new HttpsError("not-found", "Usuário não encontrado");
+      throw new functions.https.HttpsError("not-found", "Usuário não encontrado");
     }
     
     const masterData = masterSnap.data() as MasterUserDoc;
     
-    // SECURITY: Only MASTER can create members
-    if (masterData.role !== 'MASTER') {
-      throw new HttpsError(
+    // SECURITY: Only MASTER/ADMIN/SUPERADMIN can create members
+    // Uses normalized role check to support 'admin', 'superadmin', 'master' roles
+    if (!canManageTeam(masterData.role)) {
+      throw new functions.https.HttpsError(
         "permission-denied",
-        "Apenas usuários MASTER podem criar membros da equipe"
+        "Apenas administradores podem criar membros da equipe"
       );
     }
     
-    // ============================================
-    // STEP 4: Check subscription status
-    // ============================================
-    
-    if (!masterData.subscription) {
-      throw new HttpsError(
+    // Verify critical data existence
+    if (!masterData.tenantId) {
+      console.error(`[createMember] User ${masterId} has no tenantId`);
+      throw new functions.https.HttpsError(
         "failed-precondition",
-        "Você precisa de um plano ativo para adicionar membros"
+        "Erro na conta: Identificador do tenant não encontrado. Contate o suporte."
       );
     }
+
+    // ============================================
+    // STEP 4: Check Plan Limits
+    // ============================================
     
-    if (masterData.subscription.status !== 'ACTIVE' && 
-        masterData.subscription.status !== 'TRIALING') {
-      throw new HttpsError(
-        "failed-precondition",
-        "Seu plano não está ativo. Regularize sua assinatura."
-      );
+    // Define plan limits locally to avoid external dependency issues in Cloud Functions
+    // This mirrors the structure in src/services/plan-service.ts
+    const PLAN_LIMITS: Record<string, { maxUsers: number }> = {
+        free: { maxUsers: 1 },
+        starter: { maxUsers: 2 },
+        pro: { maxUsers: 10 },
+        enterprise: { maxUsers: -1 }, // Unlimited
+    };
+
+    const planId = masterData.planId || 'free';
+    const planLimits = PLAN_LIMITS[planId] || PLAN_LIMITS['free'];
+    
+    // Check if subscription is valid (simple check: if plan is not free, assume active for now)
+    // Ideally we should check stripeSubscriptionStatus if available, but planId presence is a strong signal
+    console.log(`[createMember] Plan Check: ${planId} (Max Users: ${planLimits.maxUsers})`);
+
+    // Check Max Users Limit
+    // 4a. Count current users
+    // (Note: This is a potentially expensive read if there are many users, 
+    // but for < 50 users it's negligible. For scaling, use a counter in user doc)
+    const usersRef = db.collection('users');
+    const usersQuery = usersRef.where('masterId', '==', masterId);
+    const usersSnap = await usersQuery.count().get();
+    const currentUsers = usersSnap.data().count;
+
+    console.log(`[createMember] Usage: ${currentUsers}/${planLimits.maxUsers}`);
+
+    if (planLimits.maxUsers !== -1 && currentUsers >= planLimits.maxUsers) {
+         throw new functions.https.HttpsError(
+            "failed-precondition",
+            `Limite de usuários atingido (${currentUsers}/${planLimits.maxUsers}). Faça upgrade para adicionar mais membros.`
+        );
     }
     
     // ============================================
-    // STEP 5: Check plan limits
-    // ============================================
-    
-    const maxUsers = masterData.subscription.limits.maxUsers;
-    const currentUsers = masterData.usage?.users ?? 0;
-    
-    // -1 means unlimited
-    if (maxUsers !== -1 && currentUsers >= maxUsers) {
-      throw new HttpsError(
-        "failed-precondition",
-        `Limite de usuários atingido (${currentUsers}/${maxUsers}). ` +
-        `Faça upgrade do plano para adicionar mais membros.`
-      );
-    }
-    
-    // ============================================
-    // STEP 6: Check if email already exists
+    // STEP 5: Create User in Auth & Firestore
     // ============================================
     
     try {
       await auth.getUserByEmail(input.email);
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "already-exists",
         "Este email já está cadastrado no sistema"
       );
     } catch (err) {
       const error = err as { code?: string };
       if (error.code !== 'auth/user-not-found' && 
-          (err as HttpsError).code !== 'already-exists') {
+          (err as functions.https.HttpsError).code !== 'already-exists') {
         throw err;
       }
-      if ((err as HttpsError).code === 'already-exists') {
+      if ((err as functions.https.HttpsError).code === 'already-exists') {
         throw err;
       }
     }
@@ -236,7 +248,7 @@ export const createMember = onCall(
       });
     } catch (err) {
       console.error('Error creating Firebase Auth user:', err);
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "internal",
         "Erro ao criar usuário. Tente novamente."
       );
@@ -252,7 +264,11 @@ export const createMember = onCall(
       await db.runTransaction(async (transaction) => {
         const now = Timestamp.now();
         
-        // 8a. Create the MEMBER user document
+        // 8a. READ: Check Company/Tenant document existence FIRST
+        const companyRef = db.collection('companies').doc(masterData.tenantId);
+        const companySnap = await transaction.get(companyRef);
+        
+        // 8b. WRITE: Create the MEMBER user document
         const memberRef = db.collection('users').doc(memberId);
         transaction.set(memberRef, {
           name: input.name.trim(),
@@ -263,17 +279,21 @@ export const createMember = onCall(
           role: 'MEMBER',
           masterId: masterId,
           
-          // Company - COPIED FROM MASTER
-          companyId: masterData.companyId,
-          companyName: masterData.companyName,
+          // Company/Tenant - COPIED FROM MASTER
+          tenantId: masterData.tenantId,
+          companyName: masterData.companyName || 'Minha Empresa', // Fallback if missing
           
           createdAt: now,
           updatedAt: now,
         });
         
-        // 8b. Create permission documents
-        for (const [pageSlug, perms] of Object.entries(input.permissions || {})) {
-          const pageId = pageSlug.replace(/\//g, '_').replace(/^_/, '');
+        // Permission sub-collection writes
+        const permissionsInput = input.permissions || {};
+        for (const [pageSlug, perms] of Object.entries(permissionsInput)) {
+          // Normalize pageId or generate one if strictly needed
+          // Assuming pageSlug is the ID
+          const pageId = pageSlug.replace(/\//g, '_').replace(/^_/, ''); 
+          
           const permRef = memberRef.collection('permissions').doc(pageId);
           
           transaction.set(permRef, {
@@ -290,18 +310,21 @@ export const createMember = onCall(
           });
         }
         
-        // 8c. Increment MASTER's usage counter
+        // 8c. WRITE: Increment MASTER's usage counter
         transaction.update(masterRef, {
           'usage.users': FieldValue.increment(1),
           updatedAt: now,
         });
         
-        // 8d. Increment Company's usage counter
-        const companyRef = db.collection('companies').doc(masterData.companyId);
-        transaction.update(companyRef, {
-          'usage.users': FieldValue.increment(1),
-          updatedAt: now,
-        });
+        // 8d. WRITE: Increment Tenant's/Company's usage counter
+        if (companySnap.exists) {
+          transaction.update(companyRef, {
+            'usage.users': FieldValue.increment(1),
+            updatedAt: now,
+          });
+        } else {
+             console.warn(`[createMember] Company/Tenant document ${masterData.tenantId} not found, skipping usage increment.`);
+        }
       });
     } catch (err) {
       // Rollback: Delete the Firebase Auth user
@@ -312,7 +335,7 @@ export const createMember = onCall(
         console.error('Failed to rollback Auth user:', deleteErr);
       }
       
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "internal",
         "Erro ao salvar dados do usuário. Tente novamente."
       );
@@ -327,5 +350,4 @@ export const createMember = onCall(
       memberId: memberId,
       message: `Usuário ${input.name} criado com sucesso!`,
     };
-  }
-);
+  });

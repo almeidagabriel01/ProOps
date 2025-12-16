@@ -67,9 +67,31 @@ function LoginContent() {
     if (user?.role === "superadmin") {
       router.replace("/admin");
     } else if (user?.role === "free") {
-      router.replace("/");
+      router.replace("/"); // or /setup if they haven't finished setup
     } else {
-      router.replace("/dashboard");
+      // Check permissions for redirection
+      const perms = (user as any)?.permissions || {};
+      const userRole = (user as any)?.role;
+      const isAdmin = ["admin", "superadmin", "MASTER"].includes(userRole);
+
+      const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+      // Actually, for members, if it's undefined it usually means no access if we are strict, 
+      // but let's check the logic. If it's blocked, it will be explicit false.
+
+      if (canViewDashboard) {
+        router.replace("/dashboard");
+      } else {
+        // Find first allowed page
+        const pages = ["proposals", "clients", "products", "financial", "profile"];
+        const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+
+        if (firstAllowed) {
+          router.replace(`/${firstAllowed}`);
+        } else {
+          // Fallback if nothing allowed
+          router.replace("/403");
+        }
+      }
     }
   };
 

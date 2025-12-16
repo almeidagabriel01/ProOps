@@ -5,7 +5,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { PlanFeatures } from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
-import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 // Default features for free/no plan users (most restrictive)
@@ -60,7 +60,28 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     const loadFeatures = async () => {
       setIsLoading(true);
       
-      if (!user?.planId) {
+      // Determine effective plan ID
+      let effectivePlanId = user?.planId;
+
+      // Logic: If user is a member (no planId or free) and has a masterId,
+      // we need to fetch the Master's plan.
+      // We check 'masterId' from the user object (need to cast or ensure it exists).
+      const currentUser = user as any;
+      
+      if ((!effectivePlanId || effectivePlanId === 'free') && currentUser?.masterId) {
+         try {
+             // Fetch master user doc
+             const masterRef = doc(db, "users", currentUser.masterId);
+             const masterSnap = await getDoc(masterRef);
+             if (masterSnap.exists()) {
+                 effectivePlanId = masterSnap.data().planId;
+             }
+         } catch (err) {
+             console.error("Error fetching master plan:", err);
+         }
+      }
+
+      if (!effectivePlanId) {
         // No plan - use free tier features
         setFeatures(FREE_PLAN_FEATURES);
         setIsLoading(false);
@@ -69,22 +90,22 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
       try {
         // First try to get plan by ID (if planId is a document ID)
-        let plan = await PlanService.getPlanById(user.planId);
+        let plan = await PlanService.getPlanById(effectivePlanId);
         
         // If not found by ID, try by tier (planId might be "pro", "starter", etc)
         if (!plan) {
-          plan = await PlanService.getPlanByTier(user.planId);
+          plan = await PlanService.getPlanByTier(effectivePlanId);
         }
         
         if (plan?.features) {
           setFeatures(plan.features);
         } else {
           // Last fallback: use DEFAULT_PLANS by tier
-          const fallbackPlan = DEFAULT_PLANS.find(p => p.tier === user.planId);
+          const fallbackPlan = DEFAULT_PLANS.find(p => p.tier === effectivePlanId);
           if (fallbackPlan?.features) {
             setFeatures(fallbackPlan.features);
           } else {
-            console.warn("Could not load plan features for planId:", user.planId);
+            console.warn("Could not load plan features for planId:", effectivePlanId);
             setFeatures(FREE_PLAN_FEATURES);
           }
         }
@@ -97,7 +118,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadFeatures();
-  }, [user?.planId]);
+  }, [user]);
 
   // Count total proposals
   const getProposalCount = useCallback(async (): Promise<number> => {

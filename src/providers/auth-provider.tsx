@@ -20,6 +20,8 @@ export type User = {
   planId?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  masterId?: string; // For members, points to the master user
+  permissions?: Record<string, any>; // Member permissions
 };
 
 interface AuthContextType {
@@ -50,6 +52,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        let permissions = userData.permissions || {};
+
+        // If permissions are missing on the main doc, try to fetch from subcollection
+        // We do this for ALL roles except 'free' to ensure we capture any fine-grained permissions
+        // This fixes issues where role might be 'member', 'viewer', etc.
+        if (userData.role !== 'free' && !userData.permissions) {
+          try {
+            // console.log("Fetching permissions from subcollection for user:", firebaseUser.uid);
+            const { collection, getDocs } = await import("firebase/firestore");
+            const permsRef = collection(db, "users", firebaseUser.uid, "permissions");
+            const permsSnap = await getDocs(permsRef);
+
+            const loadedPerms: Record<string, any> = {};
+            permsSnap.forEach(doc => {
+              loadedPerms[doc.id] = doc.data();
+            });
+
+            if (Object.keys(loadedPerms).length > 0) {
+              permissions = loadedPerms;
+              // console.log("Loaded permissions:", Object.keys(permissions));
+            }
+          } catch (err) {
+            console.error("Error fetching member permissions in auth-provider:", err);
+          }
+        }
+
         return {
           id: firebaseUser.uid,
           email: firebaseUser.email || "",
@@ -60,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           stripeCustomerId: userData.stripeCustomerId || undefined,
           stripeSubscriptionId: userData.stripeSubscriptionId || undefined,
           billingInterval: userData.billingInterval || undefined,
+          masterId: userData.masterId || undefined,
+          permissions: permissions,
         } as User;
       } else {
         console.warn("User document not found in Firestore, treating as free user.");

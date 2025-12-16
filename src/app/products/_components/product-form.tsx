@@ -27,9 +27,10 @@ import { Save, X } from "lucide-react";
 interface ProductFormProps {
   initialData?: Product;
   productId?: string;
+  isReadOnly?: boolean;
 }
 
-export function ProductForm({ initialData, productId }: ProductFormProps) {
+export function ProductForm({ initialData, productId, isReadOnly = false }: ProductFormProps) {
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
@@ -221,6 +222,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     value={formData.name}
                     onChange={handleChange}
                     required
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -233,6 +235,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     className="min-h-[120px]"
                     value={formData.description}
                     onChange={handleChange}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -245,6 +248,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                       name="category"
                       value={formData.category}
                       onChange={handleChange}
+                      disabled={isReadOnly}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -255,6 +259,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                       name="manufacturer"
                       value={formData.manufacturer}
                       onChange={handleChange}
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
@@ -280,6 +285,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     value={formData.price}
                     onChange={handleChange}
                     required
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -291,6 +297,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     placeholder="0"
                     value={formData.stock}
                     onChange={handleChange}
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -301,6 +308,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     placeholder="PROD-001"
                     value={formData.sku}
                     onChange={handleChange}
+                    disabled={isReadOnly}
                   />
                 </div>
               </CardContent>
@@ -328,20 +336,22 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                         alt={`Product ${index + 1}`}
                         className="w-full h-full object-contain"
                       />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleRemoveImage(index)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
+                      {!isReadOnly && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemoveImage(index)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
 
-                {imagesBase64.length < 3 && (
+                {!isReadOnly && imagesBase64.length < 3 && (
                   <FileUpload
                     value={null} // Always reset to allow new uploads
                     onChange={handleAddImage}
@@ -367,6 +377,7 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                     name="status"
                     value={formData.status}
                     onChange={handleChange}
+                    disabled={isReadOnly}
                   >
                     <option value="active">Ativo</option>
                     <option value="inactive">Inativo</option>
@@ -374,20 +385,22 @@ export function ProductForm({ initialData, productId }: ProductFormProps) {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    "Salvando..."
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />{" "}
-                      {productId ? "Salvar Alterações" : "Salvar Produto"}
-                    </>
-                  )}
-                </Button>
+                {!isReadOnly && (
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      "Salvando..."
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />{" "}
+                        {productId ? "Salvar Alterações" : "Salvar Produto"}
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"

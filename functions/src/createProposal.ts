@@ -14,9 +14,11 @@
  * 1. Copy to functions/src/createProposal.ts
  * 2. Export from functions/src/index.ts
  * 3. Deploy: firebase deploy --only functions
+ * 
+ * MIGRATED TO V1: Uses firebase-functions (v1) for full httpsCallable compatibility
  */
 
-import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -82,7 +84,7 @@ interface PermissionDoc {
 }
 
 // ============================================
-// CLOUD FUNCTION
+// CLOUD FUNCTION (Firebase Functions v1)
 // ============================================
 
 /**
@@ -109,49 +111,45 @@ interface PermissionDoc {
  * console.log(result.data.proposalId);
  * ```
  */
-export const createProposal = onCall(
-  {
-    region: "southamerica-east1", // São Paulo
-    memory: "256MiB",
-    timeoutSeconds: 60,
-  },
-  async (request: CallableRequest<CreateProposalInput>) => {
+export const createProposal = functions
+  .region("southamerica-east1")
+  .https.onCall(async (data: CreateProposalInput, context) => {
     const db = getFirestore();
     
     // ============================================
     // STEP 1: Validate Authentication
     // ============================================
     
-    if (!request.auth) {
-      throw new HttpsError(
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
         "unauthenticated",
         "Você precisa estar logado para criar propostas"
       );
     }
     
-    const userId = request.auth.uid;
-    const input = request.data;
+    const userId = context.auth.uid;
+    const input = data;
     
     // ============================================
     // STEP 2: Validate Input
     // ============================================
     
     if (!input.title || input.title.trim().length < 3) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Título da proposta deve ter pelo menos 3 caracteres"
       );
     }
     
     if (!input.clientId || !input.clientName) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Cliente é obrigatório"
       );
     }
     
     if (typeof input.totalValue !== 'number' || input.totalValue < 0) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "invalid-argument",
         "Valor total deve ser um número válido"
       );
@@ -165,7 +163,7 @@ export const createProposal = onCall(
     const userSnap = await userRef.get();
     
     if (!userSnap.exists) {
-      throw new HttpsError("not-found", "Usuário não encontrado");
+      throw new functions.https.HttpsError("not-found", "Usuário não encontrado");
     }
     
     const userData = userSnap.data() as UserDoc;
@@ -180,7 +178,7 @@ export const createProposal = onCall(
     const permSnap = await permRef.get();
     
     if (!permSnap.exists) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "permission-denied",
         "Você não tem permissão para acessar propostas"
       );
@@ -190,14 +188,14 @@ export const createProposal = onCall(
     
     // Must have both canView AND canCreate
     if (!permission.canView) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "permission-denied",
         "Você não tem permissão para visualizar propostas"
       );
     }
     
     if (!permission.canCreate) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "permission-denied",
         "Você não tem permissão para criar propostas"
       );
@@ -221,7 +219,7 @@ export const createProposal = onCall(
     } else {
       // User is MEMBER - get MASTER data
       if (!userData.masterId) {
-        throw new HttpsError(
+        throw new functions.https.HttpsError(
           "failed-precondition",
           "Erro na configuração da conta. Contate o administrador."
         );
@@ -232,7 +230,7 @@ export const createProposal = onCall(
       const masterSnap = await masterRef.get();
       
       if (!masterSnap.exists) {
-        throw new HttpsError(
+        throw new functions.https.HttpsError(
           "failed-precondition",
           "Conta principal não encontrada. Contate o administrador."
         );
@@ -246,7 +244,7 @@ export const createProposal = onCall(
     // ============================================
     
     if (!masterData.subscription) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "failed-precondition",
         "É necessário um plano ativo para criar propostas"
       );
@@ -254,7 +252,7 @@ export const createProposal = onCall(
     
     const subscriptionStatus = masterData.subscription.status;
     if (subscriptionStatus !== 'ACTIVE' && subscriptionStatus !== 'TRIALING') {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "failed-precondition",
         "O plano está inativo. Regularize a assinatura para continuar."
       );
@@ -269,7 +267,7 @@ export const createProposal = onCall(
     
     // -1 means unlimited
     if (maxProposals !== -1 && currentProposals >= maxProposals) {
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "failed-precondition",
         `Limite de propostas atingido (${currentProposals}/${maxProposals}). ` +
         `Faça upgrade do plano para criar mais propostas.`
@@ -293,7 +291,7 @@ export const createProposal = onCall(
         
         // Double-check limit inside transaction (prevents race conditions)
         if (maxProposals !== -1 && freshCurrentProposals >= maxProposals) {
-          throw new HttpsError(
+          throw new functions.https.HttpsError(
             "failed-precondition",
             `Limite de propostas atingido. Tente novamente.`
           );
@@ -347,12 +345,12 @@ export const createProposal = onCall(
       });
     } catch (err) {
       // If it's already an HttpsError, re-throw as-is
-      if (err instanceof HttpsError) {
+      if (err instanceof functions.https.HttpsError) {
         throw err;
       }
       
       console.error('Transaction failed:', err);
-      throw new HttpsError(
+      throw new functions.https.HttpsError(
         "internal",
         "Erro ao criar proposta. Tente novamente."
       );
@@ -367,5 +365,4 @@ export const createProposal = onCall(
       proposalId: proposalId,
       message: `Proposta "${input.title}" criada com sucesso!`,
     };
-  }
-);
+  });

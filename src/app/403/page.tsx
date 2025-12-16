@@ -8,11 +8,18 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { ShieldX, ArrowLeft, Home } from "lucide-react";
+import { ShieldX, ArrowLeft, Home, LogOut } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 export default function ForbiddenPage() {
     const router = useRouter();
     const { user } = useAuth();
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        router.push("/login");
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
@@ -50,11 +57,35 @@ export default function ForbiddenPage() {
                     </button>
 
                     <button
-                        onClick={() => router.push("/dashboard")}
+                        onClick={() => {
+                            // Smart redirect: Check permissions and find first allowed page
+                            // Similar logic to login redirect
+                            const perms = user?.permissions || {};
+                            const userRole = user?.role;
+                            const isAdmin = ["admin", "superadmin", "MASTER"].includes(userRole || "");
+
+                            const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+
+                            if (canViewDashboard) {
+                                router.push("/dashboard");
+                            } else {
+                                const pages = ["proposals", "clients", "products", "financial", "profile"];
+                                const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+                                router.push(firstAllowed ? `/${firstAllowed}` : "/login");
+                            }
+                        }}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors"
                     >
                         <Home className="w-4 h-4" />
-                        Ir para Dashboard
+                        Início
+                    </button>
+
+                    <button
+                        onClick={handleLogout}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-600/20 rounded-lg transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Sair
                     </button>
                 </div>
 

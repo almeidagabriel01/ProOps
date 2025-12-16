@@ -21,8 +21,11 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+import { usePagePermission } from "@/hooks/usePagePermission";
+
 export default function ProductsPage() {
     const { tenant } = useTenant();
+    const { canCreate, canDelete } = usePagePermission("products");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -89,12 +92,14 @@ export default function ProductsPage() {
                         Gerencie o catálogo de produtos, estoque e preços.
                     </p>
                 </div>
-                <Link href="/products/new">
-                    <Button size="lg" className="gap-2">
-                        <Plus className="w-5 h-5" />
-                        Novo Produto
-                    </Button>
-                </Link>
+                {canCreate && (
+                    <Link href="/products/new">
+                        <Button size="lg" className="gap-2">
+                            <Plus className="w-5 h-5" />
+                            Novo Produto
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             {/* Search */}
@@ -122,12 +127,14 @@ export default function ProductsPage() {
                         <p className="text-muted-foreground text-center mb-6 max-w-md">
                             Cadastre seus produtos para gerenciar estoque e criar propostas.
                         </p>
-                        <Link href="/products/new">
-                            <Button className="gap-2">
-                                <Plus className="w-4 h-4" />
-                                Cadastrar Primeiro Produto
-                            </Button>
-                        </Link>
+                        {canCreate && (
+                            <Link href="/products/new">
+                                <Button className="gap-2">
+                                    <Plus className="w-4 h-4" />
+                                    Cadastrar Primeiro Produto
+                                </Button>
+                            </Link>
+                        )}
                     </CardContent>
                 </Card>
             ) : filteredProducts.length === 0 ? (
@@ -205,34 +212,36 @@ export default function ProductsPage() {
                                             <Edit className="w-4 h-4" />
                                         </Button>
                                     </Link>
-                                    <AlertDialog open={deleteId === product.id} onOpenChange={(open: boolean) => !open && setDeleteId(null)}>
-                                        <AlertDialogTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                onClick={() => setDeleteId(product.id)}
-                                                title="Excluir"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Tem certeza que deseja excluir o produto <strong>{product.name}</strong>?
-                                                    Essa ação não pode ser desfeita.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                                                    Excluir
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                    {canDelete && (
+                                        <AlertDialog open={deleteId === product.id} onOpenChange={(open: boolean) => !open && setDeleteId(null)}>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => setDeleteId(product.id)}
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Tem certeza que deseja excluir o produto <strong>{product.name}</strong>?
+                                                        Essa ação não pode ser desfeita.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                                                        Excluir
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

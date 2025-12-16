@@ -1,93 +1,50 @@
 /**
- * API Route: Create Member User
+ * ⚠️ DEPRECATED API ROUTE - DO NOT USE
  * 
- * POST /api/members/create
+ * This API Route has been DISABLED.
  * 
- * Creates a new MEMBER user linked to the authenticated MASTER.
- * Requires Firebase Auth token in Authorization header.
+ * REASON:
+ * Next.js API Routes do NOT have Firebase Auth context (context.auth).
+ * Even when passing a Bearer token, the API Route cannot access 
+ * Firebase custom claims or role verification reliably.
+ * 
+ * CORRECT APPROACH:
+ * Use Firebase Callable Cloud Functions which have built-in auth:
+ * 
+ * ```typescript
+ * import { getFunctions, httpsCallable } from 'firebase/functions';
+ * 
+ * const functions = getFunctions();
+ * const createMember = httpsCallable(functions, 'createMember');
+ * 
+ * const result = await createMember({ name, email, permissions });
+ * ```
+ * 
+ * The Cloud Function 'createMember' is deployed in functions/src/createMember.ts
+ * Deploy with: firebase deploy --only functions:createMember
+ * 
+ * SEE: src/hooks/useCreateMember.ts for the correct implementation
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebase-admin";
-import { createMemberUser, CreateMemberInput } from "@/lib/create-member";
 
 export async function POST(request: NextRequest) {
-  try {
-    // ============================================
-    // STEP 1: Validate Authorization Header
-    // ============================================
-    
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Token de autenticação não fornecido" },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.split("Bearer ")[1];
-    
-    // ============================================
-    // STEP 2: Verify Firebase Token
-    // ============================================
-    
-    let decodedToken;
-    try {
-      const auth = getAdminAuth();
-      decodedToken = await auth.verifyIdToken(token);
-    } catch {
-      return NextResponse.json(
-        { error: "Token inválido ou expirado" },
-        { status: 401 }
-      );
-    }
-    
-    const masterId = decodedToken.uid;
-    
-    // ============================================
-    // STEP 3: Parse Request Body
-    // ============================================
-    
-    let body: CreateMemberInput;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Corpo da requisição inválido" },
-        { status: 400 }
-      );
-    }
-    
-    // ============================================
-    // STEP 4: Call Create Member Function
-    // ============================================
-    
-    const result = await createMemberUser(masterId, body);
-    
-    return NextResponse.json(result, { status: 201 });
-    
-  } catch (error) {
-    console.error("Error creating member:", error);
-    
-    // Map error codes to HTTP status codes
-    const err = error as Error & { code?: string };
-    const statusMap: Record<string, number> = {
-      'permission-denied': 403,
-      'failed-precondition': 400,
-      'invalid-argument': 400,
-      'already-exists': 409,
-      'not-found': 404,
-      'internal': 500,
-    };
-    
-    const status = statusMap[err.code || ''] || 500;
-    
-    return NextResponse.json(
-      { 
-        error: err.message || "Erro interno do servidor",
-        code: err.code 
-      },
-      { status }
-    );
-  }
+  return NextResponse.json(
+    { 
+      error: "Esta API foi desativada. Use Firebase Callable Functions.",
+      code: "deprecated",
+      solution: "Atualize o frontend para usar httpsCallable(functions, 'createMember')"
+    },
+    { status: 410 } // 410 Gone
+  );
+}
+
+export async function GET(request: NextRequest) {
+  return NextResponse.json(
+    { 
+      error: "Esta API foi desativada. Use Firebase Callable Functions.",
+      code: "deprecated"
+    },
+    { status: 410 }
+  );
 }

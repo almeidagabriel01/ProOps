@@ -153,6 +153,16 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
                     canEdit: data.canEdit ?? false,
                     canDelete: data.canDelete ?? false,
                 };
+                if (!pages["profile"]) {
+                    pages["profile"] = {
+                        pageId: "profile",
+                        pageSlug: "/profile",
+                        canView: true,
+                        canCreate: false,
+                        canEdit: true,
+                        canDelete: false,
+                    };
+                }
             });
 
             // 4. MASTER users have ALL permissions by default
