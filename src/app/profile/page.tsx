@@ -1,160 +1,174 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, ExternalLink } from "lucide-react";
+import { Loader2, CreditCard, ExternalLink, Puzzle } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
 import {
-    ProfileHeader,
-    PlanCard,
-    PlanChangeDialog
+  ProfileHeader,
+  PlanCard,
+  PlanChangeDialog,
 } from "@/components/profile";
 import { BillingToggle } from "@/components/ui/billing-toggle";
 import { Suspense } from "react";
-import { BillingInterval } from "@/types";
 
 function ProfileContent() {
-    const { user } = useAuth();
-    const { tenant } = useTenant();
+  const { user } = useAuth();
+  const { tenant } = useTenant();
 
-    const {
-        effectiveUser,
-        userPlan,
-        allPlans,
-        isLoading,
-        dialogOpen,
-        selectedPlan,
-        planPreview,
-        loadingPreview,
-        isFirstSubscription,
-        upgradingPlan,
-        downgradingPlan,
-        openingPortal,
-        handleUpgrade,
-        handleDowngrade,
-        confirmPlanChange,
-        handleManagePayment,
-        setDialogOpen,
-        isCurrentPlan,
-        canUpgrade,
-        billingInterval,
-        setBillingInterval,
-    } = usePlanChange(user, tenant);
+  const {
+    effectiveUser,
+    userPlan,
+    allPlans,
+    isLoading,
+    dialogOpen,
+    selectedPlan,
+    planPreview,
+    loadingPreview,
+    isFirstSubscription,
+    upgradingPlan,
+    downgradingPlan,
+    openingPortal,
+    handleUpgrade,
+    handleDowngrade,
+    confirmPlanChange,
+    handleManagePayment,
+    setDialogOpen,
+    isCurrentPlan,
+    canUpgrade,
+    billingInterval,
+    setBillingInterval,
+  } = usePlanChange(user, tenant);
 
-    const { isMaster } = usePermissions();
+  const { isMaster } = usePermissions();
 
-    // Sync state with user's actual interval
-    useEffect(() => {
-        if (effectiveUser?.billingInterval) {
-            setBillingInterval(effectiveUser.billingInterval);
-        }
-    }, [effectiveUser?.billingInterval, setBillingInterval]);
+  // Sync state with user's actual interval
+  useEffect(() => {
+    if (effectiveUser?.billingInterval) {
+      setBillingInterval(effectiveUser.billingInterval);
+    }
+  }, [effectiveUser?.billingInterval, setBillingInterval]);
 
-    return (
-        <>
-            <div className="space-y-6 max-w-5xl mx-auto">
-                {/* Header */}
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Meu Perfil</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Visualize e gerencie suas informações pessoais
-                    </p>
-                </div>
+  return (
+    <>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Meu Perfil</h1>
+          <p className="text-muted-foreground mt-1">
+            Visualize e gerencie suas informações pessoais
+          </p>
+        </div>
 
-                {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
-                <ProfileHeader user={effectiveUser} tenant={tenant} userPlan={userPlan} />
+        {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
+        <ProfileHeader
+          user={effectiveUser}
+          tenant={tenant}
+          userPlan={userPlan}
+        />
 
-                {/* Plans Section - Only visible to MASTER */}
-                {isMaster && !isLoading && allPlans.length > 0 && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-xl font-semibold">Meu Plano</h2>
-                                <p className="text-muted-foreground text-sm">
-                                    Compare seu plano atual com as opções de upgrade
-                                </p>
-                            </div>
-                            {userPlan && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleManagePayment}
-                                    disabled={openingPortal}
-                                >
-                                    {openingPortal ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            Abrindo...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CreditCard className="w-4 h-4 mr-2" />
-                                            Gerenciar Pagamento
-                                            <ExternalLink className="w-3 h-3 ml-1" />
-                                        </>
-                                    )}
-                                </Button>
-                            )}
-                        </div>
-
-                        {/* Billing Interval Toggle - Only for master */}
-                        {isMaster && (
-                            <div className="py-6 flex justify-center">
-                                <BillingToggle
-                                    id="profile-toggle"
-                                    value={billingInterval}
-                                    onChange={setBillingInterval}
-                                />
-                            </div>
-                        )}
-
-                        <div className="grid md:grid-cols-3 gap-4">
-                            {allPlans.map((plan) => (
-                                <PlanCard
-                                    key={plan.id}
-                                    plan={plan}
-                                    billingInterval={billingInterval}
-                                    isCurrent={isCurrentPlan(plan)}
-                                    canUpgrade={canUpgrade(plan)}
-                                    isProcessing={upgradingPlan !== null || downgradingPlan !== null}
-                                    processingTier={upgradingPlan || downgradingPlan}
-                                    onUpgrade={handleUpgrade}
-                                    onDowngrade={handleDowngrade}
-                                    isMaster={isMaster}
-                                />
-                            ))}
-                        </div>
-                    </div>
+        {/* Plans Section - Only visible to MASTER */}
+        {isMaster && !isLoading && allPlans.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Meu Plano</h2>
+                <p className="text-muted-foreground text-sm">
+                  Compare seu plano atual com as opções de upgrade
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href="/profile/addons">
+                  <Button variant="outline" size="sm">
+                    <Puzzle className="w-4 h-4 mr-2" />
+                    Add-ons
+                  </Button>
+                </Link>
+                {userPlan && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleManagePayment}
+                    disabled={openingPortal}
+                  >
+                    {openingPortal ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Abrindo...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Gerenciar Pagamento
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </>
+                    )}
+                  </Button>
                 )}
+              </div>
             </div>
 
-            {/* Plan Change Confirmation Dialog */}
-            <PlanChangeDialog
-                open={dialogOpen}
-                onOpenChange={setDialogOpen}
-                selectedPlan={selectedPlan}
-                preview={planPreview}
-                isLoading={loadingPreview}
-                isFirstSubscription={isFirstSubscription}
-                isProcessing={upgradingPlan !== null || downgradingPlan !== null}
-                onConfirm={confirmPlanChange}
-                onManagePayment={handleManagePayment}
-            />
-        </>
-    );
+            {/* Billing Interval Toggle */}
+            <div className="py-6 flex justify-center">
+              <BillingToggle
+                id="profile-toggle"
+                value={billingInterval}
+                onChange={setBillingInterval}
+              />
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {allPlans.map((plan) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  billingInterval={billingInterval}
+                  isCurrent={isCurrentPlan(plan)}
+                  canUpgrade={canUpgrade(plan)}
+                  isProcessing={
+                    upgradingPlan !== null || downgradingPlan !== null
+                  }
+                  processingTier={upgradingPlan || downgradingPlan}
+                  onUpgrade={handleUpgrade}
+                  onDowngrade={handleDowngrade}
+                  isMaster={isMaster}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Plan Change Confirmation Dialog */}
+      <PlanChangeDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        selectedPlan={selectedPlan}
+        preview={planPreview}
+        isLoading={loadingPreview}
+        isFirstSubscription={isFirstSubscription}
+        isProcessing={upgradingPlan !== null || downgradingPlan !== null}
+        onConfirm={confirmPlanChange}
+        onManagePayment={handleManagePayment}
+      />
+    </>
+  );
 }
 
 export default function ProfilePage() {
-    return (
-        <Suspense fallback={
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        }>
-            <ProfileContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <ProfileContent />
+    </Suspense>
+  );
 }

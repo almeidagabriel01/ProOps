@@ -36,8 +36,28 @@ export const STRIPE_PRICE_IDS: Record<string, Record<BillingInterval, string>> =
   },
 };
 
+// Add-on Price IDs mapping - configure these in .env.local
+export const STRIPE_ADDON_PRICE_IDS: Record<string, Record<BillingInterval, string>> = {
+  financial: {
+    monthly: process.env.STRIPE_ADDON_FINANCIAL_MONTHLY || '',
+    yearly: process.env.STRIPE_ADDON_FINANCIAL_YEARLY || '',
+  },
+  pdf_editor_partial: {
+    monthly: process.env.STRIPE_ADDON_PDF_PARTIAL_MONTHLY || '',
+    yearly: process.env.STRIPE_ADDON_PDF_PARTIAL_YEARLY || '',
+  },
+  pdf_editor_full: {
+    monthly: process.env.STRIPE_ADDON_PDF_FULL_MONTHLY || '',
+    yearly: process.env.STRIPE_ADDON_PDF_FULL_YEARLY || '',
+  },
+};
+
 // Get price ID for a plan tier and billing interval
 export function getPriceIdForTier(tier: string, interval: BillingInterval = 'monthly'): string | null {
   return STRIPE_PRICE_IDS[tier]?.[interval] || null;
 }
 
+// Get price ID for an add-on and billing interval
+export function getPriceIdForAddon(addonType: string, interval: BillingInterval = 'monthly'): string | null {
+  return STRIPE_ADDON_PRICE_IDS[addonType]?.[interval] || null;
+}
