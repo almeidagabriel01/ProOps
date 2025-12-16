@@ -162,6 +162,16 @@ export function UpgradeModal({
             <ArrowRight className="w-4 h-4" />
           </Button>
           <Button
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false);
+              router.push("/profile/addons");
+            }}
+            className="w-full gap-2"
+          >
+            Ou compre apenas este módulo
+          </Button>
+          <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             className="w-full"
