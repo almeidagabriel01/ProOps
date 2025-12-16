@@ -129,10 +129,25 @@ export async function POST(request: NextRequest) {
     // The actual amount due from Stripe (this is what will be charged)
     const amountDue = preview.amount_due / 100;
 
+    // Determine current plan tier from Firestore
+    // planId is a document ID, we need to fetch the plan to get the tier
+    let currentPlanTier = 'unknown';
+    if (userData.planId) {
+      const planRef = doc(db, 'plans', userData.planId);
+      const planSnap = await getDoc(planRef);
+      if (planSnap.exists()) {
+        currentPlanTier = planSnap.data().tier || planSnap.data().name || 'unknown';
+      }
+    }
+    // Fallback to Stripe metadata if not found
+    if (currentPlanTier === 'unknown') {
+      currentPlanTier = subscription.metadata?.planTier || 'unknown';
+    }
+
     return NextResponse.json({
       preview: {
         currentPlan: {
-          tier: subscription.metadata?.planTier || 'unknown',
+          tier: currentPlanTier,
           price: currentAmount,
           interval: currentPrice.recurring?.interval === 'year' ? 'yearly' : 'monthly',
         },

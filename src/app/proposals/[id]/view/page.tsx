@@ -7,8 +7,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Proposal } from "@/services/proposal-service"; // Types only
 import { ProposalStatus, ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { ArrowLeft, FileDown, Edit, Loader2, Palette } from "lucide-react";
+import {
+  ArrowLeft,
+  FileDown,
+  Edit,
+  Loader2,
+  Palette,
+  Crown,
+} from "lucide-react";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 
@@ -16,12 +25,34 @@ export default function ViewProposalPage() {
   const params = useParams();
   const router = useRouter();
   const { tenant } = useTenant();
+  const { features } = usePlanLimits();
+  const upgradeModal = useUpgradeModal();
   const proposalId = params.id as string;
+
+  // Pro and Enterprise can access Edit PDF (maxPdfTemplates > 1)
+  const canAccessEditPdf =
+    features &&
+    (features.maxPdfTemplates === -1 || features.maxPdfTemplates > 1);
 
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isGenerating, setIsGenerating] = React.useState(false);
+
+  // Helper function to lighten a hex color
+  const lightenColor = (hex: string, percent: number): string => {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, (num >> 16) + amt);
+    const G = Math.min(255, ((num >> 8) & 0x00ff) + amt);
+    const B = Math.min(255, (num & 0x0000ff) + amt);
+    return (
+      "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)
+    );
+  };
+
+  const primaryColor = tenant?.primaryColor || "#2563eb";
+  const premiumColor = lightenColor(primaryColor, 25);
 
   React.useEffect(() => {
     if (proposalId && tenant) {
@@ -171,14 +202,32 @@ export default function ViewProposalPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/proposals/${proposalId}/edit-pdf`)}
-            className="gap-2"
-          >
-            <Palette className="w-4 h-4" />
-            Editar PDF
-          </Button>
+          {canAccessEditPdf ? (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/proposals/${proposalId}/edit-pdf`)}
+              className="gap-2"
+            >
+              <Palette className="w-4 h-4" />
+              Editar PDF
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() =>
+                upgradeModal.showUpgradeModal(
+                  "Editor de PDF",
+                  "Personalize completamente suas propostas com nosso editor avançado de seções.",
+                  "pro"
+                )
+              }
+              className="gap-2 hover:bg-primary/10"
+              style={{ color: premiumColor }}
+            >
+              <Crown className="w-4 h-4" />
+              Editar PDF
+            </Button>
+          )}
 
           <Button
             variant="outline"
@@ -227,6 +276,15 @@ export default function ViewProposalPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        open={upgradeModal.isOpen}
+        onOpenChange={upgradeModal.setIsOpen}
+        feature={upgradeModal.feature}
+        description={upgradeModal.description}
+        requiredPlan={upgradeModal.requiredPlan}
+      />
     </div>
   );
 }

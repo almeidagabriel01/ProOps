@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import {
   Transaction,
   TransactionService,
@@ -51,6 +53,7 @@ const statusConfig: Record<
 
 export default function FinancialPage() {
   const { tenant } = useTenant();
+  const { hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -64,7 +67,11 @@ export default function FinancialPage() {
     pendingExpense: 0,
   });
 
+  // useEffect MUST be called before any conditional returns
   React.useEffect(() => {
+    // Only fetch if user has access
+    if (!hasFinancial && !isPlanLoading) return;
+
     const fetchData = async () => {
       if (tenant) {
         try {
@@ -81,7 +88,17 @@ export default function FinancialPage() {
       setIsLoading(false);
     };
     fetchData();
-  }, [tenant]);
+  }, [tenant, hasFinancial, isPlanLoading]);
+
+  // Check plan access - MUST be AFTER all hooks
+  if (!isPlanLoading && !hasFinancial) {
+    return (
+      <UpgradeRequired
+        feature="Financeiro"
+        description="O módulo Financeiro permite gerenciar suas receitas, despesas e fluxo de caixa. Faça upgrade para o plano Profissional ou Enterprise para acessar."
+      />
+    );
+  }
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este lançamento?")) {

@@ -60,10 +60,10 @@ export async function fetchPlansFromStripe(): Promise<UserPlan[]> {
             maxClients: parseInt(product.metadata.maxClients || '0'),
             maxProducts: parseInt(product.metadata.maxProducts || '0'),
             maxUsers: parseInt(product.metadata.maxUsers || '0'),
-            customBranding: product.metadata.customBranding === 'true',
-            prioritySupport: product.metadata.prioritySupport === 'true',
-            apiAccess: product.metadata.apiAccess === 'true',
-            advancedReports: product.metadata.advancedReports === 'true',
+            hasFinancial: product.metadata.hasFinancial === 'true',
+            canCustomizeTheme: product.metadata.canCustomizeTheme === 'true',
+            maxPdfTemplates: parseInt(product.metadata.maxPdfTemplates || '1'),
+            canEditPdfSections: product.metadata.canEditPdfSections === 'true',
         },
         createdAt: new Date().toISOString(), // Placeholder
       });

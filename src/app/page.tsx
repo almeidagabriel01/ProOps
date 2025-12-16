@@ -6,9 +6,28 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { HeroParallax } from "@/components/ui/hero-parallax";
-import { ArrowRight, Check, Play, Star, Zap, Shield, Users, BarChart, Sparkles, Menu, X, ChevronDown, LogOut, FileText, Package } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Play,
+  Star,
+  Zap,
+  Shield,
+  Users,
+  BarChart,
+  Sparkles,
+  Menu,
+  X,
+  ChevronDown,
+  LogOut,
+  FileText,
+  Package,
+} from "lucide-react";
 import { motion } from "motion/react";
-import { AnimatedText, AnimatedGradientText } from "@/components/ui/animated-text";
+import {
+  AnimatedText,
+  AnimatedGradientText,
+} from "@/components/ui/animated-text";
 import { ParticlesBackground } from "@/components/ui/particles-background";
 import { MobileMenu } from "@/components/ui/mobile-menu";
 import { SpotlightCard } from "@/components/ui/feature-card";
@@ -121,7 +140,7 @@ const INITIAL_PLANS = [
     tier: "starter",
     prices: {
       monthly: 97,
-      yearly: 931,  // ~20% desconto
+      yearly: 931, // ~20% desconto
     },
     description: "Ideal para pequenos negócios",
     features: [
@@ -138,7 +157,7 @@ const INITIAL_PLANS = [
     tier: "pro",
     prices: {
       monthly: 197,
-      yearly: 1891,  // ~20% desconto
+      yearly: 1891, // ~20% desconto
     },
     description: "Para empresas em crescimento",
     features: [
@@ -157,7 +176,7 @@ const INITIAL_PLANS = [
     tier: "enterprise",
     prices: {
       monthly: 497,
-      yearly: 4771,  // ~20% desconto
+      yearly: 4771, // ~20% desconto
     },
     description: "Para grandes operações",
     features: [
@@ -184,7 +203,9 @@ export default function LandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
+    "monthly"
+  );
   const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
 
   useEffect(() => {
@@ -192,23 +213,35 @@ export default function LandingPage() {
       try {
         const fetchedPlans = await PlanService.getPlans();
         if (fetchedPlans && fetchedPlans.length > 0) {
-          const mappedPlans = fetchedPlans.map(p => ({
+          const mappedPlans = fetchedPlans.map((p) => ({
             name: p.name,
             tier: p.tier,
             prices: p.pricing || { monthly: p.price, yearly: p.price * 12 },
             description: p.description,
             features: [
-              p.features.maxProposals === -1 ? "Propostas ilimitadas" : `Até ${p.features.maxProposals} propostas/mês`,
-              p.features.maxUsers === -1 ? "Usuários ilimitados" : `${p.features.maxUsers} usuários`,
-              p.features.customBranding ? "Customização de marca" : null,
-              p.features.prioritySupport ? "Suporte prioritário" : "Suporte por email",
-              p.features.apiAccess ? "API de integração" : null,
-              p.features.advancedReports ? "Relatórios avançados" : "Relatórios básicos",
-              // Adicionar features extras se existirem no objeto features (ex: enterprise)
-              ...(p.tier === 'enterprise' ? ["Multi-tenant", "SLA garantido", "Onboarding dedicado"] : [])
+              p.features.maxProposals === -1
+                ? "Propostas ilimitadas"
+                : `Até ${p.features.maxProposals} propostas/mês`,
+              p.features.maxUsers === -1
+                ? "Usuários ilimitados"
+                : `${p.features.maxUsers} usuários`,
+              p.features.maxClients === -1
+                ? "Clientes ilimitados"
+                : `${p.features.maxClients} clientes`,
+              p.features.maxProducts === -1
+                ? "Produtos ilimitados"
+                : `${p.features.maxProducts} produtos`,
+              p.features.hasFinancial ? "Módulo Financeiro" : null,
+              p.features.canCustomizeTheme ? "Personalização de cores" : null,
+              p.features.maxPdfTemplates === -1
+                ? "Todos os templates PDF"
+                : p.features.maxPdfTemplates > 1
+                  ? `${p.features.maxPdfTemplates} templates PDF`
+                  : "1 template PDF",
+              p.features.canEditPdfSections ? "Editor de seções do PDF" : null,
             ].filter(Boolean),
             cta: "Assinar Agora",
-            popular: p.highlighted
+            popular: p.highlighted,
           }));
           setPlans(mappedPlans);
         }
@@ -239,7 +272,9 @@ export default function LandingPage() {
             setCurrentUser({ id: user.uid, ...userData });
           } else {
             // User exists in Firebase Auth but not in Firestore - sign them out
-            console.warn("User document not found in Firestore, signing out...");
+            console.warn(
+              "User document not found in Firestore, signing out..."
+            );
             await signOut(auth);
             setCurrentUser(null);
           }
@@ -309,9 +344,13 @@ export default function LandingPage() {
               <div className="relative group">
                 <button className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 transition-all duration-200">
                   <div className="flex flex-col items-end hidden sm:flex">
-                    <span className="text-sm font-medium text-white">{currentUser.name}</span>
+                    <span className="text-sm font-medium text-white">
+                      {currentUser.name}
+                    </span>
                     <span className="text-xs text-neutral-400 capitalize">
-                      {currentUser.role === 'free' ? 'Conta Gratuita' : currentUser.role}
+                      {currentUser.role === "free"
+                        ? "Conta Gratuita"
+                        : currentUser.role}
                     </span>
                   </div>
                   <div className="h-9 w-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
@@ -322,8 +361,12 @@ export default function LandingPage() {
                 {/* Dropdown */}
                 <div className="absolute right-0 top-full mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <div className="p-3 border-b border-neutral-800">
-                    <p className="text-sm font-medium text-white truncate">{currentUser.name}</p>
-                    <p className="text-xs text-neutral-400 truncate">{currentUser.email}</p>
+                    <p className="text-sm font-medium text-white truncate">
+                      {currentUser.name}
+                    </p>
+                    <p className="text-xs text-neutral-400 truncate">
+                      {currentUser.email}
+                    </p>
                   </div>
                   <div className="p-2">
                     <button
@@ -374,7 +417,10 @@ export default function LandingPage() {
       />
 
       {/* Features Section */}
-      <section id="features" className="py-16 md:py-24 px-4 relative overflow-hidden">
+      <section
+        id="features"
+        className="py-16 md:py-24 px-4 relative overflow-hidden"
+      >
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-neutral-900/20 to-neutral-950" />
 
@@ -390,7 +436,8 @@ export default function LandingPage() {
               <AnimatedText text="Recursos poderosos" />
             </h2>
             <p className="text-neutral-400 text-base md:text-lg max-w-2xl mx-auto px-4">
-              Tudo que você precisa para gerenciar seu negócio em uma única plataforma
+              Tudo que você precisa para gerenciar seu negócio em uma única
+              plataforma
             </p>
           </motion.div>
 
@@ -468,9 +515,13 @@ export default function LandingPage() {
                     <Users className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-violet-200 transition-colors">Cadastre sua empresa</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-violet-200 transition-colors">
+                      Cadastre sua empresa
+                    </h3>
                     <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
-                      Crie sua conta em segundos. Configure o perfil da sua empresa, adicione logo e informações de contato que aparecerão nas propostas.
+                      Crie sua conta em segundos. Configure o perfil da sua
+                      empresa, adicione logo e informações de contato que
+                      aparecerão nas propostas.
                     </p>
                   </div>
                 </div>
@@ -486,9 +537,13 @@ export default function LandingPage() {
                     <Package className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-cyan-200 transition-colors">Adicione seus produtos</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-cyan-200 transition-colors">
+                      Adicione seus produtos
+                    </h3>
                     <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
-                      Importe seu catálogo ou cadastre produtos manualmente. Defina preços, descrições e imagens que darão vida às suas propostas.
+                      Importe seu catálogo ou cadastre produtos manualmente.
+                      Defina preços, descrições e imagens que darão vida às suas
+                      propostas.
                     </p>
                   </div>
                 </div>
@@ -504,9 +559,13 @@ export default function LandingPage() {
                     <FileText className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-emerald-200 transition-colors">Crie propostas incríveis</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-emerald-200 transition-colors">
+                      Crie propostas incríveis
+                    </h3>
                     <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
-                      Monte propostas profissionais em poucos cliques. Selecione produtos, personalize valores e envie direto para o cliente.
+                      Monte propostas profissionais em poucos cliques. Selecione
+                      produtos, personalize valores e envie direto para o
+                      cliente.
                     </p>
                   </div>
                 </div>
@@ -522,9 +581,12 @@ export default function LandingPage() {
                     <BarChart className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">Acompanhe resultados</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">
+                      Acompanhe resultados
+                    </h3>
                     <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
-                      Visualize métricas de vendas no dashboard. Entenda o que funciona e tome decisões baseadas em dados reais.
+                      Visualize métricas de vendas no dashboard. Entenda o que
+                      funciona e tome decisões baseadas em dados reais.
                     </p>
                   </div>
                 </div>
@@ -535,7 +597,10 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-16 md:py-24 px-4 bg-neutral-900/50 relative overflow-hidden">
+      <section
+        id="pricing"
+        className="py-16 md:py-24 px-4 bg-neutral-900/50 relative overflow-hidden"
+      >
         {/* Background Effects */}
         <ParticlesBackground count={30} />
 
@@ -588,17 +653,18 @@ export default function LandingPage() {
                 transition={{
                   duration: 0.5,
                   delay: index * 0.15,
-                  ease: [0.21, 0.47, 0.32, 0.98]
+                  ease: [0.21, 0.47, 0.32, 0.98],
                 }}
                 whileHover={{
                   y: -8,
                   scale: 1.02,
-                  transition: { duration: 0.2 }
+                  transition: { duration: 0.2 },
                 }}
-                className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${plan.popular
-                  ? "border-violet-500 bg-gradient-to-b from-violet-500/20 to-violet-500/5 shadow-xl shadow-violet-500/20 md:scale-105 hover:shadow-violet-500/40"
-                  : "border-neutral-800 bg-neutral-900 hover:border-violet-500/50 hover:bg-neutral-900/80 hover:shadow-lg hover:shadow-violet-500/10"
-                  } transition-all duration-300`}
+                className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${
+                  plan.popular
+                    ? "border-violet-500 bg-gradient-to-b from-violet-500/20 to-violet-500/5 shadow-xl shadow-violet-500/20 md:scale-105 hover:shadow-violet-500/40"
+                    : "border-neutral-800 bg-neutral-900 hover:border-violet-500/50 hover:bg-neutral-900/80 hover:shadow-lg hover:shadow-violet-500/10"
+                } transition-all duration-300`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -615,62 +681,74 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mb-6">
-                  {billingInterval === 'yearly' && (
+                  {billingInterval === "yearly" && (
                     <div className="text-sm text-neutral-500 line-through mb-1">
-                      R${(plan.prices.monthly * 12).toLocaleString('pt-BR')}/ano
+                      R${(plan.prices.monthly * 12).toLocaleString("pt-BR")}/ano
                     </div>
                   )}
                   <span className="text-3xl md:text-4xl font-bold">
                     <AnimatedGradientText>
-                      R${billingInterval === 'yearly'
-                        ? plan.prices.yearly.toLocaleString('pt-BR')
-                        : plan.prices.monthly.toLocaleString('pt-BR')
-                      }
+                      R$
+                      {billingInterval === "yearly"
+                        ? plan.prices.yearly.toLocaleString("pt-BR")
+                        : plan.prices.monthly.toLocaleString("pt-BR")}
                     </AnimatedGradientText>
                   </span>
                   <span className="text-neutral-400">
-                    {billingInterval === 'yearly' ? '/ano' : '/mês'}
+                    {billingInterval === "yearly" ? "/ano" : "/mês"}
                   </span>
-                  {billingInterval === 'yearly' && (
+                  {billingInterval === "yearly" && (
                     <div className="text-sm text-emerald-400 mt-1">
-                      Equivale a R${Math.round(plan.prices.yearly / 12).toLocaleString('pt-BR')}/mês
+                      Equivale a R$
+                      {Math.round(plan.prices.yearly / 12).toLocaleString(
+                        "pt-BR"
+                      )}
+                      /mês
                     </div>
                   )}
                 </div>
 
                 {/* Features list with flex-grow to push button to bottom */}
                 <ul className="space-y-3 mb-8 flex-grow">
-                  {plan.features.map((feature, featureIndex) => (
-                    <motion.li
-                      key={feature}
-                      className="flex items-center gap-3"
-                      initial={{ opacity: 0, x: -10 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{
-                        duration: 0.3,
-                        delay: index * 0.15 + featureIndex * 0.05
-                      }}
-                    >
-                      <div className={`p-1 rounded-full ${plan.popular ? 'bg-violet-500/20' : 'bg-neutral-800'}`}>
-                        <Check className="w-4 h-4 text-violet-500 shrink-0" />
-                      </div>
-                      <span className="text-sm text-neutral-300">
-                        {feature}
-                      </span>
-                    </motion.li>
-                  ))}
+                  {plan.features.map(
+                    (feature: string, featureIndex: number) => (
+                      <motion.li
+                        key={feature}
+                        className="flex items-center gap-3"
+                        initial={{ opacity: 0, x: -10 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{
+                          duration: 0.3,
+                          delay: index * 0.15 + featureIndex * 0.05,
+                        }}
+                      >
+                        <div
+                          className={`p-1 rounded-full ${plan.popular ? "bg-violet-500/20" : "bg-neutral-800"}`}
+                        >
+                          <Check className="w-4 h-4 text-violet-500 shrink-0" />
+                        </div>
+                        <span className="text-sm text-neutral-300">
+                          {feature}
+                        </span>
+                      </motion.li>
+                    )
+                  )}
                 </ul>
 
                 {/* Button always at bottom */}
-                <Link href={`/subscribe?plan=${plan.tier}&interval=${billingInterval}`} className="mt-auto">
+                <Link
+                  href={`/subscribe?plan=${plan.tier}&interval=${billingInterval}`}
+                  className="mt-auto"
+                >
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className={`group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${plan.popular
-                      ? "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50"
-                      : "bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-violet-500/30"
-                      }`}
+                    className={`group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${
+                      plan.popular
+                        ? "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50"
+                        : "bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-violet-500/30"
+                    }`}
                   >
                     <span>{plan.cta}</span>
                     <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />

@@ -41,14 +41,14 @@ export type PlanPricing = {
 }
 
 export type PlanFeatures = {
-    maxProposals: number      // -1 for unlimited
+    maxProposals: number      // -1 for unlimited, per month
     maxClients: number        // -1 for unlimited
     maxProducts: number       // -1 for unlimited
     maxUsers: number          // -1 for unlimited
-    customBranding: boolean
-    prioritySupport: boolean
-    apiAccess: boolean
-    advancedReports: boolean
+    hasFinancial: boolean     // Access to financial module
+    canCustomizeTheme: boolean // Can change colors/branding
+    maxPdfTemplates: number   // Number of PDF templates available (-1 = all)
+    canEditPdfSections: boolean // Can edit PDF sections (Enterprise only)
 }
 
 export type UserPlan = {

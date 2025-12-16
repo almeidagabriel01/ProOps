@@ -38,6 +38,8 @@ import { AmbienteManagerDialog } from "@/components/features/automation/ambiente
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { ProposalSistema, Sistema } from "@/types/automation";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import {
   Save,
   ArrowLeft,
@@ -62,6 +64,12 @@ interface SimpleProposalFormProps {
 export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
   const router = useRouter();
   const { tenant } = useTenant();
+  const { canCreateProposal, getProposalCount, features } = usePlanLimits();
+
+  // Limit modal state
+  const [showLimitModal, setShowLimitModal] = React.useState(false);
+  const [currentProposalCount, setCurrentProposalCount] = React.useState(0);
+
   const [isLoading, setIsLoading] = React.useState(!!proposalId);
   const [isSaving, setIsSaving] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -84,38 +92,50 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
   });
 
   // Estado para sistemas de automação
-  const [selectedSistemas, setSelectedSistemas] = React.useState<ProposalSistema[]>([]);
+  const [selectedSistemas, setSelectedSistemas] = React.useState<
+    ProposalSistema[]
+  >([]);
   // IDs dos produtos que vieram do template de sistema (não são extras)
-  const [systemProductIds, setSystemProductIds] = React.useState<Set<string>>(new Set());
+  const [systemProductIds, setSystemProductIds] = React.useState<Set<string>>(
+    new Set()
+  );
   // Key para forçar reset do SistemaSelector após adicionar um sistema
   const [selectorKey, setSelectorKey] = React.useState(0);
 
   // Estados para gerenciamento de ambiente/sistema
-  const [isAmbienteManagerOpen, setIsAmbienteManagerOpen] = React.useState(false);
+  const [isAmbienteManagerOpen, setIsAmbienteManagerOpen] =
+    React.useState(false);
   const [isSistemaManagerOpen, setIsSistemaManagerOpen] = React.useState(false);
-  const [isSistemaTemplateOpen, setIsSistemaTemplateOpen] = React.useState(false);
-  const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(null);
-  const [managerFilterAmbienteId, setManagerFilterAmbienteId] = React.useState<string | undefined>(undefined);
+  const [isSistemaTemplateOpen, setIsSistemaTemplateOpen] =
+    React.useState(false);
+  const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(
+    null
+  );
+  const [managerFilterAmbienteId, setManagerFilterAmbienteId] = React.useState<
+    string | undefined
+  >(undefined);
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
-  
+
   // Estado para edição de seleção (trocar sistema/ambiente de um item já adicionado)
-  const [editingSelectionIndex, setEditingSelectionIndex] = React.useState<number | null>(null);
+  const [editingSelectionIndex, setEditingSelectionIndex] = React.useState<
+    number | null
+  >(null);
 
   // Cor primária do tenant
-  const primaryColor = tenant?.primaryColor || '#2563eb';
-  
+  const primaryColor = tenant?.primaryColor || "#2563eb";
+
   // Helper para calcular cor de texto com contraste
   const getContrastTextColor = (hexColor: string): string => {
-    const hex = hexColor.replace('#', '');
+    const hex = hexColor.replace("#", "");
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5 ? '#1f2937' : '#ffffff';
+    return luminance > 0.5 ? "#1f2937" : "#ffffff";
   };
 
   // Verificar se é nicho de automação
-  const isAutomacaoNiche = tenant?.niche === 'automacao_residencial';
+  const isAutomacaoNiche = tenant?.niche === "automacao_residencial";
 
   // Load products and template
   React.useEffect(() => {
@@ -170,25 +190,27 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
               discount: proposal.discount || 0,
               products: proposal.products || [],
             });
-            
+
             // Carregar sistemas salvos (para nicho automação)
             if (proposal.sistemas && proposal.sistemas.length > 0) {
-              const sistemas: ProposalSistema[] = proposal.sistemas.map((s: any) => ({
-                sistemaId: s.sistemaId,
-                sistemaName: s.sistemaName,
-                ambienteId: s.ambienteId,
-                ambienteName: s.ambienteName,
-                description: s.description,
-                products: (proposal.products || [])
-                  .filter((p: any) => s.productIds?.includes(p.productId))
-                  .map((p: any) => ({
-                    productId: p.productId,
-                    productName: p.productName,
-                    quantity: p.quantity,
-                  })),
-              }));
+              const sistemas: ProposalSistema[] = proposal.sistemas.map(
+                (s: any) => ({
+                  sistemaId: s.sistemaId,
+                  sistemaName: s.sistemaName,
+                  ambienteId: s.ambienteId,
+                  ambienteName: s.ambienteName,
+                  description: s.description,
+                  products: (proposal.products || [])
+                    .filter((p: any) => s.productIds?.includes(p.productId))
+                    .map((p: any) => ({
+                      productId: p.productId,
+                      productName: p.productName,
+                      quantity: p.quantity,
+                    })),
+                })
+              );
               setSelectedSistemas(sistemas);
-              
+
               // Marcar produtos do sistema
               const sysProductIds = new Set(
                 proposal.sistemas.flatMap((s: any) => s.productIds || [])
@@ -208,9 +230,13 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
   const selectedProducts = formData.products || [];
 
   // Separar produtos do sistema vs extras
-  const sistemaProductIds = new Set(selectedSistemas.flatMap(s => s.products.map(p => p.productId)));
+  const sistemaProductIds = new Set(
+    selectedSistemas.flatMap((s) => s.products.map((p) => p.productId))
+  );
   // Filter out products that have instance ID (New System) OR are in claimed IDs set (Legacy System)
-  const extraProducts = selectedProducts.filter(p => !p.systemInstanceId && !sistemaProductIds.has(p.productId));
+  const extraProducts = selectedProducts.filter(
+    (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+  );
 
   const toggleProduct = (product: Product) => {
     const existing = selectedProducts.find((p) => p.productId === product.id);
@@ -244,19 +270,31 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
     }
   };
 
-  const updateProductQuantity = (productId: string, delta: number, systemInstanceId?: string) => {
+  const updateProductQuantity = (
+    productId: string,
+    delta: number,
+    systemInstanceId?: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       products: selectedProducts.map((p) => {
         // If systemInstanceId is provided, strict match on it
-        if (systemInstanceId && p.systemInstanceId === systemInstanceId && p.productId === productId) {
+        if (
+          systemInstanceId &&
+          p.systemInstanceId === systemInstanceId &&
+          p.productId === productId
+        ) {
           const newQty = Math.max(1, p.quantity + delta);
           return { ...p, quantity: newQty, total: newQty * p.unitPrice };
         }
         // Legacy/compatibility: if no systemInstanceId provided in call (e.g. extras), match by ID only if the product ALSO has no systemInstanceId
-        else if (!systemInstanceId && !p.systemInstanceId && p.productId === productId) {
-             const newQty = Math.max(1, p.quantity + delta);
-             return { ...p, quantity: newQty, total: newQty * p.unitPrice };
+        else if (
+          !systemInstanceId &&
+          !p.systemInstanceId &&
+          p.productId === productId
+        ) {
+          const newQty = Math.max(1, p.quantity + delta);
+          return { ...p, quantity: newQty, total: newQty * p.unitPrice };
         }
         return p;
       }),
@@ -287,6 +325,18 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check proposal limit only for NEW proposals (not edits)
+    if (!proposalId) {
+      const canCreate = await canCreateProposal();
+      if (!canCreate) {
+        const count = await getProposalCount();
+        setCurrentProposalCount(count);
+        setShowLimitModal(true);
+        return;
+      }
+    }
+
     if (!tenant) {
       alert("Erro: Nenhuma empresa selecionada!");
       return;
@@ -330,14 +380,17 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
           // templateId: template?.id, // templateId not in my simple Proposal type, but Firestore accepts extras
           products: selectedProducts,
           status: "draft",
-          sistemas: selectedSistemas.length > 0 ? selectedSistemas.map(s => ({
-            sistemaId: s.sistemaId,
-            sistemaName: s.sistemaName,
-            ambienteId: s.ambienteId,
-            ambienteName: s.ambienteName,
-            description: s.description,
-            productIds: s.products.map(p => p.productId),
-          })) : undefined,
+          sistemas:
+            selectedSistemas.length > 0
+              ? selectedSistemas.map((s) => ({
+                  sistemaId: s.sistemaId,
+                  sistemaName: s.sistemaName,
+                  ambienteId: s.ambienteId,
+                  ambienteName: s.ambienteName,
+                  description: s.description,
+                  productIds: s.products.map((p) => p.productId),
+                }))
+              : undefined,
         });
       } else {
         await ProposalService.createProposal({
@@ -359,14 +412,17 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           // Salvar sistemas de automação
-            sistemas: selectedSistemas.length > 0 ? selectedSistemas.map(s => ({
-              sistemaId: s.sistemaId,
-              sistemaName: s.sistemaName,
-              ambienteId: s.ambienteId,
-              ambienteName: s.ambienteName,
-              description: s.description,
-              productIds: s.products.map(p => p.productId),
-            })) : undefined,
+          sistemas:
+            selectedSistemas.length > 0
+              ? selectedSistemas.map((s) => ({
+                  sistemaId: s.sistemaId,
+                  sistemaName: s.sistemaName,
+                  ambienteId: s.ambienteId,
+                  ambienteName: s.ambienteName,
+                  description: s.description,
+                  productIds: s.products.map((p) => p.productId),
+                }))
+              : undefined,
         });
       }
 
@@ -505,7 +561,6 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
             </div>
           </CardContent>
         </Card>
-
         {/* Automation - Múltiplos Sistemas (only for automacao_residencial niche) */}
         {isAutomacaoNiche && (
           <Card>
@@ -525,25 +580,30 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                   {selectedSistemas.map((sistema, sistemaIndex) => {
                     const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
                     // Filter matching instance
-                    const sistemaProducts = selectedProducts.filter(p => p.systemInstanceId === systemInstanceId);
-                    const sistemaTotal = sistemaProducts.reduce((sum, p) => sum + p.total, 0);
-                    
+                    const sistemaProducts = selectedProducts.filter(
+                      (p) => p.systemInstanceId === systemInstanceId
+                    );
+                    const sistemaTotal = sistemaProducts.reduce(
+                      (sum, p) => sum + p.total,
+                      0
+                    );
+
                     return (
-                      <div 
+                      <div
                         key={`${sistema.sistemaId}-${sistema.ambienteId}`}
                         className="rounded-lg overflow-hidden shadow-sm"
-                        style={{ 
+                        style={{
                           border: `2px solid ${primaryColor}`,
                           backgroundColor: `${primaryColor}08`,
                         }}
                       >
                         {/* Header do Sistema */}
-                        <div 
+                        <div
                           className="p-4 flex items-center justify-between"
                           style={{ backgroundColor: `${primaryColor}15` }}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div 
+                            <div
                               className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0"
                               style={{ backgroundColor: primaryColor }}
                             >
@@ -551,9 +611,9 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span 
+                                <span
                                   className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded flex-shrink-0"
-                                  style={{ 
+                                  style={{
                                     backgroundColor: primaryColor,
                                     color: getContrastTextColor(primaryColor),
                                   }}
@@ -562,7 +622,9 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-lg text-foreground truncate">{sistema.sistemaName}</h4>
+                                <h4 className="font-semibold text-lg text-foreground truncate">
+                                  {sistema.sistemaName}
+                                </h4>
                               </div>
                               {sistema.description && (
                                 <p className="mt-1 text-sm text-foreground leading-relaxed break-words">
@@ -572,7 +634,10 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-                            <span className="font-bold text-lg" style={{ color: primaryColor }}>
+                            <span
+                              className="font-bold text-lg"
+                              style={{ color: primaryColor }}
+                            >
                               R$ {sistemaTotal.toFixed(2)}
                             </span>
                             <Button
@@ -580,7 +645,9 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => setEditingSelectionIndex(sistemaIndex)}
+                              onClick={() =>
+                                setEditingSelectionIndex(sistemaIndex)
+                              }
                               title="Trocar Sistema/Ambiente"
                             >
                               <Pencil className="w-4 h-4" />
@@ -592,10 +659,15 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                               className="h-8 w-8 text-destructive hover:text-destructive"
                               onClick={() => {
                                 // Remover sistema e seus produtos por instanceId
-                                setSelectedSistemas(prev => prev.filter((_, i) => i !== sistemaIndex));
-                                setFormData(prev => ({
+                                setSelectedSistemas((prev) =>
+                                  prev.filter((_, i) => i !== sistemaIndex)
+                                );
+                                setFormData((prev) => ({
                                   ...prev,
-                                  products: (prev.products || []).filter(p => p.systemInstanceId !== systemInstanceId)
+                                  products: (prev.products || []).filter(
+                                    (p) =>
+                                      p.systemInstanceId !== systemInstanceId
+                                  ),
                                 }));
                                 // We don't need to maintain systemProductIds for this logic anymore, but we can clean up if needed
                                 // Assuming we move away from strict set
@@ -605,28 +677,34 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                             </Button>
                           </div>
                         </div>
-                        
+
                         {/* Produtos do Sistema */}
                         <div className="p-4 space-y-2 bg-background">
                           {sistemaProducts.length > 0 ? (
                             sistemaProducts.map((product, idx) => (
                               <div
                                 key={`${product.productId}-${idx}`} // Use index + ID as fallback, but ID should be unique within instance
-                                className={`flex items-center justify-between p-3 rounded-lg border ${product.isExtra ? 'bg-blue-50/50 border-blue-100' : 'bg-muted/30'}`}
+                                className={`flex items-center justify-between p-3 rounded-lg border ${product.isExtra ? "bg-blue-50/50 border-blue-100" : "bg-muted/30"}`}
                               >
                                 <div className="flex items-center gap-3">
                                   <Package className="w-4 h-4 text-muted-foreground" />
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <h5 className="font-medium text-sm">{product.productName}</h5>
+                                      <h5 className="font-medium text-sm">
+                                        {product.productName}
+                                      </h5>
                                       {product.isExtra && (
-                                        <Badge variant="default" className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">
+                                        <Badge
+                                          variant="default"
+                                          className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"
+                                        >
                                           Extra
                                         </Badge>
                                       )}
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                      R$ {product.unitPrice.toFixed(2)} x {product.quantity}
+                                      R$ {product.unitPrice.toFixed(2)} x{" "}
+                                      {product.quantity}
                                     </p>
                                   </div>
                                 </div>
@@ -636,17 +714,31 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                                     variant="outline"
                                     size="icon"
                                     className="h-7 w-7"
-                                    onClick={() => updateProductQuantity(product.productId, -1, systemInstanceId)}
+                                    onClick={() =>
+                                      updateProductQuantity(
+                                        product.productId,
+                                        -1,
+                                        systemInstanceId
+                                      )
+                                    }
                                   >
                                     <Minus className="w-3 h-3" />
                                   </Button>
-                                  <span className="font-bold w-6 text-center text-sm">{product.quantity}</span>
+                                  <span className="font-bold w-6 text-center text-sm">
+                                    {product.quantity}
+                                  </span>
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="icon"
                                     className="h-7 w-7"
-                                    onClick={() => updateProductQuantity(product.productId, 1, systemInstanceId)}
+                                    onClick={() =>
+                                      updateProductQuantity(
+                                        product.productId,
+                                        1,
+                                        systemInstanceId
+                                      )
+                                    }
                                   >
                                     <Plus className="w-3 h-3" />
                                   </Button>
@@ -661,32 +753,46 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                               Nenhum produto neste sistema
                             </p>
                           )}
-                          
+
                           {/* Adicionar Produto Extra ao Sistema */}
-                          <div 
+                          <div
                             className="mt-4 p-4 rounded-lg"
-                            style={{ 
+                            style={{
                               backgroundColor: `${primaryColor}08`,
                               border: `2px dashed ${primaryColor}40`,
                             }}
                           >
                             <div className="flex items-center gap-2 mb-3">
-                              <Plus className="w-4 h-4" style={{ color: primaryColor }} />
-                              <span 
+                              <Plus
+                                className="w-4 h-4"
+                                style={{ color: primaryColor }}
+                              />
+                              <span
                                 className="text-sm font-semibold"
                                 style={{ color: primaryColor }}
                               >
                                 Adicionar Produto Extra a este Sistema
                               </span>
                             </div>
-                            {products.filter(p => !sistemaProducts.some(sp => sp.productId === p.id)).length === 0 ? (
+                            {products.filter(
+                              (p) =>
+                                !sistemaProducts.some(
+                                  (sp) => sp.productId === p.id
+                                )
+                            ).length === 0 ? (
                               <p className="text-sm text-muted-foreground italic text-center py-2">
-                                Todos os produtos disponíveis já foram adicionados a este sistema.
+                                Todos os produtos disponíveis já foram
+                                adicionados a este sistema.
                               </p>
                             ) : (
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 {products
-                                  .filter(p => !sistemaProducts.some(sp => sp.productId === p.id)) // Only exclude what is ALREADY in this instance
+                                  .filter(
+                                    (p) =>
+                                      !sistemaProducts.some(
+                                        (sp) => sp.productId === p.id
+                                      )
+                                  ) // Only exclude what is ALREADY in this instance
                                   .slice(0, 9)
                                   .map((product) => (
                                     <button
@@ -698,9 +804,13 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                                         const newProduct: ProposalProduct = {
                                           productId: product.id,
                                           productName: product.name,
-                                          productImage: product.images?.[0] || product.image || "",
+                                          productImage:
+                                            product.images?.[0] ||
+                                            product.image ||
+                                            "",
                                           productImages: product.images || [],
-                                          productDescription: product.description || "",
+                                          productDescription:
+                                            product.description || "",
                                           quantity: 1,
                                           unitPrice: price,
                                           total: price,
@@ -709,31 +819,49 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                                           systemInstanceId: systemInstanceId, // TAG IT
                                           isExtra: true,
                                         };
-                                        
-                                        setSelectedSistemas(prev => prev.map((s, i) => {
-                                          if (i === sistemaIndex) {
-                                            return {
-                                              ...s,
-                                              products: [...s.products, { productId: product.id, productName: product.name, quantity: 1 }],
-                                            };
-                                          }
-                                          return s;
-                                        }));
-                                        
-                                        setFormData(prev => ({
+
+                                        setSelectedSistemas((prev) =>
+                                          prev.map((s, i) => {
+                                            if (i === sistemaIndex) {
+                                              return {
+                                                ...s,
+                                                products: [
+                                                  ...s.products,
+                                                  {
+                                                    productId: product.id,
+                                                    productName: product.name,
+                                                    quantity: 1,
+                                                  },
+                                                ],
+                                              };
+                                            }
+                                            return s;
+                                          })
+                                        );
+
+                                        setFormData((prev) => ({
                                           ...prev,
-                                          products: [...(prev.products || []), newProduct],
+                                          products: [
+                                            ...(prev.products || []),
+                                            newProduct,
+                                          ],
                                         }));
-                                        
+
                                         // Legacy set update - beneficial for global extra logic
-                                        setSystemProductIds(prev => new Set([...prev, product.id]));
+                                        setSystemProductIds(
+                                          (prev) =>
+                                            new Set([...prev, product.id])
+                                        );
                                       }}
                                     >
                                       <Plus className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                       <div className="min-w-0">
-                                        <p className="text-xs font-medium truncate">{product.name}</p>
+                                        <p className="text-xs font-medium truncate">
+                                          {product.name}
+                                        </p>
                                         <p className="text-[10px] text-muted-foreground">
-                                          R$ {parseFloat(product.price).toFixed(2)}
+                                          R${" "}
+                                          {parseFloat(product.price).toFixed(2)}
                                         </p>
                                       </div>
                                     </button>
@@ -748,13 +876,13 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                   })}
                 </div>
               )}
-              
+
               {/* Adicionar novo sistema */}
               <div className="border-2 border-dashed rounded-lg p-4">
                 <p className="text-sm text-muted-foreground mb-3 text-center">
-                  {selectedSistemas.length === 0 
-                    ? 'Selecione o primeiro sistema para esta proposta'
-                    : '+ Adicionar outro sistema'}
+                  {selectedSistemas.length === 0
+                    ? "Selecione o primeiro sistema para esta proposta"
+                    : "+ Adicionar outro sistema"}
                 </p>
                 <SistemaSelector
                   key={selectorKey}
@@ -763,54 +891,67 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                     if (sistema) {
                       // Check for duplicates BEFORE updating state
                       const exists = selectedSistemas.some(
-                          s => s.sistemaId === sistema.sistemaId && s.ambienteId === sistema.ambienteId
+                        (s) =>
+                          s.sistemaId === sistema.sistemaId &&
+                          s.ambienteId === sistema.ambienteId
                       );
-                      
+
                       if (exists) {
-                          alert('Este sistema já foi adicionado a esta proposta');
-                          setSelectorKey(prev => prev + 1); // Reset selector even on duplicate
-                          return;
+                        alert("Este sistema já foi adicionado a esta proposta");
+                        setSelectorKey((prev) => prev + 1); // Reset selector even on duplicate
+                        return;
                       }
 
                       // Adicionar novo sistema
-                      setSelectedSistemas(prev => [...prev, sistema]);
-                      
+                      setSelectedSistemas((prev) => [...prev, sistema]);
+
                       // Adicionar produtos do sistema à proposta
                       const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-                      
-                      const newProducts: ProposalProduct[] = sistema.products.map((sp) => {
-                        const existingProduct = products.find((p) => p.id === sp.productId);
-                        const price = existingProduct ? parseFloat(existingProduct.price) : 0;
-                        return {
-                          productId: sp.productId,
-                          productName: sp.productName,
-                          productImage: existingProduct?.images?.[0] || existingProduct?.image || "",
-                          productImages: existingProduct?.images || [],
-                          productDescription: existingProduct?.description || "",
-                          quantity: sp.quantity,
-                          unitPrice: price,
-                          total: price * sp.quantity,
-                          manufacturer: existingProduct?.manufacturer,
-                          category: existingProduct?.category,
-                          systemInstanceId: systemInstanceId, // Tag with instance ID
-                        };
-                      });
-                      
+
+                      const newProducts: ProposalProduct[] =
+                        sistema.products.map((sp) => {
+                          const existingProduct = products.find(
+                            (p) => p.id === sp.productId
+                          );
+                          const price = existingProduct
+                            ? parseFloat(existingProduct.price)
+                            : 0;
+                          return {
+                            productId: sp.productId,
+                            productName: sp.productName,
+                            productImage:
+                              existingProduct?.images?.[0] ||
+                              existingProduct?.image ||
+                              "",
+                            productImages: existingProduct?.images || [],
+                            productDescription:
+                              existingProduct?.description || "",
+                            quantity: sp.quantity,
+                            unitPrice: price,
+                            total: price * sp.quantity,
+                            manufacturer: existingProduct?.manufacturer,
+                            category: existingProduct?.category,
+                            systemInstanceId: systemInstanceId, // Tag with instance ID
+                          };
+                        });
+
                       // Atualizar systemProductIds
-                      setSystemProductIds(prev => {
+                      setSystemProductIds((prev) => {
                         const newSet = new Set(prev);
-                        sistema.products.forEach(sp => newSet.add(sp.productId));
+                        sistema.products.forEach((sp) =>
+                          newSet.add(sp.productId)
+                        );
                         return newSet;
                       });
-                      
+
                       // Adicionar produtos ao formData (APPEND, allow duplicates if different instance)
                       setFormData((prev) => ({
                         ...prev,
                         products: [...(prev.products || []), ...newProducts],
                       }));
-                      
+
                       // Incrementar key para resetar o SistemaSelector
-                      setSelectorKey(prev => prev + 1);
+                      setSelectorKey((prev) => prev + 1);
                     }
                   }}
                 />
@@ -818,102 +959,105 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
             </CardContent>
           </Card>
         )}
-
-        {/* Produtos Extras */}        {/* Produtos Extras - NÃO mostrar para nicho automação */}
+        {/* Produtos Extras */}{" "}
+        {/* Produtos Extras - NÃO mostrar para nicho automação */}
         {!isAutomacaoNiche && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Produtos Extras (Avulsos)
-            </CardTitle>
-            <CardDescription>
-              Selecione produtos que NÃO fazem parte dos sistemas acima
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {products.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhum produto cadastrado</p>
-                <Button
-                  variant="link"
-                  onClick={() => router.push("/products/new")}
-                >
-                  Cadastrar produtos
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {products
-                  .filter((product) => !systemProductIds.has(product.id)) // Não mostrar produtos que já estão no sistema
-                  .map((product) => {
-                  const selected = extraProducts.find(
-                    (p) => p.productId === product.id
-                  );
-                  return (
-                    <div
-                      key={product.id}
-                      className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                        selected
-                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                      onClick={() => toggleProduct(product)}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex flex-col">
-                          <h4 className="font-medium mr-2">{product.name}</h4>
-                        </div>
-                        <span className="text-sm font-bold text-primary whitespace-nowrap">
-                          R$ {parseFloat(product.price).toFixed(2)}
-                        </span>
-                      </div>
-                      {product.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                          {product.description}
-                        </p>
-                      )}
-
-                      {selected && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Produtos Extras (Avulsos)
+              </CardTitle>
+              <CardDescription>
+                Selecione produtos que NÃO fazem parte dos sistemas acima
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {products.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhum produto cadastrado</p>
+                  <Button
+                    variant="link"
+                    onClick={() => router.push("/products/new")}
+                  >
+                    Cadastrar produtos
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {products
+                    .filter((product) => !systemProductIds.has(product.id)) // Não mostrar produtos que já estão no sistema
+                    .map((product) => {
+                      const selected = extraProducts.find(
+                        (p) => p.productId === product.id
+                      );
+                      return (
                         <div
-                          className="flex items-center justify-center gap-2 mt-3 pt-3 border-t"
-                          onClick={(e) => e.stopPropagation()}
+                          key={product.id}
+                          className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                            selected
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : "border-border hover:border-primary/50"
+                          }`}
+                          onClick={() => toggleProduct(product)}
                         >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() =>
-                              updateProductQuantity(product.id, -1)
-                            }
-                          >
-                            <Minus className="w-3 h-3" />
-                          </Button>
-                          <span className="font-bold w-8 text-center">
-                            {selected.quantity}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => updateProductQuantity(product.id, 1)}
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        )}
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex flex-col">
+                              <h4 className="font-medium mr-2">
+                                {product.name}
+                              </h4>
+                            </div>
+                            <span className="text-sm font-bold text-primary whitespace-nowrap">
+                              R$ {parseFloat(product.price).toFixed(2)}
+                            </span>
+                          </div>
+                          {product.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                              {product.description}
+                            </p>
+                          )}
 
+                          {selected && (
+                            <div
+                              className="flex items-center justify-center gap-2 mt-3 pt-3 border-t"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() =>
+                                  updateProductQuantity(product.id, -1)
+                                }
+                              >
+                                <Minus className="w-3 h-3" />
+                              </Button>
+                              <span className="font-bold w-8 text-center">
+                                {selected.quantity}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() =>
+                                  updateProductQuantity(product.id, 1)
+                                }
+                              >
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {/* Summary & Notes */}
         {selectedProducts.length > 0 && (
           <Card>
@@ -937,65 +1081,89 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                   </thead>
                   <tbody>
                     {/* Produtos agrupados por sistema */}
-                    {isAutomacaoNiche && selectedSistemas.map((sistema, sistemaIdx) => {
-                      const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-                      const sistemaProducts = selectedProducts.filter(p => p.systemInstanceId === systemInstanceId);
-                      const sistemaTotal = sistemaProducts.reduce((sum, p) => sum + p.total, 0);
-                      
-                      if (sistemaProducts.length === 0) return null;
-                      
-                      return (
-                        <React.Fragment key={`sistema-${sistemaIdx}`}>
-                          <tr 
-                            className="border-t"
-                            style={{ backgroundColor: `${primaryColor}15` }}
-                          >
-                            <td 
-                              colSpan={4} 
-                              className="p-2 font-semibold text-sm"
-                              style={{ color: primaryColor }}
+                    {isAutomacaoNiche &&
+                      selectedSistemas.map((sistema, sistemaIdx) => {
+                        const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
+                        const sistemaProducts = selectedProducts.filter(
+                          (p) => p.systemInstanceId === systemInstanceId
+                        );
+                        const sistemaTotal = sistemaProducts.reduce(
+                          (sum, p) => sum + p.total,
+                          0
+                        );
+
+                        if (sistemaProducts.length === 0) return null;
+
+                        return (
+                          <React.Fragment key={`sistema-${sistemaIdx}`}>
+                            <tr
+                              className="border-t"
+                              style={{ backgroundColor: `${primaryColor}15` }}
                             >
-                              📍 {sistema.ambienteName} → {sistema.sistemaName}
-                            </td>
-                          </tr>
-                          {sistemaProducts.map((product, idx) => (
-                            <tr key={`${product.productId}-${idx}`} className="border-t">
-                              <td className="p-3 font-medium pl-6">
-                                <div className="flex items-center gap-2">
-                                  <span>{product.productName}</span>
-                                  {product.isExtra && (
-                                    <Badge variant="default" className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">
-                                      Extra
-                                    </Badge>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="p-3 text-center">{product.quantity}</td>
-                              <td className="p-3 text-right">
-                                R$ {product.unitPrice.toFixed(2)}
-                              </td>
-                              <td className="p-3 text-right font-medium">
-                                R$ {product.total.toFixed(2)}
+                              <td
+                                colSpan={4}
+                                className="p-2 font-semibold text-sm"
+                                style={{ color: primaryColor }}
+                              >
+                                📍 {sistema.ambienteName} →{" "}
+                                {sistema.sistemaName}
                               </td>
                             </tr>
-                          ))}
-                          <tr className="bg-muted/30">
-                            <td colSpan={3} className="p-2 text-right text-sm pl-6">
-                              Subtotal do Sistema:
-                            </td>
-                            <td className="p-2 text-right font-medium text-sm" style={{ color: primaryColor }}>
-                              R$ {sistemaTotal.toFixed(2)}
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })}
-                    
+                            {sistemaProducts.map((product, idx) => (
+                              <tr
+                                key={`${product.productId}-${idx}`}
+                                className="border-t"
+                              >
+                                <td className="p-3 font-medium pl-6">
+                                  <div className="flex items-center gap-2">
+                                    <span>{product.productName}</span>
+                                    {product.isExtra && (
+                                      <Badge
+                                        variant="default"
+                                        className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"
+                                      >
+                                        Extra
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-center">
+                                  {product.quantity}
+                                </td>
+                                <td className="p-3 text-right">
+                                  R$ {product.unitPrice.toFixed(2)}
+                                </td>
+                                <td className="p-3 text-right font-medium">
+                                  R$ {product.total.toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-muted/30">
+                              <td
+                                colSpan={3}
+                                className="p-2 text-right text-sm pl-6"
+                              >
+                                Subtotal do Sistema:
+                              </td>
+                              <td
+                                className="p-2 text-right font-medium text-sm"
+                                style={{ color: primaryColor }}
+                              >
+                                R$ {sistemaTotal.toFixed(2)}
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+
                     {/* Produtos extras (não pertencem a nenhum sistema) */}
                     {isAutomacaoNiche && extraProducts.length > 0 && (
                       <React.Fragment>
                         <tr className="border-t bg-gray-100">
-                          <td colSpan={4} className="p-2 font-semibold text-sm text-gray-600">
+                          <td
+                            colSpan={4}
+                            className="p-2 font-semibold text-sm text-gray-600"
+                          >
                             📦 Produtos Extras (não vinculados a sistemas)
                           </td>
                         </tr>
@@ -1003,9 +1171,13 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                           <tr key={product.productId} className="border-t">
                             <td className="p-3 font-medium pl-6">
                               {product.productName}
-                              <span className="ml-2 text-xs text-gray-400">(Extra)</span>
+                              <span className="ml-2 text-xs text-gray-400">
+                                (Extra)
+                              </span>
                             </td>
-                            <td className="p-3 text-center">{product.quantity}</td>
+                            <td className="p-3 text-center">
+                              {product.quantity}
+                            </td>
                             <td className="p-3 text-right">
                               R$ {product.unitPrice.toFixed(2)}
                             </td>
@@ -1016,22 +1188,25 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                         ))}
                       </React.Fragment>
                     )}
-                    
+
                     {/* Para nicho não-automação, mostrar todos os produtos normalmente */}
-                    {!isAutomacaoNiche && selectedProducts.map((product) => (
-                      <tr key={product.productId} className="border-t">
-                        <td className="p-3 font-medium">
-                          {product.productName}
-                        </td>
-                        <td className="p-3 text-center">{product.quantity}</td>
-                        <td className="p-3 text-right">
-                          R$ {product.unitPrice.toFixed(2)}
-                        </td>
-                        <td className="p-3 text-right font-medium">
-                          R$ {product.total.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {!isAutomacaoNiche &&
+                      selectedProducts.map((product) => (
+                        <tr key={product.productId} className="border-t">
+                          <td className="p-3 font-medium">
+                            {product.productName}
+                          </td>
+                          <td className="p-3 text-center">
+                            {product.quantity}
+                          </td>
+                          <td className="p-3 text-right">
+                            R$ {product.unitPrice.toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right font-medium">
+                            R$ {product.total.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                   <tfoot className="bg-muted/50">
                     <tr className="border-t">
@@ -1071,80 +1246,110 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
               </div>
 
               {/* Dialog de Edição de Seleção */}
-              <Dialog open={editingSelectionIndex !== null} onOpenChange={(open) => !open && setEditingSelectionIndex(null)}>
+              <Dialog
+                open={editingSelectionIndex !== null}
+                onOpenChange={(open) => !open && setEditingSelectionIndex(null)}
+              >
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
                     <DialogTitle>Editar Seleção</DialogTitle>
                   </DialogHeader>
-                  {editingSelectionIndex !== null && selectedSistemas[editingSelectionIndex] && (
-                    <SistemaSelector
-                      value={selectedSistemas[editingSelectionIndex]}
-                      onChange={(newSistema) => {
-                        if (newSistema) {
-                          const oldSistema = selectedSistemas[editingSelectionIndex];
-                          const oldInstanceId = `${oldSistema.sistemaId}-${oldSistema.ambienteId}`;
-                          const newInstanceId = `${newSistema.sistemaId}-${newSistema.ambienteId}`;
+                  {editingSelectionIndex !== null &&
+                    selectedSistemas[editingSelectionIndex] && (
+                      <SistemaSelector
+                        value={selectedSistemas[editingSelectionIndex]}
+                        onChange={(newSistema) => {
+                          if (newSistema) {
+                            const oldSistema =
+                              selectedSistemas[editingSelectionIndex];
+                            const oldInstanceId = `${oldSistema.sistemaId}-${oldSistema.ambienteId}`;
+                            const newInstanceId = `${newSistema.sistemaId}-${newSistema.ambienteId}`;
 
-                          // Verificar duplicidade (exceto com ele mesmo)
-                          const exists = selectedSistemas.some((s, idx) => 
-                            idx !== editingSelectionIndex && 
-                            s.sistemaId === newSistema.sistemaId && 
-                            s.ambienteId === newSistema.ambienteId
-                          );
+                            // Verificar duplicidade (exceto com ele mesmo)
+                            const exists = selectedSistemas.some(
+                              (s, idx) =>
+                                idx !== editingSelectionIndex &&
+                                s.sistemaId === newSistema.sistemaId &&
+                                s.ambienteId === newSistema.ambienteId
+                            );
 
-                          if (exists) {
-                            alert("Este sistema já existe na proposta.");
-                            return;
-                          }
+                            if (exists) {
+                              alert("Este sistema já existe na proposta.");
+                              return;
+                            }
 
-                          // 1. Atualizar lista de sistemas
-                          const newSelectedSistemas = [...selectedSistemas];
-                          newSelectedSistemas[editingSelectionIndex] = newSistema;
-                          setSelectedSistemas(newSelectedSistemas);
+                            // 1. Atualizar lista de sistemas
+                            const newSelectedSistemas = [...selectedSistemas];
+                            newSelectedSistemas[editingSelectionIndex] =
+                              newSistema;
+                            setSelectedSistemas(newSelectedSistemas);
 
-                          // 2. Atualizar produtos
-                          setFormData(prev => {
-                            const currentProducts = prev.products || [];
-                            
-                            // Produtos que NÃO pertencem ao sistema antigo (mantém inalterados)
-                            const otherProducts = currentProducts.filter(p => p.systemInstanceId !== oldInstanceId);
-                            
-                            // Produtos extras do sistema antigo -> migrar para o novo ID
-                            const migratedExtras = currentProducts
-                              .filter(p => p.systemInstanceId === oldInstanceId && p.isExtra)
-                              .map(p => ({ ...p, systemInstanceId: newInstanceId }));
+                            // 2. Atualizar produtos
+                            setFormData((prev) => {
+                              const currentProducts = prev.products || [];
 
-                            // Novos produtos padrão do sistema selecionado
-                            const newStandardProducts = newSistema.products.map(sp => {
-                              const existingProduct = products.find((p) => p.id === sp.productId);
-                              const price = existingProduct ? parseFloat(existingProduct.price) : 0;
-                              return {
-                                  productId: sp.productId,
-                                  productName: sp.productName,
-                                  productImage: existingProduct?.images?.[0] || existingProduct?.image || "",
-                                  productImages: existingProduct?.images || [],
-                                  productDescription: existingProduct?.description || "",
-                                  quantity: sp.quantity,
-                                  unitPrice: price,
-                                  total: price * sp.quantity,
-                                  manufacturer: existingProduct?.manufacturer,
-                                  category: existingProduct?.category,
+                              // Produtos que NÃO pertencem ao sistema antigo (mantém inalterados)
+                              const otherProducts = currentProducts.filter(
+                                (p) => p.systemInstanceId !== oldInstanceId
+                              );
+
+                              // Produtos extras do sistema antigo -> migrar para o novo ID
+                              const migratedExtras = currentProducts
+                                .filter(
+                                  (p) =>
+                                    p.systemInstanceId === oldInstanceId &&
+                                    p.isExtra
+                                )
+                                .map((p) => ({
+                                  ...p,
                                   systemInstanceId: newInstanceId,
-                                  isExtra: false
+                                }));
+
+                              // Novos produtos padrão do sistema selecionado
+                              const newStandardProducts =
+                                newSistema.products.map((sp) => {
+                                  const existingProduct = products.find(
+                                    (p) => p.id === sp.productId
+                                  );
+                                  const price = existingProduct
+                                    ? parseFloat(existingProduct.price)
+                                    : 0;
+                                  return {
+                                    productId: sp.productId,
+                                    productName: sp.productName,
+                                    productImage:
+                                      existingProduct?.images?.[0] ||
+                                      existingProduct?.image ||
+                                      "",
+                                    productImages:
+                                      existingProduct?.images || [],
+                                    productDescription:
+                                      existingProduct?.description || "",
+                                    quantity: sp.quantity,
+                                    unitPrice: price,
+                                    total: price * sp.quantity,
+                                    manufacturer: existingProduct?.manufacturer,
+                                    category: existingProduct?.category,
+                                    systemInstanceId: newInstanceId,
+                                    isExtra: false,
+                                  };
+                                });
+
+                              return {
+                                ...prev,
+                                products: [
+                                  ...otherProducts,
+                                  ...migratedExtras,
+                                  ...newStandardProducts,
+                                ],
                               };
                             });
 
-                            return {
-                              ...prev,
-                              products: [...otherProducts, ...migratedExtras, ...newStandardProducts]
-                            };
-                          });
-
-                          setEditingSelectionIndex(null);
-                        }
-                      }}
-                    />
-                  )}
+                            setEditingSelectionIndex(null);
+                          }
+                        }}
+                      />
+                    )}
                 </DialogContent>
               </Dialog>
 
@@ -1154,7 +1359,7 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                 onClose={() => setIsAmbienteManagerOpen(false)}
                 onAmbientesChange={() => {
                   // Forçar atualização do seletor incrementando a key
-                  setSelectorKey(prev => prev + 1);
+                  setSelectorKey((prev) => prev + 1);
                 }}
               />
 
@@ -1164,34 +1369,38 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
                 filterAmbienteId={managerFilterAmbienteId}
                 onSistemasChange={() => {
                   // Forçar atualização do seletor
-                  setSelectorKey(prev => prev + 1);
+                  setSelectorKey((prev) => prev + 1);
                 }}
                 onEditSistema={(sistema) => {
-                    setEditingSistema(sistema);
-                    setOpenedFromManager(true);
-                    setIsSistemaTemplateOpen(true);
+                  setEditingSistema(sistema);
+                  setOpenedFromManager(true);
+                  setIsSistemaTemplateOpen(true);
                 }}
                 onCreateNew={() => {
-                    setEditingSistema(null);
-                    setOpenedFromManager(true);
-                    setIsSistemaTemplateOpen(true);
+                  setEditingSistema(null);
+                  setOpenedFromManager(true);
+                  setIsSistemaTemplateOpen(true);
                 }}
               />
 
               <SistemaTemplateDialog
                 isOpen={isSistemaTemplateOpen}
                 onClose={() => {
-                    setIsSistemaTemplateOpen(false);
-                    setOpenedFromManager(false);
+                  setIsSistemaTemplateOpen(false);
+                  setOpenedFromManager(false);
                 }}
                 editingSistema={editingSistema}
                 preselectedAmbienteId={managerFilterAmbienteId || ""}
                 onSave={() => {
                   // Forçar atualização do seletor
-                  setSelectorKey(prev => prev + 1);
+                  setSelectorKey((prev) => prev + 1);
                   // Se veio do manager, recarregar o manager (ele faz isso sozinho ao abrir, mas podemos forçar se precisar)
                 }}
-                onBack={openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined}
+                onBack={
+                  openedFromManager
+                    ? () => setIsSistemaManagerOpen(true)
+                    : undefined
+                }
               />
 
               {/* Discount */}
@@ -1228,7 +1437,6 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
             </CardContent>
           </Card>
         )}
-
         {/* Actions */}
         <div className="flex justify-end gap-3">
           <Button
@@ -1257,6 +1465,15 @@ export function SimpleProposalForm({ proposalId }: SimpleProposalFormProps) {
           </Button>
         </div>
       </form>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        resourceType="proposals"
+        currentCount={currentProposalCount}
+        maxLimit={features?.maxProposals || 0}
+      />
     </div>
   );
 }

@@ -9,33 +9,33 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
   {
     name: "Starter",
     tier: "starter",
-    description: "Ideal para pequenos negócios em crescimento",
-    price: 97,
+    description: "Ideal para freelancers e pequenos negócios",
+    price: 79,
     pricing: {
-      monthly: 97,
-      yearly: 931,  // ~20% desconto (12 meses * 97 * 0.8)
+      monthly: 79,
+      yearly: 804,  // ~15% desconto (R$ 67/mês)
     },
     order: 1,
     features: {
-      maxProposals: 50,
-      maxClients: 100,
-      maxProducts: 200,
-      maxUsers: 3,
-      customBranding: true,
-      prioritySupport: false,
-      apiAccess: false,
-      advancedReports: false,
+      maxProposals: 80,
+      maxClients: 120,
+      maxProducts: 220,
+      maxUsers: 2,
+      hasFinancial: false,
+      canCustomizeTheme: false,
+      maxPdfTemplates: 1,
+      canEditPdfSections: false,
     },
     createdAt: new Date().toISOString(),
   },
   {
-    name: "Pro",
+    name: "Profissional",
     tier: "pro",
-    description: "Para empresas que precisam de mais poder",
-    price: 197,
+    description: "Para empresas em crescimento",
+    price: 149,
     pricing: {
-      monthly: 197,
-      yearly: 1891,  // ~20% desconto (12 meses * 197 * 0.8)
+      monthly: 149,
+      yearly: 1524,  // ~15% desconto (R$ 127/mês)
     },
     order: 2,
     highlighted: true,
@@ -44,21 +44,21 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxClients: -1,
       maxProducts: -1,
       maxUsers: 10,
-      customBranding: true,
-      prioritySupport: true,
-      apiAccess: true,
-      advancedReports: true,
+      hasFinancial: true,
+      canCustomizeTheme: true,
+      maxPdfTemplates: 3,
+      canEditPdfSections: false,
     },
     createdAt: new Date().toISOString(),
   },
   {
     name: "Enterprise",
     tier: "enterprise",
-    description: "Solução completa para grandes operações",
-    price: 497,
+    description: "Acesso total para grandes operações",
+    price: 299,
     pricing: {
-      monthly: 497,
-      yearly: 4771,  // ~20% desconto (12 meses * 497 * 0.8)
+      monthly: 299,
+      yearly: 3048,  // ~15% desconto (R$ 254/mês)
     },
     order: 3,
     features: {
@@ -66,10 +66,10 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxClients: -1,
       maxProducts: -1,
       maxUsers: -1, // Unlimited
-      customBranding: true,
-      prioritySupport: true,
-      apiAccess: true,
-      advancedReports: true,
+      hasFinancial: true,
+      canCustomizeTheme: true,
+      maxPdfTemplates: -1, // All templates
+      canEditPdfSections: true,
     },
     createdAt: new Date().toISOString(),
   },
@@ -109,6 +109,11 @@ export const PlanService = {
         id: doc.id,
         // Fallback to default pricing if missing (handles old data)
         pricing: data.pricing || defaultPlan?.pricing,
+        // Merge features: defaults provide new fields, Firestore data takes priority
+        features: {
+          ...defaultPlan?.features,
+          ...data.features,
+        },
       };
     }) as UserPlan[];
     
@@ -132,6 +137,11 @@ export const PlanService = {
         id: docSnap.id, 
         // Fallback to default pricing
         pricing: data.pricing || defaultPlan?.pricing,
+        // Merge features with defaults to ensure new fields exist
+        features: {
+          ...defaultPlan?.features,
+          ...data.features,
+        },
       } as UserPlan;
     }
     return null;

@@ -13,6 +13,8 @@ import { ProposalTemplate } from "@/types";
 import { ProposalService, Proposal } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import {
   PdfSectionEditor,
   PdfSection,
@@ -31,7 +33,9 @@ import {
   FileText,
   Upload,
   X,
+  Crown,
 } from "lucide-react";
+import { UpgradeModal } from "@/components/ui/upgrade-modal";
 
 const fontOptions = [
   { value: "'Inter', sans-serif", label: "Inter (Moderna)" },
@@ -89,10 +93,21 @@ const themeOptions = [
 
 type ThemeType = "modern" | "classic" | "minimal" | "tech" | "elegant" | "bold";
 
+// Helper to lighten a color
+function lightenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.min(255, (num >> 16) + amt);
+  const G = Math.min(255, ((num >> 8) & 0x00ff) + amt);
+  const B = Math.min(255, (num & 0x0000ff) + amt);
+  return `#${((1 << 24) | (R << 16) | (G << 8) | B).toString(16).slice(1)}`;
+}
+
 export default function EditPdfPage() {
   const params = useParams();
   const router = useRouter();
   const { tenant } = useTenant();
+  const { features, isLoading: isPlanLoading } = usePlanLimits();
   const proposalId = params.id as string;
 
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
@@ -101,7 +116,10 @@ export default function EditPdfPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(false);
 
-  // Cover settings
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = React.useState(false);
+
+  // Cover settings (must be declared before any conditional returns)
   const [coverTitle, setCoverTitle] = React.useState("");
   const [coverImage, setCoverImage] = React.useState<string>("");
   const [coverLogo, setCoverLogo] = React.useState<string>("");
@@ -113,7 +131,9 @@ export default function EditPdfPage() {
   const [theme, setTheme] = React.useState<ThemeType>("modern");
 
   // Style settings
-  const [primaryColor, setPrimaryColor] = React.useState(tenant?.primaryColor || "#2563eb");
+  const [primaryColor, setPrimaryColor] = React.useState(
+    tenant?.primaryColor || "#2563eb"
+  );
   const [fontFamily, setFontFamily] = React.useState("'Inter', sans-serif");
 
   // Editable sections
@@ -123,7 +143,23 @@ export default function EditPdfPage() {
   // Preview zoom
   const [previewZoom, setPreviewZoom] = React.useState(0.5);
 
+  // Premium color based on tenant theme
+  const premiumColor = tenant?.primaryColor
+    ? lightenColor(tenant.primaryColor, 30)
+    : "#a78bfa";
+
+  // Check plan access features
+  const maxPdfTemplates = features?.maxPdfTemplates ?? 1;
+  const canEditPdfSections = features?.canEditPdfSections ?? false;
+
+  // Pro and Enterprise can access (maxPdfTemplates > 1 or unlimited)
+  const canAccessPage = maxPdfTemplates === -1 || maxPdfTemplates > 1;
+
+  // useEffect MUST be called before any conditional returns
   React.useEffect(() => {
+    // Only fetch if user has access
+    if (!canAccessPage && !isPlanLoading) return;
+
     if (proposalId && tenant) {
       const fetchProposal = async () => {
         try {
@@ -136,10 +172,13 @@ export default function EditPdfPage() {
                 productImage:
                   prod.productImage ||
                   "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
-                productImages: 
-                  (prod.productImages && prod.productImages.length > 0) 
-                    ? prod.productImages 
-                    : [prod.productImage || "https://placehold.co/200x200/e2e8f0/64748b?text=Produto"]
+                productImages:
+                  prod.productImages && prod.productImages.length > 0
+                    ? prod.productImages
+                    : [
+                        prod.productImage ||
+                          "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
+                      ],
               }));
             } else {
               p.products = [];
@@ -232,7 +271,18 @@ export default function EditPdfPage() {
       };
       fetchProposal();
     }
-  }, [proposalId, tenant]);
+  }, [proposalId, tenant, canAccessPage, isPlanLoading]);
+
+  // Block access for Starter users (show upgrade screen)
+  // This check MUST be AFTER all hooks to avoid "Rendered fewer hooks" error
+  if (!isPlanLoading && !canAccessPage) {
+    return (
+      <UpgradeRequired
+        feature="Editor de PDF"
+        description="O editor de PDF permite personalizar templates e estilos das suas propostas. Faça upgrade para o plano Pro ou Enterprise para acessar."
+      />
+    );
+  }
 
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -286,13 +336,13 @@ export default function EditPdfPage() {
         // Check for React Synthetic Events or DOM nodes (heuristic)
         if (obj.nativeEvent || obj instanceof Element) return null;
 
-        if (typeof obj !== 'object') {
+        if (typeof obj !== "object") {
           return obj;
         }
 
         if (Array.isArray(obj)) {
           // Map undefined to null to preserve index, and clean recursively
-          return obj.map(v => cleanForFirestore(v));
+          return obj.map((v) => cleanForFirestore(v));
         }
 
         if (obj instanceof Date) {
@@ -303,11 +353,11 @@ export default function EditPdfPage() {
         for (const key in obj) {
           if (Object.prototype.hasOwnProperty.call(obj, key)) {
             const val = obj[key];
-            if (typeof val === 'function' || typeof val === 'symbol') {
+            if (typeof val === "function" || typeof val === "symbol") {
               continue;
             }
             const cleaned = cleanForFirestore(val);
-            // Optionally we could skip keys with null values to save space, 
+            // Optionally we could skip keys with null values to save space,
             // but explicit null is safer for overwriting existing data.
             newObj[key] = cleaned;
           }
@@ -333,8 +383,11 @@ export default function EditPdfPage() {
 
       // Validate total size (approximate)
       const payloadSize = JSON.stringify(sanitizedSettings).length;
-      if (payloadSize > 950000) { // 950KB safety margin
-        alert(`O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`);
+      if (payloadSize > 950000) {
+        // 950KB safety margin
+        alert(
+          `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`
+        );
         setIsSaving(false);
         return;
       }
@@ -753,16 +806,27 @@ export default function EditPdfPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Editor Panel */}
         <div className="space-y-4">
-          <Tabs defaultValue="content">
+          <Tabs defaultValue="cover">
             <TabsList className="grid grid-cols-3 w-full">
               <TabsTrigger value="cover" className="gap-1">
                 <Layout className="w-4 h-4" />
                 Capa
               </TabsTrigger>
-              <TabsTrigger value="content" className="gap-1">
-                <FileText className="w-4 h-4" />
-                Conteúdo
-              </TabsTrigger>
+              {canEditPdfSections ? (
+                <TabsTrigger value="content" className="gap-1">
+                  <FileText className="w-4 h-4" />
+                  Conteúdo
+                </TabsTrigger>
+              ) : (
+                <div
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="flex items-center justify-center gap-1 cursor-pointer px-3 py-1.5 rounded-md text-sm font-medium transition-colors hover:bg-muted"
+                  style={{ color: premiumColor }}
+                >
+                  <Crown className="w-4 h-4" />
+                  Conteúdo
+                </div>
+              )}
               <TabsTrigger value="style" className="gap-1">
                 <Palette className="w-4 h-4" />
                 Estilo
@@ -925,52 +989,82 @@ export default function EditPdfPage() {
                   <div className="grid gap-2">
                     <Label>Tema da Capa</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      {themeOptions.map((t) => (
-                        <button
-                          key={t.value}
-                          type="button"
-                          onClick={() => {
-                            setTheme(t.value as ThemeType);
-                            // Set default color if available
-                            if ((t as any).defaultColor) {
-                              setPrimaryColor((t as any).defaultColor);
-                            }
-                            // Reset section colors to ensure theme application
-                            // We keep other styles (bold, size, etc), just reset color properties
-                            setSections((prev) =>
-                              prev.map((s) => ({
-                                ...s,
-                                styles: {
-                                  ...s.styles,
-                                  color: undefined, // Reset text color to inherit theme
-                                  backgroundColor:
-                                    s.styles.backgroundColor === "#ffffff" ||
+                      {themeOptions.map((t, index) => {
+                        // Check if this template is premium (beyond allowed limit)
+                        const isPremiumTemplate =
+                          maxPdfTemplates !== -1 && index >= maxPdfTemplates;
+
+                        return (
+                          <button
+                            key={t.value}
+                            type="button"
+                            onClick={() => {
+                              if (isPremiumTemplate) {
+                                setShowUpgradeModal(true);
+                                return;
+                              }
+                              setTheme(t.value as ThemeType);
+                              // Set default color if available
+                              if ((t as any).defaultColor) {
+                                setPrimaryColor((t as any).defaultColor);
+                              }
+                              // Reset section colors to ensure theme application
+                              setSections((prev) =>
+                                prev.map((s) => ({
+                                  ...s,
+                                  styles: {
+                                    ...s.styles,
+                                    color: undefined,
+                                    backgroundColor:
+                                      s.styles.backgroundColor === "#ffffff" ||
                                       s.styles.backgroundColor === "#f9fafb"
-                                      ? undefined
-                                      : s.styles.backgroundColor, // Reset bg only if it was default white/gray
-                                },
-                              }))
-                            );
-                          }}
-                          className={`p-3 rounded-lg border-2 text-left transition-all ${theme === t.value
-                            ? "border-primary ring-2 ring-primary/20"
-                            : "border-border hover:border-primary/50"
+                                        ? undefined
+                                        : s.styles.backgroundColor,
+                                  },
+                                }))
+                              );
+                            }}
+                            className={`relative p-3 rounded-lg border-2 text-left transition-all ${
+                              isPremiumTemplate
+                                ? "border-border opacity-75 hover:opacity-100"
+                                : theme === t.value
+                                  ? "border-primary ring-2 ring-primary/20"
+                                  : "border-border hover:border-primary/50"
                             }`}
-                        >
-                          <div
-                            className={`w-full h-8 rounded mb-2 ${t.preview}`}
-                            style={
-                              t.value === "classic"
-                                ? { borderColor: primaryColor }
-                                : undefined
-                            }
-                          />
-                          <div className="font-medium text-sm">{t.label}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {t.description}
-                          </div>
-                        </button>
-                      ))}
+                          >
+                            {/* Premium Crown Indicator */}
+                            {isPremiumTemplate && (
+                              <div
+                                className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+                                style={{ backgroundColor: premiumColor }}
+                              >
+                                <Crown className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            )}
+                            <div
+                              className={`w-full h-8 rounded mb-2 ${t.preview}`}
+                              style={
+                                t.value === "classic"
+                                  ? { borderColor: primaryColor }
+                                  : undefined
+                              }
+                            />
+                            <div
+                              className="font-medium text-sm"
+                              style={
+                                isPremiumTemplate
+                                  ? { color: premiumColor }
+                                  : undefined
+                              }
+                            >
+                              {t.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.description}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </CardContent>
@@ -979,20 +1073,62 @@ export default function EditPdfPage() {
 
             {/* Content Tab */}
             <TabsContent value="content" className="space-y-4 mt-4">
-              <Card>
-                <CardHeader>
+              <Card className="relative">
+                <CardHeader className="flex flex-row items-center gap-2">
                   <CardTitle>Seções do Documento</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Adicione, remova e personalize as seções
-                  </p>
+                  {!canEditPdfSections && (
+                    <div
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                      style={{ backgroundColor: premiumColor, color: "white" }}
+                    >
+                      <Crown className="w-3 h-3" />
+                      Enterprise
+                    </div>
+                  )}
                 </CardHeader>
-                <CardContent>
-                  <PdfSectionEditor
-                    sections={sections}
-                    onChange={setSections}
-                    primaryColor={primaryColor}
-                  />
-                </CardContent>
+                {canEditPdfSections ? (
+                  <>
+                    <p className="text-sm text-muted-foreground px-6 pb-2">
+                      Adicione, remova e personalize as seções
+                    </p>
+                    <CardContent>
+                      <PdfSectionEditor
+                        sections={sections}
+                        onChange={setSections}
+                        primaryColor={primaryColor}
+                      />
+                    </CardContent>
+                  </>
+                ) : (
+                  <CardContent>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="w-full py-8 px-4 border-2 border-dashed rounded-lg transition-all hover:opacity-100 opacity-80 flex flex-col items-center gap-3"
+                      style={{ borderColor: premiumColor }}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: premiumColor }}
+                      >
+                        <Crown className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="text-center">
+                        <p
+                          className="font-semibold"
+                          style={{ color: premiumColor }}
+                        >
+                          Funcionalidade Enterprise
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Personalize completamente as seções do seu PDF.
+                          <br />
+                          Clique para fazer upgrade.
+                        </p>
+                      </div>
+                    </button>
+                  </CardContent>
+                )}
               </Card>
             </TabsContent>
 
@@ -1155,6 +1291,15 @@ export default function EditPdfPage() {
           </Card>
         </div>
       </div>
+
+      {/* Upgrade Modal for Premium Features */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+        feature="Templates Premium"
+        description="Desbloqueie templates adicionais e personalize completamente suas propostas em PDF. Faça upgrade para o plano Enterprise para ter acesso a todos os recursos."
+        requiredPlan="enterprise"
+      />
     </div>
   );
 }

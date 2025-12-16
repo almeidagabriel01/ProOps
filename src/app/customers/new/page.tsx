@@ -9,12 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientService } from "@/services/client-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { ArrowLeft, Loader2, Save, User } from "lucide-react";
 
 export default function NewCustomerPage() {
   const router = useRouter();
   const { tenant } = useTenant();
+  const { canCreateClient, getClientCount, features } = usePlanLimits();
   const [isSaving, setIsSaving] = React.useState(false);
+
+  // Limit modal state
+  const [showLimitModal, setShowLimitModal] = React.useState(false);
+  const [currentClientCount, setCurrentClientCount] = React.useState(0);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -36,6 +43,15 @@ export default function NewCustomerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check client limit before creating
+    const canCreate = await canCreateClient();
+    if (!canCreate) {
+      const count = await getClientCount();
+      setCurrentClientCount(count);
+      setShowLimitModal(true);
+      return;
+    }
 
     if (!tenant) {
       alert("Erro: Nenhuma empresa selecionada!");
@@ -185,6 +201,15 @@ export default function NewCustomerPage() {
           </Button>
         </div>
       </form>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        resourceType="clients"
+        currentCount={currentClientCount}
+        maxLimit={features?.maxClients || 0}
+      />
     </div>
   );
 }
