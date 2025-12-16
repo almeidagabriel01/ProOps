@@ -1,9 +1,27 @@
+"use client";
+
 import Link from "next/link"
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { ProductForm } from "../_components/product-form"
 
 export default function NewProductPage() {
+    const router = useRouter();
+    const { canCreate, isLoading } = usePagePermission("products");
+
+    useEffect(() => {
+        if (!isLoading && !canCreate) {
+            router.push("/products");
+        }
+    }, [isLoading, canCreate, router]);
+
+    if (isLoading) {
+        return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    }
     return (
         <div className="space-y-6 max-w-7xl mx-auto">
             <div className="flex items-center gap-4">

@@ -27,6 +27,7 @@ interface PlanCardProps {
   processingTier: string | null;
   onUpgrade: (plan: UserPlan) => void;
   onDowngrade: (plan: UserPlan) => void;
+  isMaster?: boolean;
 }
 
 export function PlanCard({
@@ -38,6 +39,7 @@ export function PlanCard({
   processingTier,
   onUpgrade,
   onDowngrade,
+  isMaster = false,
 }: PlanCardProps) {
   const Icon = tierIcons[plan.tier];
 
@@ -98,22 +100,32 @@ export function PlanCard({
       <CardContent className="space-y-4 pt-0 flex-1">
         {/* Price */}
         <div className="text-center">
-          {billingInterval === "yearly" && plan.pricing && (
-            <div className="text-sm text-muted-foreground line-through mb-1">
-              {formatPrice(plan.pricing.monthly * 12)}/ano
-            </div>
-          )}
-          <span className="text-2xl font-bold">
-            {formatPrice(displayPrice)}
-          </span>
-          {displayPrice > 0 && (
-            <span className="text-muted-foreground text-sm">
-              {billingInterval === "yearly" ? "/ano" : "/mês"}
-            </span>
-          )}
-          {monthlyEquivalent && (
-            <div className="text-sm text-emerald-600 mt-1">
-              Equivale a {formatPrice(monthlyEquivalent)}/mês
+          {isMaster ? (
+            <>
+              {billingInterval === "yearly" && plan.pricing && (
+                <div className="text-sm text-muted-foreground line-through mb-1">
+                  {formatPrice(plan.pricing.monthly * 12)}/ano
+                </div>
+              )}
+              <span className="text-2xl font-bold">
+                {formatPrice(displayPrice)}
+              </span>
+              {displayPrice > 0 && (
+                <span className="text-muted-foreground text-sm">
+                  {billingInterval === "yearly" ? "/ano" : "/mês"}
+                </span>
+              )}
+              {monthlyEquivalent && (
+                <div className="text-sm text-emerald-600 mt-1">
+                  Equivale a {formatPrice(monthlyEquivalent)}/mês
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="py-4">
+              <span className="text-lg font-medium text-muted-foreground">
+                Consulte o administrador
+              </span>
             </div>
           )}
         </div>
@@ -169,40 +181,42 @@ export function PlanCard({
           <Button className="w-full" size="sm" variant="secondary" disabled>
             Plano Atual
           </Button>
-        ) : canUpgrade ? (
-          <Button
-            className="w-full"
-            size="sm"
-            onClick={() => onUpgrade(plan)}
-            disabled={isProcessing}
-          >
-            {processingTier === plan.tier ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              "Fazer Upgrade"
-            )}
-          </Button>
-        ) : (
-          <Button
-            className="w-full"
-            size="sm"
-            variant="outline"
-            onClick={() => onDowngrade(plan)}
-            disabled={isProcessing}
-          >
-            {processingTier === plan.tier ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              "Fazer Downgrade"
-            )}
-          </Button>
-        )}
+        ) : isMaster ? (
+          canUpgrade ? (
+            <Button
+              className="w-full"
+              size="sm"
+              onClick={() => onUpgrade(plan)}
+              disabled={isProcessing}
+            >
+              {processingTier === plan.tier ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Fazer Upgrade"
+              )}
+            </Button>
+          ) : (
+            <Button
+              className="w-full"
+              size="sm"
+              variant="outline"
+              onClick={() => onDowngrade(plan)}
+              disabled={isProcessing}
+            >
+              {processingTier === plan.tier ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                "Fazer Downgrade"
+              )}
+            </Button>
+          )
+        ) : null}
       </div>
     </Card>
   );

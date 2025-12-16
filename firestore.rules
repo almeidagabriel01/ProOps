@@ -1,0 +1,264 @@
+rules_version = '2';
+
+/**
+ * Firestore Security Rules - Multi-Tenant ERP SaaS
+ * 
+ * SECURITY PRINCIPLES:
+ * 1. Frontend é SOMENTE LEITURA para dados críticos
+ * 2. Cloud Functions são a ÚNICA forma de criar/editar recursos que contam limite
+ * 3. Usuários só acessam dados da própria empresa
+ * 4. MEMBER nunca pode alterar plano/billing
+ * 5. MASTER pode gerenciar MEMBERs, mas nunca burlar limites
+ * 
+ * ATAQUES PREVENIDOS:
+ * - Privilege escalation (alterar role para MASTER)
+ * - Company hopping (mudar companyId)
+ * - Limit bypass (alterar usage/subscription)
+ * - Cross-tenant data access
+ * - Direct resource creation bypassing limits
+ * - Field injection attacks
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    /**
+     * Check if authenticated user is the document owner
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    /**
+     * Get the current user's document data
+     * IMPORTANT: This incurs a read - use sparingly
+     */
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    /**
+     * Check if user has MASTER role
+     */
+    function isMaster() {
+      return getUserData().role == 'MASTER';
+    }
+    
+    /**
+     * Check if user has MEMBER role
+     */
+    function isMember() {
+      return getUserData().role == 'MEMBER';
+    }
+    
+    /**
+     * Check if user belongs to the specified company
+     */
+    function isSameCompany(companyId) {
+      return getUserData().companyId == companyId;
+    }
+    
+    /**
+     * Get the effective MASTER ID for the current user
+     * If MASTER: returns own ID
+     * If MEMBER: returns masterId field
+     */
+    function getEffectiveMasterId() {
+      let user = getUserData();
+      return user.role == 'MASTER' ? request.auth.uid : user.masterId;
+    }
+    
+    /**
+     * Check if the update ONLY modifies allowed fields (whitelist approach)
+     * @param allowedFields - List of field names that can be modified
+     */
+    function onlyUpdatesFields(allowedFields) {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return affectedKeys.hasOnly(allowedFields);
+    }
+    
+    /**
+     * Check if request does NOT contain any forbidden fields
+     * @param forbiddenFields - List of field names that CANNOT be in the request
+     */
+    function doesNotContainFields(forbiddenFields) {
+      return !request.resource.data.keys().hasAny(forbiddenFields);
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    
+    match /users/{userId} {
+      
+      // READ: Only own document or MASTER reading their MEMBERs
+      allow read: if isOwner(userId) 
+                  || (isAuthenticated() && resource.data.masterId == request.auth.uid);
+      
+      // CREATE: ❌ NEVER from frontend
+      // Users are created via Cloud Functions (createMember) or Auth triggers
+      allow create: if false;
+      
+      // DELETE: ❌ NEVER from frontend
+      // Deletion must go through Cloud Functions to cleanup Auth user
+      allow delete: if false;
+      
+      // UPDATE: Only own document, only safe fields
+      allow update: if isOwner(userId)
+                    && onlyUpdatesFields(['name', 'photoUrl', 'updatedAt'])
+                    // BLOCK any attempt to modify sensitive fields
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['role', 'masterId', 'companyId', 'companyName', 
+                                 'subscription', 'usage', 'stripeCustomerId', 
+                                 'stripeSubscriptionId', 'planId', 'billingInterval']);
+      
+      // ----------------------------------------
+      // PERMISSIONS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /permissions/{pageId} {
+        // READ: Only own permissions
+        allow read: if isOwner(userId);
+        
+        // WRITE: ❌ NEVER from frontend
+        // Permissions are set by Cloud Functions when creating MEMBER
+        // or by admin functions
+        allow create, update, delete: if false;
+      }
+    }
+    
+    // ============================================
+    // COMPANIES COLLECTION
+    // ============================================
+    
+    match /companies/{companyId} {
+      
+      // READ: Only users of the same company
+      allow read: if isAuthenticated() && isSameCompany(companyId);
+      
+      // CREATE: ❌ NEVER from frontend
+      // Companies are created when MASTER signs up (via Cloud Function)
+      allow create: if false;
+      
+      // DELETE: ❌ NEVER from frontend
+      allow delete: if false;
+      
+      // UPDATE: ❌ NEVER from frontend
+      // Company data (name, logo, etc.) must be updated via Cloud Function
+      // to prevent usage manipulation
+      allow update: if false;
+      
+      // ----------------------------------------
+      // PROPOSALS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /proposals/{proposalId} {
+        // READ: Users of the same company
+        allow read: if isAuthenticated() && isSameCompany(companyId);
+        
+        // CREATE: ❌ NEVER from frontend
+        // Proposals must be created via Cloud Function to:
+        // 1. Check permissions (canCreate)
+        // 2. Verify plan limits (maxProposals)
+        // 3. Increment usage counters atomically
+        allow create: if false;
+        
+        // UPDATE: ❌ NEVER from frontend (for now)
+        // Future: Could allow safe field updates with whitelist
+        // e.g., status, sections, totalValue - but NOT createdById, companyId
+        allow update: if false;
+        
+        // DELETE: ❌ NEVER from frontend
+        // Must go through Cloud Function to decrement usage
+        allow delete: if false;
+      }
+      
+      // ----------------------------------------
+      // CLIENTS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /clients/{clientId} {
+        // READ: Users of the same company
+        allow read: if isAuthenticated() && isSameCompany(companyId);
+        
+        // CREATE: ❌ NEVER from frontend
+        // Must check maxClients limit via Cloud Function
+        allow create: if false;
+        
+        // UPDATE: ❌ NEVER from frontend
+        allow update: if false;
+        
+        // DELETE: ❌ NEVER from frontend
+        // Must decrement usage via Cloud Function
+        allow delete: if false;
+      }
+      
+      // ----------------------------------------
+      // PRODUCTS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /products/{productId} {
+        // READ: Users of the same company
+        allow read: if isAuthenticated() && isSameCompany(companyId);
+        
+        // CREATE: ❌ NEVER from frontend
+        // Must check maxProducts limit via Cloud Function
+        allow create: if false;
+        
+        // UPDATE: ❌ NEVER from frontend
+        allow update: if false;
+        
+        // DELETE: ❌ NEVER from frontend
+        // Must decrement usage via Cloud Function
+        allow delete: if false;
+      }
+    }
+    
+    // ============================================
+    // PLANS COLLECTION (Read-Only Reference Data)
+    // ============================================
+    
+    match /plans/{planId} {
+      // READ: Any authenticated user (for displaying plan options)
+      allow read: if isAuthenticated();
+      
+      // WRITE: ❌ NEVER
+      // Plans are managed only by system administrators
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // PAGES COLLECTION (Read-Only Reference Data)
+    // ============================================
+    
+    match /pages/{pageId} {
+      // READ: Any authenticated user (for permission checks)
+      allow read: if isAuthenticated();
+      
+      // WRITE: ❌ NEVER
+      // Pages are defined at deployment time
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // CATCH-ALL: Deny everything else
+    // ============================================
+    
+    match /{document=**} {
+      // Deny any path not explicitly matched
+      // This prevents access to any new collections accidentally added
+      allow read, write: if false;
+    }
+  }
+}

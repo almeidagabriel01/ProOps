@@ -2,6 +2,7 @@ import "server-only";
 
 import { initializeApp, getApps, getApp, cert, ServiceAccount } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 // Parse the service account from environment variables
 // Note: We use process.env directly for server-side
@@ -36,4 +37,12 @@ export function getAdminAuth() {
         throw new Error("Firebase Admin not configured correctly. Check .env.local for FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.");
     }
     return getAuth(app);
+}
+
+export function getAdminFirestore() {
+    const app = getAdminApp();
+    if (!app) {
+        throw new Error("Firebase Admin not configured correctly. Check .env.local for FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY.");
+    }
+    return getFirestore(app);
 }
