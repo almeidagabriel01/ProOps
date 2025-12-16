@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, where, getDoc } from "firebase/firestore";
 
 export type Product = {
     id: string;
@@ -14,6 +14,8 @@ export type Product = {
     images: string[]; // Changed from single image to array
     image?: string | null; // Kept for backward compatibility (optional)
     status?: 'active' | 'inactive';
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 const COLLECTION_NAME = "products";
@@ -28,10 +30,15 @@ export const ProductService = {
             );
 
             const querySnapshot = await getDocs(q);
-            return querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Product));
+            return querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                } as Product;
+            });
         } catch (error) {
             console.error("Error fetching products:", error);
             throw error;
@@ -45,7 +52,13 @@ export const ProductService = {
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
-                return { id: docSnap.id, ...docSnap.data() } as Product;
+                const data = docSnap.data();
+                return { 
+                    id: docSnap.id, 
+                    ...data,
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                } as Product;
             } else {
                 return null;
             }
@@ -55,37 +68,15 @@ export const ProductService = {
         }
     },
 
-    // Create a new product
-    createProduct: async (product: Omit<Product, "id">): Promise<Product> => {
+    updateProduct: async (id: string, data: Partial<Product>): Promise<void> => {
         try {
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), product);
-            return { id: docRef.id, ...product };
-        } catch (error) {
-            console.error("Error creating product:", error);
-            throw error;
-        }
-    },
-
-    // Update an existing product
-    updateProduct: async (id: string, updates: Partial<Omit<Product, "id">>) => {
-        try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, updates);
-            return { id, ...updates };
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateProduct');
+            await updateFunc({ productId: id, ...data });
         } catch (error) {
             console.error("Error updating product:", error);
             throw error;
         }
     },
-
-    // Delete a product
-    deleteProduct: async (id: string) => {
-        try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
-            return true;
-        } catch (error) {
-            console.error("Error deleting product:", error);
-            throw error;
-        }
-    }
 };

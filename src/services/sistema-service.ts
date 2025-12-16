@@ -1,5 +1,7 @@
+"use client";
+
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
 import { Sistema } from "@/types/automation";
 
 const COLLECTION_NAME = "sistemas";
@@ -50,13 +52,19 @@ export const SistemaService = {
 
     createSistema: async (data: Omit<Sistema, "id">): Promise<Sistema> => {
         try {
-            const now = new Date().toISOString();
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-                ...data,
-                createdAt: now,
-                updatedAt: now
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; sistemaId: string }>(functions, 'createSistema');
+            
+            const result = await createFunc({
+                name: data.name,
+                description: data.description,
+                icon: data.icon,
+                ambienteIds: data.ambienteIds,
+                defaultProducts: data.defaultProducts,
             });
-            return { id: docRef.id, ...data };
+            
+            return { id: result.data.sistemaId, ...data };
         } catch (error) {
             console.error("Error creating sistema:", error);
             throw error;
@@ -65,11 +73,11 @@ export const SistemaService = {
 
     updateSistema: async (id: string, data: Partial<Omit<Sistema, "id">>): Promise<void> => {
         try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, {
-                ...data,
-                updatedAt: new Date().toISOString()
-            });
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateSistema');
+            
+            await updateFunc({ sistemaId: id, ...data });
         } catch (error) {
             console.error("Error updating sistema:", error);
             throw error;
@@ -78,7 +86,11 @@ export const SistemaService = {
 
     deleteSistema: async (id: string): Promise<void> => {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteSistema');
+            
+            await deleteFunc({ sistemaId: id });
         } catch (error) {
             console.error("Error deleting sistema:", error);
             throw error;

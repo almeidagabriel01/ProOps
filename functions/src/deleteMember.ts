@@ -111,6 +111,8 @@ export const deleteMember = functions
                 transaction.update(companyRef, {
                     'usage.users': FieldValue.increment(-1)
                 });
+            } else {
+                 console.warn(`[deleteMember] Company ${masterData.tenantId} not found, skipping usage decrement.`);
             }
         });
         

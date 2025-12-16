@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package, Loader2 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { Product, ProductService } from "@/services/product-service";
+import { useProductActions } from "@/hooks/useProductActions";
 import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ export default function ProductsPage() {
     const { canCreate, canDelete, canEdit } = usePagePermission("products");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const { deleteProduct } = useProductActions();
     const [searchTerm, setSearchTerm] = useState("");
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -61,12 +63,15 @@ export default function ProductsPage() {
                 return;
             }
 
-            await ProductService.deleteProduct(deleteId);
-            setProducts(products.filter(p => p.id !== deleteId));
+            // await ProductService.deleteProduct(deleteId);
+            const success = await deleteProduct(deleteId);
+            if (success) {
+                setProducts(products.filter(p => p.id !== deleteId));
+            }
             setDeleteId(null);
         } catch (error) {
             console.error("Error deleting product:", error);
-            alert("Erro ao excluir produto. Tente novamente.");
+            // alert("Erro ao excluir produto. Tente novamente."); // Hook handles error
         }
     };
 

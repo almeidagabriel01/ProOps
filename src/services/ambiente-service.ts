@@ -1,5 +1,7 @@
+"use client";
+
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
 import { Ambiente } from "@/types/automation";
 
 const COLLECTION_NAME = "ambientes";
@@ -41,11 +43,17 @@ export const AmbienteService = {
 
     createAmbiente: async (data: Omit<Ambiente, "id">): Promise<Ambiente> => {
         try {
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-                ...data,
-                createdAt: new Date().toISOString()
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; ambienteId: string }>(functions, 'createAmbiente');
+            
+            const result = await createFunc({
+                name: data.name,
+                icon: data.icon,
+                order: data.order,
             });
-            return { id: docRef.id, ...data };
+            
+            return { id: result.data.ambienteId, ...data };
         } catch (error) {
             console.error("Error creating ambiente:", error);
             throw error;
@@ -54,8 +62,11 @@ export const AmbienteService = {
 
     updateAmbiente: async (id: string, data: Partial<Omit<Ambiente, "id">>): Promise<void> => {
         try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, data);
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateAmbiente');
+            
+            await updateFunc({ ambienteId: id, ...data });
         } catch (error) {
             console.error("Error updating ambiente:", error);
             throw error;
@@ -64,7 +75,11 @@ export const AmbienteService = {
 
     deleteAmbiente: async (id: string): Promise<void> => {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteAmbiente');
+            
+            await deleteFunc({ ambienteId: id });
         } catch (error) {
             console.error("Error deleting ambiente:", error);
             throw error;

@@ -257,39 +257,53 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
   // Check if can create proposal
   const canCreateProposal = useCallback(async (): Promise<boolean> => {
-    if (!features) return false;
-    if (features.maxProposals === -1) return true;
+    if (!mergedFeatures) return false;
+    const limitVal = mergedFeatures.maxProposals;
+    const limit = Number(limitVal);
+    if (String(limitVal) === '-1' || limit === -1 || limit < 0) return true;
     
     const count = await getProposalCount();
-    return count < features.maxProposals;
-  }, [features, getProposalCount]);
+    return count < limit;
+  }, [mergedFeatures, getProposalCount]);
 
   // Check if can create client
   const canCreateClient = useCallback(async (): Promise<boolean> => {
-    if (!features) return false;
-    if (features.maxClients === -1) return true;
+    if (!mergedFeatures) return false;
+    const limitVal = mergedFeatures.maxClients;
+    const limit = Number(limitVal);
+    console.log(`[usePlanLimits] canCreateClient? Limit: ${limitVal} (Num: ${limit}), Current: waiting...`);
+    
+    if (String(limitVal) === '-1' || limit === -1 || limit < 0) {
+        console.log(`[usePlanLimits] Unlimited clients allowed.`);
+        return true;
+    }
     
     const count = await getClientCount();
-    return count < features.maxClients;
-  }, [features, getClientCount]);
+    console.log(`[usePlanLimits] Count: ${count}, Allowed: ${limit}`);
+    return count < limit;
+  }, [mergedFeatures, getClientCount]);
 
   // Check if can create product
   const canCreateProduct = useCallback(async (): Promise<boolean> => {
-    if (!features) return false;
-    if (features.maxProducts === -1) return true;
+    if (!mergedFeatures) return false;
+    const limitVal = mergedFeatures.maxProducts;
+    const limit = Number(limitVal);
+    if (String(limitVal) === '-1' || limit === -1 || limit < 0) return true;
     
     const count = await getProductCount();
-    return count < features.maxProducts;
-  }, [features, getProductCount]);
+    return count < limit;
+  }, [mergedFeatures, getProductCount]);
 
   // Check if can add user
   const canAddUser = useCallback(async (): Promise<boolean> => {
-    if (!features) return false;
-    if (features.maxUsers === -1) return true;
+    if (!mergedFeatures) return false;
+    const limitVal = mergedFeatures.maxUsers;
+    const limit = Number(limitVal);
+    if (String(limitVal) === '-1' || limit === -1 || limit < 0) return true;
     
     const count = await getUserCount();
-    return count < features.maxUsers;
-  }, [features, getUserCount]);
+    return count < limit;
+  }, [mergedFeatures, getUserCount]);
 
   // Format limits for display
   const formatLimit = (value: number): string => {

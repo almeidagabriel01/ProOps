@@ -1,5 +1,7 @@
+"use client";
+
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
 import { ProposalTemplate } from "@/types";
 
 const COLLECTION_NAME = "proposal_templates";
@@ -40,12 +42,26 @@ export const ProposalTemplateService = {
 
     createTemplate: async (data: Omit<ProposalTemplate, "id">): Promise<ProposalTemplate> => {
         try {
-            // If setting as default, we should probably unset others, but for simplicity let's just add for now
-            // Detailed logic for "ensuring only one default" can be added here or in the UI handler
-            // For robust backend, a transaction would be best.
-
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), data);
-            return { id: docRef.id, ...data };
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; templateId: string }>(functions, 'createProposalTemplate');
+            
+            const result = await createFunc({
+                name: data.name,
+                isDefault: data.isDefault,
+                introductionText: data.introductionText,
+                scopeText: data.scopeText,
+                paymentTerms: data.paymentTerms,
+                warrantyText: data.warrantyText,
+                footerText: data.footerText,
+                coverImage: data.coverImage,
+                theme: data.theme,
+                primaryColor: data.primaryColor,
+                fontFamily: data.fontFamily,
+                repeatHeader: data.repeatHeader,
+            });
+            
+            return { id: result.data.templateId, ...data };
         } catch (error) {
             console.error("Error creating template:", error);
             throw error;
@@ -54,8 +70,11 @@ export const ProposalTemplateService = {
 
     updateTemplate: async (id: string, data: Partial<Omit<ProposalTemplate, "id">>): Promise<void> => {
         try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, data);
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateProposalTemplate');
+            
+            await updateFunc({ templateId: id, ...data });
         } catch (error) {
             console.error("Error updating template:", error);
             throw error;
@@ -64,7 +83,11 @@ export const ProposalTemplateService = {
 
     deleteTemplate: async (id: string): Promise<void> => {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteProposalTemplate');
+            
+            await deleteFunc({ templateId: id });
         } catch (error) {
             console.error("Error deleting template:", error);
             throw error;

@@ -157,7 +157,10 @@ export const createMember = functions
     
     // SECURITY: Only MASTER/ADMIN/SUPERADMIN can create members
     // Uses normalized role check to support 'admin', 'superadmin', 'master' roles
-    if (!canManageTeam(masterData.role)) {
+    const role = masterData.role?.toUpperCase();
+    const isMaster = role === 'MASTER' || role === 'ADMIN' || role === 'WK' || canManageTeam(masterData.role);
+    
+    if (!isMaster) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Apenas administradores podem criar membros da equipe"
@@ -181,7 +184,11 @@ export const createMember = functions
     // STEP 4: Check Plan Limits
     // ============================================
 
-    let maxUsers = 1;
+    // ============================================
+    // STEP 4: Check Plan Limits
+    // ============================================
+
+    let maxUsersVal = 1;
     const planId = masterData.planId || 'free';
 
     // 1. Check legacy/hardcoded limits (optimization for default tiers)
@@ -193,8 +200,8 @@ export const createMember = functions
     };
 
     if (LEGACY_LIMITS[planId] !== undefined) {
-        maxUsers = LEGACY_LIMITS[planId];
-        console.log(`[createMember] Using legacy limit for ${planId}: ${maxUsers}`);
+        maxUsersVal = LEGACY_LIMITS[planId];
+        console.log(`[createMember] Using legacy limit for ${planId}: ${maxUsersVal}`);
     } else {
         // 2. Fetch dynamic plan from Firestore
         console.log(`[createMember] Fetching dynamic plan: ${planId}`);
@@ -205,7 +212,7 @@ export const createMember = functions
             const planMaxUsers = planData?.features?.maxUsers;
             
             if (planMaxUsers !== undefined) {
-                maxUsers = planMaxUsers;
+                maxUsersVal = planMaxUsers;
             } else {
                 console.warn(`[createMember] Plan ${planId} has no maxUsers feature, defaulting to 1`);
             }
@@ -214,17 +221,19 @@ export const createMember = functions
         }
     }
 
-    console.log(`[createMember] Final Max Users: ${maxUsers}`);
+    console.log(`[createMember] Final Max Users: ${maxUsersVal}`);
 
+    const maxUsers = Number(maxUsersVal); 
+    
     // Check Max Users Limit
     const usersRef = db.collection('users');
     const usersQuery = usersRef.where('masterId', '==', masterId);
     const usersSnap = await usersQuery.count().get();
-    const currentUsers = usersSnap.data().count;
+    const currentUsers = Number(usersSnap.data().count);
 
     console.log(`[createMember] Usage: ${currentUsers}/${maxUsers}`);
 
-    if (maxUsers !== -1 && currentUsers >= maxUsers) {
+    if (maxUsers >= 0 && currentUsers >= maxUsers) {
          throw new functions.https.HttpsError(
             "failed-precondition",
             `Limite de usuários atingido (${currentUsers}/${maxUsers}). Faça upgrade para adicionar mais membros.`

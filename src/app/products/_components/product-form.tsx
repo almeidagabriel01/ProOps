@@ -21,6 +21,7 @@ import { DynamicSelect } from "@/components/features/dynamic-select";
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useProductActions } from "@/hooks/useProductActions";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { Save, X } from "lucide-react";
 
@@ -34,6 +35,7 @@ export function ProductForm({ initialData, productId, isReadOnly = false }: Prod
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
+  const { createProduct, isLoading: isCreating } = useProductActions();
 
   // Limit modal state
   const [showLimitModal, setShowLimitModal] = React.useState(false);
@@ -184,16 +186,29 @@ export function ProductForm({ initialData, productId, isReadOnly = false }: Prod
       if (productId) {
         await ProductService.updateProduct(productId, dataToSave);
         alert("Produto atualizado com sucesso!");
+        router.push("/products");
+        router.refresh();
       } else {
-        await ProductService.createProduct(dataToSave);
-        alert(`Produto cadastrado para ${tenant.name} com sucesso!`);
-      }
+        const result = await createProduct({
+          name: formData.name,
+          description: formData.description,
+          price: formData.price,
+          manufacturer: formData.manufacturer,
+          category: formData.category,
+          sku: formData.sku,
+          stock: formData.stock,
+          images: imagesBase64
+        });
 
-      router.push("/products");
-      router.refresh();
+        if (result?.success) {
+          // alert(`Produto cadastrado para ${tenant.name} com sucesso!`); // Hook handles toast
+          router.push("/products");
+          router.refresh();
+        }
+      }
     } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar produto. Tente novamente.");
+      //   console.error(error); // Hook handles logging
+      //   alert("Erro ao salvar produto. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }

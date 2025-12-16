@@ -83,33 +83,33 @@ export const TransactionService = {
 
     createTransaction: async (transaction: Omit<Transaction, "id">): Promise<Transaction> => {
         try {
-            // Filter out undefined values - Firestore doesn't accept undefined
-            const transactionData: Record<string, unknown> = {
-                tenantId: transaction.tenantId,
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; transactionId: string }>(functions, 'createTransaction');
+            
+            const result = await createFunc({
                 type: transaction.type,
                 description: transaction.description,
                 amount: transaction.amount,
                 date: transaction.date,
+                dueDate: transaction.dueDate,
                 status: transaction.status,
-                createdAt: transaction.createdAt,
-                updatedAt: transaction.updatedAt,
-            };
-
-            // Only add optional fields if they have values
-            if (transaction.dueDate) transactionData.dueDate = transaction.dueDate;
-            if (transaction.clientId) transactionData.clientId = transaction.clientId;
-            if (transaction.clientName) transactionData.clientName = transaction.clientName;
-            if (transaction.proposalId) transactionData.proposalId = transaction.proposalId;
-            if (transaction.category) transactionData.category = transaction.category;
-            if (transaction.wallet) transactionData.wallet = transaction.wallet;
-            if (transaction.isInstallment) transactionData.isInstallment = transaction.isInstallment;
-            if (transaction.installmentCount) transactionData.installmentCount = transaction.installmentCount;
-            if (transaction.installmentNumber) transactionData.installmentNumber = transaction.installmentNumber;
-            if (transaction.installmentGroupId) transactionData.installmentGroupId = transaction.installmentGroupId;
-            if (transaction.notes) transactionData.notes = transaction.notes;
-
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), transactionData);
-            return { id: docRef.id, ...transactionData } as Transaction;
+                clientId: transaction.clientId,
+                clientName: transaction.clientName,
+                proposalId: transaction.proposalId,
+                category: transaction.category,
+                wallet: transaction.wallet,
+                isInstallment: transaction.isInstallment,
+                installmentCount: transaction.installmentCount,
+                installmentNumber: transaction.installmentNumber,
+                installmentGroupId: transaction.installmentGroupId,
+                notes: transaction.notes,
+            });
+            
+            return { 
+                id: result.data.transactionId, 
+                ...transaction 
+            } as Transaction;
         } catch (error) {
             console.error("Error creating transaction:", error);
             throw error;
@@ -118,33 +118,12 @@ export const TransactionService = {
 
     updateTransaction: async (id: string, updates: Partial<Omit<Transaction, "id">>) => {
         try {
-            const docRef = doc(db, COLLECTION_NAME, id);
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateTransaction');
             
-            // Filter out undefined values - Firestore doesn't accept undefined
-            const updatedData: Record<string, unknown> = {
-                updatedAt: new Date().toISOString(),
-            };
-            
-            // Only add fields that have defined values
-            if (updates.type !== undefined) updatedData.type = updates.type;
-            if (updates.description !== undefined) updatedData.description = updates.description;
-            if (updates.amount !== undefined) updatedData.amount = updates.amount;
-            if (updates.date !== undefined) updatedData.date = updates.date;
-            if (updates.status !== undefined) updatedData.status = updates.status;
-            if (updates.dueDate !== undefined) updatedData.dueDate = updates.dueDate;
-            if (updates.clientId !== undefined) updatedData.clientId = updates.clientId;
-            if (updates.clientName !== undefined) updatedData.clientName = updates.clientName;
-            if (updates.proposalId !== undefined) updatedData.proposalId = updates.proposalId;
-            if (updates.category !== undefined) updatedData.category = updates.category;
-            if (updates.wallet !== undefined) updatedData.wallet = updates.wallet;
-            if (updates.isInstallment !== undefined) updatedData.isInstallment = updates.isInstallment;
-            if (updates.installmentCount !== undefined) updatedData.installmentCount = updates.installmentCount;
-            if (updates.installmentNumber !== undefined) updatedData.installmentNumber = updates.installmentNumber;
-            if (updates.installmentGroupId !== undefined) updatedData.installmentGroupId = updates.installmentGroupId;
-            if (updates.notes !== undefined) updatedData.notes = updates.notes;
-
-            await updateDoc(docRef, updatedData);
-            return { id, ...updatedData };
+            await updateFunc({ transactionId: id, ...updates });
+            return { id, ...updates };
         } catch (error) {
             console.error("Error updating transaction:", error);
             throw error;
@@ -153,7 +132,11 @@ export const TransactionService = {
 
     deleteTransaction: async (id: string) => {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteTransaction');
+            
+            await deleteFunc({ transactionId: id });
             return true;
         } catch (error) {
             console.error("Error deleting transaction:", error);

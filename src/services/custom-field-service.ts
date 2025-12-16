@@ -1,6 +1,8 @@
+"use client";
+
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, query, where } from "firebase/firestore";
-import { CustomFieldType, CustomFieldItem } from "@/types";
+import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
+import { CustomFieldType } from "@/types";
 
 const COLLECTION_NAME = "custom_fields";
 
@@ -40,8 +42,18 @@ export const CustomFieldService = {
 
     createCustomFieldType: async (data: Omit<CustomFieldType, "id">): Promise<CustomFieldType> => {
         try {
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), data);
-            return { id: docRef.id, ...data };
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; customFieldId: string }>(functions, 'createCustomField');
+            
+            const result = await createFunc({
+                name: data.name,
+                description: data.description,
+                parentTypeId: data.parentTypeId,
+                items: data.items,
+            });
+            
+            return { id: result.data.customFieldId, ...data };
         } catch (error) {
             console.error("Error creating custom field type:", error);
             throw error;
@@ -50,8 +62,11 @@ export const CustomFieldService = {
 
     updateCustomFieldType: async (id: string, data: Partial<Omit<CustomFieldType, "id">>): Promise<void> => {
         try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, data);
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateCustomField');
+            
+            await updateFunc({ customFieldId: id, ...data });
         } catch (error) {
             console.error("Error updating custom field type:", error);
             throw error;
@@ -60,7 +75,11 @@ export const CustomFieldService = {
 
     deleteCustomFieldType: async (id: string): Promise<void> => {
         try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteCustomField');
+            
+            await deleteFunc({ customFieldId: id });
         } catch (error) {
             console.error("Error deleting custom field type:", error);
             throw error;

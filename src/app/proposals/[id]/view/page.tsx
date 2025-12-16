@@ -8,6 +8,7 @@ import { Proposal } from "@/services/proposal-service"; // Types only
 import { ProposalStatus, ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import {
@@ -26,6 +27,7 @@ export default function ViewProposalPage() {
   const router = useRouter();
   const { tenant } = useTenant();
   const { features } = usePlanLimits();
+  const { canEdit } = usePagePermission("proposals");
   const upgradeModal = useUpgradeModal();
   const proposalId = params.id as string;
 
@@ -202,7 +204,7 @@ export default function ViewProposalPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {canAccessEditPdf ? (
+          {canEdit && canAccessEditPdf && (
             <Button
               variant="outline"
               onClick={() => router.push(`/proposals/${proposalId}/edit-pdf`)}
@@ -211,7 +213,8 @@ export default function ViewProposalPage() {
               <Palette className="w-4 h-4" />
               Editar PDF
             </Button>
-          ) : (
+          )}
+          {canEdit && !canAccessEditPdf && (
             <Button
               variant="outline"
               onClick={() =>
@@ -229,14 +232,16 @@ export default function ViewProposalPage() {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/proposals/${proposalId}`)}
-            className="gap-2"
-          >
-            <Edit className="w-4 h-4" />
-            Editar Dados
-          </Button>
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/proposals/${proposalId}`)}
+              className="gap-2"
+            >
+              <Edit className="w-4 h-4" />
+              Editar Dados
+            </Button>
+          )}
 
           <Button
             onClick={handleGeneratePdf}

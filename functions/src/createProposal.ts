@@ -45,9 +45,44 @@ interface CreateProposalInput {
   title: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  validUntil?: string;
+  status?: string;
   sections?: ProposalSection[];
+  products?: ProposalProduct[];
+  sistemas?: ProposalSistema[];
   totalValue: number;
+  discount?: number;
   notes?: string;
+  customNotes?: string;
+}
+
+/** Product structure for proposal */
+interface ProposalProduct {
+  productId: string;
+  productName: string;
+  productImage?: string;
+  productImages?: string[];
+  productDescription?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  manufacturer?: string;
+  category?: string;
+  systemInstanceId?: string;
+  isExtra?: boolean;
+}
+
+/** Sistema structure for automation niche */
+interface ProposalSistema {
+  sistemaId: string;
+  sistemaName: string;
+  ambienteId: string;
+  ambienteName: string;
+  description?: string;
+  productIds?: string[];
 }
 
 /** User document structure */
@@ -55,7 +90,9 @@ interface UserDoc {
   name: string;
   role: 'MASTER' | 'MEMBER';
   masterId: string | null;      // null for MASTER, userId for MEMBER
-  companyId: string;
+  tenantId: string;
+  companyId?: string; // Legacy/Optional
+  planId?: string;
   companyName: string;
   subscription?: {
     limits: {
@@ -168,37 +205,53 @@ export const createProposal = functions
     
     const userData = userSnap.data() as UserDoc;
     
-    // ============================================
-    // STEP 4: Check Page Permission
-    // ============================================
-    
-    // Permission document ID derived from page slug "/proposals"
-    const permissionId = "proposals";
-    const permRef = userRef.collection('permissions').doc(permissionId);
-    const permSnap = await permRef.get();
-    
-    if (!permSnap.exists) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Você não tem permissão para acessar propostas"
-      );
+    // Fallback to companyId if tenantId is missing (backward compatibility)
+    const userCompanyId = userData.tenantId || userData.companyId;
+
+    if (!userCompanyId) {
+        throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Erro de consistência: Usuário sem tenantId/companyId vinculado."
+        );
     }
     
-    const permission = permSnap.data() as PermissionDoc;
+    // ============================================
+    // STEP 4: Check Page Permission (Skip for MASTER/ADMIN)
+    // ============================================
     
-    // Must have both canView AND canCreate
-    if (!permission.canView) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Você não tem permissão para visualizar propostas"
-      );
-    }
-    
-    if (!permission.canCreate) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Você não tem permissão para criar propostas"
-      );
+    const role = (userData.role as string)?.toUpperCase();
+    // Allow MASTER, ADMIN, WK or implicit master (no masterId but has subscription)
+    const isMasterOrAdmin = role === 'MASTER' || role === 'ADMIN' || role === 'WK' || (!userData.masterId && userData.subscription);
+
+    if (!isMasterOrAdmin) {
+        // Permission document ID derived from page slug "/proposals"
+        const permissionId = "proposals";
+        const permRef = userRef.collection('permissions').doc(permissionId);
+        const permSnap = await permRef.get();
+        
+        if (!permSnap.exists) {
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            "Você não tem permissão para acessar propostas"
+        );
+        }
+        
+        const permission = permSnap.data() as PermissionDoc;
+        
+        // Must have both canView AND canCreate
+        if (!permission.canView) {
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            "Você não tem permissão para visualizar propostas"
+        );
+        }
+        
+        if (!permission.canCreate) {
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            "Você não tem permissão para criar propostas"
+        );
+        }
     }
     
     // ============================================
@@ -211,21 +264,23 @@ export const createProposal = functions
     let masterData: UserDoc;
     let masterRef: FirebaseFirestore.DocumentReference;
     
-    if (userData.role === 'MASTER') {
+    // const role = (userData.role as string)?.toUpperCase(); // Already declared
+    if (role === 'MASTER' || role === 'ADMIN' || role === 'WK' || (!userData.masterId && userData.subscription)) {
       // User IS the master
       effectiveMasterId = userId;
       masterData = userData;
       masterRef = userRef;
     } else {
       // User is MEMBER - get MASTER data
-      if (!userData.masterId) {
+      const masterId = userData.masterId || (userData as any).masterID || (userData as any).ownerId;
+      if (!masterId) {
         throw new functions.https.HttpsError(
           "failed-precondition",
           "Erro na configuração da conta. Contate o administrador."
         );
       }
       
-      effectiveMasterId = userData.masterId;
+      effectiveMasterId = masterId;
       masterRef = db.collection('users').doc(effectiveMasterId);
       const masterSnap = await masterRef.get();
       
@@ -240,33 +295,56 @@ export const createProposal = functions
     }
     
     // ============================================
-    // STEP 6: Check Subscription Status
+    // STEP 6: Check Subscription Status (Relaxed/Robust)
     // ============================================
+    // We skipping strict checks here because Step 7 handles missing subscriptions via Default/Legacy plans.
+    // However, if a subscription object EXISTS but is invalid, we might want to flag it.
+    // But for now, since Admin users might not have a subscription object at all, we proceed.
     
-    if (!masterData.subscription) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "É necessário um plano ativo para criar propostas"
-      );
+    if (masterData.subscription) {
+         const subscriptionStatus = masterData.subscription.status;
+         if (subscriptionStatus !== 'ACTIVE' && subscriptionStatus !== 'TRIALING') {
+            throw new functions.https.HttpsError(
+                "failed-precondition",
+                "O plano está inativo. Regularize a assinatura para continuar."
+            );
+         }
     }
     
-    const subscriptionStatus = masterData.subscription.status;
-    if (subscriptionStatus !== 'ACTIVE' && subscriptionStatus !== 'TRIALING') {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "O plano está inativo. Regularize a assinatura para continuar."
-      );
+    // ============================================
+    // STEP 7: Check Plan Limits (maxProposals) - Robust Resolution
+    // ============================================
+    
+    let maxProposalsVal = 5; // Default Free Limit
+    const planId = masterData.planId || 'free';
+
+    const LEGACY_LIMITS: Record<string, number> = {
+        free: 5,
+        starter: 80,
+        pro: -1,
+        enterprise: -1
+    };
+
+    if (LEGACY_LIMITS[planId] !== undefined) {
+        maxProposalsVal = LEGACY_LIMITS[planId];
+    } else {
+        if (masterData.subscription?.limits?.maxProposals !== undefined) {
+             maxProposalsVal = masterData.subscription.limits.maxProposals;
+        } else {
+             console.log(`[createProposal] Fetching dynamic plan: ${planId}`);
+             const planRef = db.collection('plans').doc(planId); // Correct ref usage
+             const planSnap = await planRef.get();
+             if (planSnap.exists) {
+                 maxProposalsVal = planSnap.data()?.features?.maxProposals ?? 5;
+             }
+        }
     }
     
-    // ============================================
-    // STEP 7: Check Plan Limits (maxProposals)
-    // ============================================
+    const maxProposals = Number(maxProposalsVal);
+    const currentProposals = Number(masterData.usage?.proposals ?? 0);
     
-    const maxProposals = masterData.subscription.limits.maxProposals;
-    const currentProposals = masterData.usage?.proposals ?? 0;
-    
-    // -1 means unlimited
-    if (maxProposals !== -1 && currentProposals >= maxProposals) {
+    // -1 means unlimited. Use >= 0 to check if limit exists.
+    if (maxProposals >= 0 && currentProposals >= maxProposals) {
       throw new functions.https.HttpsError(
         "failed-precondition",
         `Limite de propostas atingido (${currentProposals}/${maxProposals}). ` +
@@ -286,31 +364,48 @@ export const createProposal = functions
         
         // 8a. Re-read MASTER's usage inside transaction for consistency
         const freshMasterSnap = await transaction.get(masterRef);
+        // Use resolved ID
+        const companyRef = db.collection('companies').doc(userCompanyId);
+        const companySnap = await transaction.get(companyRef);
+
         const freshMasterData = freshMasterSnap.data() as UserDoc;
-        const freshCurrentProposals = freshMasterData.usage?.proposals ?? 0;
+        const freshCurrentProposals = Number(freshMasterData.usage?.proposals ?? 0);
         
         // Double-check limit inside transaction (prevents race conditions)
-        if (maxProposals !== -1 && freshCurrentProposals >= maxProposals) {
+        if (maxProposals >= 0 && freshCurrentProposals >= maxProposals) {
           throw new functions.https.HttpsError(
             "failed-precondition",
             `Limite de propostas atingido. Tente novamente.`
           );
         }
         
+        
         // 8b. Create new proposal document
-        const proposalsRef = db.collection('companies').doc(userData.companyId).collection('proposals');
+        const proposalsRef = db.collection('proposals'); // Changed to root collection directly
         const newProposalRef = proposalsRef.doc(); // Auto-generate ID
         
         transaction.set(newProposalRef, {
           // Business data from input
           title: input.title.trim(),
-          status: 'DRAFT',
+          status: input.status || 'draft',
           totalValue: input.totalValue,
           notes: input.notes?.trim() || null,
+          customNotes: input.customNotes?.trim() || null,
+          discount: input.discount || 0,
+          validUntil: input.validUntil || null,
           
           // Client info (from input, but validated)
           clientId: input.clientId,
           clientName: input.clientName,
+          clientEmail: input.clientEmail || null,
+          clientPhone: input.clientPhone || null,
+          clientAddress: input.clientAddress || null,
+          
+          // Products
+          products: input.products || [],
+          
+          // Sistemas (for automation niche)
+          sistemas: input.sistemas || [],
           
           // Sections (optional)
           sections: input.sections || [],
@@ -321,7 +416,8 @@ export const createProposal = functions
           createdByName: userData.name,
           
           // Company - derived from user's company
-          companyId: userData.companyId,
+          companyId: userCompanyId, // Using tenantId/companyId consistent var
+          tenantId: userCompanyId,  // Redundant but safe
           
           // Timestamps
           createdAt: now,
@@ -335,12 +431,14 @@ export const createProposal = functions
         });
         
         // 8d. Increment Company's usage.proposals
-        const companyRef = db.collection('companies').doc(userData.companyId);
-        transaction.update(companyRef, {
-          'usage.proposals': FieldValue.increment(1),
-          updatedAt: now,
-        });
-        
+        if (companySnap.exists) {
+            transaction.update(companyRef, {
+              'usage.proposals': FieldValue.increment(1),
+              updatedAt: now,
+            });
+        }
+
+
         return newProposalRef.id;
       });
     } catch (err) {
@@ -352,7 +450,7 @@ export const createProposal = functions
       console.error('Transaction failed:', err);
       throw new functions.https.HttpsError(
         "internal",
-        "Erro ao criar proposta. Tente novamente."
+        `Erro ao criar proposta: ${(err as Error).message}`
       );
     }
     

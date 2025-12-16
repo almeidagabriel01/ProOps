@@ -1,5 +1,6 @@
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, query, where, getDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, where, getDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
 // Define compatible types based on usage
 export type ProposalStatus = 'draft' | 'sent' | 'approved' | 'rejected';
@@ -73,10 +74,15 @@ export const ProposalService = {
             );
 
             const querySnapshot = await getDocs(q);
-            return querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Proposal));
+            return querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                } as Proposal;
+            });
         } catch (error) {
             console.error("Error fetching proposals:", error);
             throw error;
@@ -89,7 +95,13 @@ export const ProposalService = {
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
-                return { id: docSnap.id, ...docSnap.data() } as Proposal;
+                const data = docSnap.data();
+                return { 
+                    id: docSnap.id, 
+                    ...data,
+                    createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                } as Proposal;
             } else {
                 return null;
             }
@@ -99,33 +111,24 @@ export const ProposalService = {
         }
     },
 
-    createProposal: async (proposal: Omit<Proposal, "id">): Promise<Proposal> => {
+    deleteProposal: async (id: string): Promise<void> => {
         try {
-            const docRef = await addDoc(collection(db, COLLECTION_NAME), proposal);
-            return { id: docRef.id, ...proposal };
-        } catch (error) {
-            console.error("Error creating proposal:", error);
-            throw error;
-        }
-    },
-
-    updateProposal: async (id: string, updates: Partial<Omit<Proposal, "id">>) => {
-        try {
-            const docRef = doc(db, COLLECTION_NAME, id);
-            await updateDoc(docRef, updates);
-            return { id, ...updates };
-        } catch (error) {
-            console.error("Error updating proposal:", error);
-            throw error;
-        }
-    },
-
-    deleteProposal: async (id: string) => {
-        try {
-            await deleteDoc(doc(db, COLLECTION_NAME, id));
-            return true;
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteProposal');
+            await deleteFunc({ proposalId: id });
         } catch (error) {
             console.error("Error deleting proposal:", error);
+            throw error;
+        }
+    },
+
+    updateProposal: async (id: string, data: Partial<Proposal>): Promise<void> => {
+        try {
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateProposal');
+            await updateFunc({ proposalId: id, ...data });
+        } catch (error) {
+            console.error("Error updating proposal:", error);
             throw error;
         }
     },
@@ -147,9 +150,7 @@ export const ProposalService = {
             });
         } catch (error) {
             console.error("Error checking product usage:", error);
-            return false; // Fail safe? Or throw? Better false to not block if error, or warn user. 
-            // In this context, if error, we might assume safely used? No, safe deletion -> false ?? 
-            // If error, let's assume false but log it.
+            return false; 
         }
     }
 };

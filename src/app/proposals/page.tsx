@@ -38,7 +38,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function ProposalsPage() {
   const { tenant } = useTenant();
-  const { canCreate, canDelete } = usePagePermission("proposals");
+  const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -62,7 +62,9 @@ export default function ProposalsPage() {
       try {
         await ProposalService.deleteProposal(id);
         setProposals((prev) => prev.filter((p) => p.id !== id));
+        alert("Proposta excluída com sucesso.");
       } catch (error) {
+        console.error(error);
         alert("Erro ao excluir proposta");
       }
     }
@@ -73,17 +75,35 @@ export default function ProposalsPage() {
       const original = proposals.find((p) => p.id === id);
       if (!original) return;
 
-      // Create a copy without ID and with updated title
-      const { id: _, ...rest } = original;
-      const newProposal = await ProposalService.createProposal({
-        ...rest,
+      // Import createProposal hook dynamically
+      const { getFunctions, httpsCallable } = await import("firebase/functions");
+      const functions = getFunctions(undefined, 'southamerica-east1');
+      const createProposalFn = httpsCallable(functions, 'createProposal');
+
+      const result = await createProposalFn({
         title: `${original.title} (Cópia)`,
+        clientId: original.clientId || "",
+        clientName: original.clientName,
+        clientEmail: original.clientEmail,
+        clientPhone: original.clientPhone,
+        clientAddress: original.clientAddress,
+        validUntil: original.validUntil,
+        totalValue: 0, // Will be recalculated
+        discount: original.discount || 0,
+        products: original.products || [],
+        sistemas: original.sistemas || [],
+        customNotes: original.customNotes,
         status: "draft",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       });
 
-      setProposals((prev) => [...prev, newProposal]);
+      if ((result.data as any)?.success) {
+        // Reload proposals
+        if (tenant) {
+          const data = await ProposalService.getProposals(tenant.id);
+          setProposals(data);
+        }
+        alert("Proposta duplicada com sucesso!");
+      }
     } catch (error) {
       console.error("Error duplicating proposal:", error);
       alert("Erro ao duplicar proposta");
@@ -160,7 +180,8 @@ export default function ProposalsPage() {
 
           {/* Rows */}
           {proposals.map((proposal) => {
-            const status = statusConfig[proposal.status];
+            const statusKey = (proposal.status || 'draft').toLowerCase() as ProposalStatus;
+            const status = statusConfig[statusKey] || statusConfig['draft'];
             const productCount = proposal.products?.length || 0;
             const total =
               proposal.products?.reduce((sum, p) => sum + p.total, 0) || 0;
@@ -203,16 +224,18 @@ export default function ProposalsPage() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Link href={`/proposals/${proposal.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Editar"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                    </Link>
+                    {canEdit && (
+                      <Link href={`/proposals/${proposal.id}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Editar"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    )}
                     {canCreate && (
                       <Button
                         variant="ghost"

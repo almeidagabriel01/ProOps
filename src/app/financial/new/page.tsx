@@ -17,6 +17,7 @@ import { ClientService } from "@/services/client-service";
 import { ClientSelect } from "@/components/features/client-select";
 import { DynamicSelect } from "@/components/features/dynamic-select";
 import { useTenant } from "@/providers/tenant-provider";
+import { useClientActions } from "@/hooks/useClientActions";
 import {
   ArrowLeft,
   Loader2,
@@ -32,6 +33,8 @@ export default function NewTransactionPage() {
   const router = useRouter();
   const { tenant } = useTenant();
   const [isSaving, setIsSaving] = React.useState(false);
+
+  const { createClient } = useClientActions();
 
   const [formData, setFormData] = React.useState({
     type: "income" as TransactionType,
@@ -93,12 +96,19 @@ export default function NewTransactionPage() {
       // If new client, create it first
       let clientId = formData.clientId;
       if (!clientId && formData.clientName.trim()) {
-        const { client } = await ClientService.findOrCreateClient(
-          tenant.id,
-          { name: formData.clientName },
-          "financial"
-        );
-        clientId = client.id;
+        const newClientResult = await createClient({
+          name: formData.clientName,
+          source: 'financial'
+        });
+
+        if (newClientResult?.success && newClientResult.clientId) {
+          clientId = newClientResult.clientId;
+        } else {
+          // If failed, stop transaction creation or continue without client?
+          // createClient hook shows toast error.
+          setIsSaving(false);
+          return;
+        }
       }
 
       const now = new Date().toISOString();
@@ -199,11 +209,10 @@ export default function NewTransactionPage() {
                 onClick={() =>
                   setFormData((prev) => ({ ...prev, type: "income" }))
                 }
-                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  formData.type === "income"
+                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${formData.type === "income"
                     ? "border-green-500 bg-green-500/10 text-green-500"
                     : "border-border hover:border-green-500/50"
-                }`}
+                  }`}
               >
                 <ArrowUpCircle className="w-5 h-5" />
                 <span className="font-medium">Receita</span>
@@ -213,11 +222,10 @@ export default function NewTransactionPage() {
                 onClick={() =>
                   setFormData((prev) => ({ ...prev, type: "expense" }))
                 }
-                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-                  formData.type === "expense"
+                className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${formData.type === "expense"
                     ? "border-red-500 bg-red-500/10 text-red-500"
                     : "border-border hover:border-red-500/50"
-                }`}
+                  }`}
               >
                 <ArrowDownCircle className="w-5 h-5" />
                 <span className="font-medium">Despesa</span>

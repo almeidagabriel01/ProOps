@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Client, ClientService } from "@/services/client-service";
+import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Plus,
@@ -38,6 +39,7 @@ export default function CustomersPage() {
   const { canCreate, canDelete, canEdit } = usePagePermission("clients");
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
 
   React.useEffect(() => {
@@ -57,12 +59,16 @@ export default function CustomersPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este cliente?")) {
-      try {
-        await ClientService.deleteClient(id);
+      // try {
+      //   await ClientService.deleteClient(id);
+      //   setClients((prev) => prev.filter((c) => c.id !== id));
+      // } catch (error) {
+      //   console.error("Error deleting client:", error);
+      //   alert("Erro ao excluir cliente");
+      // }
+      const success = await deleteClient(id);
+      if (success) {
         setClients((prev) => prev.filter((c) => c.id !== id));
-      } catch (error) {
-        console.error("Error deleting client:", error);
-        alert("Erro ao excluir cliente");
       }
     }
   };

@@ -1,5 +1,7 @@
+"use client";
+
 import { db } from "@/lib/firebase";
-import { collection, addDoc, deleteDoc, doc, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, where } from "firebase/firestore";
 
 export type Option = {
     id: string;
@@ -32,23 +34,52 @@ export const OptionService = {
     },
 
     createOption: async (tenantId: string, type: string, label: string): Promise<Option> => {
-        const newOption = {
-            tenantId,
-            type,
-            label,
-            createdAt: new Date().toISOString()
-        };
-        
-        const docRef = await addDoc(collection(db, COLLECTION_NAME), newOption);
-        return { id: docRef.id, ...newOption };
+        try {
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const createFunc = httpsCallable<any, { success: boolean; optionId: string }>(functions, 'createOption');
+            
+            const result = await createFunc({
+                fieldType: type,
+                label,
+            });
+            
+            return { 
+                id: result.data.optionId, 
+                tenantId,
+                type,
+                label,
+                createdAt: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error("Error creating option:", error);
+            throw error;
+        }
     },
 
     updateOption: async (id: string, label: string): Promise<void> => {
-        const docRef = doc(db, COLLECTION_NAME, id);
-        await updateDoc(docRef, { label });
+        try {
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const updateFunc = httpsCallable(functions, 'updateOption');
+            
+            await updateFunc({ optionId: id, label });
+        } catch (error) {
+            console.error("Error updating option:", error);
+            throw error;
+        }
     },
 
     deleteOption: async (id: string): Promise<void> => {
-        await deleteDoc(doc(db, COLLECTION_NAME, id));
+        try {
+            const { getFunctions, httpsCallable } = await import("firebase/functions");
+            const functions = getFunctions(undefined, 'southamerica-east1');
+            const deleteFunc = httpsCallable(functions, 'deleteOption');
+            
+            await deleteFunc({ optionId: id });
+        } catch (error) {
+            console.error("Error deleting option:", error);
+            throw error;
+        }
     }
 };

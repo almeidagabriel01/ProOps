@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientService } from "@/services/client-service";
+import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
@@ -20,7 +21,9 @@ export default function NewCustomerPage() {
   const { tenant } = useTenant();
   const { canCreateClient, getClientCount, features } = usePlanLimits();
   const { canCreate, isLoading: permLoading } = usePagePermission("clients");
-  const [isSaving, setIsSaving] = React.useState(false);
+  // const [isSaving, setIsSaving] = React.useState(false); // Replaced by hook
+  const { createClient, isLoading: isCreating } = useClientActions();
+  const isSaving = isCreating; // Alias
 
   React.useEffect(() => {
     if (!permLoading && !canCreate) {
@@ -74,28 +77,26 @@ export default function NewCustomerPage() {
       return;
     }
 
-    setIsSaving(true);
+    // setIsSaving(true); // Handled by hook
 
     try {
-      const now = new Date().toISOString();
-      await ClientService.createClient({
-        tenantId: tenant.id,
+      const result = await createClient({
         name: formData.name.trim(),
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
-        source: "manual",
-        createdAt: now,
-        updatedAt: now,
+        source: "manual"
       });
 
-      router.push("/customers");
+      if (result?.success) {
+        router.push("/customers");
+      }
     } catch (error) {
-      console.error("Error creating client:", error);
-      alert("Erro ao criar cliente");
+      // console.error("Error creating client:", error); // Handled by hook
+      // alert("Erro ao criar cliente");
     } finally {
-      setIsSaving(false);
+      // setIsSaving(false); // Handled by hook
     }
   };
 

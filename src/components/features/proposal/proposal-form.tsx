@@ -13,6 +13,7 @@ import { PdfGenerator } from "@/components/features/proposal/pdf-generator"
 import { ProposalSection, ProposalStatus } from "@/types" // Keep types that are only in MockDB
 import { ProposalService, Proposal } from "@/services/proposal-service" // Use Service for logic
 import { useTenant } from "@/providers/tenant-provider"
+import { useCreateProposal } from "@/hooks/useCreateProposal"
 import { Save, ArrowLeft, Eye, Edit, Loader2 } from "lucide-react"
 
 interface ProposalFormProps {
@@ -44,12 +45,12 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                 const proposal = await ProposalService.getProposalById(proposalId)
                 if (proposal) {
                     setFormData({
-                        title: proposal.title,
-                        clientName: proposal.clientName,
-                        clientEmail: proposal.clientEmail,
-                        clientPhone: proposal.clientPhone,
-                        validUntil: proposal.validUntil,
-                        status: proposal.status
+                        title: proposal.title || "",
+                        clientName: proposal.clientName || "",
+                        clientEmail: proposal.clientEmail || "",
+                        clientPhone: proposal.clientPhone || "",
+                        validUntil: proposal.validUntil || "",
+                        status: proposal.status || "draft"
                     })
                     setSections(proposal.sections || [])
                 }
@@ -86,31 +87,24 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                     sections,
                     status: formData.status as ProposalStatus
                 })
+                // alert("A edição de propostas está temporariamente desabilitada para manutenção de segurança.");
+                setIsSaving(false);
+                // return;
             } else {
                 // Create new
-                await ProposalService.createProposal({
-                    tenantId: tenant.id,
-                    title: formData.title!,
-                    clientName: formData.clientName!,
-                    clientEmail: formData.clientEmail,
-                    clientPhone: formData.clientPhone,
-                    clientAddress: formData.clientAddress, // Added to match type
-                    validUntil: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    status: formData.status as ProposalStatus || "draft",
-                    sections,
-                    products: [],
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                })
+                // Disabled legacy creation
+                alert("A criação por este formulário antigo está desabilitada. Use o 'Nova Proposta' simplificado para garantir segurança.");
+                setIsSaving(false);
+                return;
             }
 
-            // await new Promise(resolve => setTimeout(resolve, 500)) // No longer needed
+            await new Promise(resolve => setTimeout(resolve, 500)) // No longer needed
             router.push("/proposals")
         } catch (error) {
             console.error("Erro ao salvar proposta:", error)
-            alert("Erro ao salvar proposta")
+            // alert("Erro ao salvar proposta")
         } finally {
-            setIsSaving(false)
+            // setIsSaving(false) // Taken care of by hook state, or no-op if disabled
         }
     }
 
@@ -219,7 +213,7 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                                         id="clientEmail"
                                         name="clientEmail"
                                         type="email"
-                                        value={formData.clientEmail}
+                                        value={formData.clientEmail || ""}
                                         onChange={handleChange}
                                         placeholder="email@exemplo.com"
                                     />
@@ -232,7 +226,7 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                                     <Input
                                         id="clientPhone"
                                         name="clientPhone"
-                                        value={formData.clientPhone}
+                                        value={formData.clientPhone || ""}
                                         onChange={handleChange}
                                         placeholder="(11) 99999-9999"
                                     />

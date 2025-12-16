@@ -29,9 +29,42 @@ interface CreateProposalData {
   title: string;
   clientId: string;
   clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  validUntil?: string;
+  status?: string;
   sections?: ProposalSection[];
+  products?: ProposalProduct[];
+  sistemas?: ProposalSistema[];
   totalValue: number;
+  discount?: number;
   notes?: string;
+  customNotes?: string;
+}
+
+interface ProposalProduct {
+  productId: string;
+  productName: string;
+  productImage?: string;
+  productImages?: string[];
+  productDescription?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  manufacturer?: string;
+  category?: string;
+  systemInstanceId?: string;
+  isExtra?: boolean;
+}
+
+interface ProposalSistema {
+  sistemaId: string;
+  sistemaName: string;
+  ambienteId: string;
+  ambienteName: string;
+  description?: string;
+  productIds?: string[];
 }
 
 interface CreateProposalResult {

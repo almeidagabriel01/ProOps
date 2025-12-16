@@ -98,6 +98,7 @@ export default function EditCustomerPage() {
         notes: formData.notes || undefined,
       });
 
+      alert("Cliente atualizado com sucesso!");
       router.push("/customers");
     } catch (error) {
       console.error("Error updating client:", error);

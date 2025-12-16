@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "react-toastify";
+
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -176,9 +178,9 @@ export default function EditPdfPage() {
                   prod.productImages && prod.productImages.length > 0
                     ? prod.productImages
                     : [
-                        prod.productImage ||
-                          "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
-                      ],
+                      prod.productImage ||
+                      "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
+                    ],
               }));
             } else {
               p.products = [];
@@ -392,13 +394,13 @@ export default function EditPdfPage() {
         return;
       }
 
+      // Save PDF settings via Cloud Function
       await ProposalService.updateProposal(proposal.id, {
         title: coverTitle,
         pdfSettings: sanitizedSettings,
       });
 
-      await new Promise((r) => setTimeout(r, 300));
-      alert("Proposta e personalizações salvas com sucesso!");
+      toast.success("Proposta e personalizações salvas com sucesso!");
     } catch (error) {
       console.error(error);
       alert("Erro ao salvar");
@@ -1017,20 +1019,19 @@ export default function EditPdfPage() {
                                     color: undefined,
                                     backgroundColor:
                                       s.styles.backgroundColor === "#ffffff" ||
-                                      s.styles.backgroundColor === "#f9fafb"
+                                        s.styles.backgroundColor === "#f9fafb"
                                         ? undefined
                                         : s.styles.backgroundColor,
                                   },
                                 }))
                               );
                             }}
-                            className={`relative p-3 rounded-lg border-2 text-left transition-all ${
-                              isPremiumTemplate
-                                ? "border-border opacity-75 hover:opacity-100"
-                                : theme === t.value
-                                  ? "border-primary ring-2 ring-primary/20"
-                                  : "border-border hover:border-primary/50"
-                            }`}
+                            className={`relative p-3 rounded-lg border-2 text-left transition-all ${isPremiumTemplate
+                              ? "border-border opacity-75 hover:opacity-100"
+                              : theme === t.value
+                                ? "border-primary ring-2 ring-primary/20"
+                                : "border-border hover:border-primary/50"
+                              }`}
                           >
                             {/* Premium Crown Indicator */}
                             {isPremiumTemplate && (
