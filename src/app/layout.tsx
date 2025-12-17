@@ -15,6 +15,7 @@ import { Header } from "@/components/layout/header";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
 const geistSans = Geist({
@@ -38,52 +39,60 @@ export default function RootLayout({
   const isLandingPage = pathname === "/";
 
   // Pages that need auth provider but no sidebar/header (login, subscribe, checkout-success)
-  const isAuthOnlyPage = pathname === "/login" || pathname.startsWith("/subscribe") || pathname.startsWith("/checkout-success") || pathname === "/403";
+  const isAuthOnlyPage =
+    pathname === "/login" ||
+    pathname.startsWith("/subscribe") ||
+    pathname.startsWith("/checkout-success") ||
+    pathname === "/403";
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {isLandingPage ? (
-          // Landing page - NO providers, completely isolated
-          <main className="min-h-screen">{children}</main>
-        ) : (
-          // All other pages - wrapped with providers
-          <AuthProvider>
-            <PermissionsProvider>
-              <TenantProvider>
-                <ProtectedRoute>
-                  {isAuthOnlyPage ? (
-                    <main className="min-h-screen flex flex-col">{children}</main>
-                  ) : (
-                    <div className="flex h-screen overflow-hidden bg-card">
-                      <Sidebar onExpandChange={setSidebarExpanded} />
-                      <div
-                        className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
-                        style={{
-                          marginLeft: sidebarExpanded
-                            ? EXPANDED_WIDTH
-                            : COLLAPSED_WIDTH,
-                        }}
-                      >
-                        <Header
-                          sidebarWidth={
-                            sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-                          }
-                        />
-                        <main className="flex-1 mt-16 p-8 overflow-y-auto">
-                          {children}
-                        </main>
+        <ThemeProvider>
+          {isLandingPage ? (
+            // Landing page - NO providers, completely isolated
+            <main className="min-h-screen">{children}</main>
+          ) : (
+            // All other pages - wrapped with providers
+            <AuthProvider>
+              <PermissionsProvider>
+                <TenantProvider>
+                  <ProtectedRoute>
+                    {isAuthOnlyPage ? (
+                      <main className="min-h-screen flex flex-col">
+                        {children}
+                      </main>
+                    ) : (
+                      <div className="flex h-screen overflow-hidden bg-card">
+                        <Sidebar onExpandChange={setSidebarExpanded} />
+                        <div
+                          className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
+                          style={{
+                            marginLeft: sidebarExpanded
+                              ? EXPANDED_WIDTH
+                              : COLLAPSED_WIDTH,
+                          }}
+                        >
+                          <Header
+                            sidebarWidth={
+                              sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
+                            }
+                          />
+                          <main className="flex-1 mt-16 p-8 overflow-y-auto">
+                            {children}
+                          </main>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </ProtectedRoute>
-              </TenantProvider>
-            </PermissionsProvider>
-          </AuthProvider>
-        )}
+                    )}
+                  </ProtectedRoute>
+                </TenantProvider>
+              </PermissionsProvider>
+            </AuthProvider>
+          )}
+        </ThemeProvider>
         <ToastContainer
           position="top-right"
           autoClose={5000}
