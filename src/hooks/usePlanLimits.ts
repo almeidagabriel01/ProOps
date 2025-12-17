@@ -97,6 +97,23 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   useEffect(() => {
     const loadFeatures = async () => {
       setIsLoading(true);
+
+      // Super Admin Override: Grants unlimited access regardless of tenant plan
+      if (user?.role === 'superadmin') {
+          setBaseFeatures({
+              maxProposals: -1,
+              maxClients: -1,
+              maxProducts: -1,
+              maxUsers: -1,
+              hasFinancial: true,
+              canCustomizeTheme: true,
+              maxPdfTemplates: -1,
+              canEditPdfSections: true,
+          });
+          setPlanTier("enterprise");
+          setIsLoading(false);
+          return;
+      }
       
       // Determine effective plan ID
       let effectivePlanId = user?.planId;

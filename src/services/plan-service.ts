@@ -107,6 +107,9 @@ export const PlanService = {
       return {
         ...data,
         id: doc.id,
+        name: data.name || defaultPlan?.name || "Plano Desconhecido",
+        description: data.description || defaultPlan?.description,
+        price: data.price || defaultPlan?.price || 0,
         // Fallback to default pricing if missing (handles old data)
         pricing: data.pricing || defaultPlan?.pricing,
         // Merge features: defaults provide new fields, Firestore data takes priority
