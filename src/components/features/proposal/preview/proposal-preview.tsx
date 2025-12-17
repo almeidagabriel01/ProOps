@@ -23,7 +23,7 @@ export function ProposalPreview({ proposal, sections }: ProposalPreviewProps) {
   };
 
   return (
-    <div className="bg-white text-gray-900 rounded-lg shadow-lg overflow-hidden">
+    <div className="bg-card text-gray-900 rounded-lg shadow-lg overflow-hidden">
       {/* A4-like document wrapper */}
       <div
         className="p-8 min-h-[800px] space-y-6"

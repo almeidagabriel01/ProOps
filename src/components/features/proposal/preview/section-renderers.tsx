@@ -89,14 +89,14 @@ export function ProductTableSection({
               {sistemaInfo.sistemaName}
             </div>
             <span
-              className="text-xs px-2 py-0.5 rounded-full bg-white border"
+              className="text-xs px-2 py-0.5 rounded-full bg-card border"
               style={{ borderColor: primaryColor, color: primaryColor }}
             >
               {sistemaInfo.ambienteName}
             </span>
           </div>
         ) : title ? (
-          <div className="flex items-center gap-3 p-3 rounded-t-lg border-x border-t bg-gray-50 border-gray-200">
+          <div className="flex items-center gap-3 p-3 rounded-t-lg border-x border-t bg-muted/30 border-gray-200">
             <div className="font-bold text-lg text-gray-700">{title}</div>
           </div>
         ) : null}
@@ -123,7 +123,7 @@ export function ProductTableSection({
             {items.map((item, i) => (
               <tr
                 key={item.productId || i}
-                className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}
+                className={i % 2 === 0 ? "bg-muted/30" : "bg-card"}
               >
                 <td className="px-3 py-2 border-b border-gray-200">
                   {item.productName || item.name}
@@ -451,7 +451,7 @@ export function HierarchicalFieldBlock({
                 {systemItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 p-2 bg-white rounded border"
+                    className="flex items-center gap-2 p-2 bg-card rounded border"
                   >
                     {item.image && (
                       // eslint-disable-next-line @next/next/no-img-element
