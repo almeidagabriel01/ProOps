@@ -1,0 +1,160 @@
+"use client";
+
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useMemberActions } from "@/hooks/useMemberActions";
+import { TeamMember } from "./team-types";
+
+// ============================================
+// EDIT MEMBER MODAL
+// ============================================
+
+interface EditMemberModalProps {
+    member: TeamMember;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess: () => void;
+}
+
+export function EditMemberModal({
+    member,
+    open,
+    onOpenChange,
+    onSuccess,
+}: EditMemberModalProps) {
+    const { updateMember, isLoading } = useMemberActions();
+    const [name, setName] = React.useState(member.name);
+    const [email, setEmail] = React.useState(member.email);
+    const [password, setPassword] = React.useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const success = await updateMember({
+            memberId: member.id,
+            name,
+            email,
+            password: password || undefined,
+        });
+        if (success) {
+            onSuccess();
+            onOpenChange(false);
+            setPassword("");
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Membro</DialogTitle>
+                    <DialogDescription>
+                        Atualize as informações de {member.name}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <Label>Nome</Label>
+                        <Input value={name} onChange={(e) => setName(e.target.value)} required />
+                    </div>
+                    <div>
+                        <Label>Email</Label>
+                        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    </div>
+                    <div>
+                        <Label>Nova Senha (Opcional)</Label>
+                        <Input
+                            type="text"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Deixe em branco para manter a atual"
+                            minLength={6}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={isLoading}>
+                            {isLoading ? "Salvando..." : "Salvar Alterações"}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ============================================
+// DELETE MEMBER DIALOG
+// ============================================
+
+interface DeleteMemberDialogProps {
+    member: TeamMember;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSuccess: () => void;
+}
+
+export function DeleteMemberDialog({
+    member,
+    open,
+    onOpenChange,
+    onSuccess,
+}: DeleteMemberDialogProps) {
+    const { deleteMember, isLoading } = useMemberActions();
+
+    const handleDelete = async () => {
+        const success = await deleteMember(member.id);
+        if (success) {
+            onSuccess();
+            onOpenChange(false);
+        }
+    };
+
+    return (
+        <AlertDialog open={open} onOpenChange={onOpenChange}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Remover Membro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Você tem certeza que deseja remover <b>{member.name}</b>?
+                        Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleDelete();
+                        }}
+                        disabled={isLoading}
+                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                    >
+                        {isLoading ? "Removendo..." : "Sim, Remover"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
