@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 interface HeaderProps {
   sidebarWidth?: number;
@@ -40,17 +41,17 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   React.useEffect(() => {
     const fetchPlanName = async () => {
       if (!user?.planId) {
-        setUserPlanName(user?.role === 'free' ? 'Gratuito' : null);
+        setUserPlanName(user?.role === "free" ? "Gratuito" : null);
         return;
       }
       try {
-        const planDoc = await getDoc(doc(db, 'plans', user.planId));
+        const planDoc = await getDoc(doc(db, "plans", user.planId));
         if (planDoc.exists()) {
           const planData = planDoc.data();
           setUserPlanName(planData.name || planData.tier);
         }
       } catch (error) {
-        console.error('Error fetching plan:', error);
+        console.error("Error fetching plan:", error);
       }
     };
     fetchPlanName();
@@ -111,14 +112,18 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
           <Bell className="w-5 h-5" />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
         </Button>
-        <div className="h-8 w-[1px] bg-border mx-2" />
+        <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
+        <div className="h-8 w-px bg-border mx-2" />
         <div className="flex items-center gap-3 pl-2">
           <div className="flex flex-col items-end hidden md:flex">
             <span className="text-sm font-medium">
               {user ? user.name : "Visitante"}
             </span>
             <span className="text-xs text-muted-foreground capitalize">
-              {userPlanName || (user?.role === 'superadmin' ? 'Super Admin' : user?.role || 'Guest')}
+              {userPlanName ||
+                (user?.role === "superadmin"
+                  ? "Super Admin"
+                  : user?.role || "Guest")}
             </span>
           </div>
           <DropdownMenu>
