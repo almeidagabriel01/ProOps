@@ -51,7 +51,7 @@ export function TemplatePreview({ proposal, template }: TemplatePreviewProps) {
   };
 
   return (
-    <div className="bg-white text-gray-900 shadow-lg" style={{ fontFamily }}>
+    <div className="bg-card text-gray-900 shadow-lg" style={{ fontFamily }}>
       {/* Cover Page */}
       {renderCover()}
 

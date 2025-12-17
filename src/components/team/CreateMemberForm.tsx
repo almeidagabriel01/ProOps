@@ -118,7 +118,7 @@ export function CreateMemberForm() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+        <div className="max-w-2xl mx-auto p-6 bg-card rounded-xl shadow-lg">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">
                 Adicionar Membro da Equipe
             </h2>

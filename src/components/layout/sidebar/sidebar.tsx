@@ -55,9 +55,9 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{ width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-        className="fixed mt-1 left-0 top-0 h-screen bg-card flex flex-col z-50 transition-all duration-300 ease-in-out"
+        className="fixed mt-1 left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-all duration-300 ease-in-out"
       >
-        <div className="absolute inset-0 bg-card overflow-hidden flex flex-col">
+        <div className="absolute inset-0 bg-sidebar overflow-hidden flex flex-col">
           {/* Header / Logo area */}
           <div className="px-4 py-4 flex items-center gap-3 border-b border-border h-16 min-h-16">
             {tenant?.logoUrl ? (

@@ -32,7 +32,7 @@ export function ProductsSection({
         {products.map((product, i) => (
           <div
             key={product.productId}
-            className={`flex gap-4 p-4 rounded-lg ${i % 2 === 0 ? "bg-gray-50" : "bg-white"} border`}
+            className={`flex gap-4 p-4 rounded-lg ${i % 2 === 0 ? "bg-muted/30" : "bg-card"} border`}
           >
             {product.productImage && (
               // eslint-disable-next-line @next/next/no-img-element
