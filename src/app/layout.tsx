@@ -66,7 +66,7 @@ export default function RootLayout({
                         {children}
                       </main>
                     ) : (
-                      <div className="flex h-screen overflow-hidden bg-background">
+                      <div className="flex h-screen overflow-hidden bg-sidebar">
                         <Sidebar onExpandChange={setSidebarExpanded} />
                         <div
                           className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
