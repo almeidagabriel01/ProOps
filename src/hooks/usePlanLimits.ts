@@ -19,6 +19,8 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   canCustomizeTheme: false,
   maxPdfTemplates: 1,
   canEditPdfSections: false,
+  maxImagesPerProduct: 2,
+  maxStorageMB: 50, // 50MB for free users
 };
 
 interface UsePlanLimitsReturn {
@@ -109,6 +111,8 @@ export function usePlanLimits(): UsePlanLimitsReturn {
               canCustomizeTheme: true,
               maxPdfTemplates: -1,
               canEditPdfSections: true,
+              maxImagesPerProduct: 3,
+              maxStorageMB: -1, // Unlimited
           });
           setPlanTier("enterprise");
           setIsLoading(false);

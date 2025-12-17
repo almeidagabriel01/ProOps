@@ -216,8 +216,8 @@ export function usePdfSectionEditor({
   const handleImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 500 * 1024) {
-        alert("A imagem da seção deve ter no máximo 500KB.")
+      if (file.size > 2 * 1024 * 1024) {
+        alert("A imagem da seção deve ter no máximo 2MB.")
         e.target.value = ""
         return
       }

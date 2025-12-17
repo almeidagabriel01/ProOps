@@ -6,6 +6,10 @@ import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useProductActions } from "@/hooks/useProductActions";
+import { uploadImage, deleteImage, isStorageUrl } from "@/services/storage-service";
+
+// Maximum file size: 5MB per image
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export interface ProductFormData {
   name: string;
@@ -22,12 +26,16 @@ export interface ProductFormData {
 
 interface UseProductFormReturn {
   formData: ProductFormData;
-  imagesBase64: string[];
+  imageUrls: string[];
+  pendingFiles: File[];
   isSubmitting: boolean;
   showLimitModal: boolean;
   setShowLimitModal: (value: boolean) => void;
+  showImageLimitModal: boolean;
+  setShowImageLimitModal: (value: boolean) => void;
   currentProductCount: number;
   maxProducts: number;
+  maxImagesPerProduct: number;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   handleAddImage: (file: File | null) => void;
   handleRemoveImage: (index: number) => void;
@@ -44,6 +52,7 @@ export function useProductForm(
   const { createProduct } = useProductActions();
 
   const [showLimitModal, setShowLimitModal] = React.useState(false);
+  const [showImageLimitModal, setShowImageLimitModal] = React.useState(false);
   const [currentProductCount, setCurrentProductCount] = React.useState(0);
 
   const [formData, setFormData] = React.useState<ProductFormData>({
@@ -59,10 +68,21 @@ export function useProductForm(
     images: [],
   });
 
-  const [imagesBase64, setImagesBase64] = React.useState<string[]>(
+  // Existing image URLs (from Storage or legacy Base64)
+  const [imageUrls, setImageUrls] = React.useState<string[]>(
     initialData?.images || (initialData?.image ? [initialData.image] : [])
   );
+  
+  // New files pending upload
+  const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
+  
+  // Preview URLs for pending files
+  const [pendingPreviews, setPendingPreviews] = React.useState<string[]>([]);
+  
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Track removed URLs for cleanup
+  const [removedUrls, setRemovedUrls] = React.useState<string[]>([]);
 
   // Update form data if initialData changes
   React.useEffect(() => {
@@ -82,7 +102,9 @@ export function useProductForm(
 
       const existingImages =
         initialData.images || (initialData.image ? [initialData.image] : []);
-      setImagesBase64(existingImages);
+      setImageUrls(existingImages);
+      setPendingFiles([]);
+      setPendingPreviews([]);
     }
   }, [initialData]);
 
@@ -96,41 +118,54 @@ export function useProductForm(
   const handleAddImage = (file: File | null) => {
     if (!file) return;
 
-    // Validation: Max 3 images
-    if (imagesBase64.length >= 3) {
-      alert("Máximo de 3 imagens permitido.");
+    // Get max images from plan (default to 2 for safety)
+    const maxImages = features?.maxImagesPerProduct ?? 2;
+    
+    // Validation: Check plan limit
+    const totalImages = imageUrls.length + pendingFiles.length;
+    if (totalImages >= maxImages) {
+      setShowImageLimitModal(true);
       return;
     }
 
-    // Validation: Total size limit (900KB safe limit for Firestore 1MB doc)
-    const currentTotalSize = imagesBase64.reduce(
-      (acc, img) => acc + (img.length * 3) / 4,
-      0
-    );
-    const newImageSize = file.size;
-
-    if (currentTotalSize + newImageSize > 900 * 1024) {
-      alert(
-        "O tamanho total das imagens não pode exceder 900KB (Restrição do Banco de Dados). Tente imagens menores."
-      );
+    // Validation: File size (5MB max per image)
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
       return;
     }
 
-    setFormData((prev) => ({ ...prev, images: [...prev.images, file] }));
+    // Add to pending files
+    setPendingFiles((prev) => [...prev, file]);
 
+    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        setImagesBase64((prev) => [...prev, e.target!.result as string]);
+        setPendingPreviews((prev) => [...prev, e.target!.result as string]);
       }
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveImage = (index: number) => {
-    const newPreviews = [...imagesBase64];
-    newPreviews.splice(index, 1);
-    setImagesBase64(newPreviews);
+    const totalExisting = imageUrls.length;
+
+    if (index < totalExisting) {
+      // Removing an existing image
+      const urlToRemove = imageUrls[index];
+      
+      // Track for deletion if it's a Storage URL
+      if (isStorageUrl(urlToRemove)) {
+        setRemovedUrls((prev) => [...prev, urlToRemove]);
+      }
+      
+      setImageUrls((prev) => prev.filter((_, i) => i !== index));
+    } else {
+      // Removing a pending file
+      const pendingIndex = index - totalExisting;
+      setPendingFiles((prev) => prev.filter((_, i) => i !== pendingIndex));
+      setPendingPreviews((prev) => prev.filter((_, i) => i !== pendingIndex));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,21 +187,33 @@ export function useProductForm(
       return;
     }
 
-    // Validate Total Size
-    const totalSize = imagesBase64.reduce(
-      (acc, img) => acc + (img.length * 3) / 4,
-      0
-    );
-    if (totalSize > 900 * 1024) {
-      alert(
-        "O tamanho total das imagens excede o limite de 900KB. Remova algumas imagens."
-      );
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      // Upload pending files to Storage
+      const uploadedUrls: string[] = [];
+      for (const file of pendingFiles) {
+        const result = await uploadImage(
+          file,
+          tenant.id,
+          "products",
+          productId || undefined
+        );
+        uploadedUrls.push(result.url);
+      }
+
+      // Combine existing URLs with newly uploaded ones
+      const allImageUrls = [...imageUrls, ...uploadedUrls];
+
+      // Delete removed images from Storage
+      for (const url of removedUrls) {
+        try {
+          await deleteImage(url);
+        } catch (error) {
+          console.warn("Failed to delete image:", error);
+        }
+      }
+
       const dataToSave = {
         tenantId: tenant.id,
         name: formData.name,
@@ -177,7 +224,7 @@ export function useProductForm(
         sku: formData.sku,
         stock: formData.stock,
         status: formData.status as "active" | "inactive",
-        images: imagesBase64,
+        images: allImageUrls,
       };
 
       if (productId) {
@@ -194,7 +241,7 @@ export function useProductForm(
           category: formData.category,
           sku: formData.sku,
           stock: formData.stock,
-          images: imagesBase64,
+          images: allImageUrls,
         });
 
         if (result?.success) {
@@ -203,20 +250,28 @@ export function useProductForm(
         }
       }
     } catch (error) {
-      // Hook handles logging and toast
+      console.error("Error saving product:", error);
+      alert("Erro ao salvar produto. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Combine existing URLs and pending previews for display
+  const allImages = [...imageUrls, ...pendingPreviews];
+
   return {
     formData,
-    imagesBase64,
+    imageUrls: allImages,
+    pendingFiles,
     isSubmitting,
     showLimitModal,
     setShowLimitModal,
+    showImageLimitModal,
+    setShowImageLimitModal,
     currentProductCount,
-    maxProducts: features?.maxProducts || 0,
+    maxProducts: features?.maxProducts ?? 0,
+    maxImagesPerProduct: features?.maxImagesPerProduct ?? 2,
     handleChange,
     handleAddImage,
     handleRemoveImage,

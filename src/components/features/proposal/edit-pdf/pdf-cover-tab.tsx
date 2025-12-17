@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,313 +9,298 @@ import { ThemeType, themeOptions } from "./pdf-theme-utils";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 
 interface PdfCoverTabProps {
-    coverTitle: string;
-    setCoverTitle: (val: string) => void;
-    coverImage: string;
-    setCoverImage: (val: string) => void;
-    coverLogo: string;
-    setCoverLogo: (val: string) => void;
-    coverImageOpacity: number;
-    setCoverImageOpacity: (val: number) => void;
-    coverImageFit: "cover" | "contain";
-    setCoverImageFit: (val: "cover" | "contain") => void;
-    coverImagePosition: string;
-    setCoverImagePosition: (val: string) => void;
-    theme: ThemeType;
-    setTheme: (val: ThemeType) => void;
-    setPrimaryColor: (val: string) => void;
-    setSections: React.Dispatch<React.SetStateAction<PdfSection[]>>;
-    premiumColor: string;
-    maxPdfTemplates: number;
-    setShowUpgradeModal: (val: boolean) => void;
+  coverTitle: string;
+  setCoverTitle: (val: string) => void;
+  coverImage: string;
+  setCoverImage: (val: string) => void;
+  coverLogo: string;
+  setCoverLogo: (val: string) => void;
+  coverImageOpacity: number;
+  setCoverImageOpacity: (val: number) => void;
+  coverImageFit: "cover" | "contain";
+  setCoverImageFit: (val: "cover" | "contain") => void;
+  coverImagePosition: string;
+  setCoverImagePosition: (val: string) => void;
+  theme: ThemeType;
+  setTheme: (val: ThemeType) => void;
+  setPrimaryColor: (val: string) => void;
+  setSections: React.Dispatch<React.SetStateAction<PdfSection[]>>;
+  premiumColor: string;
+  maxPdfTemplates: number;
+  setShowUpgradeModal: (val: boolean) => void;
 }
 
 export function PdfCoverTab({
-    coverTitle,
-    setCoverTitle,
-    coverImage,
-    setCoverImage,
-    coverLogo,
-    setCoverLogo,
-    coverImageOpacity,
-    setCoverImageOpacity,
-    coverImageFit,
-    setCoverImageFit,
-    coverImagePosition,
-    setCoverImagePosition,
-    theme,
-    setTheme,
-    setPrimaryColor,
-    setSections,
-    premiumColor,
-    maxPdfTemplates,
-    setShowUpgradeModal,
+  coverTitle,
+  setCoverTitle,
+  coverImage,
+  setCoverImage,
+  coverLogo,
+  setCoverLogo,
+  coverImageOpacity,
+  setCoverImageOpacity,
+  coverImageFit,
+  setCoverImageFit,
+  coverImagePosition,
+  setCoverImagePosition,
+  theme,
+  setTheme,
+  setPrimaryColor,
+  setSections,
+  premiumColor,
+  maxPdfTemplates,
+  setShowUpgradeModal,
 }: PdfCoverTabProps) {
+  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("A imagem de capa deve ter no máximo 2MB.");
+        e.target.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCoverImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-    const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 750 * 1024) {
-                alert("A imagem de capa deve ter no máximo 750KB.");
-                e.target.value = "";
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setCoverImage(event.target?.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        alert("O logo deve ter no máximo 1MB.");
+        e.target.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCoverLogo(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (file.size > 300 * 1024) {
-                alert("O logo deve ter no máximo 300KB.");
-                e.target.value = "";
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                setCoverLogo(event.target?.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Capa da Proposta</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-2">
+          <Label>Título Principal</Label>
+          <Input
+            value={coverTitle}
+            onChange={(e) => setCoverTitle(e.target.value)}
+            placeholder="Título da proposta"
+          />
+        </div>
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Capa da Proposta</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                    <Label>Título Principal</Label>
-                    <Input
-                        value={coverTitle}
-                        onChange={(e) => setCoverTitle(e.target.value)}
-                        placeholder="Título da proposta"
-                    />
-                </div>
+        <div className="grid gap-2">
+          <Label>Imagem de Capa (aparece como fundo)</Label>
+          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+            {coverImage ? (
+              <div className="space-y-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImage}
+                  alt="Capa"
+                  className="max-h-64 mx-auto rounded shadow-sm object-cover"
+                />
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setCoverImage("")}
+                >
+                  Remover
+                </Button>
+              </div>
+            ) : (
+              <label className="cursor-pointer block py-4">
+                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Clique para upload
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverImageUpload}
+                />
+              </label>
+            )}
+          </div>
+        </div>
 
-                <div className="grid gap-2">
-                    <Label>Imagem de Capa (aparece como fundo)</Label>
-                    <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                        {coverImage ? (
-                            <div className="space-y-4">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={coverImage}
-                                    alt="Capa"
-                                    className="max-h-64 mx-auto rounded shadow-sm object-cover"
-                                />
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => setCoverImage("")}
-                                >
-                                    Remover
-                                </Button>
-                            </div>
-                        ) : (
-                            <label className="cursor-pointer block py-4">
-                                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                    Clique para upload
-                                </p>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleCoverImageUpload}
-                                />
-                            </label>
-                        )}
+        <div className="grid gap-2">
+          <Label>Logo da Capa</Label>
+          <div className="flex items-center gap-4">
+            {coverLogo ? (
+              <div className="relative border rounded p-2 bg-muted/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverLogo}
+                  alt="Logo"
+                  className="h-10 object-contain"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-white hover:bg-destructive/90"
+                  onClick={() => setCoverLogo("")}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground italic">
+                Sem logo selecionada
+              </div>
+            )}
+            <label className="cursor-pointer">
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <span>
+                  <Upload className="w-4 h-4" />
+                  Upload Logo
+                </span>
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+            </label>
+          </div>
+        </div>
+
+        {coverImage && (
+          <div className="grid gap-4 p-4 border rounded-lg bg-muted/10">
+            <Label className="font-semibold">Ajustes da Imagem de Fundo</Label>
+
+            <div className="grid gap-2">
+              <div className="flex justify-between">
+                <Label className="text-xs">
+                  Opacidade ({coverImageOpacity}%)
+                </Label>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={coverImageOpacity}
+                onChange={(e) => setCoverImageOpacity(parseInt(e.target.value))}
+                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-xs">Ajuste</Label>
+                <Select
+                  value={coverImageFit}
+                  onChange={(e) => setCoverImageFit(e.target.value as any)}
+                >
+                  <option value="cover">Preencher (Cover)</option>
+                  <option value="contain">Conter (Contain)</option>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs">Posição</Label>
+                <Select
+                  value={coverImagePosition}
+                  onChange={(e) => setCoverImagePosition(e.target.value)}
+                >
+                  <option value="top">Topo</option>
+                  <option value="center">Centro</option>
+                  <option value="bottom">Base</option>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-2">
+          <Label>Tema da Capa</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {themeOptions.map((t, index) => {
+              // Check if this template is premium (beyond allowed limit)
+              const isPremiumTemplate =
+                maxPdfTemplates !== -1 && index >= maxPdfTemplates;
+
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => {
+                    if (isPremiumTemplate) {
+                      setShowUpgradeModal(true);
+                      return;
+                    }
+                    setTheme(t.value as ThemeType);
+                    // Set default color if available
+                    if ((t as any).defaultColor) {
+                      setPrimaryColor((t as any).defaultColor);
+                    }
+                    // Reset section colors to ensure theme application
+                    setSections((prev) =>
+                      prev.map((s) => ({
+                        ...s,
+                        styles: {
+                          ...s.styles,
+                          color: undefined,
+                          backgroundColor:
+                            s.styles.backgroundColor === "#ffffff" ||
+                            s.styles.backgroundColor === "#f9fafb"
+                              ? undefined
+                              : s.styles.backgroundColor,
+                        },
+                      }))
+                    );
+                  }}
+                  className={`relative p-3 rounded-lg border-2 text-left transition-all ${
+                    isPremiumTemplate
+                      ? "border-border opacity-75 hover:opacity-100"
+                      : theme === t.value
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  {isPremiumTemplate && (
+                    <div
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+                      style={{ backgroundColor: premiumColor }}
+                    >
+                      <Crown className="w-3.5 h-3.5 text-white" />
                     </div>
-                </div>
-
-                <div className="grid gap-2">
-                    <Label>Logo da Capa</Label>
-                    <div className="flex items-center gap-4">
-                        {coverLogo ? (
-                            <div className="relative border rounded p-2 bg-muted/20">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={coverLogo}
-                                    alt="Logo"
-                                    className="h-10 object-contain"
-                                />
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-white hover:bg-destructive/90"
-                                    onClick={() => setCoverLogo("")}
-                                >
-                                    <X className="w-3 h-3" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="text-sm text-muted-foreground italic">
-                                Sem logo selecionada
-                            </div>
-                        )}
-                        <label className="cursor-pointer">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-2"
-                                asChild
-                            >
-                                <span>
-                                    <Upload className="w-4 h-4" />
-                                    Upload Logo
-                                </span>
-                            </Button>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleLogoUpload}
-                            />
-                        </label>
-                    </div>
-                </div>
-
-                {coverImage && (
-                    <div className="grid gap-4 p-4 border rounded-lg bg-muted/10">
-                        <Label className="font-semibold">
-                            Ajustes da Imagem de Fundo
-                        </Label>
-
-                        <div className="grid gap-2">
-                            <div className="flex justify-between">
-                                <Label className="text-xs">
-                                    Opacidade ({coverImageOpacity}%)
-                                </Label>
-                            </div>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={coverImageOpacity}
-                                onChange={(e) =>
-                                    setCoverImageOpacity(parseInt(e.target.value))
-                                }
-                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label className="text-xs">Ajuste</Label>
-                                <Select
-                                    value={coverImageFit}
-                                    onChange={(e) =>
-                                        setCoverImageFit(e.target.value as any)
-                                    }
-                                >
-                                    <option value="cover">Preencher (Cover)</option>
-                                    <option value="contain">Conter (Contain)</option>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label className="text-xs">Posição</Label>
-                                <Select
-                                    value={coverImagePosition}
-                                    onChange={(e) =>
-                                        setCoverImagePosition(e.target.value)
-                                    }
-                                >
-                                    <option value="top">Topo</option>
-                                    <option value="center">Centro</option>
-                                    <option value="bottom">Base</option>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div className="grid gap-2">
-                    <Label>Tema da Capa</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {themeOptions.map((t, index) => {
-                            // Check if this template is premium (beyond allowed limit)
-                            const isPremiumTemplate =
-                                maxPdfTemplates !== -1 && index >= maxPdfTemplates;
-
-                            return (
-                                <button
-                                    key={t.value}
-                                    type="button"
-                                    onClick={() => {
-                                        if (isPremiumTemplate) {
-                                            setShowUpgradeModal(true);
-                                            return;
-                                        }
-                                        setTheme(t.value as ThemeType);
-                                        // Set default color if available
-                                        if ((t as any).defaultColor) {
-                                            setPrimaryColor((t as any).defaultColor);
-                                        }
-                                        // Reset section colors to ensure theme application
-                                        setSections((prev) =>
-                                            prev.map((s) => ({
-                                                ...s,
-                                                styles: {
-                                                    ...s.styles,
-                                                    color: undefined,
-                                                    backgroundColor:
-                                                        s.styles.backgroundColor === "#ffffff" ||
-                                                            s.styles.backgroundColor === "#f9fafb"
-                                                            ? undefined
-                                                            : s.styles.backgroundColor,
-                                                },
-                                            }))
-                                        );
-                                    }}
-                                    className={`relative p-3 rounded-lg border-2 text-left transition-all ${isPremiumTemplate
-                                        ? "border-border opacity-75 hover:opacity-100"
-                                        : theme === t.value
-                                            ? "border-primary ring-2 ring-primary/20"
-                                            : "border-border hover:border-primary/50"
-                                        }`}
-                                >
-                                    {isPremiumTemplate && (
-                                        <div
-                                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
-                                            style={{ backgroundColor: premiumColor }}
-                                        >
-                                            <Crown className="w-3.5 h-3.5 text-white" />
-                                        </div>
-                                    )}
-                                    <div
-                                        className={`w-full h-8 rounded mb-2 ${t.preview}`}
-                                        style={
-                                            t.value === "classic"
-                                                ? { borderColor: premiumColor } // This might need primaryColor from props if dynamic
-                                                : undefined
-                                        }
-                                    />
-                                    <div
-                                        className="font-medium text-sm"
-                                        style={
-                                            isPremiumTemplate
-                                                ? { color: premiumColor }
-                                                : undefined
-                                        }
-                                    >
-                                        {t.label}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {t.description}
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
+                  )}
+                  <div
+                    className={`w-full h-8 rounded mb-2 ${t.preview}`}
+                    style={
+                      t.value === "classic"
+                        ? { borderColor: premiumColor } // This might need primaryColor from props if dynamic
+                        : undefined
+                    }
+                  />
+                  <div
+                    className="font-medium text-sm"
+                    style={
+                      isPremiumTemplate ? { color: premiumColor } : undefined
+                    }
+                  >
+                    {t.label}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t.description}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

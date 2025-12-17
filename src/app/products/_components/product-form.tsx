@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Product } from "@/services/product-service";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
+import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useProductForm } from "../_hooks/useProductForm";
 import {
   ProductInfoCard,
@@ -25,12 +26,15 @@ export function ProductForm({
   const router = useRouter();
   const {
     formData,
-    imagesBase64,
+    imageUrls,
     isSubmitting,
     showLimitModal,
     setShowLimitModal,
+    showImageLimitModal,
+    setShowImageLimitModal,
     currentProductCount,
     maxProducts,
+    maxImagesPerProduct,
     handleChange,
     handleAddImage,
     handleRemoveImage,
@@ -58,7 +62,7 @@ export function ProductForm({
           {/* Right Column: Media and Actions */}
           <div className="space-y-6">
             <ImagesCard
-              images={imagesBase64}
+              images={imageUrls}
               onAddImage={handleAddImage}
               onRemoveImage={handleRemoveImage}
               isReadOnly={isReadOnly}
@@ -75,13 +79,22 @@ export function ProductForm({
         </div>
       </form>
 
-      {/* Limit Reached Modal */}
+      {/* Product Limit Reached Modal */}
       <LimitReachedModal
         open={showLimitModal}
         onOpenChange={setShowLimitModal}
         resourceType="products"
         currentCount={currentProductCount}
         maxLimit={maxProducts}
+      />
+
+      {/* Image Limit Upgrade Modal */}
+      <UpgradeModal
+        open={showImageLimitModal}
+        onOpenChange={setShowImageLimitModal}
+        feature="Mais imagens por produto"
+        description={`Seu plano atual permite até ${maxImagesPerProduct} imagens por produto. Faça upgrade para adicionar mais imagens.`}
+        requiredPlan="pro"
       />
     </>
   );

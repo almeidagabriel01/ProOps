@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check file size (5MB max)
+    function isValidFileSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // Helper function to check if file is an image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Tenant images - organized by tenant ID
+    // Path: tenants/{tenantId}/products/{productId}/{filename}
+    // Path: tenants/{tenantId}/proposals/{proposalId}/{filename}
+    match /tenants/{tenantId}/{allPaths=**} {
+      // Allow read if user is authenticated
+      // In production, you might want to verify user belongs to tenant
+      allow read: if isAuthenticated();
+      
+      // Allow write if authenticated, file is valid image, and under 5MB
+      allow write: if isAuthenticated() 
+                   && isValidFileSize() 
+                   && isImage();
+      
+      // Allow delete if authenticated
+      allow delete: if isAuthenticated();
+    }
+  }
+}
