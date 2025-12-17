@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit, Trash2, Package, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { ProductsSkeleton } from "./_components/products-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { Product, ProductService } from "@/services/product-service";
 import { useProductActions } from "@/hooks/useProductActions";
@@ -25,18 +26,27 @@ import {
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function ProductsPage() {
-    const { tenant } = useTenant();
+    const { tenant, isLoading: tenantLoading } = useTenant();
     const { canCreate, canDelete, canEdit } = usePagePermission("products");
     const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // Internal data loading
     const { deleteProduct } = useProductActions();
     const [searchTerm, setSearchTerm] = useState("");
     const [deleteId, setDeleteId] = useState<string | null>(null);
+
+    // effective loading is tenant loading OR internal data loading
+    const isPageLoading = tenantLoading || loading;
+
+    // ... (rest of code) ...
+
+    // Update the return check to use isPageLoading
+
 
     useEffect(() => {
         if (tenant) {
             loadProducts();
         }
+        // If no tenant yet, we are still loading (handled by initial state true)
     }, [tenant]);
 
     const loadProducts = async () => {
@@ -80,14 +90,9 @@ export default function ProductsPage() {
         product.sku.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            </div>
-        );
+    if (isPageLoading) {
+        return <ProductsSkeleton />;
     }
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">

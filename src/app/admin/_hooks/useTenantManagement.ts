@@ -21,6 +21,7 @@ interface UseTenantManagementReturn {
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   handleLoginAs: (tenant: Tenant) => void;
+  isLoading: boolean;
 }
 
 export function useTenantManagement(): UseTenantManagementReturn {
@@ -191,5 +192,6 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDelete,
     handleLoginAs,
+    isLoading: tenantsData.length === 0, // inferred loading state since we don't have explicit one yet
   };
 }

@@ -17,8 +17,8 @@ import {
   Search,
   Mail,
   Phone,
-  Loader2,
 } from "lucide-react";
+import { CustomersSkeleton } from "./_components/customers-skeleton";
 
 const sourceConfig: Record<
   string,
@@ -35,10 +35,12 @@ const sourceConfig: Record<
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function CustomersPage() {
-  const { tenant } = useTenant();
+  const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canDelete, canEdit } = usePagePermission("clients");
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+
+  const isPageLoading = tenantLoading || isLoading;
   const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
 
@@ -93,12 +95,8 @@ export default function CustomersPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (isPageLoading) {
+    return <CustomersSkeleton />;
   }
 
   return (

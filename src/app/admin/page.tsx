@@ -7,6 +7,7 @@ import { Plus, Search, Building2, CreditCard } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard } from "./_components";
+import { AdminSkeleton } from "./_components/admin-skeleton";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -22,7 +23,12 @@ export default function AdminPage() {
     handleSave,
     handleDelete,
     handleLoginAs,
+    isLoading,
   } = useTenantManagement();
+
+  if (isLoading) {
+    return <AdminSkeleton />;
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-6">

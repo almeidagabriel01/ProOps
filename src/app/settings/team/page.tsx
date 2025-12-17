@@ -15,6 +15,7 @@ import { usePermissions } from "@/providers/permissions-provider";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useUpdatePermissions } from "@/hooks/useUpdatePermissions";
+import { TeamSkeleton } from "./_components/team-skeleton";
 import { Card } from "@/components/ui/card";
 import { Users, Loader2, Shield } from "lucide-react";
 import { toast } from "react-toastify";
@@ -26,7 +27,7 @@ import {
 } from "@/components/features/team";
 
 export default function TeamPage() {
-    const { user } = useAuth();
+    const { user, isLoading: authLoading } = useAuth();
     const { isMaster, isLoading: permLoading } = usePermissions();
 
     React.useEffect(() => {
@@ -145,12 +146,8 @@ export default function TeamPage() {
     };
 
     // Loading
-    if (permLoading || isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        );
+    if (permLoading || isLoading || authLoading) {
+        return <TeamSkeleton />;
     }
 
     // Access denied

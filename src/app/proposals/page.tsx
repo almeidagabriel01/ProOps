@@ -21,6 +21,7 @@ import {
   Eye,
   MoreHorizontal,
 } from "lucide-react";
+import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 
 const statusConfig: Record<
   ProposalStatus,
@@ -37,10 +38,12 @@ import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function ProposalsPage() {
-  const { tenant } = useTenant();
+  const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+
+  const isPageLoading = tenantLoading || isLoading;
 
   React.useEffect(() => {
     const fetchProposals = async () => {
@@ -118,12 +121,8 @@ export default function ProposalsPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Carregando...</div>
-      </div>
-    );
+  if (isPageLoading) {
+    return <ProposalsSkeleton />;
   }
 
   return (

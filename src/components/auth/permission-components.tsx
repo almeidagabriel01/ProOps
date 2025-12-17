@@ -98,11 +98,11 @@ export function PermissionButton({
 
     const getMessage = () => {
         if (disabled) return undefined;
-        if (isLoading) return "Carregando...";
+        if (isLoading) return "Verificando permissões...";
         if (!hasAccess) {
             return disabledMessage || `Você não tem permissão para ${action === 'create' ? 'criar' :
-                    action === 'edit' ? 'editar' :
-                        'excluir'
+                action === 'edit' ? 'editar' :
+                    'excluir'
                 }`;
         }
         return undefined;

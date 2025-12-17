@@ -15,10 +15,11 @@ import {
 } from "@/components/profile";
 import { BillingToggle } from "@/components/ui/billing-toggle";
 import { Suspense } from "react";
+import { ProfileSkeleton } from "./_components/profile-skeleton";
 
 function ProfileContent() {
-  const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { user, isLoading: authLoading } = useAuth();
+  const { tenant, isLoading: tenantLoading } = useTenant();
 
   const {
     effectiveUser,
@@ -52,6 +53,14 @@ function ProfileContent() {
       setBillingInterval(effectiveUser.billingInterval);
     }
   }, [effectiveUser?.billingInterval, setBillingInterval]);
+
+  // Loading state
+  // Wait for Auth, Tenant, and Plan data to be ready
+  const isPageLoading = isLoading || authLoading || (user?.role !== 'superadmin' && tenantLoading);
+
+  if (isPageLoading) {
+    return <ProfileSkeleton />;
+  }
 
   return (
     <>
@@ -159,16 +168,8 @@ function ProfileContent() {
   );
 }
 
+
+
 export default function ProfilePage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      }
-    >
-      <ProfileContent />
-    </Suspense>
-  );
+  return <ProfileContent />;
 }

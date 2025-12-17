@@ -12,6 +12,12 @@ import {
 } from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { AppSkeleton } from "@/components/layout/app-skeleton";
+import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
+import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
+import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
+import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
+import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleton";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import {
   RegisterFormFields,
@@ -48,20 +54,29 @@ function LoginContent() {
   } = useLoginForm();
 
   // Show loading during initial auth check or during login/redirect
+  // Show loading during initial auth check or during login/redirect
   if (isLoading || isLoggingIn || isRegistering || user) {
+    // Determine which skeleton to show based on likely destination
+    let content = <DashboardSkeleton />;
+    let showSidebar = true;
+
+    if (user?.role === 'superadmin') {
+      content = <AdminSkeleton />;
+      showSidebar = false;
+    } else if (user?.role === 'free' || user?.role === 'user' || user?.role === 'member') {
+      const perms = user.permissions || {};
+      if (perms.dashboard && perms.dashboard.canView === false) {
+        if (perms.proposals?.canView) content = <ProposalsSkeleton />;
+        else if (perms.products?.canView) content = <ProductsSkeleton />;
+        else if (perms.clients?.canView) content = <CustomersSkeleton />;
+        else content = <ProposalsSkeleton />;
+      }
+    }
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-950">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-violet-500" />
-          <p className="text-neutral-400 text-sm animate-pulse">
-            {isLoggingIn
-              ? "Entrando..."
-              : isRegistering
-                ? "Criando sua conta..."
-                : "Carregando..."}
-          </p>
-        </div>
-      </div>
+      <AppSkeleton showSidebar={showSidebar}>
+        {content}
+      </AppSkeleton>
     );
   }
 

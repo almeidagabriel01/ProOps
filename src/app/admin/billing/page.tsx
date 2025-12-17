@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
 import { TenantsMetricsCards, TenantsTable } from "./_components";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function AdminTenantsPage() {
   const router = useRouter();
@@ -24,14 +26,21 @@ export default function AdminTenantsPage() {
   } = useTenantsData();
 
   if (isLoading) {
+    // Reuse AdminSkeleton or a specific billing skeleton if available,
+    // but AdminSkeleton is better than "Carregando..."
     return (
-      <div className="flex items-center justify-center p-8 h-screen w-full bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-muted-foreground animate-pulse">
-            Carregando dados das empresas...
-          </p>
+      <div className="max-w-4xl mx-auto py-8 px-4 space-y-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <Skeleton className="h-8 w-64" />
         </div>
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </CardContent>
+        </Card>
       </div>
     );
   }

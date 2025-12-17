@@ -72,6 +72,42 @@ export function useLandingPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
+  // Decision state for what skeleton to show while checking auth
+  // Now supports specific page types to render the exact skeleton
+  const [initialSkeleton, setInitialSkeleton] = useState<"dashboard" | "profile" | "financial" | "products" | "clients" | "proposals" | "team" | "admin" | "list" | null>(null);
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("erp_user_cache");
+      if (cached) {
+        const data = JSON.parse(cached);
+        const { role, permissions, isAdmin } = data;
+
+        // Logic mirrors the redirect effect below
+        if (isAdmin || permissions?.dashboard?.canView) {
+          setInitialSkeleton("dashboard");
+        } else {
+             // Find the first allowed page for this user to match redirection logic
+             const pages = ["proposals", "clients", "products", "financial", "profile"];
+             const firstAllowed = pages.find(page => permissions[page]?.canView === true || page === "profile");
+             
+             switch (firstAllowed) {
+                 case "financial": setInitialSkeleton("financial"); break;
+                 case "profile": setInitialSkeleton("profile"); break;
+                 case "products": setInitialSkeleton("products"); break;
+                 case "clients": setInitialSkeleton("clients"); break;
+                 case "proposals": setInitialSkeleton("proposals"); break;
+                 default: setInitialSkeleton("list"); break; 
+             }
+        }
+      } else {
+          // Default fallback
+          setInitialSkeleton("list"); 
+      }
+    } catch (e) {
+        setInitialSkeleton("list");
+    }
+  }, []);
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -130,6 +166,18 @@ export function useLandingPage() {
               const perms = userData.permissions || {};
               const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
 
+              // Cache the role/permissions for faster next load
+              try {
+                const cachedData = {
+                  role: userData.role,
+                  permissions: userData.permissions || {},
+                  isAdmin: isAdmin
+                };
+                localStorage.setItem("erp_user_cache", JSON.stringify(cachedData));
+              } catch (e) {
+                // Ignore storage errors
+              }
+
               if (canViewDashboard) {
                 router.replace("/dashboard");
               } else {
@@ -169,6 +217,7 @@ export function useLandingPage() {
     billingInterval,
     setBillingInterval,
     plans,
+    initialSkeleton,
     handleSignOut
   };
 }

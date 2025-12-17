@@ -81,11 +81,11 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     }
 
     try {
-      console.log('[usePlanLimits] Loading addons for tenant:', tenant.id);
+
       const addons = await AddonService.getAddonsForTenant(tenant.id);
-      console.log('[usePlanLimits] Loaded addons:', addons);
+
       const addonTypes = addons.map(a => a.addonType);
-      console.log('[usePlanLimits] Addon types:', addonTypes);
+
       setPurchasedAddons(addonTypes);
       setPurchasedAddonsData(addons);
     } catch (error) {
@@ -192,7 +192,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   const features = useMemo(() => {
     if (!baseFeatures) return null;
     
-    console.log('[usePlanLimits] Computing features with addons:', purchasedAddons);
+
     
     return AddonService.applyAddonsToFeatures(
       {
@@ -219,7 +219,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       maxUsers: features.maxUsers,
     };
     
-    console.log('[usePlanLimits] Merged features - hasFinancial:', merged.hasFinancial);
+
     
     return merged;
   }, [baseFeatures, features]);
@@ -292,15 +292,15 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     if (!mergedFeatures) return false;
     const limitVal = mergedFeatures.maxClients;
     const limit = Number(limitVal);
-    console.log(`[usePlanLimits] canCreateClient? Limit: ${limitVal} (Num: ${limit}), Current: waiting...`);
+
     
     if (String(limitVal) === '-1' || limit === -1 || limit < 0) {
-        console.log(`[usePlanLimits] Unlimited clients allowed.`);
+
         return true;
     }
     
     const count = await getClientCount();
-    console.log(`[usePlanLimits] Count: ${count}, Allowed: ${limit}`);
+
     return count < limit;
   }, [mergedFeatures, getClientCount]);
 

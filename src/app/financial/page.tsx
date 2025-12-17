@@ -10,6 +10,8 @@ import { Transaction } from "@/services/transaction-service";
 import { Plus, Wallet, Search, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
+import { FinancialSkeleton } from "./_components/financial-skeleton";
+import { useTenant } from "@/providers/tenant-provider";
 import {
   FinancialSummaryCards,
   TransactionCard,
@@ -18,10 +20,11 @@ import {
 } from "./_components";
 
 export default function FinancialPage() {
+  const { isLoading: tenantLoading } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("financial");
   const {
     summary,
-    isLoading,
+    isLoading: dataLoading,
     hasFinancial,
     isPlanLoading,
     searchTerm,
@@ -32,6 +35,8 @@ export default function FinancialPage() {
     deleteTransaction,
     transactions,
   } = useFinancialData();
+
+  const isLoading = tenantLoading || dataLoading;
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -65,11 +70,7 @@ export default function FinancialPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FinancialSkeleton />;
   }
 
   const balance = summary.totalIncome - summary.totalExpense;

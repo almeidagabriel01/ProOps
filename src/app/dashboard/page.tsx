@@ -21,6 +21,7 @@ import {
   ProposalStatsCard,
   ClientsStatsCard,
 } from "./_components";
+import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -35,7 +36,12 @@ export default function DashboardPage() {
     recentTransactions,
     recentProposals,
     balance,
+    isLoading,
   } = useDashboardData();
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

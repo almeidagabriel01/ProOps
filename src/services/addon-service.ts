@@ -74,12 +74,12 @@ export const AddonService = {
    */
   async getAddonsForTenant(tenantId: string): Promise<PurchasedAddon[]> {
     if (!tenantId) {
-      console.log('[AddonService] No tenantId provided');
+
       return [];
     }
 
     try {
-      console.log('[AddonService] Querying addons for tenant:', tenantId);
+
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
@@ -87,11 +87,11 @@ export const AddonService = {
       );
 
       const snapshot = await getDocs(q);
-      console.log('[AddonService] Found', snapshot.size, 'active addons');
+
       
       const addons = snapshot.docs.map((doc) => {
         const data = doc.data();
-        console.log('[AddonService] Addon doc:', doc.id, data);
+
         return {
           id: doc.id,
           ...data,
