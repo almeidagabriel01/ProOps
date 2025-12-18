@@ -29,7 +29,7 @@ export function UpgradeRequired({
               `O módulo "${feature}" não está disponível no seu plano atual.`}
           </p>
 
-          <Link href="/profile">
+          <Link href="/profile?tab=billing">
             <Button size="lg" className="gap-2">
               <Sparkles className="w-5 h-5" />
               Fazer Upgrade

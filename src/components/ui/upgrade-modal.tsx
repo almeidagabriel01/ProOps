@@ -51,7 +51,7 @@ export function UpgradeModal({
 
   const handleUpgrade = () => {
     onOpenChange(false);
-    router.push("/profile");
+    router.push("/profile?tab=billing");
   };
 
   return (

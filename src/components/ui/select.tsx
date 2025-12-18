@@ -30,7 +30,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className={cn("relative group", wrapperClassName, className)}>
         <select
           className={cn(
-            "flex h-12 w-full appearance-none rounded-xl border-2 border-border/60 bg-card px-4 py-3 pr-12 text-sm",
+            "flex h-12 w-full appearance-none rounded-xl border-2 border-border/60 px-4 py-3 pr-12 text-sm",
             "shadow-sm transition-all duration-300 ease-out cursor-pointer",
             "hover:border-primary/40 hover:shadow-md",
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",

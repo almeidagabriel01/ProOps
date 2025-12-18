@@ -43,6 +43,7 @@ export default function RootLayout({
     pathname === "/login" ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
+    pathname.startsWith("/auth") ||
     pathname === "/403";
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 

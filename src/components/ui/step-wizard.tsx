@@ -45,10 +45,11 @@ interface StepWizardProps {
     children: React.ReactNode;
     onComplete?: () => void;
     className?: string;
+    indicatorContainerClassName?: string;
     allowClickAhead?: boolean; // When true, allows clicking on any step (useful for edit mode)
 }
 
-export function StepWizard({ steps, children, onComplete, className, allowClickAhead = false }: StepWizardProps) {
+export function StepWizard({ steps, children, onComplete, className, indicatorContainerClassName, allowClickAhead = false }: StepWizardProps) {
     const [currentStep, setCurrentStep] = React.useState(0);
     const totalSteps = steps.length;
 
@@ -91,6 +92,7 @@ export function StepWizard({ steps, children, onComplete, className, allowClickA
                     currentStep={currentStep}
                     onStepClick={goToStep}
                     allowClickAhead={allowClickAhead}
+                    containerClassName={indicatorContainerClassName}
                 />
 
                 {/* Step Content */}
@@ -115,11 +117,12 @@ interface StepIndicatorProps {
     currentStep: number;
     onStepClick: (step: number) => void;
     allowClickAhead?: boolean;
+    containerClassName?: string;
 }
 
-function StepIndicator({ steps, currentStep, onStepClick, allowClickAhead = false }: StepIndicatorProps) {
+function StepIndicator({ steps, currentStep, onStepClick, allowClickAhead = false, containerClassName }: StepIndicatorProps) {
     return (
-        <div className="relative">
+        <div className={cn("relative mx-auto", containerClassName)}>
             {/* Progress bar background */}
             <div className="absolute top-6 left-0 right-0 h-0.5 bg-primary/20" />
 

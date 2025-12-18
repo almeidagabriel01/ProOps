@@ -31,7 +31,7 @@ import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleto
 const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
 
 // Routes that allow unauthenticated access
-const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing"];
+const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing", "/auth"];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();

@@ -1,25 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, ExternalLink, Puzzle } from "lucide-react";
+import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
 import {
   ProfileHeader,
-  PlanCard,
   PlanChangeDialog,
+  OverviewTab,
+  BillingTab
 } from "@/components/profile";
-import { BillingToggle } from "@/components/ui/billing-toggle";
-import { Suspense } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSkeleton } from "./_components/profile-skeleton";
+import { useSearchParams } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 function ProfileContent() {
   const { user, isLoading: authLoading } = useAuth();
   const { tenant, isLoading: tenantLoading } = useTenant();
+  const { isMaster } = usePermissions();
 
   const {
     effectiveUser,
@@ -45,8 +46,6 @@ function ProfileContent() {
     setBillingInterval,
   } = usePlanChange(user, tenant);
 
-  const { isMaster } = usePermissions();
-
   // Sync state with user's actual interval
   useEffect(() => {
     if (effectiveUser?.billingInterval) {
@@ -55,8 +54,11 @@ function ProfileContent() {
   }, [effectiveUser?.billingInterval, setBillingInterval]);
 
   // Loading state
-  // Wait for Auth, Tenant, and Plan data to be ready
   const isPageLoading = isLoading || authLoading || (user?.role !== 'superadmin' && tenantLoading);
+
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "billing" ? "billing" : "overview";
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   if (isPageLoading) {
     return <ProfileSkeleton />;
@@ -64,92 +66,86 @@ function ProfileContent() {
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Meu Perfil</h1>
-          <p className="text-muted-foreground mt-1">
-            Visualize e gerencie suas informações pessoais
-          </p>
-        </div>
-
-        {/* Profile Card - Use effectiveUser (tenant admin when superadmin is viewing) */}
+      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6 min-h-[calc(100vh-100px)]">
+        {/* Header Section */}
         <ProfileHeader
           user={effectiveUser}
           tenant={tenant}
           userPlan={userPlan}
         />
 
-        {/* Plans Section - Only visible to MASTER */}
-        {isMaster && !isLoading && allPlans.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Meu Plano</h2>
-                <p className="text-muted-foreground text-sm">
-                  Compare seu plano atual com as opções de upgrade
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Link href="/profile/addons">
-                  <Button variant="outline" size="sm">
-                    <Puzzle className="w-4 h-4 mr-2" />
-                    Add-ons
-                  </Button>
-                </Link>
-                {userPlan && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleManagePayment}
-                    disabled={openingPortal}
-                  >
-                    {openingPortal ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Abrindo...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Gerenciar Pagamento
-                        <ExternalLink className="w-3 h-3 ml-1" />
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            {/* Billing Interval Toggle */}
-            <div className="py-6 flex justify-center">
-              <BillingToggle
-                id="profile-toggle"
-                value={billingInterval}
-                onChange={setBillingInterval}
-              />
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-4">
-              {allPlans.map((plan) => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  billingInterval={billingInterval}
-                  isCurrent={isCurrentPlan(plan)}
-                  canUpgrade={canUpgrade(plan)}
-                  isProcessing={
-                    upgradingPlan !== null || downgradingPlan !== null
-                  }
-                  processingTier={upgradingPlan || downgradingPlan}
-                  onUpgrade={handleUpgrade}
-                  onDowngrade={handleDowngrade}
-                  isMaster={isMaster}
-                />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex justify-center pb-2">
+            <TabsList
+              className="relative grid w-full max-w-[400px] grid-cols-2 h-12 p-1 rounded-full border border-border/10 shadow-sm"
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+              }}
+            >
+              {["overview", "billing"].map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  className="relative z-10 rounded-full data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-none h-full hover:bg-muted/10 cursor-pointer"
+                >
+                  {activeTab === tab && (
+                    <motion.div
+                      className="absolute inset-0 bg-primary rounded-full shadow-md z-[-1]"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                  <span className={cn("relative z-10 font-medium transition-colors duration-200", activeTab === tab ? "text-primary-foreground" : "text-muted-foreground")}>
+                    {tab === "overview" ? "Visão Geral" : "Assinatura"}
+                  </span>
+                </TabsTrigger>
               ))}
-            </div>
+            </TabsList>
           </div>
-        )}
+
+          <TabsContent value="overview" className="mt-0">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <OverviewTab
+                user={effectiveUser}
+                tenant={tenant}
+                isMaster={isMaster}
+              />
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="billing" className="mt-0">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <BillingTab
+                allPlans={allPlans}
+                userPlan={userPlan}
+                billingInterval={billingInterval}
+                setBillingInterval={setBillingInterval}
+                isCurrentPlan={isCurrentPlan}
+                canUpgrade={canUpgrade}
+                upgradingPlan={upgradingPlan}
+                downgradingPlan={downgradingPlan}
+                handleUpgrade={handleUpgrade}
+                handleDowngrade={handleDowngrade}
+                handleManagePayment={handleManagePayment}
+                isMaster={isMaster}
+                openingPortal={openingPortal}
+              />
+            </motion.div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Plan Change Confirmation Dialog */}
@@ -167,8 +163,6 @@ function ProfileContent() {
     </>
   );
 }
-
-
 
 export default function ProfilePage() {
   return <ProfileContent />;

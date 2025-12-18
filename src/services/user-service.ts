@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { User } from "@/types";
 
 export const UserService = {
@@ -66,6 +66,18 @@ export const UserService = {
         } catch (error) {
             console.error("Error fetching user:", error);
             return null;
+        }
+    },
+    /**
+     * Update user data
+     */
+    updateUser: async (userId: string, data: Partial<User>): Promise<void> => {
+        try {
+            const userRef = doc(db, "users", userId);
+            await updateDoc(userRef, data);
+        } catch (error) {
+            console.error("Error updating user:", error);
+            throw error;
         }
     },
 };
