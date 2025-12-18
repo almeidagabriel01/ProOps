@@ -10,8 +10,21 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Users, FileText, Package, ArrowRight, UserPlus } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
+import {
+  Wallet,
+  Users,
+  FileText,
+  Package,
+  ArrowRight,
+  UserPlus,
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+} from "recharts";
 
 export function QuickActionsCard() {
   return (
@@ -24,8 +37,12 @@ export function QuickActionsCard() {
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">Nova Proposta</h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">Criar Orçamento</p>
+              <h3 className="font-bold text-sm text-foreground">
+                Nova Proposta
+              </h3>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                Criar Orçamento
+              </p>
             </div>
           </div>
         </div>
@@ -39,8 +56,12 @@ export function QuickActionsCard() {
               <Wallet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">Novo Lançamento</h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">Entrada/Saída</p>
+              <h3 className="font-bold text-sm text-foreground">
+                Novo Lançamento
+              </h3>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                Entrada/Saída
+              </p>
             </div>
           </div>
         </div>
@@ -54,8 +75,12 @@ export function QuickActionsCard() {
               <Users className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">Novo Cliente</h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">Cadastro</p>
+              <h3 className="font-bold text-sm text-foreground">
+                Novo Cliente
+              </h3>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                Cadastro
+              </p>
             </div>
           </div>
         </div>
@@ -69,8 +94,12 @@ export function QuickActionsCard() {
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-foreground">Novo Produto</h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">Inventário</p>
+              <h3 className="font-bold text-sm text-foreground">
+                Novo Produto
+              </h3>
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                Inventário
+              </p>
             </div>
           </div>
         </div>
@@ -90,10 +119,14 @@ interface ProposalStatsCardProps {
 
 export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
   const data = [
-    { name: 'Aprovadas', value: stats.approved, color: 'rgb(34, 197, 94)' },
-    { name: 'Pendentes', value: stats.pending, color: 'rgb(234, 179, 8)' },
-    { name: 'Recusadas', value: stats.total - stats.approved - stats.pending, color: 'rgb(239, 68, 68)' },
-  ].filter(item => item.value > 0);
+    { name: "Aprovadas", value: stats.approved, color: "rgb(34, 197, 94)" },
+    { name: "Pendentes", value: stats.pending, color: "rgb(234, 179, 8)" },
+    {
+      name: "Recusadas",
+      value: stats.total - stats.approved - stats.pending,
+      color: "rgb(239, 68, 68)",
+    },
+  ].filter((item) => item.value > 0);
 
   return (
     <Card className="h-full flex flex-col shadow-lg bg-gradient-to-br from-background to-indigo-50/30 dark:to-indigo-950/10 border border-border/50 relative overflow-hidden">
@@ -106,7 +139,10 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
             </div>
             Propostas
           </div>
-          <Badge variant="secondary" className="font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300">
+          <Badge
+            variant="secondary"
+            className="font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300"
+          >
             Conv. {stats.conversionRate}%
           </Badge>
         </CardTitle>
@@ -117,44 +153,66 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
             Nenhuma proposta registrada
           </div>
         ) : (
-          <div className="w-full h-[220px] -ml-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={65}
-                  outerRadius={85}
-                  paddingAngle={4}
-                  dataKey="value"
-                  stroke="none"
-                  cornerRadius={4}
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  formatter={(value: number) => [value, 'Qtd']}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ fontSize: '13px', fontWeight: 'bold' }}
-                />
-                <Legend
-                  verticalAlign="middle"
-                  align="right"
-                  layout="vertical"
-                  iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: '12px', fontWeight: 500, paddingLeft: '10px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none pr-16 md:pr-20">
-              <div className="flex flex-col items-center">
-                <span className="text-3xl font-bold text-foreground">{stats.total}</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total</span>
+          <div className="w-full flex items-center gap-6">
+            {/* Donut Chart com texto centralizado */}
+            <div
+              className="relative flex-shrink-0"
+              style={{ width: 170, height: 170 }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                    stroke="none"
+                    cornerRadius={4}
+                  >
+                    {data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    formatter={(value: number) => [value, "Qtd"]}
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "none",
+                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                    }}
+                    itemStyle={{ fontSize: "13px", fontWeight: "bold" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Texto central - absolutamente centralizado */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl font-bold text-foreground">
+                    {stats.total}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    Total
+                  </span>
+                </div>
               </div>
+            </div>
+
+            {/* Legenda customizada */}
+            <div className="flex flex-col gap-2">
+              {data.map((item, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {item.name} ({item.value})
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -188,8 +246,12 @@ export function ClientsStatsCard({
       </CardHeader>
       <CardContent className="relative z-10 flex-1 flex flex-col justify-between pt-4">
         <div>
-          <h2 className="text-5xl font-extrabold tracking-tight text-foreground">{totalClients}</h2>
-          <p className="text-muted-foreground font-medium mt-1 text-sm">Base total de clientes</p>
+          <h2 className="text-5xl font-extrabold tracking-tight text-foreground">
+            {totalClients}
+          </h2>
+          <p className="text-muted-foreground font-medium mt-1 text-sm">
+            Base total de clientes
+          </p>
         </div>
 
         <div className="mt-6 bg-slate-50 dark:bg-slate-800/30 rounded-xl p-4 border border-slate-200/50 dark:border-slate-700/30">
@@ -199,8 +261,12 @@ export function ClientsStatsCard({
                 <UserPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold block">Novos</span>
-                <span className="text-sm font-medium text-foreground">Este mês</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold block">
+                  Novos
+                </span>
+                <span className="text-sm font-medium text-foreground">
+                  Este mês
+                </span>
               </div>
             </div>
             <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
