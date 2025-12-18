@@ -20,15 +20,11 @@ export interface CurrencyInputProps extends Omit<
  */
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onChange, name, ...props }, ref) => {
-    // Track the raw cents value (without formatting)
     const [rawValue, setRawValue] = React.useState<string>("");
 
-    // Sync rawValue with prop value on mount and when value changes externally
     React.useEffect(() => {
       const numValue = typeof value === "string" ? parseFloat(value) : value;
       if (!isNaN(numValue) && numValue > 0) {
-        // Convert from decimal value to cents string
-        // e.g., 123.45 -> "12345"
         const centsValue = Math.round(numValue * 100);
         setRawValue(centsValue.toString());
       } else if (value === "" || value === 0 || value === "0") {
@@ -36,17 +32,14 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       }
     }, [value]);
 
-    // Format the raw cents value for display
     const getDisplayValue = (): string => {
       if (!rawValue) return "";
 
       const centsValue = parseInt(rawValue, 10);
       if (isNaN(centsValue)) return "";
 
-      // Convert cents to decimal value
       const decimalValue = centsValue / 100;
 
-      // Format with thousand separators and decimal
       return decimalValue.toLocaleString("pt-BR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -56,17 +49,13 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value;
 
-      // Remove all non-digits
       const newRaw = inputValue.replace(/\D/g, "");
 
-      // Update raw value (this is what we track - in cents)
       setRawValue(newRaw);
 
-      // Parse to decimal value for the form (cents / 100)
       const centsValue = newRaw ? parseInt(newRaw, 10) : 0;
       const decimalValue = centsValue / 100;
 
-      // Create synthetic event with decimal value
       const syntheticEvent = {
         ...e,
         target: {
@@ -79,12 +68,9 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       onChange(syntheticEvent);
     };
 
-    // Handle keyboard input to manage cursor properly
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Allow: backspace, delete, tab, escape, enter, arrows
       if ([8, 46, 9, 27, 13, 37, 38, 39, 40].includes(e.keyCode)) {
         if (e.keyCode === 8 || e.keyCode === 46) {
-          // Backspace or Delete: remove last digit from rawValue
           e.preventDefault();
           const newRaw = rawValue.slice(0, -1);
           setRawValue(newRaw);

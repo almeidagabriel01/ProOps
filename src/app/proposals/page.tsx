@@ -19,8 +19,9 @@ import {
   Copy,
   Trash2,
   Eye,
-  MoreHorizontal,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 
 const statusConfig: Record<
@@ -42,6 +43,20 @@ export default function ProposalsPage() {
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState("");
+
+  // Filter proposals based on search term
+  const filteredProposals = React.useMemo(() => {
+    if (!searchTerm.trim()) return proposals;
+
+    const term = searchTerm.toLowerCase();
+    return proposals.filter(
+      (proposal) =>
+        proposal.title.toLowerCase().includes(term) ||
+        proposal.clientName?.toLowerCase().includes(term) ||
+        statusConfig[proposal.status as ProposalStatus]?.label.toLowerCase().includes(term)
+    );
+  }, [proposals, searchTerm]);
 
   const isPageLoading = tenantLoading || isLoading;
 
@@ -144,6 +159,19 @@ export default function ProposalsPage() {
         )}
       </div>
 
+      {/* Search */}
+      {proposals.length > 0 && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por título, cliente ou status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      )}
+
       {proposals.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
@@ -166,6 +194,18 @@ export default function ProposalsPage() {
             )}
           </CardContent>
         </Card>
+      ) : filteredProposals.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Search className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              Nenhum resultado encontrado
+            </h3>
+            <p className="text-muted-foreground text-center">
+              Tente buscar por outro termo.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-4">
           {/* Header */}
@@ -178,7 +218,7 @@ export default function ProposalsPage() {
           </div>
 
           {/* Rows */}
-          {proposals.map((proposal) => {
+          {filteredProposals.map((proposal) => {
             const statusKey = (proposal.status || 'draft').toLowerCase() as ProposalStatus;
             const status = statusConfig[statusKey] || statusConfig['draft'];
             const productCount = proposal.products?.length || 0;

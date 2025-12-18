@@ -164,12 +164,12 @@ export default function ProductsPage() {
                     {/* Header */}
                     <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
                         <div className="col-span-1">Imagem</div>
-                        <div className="col-span-4">Nome</div>
+                        <div className="col-span-3">Nome</div>
                         <div className="col-span-2">Categoria</div>
                         <div className="col-span-2">SKU</div>
                         <div className="col-span-1">Estoque</div>
                         <div className="col-span-1">Preço</div>
-                        <div className="col-span-1 text-right">Ações</div>
+                        <div className="col-span-2 text-right">Ações</div>
                     </div>
 
                     {/* Rows */}
@@ -189,7 +189,7 @@ export default function ProductsPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="col-span-4">
+                                <div className="col-span-3">
                                     <Link
                                         href={`/products/${product.id}`}
                                         className="font-medium hover:underline"
@@ -211,7 +211,7 @@ export default function ProductsPage() {
                                 <div className="col-span-1 text-sm font-medium">
                                     R$ {parseFloat(product.price).toFixed(2)}
                                 </div>
-                                <div className="col-span-1 flex items-center justify-end gap-1">
+                                <div className="col-span-2 flex items-center justify-end gap-1">
                                     {canEdit && (
                                         <Link href={`/products/${product.id}`}>
                                             <Button

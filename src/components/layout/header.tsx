@@ -2,14 +2,13 @@
 
 import * as React from "react";
 import {
-  Search,
   Bell,
   User as UserIcon,
   LogOut,
   ArrowLeft,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { doc, getDoc } from "firebase/firestore";
@@ -94,13 +93,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
           </Button>
         )}
 
-        <div className="relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            className="pl-9 h-9 bg-muted/50 border-transparent focus:bg-background focus:border-input transition-all"
-          />
-        </div>
+        <CommandPalette />
       </div>
 
       <div className="flex items-center gap-4">
