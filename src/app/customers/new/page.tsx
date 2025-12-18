@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,7 +32,12 @@ export default function NewCustomerPage() {
     }
   }, [permLoading, canCreate, router]);
 
-  if (permLoading) return <div className="p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  if (permLoading)
+    return (
+      <div className="p-8">
+        <Loader2 className="w-6 h-6 animate-spin" />
+      </div>
+    );
 
   // Limit modal state
   const [showLimitModal, setShowLimitModal] = React.useState(false);
@@ -86,7 +92,7 @@ export default function NewCustomerPage() {
         phone: formData.phone || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
-        source: "manual"
+        source: "manual",
       });
 
       if (result?.success) {
@@ -154,7 +160,7 @@ export default function NewCustomerPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input
+                <PhoneInput
                   id="phone"
                   name="phone"
                   value={formData.phone}

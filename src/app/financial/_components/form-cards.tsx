@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -106,12 +108,9 @@ export function DetailsCard({ formData, onChange }: DetailsCardProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="amount">Valor Total *</Label>
-            <Input
+            <CurrencyInput
               id="amount"
               name="amount"
-              type="number"
-              step="0.01"
-              min="0"
               value={formData.amount}
               onChange={onChange}
               placeholder="0,00"
@@ -133,10 +132,9 @@ export function DetailsCard({ formData, onChange }: DetailsCardProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="grid gap-2">
             <Label htmlFor="date">Data *</Label>
-            <Input
+            <DateInput
               id="date"
               name="date"
-              type="date"
               value={formData.date}
               onChange={onChange}
               required
@@ -144,10 +142,9 @@ export function DetailsCard({ formData, onChange }: DetailsCardProps) {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="dueDate">Vencimento</Label>
-            <Input
+            <DateInput
               id="dueDate"
               name="dueDate"
-              type="date"
               value={formData.dueDate}
               onChange={onChange}
             />
