@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { formatCurrency } from "@/utils/format";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export interface BarChartDataItem {
   name: string;
@@ -18,59 +19,83 @@ interface SimpleBarChartProps {
  * Shows income vs expenses comparison
  */
 export const SimpleBarChart = React.memo(({ data }: SimpleBarChartProps) => {
-  const maxValue = React.useMemo(() => {
-    let max = 0;
-    data.forEach((d) => {
-      if (d.receitas > max) max = d.receitas;
-      if (d.despesas > max) max = d.despesas;
-    });
-    return max || 1;
-  }, [data]);
-
   return (
-    <div className="h-[280px] flex items-end gap-2 pt-8 pb-8 px-2">
-      {data.map((item, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-2">
-          <div className="w-full flex gap-1 items-end h-[200px]">
-            {/* Receitas bar */}
-            <div className="flex-1 flex flex-col justify-end">
-              <div
-                className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-md transition-all duration-500 relative group"
-                style={{
-                  height: `${(item.receitas / maxValue) * 100}%`,
-                  minHeight: item.receitas > 0 ? "4px" : "0",
-                }}
-              >
-                {item.receitas > 0 && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg z-10">
-                    {formatCurrency(item.receitas)}
+    <div className="h-full w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{
+            top: 20,
+            right: 20,
+            left: 0,
+            bottom: 0,
+          }}
+          barGap={2}
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted/40" />
+          <XAxis
+            dataKey="name"
+            stroke="#888888"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            dy={10}
+            tick={{ fill: 'currentColor', opacity: 0.6 }}
+          />
+          <YAxis
+            stroke="#888888"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `R$ ${value}`}
+            tick={{ fill: 'currentColor', opacity: 0.6 }}
+            width={80}
+          />
+          <Tooltip
+            cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
+            content={({ active, payload, label }: any) => {
+              if (active && payload && payload.length) {
+                return (
+                  <div className="rounded-lg border bg-background p-2 shadow-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col">
+                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                          Receitas
+                        </span>
+                        <span className="font-bold text-emerald-500">
+                          {formatCurrency(Number(payload[0].value))}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[0.70rem] uppercase text-muted-foreground">
+                          Despesas
+                        </span>
+                        <span className="font-bold text-rose-500">
+                          {formatCurrency(Number(payload[1].value))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-            {/* Despesas bar */}
-            <div className="flex-1 flex flex-col justify-end">
-              <div
-                className="w-full bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-md transition-all duration-500 relative group"
-                style={{
-                  height: `${(item.despesas / maxValue) * 100}%`,
-                  minHeight: item.despesas > 0 ? "4px" : "0",
-                }}
-              >
-                {item.despesas > 0 && (
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-card border border-border px-2 py-1 rounded text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg z-10">
-                    {formatCurrency(item.despesas)}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <span className="text-xs text-muted-foreground capitalize">
-            {item.name}
-          </span>
-        </div>
-      ))}
-    </div>
+                );
+              }
+              return null;
+            }}
+          />
+          <Bar
+            dataKey="receitas"
+            fill="rgb(16, 185, 129)" // emerald-500
+            radius={[4, 4, 0, 0]}
+            maxBarSize={50}
+          />
+          <Bar
+            dataKey="despesas"
+            fill="rgb(244, 63, 94)" // rose-500
+            radius={[4, 4, 0, 0]}
+            maxBarSize={50}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div >
   );
 });
 
