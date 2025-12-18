@@ -13,32 +13,44 @@ export interface CurrencyInputProps extends Omit<
 
 /**
  * Currency input with Brazilian Real formatting (R$ X.XXX,XX)
- * Formats as user types - "10" becomes "10,00", "1000" becomes "1.000,00"
+ * Formats as user types treating input as cents:
+ * - "1" becomes "0,01" (1 cent)
+ * - "100" becomes "1,00" (1 real)
+ * - "12345" becomes "123,45"
  */
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onChange, name, ...props }, ref) => {
-    // Track the raw integer value (without formatting)
+    // Track the raw cents value (without formatting)
     const [rawValue, setRawValue] = React.useState<string>("");
 
     // Sync rawValue with prop value on mount and when value changes externally
     React.useEffect(() => {
       const numValue = typeof value === "string" ? parseFloat(value) : value;
       if (!isNaN(numValue) && numValue > 0) {
-        setRawValue(Math.floor(numValue).toString());
+        // Convert from decimal value to cents string
+        // e.g., 123.45 -> "12345"
+        const centsValue = Math.round(numValue * 100);
+        setRawValue(centsValue.toString());
       } else if (value === "" || value === 0 || value === "0") {
         setRawValue("");
       }
     }, [value]);
 
-    // Format the raw value for display
+    // Format the raw cents value for display
     const getDisplayValue = (): string => {
       if (!rawValue) return "";
 
-      const intValue = parseInt(rawValue, 10);
-      if (isNaN(intValue)) return "";
+      const centsValue = parseInt(rawValue, 10);
+      if (isNaN(centsValue)) return "";
 
-      // Format with thousand separators and add ,00
-      return intValue.toLocaleString("pt-BR") + ",00";
+      // Convert cents to decimal value
+      const decimalValue = centsValue / 100;
+
+      // Format with thousand separators and decimal
+      return decimalValue.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,19 +59,20 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       // Remove all non-digits
       const newRaw = inputValue.replace(/\D/g, "");
 
-      // Update raw value (this is what we track)
+      // Update raw value (this is what we track - in cents)
       setRawValue(newRaw);
 
-      // Parse to number for the form
-      const numericValue = newRaw ? parseInt(newRaw, 10) : 0;
+      // Parse to decimal value for the form (cents / 100)
+      const centsValue = newRaw ? parseInt(newRaw, 10) : 0;
+      const decimalValue = centsValue / 100;
 
-      // Create synthetic event with numeric value
+      // Create synthetic event with decimal value
       const syntheticEvent = {
         ...e,
         target: {
           ...e.target,
           name: name || "",
-          value: newRaw ? String(numericValue) : "",
+          value: newRaw ? String(decimalValue) : "",
         },
       } as React.ChangeEvent<HTMLInputElement>;
 
@@ -76,12 +89,13 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
           const newRaw = rawValue.slice(0, -1);
           setRawValue(newRaw);
 
-          const numericValue = newRaw ? parseInt(newRaw, 10) : 0;
+          const centsValue = newRaw ? parseInt(newRaw, 10) : 0;
+          const decimalValue = centsValue / 100;
 
           const syntheticEvent = {
             target: {
               name: name || "",
-              value: newRaw ? String(numericValue) : "",
+              value: newRaw ? String(decimalValue) : "",
             },
           } as React.ChangeEvent<HTMLInputElement>;
 
@@ -100,12 +114,13 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
         const newRaw = rawValue + digit;
         setRawValue(newRaw);
 
-        const numericValue = parseInt(newRaw, 10);
+        const centsValue = parseInt(newRaw, 10);
+        const decimalValue = centsValue / 100;
 
         const syntheticEvent = {
           target: {
             name: name || "",
-            value: String(numericValue),
+            value: String(decimalValue),
           },
         } as React.ChangeEvent<HTMLInputElement>;
 
