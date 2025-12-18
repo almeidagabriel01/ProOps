@@ -29,17 +29,20 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
     };
 
     return (
-      <div className="relative">
+      <div className="relative group">
         <input
           ref={inputRef}
           type="date"
           className={cn(
-            "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm ring-offset-background",
-            "placeholder:text-muted-foreground",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-            "disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 pr-12 text-sm",
+            "shadow-sm transition-all duration-300 ease-out",
+            "placeholder:text-muted-foreground/60",
+            "hover:border-primary/40 hover:shadow-md",
+            "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
+            "focus:ring-4 focus:ring-primary/10",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",
             // Custom styles to hide the default calendar icon in some browsers
-            "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer",
+            "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-12 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer",
             className
           )}
           name={name}
@@ -53,8 +56,8 @@ const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
           type="button"
           onClick={handleIconClick}
           className={cn(
-            "absolute right-0 top-0 h-full px-3 flex items-center justify-center",
-            "text-muted-foreground hover:text-foreground transition-colors",
+            "absolute right-3.5 top-1/2 -translate-y-1/2",
+            "text-muted-foreground group-focus-within:text-primary transition-colors",
             "pointer-events-auto cursor-pointer"
           )}
           tabIndex={-1}

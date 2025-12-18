@@ -2,24 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ProductForm } from "../_components/product-form";
 import { Product, ProductService } from "@/services/product-service";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { Loader2, Package, AlertCircle } from "lucide-react";
+import {
+    FormContainer,
+    FormHeader,
+} from "@/components/ui/form-components";
+import { ProductFormNew } from "../_components/product-form-new";
 
 export default function EditProductPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
-    const { canEdit, canView, isLoading } = usePagePermission("products");
+    const { canEdit, canView, isLoading: permLoading } = usePagePermission("products");
 
     useEffect(() => {
-        if (!isLoading && !canView) {
+        if (!permLoading && !canView) {
             router.push("/products");
         }
-    }, [isLoading, canView, router]);
+    }, [permLoading, canView, router]);
 
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
@@ -48,46 +50,58 @@ export default function EditProductPage() {
 
     if (loading) {
         return (
-            <div className="flex h-[50vh] items-center justify-center">
-                <div className="text-muted-foreground">Carregando produto...</div>
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Carregando produto...</p>
+                </div>
             </div>
         );
     }
 
     if (error || !product) {
         return (
-            <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
-                <h2 className="text-xl font-semibold text-destructive">{error || "Produto não encontrado"}</h2>
-                <Button variant="outline" onClick={() => router.push("/products")}>
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Voltar para Lista
-                </Button>
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="flex flex-col items-center gap-4 text-center max-w-md">
+                    <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                        <AlertCircle className="w-8 h-8 text-destructive" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-semibold text-foreground mb-1">
+                            {error || "Produto não encontrado"}
+                        </h2>
+                        <p className="text-muted-foreground text-sm">
+                            O produto solicitado não existe ou foi removido.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => router.push("/products")}
+                        className="h-11 px-6 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+                    >
+                        Voltar para Produtos
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                    <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        {canEdit ? "Editar Produto" : "Visualizar Produto"}
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        {canEdit
-                            ? `Atualize as informações do produto ${product.name}.`
-                            : `Visualizando informações do produto ${product.name}.`
-                        }
-                    </p>
-                </div>
-            </div>
-
-            <div className="h-4" /> {/* Spacer */}
-
-            <ProductForm initialData={product} productId={id} isReadOnly={!canEdit} />
-        </div>
+        <FormContainer>
+            <FormHeader
+                title={canEdit ? "Editar Produto" : "Visualizar Produto"}
+                subtitle={
+                    canEdit
+                        ? `Atualize as informações de "${product.name}"`
+                        : `Detalhes do produto "${product.name}"`
+                }
+                icon={Package}
+                onBack={() => router.push("/products")}
+            />
+            <ProductFormNew
+                initialData={product}
+                productId={id}
+                isReadOnly={!canEdit}
+            />
+        </FormContainer>
     );
 }

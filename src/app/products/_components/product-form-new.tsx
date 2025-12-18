@@ -1,0 +1,406 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { FileUpload } from "@/components/ui/file-upload";
+import { DynamicSelect } from "@/components/features/dynamic-select";
+import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
+import { UpgradeModal } from "@/components/ui/upgrade-modal";
+import { useProductForm } from "../_hooks/useProductForm";
+import { Product } from "@/services/product-service";
+import {
+    StepWizard,
+    StepNavigation,
+    StepCard,
+} from "@/components/ui/step-wizard";
+import {
+    FormSection,
+    FormGroup,
+    FormItem,
+    FormStatic,
+} from "@/components/ui/form-components";
+import {
+    Package,
+    DollarSign,
+    Image as ImageIcon,
+    Settings,
+    X,
+    Tag,
+    Hash,
+    Layers,
+} from "lucide-react";
+
+interface ProductFormNewProps {
+    initialData?: Product;
+    productId?: string;
+    isReadOnly?: boolean;
+}
+
+const productSteps = [
+    {
+        id: "info",
+        title: "Informações",
+        description: "Dados básicos",
+        icon: Package,
+    },
+    {
+        id: "pricing",
+        title: "Preço",
+        description: "Valores e estoque",
+        icon: DollarSign,
+    },
+    {
+        id: "images",
+        title: "Imagens",
+        description: "Fotos do produto",
+        icon: ImageIcon,
+    },
+    {
+        id: "settings",
+        title: "Configurações",
+        description: "Status e opções",
+        icon: Settings,
+    },
+];
+
+export function ProductFormNew({
+    initialData,
+    productId,
+    isReadOnly = false,
+}: ProductFormNewProps) {
+    const router = useRouter();
+    const {
+        formData,
+        imageUrls,
+        isSubmitting,
+        showLimitModal,
+        setShowLimitModal,
+        showImageLimitModal,
+        setShowImageLimitModal,
+        currentProductCount,
+        maxProducts,
+        maxImagesPerProduct,
+        handleChange,
+        handleAddImage,
+        handleRemoveImage,
+        handleSubmit,
+    } = useProductForm(initialData, productId);
+
+    const handleFormSubmit = async () => {
+        const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+        await handleSubmit(fakeEvent);
+    };
+
+    // For read-only mode, show regular form without wizard
+    if (isReadOnly) {
+        return (
+            <div className="space-y-6">
+                <FormSection title="Informações" icon={Package}>
+                    <FormStatic label="Nome do Produto" value={formData.name} />
+                    <FormStatic label="Descrição" value={formData.description} />
+                    <FormGroup>
+                        <FormStatic label="Categoria" value={formData.category} />
+                        <FormStatic label="Fabricante" value={formData.manufacturer} />
+                    </FormGroup>
+                </FormSection>
+                <FormSection title="Preço e Estoque" icon={DollarSign}>
+                    <FormGroup cols={3}>
+                        <FormStatic label="Preço" value={`R$ ${parseFloat(formData.price || "0").toFixed(2)}`} />
+                        <FormStatic label="Estoque" value={formData.stock} />
+                        <FormStatic label="SKU" value={formData.sku} />
+                    </FormGroup>
+                </FormSection>
+                <FormSection title="Imagens" icon={ImageIcon}>
+                    {imageUrls.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-4">
+                            {imageUrls.map((img, i) => (
+                                <div key={i} className="aspect-square rounded-xl overflow-hidden border border-border/50">
+                                    <img src={img} alt={`Produto ${i + 1}`} className="w-full h-full object-contain" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">Nenhuma imagem cadastrada</p>
+                    )}
+                </FormSection>
+                <div className="flex justify-end pt-4">
+                    <button
+                        onClick={() => router.back()}
+                        className="h-12 px-6 rounded-xl bg-card border border-border/50 text-sm font-medium hover:bg-muted transition-colors"
+                    >
+                        Voltar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <StepWizard steps={productSteps} allowClickAhead={!!productId}>
+                {/* Step 1: Product Info */}
+                <StepCard>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                                <Package className="w-6 h-6 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold">Informações do Produto</h3>
+                                <p className="text-sm text-muted-foreground">Dados de identificação</p>
+                            </div>
+                        </div>
+
+                        <FormItem label="Nome do Produto" htmlFor="name" required>
+                            <Input
+                                id="name"
+                                name="name"
+                                placeholder="Ex: Câmera de Segurança HD Pro"
+                                value={formData.name}
+                                onChange={handleChange}
+                                icon={<Tag className="w-4 h-4" />}
+                                required
+                            />
+                        </FormItem>
+
+                        <FormItem label="Descrição" htmlFor="description">
+                            <Textarea
+                                id="description"
+                                name="description"
+                                placeholder="Descreva as características e diferenciais do produto..."
+                                value={formData.description}
+                                onChange={handleChange}
+                                className="min-h-[140px]"
+                            />
+                        </FormItem>
+
+                        <FormGroup>
+                            <DynamicSelect
+                                storageKey="product_categories"
+                                label="Categoria"
+                                id="category"
+                                name="category"
+                                value={formData.category}
+                                onChange={handleChange}
+                            />
+                            <DynamicSelect
+                                storageKey="product_manufacturers"
+                                label="Fabricante"
+                                id="manufacturer"
+                                name="manufacturer"
+                                value={formData.manufacturer}
+                                onChange={handleChange}
+                            />
+                        </FormGroup>
+                    </div>
+
+                    <StepNavigation />
+                </StepCard>
+
+                {/* Step 2: Pricing */}
+                <StepCard>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
+                                <DollarSign className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold">Preço e Estoque</h3>
+                                <p className="text-sm text-muted-foreground">Valores de venda e inventário</p>
+                            </div>
+                        </div>
+
+                        <FormGroup cols={3}>
+                            <FormItem label="Preço de Venda" htmlFor="price" required>
+                                <CurrencyInput
+                                    id="price"
+                                    name="price"
+                                    placeholder="0,00"
+                                    value={formData.price}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </FormItem>
+
+                            <FormItem label="Estoque" htmlFor="stock">
+                                <Input
+                                    id="stock"
+                                    name="stock"
+                                    type="number"
+                                    placeholder="0"
+                                    value={formData.stock}
+                                    onChange={handleChange}
+                                    icon={<Layers className="w-4 h-4" />}
+                                />
+                            </FormItem>
+
+                            <FormItem label="SKU" htmlFor="sku">
+                                <Input
+                                    id="sku"
+                                    name="sku"
+                                    placeholder="PROD-001"
+                                    value={formData.sku}
+                                    onChange={handleChange}
+                                    icon={<Hash className="w-4 h-4" />}
+                                />
+                            </FormItem>
+                        </FormGroup>
+
+                        {/* Price preview card */}
+                        <div className="p-5 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">Preço final</span>
+                                <span className="text-2xl font-bold text-green-600">
+                                    R$ {parseFloat(formData.price || "0").toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <StepNavigation />
+                </StepCard>
+
+                {/* Step 3: Images */}
+                <StepCard>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+                                <ImageIcon className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold">Imagens do Produto</h3>
+                                <p className="text-sm text-muted-foreground">Adicione até 3 imagens (máx 2MB cada)</p>
+                            </div>
+                        </div>
+
+                        {imageUrls.length > 0 && (
+                            <div className="grid grid-cols-3 gap-4">
+                                {imageUrls.map((img, index) => (
+                                    <div
+                                        key={index}
+                                        className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 border-2 border-border/30 group hover:border-primary/30 transition-colors"
+                                    >
+                                        <img
+                                            src={img}
+                                            alt={`Produto ${index + 1}`}
+                                            className="w-full h-full object-contain p-2"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-lg"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                        <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium">
+                                            {index + 1}/3
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {imageUrls.length < 3 && (
+                            <FileUpload
+                                value={null}
+                                onChange={handleAddImage}
+                                className="h-[180px]"
+                            />
+                        )}
+
+                        {/* Progress indicators */}
+                        <div className="flex items-center justify-center gap-3">
+                            {[0, 1, 2].map((i) => (
+                                <div
+                                    key={i}
+                                    className={`w-16 h-2 rounded-full transition-all duration-300 ${i < imageUrls.length
+                                        ? "bg-gradient-to-r from-primary to-primary/80"
+                                        : "bg-border/50"
+                                        }`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    <StepNavigation />
+                </StepCard>
+
+                {/* Step 4: Settings */}
+                <StepCard>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                                <Settings className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold">Configurações</h3>
+                                <p className="text-sm text-muted-foreground">Status e opções de publicação</p>
+                            </div>
+                        </div>
+
+                        <FormItem label="Status do Produto" htmlFor="status">
+                            <Select
+                                id="status"
+                                name="status"
+                                value={formData.status}
+                                onChange={handleChange}
+                            >
+                                <option value="active">✓ Ativo - Visível no catálogo</option>
+                                <option value="inactive">Inativo - Oculto do catálogo</option>
+                            </Select>
+                        </FormItem>
+
+                        {/* Summary card */}
+                        <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
+                            <h4 className="font-semibold text-foreground">Resumo do Produto</h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="text-muted-foreground">Nome:</span>
+                                    <p className="font-medium truncate">{formData.name || "—"}</p>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground">Preço:</span>
+                                    <p className="font-medium text-green-600">R$ {parseFloat(formData.price || "0").toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground">Categoria:</span>
+                                    <p className="font-medium">{formData.category || "—"}</p>
+                                </div>
+                                <div>
+                                    <span className="text-muted-foreground">Imagens:</span>
+                                    <p className="font-medium">{imageUrls.length} de 3</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <StepNavigation
+                        onSubmit={handleFormSubmit}
+                        isSubmitting={isSubmitting}
+                        submitLabel={productId ? "Salvar Alterações" : "Criar Produto"}
+                    />
+                </StepCard>
+            </StepWizard>
+
+            {/* Modals */}
+            <LimitReachedModal
+                open={showLimitModal}
+                onOpenChange={setShowLimitModal}
+                resourceType="products"
+                currentCount={currentProductCount}
+                maxLimit={maxProducts}
+            />
+
+            <UpgradeModal
+                open={showImageLimitModal}
+                onOpenChange={setShowImageLimitModal}
+                feature="Mais imagens por produto"
+                description={`Seu plano permite até ${maxImagesPerProduct} imagens por produto.`}
+                requiredPlan="pro"
+            />
+        </>
+    );
+}

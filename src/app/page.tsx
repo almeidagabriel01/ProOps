@@ -73,7 +73,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <LandingNavbar
         currentUser={currentUser}
         onSignOut={handleSignOut}

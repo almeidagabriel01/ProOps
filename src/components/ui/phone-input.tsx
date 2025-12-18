@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Phone } from "lucide-react";
 
 export interface PhoneInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -50,23 +51,31 @@ const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
     };
 
     return (
-      <input
-        type="tel"
-        inputMode="numeric"
-        className={cn(
-          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-          "placeholder:text-muted-foreground",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        ref={ref}
-        name={name}
-        value={formatPhone(value || "")}
-        onChange={handleChange}
-        maxLength={16}
-        {...props}
-      />
+      <div className="relative group">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
+          <Phone className="w-4 h-4" />
+        </div>
+        <input
+          type="tel"
+          inputMode="numeric"
+          className={cn(
+            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card pl-11 pr-4 py-3 text-sm",
+            "shadow-sm transition-all duration-300 ease-out",
+            "placeholder:text-muted-foreground/60",
+            "hover:border-primary/40 hover:shadow-md",
+            "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
+            "focus:ring-4 focus:ring-primary/10",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",
+            className
+          )}
+          ref={ref}
+          name={name}
+          value={formatPhone(value || "")}
+          onChange={handleChange}
+          maxLength={16}
+          {...props}
+        />
+      </div>
     );
   }
 );

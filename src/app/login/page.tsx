@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,8 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Sun, Moon } from "lucide-react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import { AppSkeleton } from "@/components/layout/app-skeleton";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
@@ -81,22 +82,27 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
+      {/* Theme Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       <Card
-        className={`w-full bg-neutral-900 border-neutral-800 ${mode === "register" ? "max-w-lg" : "max-w-md"}`}
+        className={`w-full bg-card border-border ${mode === "register" ? "max-w-lg" : "max-w-md"} shadow-xl`}
       >
         <CardHeader className="text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-neutral-400 hover:text-white transition-colors text-sm mb-4 justify-center"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm mb-4 justify-center"
           >
             <ArrowLeft className="w-4 h-4" />
             Voltar para a home
           </Link>
-          <CardTitle className="text-2xl text-white">
+          <CardTitle className="text-2xl text-foreground">
             {mode === "login" ? "Entrar" : "Criar conta"}
           </CardTitle>
-          <CardDescription className="text-neutral-400">
+          <CardDescription className="text-muted-foreground">
             {mode === "login"
               ? "Entre com suas credenciais de acesso"
               : "Preencha os dados para criar sua conta e empresa"}
@@ -133,12 +139,12 @@ function LoginContent() {
           <CardFooter className="flex flex-col gap-4">
             <Button
               type="submit"
-              className="w-full bg-violet-600 hover:bg-violet-500 text-white"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
               disabled={isLoggingIn || isRegistering}
             >
               {mode === "login" ? "Entrar" : "Criar conta"}
             </Button>
-            <div className="text-center text-sm text-neutral-400">
+            <div className="text-center text-sm text-muted-foreground">
               {mode === "login" ? (
                 <>
                   Não tem uma conta?{" "}
@@ -148,7 +154,7 @@ function LoginContent() {
                       setMode("register");
                       setError("");
                     }}
-                    className="text-violet-400 hover:text-violet-300 font-medium"
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
                   >
                     Criar conta
                   </button>
@@ -162,7 +168,7 @@ function LoginContent() {
                       setMode("login");
                       setError("");
                     }}
-                    className="text-violet-400 hover:text-violet-300 font-medium"
+                    className="text-primary hover:text-primary/80 font-medium transition-colors"
                   >
                     Fazer login
                   </button>
@@ -175,6 +181,33 @@ function LoginContent() {
     </div>
   );
 }
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 cursor-pointer text-foreground"
+      aria-label="Toggle theme"
+    >
+      {theme === "dark" ? (
+        <Sun className="w-5 h-5" />
+      ) : (
+        <Moon className="w-5 h-5" />
+      )}
+    </button>
+  );
+}
+
+
 
 export default function LoginPage() {
   return (

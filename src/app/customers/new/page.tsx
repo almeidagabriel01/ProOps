@@ -2,29 +2,62 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/ui/phone-input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ClientService } from "@/services/client-service";
-import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
-import { ArrowLeft, Loader2, Save, User } from "lucide-react";
-
+import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
+import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  FormContainer,
+  FormHeader,
+  FormGroup,
+  FormItem,
+} from "@/components/ui/form-components";
+import {
+  StepWizard,
+  StepNavigation,
+  StepCard,
+} from "@/components/ui/step-wizard";
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  FileText,
+  Loader2,
+  CheckCircle,
+} from "lucide-react";
+
+const customerSteps = [
+  {
+    id: "info",
+    title: "Informações",
+    description: "Dados e contato",
+    icon: User,
+  },
+  {
+    id: "address",
+    title: "Endereço",
+    description: "Localização",
+    icon: MapPin,
+  },
+  {
+    id: "notes",
+    title: "Finalizar",
+    description: "Observações",
+    icon: CheckCircle,
+  },
+];
 
 export default function NewCustomerPage() {
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateClient, getClientCount, features } = usePlanLimits();
   const { canCreate, isLoading: permLoading } = usePagePermission("clients");
-  // const [isSaving, setIsSaving] = React.useState(false); // Replaced by hook
   const { createClient, isLoading: isCreating } = useClientActions();
-  const isSaving = isCreating; // Alias
 
   React.useEffect(() => {
     if (!permLoading && !canCreate) {
@@ -32,14 +65,6 @@ export default function NewCustomerPage() {
     }
   }, [permLoading, canCreate, router]);
 
-  if (permLoading)
-    return (
-      <div className="p-8">
-        <Loader2 className="w-6 h-6 animate-spin" />
-      </div>
-    );
-
-  // Limit modal state
   const [showLimitModal, setShowLimitModal] = React.useState(false);
   const [currentClientCount, setCurrentClientCount] = React.useState(0);
 
@@ -55,18 +80,12 @@ export default function NewCustomerPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Check client limit before creating
-    const canCreate = await canCreateClient();
-    if (!canCreate) {
+  const handleSubmit = async () => {
+    const canCreateNew = await canCreateClient();
+    if (!canCreateNew) {
       const count = await getClientCount();
       setCurrentClientCount(count);
       setShowLimitModal(true);
@@ -83,8 +102,6 @@ export default function NewCustomerPage() {
       return;
     }
 
-    // setIsSaving(true); // Handled by hook
-
     try {
       const result = await createClient({
         name: formData.name.trim(),
@@ -99,56 +116,58 @@ export default function NewCustomerPage() {
         router.push("/customers");
       }
     } catch (error) {
-      // console.error("Error creating client:", error); // Handled by hook
-      // alert("Erro ao criar cliente");
-    } finally {
-      // setIsSaving(false); // Handled by hook
+      // Handled by hook
     }
   };
 
-  return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/customers")}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Novo Cliente</h1>
-          <p className="text-muted-foreground text-sm">
-            Cadastre um novo cliente na sua base
-          </p>
+  if (permLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
         </div>
       </div>
+    );
+  }
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Dados do Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nome *</Label>
+  return (
+    <FormContainer className="max-w-3xl">
+      <FormHeader
+        title="Novo Cliente"
+        subtitle="Adicione um novo cliente à sua base de contatos"
+        icon={User}
+        onBack={() => router.push("/customers")}
+      />
+
+      <StepWizard steps={customerSteps}>
+        {/* Step 1: Basic Info + Contact */}
+        <StepCard>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
+                <User className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Informações do Cliente</h3>
+                <p className="text-sm text-muted-foreground">Dados principais e formas de contato</p>
+              </div>
+            </div>
+
+            <FormItem label="Nome Completo" htmlFor="name" required>
               <Input
                 id="name"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Nome completo ou razão social"
+                icon={<User className="w-4 h-4" />}
                 required
               />
-            </div>
+            </FormItem>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+            <FormGroup>
+              <FormItem label="Email" htmlFor="email">
                 <Input
                   id="email"
                   name="email"
@@ -156,10 +175,11 @@ export default function NewCustomerPage() {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="email@exemplo.com"
+                  icon={<Mail className="w-4 h-4" />}
                 />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Telefone</Label>
+              </FormItem>
+
+              <FormItem label="Telefone" htmlFor="phone">
                 <PhoneInput
                   id="phone"
                   name="phone"
@@ -167,60 +187,101 @@ export default function NewCustomerPage() {
                   onChange={handleChange}
                   placeholder="(11) 99999-9999"
                 />
+              </FormItem>
+            </FormGroup>
+          </div>
+          <StepNavigation />
+        </StepCard>
+
+        {/* Step 2: Address */}
+        <StepCard>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Endereço</h3>
+                <p className="text-sm text-muted-foreground">Localização para entregas e correspondências</p>
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="address">Endereço</Label>
+            <FormItem label="Endereço Completo" htmlFor="address">
               <Input
                 id="address"
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="Endereço completo"
+                placeholder="Rua, número, bairro, cidade - UF"
+                icon={<MapPin className="w-4 h-4" />}
               />
+            </FormItem>
+
+            <div className="p-4 rounded-xl bg-muted/30 border border-border/30">
+              <p className="text-sm text-muted-foreground">
+                <strong>Dica:</strong> Inclua o endereço completo com CEP para facilitar entregas e logística.
+              </p>
+            </div>
+          </div>
+          <StepNavigation />
+        </StepCard>
+
+        {/* Step 3: Notes & Submit */}
+        <StepCard>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                <FileText className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Finalizar Cadastro</h3>
+                <p className="text-sm text-muted-foreground">Observações e confirmação</p>
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Observações</Label>
+            <FormItem label="Observações" htmlFor="notes" hint="Opcional">
               <Textarea
                 id="notes"
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                placeholder="Anotações sobre o cliente..."
-                rows={3}
+                placeholder="Informações relevantes sobre o cliente, preferências, detalhes importantes..."
+                className="min-h-[120px]"
               />
+            </FormItem>
+
+            {/* Summary card */}
+            <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
+              <h4 className="font-semibold text-foreground">Resumo do Cliente</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Nome:</span>
+                  <p className="font-medium truncate">{formData.name || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email:</span>
+                  <p className="font-medium truncate">{formData.email || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Telefone:</span>
+                  <p className="font-medium">{formData.phone || "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Endereço:</span>
+                  <p className="font-medium truncate">{formData.address || "—"}</p>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/customers")}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSaving} className="gap-2">
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                Salvar Cliente
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
+          <StepNavigation
+            onSubmit={handleSubmit}
+            isSubmitting={isCreating}
+            submitLabel="Cadastrar Cliente"
+          />
+        </StepCard>
+      </StepWizard>
 
-      {/* Limit Reached Modal */}
       <LimitReachedModal
         open={showLimitModal}
         onOpenChange={setShowLimitModal}
@@ -228,6 +289,6 @@ export default function NewCustomerPage() {
         currentCount={currentClientCount}
         maxLimit={features?.maxClients || 0}
       />
-    </div>
+    </FormContainer>
   );
 }

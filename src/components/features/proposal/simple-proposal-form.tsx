@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Package, Cpu, CheckCircle } from "lucide-react";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
@@ -17,6 +17,12 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { useProposalForm } from "@/hooks/useProposalForm";
+import { FormContainer } from "@/components/ui/form-components";
+import {
+  StepWizard,
+  StepNavigation,
+  StepCard,
+} from "@/components/ui/step-wizard";
 
 // Import extracted components
 import {
@@ -25,7 +31,6 @@ import {
   ProposalSystemsSection,
   ProposalProductsSection,
   ProposalSummarySection,
-  ProposalFormActions,
   ProposalReadOnlyView,
 } from "./form";
 
@@ -33,6 +38,20 @@ interface SimpleProposalFormProps {
   proposalId?: string;
   isReadOnly?: boolean;
 }
+
+// Steps for automation niche
+const stepsAutomation = [
+  { id: "client", title: "Cliente", description: "Dados do cliente", icon: User },
+  { id: "systems", title: "Sistemas", description: "Automação", icon: Cpu },
+  { id: "summary", title: "Resumo", description: "Finalizar", icon: CheckCircle },
+];
+
+// Steps for non-automation niche
+const stepsDefault = [
+  { id: "client", title: "Cliente", description: "Dados do cliente", icon: User },
+  { id: "products", title: "Produtos", description: "Selecionar itens", icon: Package },
+  { id: "summary", title: "Resumo", description: "Finalizar", icon: CheckCircle },
+];
 
 export function SimpleProposalForm({ proposalId, isReadOnly = false }: SimpleProposalFormProps) {
   // Use the extracted hook for all form state and logic
@@ -277,6 +296,11 @@ export function SimpleProposalForm({ proposalId, isReadOnly = false }: SimplePro
     setEditingSelectionIndex(null);
   };
 
+  const handleFormSubmit = async () => {
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    await handleSubmit(fakeEvent);
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -289,7 +313,7 @@ export function SimpleProposalForm({ proposalId, isReadOnly = false }: SimplePro
   // Read-only view
   if (isReadOnly) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <FormContainer>
         <ProposalFormHeader
           proposalId={proposalId}
           isReadOnly={true}
@@ -302,132 +326,189 @@ export function SimpleProposalForm({ proposalId, isReadOnly = false }: SimplePro
           calculateDiscount={calculateDiscount}
           calculateTotal={calculateTotal}
         />
-      </div>
+      </FormContainer>
     );
   }
 
-  // Editable form
+  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
+
+  // Editable form with StepWizard
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <FormContainer>
       <ProposalFormHeader
         proposalId={proposalId}
         onBack={() => router.push("/proposals")}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Client Info */}
-        <ProposalClientSection
-          formData={formData}
-          selectedClientId={selectedClientId}
-          onFormChange={handleChange}
-          onClientChange={handleClientChange}
-        />
+      <StepWizard steps={steps} allowClickAhead={!!proposalId}>
+        {/* Step 1: Client Info */}
+        <StepCard>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
+                <User className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Dados do Cliente</h3>
+                <p className="text-sm text-muted-foreground">Informações do cliente e identificação</p>
+              </div>
+            </div>
 
-        {/* Automation Systems (only for automacao_residencial niche) */}
-        {isAutomacaoNiche && (
-          <ProposalSystemsSection
-            selectedSistemas={selectedSistemas}
-            selectedProducts={selectedProducts}
-            products={products}
-            primaryColor={primaryColor}
-            selectorKey={selectorKey}
-            onEditSystem={(index) => setEditingSelectionIndex(index)}
-            onRemoveSystem={handleRemoveSystem}
-            onUpdateProductQuantity={updateProductQuantity}
-            onAddExtraProductToSystem={handleAddExtraProductToSystem}
-            onAddNewSystem={handleAddNewSystem}
-            SistemaSelectorComponent={SistemaSelector}
-          />
-        )}
+            <ProposalClientSection
+              formData={formData}
+              selectedClientId={selectedClientId}
+              onFormChange={handleChange}
+              onClientChange={handleClientChange}
+              noContainer
+            />
+          </div>
+          <StepNavigation />
+        </StepCard>
 
-        {/* Extra Products (only for NON-automation niche) */}
-        {!isAutomacaoNiche && (
-          <ProposalProductsSection
-            products={products}
-            selectedProducts={selectedProducts}
-            extraProducts={extraProducts}
-            systemProductIds={systemProductIds}
-            onToggleProduct={toggleProduct}
-            onUpdateQuantity={updateProductQuantity}
-            onNavigateToProducts={() => router.push("/products/new")}
-          />
-        )}
+        {/* Step 2: Systems or Products */}
+        <StepCard>
+          <div className="space-y-6">
+            {isAutomacaoNiche ? (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+                    <Cpu className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Sistemas de Automação</h3>
+                    <p className="text-sm text-muted-foreground">Adicione os sistemas da proposta</p>
+                  </div>
+                </div>
 
-        {/* Summary & Notes */}
-        <ProposalSummarySection
-          formData={formData}
-          selectedProducts={selectedProducts}
-          selectedSistemas={selectedSistemas}
-          extraProducts={extraProducts}
-          isAutomacaoNiche={isAutomacaoNiche}
-          primaryColor={primaryColor}
-          calculateSubtotal={calculateSubtotal}
-          calculateDiscount={calculateDiscount}
-          calculateTotal={calculateTotal}
-          onFormChange={handleChange}
-        />
+                <ProposalSystemsSection
+                  selectedSistemas={selectedSistemas}
+                  selectedProducts={selectedProducts}
+                  products={products}
+                  primaryColor={primaryColor}
+                  selectorKey={selectorKey}
+                  onEditSystem={(index) => setEditingSelectionIndex(index)}
+                  onRemoveSystem={handleRemoveSystem}
+                  onUpdateProductQuantity={updateProductQuantity}
+                  onAddExtraProductToSystem={handleAddExtraProductToSystem}
+                  onAddNewSystem={handleAddNewSystem}
+                  SistemaSelectorComponent={SistemaSelector}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Produtos</h3>
+                    <p className="text-sm text-muted-foreground">Selecione os produtos da proposta</p>
+                  </div>
+                </div>
 
-        {/* Dialog de Edição de Seleção */}
-        <Dialog
-          open={editingSelectionIndex !== null}
-          onOpenChange={(open) => !open && setEditingSelectionIndex(null)}
-        >
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Editar Seleção</DialogTitle>
-            </DialogHeader>
-            {editingSelectionIndex !== null && selectedSistemas[editingSelectionIndex] && (
-              <SistemaSelector
-                value={selectedSistemas[editingSelectionIndex]}
-                onChange={handleEditSystemSelection}
-              />
+                <ProposalProductsSection
+                  products={products}
+                  selectedProducts={selectedProducts}
+                  extraProducts={extraProducts}
+                  systemProductIds={systemProductIds}
+                  onToggleProduct={toggleProduct}
+                  onUpdateQuantity={updateProductQuantity}
+                  onNavigateToProducts={() => router.push("/products/new")}
+                />
+              </>
             )}
-          </DialogContent>
-        </Dialog>
+          </div>
+          <StepNavigation />
+        </StepCard>
 
-        {/* Dialogs de Gerenciamento */}
-        <AmbienteManagerDialog
-          isOpen={isAmbienteManagerOpen}
-          onClose={() => setIsAmbienteManagerOpen(false)}
-          onAmbientesChange={() => setSelectorKey((prev) => prev + 1)}
-        />
+        {/* Step 3: Summary */}
+        <StepCard>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Resumo da Proposta</h3>
+                <p className="text-sm text-muted-foreground">Revise os dados antes de finalizar</p>
+              </div>
+            </div>
 
-        <SistemaManagerDialog
-          isOpen={isSistemaManagerOpen}
-          onClose={() => setIsSistemaManagerOpen(false)}
-          filterAmbienteId={managerFilterAmbienteId}
-          onSistemasChange={() => setSelectorKey((prev) => prev + 1)}
-          onEditSistema={(sistema) => {
-            setEditingSistema(sistema);
-            setOpenedFromManager(true);
-            setIsSistemaTemplateOpen(true);
-          }}
-          onCreateNew={() => {
-            setEditingSistema(null);
-            setOpenedFromManager(true);
-            setIsSistemaTemplateOpen(true);
-          }}
-        />
+            <ProposalSummarySection
+              formData={formData}
+              selectedProducts={selectedProducts}
+              selectedSistemas={selectedSistemas}
+              extraProducts={extraProducts}
+              isAutomacaoNiche={isAutomacaoNiche}
+              primaryColor={primaryColor}
+              calculateSubtotal={calculateSubtotal}
+              calculateDiscount={calculateDiscount}
+              calculateTotal={calculateTotal}
+              onFormChange={handleChange}
+            />
+          </div>
 
-        <SistemaTemplateDialog
-          isOpen={isSistemaTemplateOpen}
-          onClose={() => {
-            setIsSistemaTemplateOpen(false);
-            setOpenedFromManager(false);
-          }}
-          editingSistema={editingSistema}
-          preselectedAmbienteId={managerFilterAmbienteId || ""}
-          onSave={() => setSelectorKey((prev) => prev + 1)}
-          onBack={openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined}
-        />
+          <StepNavigation
+            onSubmit={handleFormSubmit}
+            isSubmitting={isSaving}
+            submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}
+          />
+        </StepCard>
+      </StepWizard>
 
-        {/* Actions */}
-        <ProposalFormActions
-          isSaving={isSaving}
-          hasProducts={selectedProducts.length > 0}
-          onCancel={() => router.push("/proposals")}
-        />
-      </form>
+      {/* Dialog de Edição de Seleção */}
+      <Dialog
+        open={editingSelectionIndex !== null}
+        onOpenChange={(open) => !open && setEditingSelectionIndex(null)}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Seleção</DialogTitle>
+          </DialogHeader>
+          {editingSelectionIndex !== null && selectedSistemas[editingSelectionIndex] && (
+            <SistemaSelector
+              value={selectedSistemas[editingSelectionIndex]}
+              onChange={handleEditSystemSelection}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogs de Gerenciamento */}
+      <AmbienteManagerDialog
+        isOpen={isAmbienteManagerOpen}
+        onClose={() => setIsAmbienteManagerOpen(false)}
+        onAmbientesChange={() => setSelectorKey((prev) => prev + 1)}
+      />
+
+      <SistemaManagerDialog
+        isOpen={isSistemaManagerOpen}
+        onClose={() => setIsSistemaManagerOpen(false)}
+        filterAmbienteId={managerFilterAmbienteId}
+        onSistemasChange={() => setSelectorKey((prev) => prev + 1)}
+        onEditSistema={(sistema) => {
+          setEditingSistema(sistema);
+          setOpenedFromManager(true);
+          setIsSistemaTemplateOpen(true);
+        }}
+        onCreateNew={() => {
+          setEditingSistema(null);
+          setOpenedFromManager(true);
+          setIsSistemaTemplateOpen(true);
+        }}
+      />
+
+      <SistemaTemplateDialog
+        isOpen={isSistemaTemplateOpen}
+        onClose={() => {
+          setIsSistemaTemplateOpen(false);
+          setOpenedFromManager(false);
+        }}
+        editingSistema={editingSistema}
+        preselectedAmbienteId={managerFilterAmbienteId || ""}
+        onSave={() => setSelectorKey((prev) => prev + 1)}
+        onBack={openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined}
+      />
 
       {/* Limit Reached Modal */}
       <LimitReachedModal
@@ -437,6 +518,6 @@ export function SimpleProposalForm({ proposalId, isReadOnly = false }: SimplePro
         currentCount={currentProposalCount}
         maxLimit={features?.maxProposals || 0}
       />
-    </div>
+    </FormContainer>
   );
 }

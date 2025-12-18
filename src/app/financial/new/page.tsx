@@ -1,16 +1,57 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { useTransactionForm } from "../_hooks/useTransactionForm";
 import {
-  TypeSelectorCard,
-  DetailsCard,
-  PaymentCard,
-  ClientCard,
-  NotesCard,
-} from "../_components";
+  FormContainer,
+  FormHeader,
+} from "@/components/ui/form-components";
+import {
+  StepWizard,
+  StepNavigation,
+  StepCard,
+} from "@/components/ui/step-wizard";
+import {
+  TypeSelectorStep,
+  DetailsStep,
+  PaymentStep,
+  ReviewStep,
+} from "../_components/form-steps";
+import {
+  TrendingUp,
+  TrendingDown,
+  FileText,
+  CreditCard,
+  CheckCircle,
+} from "lucide-react";
+
+const transactionSteps = [
+  {
+    id: "type",
+    title: "Tipo",
+    description: "Receita ou despesa",
+    icon: TrendingUp,
+  },
+  {
+    id: "details",
+    title: "Detalhes",
+    description: "Informações",
+    icon: FileText,
+  },
+  {
+    id: "payment",
+    title: "Pagamento",
+    description: "Forma e parcelas",
+    icon: CreditCard,
+  },
+  {
+    id: "review",
+    title: "Revisar",
+    description: "Confirmar dados",
+    icon: CheckCircle,
+  },
+];
 
 export default function NewTransactionPage() {
   const router = useRouter();
@@ -26,79 +67,73 @@ export default function NewTransactionPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="w-6 h-6 animate-spin" />
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
 
+  const handleFormSubmit = async () => {
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    await handleSubmit(fakeEvent);
+  };
+
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/financial")}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Novo Lançamento</h1>
-          <p className="text-muted-foreground text-sm">
-            Registre uma receita ou despesa
-          </p>
-        </div>
-      </div>
+    <FormContainer className="max-w-3xl">
+      <FormHeader
+        title="Novo Lançamento"
+        subtitle="Registre uma nova movimentação financeira"
+        icon={Wallet}
+        onBack={() => router.push("/financial")}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <TypeSelectorCard
-          type={formData.type}
-          onTypeChange={(type) => setFormData((prev) => ({ ...prev, type }))}
-        />
+      <StepWizard steps={transactionSteps}>
+        {/* Step 1: Type Selection */}
+        <StepCard>
+          <TypeSelectorStep
+            type={formData.type}
+            onTypeChange={(type) => setFormData((prev) => ({ ...prev, type }))}
+          />
+          <StepNavigation />
+        </StepCard>
 
-        <DetailsCard formData={formData} onChange={handleChange} />
+        {/* Step 2: Details */}
+        <StepCard>
+          <DetailsStep formData={formData} onChange={handleChange} />
+          <StepNavigation />
+        </StepCard>
 
-        <PaymentCard
-          formData={formData}
-          onFormDataChange={setFormData}
-          onChange={handleChange}
-        />
+        {/* Step 3: Payment */}
+        <StepCard>
+          <PaymentStep
+            formData={formData}
+            onFormDataChange={setFormData}
+            onChange={handleChange}
+          />
+          <StepNavigation />
+        </StepCard>
 
-        <ClientCard
-          clientName={formData.clientName}
-          clientId={formData.clientId}
-          onClientChange={handleClientChange}
-        />
-
-        <NotesCard notes={formData.notes} onChange={handleChange} />
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/financial")}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSaving} className="gap-2">
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                {formData.isInstallment
-                  ? `Criar ${formData.installmentCount} Parcelas`
-                  : "Salvar Lançamento"}
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
-    </div>
+        {/* Step 4: Review */}
+        <StepCard>
+          <ReviewStep
+            formData={formData}
+            onChange={handleChange}
+            onClientChange={handleClientChange}
+          />
+          <StepNavigation
+            onSubmit={handleFormSubmit}
+            isSubmitting={isSaving}
+            submitLabel={
+              formData.isInstallment
+                ? `Criar ${formData.installmentCount} Parcelas`
+                : "Salvar Lançamento"
+            }
+          />
+        </StepCard>
+      </StepWizard>
+    </FormContainer>
   );
 }

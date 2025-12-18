@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { Check, ArrowRight, Sparkles } from "lucide-react";
 import { AnimatedText, AnimatedGradientText } from "@/components/ui/animated-text";
-import { ParticlesBackground } from "@/components/ui/particles-background";
+
 import { BillingToggle } from "@/components/ui/billing-toggle";
 
 interface LandingPricingProps {
@@ -17,10 +17,9 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
     return (
         <section
             id="pricing"
-            className="py-16 md:py-24 px-4 bg-neutral-900/50 relative overflow-hidden"
+            className="py-16 md:py-24 px-4 bg-muted/30 relative overflow-hidden"
         >
             {/* Background Effects */}
-            <ParticlesBackground count={30} />
 
             <div className="max-w-7xl mx-auto relative z-10">
                 <div className="text-center mb-12 md:mb-16">
@@ -30,12 +29,12 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
                     >
-                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4">
+                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground">
                             <AnimatedText text="Planos para todos os tamanhos" />
                         </h2>
                     </motion.div>
                     <motion.p
-                        className="text-neutral-400 text-base md:text-lg max-w-2xl mx-auto px-4"
+                        className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto px-4"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -79,13 +78,13 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                                 transition: { duration: 0.2 },
                             }}
                             className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${plan.popular
-                                ? "border-violet-500 bg-gradient-to-b from-violet-500/20 to-violet-500/5 shadow-xl shadow-violet-500/20 md:scale-105 hover:shadow-violet-500/40"
-                                : "border-neutral-800 bg-neutral-900 hover:border-violet-500/50 hover:bg-neutral-900/80 hover:shadow-lg hover:shadow-violet-500/10"
+                                ? "border-primary bg-gradient-to-b from-primary/20 to-primary/5 shadow-xl shadow-primary/20 md:scale-105 hover:shadow-primary/40"
+                                : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
                                 } transition-all duration-300`}
                         >
                             {plan.popular && (
                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                    <span className="inline-flex items-center gap-1.5 bg-violet-500 text-white text-xs font-medium px-3 py-1 rounded-full shadow-md shadow-violet-500/30">
+                                    <span className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full shadow-md shadow-primary/30">
                                         <Sparkles className="w-3 h-3" />
                                         Mais Popular
                                     </span>
@@ -93,17 +92,17 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                             )}
 
                             <div className="mb-6">
-                                <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                                <p className="text-neutral-400 text-sm">{plan.description}</p>
+                                <h3 className="text-xl font-bold mb-2 text-foreground">{plan.name}</h3>
+                                <p className="text-muted-foreground text-sm">{plan.description}</p>
                             </div>
 
                             <div className="mb-6">
                                 {billingInterval === "yearly" && (
-                                    <div className="text-sm text-neutral-500 line-through mb-1">
+                                    <div className="text-sm text-muted-foreground line-through mb-1">
                                         R${(plan.prices.monthly * 12).toLocaleString("pt-BR")}/ano
                                     </div>
                                 )}
-                                <span className="text-3xl md:text-4xl font-bold">
+                                <span className="text-3xl md:text-4xl font-bold text-foreground">
                                     <AnimatedGradientText>
                                         R$
                                         {billingInterval === "yearly"
@@ -111,11 +110,11 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                                             : plan.prices.monthly.toLocaleString("pt-BR")}
                                     </AnimatedGradientText>
                                 </span>
-                                <span className="text-neutral-400">
+                                <span className="text-muted-foreground">
                                     {billingInterval === "yearly" ? "/ano" : "/mês"}
                                 </span>
                                 {billingInterval === "yearly" && (
-                                    <div className="text-sm text-emerald-400 mt-1">
+                                    <div className="text-sm text-emerald-500 mt-1">
                                         Equivale a R$
                                         {Math.round(plan.prices.yearly / 12).toLocaleString(
                                             "pt-BR"
@@ -141,11 +140,11 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                                             }}
                                         >
                                             <div
-                                                className={`p-1 rounded-full ${plan.popular ? "bg-violet-500/20" : "bg-neutral-800"}`}
+                                                className={`p-1 rounded-full ${plan.popular ? "bg-primary/20" : "bg-muted dark:bg-primary/10"}`}
                                             >
-                                                <Check className="w-4 h-4 text-violet-500 shrink-0" />
+                                                <Check className="w-4 h-4 text-primary shrink-0" />
                                             </div>
-                                            <span className="text-sm text-neutral-300">
+                                            <span className="text-sm text-foreground/80">
                                                 {feature}
                                             </span>
                                         </motion.li>
@@ -161,10 +160,7 @@ export function LandingPricing({ plans, billingInterval, setBillingInterval }: L
                                 <motion.button
                                     whileHover={{ scale: 1.03 }}
                                     whileTap={{ scale: 0.97 }}
-                                    className={`group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${plan.popular
-                                        ? "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50"
-                                        : "bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-violet-500/30"
-                                        }`}
+                                    className="group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-primary/50"
                                 >
                                     <span>{plan.cta}</span>
                                     <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />

@@ -21,7 +21,7 @@ interface SimpleBarChartProps {
 export const SimpleBarChart = React.memo(({ data }: SimpleBarChartProps) => {
   return (
     <div className="h-full w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" debounce={200}>
         <BarChart
           data={data}
           margin={{

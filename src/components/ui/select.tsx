@@ -30,12 +30,12 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className={cn("relative group", wrapperClassName, className)}>
         <select
           className={cn(
-            "flex h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm",
-            "ring-offset-background transition-colors",
-            "placeholder:text-muted-foreground",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            "cursor-pointer"
+            "flex h-12 w-full appearance-none rounded-xl border-2 border-border/60 bg-card px-4 py-3 pr-12 text-sm",
+            "shadow-sm transition-all duration-300 ease-out cursor-pointer",
+            "hover:border-primary/40 hover:shadow-md",
+            "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
+            "focus:ring-4 focus:ring-primary/10",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm"
           )}
           ref={ref}
           onChange={handleChange}
@@ -43,8 +43,8 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         >
           {children}
         </select>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground group-focus-within:text-primary transition-colors">
+          <ChevronDown className="h-5 w-5" />
         </div>
       </div>
     );
