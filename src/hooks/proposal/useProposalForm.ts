@@ -122,10 +122,8 @@ export function useProposalForm({
       if (tenant) {
         try {
           const loadedProducts = await ProductService.getProducts(tenant.id);
-          const activeProducts = loadedProducts.filter(
-            (p) => p.status !== "inactive"
-          );
-          setProducts(activeProducts);
+          // const activeProducts = loadedProducts.filter((p) => p.status !== "inactive");
+          setProducts(loadedProducts);
 
           const templates = await ProposalTemplateService.getTemplates(
             tenant.id
