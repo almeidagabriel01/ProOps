@@ -23,6 +23,7 @@ import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
 import { TeamSkeleton } from "@/app/settings/team/_components/team-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
+import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
 import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleton";
@@ -112,6 +113,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "clients";
     } else if (pathname?.startsWith("/settings/team")) {
       skeletonType = "team";
+    } else if (pathname?.startsWith("/admin/overview")) {
+      skeletonType = "adminOverview";
     } else if (pathname?.startsWith("/admin")) {
       skeletonType = "admin";
     } else if (pathname === "/" && typeof window !== 'undefined') {
@@ -149,6 +152,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         case "financial": return <FinancialSkeleton />;
         case "team": return <TeamSkeleton />;
         case "admin": return <AdminSkeleton />;
+        case "adminOverview": return <AdminOverviewSkeleton />;
         case "products": return <ProductsSkeleton />;
         case "proposals": return <ProposalsSkeleton />;
         case "clients": return <CustomersSkeleton />;
