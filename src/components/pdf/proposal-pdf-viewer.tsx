@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { Proposal } from "@/services/proposal-service";
-import { ProposalTemplate } from "@/types";
+import { ProposalTemplate, Tenant } from "@/types";
 import {
   PdfSection,
   createDefaultSections,
@@ -18,7 +18,7 @@ import {
 interface ProposalPdfViewerProps {
   proposal: Proposal;
   template?: ProposalTemplate | null;
-  tenant: any;
+  tenant: Tenant | null;
   // Overrides for live preview
   customSettings?: {
     theme?: ThemeType;
@@ -41,8 +41,8 @@ export function ProposalPdfViewer({
   tenant,
   customSettings,
 }: ProposalPdfViewerProps) {
-  // Use enriched products hook
-  const { products } = useEnrichedProducts(proposal, tenant?.id);
+  // Use enriched products hook (filter out inactive products for PDF)
+  const { products } = useEnrichedProducts(proposal, tenant?.id, { filterInactive: true });
 
   // Merge settings: Custom > Template > Defaults
   const theme =
@@ -65,9 +65,9 @@ export function ProposalPdfViewer({
   const coverLogo =
     customSettings?.coverLogo !== undefined
       ? customSettings.coverLogo
-      : (template as any)?.coverLogo || tenant?.logoUrl || "";
+      : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo || tenant?.logoUrl || "";
 
-  const templateSettings = (template as any)?.coverImageSettings || {};
+  const templateSettings = (template as ProposalTemplate & { coverImageSettings?: { opacity?: number; fit?: "cover" | "contain"; position?: string } })?.coverImageSettings || {};
   const coverImageOpacity =
     customSettings?.coverImageOpacity ?? templateSettings.opacity ?? 30;
   const coverImageFit =

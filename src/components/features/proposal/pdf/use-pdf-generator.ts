@@ -64,7 +64,7 @@ export function usePdfGenerator({
       }
 
       // Generate content pages
-      const previewElement = document.getElementById("proposal-preview");
+      const previewElement = document.getElementById("proposal-pdf-source");
       if (previewElement) {
         const originalStyle = previewElement.style.cssText;
         previewElement.style.width = "210mm";

@@ -16,6 +16,8 @@ import { useTenant } from "@/providers/tenant-provider";
 import { Download, FileDown, Loader2 } from "lucide-react";
 import { PdfCoverPage } from "./pdf-cover-page";
 import { PdfSettingsTabs, usePdfGenerator } from "./pdf";
+import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enriched-products";
+import { ProposalPreview } from "@/components/features/proposal/proposal-preview";
 
 interface PdfGeneratorProps {
     proposal: Partial<Proposal>;
@@ -45,6 +47,13 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
         setIsOpen,
     });
 
+    // Enrich products (filters out inactive ones) for the PDF version
+    const { products: enrichedProducts } = useEnrichedProducts(proposal as Proposal, tenant?.id, { filterInactive: true });
+    const pdfProposal = React.useMemo(() => ({
+        ...proposal,
+        products: enrichedProducts
+    }), [proposal, enrichedProducts]);
+
     return (
         <>
             {/* Hidden Cover Page for PDF generation */}
@@ -55,6 +64,13 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
                     </div>
                 </div>
             )}
+
+            {/* Hidden Preview for Filtered PDF Generation */}
+            <div className="fixed -left-[9999px] top-0">
+                 <div id="proposal-pdf-source" className="w-[210mm]">
+                      <ProposalPreview proposal={pdfProposal} sections={sections} />
+                 </div>
+            </div>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
                 <DialogTrigger asChild>
