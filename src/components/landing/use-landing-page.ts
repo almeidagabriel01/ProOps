@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { PlanService } from "@/services/plan-service";
-import { UserPlan } from "@/types";
 
 const INITIAL_PLANS = [
   {
@@ -72,14 +71,17 @@ const INITIAL_PLANS = [
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    [key: string]: unknown;
+  } | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly"
   );
-  const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
+  const [plans, setPlans] = useState(INITIAL_PLANS);
   // Decision state for what skeleton to show while checking auth
-  // Now supports specific page types to render the exact skeleton
-  const [initialSkeleton, setInitialSkeleton] = useState<
+  // Uses initializer function to compute from localStorage synchronously
+  const [initialSkeleton] = useState<
     | "dashboard"
     | "profile"
     | "financial"
@@ -90,9 +92,9 @@ export function useLandingPage() {
     | "admin"
     | "list"
     | null
-  >(null);
+  >(() => {
+    if (typeof window === "undefined") return null;
 
-  useEffect(() => {
     try {
       const cached = localStorage.getItem("erp_user_cache");
       if (cached) {
@@ -101,10 +103,9 @@ export function useLandingPage() {
 
         // Superadmin gets admin skeleton
         if (role === "superadmin") {
-          setInitialSkeleton("admin");
+          return "admin";
         } else if (isAdmin || permissions?.dashboard?.canView) {
-          // Logic mirrors the redirect effect below
-          setInitialSkeleton("dashboard");
+          return "dashboard";
         } else {
           // Find the first allowed page for this user to match redirection logic
           const pages = [
@@ -113,40 +114,33 @@ export function useLandingPage() {
             "products",
             "financial",
             "profile",
-          ];
+          ] as const;
           const firstAllowed = pages.find(
             (page) => permissions[page]?.canView === true || page === "profile"
           );
 
           switch (firstAllowed) {
             case "financial":
-              setInitialSkeleton("financial");
-              break;
+              return "financial";
             case "profile":
-              setInitialSkeleton("profile");
-              break;
+              return "profile";
             case "products":
-              setInitialSkeleton("products");
-              break;
+              return "products";
             case "clients":
-              setInitialSkeleton("clients");
-              break;
+              return "clients";
             case "proposals":
-              setInitialSkeleton("proposals");
-              break;
+              return "proposals";
             default:
-              setInitialSkeleton("list");
-              break;
+              return "list";
           }
         }
       } else {
-        // Default fallback
-        setInitialSkeleton("list");
+        return "list";
       }
-    } catch (e) {
-      setInitialSkeleton("list");
+    } catch {
+      return "list";
     }
-  }, []);
+  });
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -184,9 +178,9 @@ export function useLandingPage() {
                 : p.features.maxStorageMB >= 1000
                   ? `${(p.features.maxStorageMB / 1024).toFixed(1)} GB de armazenamento`
                   : `${p.features.maxStorageMB} MB para armazenar arquivos`,
-            ].filter(Boolean),
+            ].filter((f): f is string => Boolean(f)),
             cta: "Assinar Agora",
-            popular: p.highlighted,
+            popular: p.highlighted ?? false,
           }));
           setPlans(mappedPlans);
         }
@@ -230,7 +224,7 @@ export function useLandingPage() {
                   "erp_user_cache",
                   JSON.stringify(cachedData)
                 );
-              } catch (e) {
+              } catch {
                 // Ignore storage errors
               }
 
