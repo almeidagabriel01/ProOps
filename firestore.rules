@@ -287,6 +287,110 @@ service cloud.firestore {
     }
     
     // ============================================
+    // PROPOSALS COLLECTION
+    // ============================================
+    
+    match /proposals/{proposalId} {
+      // READ: Users can read proposals from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Proposals are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // CLIENTS COLLECTION
+    // ============================================
+    
+    match /clients/{clientId} {
+      // READ: Users can read clients from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Clients are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // PRODUCTS COLLECTION
+    // ============================================
+    
+    match /products/{productId} {
+      // READ: Users can read products from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Products are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // TRANSACTIONS COLLECTION
+    // ============================================
+    
+    match /transactions/{transactionId} {
+      // READ: Users can read transactions from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Transactions are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // SISTEMAS COLLECTION (Automation Systems)
+    // ============================================
+    
+    match /sistemas/{sistemaId} {
+      // READ: Users can read sistemas from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Sistemas are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // AMBIENTES COLLECTION (Environments)
+    // ============================================
+    
+    match /ambientes/{ambienteId} {
+      // READ: Users can read ambientes from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Ambientes are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // PROPOSAL_TEMPLATES COLLECTION
+    // ============================================
+    
+    match /proposal_templates/{templateId} {
+      // READ: Users can read templates from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Templates are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // CUSTOM_FIELDS COLLECTION
+    // ============================================
+    
+    match /custom_fields/{fieldId} {
+      // READ: Users can read custom fields from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Custom fields are managed via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
     // PLANS COLLECTION (Read-Only Reference Data)
     // ============================================
     

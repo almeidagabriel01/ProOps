@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Option, OptionService } from "@/services/option-service";
@@ -43,6 +53,11 @@ export function DynamicSelect({
   const [newOption, setNewOption] = React.useState("");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
+
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const { tenant } = useTenant();
 
@@ -98,7 +113,7 @@ export function DynamicSelect({
     }
   };
 
-  const handleDelete = async (id: string, isDefault: boolean) => {
+  const handleDelete = (id: string, isDefault: boolean) => {
     if (isDefault) {
       alert(
         "Opções padrão não podem ser excluídas permanentemente do sistema (elas são apenas sugestões). Adicione uma nova opção personalizada."
@@ -106,13 +121,24 @@ export function DynamicSelect({
       return;
     }
 
-    if (confirm("Tem certeza que deseja excluir esta opção?")) {
-      try {
-        await OptionService.deleteOption(id);
-        setOptions((prev) => prev.filter((o) => o.id !== id));
-      } catch (error) {
-        console.error("Failed to delete", error);
-      }
+    // Open confirmation modal
+    setDeletingId(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingId) return;
+
+    setIsDeleting(true);
+    try {
+      await OptionService.deleteOption(deletingId);
+      setOptions((prev) => prev.filter((o) => o.id !== deletingId));
+    } catch (error) {
+      console.error("Failed to delete", error);
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -300,6 +326,35 @@ export function DynamicSelect({
         ))}
       </Select>
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta opção? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
