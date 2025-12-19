@@ -14,7 +14,8 @@ export function LandingFeatures() {
                 className="py-16 md:py-24 px-4 relative overflow-hidden"
             >
                 {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/30 to-background" />
+                {/* Background gradient removed */}
+
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <motion.div
