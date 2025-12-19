@@ -157,7 +157,7 @@ export default function AddonsPage() {
     }
   };
 
-  if (isPlanLoading) {
+  if (isPlanLoading || isPriceLoading) {
     return <AddonsSkeleton />;
   }
 
