@@ -21,7 +21,7 @@ export type User = {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   masterId?: string; // For members, points to the master user
-  permissions?: Record<string, any>; // Member permissions
+  permissions?: Record<string, { canView?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }>; // Member permissions
 };
 
 interface AuthContextType {
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const permsRef = collection(db, "users", firebaseUser.uid, "permissions");
             const permsSnap = await getDocs(permsRef);
 
-            const loadedPerms: Record<string, any> = {};
+            const loadedPerms: Record<string, { canView?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }> = {};
             permsSnap.forEach(doc => {
               loadedPerms[doc.id] = doc.data();
             });
@@ -114,13 +114,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   React.useEffect(() => {
+    console.log("[AuthProvider] Setting up auth listener...");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("[AuthProvider] Auth state changed:", firebaseUser ? "User exists" : "No user");
       if (firebaseUser) {
+        console.log("[AuthProvider] Fetching user data for UID:", firebaseUser.uid);
         const userData = await fetchUserData(firebaseUser);
+        console.log("[AuthProvider] User data fetched:", userData ? `tenantId: ${userData.tenantId}` : "null");
         setUser(userData);
       } else {
         setUser(null);
       }
+      console.log("[AuthProvider] Setting isLoading to false");
       setIsLoading(false);
     });
 

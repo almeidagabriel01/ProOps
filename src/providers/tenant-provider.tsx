@@ -16,9 +16,9 @@ interface TenantContextType {
 const TenantContext = React.createContext<TenantContextType>({
   tenant: null,
   isLoading: true,
-  refreshTenant: () => {},
-  clearViewingTenant: () => {},
-  setViewingTenant: () => {},
+  refreshTenant: () => { },
+  clearViewingTenant: () => { },
+  setViewingTenant: () => { },
 });
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
@@ -31,6 +31,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const currentTenantIdRef = React.useRef<string | null>(null);
 
   const loadTenant = React.useCallback(async () => {
+    console.log("[TenantProvider] loadTenant called, user:", user?.id, "role:", user?.role);
+
     // Check for "Viewing As" override (Super Admin feature)
     const viewingAsId =
       typeof window !== "undefined"
@@ -49,8 +51,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    console.log("[TenantProvider] tenantIdToLoad:", tenantIdToLoad);
+
     // Skip if we already have the correct tenant loaded
     if (currentTenantIdRef.current === tenantIdToLoad && !isLoading) {
+      console.log("[TenantProvider] Skipping - already loaded");
       return;
     }
 
@@ -58,7 +63,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     if (tenantIdToLoad) {
       try {
+        console.log("[TenantProvider] Fetching tenant from Firestore...");
         const fetchedTenant = await TenantService.getTenantById(tenantIdToLoad);
+        console.log("[TenantProvider] Tenant fetched:", fetchedTenant ? "success" : "not found");
         if (fetchedTenant) {
           setTenant(fetchedTenant);
           currentTenantIdRef.current = fetchedTenant.id;
@@ -68,19 +75,23 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           currentTenantIdRef.current = null;
         }
       } catch (error) {
-        console.error("Error loading tenant", error);
+        console.error("[TenantProvider] Error loading tenant", error);
         setTenant(null);
         currentTenantIdRef.current = null;
       }
     } else {
+      console.log("[TenantProvider] No tenantIdToLoad, setting tenant to null");
       setTenant(null);
       currentTenantIdRef.current = null;
     }
 
+    console.log("[TenantProvider] Setting isLoading to false");
     setIsLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, refreshTrigger]);
 
   React.useEffect(() => {
+    console.log("[TenantProvider] useEffect triggered");
     loadTenant();
   }, [loadTenant]);
 
