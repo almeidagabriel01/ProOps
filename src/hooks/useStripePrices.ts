@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { StripeService } from "@/services/stripe-service";
 
 interface PriceInfo {
   id: string;
@@ -27,14 +28,14 @@ interface UseStripePricesReturn {
   prices: StripePricesData | null;
   isLoading: boolean;
   error: string | null;
-  
+
   // Helper functions
   getPlanPrice: (tier: string, interval: "monthly" | "yearly") => number;
   getAddonPrice: (addonType: string, interval: "monthly" | "yearly") => number;
-  
+
   // Format price for display
   formatPrice: (priceInCents: number, currency?: string) => string;
-  
+
   // Refresh prices
   refresh: () => Promise<void>;
 }
@@ -49,13 +50,8 @@ export function useStripePrices(): UseStripePricesReturn {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/stripe/prices");
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch prices");
-      }
-
-      const data = await response.json();
+      // Use Cloud Function via StripeService instead of local API route
+      const data = await StripeService.getPrices();
       setPrices(data);
     } catch (err) {
       console.error("Error fetching prices:", err);

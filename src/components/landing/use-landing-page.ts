@@ -81,7 +81,16 @@ export function useLandingPage() {
   const [plans, setPlans] = useState(INITIAL_PLANS);
   // Always use "list" skeleton for consistency between SSR and CSR
   // The loading time is short enough that the skeleton type doesn't matter much
-  const initialSkeleton = "list" as const;
+  const initialSkeleton:
+    | "list"
+    | "dashboard"
+    | "profile"
+    | "financial"
+    | "team"
+    | "admin"
+    | "products"
+    | "proposals"
+    | "clients" = "list";
 
   useEffect(() => {
     const fetchPlans = async () => {
