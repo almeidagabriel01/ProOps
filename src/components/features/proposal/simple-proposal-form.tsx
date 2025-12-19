@@ -131,6 +131,9 @@ export function SimpleProposalForm({
   >(undefined);
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
 
+  // Ref to prevent duplicate additions from double-firing events
+  const lastAddedSystemRef = React.useRef<{ sistemaId: string; ambienteId: string; time: number } | null>(null);
+
   // Estado para edição de seleção
   const [editingSelectionIndex, setEditingSelectionIndex] = React.useState<
     number | null
@@ -351,6 +354,23 @@ export function SimpleProposalForm({
   // Handle adding new system
   const handleAddNewSystem = (sistema: ProposalSistema | null) => {
     if (!sistema) return;
+
+    // Prevent duplicate events (within 500ms)
+    // The Select component fires onChange twice (event bubbling + manual call), causing duplicates
+    const now = Date.now();
+    if (
+      lastAddedSystemRef.current &&
+      lastAddedSystemRef.current.sistemaId === sistema.sistemaId &&
+      lastAddedSystemRef.current.ambienteId === sistema.ambienteId &&
+      now - lastAddedSystemRef.current.time < 500
+    ) {
+      return;
+    }
+    lastAddedSystemRef.current = {
+      sistemaId: sistema.sistemaId,
+      ambienteId: sistema.ambienteId,
+      time: now
+    };
 
     // Check for duplicates
     const exists = selectedSistemas.some(
