@@ -43,7 +43,7 @@ export default function AdminPage() {
             Gerencie múltiplos inquilinos (Tenants) em um só lugar.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
             variant="outline"
             size="lg"

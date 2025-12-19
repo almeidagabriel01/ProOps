@@ -124,20 +124,21 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
 
                 <div className="space-y-4 py-4">
                     {/* Criar novo ambiente */}
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Ex: Sala, Quarto, Cozinha..."
-                            value={newAmbienteName}
-                            onChange={(e) => setNewAmbienteName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !isCreating) {
-                                    e.preventDefault();
-                                    handleCreate();
-                                }
-                            }}
-                            disabled={isCreating}
-                            className="flex-1"
-                        />
+                    <div className="flex gap-2 items-center">
+                        <div className="flex-1">
+                            <Input
+                                placeholder="Ex: Sala, Quarto, Cozinha..."
+                                value={newAmbienteName}
+                                onChange={(e) => setNewAmbienteName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !isCreating) {
+                                        e.preventDefault();
+                                        handleCreate();
+                                    }
+                                }}
+                                disabled={isCreating}
+                            />
+                        </div>
                         <Button 
                             onClick={handleCreate} 
                             disabled={!newAmbienteName.trim() || isCreating}
@@ -213,7 +214,7 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" className="cursor-pointer" onClick={onClose}>
                         Fechar
                     </Button>
                 </DialogFooter>

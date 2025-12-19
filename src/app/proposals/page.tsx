@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Proposal, ProposalStatus } from "@/services/proposal-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Plus, FileText, Copy, Trash2, Eye, Search } from "lucide-react";
@@ -204,20 +203,16 @@ export default function ProposalsPage() {
       ) : (
         <div className="grid gap-4">
           {/* Header */}
-          <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-            <div className="col-span-4">Título</div>
-            <div className="col-span-2">Cliente</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2">Criado em</div>
-            <div className="col-span-2 text-right">Ações</div>
+          <div className="grid grid-cols-5 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+            <div>Título</div>
+            <div className="text-center">Cliente</div>
+            <div className="text-center">Criado em</div>
+            <div className="text-center">Validade</div>
+            <div className="text-right">Ações</div>
           </div>
 
           {/* Rows */}
           {filteredProposals.map((proposal) => {
-            const statusKey = (
-              proposal.status || "draft"
-            ).toLowerCase() as ProposalStatus;
-            const status = statusConfig[statusKey] || statusConfig["draft"];
             const productCount = proposal.products?.length || 0;
             const total =
               proposal.products?.reduce((sum, p) => sum + p.total, 0) || 0;
@@ -226,8 +221,8 @@ export default function ProposalsPage() {
                 key={proposal.id}
                 className="hover:bg-muted/50 transition-colors"
               >
-                <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
-                  <div className="col-span-4">
+                <CardContent className="grid grid-cols-5 gap-4 items-center py-4 px-4">
+                  <div>
                     <Link
                       href={`/proposals/${proposal.id}/view`}
                       className="font-medium hover:underline"
@@ -240,16 +235,16 @@ export default function ProposalsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="col-span-2 text-sm text-muted-foreground truncate">
+                  <div className="text-sm text-muted-foreground truncate text-center">
                     {proposal.clientName}
                   </div>
-                  <div className="col-span-2">
-                    <Badge variant={status.variant}>{status.label}</Badge>
-                  </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">
+                  <div className="text-sm text-muted-foreground text-center">
                     {formatDate(proposal.createdAt)}
                   </div>
-                  <div className="col-span-2 flex items-center justify-end gap-1">
+                  <div className="text-sm text-muted-foreground text-center">
+                    {formatDate(proposal.validUntil)}
+                  </div>
+                  <div className="flex items-center justify-end gap-1">
                     <Link href={`/proposals/${proposal.id}/view`}>
                       <Button
                         variant="ghost"

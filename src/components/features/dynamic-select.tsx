@@ -203,12 +203,14 @@ export function DynamicSelect({
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nova opção..."
-                  value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
-                />
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Nova opção..."
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                  />
+                </div>
                 <Button onClick={handleAdd} size="icon">
                   <Plus className="w-4 h-4" />
                 </Button>

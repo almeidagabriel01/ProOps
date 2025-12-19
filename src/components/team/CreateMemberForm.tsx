@@ -22,6 +22,7 @@ import {
     AlertCircle
 } from "lucide-react";
 import { useCreateMember, getDefaultPermissions } from "@/hooks/useCreateMember";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 
 // Simple permission toggle component
 function PermissionRow({
@@ -86,6 +87,7 @@ function PermissionRow({
 
 export function CreateMemberForm() {
     const { createMember, isLoading, error } = useCreateMember();
+    const upgradeModal = useUpgradeModal();
 
     // Form state
     const [name, setName] = useState("");
@@ -129,6 +131,13 @@ export function CreateMemberForm() {
             setPassword("");
             setRoleType("viewer");
             setPermissions(getDefaultPermissions("viewer"));
+        } else if (result?.error && ['resource-exhausted', 'failed-precondition'].includes(result.error.code)) {
+            // Show upgrade modal for limit errors
+            upgradeModal.showUpgradeModal(
+                "Limite de Equipe Atingido",
+                "Você atingiu o limite de membros do seu plano atual. Faça upgrade para adicionar mais pessoas à sua equipe.",
+                "pro"
+            );
         }
     };
 
@@ -262,6 +271,14 @@ export function CreateMemberForm() {
                     </Button>
                 </form>
             </FormCard>
+            
+            <UpgradeModal
+                open={upgradeModal.isOpen}
+                onOpenChange={upgradeModal.setIsOpen}
+                feature={upgradeModal.feature}
+                description={upgradeModal.description}
+                requiredPlan={upgradeModal.requiredPlan}
+            />
         </div>
     );
 }

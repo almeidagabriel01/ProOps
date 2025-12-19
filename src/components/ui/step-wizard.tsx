@@ -332,7 +332,7 @@ export function StepNavigation({
           onClick={onSubmit}
           disabled={isSubmitting}
           className={cn(
-            "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300",
+            "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
             "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
