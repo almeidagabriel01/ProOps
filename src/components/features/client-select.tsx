@@ -20,6 +20,7 @@ interface ClientSelectProps {
     isNew: boolean;
   }) => void;
   disabled?: boolean;
+  error?: boolean;
 }
 
 export function ClientSelect({
@@ -27,6 +28,7 @@ export function ClientSelect({
   clientId,
   onChange,
   disabled,
+  error,
 }: ClientSelectProps) {
   const { tenant } = useTenant();
   const [open, setOpen] = React.useState(false);
@@ -136,50 +138,50 @@ export function ClientSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <div className="relative">
-        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => setOpen(true)}
-          placeholder="Digite ou selecione um cliente..."
-          disabled={disabled}
-          className="pl-9 pr-16"
-        />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {inputValue && (
+      <Input
+        ref={inputRef}
+        value={inputValue}
+        onChange={handleInputChange}
+        onFocus={() => setOpen(true)}
+        placeholder="Digite ou selecione um cliente..."
+        disabled={disabled}
+        icon={<User className="w-4 h-4" />}
+        suffix={
+          <div className="flex items-center gap-1">
+            {inputValue && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={handleClear}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={handleClear}
+              onClick={() => setOpen(!open)}
             >
-              <X className="h-3 w-3" />
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform",
+                  open && "rotate-180"
+                )}
+              />
             </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setOpen(!open)}
-          >
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform",
-                open && "rotate-180"
-              )}
-            />
-          </Button>
-        </div>
-        {clientId && (
-          <span className="absolute right-14 top-1/2 -translate-y-1/2 text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-            cadastrado
-          </span>
-        )}
-      </div>
+            {clientId && (
+              <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                cadastrado
+              </span>
+            )}
+          </div>
+        }
+        className={cn(error && "border-destructive")}
+      />
 
       {/* Dropdown */}
       {open && (

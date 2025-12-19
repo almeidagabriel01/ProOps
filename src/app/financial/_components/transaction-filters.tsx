@@ -20,13 +20,12 @@ export function TransactionFilters({
 }: TransactionFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-4">
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="flex-1 max-w-md">
         <Input
           placeholder="Buscar por descrição, cliente ou categoria..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9"
+          icon={<Search className="w-4 h-4" />}
         />
       </div>
       <div className="flex gap-2">

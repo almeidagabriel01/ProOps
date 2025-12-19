@@ -91,7 +91,7 @@ export function ProposalReadOnlyView({
                             >
                                 <div className="flex items-center gap-3">
                                     {product.productImage || product.productImages?.[0] ? (
-                                        <div className="w-8 h-8 rounded border bg-white overflow-hidden flex-shrink-0">
+                                        <div className="w-8 h-8 rounded border bg-card overflow-hidden flex-shrink-0">
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                                 src={product.productImages?.[0] || product.productImage}

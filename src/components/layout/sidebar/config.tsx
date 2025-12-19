@@ -1,13 +1,10 @@
 import {
   LayoutDashboard,
-  Settings,
   Package,
   Users,
   FileText,
   Wallet,
-  User,
-  CreditCard,
-  UsersRound,
+  Shield,
 } from "lucide-react";
 
 // ============================================
@@ -36,10 +33,25 @@ export type SubMenuItem = {
 // ============================================
 
 export const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", pageId: "dashboard" },
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    href: "/dashboard",
+    pageId: "dashboard",
+  },
   { icon: Package, label: "Produtos", href: "/products", pageId: "products" },
-  { icon: FileText, label: "Propostas", href: "/proposals", pageId: "proposals" },
-  { icon: UsersRound, label: "Clientes", href: "/customers", pageId: "clients" },
+  {
+    icon: FileText,
+    label: "Propostas",
+    href: "/proposals",
+    pageId: "proposals",
+  },
+  {
+    icon: Users,
+    label: "Clientes",
+    href: "/customers",
+    pageId: "clients",
+  },
   {
     icon: Wallet,
     label: "Financeiro",
@@ -48,19 +60,11 @@ export const menuItems: MenuItem[] = [
     requiresFinancial: true,
   },
   {
-    icon: User,
-    label: "Perfil",
-    href: "/profile"
-  },
-  {
-    icon: Settings,
-    label: "Configurações",
-    href: "/settings",
-    pageId: "settings",
-    children: [
-      { icon: Users, label: "Equipe", href: "/settings/team", masterOnly: true },
-      { icon: CreditCard, label: "Plano", href: "/settings/billing", masterOnly: true },
-    ],
+    icon: Shield,
+    label: "Equipe",
+    href: "/settings/team",
+    pageId: "team",
+    masterOnly: true,
   },
 ];
 
@@ -84,17 +88,18 @@ export function lightenColor(hex: string, percent: number): string {
   const R = Math.min(255, (num >> 16) + amt);
   const G = Math.min(255, ((num >> 8) & 0x00ff) + amt);
   const B = Math.min(255, (num & 0x0000ff) + amt);
-  return (
-    "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)
-  );
+  return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
 /**
  * Get visible children for a menu item based on user role
  */
-export function getVisibleChildren(item: MenuItem, isMaster: boolean): SubMenuItem[] {
+export function getVisibleChildren(
+  item: MenuItem,
+  isMaster: boolean
+): SubMenuItem[] {
   if (!item.children) return [];
-  return item.children.filter(child => {
+  return item.children.filter((child) => {
     if (child.masterOnly) return isMaster;
     return true;
   });

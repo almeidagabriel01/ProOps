@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Sistema } from "@/types/automation";
 import { useSistemaForm } from "./useSistemaForm";
+import { Spinner } from "@/components/ui/spinner";
 import {
   SistemaInfoSection,
   AmbienteSelectorSection,
@@ -80,7 +81,9 @@ export function SistemaTemplateDialog({
 
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">
-            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3" />
+            <div className="mb-3 flex justify-center">
+              <Spinner className="h-8 w-8 text-primary" />
+            </div>
             Carregando...
           </div>
         ) : (
@@ -127,7 +130,8 @@ export function SistemaTemplateDialog({
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Voltar
               </Button>
-              <Button onClick={handleSave} disabled={!name.trim() || isSaving}>
+              <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
+                {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving
                   ? "Salvando..."
                   : isEditing
@@ -140,7 +144,8 @@ export function SistemaTemplateDialog({
               <Button variant="outline" onClick={onClose}>
                 Cancelar
               </Button>
-              <Button onClick={handleSave} disabled={!name.trim() || isSaving}>
+              <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
+                {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving
                   ? "Salvando..."
                   : isEditing

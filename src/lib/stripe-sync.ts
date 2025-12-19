@@ -64,6 +64,8 @@ export async function fetchPlansFromStripe(): Promise<UserPlan[]> {
             canCustomizeTheme: product.metadata.canCustomizeTheme === 'true',
             maxPdfTemplates: parseInt(product.metadata.maxPdfTemplates || '1'),
             canEditPdfSections: product.metadata.canEditPdfSections === 'true',
+            maxImagesPerProduct: parseInt(product.metadata.maxImagesPerProduct || '2'),
+            maxStorageMB: parseInt(product.metadata.maxStorageMB || '200'),
         },
         createdAt: new Date().toISOString(), // Placeholder
       });

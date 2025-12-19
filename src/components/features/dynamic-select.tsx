@@ -22,6 +22,8 @@ interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   storageKey: string; // Now acts as the 'type' in Firestore (e.g. 'product_categories')
   label: string;
   defaultOptions?: { id: string; label: string }[]; // Keep for initial UI, though we prefer Firestore content
+  required?: boolean;
+  error?: string;
 }
 
 export function DynamicSelect({
@@ -29,6 +31,8 @@ export function DynamicSelect({
   label,
   defaultOptions = [],
   className,
+  required,
+  error,
   ...props
 }: DynamicSelectProps) {
   const [options, setOptions] = React.useState<Option[]>([]);
@@ -176,7 +180,10 @@ export function DynamicSelect({
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between">
-        <Label>{label}</Label>
+        <Label>
+          {label}
+          {required && <span className="text-destructive ml-1">*</span>}
+        </Label>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button
@@ -196,12 +203,14 @@ export function DynamicSelect({
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Nova opção..."
-                  value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
-                />
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Nova opção..."
+                    value={newOption}
+                    onChange={(e) => setNewOption(e.target.value)}
+                  />
+                </div>
                 <Button onClick={handleAdd} size="icon">
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -279,7 +288,10 @@ export function DynamicSelect({
         </Dialog>
       </div>
 
-      <Select {...props}>
+      <Select
+        {...props}
+        selectClassName={cn(error && "border-destructive border-2")}
+      >
         <option value="">Selecione...</option>
         {options.map((opt) => (
           <option key={opt.id} value={opt.label}>
@@ -287,6 +299,7 @@ export function DynamicSelect({
           </option>
         ))}
       </Select>
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

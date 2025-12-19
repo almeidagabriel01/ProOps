@@ -1,15 +1,9 @@
 "use client";
 
 import * as React from "react";
-import {
-  Search,
-  Bell,
-  User as UserIcon,
-  LogOut,
-  ArrowLeft,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Bell, User as UserIcon, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { doc, getDoc } from "firebase/firestore";
@@ -77,8 +71,11 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
 
   return (
     <header
-      style={{ left: sidebarWidth }}
-      className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-all duration-300 ease-in-out rounded-tl-[2rem] rounded-tr-[2rem]"
+      style={{
+        left: sidebarWidth,
+        transform: "translateZ(0)",
+      }}
+      className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-[left] duration-300 ease-out will-change-[left] rounded-tl-[2rem] rounded-tr-[2rem]"
     >
       <div className="flex items-center gap-4">
         {/* Super Admin Viewing Banner */}
@@ -94,13 +91,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
           </Button>
         )}
 
-        <div className="relative w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar..."
-            className="pl-9 h-9 bg-muted/50 border-transparent focus:bg-background focus:border-input transition-all"
-          />
-        </div>
+        <CommandPalette />
       </div>
 
       <div className="flex items-center gap-4">

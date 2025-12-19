@@ -15,6 +15,8 @@ interface PagePermissionRowProps {
     permission: Permission;
     onUpdate: (key: string, value: boolean) => void;
     saving: boolean;
+    updatingKey: string | null;
+    memberId: string;
 }
 
 export function PagePermissionRow({
@@ -22,9 +24,13 @@ export function PagePermissionRow({
     permission,
     onUpdate,
     saving,
+    updatingKey,
+    memberId,
 }: PagePermissionRowProps) {
     const canView = permission?.canView ?? false;
     const canEdit = permission?.canEdit ?? false;
+
+    const isUpdating = (key: string) => updatingKey === `${memberId}-${page.id}-${key}`;
 
     return (
         <div className={`
@@ -66,6 +72,7 @@ export function PagePermissionRow({
                     label="Ver"
                     icon={Eye}
                     disabled={saving}
+                    loading={isUpdating("canView")}
                 />
                 <PermissionToggle
                     enabled={permission?.canCreate ?? false}
@@ -73,6 +80,7 @@ export function PagePermissionRow({
                     label="Criar"
                     icon={UserPlus}
                     disabled={saving || !canView}
+                    loading={isUpdating("canCreate")}
                 />
                 <PermissionToggle
                     enabled={canEdit}
@@ -80,6 +88,7 @@ export function PagePermissionRow({
                     label="Editar"
                     icon={Edit3}
                     disabled={saving || !canView}
+                    loading={isUpdating("canEdit")}
                 />
                 <PermissionToggle
                     enabled={permission?.canDelete ?? false}
@@ -87,6 +96,7 @@ export function PagePermissionRow({
                     label="Excluir"
                     icon={Trash2}
                     disabled={saving || !canView}
+                    loading={isUpdating("canDelete")}
                 />
             </div>
         </div>

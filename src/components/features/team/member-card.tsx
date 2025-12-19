@@ -22,6 +22,7 @@ interface MemberCardProps {
     member: TeamMember;
     onUpdatePermission: (memberId: string, pageId: string, key: string, value: boolean) => void;
     saving: boolean;
+    updatingKey: string | null;
     onRefresh: () => void;
 }
 
@@ -29,6 +30,7 @@ export function MemberCard({
     member,
     onUpdatePermission,
     saving,
+    updatingKey,
     onRefresh,
 }: MemberCardProps) {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -102,6 +104,8 @@ export function MemberCard({
                                     permission={member.permissions[page.id] || { canView: false }}
                                     onUpdate={(key, value) => onUpdatePermission(member.id, page.id, key, value)}
                                     saving={saving}
+                                    updatingKey={updatingKey}
+                                    memberId={member.id}
                                 />
                             ))}
                         </div>

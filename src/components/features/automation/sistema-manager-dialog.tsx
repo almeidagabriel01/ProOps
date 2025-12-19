@@ -15,6 +15,7 @@ import { Sistema, Ambiente } from "@/types/automation";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { Spinner } from "@/components/ui/spinner";
 
 interface SistemaManagerDialogProps {
     isOpen: boolean;
@@ -25,9 +26,9 @@ interface SistemaManagerDialogProps {
     filterAmbienteId?: string;
 }
 
-export function SistemaManagerDialog({ 
-    isOpen, 
-    onClose, 
+export function SistemaManagerDialog({
+    isOpen,
+    onClose,
     onSistemasChange,
     onEditSistema,
     onCreateNew,
@@ -37,6 +38,7 @@ export function SistemaManagerDialog({
     const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
     const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
     const loadData = React.useCallback(async () => {
         if (!tenant?.id) return;
@@ -46,12 +48,12 @@ export function SistemaManagerDialog({
                 SistemaService.getSistemas(tenant.id),
                 AmbienteService.getAmbientes(tenant.id),
             ]);
-            
+
             let filteredSistemas = sistemasData;
             if (filterAmbienteId) {
                 filteredSistemas = sistemasData.filter(s => s.ambienteIds.includes(filterAmbienteId));
             }
-            
+
             setSistemas(filteredSistemas);
             setAmbientes(ambientesData);
         } catch (error) {
@@ -68,15 +70,18 @@ export function SistemaManagerDialog({
     }, [isOpen, tenant?.id, loadData]);
 
     const handleDelete = async (sistema: Sistema) => {
-        if (!confirm(`Tem certeza que deseja excluir o template "${sistema.name}"?`)) return;
-
-        try {
-            await SistemaService.deleteSistema(sistema.id);
-            await loadData();
-            onSistemasChange?.();
-        } catch (error) {
-            console.error("Error deleting sistema:", error);
-            alert("Erro ao excluir sistema");
+        if (confirm(`Tem certeza que deseja excluir o template "${sistema.name}"?`)) {
+            setDeletingId(sistema.id);
+            try {
+                await SistemaService.deleteSistema(sistema.id);
+                await loadData();
+                onSistemasChange?.();
+            } catch (error) {
+                console.error("Error deleting sistema:", error);
+                alert("Erro ao excluir sistema");
+            } finally {
+                setDeletingId(null);
+            }
         }
     };
 
@@ -99,7 +104,7 @@ export function SistemaManagerDialog({
 
                 {onCreateNew && (
                     <div className="flex justify-start">
-                        <Button 
+                        <Button
                             onClick={() => {
                                 onClose();
                                 onCreateNew();
@@ -113,9 +118,8 @@ export function SistemaManagerDialog({
 
                 <div className="space-y-3 py-2">
                     {isLoading ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
-                            Carregando...
+                        <div className="flex justify-center py-8">
+                            <Spinner className="h-8 w-8" />
                         </div>
                     ) : sistemas.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
@@ -158,18 +162,26 @@ export function SistemaManagerDialog({
                                             onEditSistema?.(sistema);
                                         }}
                                         title="Editar"
+                                        disabled={deletingId !== null}
                                     >
                                         <Pencil className="h-4 w-4" />
                                     </Button>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 text-destructive hover:text-destructive"
-                                        onClick={() => handleDelete(sistema)}
-                                        title="Excluir"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                                    {deletingId === sistema.id ? (
+                                        <div className="h-8 w-8 flex items-center justify-center">
+                                            <Spinner className="h-4 w-4 text-destructive" />
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-destructive hover:text-destructive"
+                                            onClick={() => handleDelete(sistema)}
+                                            title="Excluir"
+                                            disabled={deletingId !== null}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         ))

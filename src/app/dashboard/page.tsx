@@ -21,6 +21,7 @@ import {
   ProposalStatsCard,
   ClientsStatsCard,
 } from "./_components";
+import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -35,17 +36,25 @@ export default function DashboardPage() {
     recentTransactions,
     recentProposals,
     balance,
+    isLoading,
   } = useDashboardData();
 
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {getGreeting()}, {user?.name || "Usuário"}! 👋
+            <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+              {getGreeting()}, {user?.name || "Usuário"}!
+            </span>{" "}
+            <span className="text-foreground">👋</span>
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center gap-2">
+          <p className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <CalendarDays className="w-4 h-4" />
             {new Date().toLocaleDateString("pt-BR", {
               weekday: "long",
@@ -55,7 +64,11 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
+        {/* Optional: Add a date range picker or export button here later */}
       </div>
+
+      {/* Quick Actions - Moving to top for better UX */}
+      <QuickActionsCard />
 
       {/* Financial Summary Cards */}
       <FinancialMetricCards
@@ -70,49 +83,50 @@ export default function DashboardPage() {
       />
 
       {/* Chart + Stats */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Chart */}
-        <Card className="lg:col-span-2">
+      <div className="grid lg:grid-cols-7 gap-6">
+        {/* Chart (4 columns) */}
+        <Card className="lg:col-span-4 flex flex-col shadow-md bg-gradient-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Fluxo de Caixa</CardTitle>
+                <CardTitle className="text-lg">Fluxo de Caixa</CardTitle>
                 <CardDescription>
                   Receitas vs Despesas nos últimos 6 meses
                 </CardDescription>
               </div>
               <div className="flex gap-4 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-muted-foreground">Receitas</span>
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
+                  <span className="text-muted-foreground font-medium">Receitas</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-500" />
-                  <span className="text-muted-foreground">Despesas</span>
+                  <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
+                  <span className="text-muted-foreground font-medium">Despesas</span>
                 </div>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 p-0 pb-4 min-h-[300px]">
             <SimpleBarChart data={chartData} />
           </CardContent>
         </Card>
 
-        {/* Stats */}
-        <div className="space-y-4">
-          <ProposalStatsCard stats={proposalStats} />
-          <ClientsStatsCard
-            totalClients={clients.length}
-            newClientsThisMonth={newClientsThisMonth}
-          />
+        {/* Stats (3 columns) */}
+        <div className="lg:col-span-3 space-y-6 flex flex-col">
+          <div className="flex-1">
+            <ProposalStatsCard stats={proposalStats} />
+          </div>
+          <div className="flex-1">
+            <ClientsStatsCard
+              totalClients={clients.length}
+              newClientsThisMonth={newClientsThisMonth}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <QuickActionsCard />
-
       {/* Recent Activity */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 h-full">
         <RecentTransactionsList transactions={recentTransactions} />
         <RecentProposalsList proposals={recentProposals} />
       </div>

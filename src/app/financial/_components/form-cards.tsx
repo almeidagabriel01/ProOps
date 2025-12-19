@@ -1,7 +1,10 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormCard } from "@/components/ui/form-card";
+import { FormField, FormRow } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -13,6 +16,8 @@ import {
   ArrowDownCircle,
   CreditCard,
   Calendar,
+  FileText,
+  User,
 } from "lucide-react";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
 import {
@@ -34,42 +39,42 @@ export function TypeSelectorCard({
   onTypeChange,
 }: TypeSelectorCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Wallet className="w-5 h-5" />
-          Tipo de Lançamento
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => onTypeChange("income")}
-            className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-              type === "income"
-                ? "border-green-500 bg-green-500/10 text-green-500"
-                : "border-border hover:border-green-500/50"
+    <FormCard
+      title="Tipo de Lançamento"
+      description="Selecione se é uma receita ou despesa"
+      icon={Wallet}
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => onTypeChange("income")}
+          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${type === "income"
+              ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400 shadow-sm"
+              : "border-border bg-card hover:border-green-500/50 hover:bg-green-500/5"
             }`}
-          >
+        >
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${type === "income" ? "bg-green-500/20" : "bg-muted"
+            }`}>
             <ArrowUpCircle className="w-5 h-5" />
-            <span className="font-medium">Receita</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onTypeChange("expense")}
-            className={`flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all ${
-              type === "expense"
-                ? "border-red-500 bg-red-500/10 text-red-500"
-                : "border-border hover:border-red-500/50"
+          </div>
+          <span className="font-semibold text-base">Receita</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onTypeChange("expense")}
+          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${type === "expense"
+              ? "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 shadow-sm"
+              : "border-border bg-card hover:border-red-500/50 hover:bg-red-500/5"
             }`}
-          >
+        >
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${type === "expense" ? "bg-red-500/20" : "bg-muted"
+            }`}>
             <ArrowDownCircle className="w-5 h-5" />
-            <span className="font-medium">Despesa</span>
-          </button>
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+          <span className="font-semibold text-base">Despesa</span>
+        </button>
+      </div>
+    </FormCard>
   );
 }
 
@@ -86,88 +91,76 @@ interface DetailsCardProps {
 
 export function DetailsCard({ formData, onChange }: DetailsCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Detalhes</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2">
-          <Label htmlFor="description">Descrição *</Label>
-          <Input
-            id="description"
-            name="description"
-            value={formData.description}
+    <FormCard
+      title="Detalhes"
+      description="Informações sobre o lançamento"
+      icon={FileText}
+    >
+      <FormField label="Descrição" htmlFor="description" required>
+        <Input
+          id="description"
+          name="description"
+          value={formData.description}
+          onChange={onChange}
+          placeholder="Ex: Venda de projeto, Compra de material..."
+          required
+        />
+      </FormField>
+
+      <FormRow>
+        <FormField label="Valor Total" htmlFor="amount" required>
+          <CurrencyInput
+            id="amount"
+            name="amount"
+            value={formData.amount}
             onChange={onChange}
-            placeholder="Ex: Venda de projeto, Compra de material..."
+            placeholder="0,00"
             required
           />
-        </div>
+        </FormField>
+        <FormField label="Categoria" htmlFor="category">
+          <Input
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={onChange}
+            placeholder="Ex: Vendas, Material, Mão de obra..."
+          />
+        </FormField>
+      </FormRow>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="amount">Valor Total *</Label>
-            <Input
-              id="amount"
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.amount}
-              onChange={onChange}
-              placeholder="0,00"
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="category">Categoria</Label>
-            <Input
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={onChange}
-              placeholder="Ex: Vendas, Material, Mão de obra..."
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="date">Data *</Label>
-            <Input
-              id="date"
-              name="date"
-              type="date"
-              value={formData.date}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="dueDate">Vencimento</Label>
-            <Input
-              id="dueDate"
-              name="dueDate"
-              type="date"
-              value={formData.dueDate}
-              onChange={onChange}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              id="status"
-              name="status"
-              value={formData.status}
-              onChange={onChange}
-            >
-              <option value="pending">Pendente</option>
-              <option value="paid">Pago</option>
-              <option value="overdue">Atrasado</option>
-            </Select>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <FormRow cols={3}>
+        <FormField label="Data" htmlFor="date" required>
+          <DateInput
+            id="date"
+            name="date"
+            value={formData.date}
+            onChange={onChange}
+            required
+          />
+        </FormField>
+        <FormField label="Vencimento" htmlFor="dueDate">
+          <DateInput
+            id="dueDate"
+            name="dueDate"
+            value={formData.dueDate}
+            onChange={onChange}
+          />
+        </FormField>
+        <FormField label="Status" htmlFor="status">
+          <Select
+            id="status"
+            name="status"
+            value={formData.status}
+            onChange={onChange}
+          >
+            <option value="pending">Pendente</option>
+            <option value="paid">Pago</option>
+            <option value="overdue">Atrasado</option>
+          </Select>
+        </FormField>
+      </FormRow>
+    </FormCard>
   );
 }
 
@@ -189,76 +182,71 @@ export function PaymentCard({
   onChange,
 }: PaymentCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="w-5 h-5" />
-          Pagamento
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <DynamicSelect
-          storageKey="wallets"
-          label="Carteira / Forma de Pagamento"
-          name="wallet"
-          value={formData.wallet}
-          onChange={onChange}
-        />
+    <FormCard
+      title="Pagamento"
+      description="Forma de pagamento e parcelamento"
+      icon={CreditCard}
+    >
+      <DynamicSelect
+        storageKey="wallets"
+        label="Carteira / Forma de Pagamento"
+        name="wallet"
+        value={formData.wallet}
+        onChange={onChange}
+      />
 
-        <div className="border rounded-lg p-4 space-y-4">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="isInstallment"
-              name="isInstallment"
-              checked={formData.isInstallment}
-              onChange={onChange}
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <Label
-              htmlFor="isInstallment"
-              className="flex items-center gap-2 cursor-pointer"
-            >
-              <Calendar className="w-4 h-4" />
-              Parcelar este lançamento
-            </Label>
-          </div>
+      <div className="rounded-xl border border-border p-4 space-y-4 bg-muted/30">
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="isInstallment"
+            name="isInstallment"
+            checked={formData.isInstallment}
+            onChange={onChange}
+            className="h-4 w-4 rounded border-input text-primary focus:ring-primary/20"
+          />
+          <Label
+            htmlFor="isInstallment"
+            className="flex items-center gap-2 cursor-pointer text-sm font-medium"
+          >
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            Parcelar este lançamento
+          </Label>
+        </div>
 
-          {formData.isInstallment && (
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="grid gap-2">
-                <Label htmlFor="installmentCount">Número de Parcelas</Label>
-                <Select
-                  id="installmentCount"
-                  name="installmentCount"
-                  value={formData.installmentCount.toString()}
-                  onChange={(e) =>
-                    onFormDataChange((prev) => ({
-                      ...prev,
-                      installmentCount: parseInt(e.target.value),
-                    }))
-                  }
-                >
-                  {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
-                    <option key={n} value={n}>
-                      {n}x
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Valor por Parcela</Label>
-                <div className="h-10 px-3 py-2 bg-muted rounded-md flex items-center text-sm font-medium">
-                  {formData.amount
-                    ? `R$ ${(parseFloat(formData.amount) / formData.installmentCount).toFixed(2)}`
-                    : "R$ 0,00"}
-                </div>
+        {formData.isInstallment && (
+          <FormRow>
+            <FormField label="Número de Parcelas" htmlFor="installmentCount">
+              <Select
+                id="installmentCount"
+                name="installmentCount"
+                value={formData.installmentCount.toString()}
+                onChange={(e) =>
+                  onFormDataChange((prev) => ({
+                    ...prev,
+                    installmentCount: parseInt(e.target.value),
+                  }))
+                }
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
+                  <option key={n} value={n}>
+                    {n}x
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Valor por Parcela</Label>
+              <div className="h-10 px-4 bg-primary/5 border border-primary/20 rounded-lg flex items-center text-sm font-semibold text-primary">
+                {formData.amount
+                  ? `R$ ${(parseFloat(formData.amount) / formData.installmentCount).toFixed(2)}`
+                  : "R$ 0,00"}
               </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </FormRow>
+        )}
+      </div>
+    </FormCard>
   );
 }
 
@@ -282,18 +270,17 @@ export function ClientCard({
   onClientChange,
 }: ClientCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cliente (Opcional)</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ClientSelect
-          value={clientName}
-          clientId={clientId}
-          onChange={onClientChange}
-        />
-      </CardContent>
-    </Card>
+    <FormCard
+      title="Cliente"
+      description="Vincule este lançamento a um cliente (opcional)"
+      icon={User}
+    >
+      <ClientSelect
+        value={clientName}
+        clientId={clientId}
+        onChange={onClientChange}
+      />
+    </FormCard>
   );
 }
 
@@ -308,20 +295,21 @@ interface NotesCardProps {
 
 export function NotesCard({ notes, onChange }: NotesCardProps) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Observações</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Textarea
-          id="notes"
-          name="notes"
-          value={notes}
-          onChange={onChange}
-          placeholder="Anotações adicionais..."
-          rows={3}
-        />
-      </CardContent>
-    </Card>
+    <FormCard
+      title="Observações"
+      description="Informações adicionais sobre o lançamento"
+      icon={FileText}
+      collapsible
+      defaultCollapsed
+    >
+      <Textarea
+        id="notes"
+        name="notes"
+        value={notes}
+        onChange={onChange}
+        placeholder="Anotações adicionais..."
+        rows={3}
+      />
+    </FormCard>
   );
 }

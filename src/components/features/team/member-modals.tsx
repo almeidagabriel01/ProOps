@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
     Dialog,
     DialogContent,
@@ -94,7 +95,8 @@ export function EditMemberModal({
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancelar
                         </Button>
-                        <Button type="submit" disabled={isLoading}>
+                        <Button type="submit" disabled={isLoading} className="gap-2">
+                            {isLoading && <Spinner className="w-4 h-4 text-white" />}
                             {isLoading ? "Salvando..." : "Salvar Alterações"}
                         </Button>
                     </DialogFooter>
@@ -149,8 +151,9 @@ export function DeleteMemberDialog({
                             handleDelete();
                         }}
                         disabled={isLoading}
-                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                        className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
                     >
+                        {isLoading && <Spinner className="w-4 h-4 text-white" />}
                         {isLoading ? "Removendo..." : "Sim, Remover"}
                     </AlertDialogAction>
                 </AlertDialogFooter>

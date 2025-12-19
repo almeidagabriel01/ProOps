@@ -41,7 +41,7 @@ interface DeleteClientResult {
 export function useClientActions() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const createClient = async (data: CreateClientData): Promise<CreateClientResult | null> => {
+  const createClient = async (data: CreateClientData, options?: { suppressSuccessToast?: boolean }): Promise<CreateClientResult | null> => {
     setIsLoading(true);
     try {
       const createFn = httpsCallable<CreateClientData, CreateClientResult>(
@@ -54,11 +54,13 @@ export function useClientActions() {
         source: data.source || 'manual'
       });
       
-      toast.success("Cliente criado com sucesso!");
+      if (!options?.suppressSuccessToast) {
+        toast.success("Cliente criado com sucesso!");
+      }
       return result.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating client:", error);
-      const message = error.message || "Erro ao criar cliente.";
+      const message = (error as { message?: string })?.message || "Erro ao criar cliente.";
       toast.error(message);
       return null;
     } finally {
@@ -80,9 +82,9 @@ export function useClientActions() {
       
       toast.success("Cliente removido com sucesso!");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting client:", error);
-      const message = error.message || "Erro ao deletar cliente.";
+      const message = (error as { message?: string })?.message || "Erro ao deletar cliente.";
       toast.error(message);
       return false;
     } finally {

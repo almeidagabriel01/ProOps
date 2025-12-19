@@ -137,15 +137,15 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
             });
 
             if (proposal.sistemas && proposal.sistemas.length > 0) {
-              const sistemas: ProposalSistema[] = proposal.sistemas.map((s: any) => ({
+              const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => ({
                 sistemaId: s.sistemaId,
                 sistemaName: s.sistemaName,
                 ambienteId: s.ambienteId,
                 ambienteName: s.ambienteName,
-                description: s.description,
+                description: s.description || "",
                 products: (proposal.products || [])
-                  .filter((p: any) => s.productIds?.includes(p.productId))
-                  .map((p: any) => ({
+                  .filter((p: ProposalProduct) => s.productIds?.includes(p.productId))
+                  .map((p: ProposalProduct) => ({
                     productId: p.productId,
                     productName: p.productName,
                     quantity: p.quantity,
@@ -154,7 +154,7 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
               setSelectedSistemas(sistemas);
 
               const sysProductIds = new Set(
-                proposal.sistemas.flatMap((s: any) => s.productIds || [])
+                proposal.sistemas.flatMap((s) => s.productIds || [])
               );
               setSystemProductIds(sysProductIds);
             }
@@ -264,7 +264,7 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
           phone: formData.clientPhone,
           address: formData.clientAddress,
           source: 'proposal'
-        });
+        }, { suppressSuccessToast: true });
 
         if (newClientResult?.success && newClientResult.clientId) {
           clientId = newClientResult.clientId;

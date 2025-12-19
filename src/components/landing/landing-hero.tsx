@@ -102,7 +102,7 @@ export function LandingHero() {
             title={
                 <>
                     O ERP completo para <br />{" "}
-                    <span className="text-violet-500">sua empresa</span>
+                    <span className="text-primary">sua empresa</span>
                 </>
             }
             subtitle="Gerencie propostas, clientes, produtos e finanças em um só lugar. Simplifique sua operação e aumente sua produtividade com nossa plataforma intuitiva e moderna."

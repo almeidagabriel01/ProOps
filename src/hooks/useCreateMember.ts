@@ -44,10 +44,14 @@ interface CreateMemberResult {
   success: boolean;
   memberId?: string;
   message: string;
+  error?: {
+    code: string;
+    message: string;
+  };
 }
 
 interface UseCreateMemberReturn {
-  createMember: (data: CreateMemberData) => Promise<CreateMemberResult | null>;
+  createMember: (data: CreateMemberData) => Promise<CreateMemberResult>;
   isLoading: boolean;
   error: string | null;
 }
@@ -59,23 +63,31 @@ interface UseCreateMemberReturn {
 const ERROR_MESSAGES: Record<string, string> = {
   'unauthenticated': 'Você precisa estar logado para criar membros.',
   'permission-denied': 'Apenas administradores podem criar membros.',
-  'resource-exhausted': 'Limite de usuários do plano atingido.',
   'already-exists': 'Este email já está cadastrado.',
   'invalid-argument': 'Dados inválidos. Verifique nome e email.',
-  'failed-precondition': 'Sua assinatura não está ativa.',
   'internal': 'Erro interno. Verifique se as Cloud Functions foram implantadas.',
 };
 
-function getErrorMessage(error: any): string {
+const LIMIT_ERROR_CODES = ['resource-exhausted', 'failed-precondition'];
+
+// Custom error interface for Firebase/Function errors
+interface FirebaseError {
+  code?: string;
+  message?: string;
+  details?: unknown;
+}
+
+function getErrorMessage(error: unknown): string {
+  const err = error as FirebaseError;
   // Firebase Functions error code
-  const code = error?.code?.replace('functions/', '');
+  const code = err?.code?.replace('functions/', '');
   if (code && ERROR_MESSAGES[code]) {
     return ERROR_MESSAGES[code];
   }
   
   // Custom message from Cloud Function
-  if (error?.message) {
-    return error.message;
+  if (err?.message) {
+    return err.message;
   }
   
   return 'Erro ao criar membro. Tente novamente.';
@@ -89,7 +101,7 @@ export function useCreateMember(): UseCreateMemberReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMember = useCallback(async (data: CreateMemberData): Promise<CreateMemberResult | null> => {
+  const createMember = useCallback(async (data: CreateMemberData): Promise<CreateMemberResult> => {
     setIsLoading(true);
     setError(null);
 
@@ -109,11 +121,26 @@ export function useCreateMember(): UseCreateMemberReturn {
       toast.success(result.data.message || "Membro criado com sucesso!");
       return result.data;
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
+      const errorObj = err as FirebaseError;
+      const code = errorObj?.code?.replace('functions/', '') || 'unknown';
+      
       setError(errorMessage);
-      toast.error(errorMessage);
-      return null;
+
+      // Only show toast if NOT a limit error (limit errors will show UpgradeModal)
+      if (!LIMIT_ERROR_CODES.includes(code)) {
+        toast.error(errorMessage);
+      }
+      
+      return {
+        success: false,
+        message: errorMessage,
+        error: {
+          code,
+          message: errorMessage
+        }
+      };
 
     } finally {
       setIsLoading(false);

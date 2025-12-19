@@ -5,9 +5,62 @@
 import * as functions from "firebase-functions";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 if (getApps().length === 0) {
   initializeApp();
+}
+
+/**
+ * Helper function to delete images from Firebase Storage
+ * Handles both Storage URLs and paths
+ */
+async function deleteProductImages(images: string[] | undefined): Promise<void> {
+  if (!images || images.length === 0) return;
+
+  const bucket = getStorage().bucket();
+
+  for (const imageUrl of images) {
+    try {
+      // Skip Base64 images (legacy)
+      if (imageUrl.startsWith("data:")) {
+        continue;
+      }
+
+      let filePath: string | null = null;
+
+      // Extract path from Firebase Storage URL
+      if (imageUrl.includes("firebasestorage.googleapis.com")) {
+        const decodedUrl = decodeURIComponent(imageUrl);
+        const match = decodedUrl.match(/\/o\/(.+?)\?/);
+        if (match) {
+          filePath = match[1];
+        }
+      } else if (imageUrl.includes("storage.googleapis.com")) {
+        // Format: https://storage.googleapis.com/bucket/path/to/file
+        const urlParts = imageUrl.split("/");
+        const bucketIndex = urlParts.findIndex((p) => p.includes(".appspot.com") || p.includes("firebasestorage.app"));
+        if (bucketIndex >= 0) {
+          filePath = urlParts.slice(bucketIndex + 1).join("/");
+        }
+      } else if (imageUrl.startsWith("tenants/")) {
+        // Already a path
+        filePath = imageUrl;
+      }
+
+      if (filePath) {
+        await bucket.file(filePath).delete();
+        console.log(`[deleteProduct] Deleted image: ${filePath}`);
+      }
+    } catch (error: any) {
+      // Don't fail if image doesn't exist
+      if (error.code === 404 || error.message?.includes("No such object")) {
+        console.warn(`[deleteProduct] Image not found (already deleted?): ${imageUrl}`);
+      } else {
+        console.error(`[deleteProduct] Error deleting image: ${imageUrl}`, error);
+      }
+    }
+  }
 }
 
 export const deleteProduct = functions
@@ -57,21 +110,28 @@ export const deleteProduct = functions
     
     // Deletion Transaction
     try {
+      // First, get the product to extract image URLs (outside transaction for Storage ops)
+      const productRef = db.collection('products').doc(productId);
+      const productSnap = await productRef.get();
+      
+      if (!productSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "Produto não encontrado.");
+      }
+      
+      const productData = productSnap.data();
+      if (productData?.tenantId !== userCompanyId) {
+        throw new functions.https.HttpsError("permission-denied", "Acesso negado.");
+      }
+      
+      // Delete images from Storage BEFORE deleting the document
+      const images = productData?.images as string[] | undefined;
+      await deleteProductImages(images);
+      console.log(`[deleteProduct] Deleted ${images?.length || 0} images for product ${productId}`);
+      
+      // Now run the transaction to delete the Firestore document
       await db.runTransaction(async (transaction) => {
-         const productRef = db.collection('products').doc(productId);
          const companyRef = db.collection('companies').doc(userCompanyId);
-
-         // READS
-         const productSnap = await transaction.get(productRef);
          const companySnap = await transaction.get(companyRef);
-         
-         // CHECKS
-         if (!productSnap.exists) throw new functions.https.HttpsError("not-found", "Produto não encontrado.");
-         
-         const productData = productSnap.data();
-         if (productData?.tenantId !== userCompanyId) {
-            throw new functions.https.HttpsError("permission-denied", "Acesso negado.");
-         }
          
          // WRITES
          transaction.delete(productRef);
@@ -91,10 +151,11 @@ export const deleteProduct = functions
          }
       });
       
-      return { success: true, message: "Produto removido." };
+      return { success: true, message: "Produto e imagens removidos." };
     } catch (error) {
        console.error("Delete Product Error:", error);
        if (error instanceof functions.https.HttpsError) throw error;
        throw new functions.https.HttpsError("internal", `Erro ao deletar produto: ${(error as Error).message}`);
     }
   });
+

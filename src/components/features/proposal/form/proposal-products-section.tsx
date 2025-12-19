@@ -102,15 +102,15 @@ function ProductCard({ product, selected, onToggle, onUpdateQuantity }: ProductC
     return (
         <div
             className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${selected
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                    : "border-border hover:border-primary/50"
+                ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                : "border-border hover:border-primary/50"
                 }`}
             onClick={onToggle}
         >
             {/* Product Image */}
             {(product.images?.[0] || product.image) && (
                 <div className="flex justify-center mb-3">
-                    <div className="w-16 h-16 rounded-lg border bg-white overflow-hidden">
+                    <div className="w-16 h-16 rounded-lg border bg-card overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={product.images?.[0] || product.image || ""}

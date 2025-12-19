@@ -14,7 +14,7 @@ export function LandingFeatures() {
                 className="py-16 md:py-24 px-4 relative overflow-hidden"
             >
                 {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-neutral-900/20 to-neutral-950" />
+                <div className="absolute inset-0 bg-gradient-to-b from-background via-muted/30 to-background" />
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <motion.div
@@ -24,10 +24,10 @@ export function LandingFeatures() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
                     >
-                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4">
+                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground">
                             <AnimatedText text="Recursos poderosos" />
                         </h2>
-                        <p className="text-neutral-400 text-base md:text-lg max-w-2xl mx-auto px-4">
+                        <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto px-4">
                             Tudo que você precisa para gerenciar seu negócio em uma única
                             plataforma
                         </p>
@@ -78,7 +78,7 @@ export function LandingFeatures() {
             {/* How It Works Section - Stacking Cards */}
             <section className="relative py-16 md:py-24">
                 {/* Background */}
-                <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 to-neutral-900/50 -z-10" />
+                <div className="absolute inset-0 bg-gradient-to-b from-background to-muted/30 -z-10" />
 
                 <div className="max-w-4xl mx-auto px-4">
                     <motion.div
@@ -88,10 +88,10 @@ export function LandingFeatures() {
                         viewport={{ once: true }}
                         transition={{ duration: 0.5 }}
                     >
-                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4">
+                        <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground">
                             <AnimatedText text="Como funciona" />
                         </h2>
-                        <p className="text-neutral-400 text-base md:text-lg max-w-2xl mx-auto">
+                        <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
                             Comece a usar em minutos e transforme a gestão do seu negócio
                         </p>
                     </motion.div>
@@ -99,18 +99,18 @@ export function LandingFeatures() {
                     {/* ScrollStack */}
                     <ScrollStack>
                         <ScrollStackItem index={0} total={4}>
-                            <div className="group relative p-6 md:p-8 rounded-3xl border border-violet-500/20 bg-gradient-to-br from-violet-950/80 via-neutral-900/95 to-neutral-950/90 shadow-2xl shadow-violet-500/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-violet-500/40 hover:shadow-violet-500/20 hover:scale-[1.02] cursor-pointer">
+                            <div className="group relative p-6 md:p-8 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-2xl shadow-primary/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-primary/20 hover:scale-[1.02] cursor-pointer">
                                 {/* Glow effect */}
-                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-violet-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/30 group-hover:shadow-violet-500/50 transition-shadow">
                                         <Users className="w-8 h-8 text-white" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-violet-200 transition-colors">
+                                        <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                                             Cadastre sua empresa
                                         </h3>
-                                        <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
+                                        <p className="text-muted-foreground text-base md:text-lg leading-relaxed group-hover:text-foreground/80 transition-colors">
                                             Crie sua conta em segundos. Configure o perfil da sua
                                             empresa, adicione logo e informações de contato que
                                             aparecerão nas propostas.
@@ -121,18 +121,18 @@ export function LandingFeatures() {
                         </ScrollStackItem>
 
                         <ScrollStackItem index={1} total={4}>
-                            <div className="group relative p-6 md:p-8 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/80 via-neutral-900/95 to-neutral-950/90 shadow-2xl shadow-cyan-500/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-cyan-500/40 hover:shadow-cyan-500/20 hover:scale-[1.02] cursor-pointer">
+                            <div className="group relative p-6 md:p-8 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-2xl shadow-primary/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-primary/20 hover:scale-[1.02] cursor-pointer">
                                 {/* Glow effect */}
-                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 group-hover:shadow-cyan-500/50 transition-shadow">
                                         <Package className="w-8 h-8 text-white" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-cyan-200 transition-colors">
+                                        <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                                             Adicione seus produtos
                                         </h3>
-                                        <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
+                                        <p className="text-muted-foreground text-base md:text-lg leading-relaxed group-hover:text-foreground/80 transition-colors">
                                             Importe seu catálogo ou cadastre produtos manualmente.
                                             Defina preços, descrições e imagens que darão vida às suas
                                             propostas.
@@ -143,18 +143,18 @@ export function LandingFeatures() {
                         </ScrollStackItem>
 
                         <ScrollStackItem index={2} total={4}>
-                            <div className="group relative p-6 md:p-8 rounded-3xl border border-emerald-500/20 bg-gradient-to-br from-emerald-950/80 via-neutral-900/95 to-neutral-950/90 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-emerald-500/40 hover:shadow-emerald-500/20 hover:scale-[1.02] cursor-pointer">
+                            <div className="group relative p-6 md:p-8 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-2xl shadow-primary/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-primary/20 hover:scale-[1.02] cursor-pointer">
                                 {/* Glow effect */}
-                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 transition-shadow">
                                         <FileText className="w-8 h-8 text-white" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-emerald-200 transition-colors">
+                                        <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                                             Crie propostas incríveis
                                         </h3>
-                                        <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
+                                        <p className="text-muted-foreground text-base md:text-lg leading-relaxed group-hover:text-foreground/80 transition-colors">
                                             Monte propostas profissionais em poucos cliques. Selecione
                                             produtos, personalize valores e envie direto para o
                                             cliente.
@@ -165,18 +165,18 @@ export function LandingFeatures() {
                         </ScrollStackItem>
 
                         <ScrollStackItem index={3} total={4}>
-                            <div className="group relative p-6 md:p-8 rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-950/80 via-neutral-900/95 to-neutral-950/90 shadow-2xl shadow-amber-500/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-amber-500/40 hover:shadow-amber-500/20 hover:scale-[1.02] cursor-pointer">
+                            <div className="group relative p-6 md:p-8 rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-2xl shadow-primary/10 backdrop-blur-xl overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-primary/20 hover:scale-[1.02] cursor-pointer">
                                 {/* Glow effect */}
-                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center relative z-10">
                                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30 group-hover:shadow-amber-500/50 transition-shadow">
                                         <BarChart className="w-8 h-8 text-white" />
                                     </div>
                                     <div className="flex-1">
-                                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-amber-200 transition-colors">
+                                        <h3 className="text-xl md:text-2xl font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
                                             Acompanhe resultados
                                         </h3>
-                                        <p className="text-neutral-400 text-base md:text-lg leading-relaxed group-hover:text-neutral-300 transition-colors">
+                                        <p className="text-muted-foreground text-base md:text-lg leading-relaxed group-hover:text-foreground/80 transition-colors">
                                             Visualize métricas de vendas no dashboard. Entenda o que
                                             funciona e tome decisões baseadas em dados reais.
                                         </p>

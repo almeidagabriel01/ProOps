@@ -11,6 +11,8 @@ import {
 import { useTenant } from "@/providers/tenant-provider";
 import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
+import { transactionSchema } from "@/lib/validations";
 
 export interface TransactionFormData {
   type: TransactionType;
@@ -48,8 +50,11 @@ interface UseTransactionFormReturn {
   formData: TransactionFormData;
   setFormData: React.Dispatch<React.SetStateAction<TransactionFormData>>;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
   handleClientChange: (data: { clientId?: string; clientName: string; isNew: boolean }) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
+  errors: FormErrors<TransactionFormData>;
+  setFieldError: (name: string, message: string) => void;
   isSaving: boolean;
   canCreate: boolean;
   isLoading: boolean;
@@ -62,6 +67,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const { createClient } = useClientActions();
   const [formData, setFormData] = React.useState<TransactionFormData>(initialFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const { errors, validateForm, clearFieldError, validateField, setFieldError } = useFormValidation({
+    schema: transactionSchema,
+  });
 
   React.useEffect(() => {
     if (!permLoading && !canCreate) {
@@ -77,6 +85,17 @@ export function useTransactionForm(): UseTransactionFormReturn {
       ...prev,
       [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      clearFieldError(name as keyof TransactionFormData);
+    }
+  };
+
+  const handleBlur = (
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    validateField(name as keyof TransactionFormData, value, formData);
   };
 
   const handleClientChange = (data: { clientId?: string; clientName: string; isNew: boolean }) => {
@@ -90,13 +109,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!tenant) {
-      toast.error("Erro: Nenhuma empresa selecionada!");
+    // Validate form before submit
+    if (!validateForm(formData)) {
+      toast.error("Preencha todos os campos obrigatórios!");
       return;
     }
 
-    if (!formData.description.trim() || !formData.amount) {
-      toast.error("Preencha a descrição e o valor!");
+    if (!tenant) {
+      toast.error("Erro: Nenhuma empresa selecionada!");
       return;
     }
 
@@ -184,8 +204,11 @@ export function useTransactionForm(): UseTransactionFormReturn {
     formData,
     setFormData,
     handleChange,
+    handleBlur,
     handleClientChange,
     handleSubmit,
+    errors,
+    setFieldError: setFieldError as (name: string, message: string) => void,
     isSaving,
     canCreate,
     isLoading: permLoading,

@@ -5,9 +5,7 @@ import { cn } from "@/lib/utils";
 import { Crown, ChevronRight } from "lucide-react";
 import {
   MenuItem,
-  SubMenuItem,
   getVisibleChildren,
-  lightenColor,
 } from "./config";
 import { usePermissions } from "@/providers/permissions-provider";
 
@@ -26,7 +24,7 @@ export function MenuItemLink({
     <Link
       href={item.href}
       className={cn(
-        "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+        "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
         isActive
           ? "bg-primary/10 text-primary shadow-sm"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -77,7 +75,7 @@ export function RestrictedMenuItem({
   return (
     <button
       onClick={onUpgrade}
-      className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10"
+      className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10 cursor-pointer"
       style={{ color: premiumColor }}
     >
       <div className="relative shrink-0">
@@ -137,7 +135,7 @@ export function SubmenuItem({
       <button
         onClick={onToggle}
         className={cn(
-          "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full",
+          "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
           isParentActive || isSubmenuOpen
             ? "text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -180,7 +178,7 @@ export function SubmenuItem({
                 key={child.href}
                 href={child.href}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200",
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer",
                   isChildActive
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -188,9 +186,7 @@ export function SubmenuItem({
               >
                 <child.icon className="w-4 h-4 shrink-0" />
                 <span>{child.label}</span>
-                {child.masterOnly && (
-                  <Crown className="w-3 h-3 ml-auto text-amber-500" />
-                )}
+
               </Link>
             );
           })}

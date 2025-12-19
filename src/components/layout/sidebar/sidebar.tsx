@@ -54,10 +54,13 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        style={{ width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-        className="fixed mt-1 left-0 top-0 h-screen bg-card flex flex-col z-50 transition-all duration-300 ease-in-out"
+        style={{
+          width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+          transform: "translateZ(0)",
+        }}
+        className="fixed mt-1 left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-[width] duration-300 ease-out will-change-[width]"
       >
-        <div className="absolute inset-0 bg-card overflow-hidden flex flex-col">
+        <div className="absolute inset-0 bg-sidebar overflow-hidden flex flex-col">
           {/* Header / Logo area */}
           <div className="px-4 py-4 flex items-center gap-3 border-b border-border h-16 min-h-16">
             {tenant?.logoUrl ? (
@@ -149,7 +152,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
           <div className="p-3 border-t border-border">
             <button
               onClick={logout}
-              className="group flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200"
+              className="group flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-all duration-200 cursor-pointer"
             >
               <LogOut className="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span

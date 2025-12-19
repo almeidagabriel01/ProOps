@@ -1,16 +1,28 @@
 "use client";
 
 /**
- * Example: Create Member Form
+ * Create Member Form
  * 
- * This component demonstrates how to use the useCreateMember hook
- * to create new team members (MEMBER users) linked to the current MASTER.
- * 
- * Only users with role = MASTER can see and use this form.
+ * This component allows MASTER users to create new team members (MEMBER users)
+ * linked to their account. Uses the design system for consistent styling.
  */
 
 import { useState } from "react";
+import { FormCard } from "@/components/ui/form-card";
+import { FormField, FormRow } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+    UserPlus,
+    Loader2,
+    Eye,
+    Edit3,
+    Trash2,
+    Shield,
+    AlertCircle
+} from "lucide-react";
 import { useCreateMember, getDefaultPermissions } from "@/hooks/useCreateMember";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 
 // Simple permission toggle component
 function PermissionRow({
@@ -23,45 +35,49 @@ function PermissionRow({
     onChange: (page: string, key: string, value: boolean) => void;
 }) {
     return (
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="font-medium text-gray-700 capitalize">
+        <div className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
+            <span className="font-medium text-sm capitalize">
                 {page.replace("/", "")}
             </span>
-            <div className="flex gap-4">
-                <label className="flex items-center gap-1 text-sm">
+            <div className="flex gap-3 flex-wrap">
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <input
                         type="checkbox"
                         checked={permissions.canView}
                         onChange={(e) => onChange(page, "canView", e.target.checked)}
-                        className="rounded border-gray-300"
+                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
                     />
-                    Visualizar
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                    Ver
                 </label>
-                <label className="flex items-center gap-1 text-sm">
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <input
                         type="checkbox"
                         checked={permissions.canCreate ?? false}
                         onChange={(e) => onChange(page, "canCreate", e.target.checked)}
-                        className="rounded border-gray-300"
+                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
                     />
+                    <UserPlus className="w-3.5 h-3.5 text-muted-foreground" />
                     Criar
                 </label>
-                <label className="flex items-center gap-1 text-sm">
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <input
                         type="checkbox"
                         checked={permissions.canEdit ?? false}
                         onChange={(e) => onChange(page, "canEdit", e.target.checked)}
-                        className="rounded border-gray-300"
+                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
                     />
+                    <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
                     Editar
                 </label>
-                <label className="flex items-center gap-1 text-sm">
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <input
                         type="checkbox"
                         checked={permissions.canDelete ?? false}
                         onChange={(e) => onChange(page, "canDelete", e.target.checked)}
-                        className="rounded border-gray-300"
+                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
                     />
+                    <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
                     Excluir
                 </label>
             </div>
@@ -71,11 +87,12 @@ function PermissionRow({
 
 export function CreateMemberForm() {
     const { createMember, isLoading, error } = useCreateMember();
+    const upgradeModal = useUpgradeModal();
 
     // Form state
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
-    const [password, setPassword] = useState(""); // Default to empty (admin sets it)
+    const [password, setPassword] = useState("");
     const [roleType, setRoleType] = useState<"viewer" | "editor" | "admin">("viewer");
     const [permissions, setPermissions] = useState(getDefaultPermissions("viewer"));
 
@@ -103,7 +120,7 @@ export function CreateMemberForm() {
         const result = await createMember({
             name,
             email,
-            password: password || undefined, // Send only if set
+            password: password || undefined,
             permissions,
         });
 
@@ -114,167 +131,154 @@ export function CreateMemberForm() {
             setPassword("");
             setRoleType("viewer");
             setPermissions(getDefaultPermissions("viewer"));
+        } else if (result?.error && ['resource-exhausted', 'failed-precondition'].includes(result.error.code)) {
+            // Show upgrade modal for limit errors
+            upgradeModal.showUpgradeModal(
+                "Limite de Equipe Atingido",
+                "Você atingiu o limite de membros do seu plano atual. Faça upgrade para adicionar mais pessoas à sua equipe.",
+                "pro"
+            );
         }
     };
 
+    const roleOptions = [
+        { id: "viewer", label: "👁️ Visualizador", description: "Apenas visualização" },
+        { id: "editor", label: "✏️ Editor", description: "Pode criar e editar" },
+        { id: "admin", label: "🛡️ Administrador", description: "Acesso completo" },
+    ] as const;
+
     return (
-        <div className="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                Adicionar Membro da Equipe
-            </h2>
+        <div className="max-w-2xl mx-auto">
+            <FormCard
+                title="Adicionar Membro da Equipe"
+                description="Convide novos membros para colaborar"
+                icon={UserPlus}
+            >
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Name Input */}
+                    <FormField label="Nome Completo" htmlFor="name" required>
+                        <Input
+                            id="name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Ex: João Silva"
+                            required
+                            minLength={2}
+                        />
+                    </FormField>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Name Input */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nome Completo
-                    </label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Ex: João Silva"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    {/* Email Input */}
+                    <FormField label="Email" htmlFor="email" required>
+                        <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="joao@empresa.com"
+                            required
+                        />
+                    </FormField>
+
+                    {/* Password Input */}
+                    <FormField
+                        label="Senha Inicial"
+                        htmlFor="password"
                         required
-                        minLength={2}
-                    />
-                </div>
+                        hint="O membro poderá alterar depois"
+                    >
+                        <Input
+                            id="password"
+                            type="text"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Defina uma senha provisória"
+                            required
+                            minLength={6}
+                            className="bg-primary/5 border-primary/20"
+                        />
+                    </FormField>
 
-                {/* Email Input */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                    </label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="joao@empresa.com"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                    />
-                </div>
-
-                {/* Password Input (New) */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Senha Inicial
-                    </label>
-                    <input
-                        type="text"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Defina uma senha provisória"
-                        className="w-full px-4 py-2 border border-blue-200 bg-blue-50 text-blue-800 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                        minLength={6}
-                    />
-                    <p className="mt-1 text-xs text-blue-600">
-                        * Defina uma senha e envie ao membro. Ele poderá alterá-la depois.
-                    </p>
-                </div>
-
-                {/* Role Type Selector */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tipo de Acesso
-                    </label>
-                    <div className="flex gap-3">
-                        {(["viewer", "editor", "admin"] as const).map((role) => (
-                            <button
-                                key={role}
-                                type="button"
-                                onClick={() => handleRoleChange(role)}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${roleType === role
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                    }`}
-                            >
-                                {role === "viewer" && "👁️ Visualizador"}
-                                {role === "editor" && "✏️ Editor"}
-                                {role === "admin" && "🛡️ Administrador"}
-                            </button>
-                        ))}
+                    {/* Role Type Selector */}
+                    <div className="space-y-3">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-muted-foreground" />
+                            Tipo de Acesso
+                        </label>
+                        <div className="flex gap-3">
+                            {roleOptions.map((role) => (
+                                <button
+                                    key={role.id}
+                                    type="button"
+                                    onClick={() => handleRoleChange(role.id)}
+                                    className={`
+                                        flex-1 px-4 py-3 rounded-xl font-medium transition-all duration-200 text-sm
+                                        ${roleType === role.id
+                                            ? "bg-primary text-primary-foreground shadow-sm"
+                                            : "bg-muted/50 text-foreground hover:bg-muted border border-border"
+                                        }
+                                    `}
+                                >
+                                    {role.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
 
-                {/* Permissions */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Permissões por Página
-                    </label>
-                    <div className="space-y-2">
-                        {Object.entries(permissions).map(([page, perms]) => (
-                            <PermissionRow
-                                key={page}
-                                page={page}
-                                permissions={perms}
-                                onChange={handlePermissionChange}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                        {error}
-                    </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className={`w-full py-3 px-4 rounded-lg font-medium text-white transition-colors ${isLoading
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-500 hover:bg-blue-600"
-                        }`}
-                >
-                    {isLoading ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                    fill="none"
+                    {/* Permissions */}
+                    <div className="space-y-3">
+                        <label className="text-sm font-medium">
+                            Permissões por Página
+                        </label>
+                        <div className="rounded-xl border border-border p-4 bg-muted/20">
+                            {Object.entries(permissions).map(([page, perms]) => (
+                                <PermissionRow
+                                    key={page}
+                                    page={page}
+                                    permissions={perms}
+                                    onChange={handlePermissionChange}
                                 />
-                                <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                />
-                            </svg>
-                            Criando...
-                        </span>
-                    ) : (
-                        "Adicionar Membro"
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="flex items-center gap-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            {error}
+                        </div>
                     )}
-                </button>
-            </form>
+
+                    {/* Submit Button */}
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full"
+                        size="lg"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Criando...
+                            </>
+                        ) : (
+                            <>
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                Adicionar Membro
+                            </>
+                        )}
+                    </Button>
+                </form>
+            </FormCard>
+            
+            <UpgradeModal
+                open={upgradeModal.isOpen}
+                onOpenChange={upgradeModal.setIsOpen}
+                feature={upgradeModal.feature}
+                description={upgradeModal.description}
+                requiredPlan={upgradeModal.requiredPlan}
+            />
         </div>
     );
 }
-
-// ============================================
-// EXAMPLE USAGE IN A PAGE
-// ============================================
-
-/*
-// src/app/settings/team/page.tsx
-
-import { CreateMemberForm } from "@/components/team/CreateMemberForm";
-
-export default function TeamSettingsPage() {
-  return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Gerenciar Equipe</h1>
-      <CreateMemberForm />
-    </div>
-  );
-}
-*/

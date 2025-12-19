@@ -129,6 +129,9 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
     // Load plans based on effective user
     useEffect(() => {
         const loadPlans = async () => {
+            // Wait for effectiveUser to be determined
+            if (!effectiveUser) return;
+
             try {
                 const plans = await PlanService.getPlans();
                 setAllPlans(plans);
@@ -151,7 +154,7 @@ export function usePlanChange(user: User | null, tenant?: Tenant | null): UsePla
         };
 
         loadPlans();
-    }, [effectiveUser?.planId]);
+    }, [effectiveUser]);
 
     const isCurrentPlan = (plan: UserPlan) => {
         // Check if plan tier matches AND billing interval matches

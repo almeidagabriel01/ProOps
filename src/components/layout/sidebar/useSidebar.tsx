@@ -28,7 +28,7 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
   const { user } = useAuth();
   const { hasFinancial } = usePlanLimits();
   const { hasPermission, isMaster } = usePermissions();
-  
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [userPlanName, setUserPlanName] = useState<string | null>(null);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
@@ -38,7 +38,7 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
     return menuItems.filter((item) => {
       // Financial requires plan access
       if (item.requiresFinancial && !hasFinancial && !isMaster) return true; // Show but restricted
-      
+
       // MASTER sees everything
       if (isMaster) return true;
 

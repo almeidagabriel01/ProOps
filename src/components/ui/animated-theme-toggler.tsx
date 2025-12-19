@@ -82,7 +82,7 @@ export const AnimatedThemeToggler = ({
     <button
       ref={buttonRef}
       onClick={toggleTheme}
-      className={cn(className)}
+      className={cn("cursor-pointer", className)}
       {...props}
     >
       {isDark ? <Sun /> : <Moon />}

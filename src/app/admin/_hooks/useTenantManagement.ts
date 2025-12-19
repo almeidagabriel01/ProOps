@@ -21,6 +21,7 @@ interface UseTenantManagementReturn {
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   handleLoginAs: (tenant: Tenant) => void;
+  isLoading: boolean;
 }
 
 export function useTenantManagement(): UseTenantManagementReturn {
@@ -76,11 +77,8 @@ export function useTenantManagement(): UseTenantManagementReturn {
         if (data.email && data.password) {
           const { initializeApp, getApp, getApps, deleteApp } =
             await import("firebase/app");
-          const {
-            getAuth,
-            createUserWithEmailAndPassword,
-            signOut,
-          } = await import("firebase/auth");
+          const { getAuth, createUserWithEmailAndPassword, signOut } =
+            await import("firebase/auth");
           const { getFirestore, doc, setDoc } =
             await import("firebase/firestore");
 
@@ -122,14 +120,15 @@ export function useTenantManagement(): UseTenantManagementReturn {
             if (!getApps().every((app) => app.name !== secondaryAppName))
               await deleteApp(secondaryApp);
             alert(`Empresa ${data.name} e usuário admin criada!`);
-          } catch (e: any) {
-            console.error(e);
-            alert("Erro ao criar usuário (email em uso?): " + e.message);
+          } catch (e: unknown) {
+            const error = e as Error;
+            console.error(error);
+            alert("Erro ao criar usuário (email em uso?): " + error.message);
             try {
               await signOut(secondaryAuth);
               if (!getApps().every((app) => app.name !== secondaryAppName))
                 await deleteApp(secondaryApp);
-            } catch (x) {}
+            } catch {}
           }
         } else {
           alert(`Empresa ${data.name} criada!`);
@@ -171,7 +170,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
   const handleLoginAs = (tenant: Tenant) => {
     setViewingTenant(tenant);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const filteredTenants = tenantsData.filter((item) =>
@@ -191,5 +190,6 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDelete,
     handleLoginAs,
+    isLoading: tenantsData.length === 0, // inferred loading state since we don't have explicit one yet
   };
 }

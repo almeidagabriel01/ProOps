@@ -2,45 +2,48 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { PlanService } from "@/services/plan-service";
-import { UserPlan } from "@/types";
 
 const INITIAL_PLANS = [
   {
     name: "Starter",
     tier: "starter",
     prices: {
-      monthly: 97,
-      yearly: 931, // ~20% desconto
+      monthly: 79,
+      yearly: 804,
     },
-    description: "Ideal para pequenos negócios",
+    description: "Ideal para freelancers e pequenos negócios",
     features: [
-      "Até 100 propostas/mês",
-      "1 usuário",
-      "Relatórios básicos",
-      "Suporte por email",
+      "Crie até 80 propostas por mês",
+      "Cadastre até 2 membros na equipe",
+      "Cadastre até 120 clientes",
+      "Cadastre até 220 produtos para venda",
+      "1 layout de proposta em PDF",
+      "200 MB para armazenar arquivos",
     ],
     cta: "Assinar Agora",
     popular: false,
   },
   {
-    name: "Professional",
+    name: "Profissional",
     tier: "pro",
     prices: {
-      monthly: 197,
-      yearly: 1891, // ~20% desconto
+      monthly: 149,
+      yearly: 1524,
     },
     description: "Para empresas em crescimento",
     features: [
       "Propostas ilimitadas",
-      "5 usuários",
-      "Relatórios avançados",
-      "Suporte prioritário",
-      "Customização de temas",
-      "API de integração",
+      "Até 10 membros na equipe",
+      "Clientes ilimitados",
+      "Produtos ilimitados",
+      "Controle financeiro completo",
+      "Cores personalizadas",
+      "3 layouts de proposta em PDF",
+      "2.5 GB de armazenamento",
     ],
     cta: "Assinar Agora",
     popular: true,
@@ -49,17 +52,16 @@ const INITIAL_PLANS = [
     name: "Enterprise",
     tier: "enterprise",
     prices: {
-      monthly: 497,
-      yearly: 4771, // ~20% desconto
+      monthly: 299,
+      yearly: 3048,
     },
-    description: "Para grandes operações",
+    description: "Acesso total para grandes operações",
     features: [
-      "Tudo do Professional",
-      "Usuários ilimitados",
-      "Multi-tenant",
-      "Suporte 24/7",
-      "SLA garantido",
-      "Onboarding dedicado",
+      "Tudo do Profissional",
+      "Membros ilimitados",
+      "Todos os layouts de PDF",
+      "Editor de PDF avançado",
+      "Armazenamento ilimitado",
     ],
     cta: "Assinar Agora",
     popular: false,
@@ -69,9 +71,76 @@ const INITIAL_PLANS = [
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
-  const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    [key: string]: unknown;
+  } | null>(null);
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
+    "monthly"
+  );
+  const [plans, setPlans] = useState(INITIAL_PLANS);
+  // Decision state for what skeleton to show while checking auth
+  // Uses initializer function to compute from localStorage synchronously
+  const [initialSkeleton] = useState<
+    | "dashboard"
+    | "profile"
+    | "financial"
+    | "products"
+    | "clients"
+    | "proposals"
+    | "team"
+    | "admin"
+    | "list"
+    | null
+  >(() => {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const cached = localStorage.getItem("erp_user_cache");
+      if (cached) {
+        const data = JSON.parse(cached);
+        const { role, permissions, isAdmin } = data;
+
+        // Superadmin gets admin skeleton
+        if (role === "superadmin") {
+          return "admin";
+        } else if (isAdmin || permissions?.dashboard?.canView) {
+          return "dashboard";
+        } else {
+          // Find the first allowed page for this user to match redirection logic
+          const pages = [
+            "proposals",
+            "clients",
+            "products",
+            "financial",
+            "profile",
+          ] as const;
+          const firstAllowed = pages.find(
+            (page) => permissions[page]?.canView === true || page === "profile"
+          );
+
+          switch (firstAllowed) {
+            case "financial":
+              return "financial";
+            case "profile":
+              return "profile";
+            case "products":
+              return "products";
+            case "clients":
+              return "clients";
+            case "proposals":
+              return "proposals";
+            default:
+              return "list";
+          }
+        }
+      } else {
+        return "list";
+      }
+    } catch {
+      return "list";
+    }
+  });
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -86,27 +155,32 @@ export function useLandingPage() {
             features: [
               p.features.maxProposals === -1
                 ? "Propostas ilimitadas"
-                : `Até ${p.features.maxProposals} propostas/mês`,
+                : `Crie até ${p.features.maxProposals} propostas por mês`,
               p.features.maxUsers === -1
-                ? "Usuários ilimitados"
-                : `${p.features.maxUsers} usuários`,
+                ? "Membros ilimitados"
+                : `Cadastre até ${p.features.maxUsers} membros na equipe`,
               p.features.maxClients === -1
                 ? "Clientes ilimitados"
-                : `${p.features.maxClients} clientes`,
+                : `Cadastre até ${p.features.maxClients} clientes`,
               p.features.maxProducts === -1
                 ? "Produtos ilimitados"
-                : `${p.features.maxProducts} produtos`,
-              p.features.hasFinancial ? "Módulo Financeiro" : null,
-              p.features.canCustomizeTheme ? "Personalização de cores" : null,
+                : `Cadastre até ${p.features.maxProducts} produtos para venda`,
+              p.features.hasFinancial ? "Controle financeiro completo" : null,
+              p.features.canCustomizeTheme ? "Cores personalizadas" : null,
               p.features.maxPdfTemplates === -1
-                ? "Todos os templates PDF"
+                ? "Todos os layouts de PDF"
                 : p.features.maxPdfTemplates > 1
-                  ? `${p.features.maxPdfTemplates} templates PDF`
-                  : "1 template PDF",
-              p.features.canEditPdfSections ? "Editor de seções do PDF" : null,
-            ].filter(Boolean),
+                  ? `${p.features.maxPdfTemplates} layouts de proposta em PDF`
+                  : "1 layout de proposta em PDF",
+              p.features.canEditPdfSections ? "Editor de PDF avançado" : null,
+              p.features.maxStorageMB === -1
+                ? "Armazenamento ilimitado"
+                : p.features.maxStorageMB >= 1000
+                  ? `${(p.features.maxStorageMB / 1024).toFixed(1)} GB de armazenamento`
+                  : `${p.features.maxStorageMB} MB para armazenar arquivos`,
+            ].filter((f): f is string => Boolean(f)),
             cta: "Assinar Agora",
-            popular: p.highlighted,
+            popular: p.highlighted ?? false,
           }));
           setPlans(mappedPlans);
         }
@@ -124,24 +198,58 @@ export function useLandingPage() {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            
+
             if (userData.role !== "free") {
-              const isAdmin = ["admin", "superadmin", "MASTER"].includes(userData.role);
+              // Superadmin goes directly to admin panel
+              if (userData.role === "superadmin") {
+                router.replace("/admin");
+                return;
+              }
+
+              const isAdmin = ["admin", "superadmin", "MASTER"].includes(
+                userData.role
+              );
               const perms = userData.permissions || {};
-              const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+              const canViewDashboard =
+                isAdmin || perms["dashboard"]?.canView === true;
+
+              // Cache the role/permissions for faster next load
+              try {
+                const cachedData = {
+                  role: userData.role,
+                  permissions: userData.permissions || {},
+                  isAdmin: isAdmin,
+                };
+                localStorage.setItem(
+                  "erp_user_cache",
+                  JSON.stringify(cachedData)
+                );
+              } catch {
+                // Ignore storage errors
+              }
 
               if (canViewDashboard) {
                 router.replace("/dashboard");
               } else {
-                const pages = ["proposals", "clients", "products", "financial", "profile"];
-                const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+                const pages = [
+                  "proposals",
+                  "clients",
+                  "products",
+                  "financial",
+                  "profile",
+                ];
+                const firstAllowed = pages.find(
+                  (page) => perms[page]?.canView === true || page === "profile"
+                );
                 router.replace(firstAllowed ? `/${firstAllowed}` : "/403");
               }
               return;
             }
             setCurrentUser({ id: user.uid, ...userData });
           } else {
-            console.warn("User document not found in Firestore, signing out...");
+            console.warn(
+              "User document not found in Firestore, signing out..."
+            );
             await signOut(auth);
             setCurrentUser(null);
           }
@@ -169,6 +277,7 @@ export function useLandingPage() {
     billingInterval,
     setBillingInterval,
     plans,
-    handleSignOut
+    initialSkeleton,
+    handleSignOut,
   };
 }

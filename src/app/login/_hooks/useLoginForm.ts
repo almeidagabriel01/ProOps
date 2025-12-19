@@ -8,7 +8,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { TenantNiche } from "@/types";
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
 
 interface UseLoginFormReturn {
   // Login fields
@@ -34,16 +34,20 @@ interface UseLoginFormReturn {
   // State
   error: string;
   setError: (value: string) => void;
+  errors: Record<string, string>; // New: specific field errors
+  setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   isLoggingIn: boolean;
   isRegistering: boolean;
   mode: AuthMode;
   setMode: (value: AuthMode) => void;
   isLoading: boolean;
+  resetSent: boolean;
   user: any;
 
   // Handlers
-  handleLogin: (e: React.FormEvent) => Promise<void>;
-  handleRegister: (e: React.FormEvent) => Promise<void>;
+  handleLogin: (e?: React.FormEvent) => Promise<void>;
+  handleRegister: (e?: React.FormEvent) => Promise<void>;
+  handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
@@ -61,11 +65,35 @@ export function useLoginForm(): UseLoginFormReturn {
   const [companyLogo, setCompanyLogo] = React.useState("");
   const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>("automacao_residencial");
 
+
+
   const [error, setError] = React.useState("");
+  const [errors, setErrors] = React.useState<Record<string, string>>({}); // New: specific field errors
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
   const [isRegistering, setIsRegistering] = React.useState(false);
-  const [mode, setMode] = React.useState<AuthMode>("login");
+  type AuthMode = "login" | "register" | "forgot";
 
+  // ... (inside function)
+  const [mode, setMode] = React.useState<AuthMode>("login");
+  const [resetSent, setResetSent] = React.useState(false);
+
+  const handleForgotPassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!email) {
+      setError("Digite seu email para redefinir a senha.");
+      return;
+    }
+    
+    try {
+        const { sendPasswordResetEmail } = await import("firebase/auth");
+        await sendPasswordResetEmail(auth, email);
+        setResetSent(true);
+        setError("");
+    } catch (err: any) {
+        console.error("Reset password error:", err);
+        setError("Erro ao enviar email. Verifique se o email está correto.");
+    }
+  };
   const { login, user, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -114,9 +142,33 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   }, [user, isLoading, handleRedirectAfterAuth]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError("");
+    setErrors({});
+    
+    // Manual validation
+    const newErrors: Record<string, string> = {};
+    let isValid = true;
+
+    if (!email.trim()) {
+      newErrors.email = "Email é obrigatório";
+      isValid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "Senha é obrigatória";
+      isValid = false;
+    } else if (password.length < 6) {
+      newErrors.password = "A senha deve ter pelo menos 6 caracteres";
+      isValid = false;
+    }
+
+    if (!isValid) {
+      setErrors(newErrors);
+      return;
+    }
+
     setIsLoggingIn(true);
 
     const success = await login(email, password);
@@ -126,11 +178,32 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   };
 
+  // Clear login errors on change
+  React.useEffect(() => {
+    if (errors.email && email.trim()) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.email;
+        return newErrors;
+      });
+    }
+  }, [email, errors.email]);
+
+  React.useEffect(() => {
+    if (errors.password && password) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.password;
+        return newErrors;
+      });
+    }
+  }, [password, errors.password]);
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 300 * 1024) {
-        setError("O logo deve ter no máximo 300KB.");
+      if (file.size > 2 * 1024 * 1024) {
+        setError("O logo deve ter no máximo 2MB.");
         e.target.value = "";
         return;
       }
@@ -142,8 +215,8 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError("");
 
     if (password.length < 6) {
@@ -212,6 +285,7 @@ export function useLoginForm(): UseLoginFormReturn {
     companyLogo, setCompanyLogo,
     companyNiche, setCompanyNiche,
     error, setError,
+    errors, setErrors,
     isLoggingIn,
     isRegistering,
     mode, setMode,
@@ -219,6 +293,8 @@ export function useLoginForm(): UseLoginFormReturn {
     user,
     handleLogin,
     handleRegister,
+    handleForgotPassword,
     handleLogoUpload,
+    resetSent,
   };
 }

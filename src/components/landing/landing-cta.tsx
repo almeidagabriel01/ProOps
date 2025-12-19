@@ -6,10 +6,10 @@ import { ArrowRight } from "lucide-react";
 
 export function LandingCTA() {
     return (
-        <section className="py-16 md:py-24 px-4">
+        <section className="py-16 md:py-24 px-4 bg-muted/30">
             <div className="max-w-4xl mx-auto text-center">
                 <motion.h2
-                    className="text-2xl sm:text-3xl md:text-5xl font-bold mb-6"
+                    className="text-2xl sm:text-3xl md:text-5xl font-bold mb-6 text-foreground"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -18,7 +18,7 @@ export function LandingCTA() {
                     Pronto para transformar sua gestão?
                 </motion.h2>
                 <motion.p
-                    className="text-neutral-400 text-base md:text-lg mb-8 max-w-2xl mx-auto px-4"
+                    className="text-muted-foreground text-base md:text-lg mb-8 max-w-2xl mx-auto px-4"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -35,7 +35,7 @@ export function LandingCTA() {
                 >
                     <Link href="/login">
                         <motion.button
-                            className="group relative px-8 py-4 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 rounded-xl font-medium text-lg flex items-center gap-3 mx-auto transition-all duration-300 cursor-pointer shadow-xl shadow-violet-500/30 hover:shadow-violet-500/50"
+                            className="group relative px-8 py-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-xl font-medium text-lg flex items-center gap-3 mx-auto transition-all duration-300 cursor-pointer shadow-xl shadow-primary/30 hover:shadow-primary/50"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >

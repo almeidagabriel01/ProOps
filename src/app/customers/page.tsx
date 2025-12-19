@@ -7,18 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Client, ClientService } from "@/services/client-service";
+import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
+import { Plus, Users, Trash2, Edit, Search, Mail, Phone } from "lucide-react";
+import { CustomersSkeleton } from "./_components/customers-skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
-  Plus,
-  Users,
-  Trash2,
-  Edit,
-  Search,
-  Mail,
-  Phone,
-  Loader2,
-} from "lucide-react";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const sourceConfig: Record<
   string,
@@ -35,12 +40,16 @@ const sourceConfig: Record<
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function CustomersPage() {
-  const { tenant } = useTenant();
+  const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canDelete, canEdit } = usePagePermission("clients");
   const [clients, setClients] = React.useState<Client[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+
+  const isPageLoading = tenantLoading || isLoading;
   const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   React.useEffect(() => {
     const fetchClients = async () => {
@@ -57,19 +66,35 @@ export default function CustomersPage() {
     fetchClients();
   }, [tenant]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este cliente?")) {
-      // try {
-      //   await ClientService.deleteClient(id);
-      //   setClients((prev) => prev.filter((c) => c.id !== id));
-      // } catch (error) {
-      //   console.error("Error deleting client:", error);
-      //   alert("Erro ao excluir cliente");
-      // }
-      const success = await deleteClient(id);
-      if (success) {
-        setClients((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!deleteId || !tenant) return;
+
+    setIsDeleting(true);
+    try {
+      // Check if client is used in any proposal
+      const isUsed = await ProposalService.isClientUsedInProposal(
+        tenant.id,
+        deleteId
+      );
+      if (isUsed) {
+        alert(
+          "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas."
+        );
+        setIsDeleting(false);
+        setDeleteId(null);
+        return;
       }
+
+      const success = await deleteClient(deleteId);
+      if (success) {
+        setClients((prev) => prev.filter((c) => c.id !== deleteId));
+      }
+      setDeleteId(null);
+    } catch (error) {
+      console.error("Error deleting client:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -93,12 +118,8 @@ export default function CustomersPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (isPageLoading) {
+    return <CustomersSkeleton />;
   }
 
   return (
@@ -122,13 +143,12 @@ export default function CustomersPage() {
 
       {/* Search */}
       {clients.length > 0 && (
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="max-w-md">
           <Input
             placeholder="Buscar por nome, email ou telefone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            icon={<Search className="w-4 h-4" />}
           />
         </div>
       )}
@@ -172,8 +192,9 @@ export default function CustomersPage() {
         <div className="grid gap-4">
           {/* Header */}
           <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-            <div className="col-span-3">Nome</div>
-            <div className="col-span-3">Contato</div>
+            <div className="col-span-2">Nome</div>
+            <div className="col-span-2">Endereço</div>
+            <div className="col-span-2">Contato</div>
             <div className="col-span-2">Origem</div>
             <div className="col-span-2">Cadastrado em</div>
             <div className="col-span-2 text-right">Ações</div>
@@ -188,20 +209,18 @@ export default function CustomersPage() {
                 className="hover:bg-muted/50 transition-colors"
               >
                 <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Link
                       href={`/customers/${client.id}`}
                       className="font-medium hover:underline"
                     >
                       {client.name}
                     </Link>
-                    {client.address && (
-                      <div className="text-xs text-muted-foreground mt-1 truncate">
-                        {client.address}
-                      </div>
-                    )}
                   </div>
-                  <div className="col-span-3 space-y-1">
+                  <div className="col-span-2 text-sm text-muted-foreground truncate">
+                    {client.address || "-"}
+                  </div>
+                  <div className="col-span-2 space-y-1">
                     {client.email && (
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Mail className="w-3 h-3" />
@@ -238,15 +257,47 @@ export default function CustomersPage() {
                       </Link>
                     )}
                     {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(client.id)}
-                        title="Excluir"
+                      <AlertDialog
+                        open={deleteId === client.id}
+                        onOpenChange={(open: boolean) => {
+                          if (!isDeleting && !open) {
+                            setDeleteId(null);
+                          }
+                        }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteId(client.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o cliente{" "}
+                              <strong>{client.name}</strong>? Essa ação não pode
+                              ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDelete}
+                              className="bg-destructive hover:bg-destructive/90 gap-2"
+                              disabled={isDeleting}
+                            >
+                              {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+                              {isDeleting ? "Excluindo..." : "Excluir"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </CardContent>

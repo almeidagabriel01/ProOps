@@ -126,13 +126,15 @@ export function CustomFieldManager() {
                     <div className="w-1/3 border-r pr-4 overflow-auto">
                         <div className="space-y-2 mb-4">
                             <Label>Tipos de Campo</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="Nome do tipo..."
-                                    value={newTypeName}
-                                    onChange={(e) => setNewTypeName(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateType()}
-                                />
+                            <div className="flex gap-2 items-center">
+                                <div className="flex-1">
+                                    <Input
+                                        placeholder="Nome do tipo..."
+                                        value={newTypeName}
+                                        onChange={(e) => setNewTypeName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateType()}
+                                    />
+                                </div>
                                 <Button size="icon" onClick={handleCreateType}>
                                     <Plus className="w-4 h-4" />
                                 </Button>
@@ -182,13 +184,15 @@ export function CustomFieldManager() {
                                     <h3 className="font-semibold">{selectedType.name}</h3>
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder={`Novo item de ${selectedType.name}...`}
-                                        value={newItemLabel}
-                                        onChange={(e) => setNewItemLabel(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
-                                    />
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        <Input
+                                            placeholder={`Novo item de ${selectedType.name}...`}
+                                            value={newItemLabel}
+                                            onChange={(e) => setNewItemLabel(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
+                                        />
+                                    </div>
                                     <Button onClick={handleAddItem}>
                                         <Plus className="w-4 h-4 mr-2" />
                                         Adicionar

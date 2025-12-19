@@ -17,6 +17,7 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,9 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
 
+  // Set page title based on current route
+  usePageTitle();
+
   // Landing page - completely isolated from ERP (no providers)
   const isLandingPage = pathname === "/";
 
@@ -43,6 +47,7 @@ export default function RootLayout({
     pathname === "/login" ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
+    pathname.startsWith("/auth") ||
     pathname === "/403";
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
@@ -66,7 +71,7 @@ export default function RootLayout({
                         {children}
                       </main>
                     ) : (
-                      <div className="flex h-screen overflow-hidden bg-card">
+                      <div className="flex h-screen overflow-hidden bg-sidebar">
                         <Sidebar onExpandChange={setSidebarExpanded} />
                         <div
                           className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
