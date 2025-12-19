@@ -114,13 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   React.useEffect(() => {
-    console.log("[AuthProvider] Setting up auth listener...");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("[AuthProvider] Auth state changed:", firebaseUser ? "User exists" : "No user");
       if (firebaseUser) {
-        console.log("[AuthProvider] Fetching user data for UID:", firebaseUser.uid);
         const userData = await fetchUserData(firebaseUser);
-        console.log("[AuthProvider] User data fetched:", userData ? `tenantId: ${userData.tenantId}` : "null");
         setUser(userData);
 
         // Set session cookie for middleware authentication
@@ -136,7 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         document.cookie = "firebase-auth-token=; path=/; max-age=0";
         document.cookie = "user-role=; path=/; max-age=0";
       }
-      console.log("[AuthProvider] Setting isLoading to false");
       setIsLoading(false);
     });
 

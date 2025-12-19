@@ -78,25 +78,14 @@ export function useDashboardData(): DashboardData {
 
   // Fetch all data once
   React.useEffect(() => {
-    console.log(
-      "[DashboardData] useEffect triggered, isTenantLoading:",
-      isTenantLoading,
-      "tenant:",
-      tenant?.id
-    );
-
     // If tenant is still loading, wait
     if (isTenantLoading) {
-      console.log("[DashboardData] Waiting for tenant to load...");
       return;
     }
 
     // If tenant finished loading but is null (e.g., superadmin without tenant)
     // set loading to false and return empty data
     if (!tenant) {
-      console.log(
-        "[DashboardData] Tenant is null, setting isDataLoading to false"
-      );
       setIsDataLoading(false);
       return;
     }
@@ -104,7 +93,6 @@ export function useDashboardData(): DashboardData {
     let cancelled = false;
 
     const fetchData = async () => {
-      console.log("[DashboardData] Starting data fetch for tenant:", tenant.id);
       setIsDataLoading(true);
       try {
         const [transactions, proposals, clients, financialSummary] =
@@ -115,20 +103,13 @@ export function useDashboardData(): DashboardData {
             TransactionService.getSummary(tenant.id),
           ]);
 
-        console.log("[DashboardData] Data fetched successfully:", {
-          transactions: transactions.length,
-          proposals: proposals.length,
-          clients: clients.length,
-        });
-
         if (!cancelled) {
           setRawData({ transactions, proposals, clients, financialSummary });
         }
       } catch (error) {
-        console.error("[DashboardData] Error fetching dashboard data:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         if (!cancelled) {
-          console.log("[DashboardData] Setting isDataLoading to false");
           setIsDataLoading(false);
         }
       }

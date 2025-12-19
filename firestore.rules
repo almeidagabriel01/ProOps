@@ -313,6 +313,19 @@ service cloud.firestore {
     }
     
     // ============================================
+    // OPTIONS COLLECTION (Dynamic Select Options)
+    // ============================================
+    
+    match /options/{optionId} {
+      // READ: Users can read options from their own tenant
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Options are managed only via Cloud Functions
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
     // ADDONS COLLECTION
     // ============================================
     
