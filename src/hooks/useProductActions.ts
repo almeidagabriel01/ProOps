@@ -1,6 +1,6 @@
 /**
  * Hook: useProductActions
- * 
+ *
  * Securely manages product operations via Firebase Cloud Functions.
  * Replaces direct Firestore writes.
  */
@@ -22,6 +22,7 @@ export interface CreateProductData {
   category?: string;
   sku?: string;
   stock?: string;
+  status?: string;
   images?: string[];
 }
 
@@ -43,32 +44,36 @@ interface DeleteProductResult {
 export function useProductActions() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const createProduct = async (data: CreateProductData): Promise<CreateProductResult | null> => {
+  const createProduct = async (
+    data: CreateProductData
+  ): Promise<CreateProductResult | null> => {
     setIsLoading(true);
     try {
       const createFn = httpsCallable<CreateProductData, CreateProductResult>(
-        functions, 
-        'createProduct'
+        functions,
+        "createProduct"
       );
-      
+
       const payload = {
         name: data.name,
-        description: data.description || '',
+        description: data.description || "",
         price: data.price,
-        manufacturer: data.manufacturer || '',
-        category: data.category || '',
-        sku: data.sku || '',
-        stock: data.stock || '0',
-        images: data.images || []
+        manufacturer: data.manufacturer || "",
+        category: data.category || "",
+        sku: data.sku || "",
+        stock: data.stock || "0",
+        status: data.status || "active",
+        images: data.images || [],
       };
-      
+
       const result = await createFn(payload);
-      
+
       toast.success("Produto criado com sucesso!");
       return result.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating product:", error);
-      const message = error.message || "Erro ao criar produto.";
+      const message =
+        error instanceof Error ? error.message : "Erro ao criar produto.";
       toast.error(message);
       return null;
     } finally {
@@ -78,21 +83,22 @@ export function useProductActions() {
 
   const deleteProduct = async (productId: string): Promise<boolean> => {
     if (!productId) return false;
-    
+
     setIsLoading(true);
     try {
-      const deleteFn = httpsCallable<{ productId: string }, DeleteProductResult>(
-        functions,
-        'deleteProduct'
-      );
-      
+      const deleteFn = httpsCallable<
+        { productId: string },
+        DeleteProductResult
+      >(functions, "deleteProduct");
+
       await deleteFn({ productId });
-      
+
       toast.success("Produto removido com sucesso!");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting product:", error);
-      const message = error.message || "Erro ao deletar produto.";
+      const message =
+        error instanceof Error ? error.message : "Erro ao deletar produto.";
       toast.error(message);
       return false;
     } finally {
@@ -103,6 +109,6 @@ export function useProductActions() {
   return {
     createProduct,
     deleteProduct,
-    isLoading
+    isLoading,
   };
 }

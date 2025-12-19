@@ -17,7 +17,7 @@ import { ProposalSistema, Sistema } from "@/types/automation";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
-import { useProposalForm } from "@/hooks/useProposalForm";
+import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { FormContainer } from "@/components/ui/form-components";
 import {
   StepWizard,
@@ -281,11 +281,15 @@ export function SimpleProposalForm({
 
   // Validação do Step 2 (Sistemas ou Produtos)
   const validateStep2 = (): boolean => {
+    let hasItems = false;
+    let hasActiveProduct = false;
+
     if (isAutomacaoNiche) {
       if (selectedSistemas.length === 0) {
         setFieldError("sistemas", "Selecione pelo menos 1 sistema de automação");
         return false;
       }
+
       // Check if there are actual products (from systems or extras)
       if (!formData.products || formData.products.length === 0) {
         setFieldError(
@@ -294,14 +298,37 @@ export function SimpleProposalForm({
         );
         return false;
       }
-      clearFieldError("sistemas");
+      hasItems = true;
     } else {
       if (selectedProducts.length === 0) {
         setFieldError("products", "Selecione pelo menos 1 produto");
         return false;
       }
-      clearFieldError("products");
+      hasItems = true;
     }
+
+    // Validate if at least one selected product is active
+    if (hasItems) {
+      // Get all selected product IDs
+      const selectedIds = new Set(selectedProducts.map(sp => sp.productId));
+
+      // Check if ANY of the selected products in the master list are active
+      // We assume if a product is not found in master list (e.g. deleted), it's not "active" for this purpose, or we could handle safely
+      // Status undefined/null means active (legacy)
+      hasActiveProduct = products.some(p =>
+        selectedIds.has(p.id) && (!p.status || p.status === 'active')
+      );
+
+      if (!hasActiveProduct) {
+        const field = isAutomacaoNiche ? "sistemas" : "products";
+        setFieldError(field, "Selecione pelo menos um produto ativo para continuar.");
+        return false;
+      }
+    }
+
+    if (isAutomacaoNiche) clearFieldError("sistemas");
+    else clearFieldError("products");
+
     return true;
   };
 

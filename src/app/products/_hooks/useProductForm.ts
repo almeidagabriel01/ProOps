@@ -7,7 +7,11 @@ import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useProductActions } from "@/hooks/useProductActions";
-import { uploadImage, deleteImage, isStorageUrl } from "@/services/storage-service";
+import {
+  uploadImage,
+  deleteImage,
+  isStorageUrl,
+} from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema } from "@/lib/validations";
 
@@ -41,8 +45,16 @@ interface UseProductFormReturn {
   maxImagesPerProduct: number;
   errors: FormErrors<ProductFormData>;
   setFieldError: (name: string, message: string) => void;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  handleChange: (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => void;
+  handleBlur: (
+    e: React.FocusEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => void;
   handleAddImage: (file: File | null) => void;
   handleRemoveImage: (index: number) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
@@ -60,7 +72,13 @@ export function useProductForm(
   const [showLimitModal, setShowLimitModal] = React.useState(false);
   const [showImageLimitModal, setShowImageLimitModal] = React.useState(false);
   const [currentProductCount, setCurrentProductCount] = React.useState(0);
-  const { errors, validateForm, clearFieldError, validateField, setFieldError } = useFormValidation({
+  const {
+    errors,
+    validateForm,
+    clearFieldError,
+    validateField,
+    setFieldError,
+  } = useFormValidation({
     schema: productSchema,
   });
 
@@ -81,13 +99,13 @@ export function useProductForm(
   const [imageUrls, setImageUrls] = React.useState<string[]>(
     initialData?.images || (initialData?.image ? [initialData.image] : [])
   );
-  
+
   // New files pending upload
   const [pendingFiles, setPendingFiles] = React.useState<File[]>([]);
-  
+
   // Preview URLs for pending files
   const [pendingPreviews, setPendingPreviews] = React.useState<string[]>([]);
-  
+
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Track removed URLs for cleanup
@@ -118,7 +136,9 @@ export function useProductForm(
   }, [initialData]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -129,13 +149,28 @@ export function useProductForm(
   };
 
   const handleBlur = (
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.FocusEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     // Only validate fields that are in the schema
-    const schemaFields = ['name', 'description', 'price', 'manufacturer', 'category', 'sku', 'stock', 'status'];
+    const schemaFields = [
+      "name",
+      "description",
+      "price",
+      "manufacturer",
+      "category",
+      "sku",
+      "stock",
+      "status",
+    ];
     if (schemaFields.includes(name)) {
-      validateField(name as keyof typeof errors, value, formData as unknown as Record<string, unknown>);
+      validateField(
+        name as keyof typeof errors,
+        value,
+        formData as unknown as Record<string, unknown>
+      );
     }
   };
 
@@ -144,7 +179,7 @@ export function useProductForm(
 
     // Get max images from plan (default to 2 for safety)
     const maxImages = features?.maxImagesPerProduct ?? 2;
-    
+
     // Validation: Check plan limit
     const totalImages = imageUrls.length + pendingFiles.length;
     if (totalImages >= maxImages) {
@@ -154,7 +189,9 @@ export function useProductForm(
 
     // Validation: File size (5MB max per image)
     if (file.size > MAX_FILE_SIZE) {
-      toast.error(`A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
+      toast.error(
+        `A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`
+      );
       return;
     }
 
@@ -177,12 +214,12 @@ export function useProductForm(
     if (index < totalExisting) {
       // Removing an existing image
       const urlToRemove = imageUrls[index];
-      
+
       // Track for deletion if it's a Storage URL
       if (isStorageUrl(urlToRemove)) {
         setRemovedUrls((prev) => [...prev, urlToRemove]);
       }
-      
+
       setImageUrls((prev) => prev.filter((_, i) => i !== index));
     } else {
       // Removing a pending file
@@ -281,6 +318,7 @@ export function useProductForm(
           category: formData.category,
           sku: formData.sku,
           stock: formData.stock,
+          status: formData.status as "active" | "inactive",
           images: allImageUrls,
         });
 

@@ -179,10 +179,10 @@ export default function ProductsPage() {
             <div className="col-span-1">Imagem</div>
             <div className="col-span-3">Nome</div>
             <div className="col-span-2">Categoria</div>
-            <div className="col-span-2">SKU</div>
-            <div className="col-span-1">Estoque</div>
-            <div className="col-span-1">Preço</div>
-            <div className="col-span-2 text-right">Ações</div>
+            <div className="col-span-2 text-center">Estoque</div>
+            <div className="col-span-2 text-center">Preço</div>
+            <div className="col-span-1 text-center">Status</div>
+            <div className="col-span-1 text-right">Ações</div>
           </div>
 
           {/* Rows */}
@@ -216,10 +216,7 @@ export default function ProductsPage() {
                 <div className="col-span-2 text-sm text-muted-foreground">
                   {product.category}
                 </div>
-                <div className="col-span-2 text-sm text-muted-foreground">
-                  {product.sku}
-                </div>
-                <div className="col-span-1">
+                <div className="col-span-2 text-center">
                   <span
                     className={
                       Number(product.stock) < 10
@@ -230,10 +227,20 @@ export default function ProductsPage() {
                     {product.stock}
                   </span>
                 </div>
-                <div className="col-span-1 text-sm font-medium">
+                <div className="col-span-2 text-sm font-medium text-center">
                   R$ {parseFloat(product.price).toFixed(2)}
                 </div>
-                <div className="col-span-2 flex items-center justify-end gap-1">
+                <div className="col-span-1 flex justify-center">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(!product.status || product.status === "active")
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                      : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                  >
+                    {(!product.status || product.status === "active") ? "Ativo" : "Inativo"}
+                  </span>
+                </div>
+                <div className="col-span-1 flex items-center justify-end gap-1">
                   {canEdit && (
                     <Link href={`/products/${product.id}`}>
                       <Button
