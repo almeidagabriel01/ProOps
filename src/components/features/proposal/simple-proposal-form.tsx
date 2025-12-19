@@ -207,10 +207,16 @@ export function SimpleProposalForm({
   }, [formData.validUntil]);
 
   React.useEffect(() => {
-    if (selectedSistemas.length > 0 && errors.sistemas) {
+    if (selectedSistemas.length > 0 && formData.products && formData.products.length > 0 && errors.sistemas) {
       clearFieldError("sistemas");
     }
-  }, [selectedSistemas]);
+  }, [selectedSistemas, formData.products]);
+
+  React.useEffect(() => {
+    if (selectedProducts.length > 0 && errors.products) {
+      clearFieldError("products");
+    }
+  }, [selectedProducts]);
 
   // Validação do Step 1 (Cliente)
   const validateStep1 = (): boolean => {
@@ -271,13 +277,29 @@ export function SimpleProposalForm({
     return isValid;
   };
 
-  // Validação do Step 2 (Sistemas - apenas para nicho de automação)
+  // Validação do Step 2 (Sistemas ou Produtos)
   const validateStep2 = (): boolean => {
-    if (isAutomacaoNiche && selectedSistemas.length === 0) {
-      setFieldError("sistemas", "Selecione pelo menos 1 sistema de automação");
-      return false;
+    if (isAutomacaoNiche) {
+      if (selectedSistemas.length === 0) {
+        setFieldError("sistemas", "Selecione pelo menos 1 sistema de automação");
+        return false;
+      }
+      // Check if there are actual products (from systems or extras)
+      if (!formData.products || formData.products.length === 0) {
+        setFieldError(
+          "sistemas",
+          "A proposta deve ter pelo menos 1 produto. O sistema selecionado pode estar vazio."
+        );
+        return false;
+      }
+      clearFieldError("sistemas");
+    } else {
+      if (selectedProducts.length === 0) {
+        setFieldError("products", "Selecione pelo menos 1 produto");
+        return false;
+      }
+      clearFieldError("products");
     }
-    clearFieldError("sistemas");
     return true;
   };
 
@@ -501,7 +523,7 @@ export function SimpleProposalForm({
   };
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -633,6 +655,9 @@ export function SimpleProposalForm({
           </div>
           {errors.sistemas && (
             <p className="text-sm text-destructive mt-2">{errors.sistemas}</p>
+          )}
+          {errors.products && (
+            <p className="text-sm text-destructive mt-2">{errors.products}</p>
           )}
           <StepNavigation onBeforeNext={validateStep2} />
         </StepCard>
