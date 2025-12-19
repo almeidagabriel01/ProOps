@@ -1,10 +1,10 @@
 
 import { useState, useEffect } from "react";
-import { Proposal } from "@/services/proposal-service";
+import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProductService } from "@/services/product-service";
 
-export function useEnrichedProducts(proposal: Proposal, tenantId?: string) {
-  const [enrichedProducts, setEnrichedProducts] = useState<any[]>(
+export function useEnrichedProducts(proposal: Proposal, tenantId?: string, options?: { filterInactive?: boolean }) {
+  const [enrichedProducts, setEnrichedProducts] = useState<ProposalProduct[]>(
     proposal.products || []
   );
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +27,12 @@ export function useEnrichedProducts(proposal: Proposal, tenantId?: string) {
         // Enrich proposal products with images from catalog
         const enriched = (proposal.products || []).map((proposalProduct) => {
           const catalogProduct = productMap.get(proposalProduct.productId);
+          
+          // If filtering is enabled and product is inactive, skip it
+          if (options?.filterInactive && catalogProduct && catalogProduct.status === 'inactive') {
+            return null;
+          }
+
           if (catalogProduct) {
             return {
               ...proposalProduct,
@@ -44,7 +50,7 @@ export function useEnrichedProducts(proposal: Proposal, tenantId?: string) {
             };
           }
           return proposalProduct;
-        });
+        }).filter(Boolean) as ProposalProduct[]; // Remove nulls (inactive products)
 
         setEnrichedProducts(enriched);
       } catch (error) {
@@ -56,7 +62,7 @@ export function useEnrichedProducts(proposal: Proposal, tenantId?: string) {
     };
 
     loadProductImages();
-  }, [tenantId, proposal.products]);
+  }, [tenantId, proposal.products, options?.filterInactive]);
 
   return { products: enrichedProducts, isLoading };
 }
