@@ -102,22 +102,15 @@ export default function AddonsPage() {
     setIsProcessing(selectedAddon.id);
 
     try {
-      // Call Stripe checkout endpoint
-      const response = await fetch("/api/stripe/addon-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user?.id,
-          tenantId: tenant?.id,
-          addonType: selectedAddon.id,
-          userEmail: user?.email,
-          billingInterval,
-        }),
+      // Call Stripe checkout Cloud Function
+      const { StripeService } = await import("@/services/stripe-service");
+      const data = await StripeService.createAddonCheckout({
+        userId: user?.id || "",
+        tenantId: tenant?.id || "",
+        addonType: selectedAddon.id,
+        userEmail: user?.email,
+        billingInterval,
       });
-
-      const data = await response.json();
 
       if (data.url) {
         // Redirect to Stripe Checkout

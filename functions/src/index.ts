@@ -1,11 +1,11 @@
 /**
  * Firebase Cloud Functions - Index
- * 
+ *
  * Export all Cloud Functions from this file.
- * 
+ *
  * DEPLOYMENT:
  * firebase deploy --only functions
- * 
+ *
  * INDIVIDUAL DEPLOYMENT:
  * firebase deploy --only functions:createMember
  * firebase deploy --only functions:createProposal
@@ -28,13 +28,42 @@ export { updateProduct } from "./updateProduct";
 export { deleteProduct } from "./deleteProduct";
 
 // Transaction Functions
-export { createTransaction, updateTransaction, deleteTransaction } from "./transactionFunctions";
+export {
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+} from "./transactionFunctions";
 
 // Auxiliary Functions (Config Data)
 export {
-  createAmbiente, updateAmbiente, deleteAmbiente,
-  createSistema, updateSistema, deleteSistema,
-  createCustomField, updateCustomField, deleteCustomField,
-  createOption, updateOption, deleteOption,
-  createProposalTemplate, updateProposalTemplate, deleteProposalTemplate,
+  createAmbiente,
+  updateAmbiente,
+  deleteAmbiente,
+  createSistema,
+  updateSistema,
+  deleteSistema,
+  createCustomField,
+  updateCustomField,
+  deleteCustomField,
+  createOption,
+  updateOption,
+  deleteOption,
+  createProposalTemplate,
+  updateProposalTemplate,
+  deleteProposalTemplate,
 } from "./auxiliaryFunctions";
+
+// Stripe Functions
+export {
+  stripeCheckout,
+  stripeConfirm,
+  stripeAddonCheckout,
+  stripeAddonConfirm,
+  stripePortal,
+  stripeUpdate,
+  stripePreview,
+  stripePrices,
+  stripePricesRefresh,
+  stripeWebhook,
+  getPlans,
+} from "./stripe";

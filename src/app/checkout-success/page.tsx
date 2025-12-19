@@ -29,18 +29,10 @@ function CheckoutSuccessContent() {
             }
 
             try {
-                // Call API to confirm checkout and update user in Firestore
-                const response = await fetch("/api/stripe/confirm", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ sessionId }),
-                });
+                // Call Cloud Function to confirm checkout and update user in Firestore
+                const { StripeService } = await import("@/services/stripe-service");
+                const data = await StripeService.confirmCheckout({ sessionId });
 
-                if (!response.ok) {
-                    throw new Error("Falha ao confirmar checkout");
-                }
-
-                const data = await response.json();
                 setPlanName(data.planTier?.toUpperCase() || "");
 
                 // Refresh user data to get updated role and planId
