@@ -17,6 +17,7 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+
+  // Set page title based on current route
+  usePageTitle();
 
   // Landing page - completely isolated from ERP (no providers)
   const isLandingPage = pathname === "/";
