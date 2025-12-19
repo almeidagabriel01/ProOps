@@ -10,6 +10,7 @@ import {
   LandingPricing,
   LandingCTA,
   LandingFooter,
+  LandingFAQ,
 } from "@/components/landing";
 
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
@@ -88,6 +89,8 @@ export default function LandingPage() {
         billingInterval={billingInterval}
         setBillingInterval={setBillingInterval}
       />
+
+      <LandingFAQ />
 
       <LandingCTA />
 

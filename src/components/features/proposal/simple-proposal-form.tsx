@@ -11,6 +11,7 @@ import { Loader2, User, Package, Cpu, CheckCircle } from "lucide-react";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
+import { toast } from "react-toastify";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { ProposalSistema, Sistema } from "@/types/automation";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
@@ -105,6 +106,7 @@ export function SimpleProposalForm({
     handleSubmit,
     toggleProduct,
     updateProductQuantity,
+    removeProduct,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,
@@ -401,7 +403,7 @@ export function SimpleProposalForm({
     );
 
     if (exists) {
-      alert("Este sistema já foi adicionado a esta proposta");
+      toast.error("Este sistema já foi adicionado a esta proposta");
       setSelectorKey((prev) => prev + 1);
       return;
     }
@@ -625,6 +627,7 @@ export function SimpleProposalForm({
                   onAddExtraProductToSystem={handleAddExtraProductToSystem}
                   onAddNewSystem={handleAddNewSystem}
                   SistemaSelectorComponent={SistemaSelector}
+                  onRemoveProduct={removeProduct}
                 />
               </>
             ) : (
