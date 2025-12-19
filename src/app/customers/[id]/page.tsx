@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { toast } from "react-toastify";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
 import { Input } from "@/components/ui/input";
@@ -191,11 +192,12 @@ export default function EditCustomerPage() {
         notes: formData.notes || undefined,
       });
 
+      toast.success("Cliente atualizado com sucesso!");
       router.push("/customers");
       router.refresh();
     } catch (error) {
       console.error("Error updating client:", error);
-      alert("Erro ao atualizar cliente");
+      toast.error("Erro ao atualizar cliente. Tente novamente.");
     } finally {
       setIsSaving(false);
     }

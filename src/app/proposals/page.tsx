@@ -13,6 +13,7 @@ import { Plus, FileText, Copy, Trash2, Eye, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { toast } from "react-toastify";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,15 +89,16 @@ export default function ProposalsPage() {
     try {
       await ProposalService.deleteProposal(deleteId);
       setProposals((prev) => prev.filter((p) => p.id !== deleteId));
-      // alert("Proposta excluída com sucesso."); // Feedback via UI update
+      toast.success("Proposta excluída com sucesso.");
     } catch (error) {
       console.error(error);
-      alert("Erro ao excluir proposta");
+      toast.error("Erro ao excluir proposta");
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
     }
   };
+
 
   const handleDuplicate = async (id: string) => {
     try {
@@ -131,11 +133,11 @@ export default function ProposalsPage() {
           const data = await ProposalService.getProposals(tenant.id);
           setProposals(data);
         }
-        alert("Proposta duplicada com sucesso!");
+        toast.success("Proposta duplicada com sucesso!");
       }
     } catch (error) {
       console.error("Error duplicating proposal:", error);
-      alert("Erro ao duplicar proposta");
+      toast.error("Erro ao duplicar proposta");
     }
   };
 

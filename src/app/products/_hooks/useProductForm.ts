@@ -154,7 +154,7 @@ export function useProductForm(
 
     // Validation: File size (5MB max per image)
     if (file.size > MAX_FILE_SIZE) {
-      alert(`A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
+      toast.error(`A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
       return;
     }
 
@@ -269,7 +269,7 @@ export function useProductForm(
 
       if (productId) {
         await ProductService.updateProduct(productId, dataToSave);
-        alert("Produto atualizado com sucesso!");
+        toast.success("Produto atualizado com sucesso!");
         router.push("/products");
         router.refresh();
       } else {
@@ -291,7 +291,7 @@ export function useProductForm(
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      alert("Erro ao salvar produto. Tente novamente.");
+      toast.error("Erro ao salvar produto. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }

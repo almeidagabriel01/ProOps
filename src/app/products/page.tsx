@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { toast } from "react-toastify";
 import { ProductsSkeleton } from "./_components/products-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { Product, ProductService } from "@/services/product-service";
@@ -75,7 +76,7 @@ export default function ProductsPage() {
         deleteId
       );
       if (isUsed) {
-        alert(
+        toast.error(
           "Não é possível excluir este produto pois ele está vinculado a uma ou mais propostas."
         );
         setIsDeleting(false);
