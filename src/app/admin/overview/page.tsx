@@ -5,8 +5,7 @@ import { ArrowLeft, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
-import { TenantsMetricsCards, TenantsTable } from "./_components";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TenantsMetricsCards, TenantsTable, AdminOverviewSkeleton } from "./_components";
 import { motion } from "motion/react";
 
 export default function AdminOverviewPage() {
@@ -26,25 +25,7 @@ export default function AdminOverviewPage() {
   } = useTenantsData();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        <div className="max-w-7xl mx-auto py-8 px-6 space-y-8">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-10 w-10 rounded-lg" />
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-72" />
-              <Skeleton className="h-4 w-48" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-2xl" />
-            ))}
-          </div>
-          <Skeleton className="h-96 rounded-2xl" />
-        </div>
-      </div>
-    );
+    return <AdminOverviewSkeleton />;
   }
 
   return (

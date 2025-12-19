@@ -73,11 +73,24 @@ export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
+    "monthly"
+  );
   const [plans, setPlans] = useState<any[]>(INITIAL_PLANS);
   // Decision state for what skeleton to show while checking auth
   // Now supports specific page types to render the exact skeleton
-  const [initialSkeleton, setInitialSkeleton] = useState<"dashboard" | "profile" | "financial" | "products" | "clients" | "proposals" | "team" | "admin" | "list" | null>(null);
+  const [initialSkeleton, setInitialSkeleton] = useState<
+    | "dashboard"
+    | "profile"
+    | "financial"
+    | "products"
+    | "clients"
+    | "proposals"
+    | "team"
+    | "admin"
+    | "list"
+    | null
+  >(null);
 
   useEffect(() => {
     try {
@@ -86,29 +99,52 @@ export function useLandingPage() {
         const data = JSON.parse(cached);
         const { role, permissions, isAdmin } = data;
 
-        // Logic mirrors the redirect effect below
-        if (isAdmin || permissions?.dashboard?.canView) {
+        // Superadmin gets admin skeleton
+        if (role === "superadmin") {
+          setInitialSkeleton("admin");
+        } else if (isAdmin || permissions?.dashboard?.canView) {
+          // Logic mirrors the redirect effect below
           setInitialSkeleton("dashboard");
         } else {
-             // Find the first allowed page for this user to match redirection logic
-             const pages = ["proposals", "clients", "products", "financial", "profile"];
-             const firstAllowed = pages.find(page => permissions[page]?.canView === true || page === "profile");
-             
-             switch (firstAllowed) {
-                 case "financial": setInitialSkeleton("financial"); break;
-                 case "profile": setInitialSkeleton("profile"); break;
-                 case "products": setInitialSkeleton("products"); break;
-                 case "clients": setInitialSkeleton("clients"); break;
-                 case "proposals": setInitialSkeleton("proposals"); break;
-                 default: setInitialSkeleton("list"); break; 
-             }
+          // Find the first allowed page for this user to match redirection logic
+          const pages = [
+            "proposals",
+            "clients",
+            "products",
+            "financial",
+            "profile",
+          ];
+          const firstAllowed = pages.find(
+            (page) => permissions[page]?.canView === true || page === "profile"
+          );
+
+          switch (firstAllowed) {
+            case "financial":
+              setInitialSkeleton("financial");
+              break;
+            case "profile":
+              setInitialSkeleton("profile");
+              break;
+            case "products":
+              setInitialSkeleton("products");
+              break;
+            case "clients":
+              setInitialSkeleton("clients");
+              break;
+            case "proposals":
+              setInitialSkeleton("proposals");
+              break;
+            default:
+              setInitialSkeleton("list");
+              break;
+          }
         }
       } else {
-          // Default fallback
-          setInitialSkeleton("list"); 
+        // Default fallback
+        setInitialSkeleton("list");
       }
     } catch (e) {
-        setInitialSkeleton("list");
+      setInitialSkeleton("list");
     }
   }, []);
 
@@ -143,9 +179,9 @@ export function useLandingPage() {
                   ? `${p.features.maxPdfTemplates} layouts de proposta em PDF`
                   : "1 layout de proposta em PDF",
               p.features.canEditPdfSections ? "Editor de PDF avançado" : null,
-              p.features.maxStorageMB === -1 
-                ? "Armazenamento ilimitado" 
-                : p.features.maxStorageMB >= 1000 
+              p.features.maxStorageMB === -1
+                ? "Armazenamento ilimitado"
+                : p.features.maxStorageMB >= 1000
                   ? `${(p.features.maxStorageMB / 1024).toFixed(1)} GB de armazenamento`
                   : `${p.features.maxStorageMB} MB para armazenar arquivos`,
             ].filter(Boolean),
@@ -168,20 +204,32 @@ export function useLandingPage() {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            
+
             if (userData.role !== "free") {
-              const isAdmin = ["admin", "superadmin", "MASTER"].includes(userData.role);
+              // Superadmin goes directly to admin panel
+              if (userData.role === "superadmin") {
+                router.replace("/admin");
+                return;
+              }
+
+              const isAdmin = ["admin", "superadmin", "MASTER"].includes(
+                userData.role
+              );
               const perms = userData.permissions || {};
-              const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+              const canViewDashboard =
+                isAdmin || perms["dashboard"]?.canView === true;
 
               // Cache the role/permissions for faster next load
               try {
                 const cachedData = {
                   role: userData.role,
                   permissions: userData.permissions || {},
-                  isAdmin: isAdmin
+                  isAdmin: isAdmin,
                 };
-                localStorage.setItem("erp_user_cache", JSON.stringify(cachedData));
+                localStorage.setItem(
+                  "erp_user_cache",
+                  JSON.stringify(cachedData)
+                );
               } catch (e) {
                 // Ignore storage errors
               }
@@ -189,15 +237,25 @@ export function useLandingPage() {
               if (canViewDashboard) {
                 router.replace("/dashboard");
               } else {
-                const pages = ["proposals", "clients", "products", "financial", "profile"];
-                const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+                const pages = [
+                  "proposals",
+                  "clients",
+                  "products",
+                  "financial",
+                  "profile",
+                ];
+                const firstAllowed = pages.find(
+                  (page) => perms[page]?.canView === true || page === "profile"
+                );
                 router.replace(firstAllowed ? `/${firstAllowed}` : "/403");
               }
               return;
             }
             setCurrentUser({ id: user.uid, ...userData });
           } else {
-            console.warn("User document not found in Firestore, signing out...");
+            console.warn(
+              "User document not found in Firestore, signing out..."
+            );
             await signOut(auth);
             setCurrentUser(null);
           }
@@ -226,6 +284,6 @@ export function useLandingPage() {
     setBillingInterval,
     plans,
     initialSkeleton,
-    handleSignOut
+    handleSignOut,
   };
 }

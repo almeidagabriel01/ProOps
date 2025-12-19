@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -147,25 +148,17 @@ export function TenantsTable({
                   onChange={(e) => onSearchChange(e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 h-10">
-                <span className="text-xs font-medium text-muted-foreground">Status:</span>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => onFilterChange(e.target.value)}
-                  className="text-sm font-medium bg-transparent border-0 focus:outline-none focus:ring-0 cursor-pointer text-foreground pr-6 appearance-none"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                    backgroundPosition: 'right 0 center',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundSize: '1.25em 1.25em',
-                  }}
-                >
-                  <option value="all">Todos</option>
-                  <option value="active">Ativos</option>
-                  <option value="inactive">Inativos</option>
-                  <option value="free">Gratuito</option>
-                </select>
-              </div>
+              <Select
+                value={filterStatus}
+                onChange={(e) => onFilterChange(e.target.value)}
+                wrapperClassName="w-32"
+                selectClassName="h-10 text-sm border-0 bg-transparent"
+              >
+                <option value="all">Todos</option>
+                <option value="active">Ativos</option>
+                <option value="inactive">Inativos</option>
+                <option value="free">Gratuito</option>
+              </Select>
             </div>
           </div>
         </CardHeader>
