@@ -7,10 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Client, ClientService } from "@/services/client-service";
+import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { Plus, Users, Trash2, Edit, Search, Mail, Phone } from "lucide-react";
 import { CustomersSkeleton } from "./_components/customers-skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const sourceConfig: Record<
   string,
@@ -35,6 +47,7 @@ export default function CustomersPage() {
   const isPageLoading = tenantLoading || isLoading;
   const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchClients = async () => {
@@ -51,19 +64,29 @@ export default function CustomersPage() {
     fetchClients();
   }, [tenant]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este cliente?")) {
-      // try {
-      //   await ClientService.deleteClient(id);
-      //   setClients((prev) => prev.filter((c) => c.id !== id));
-      // } catch (error) {
-      //   console.error("Error deleting client:", error);
-      //   alert("Erro ao excluir cliente");
-      // }
-      const success = await deleteClient(id);
-      if (success) {
-        setClients((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async () => {
+    if (!deleteId || !tenant) return;
+    try {
+      // Check if client is used in any proposal
+      const isUsed = await ProposalService.isClientUsedInProposal(
+        tenant.id,
+        deleteId
+      );
+      if (isUsed) {
+        alert(
+          "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas."
+        );
+        setDeleteId(null);
+        return;
       }
+
+      const success = await deleteClient(deleteId);
+      if (success) {
+        setClients((prev) => prev.filter((c) => c.id !== deleteId));
+      }
+      setDeleteId(null);
+    } catch (error) {
+      console.error("Error deleting client:", error);
     }
   };
 
@@ -226,15 +249,43 @@ export default function CustomersPage() {
                       </Link>
                     )}
                     {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(client.id)}
-                        title="Excluir"
+                      <AlertDialog
+                        open={deleteId === client.id}
+                        onOpenChange={(open: boolean) =>
+                          !open && setDeleteId(null)
+                        }
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteId(client.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir o cliente{" "}
+                              <strong>{client.name}</strong>? Essa ação não pode
+                              ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDelete}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </CardContent>
