@@ -2,8 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AddonDefinition, AddonType, BillingInterval } from "@/types";
+import { AddonDefinition } from "@/types";
 import {
   DollarSign,
   FileEdit,
@@ -12,20 +11,20 @@ import {
   Users,
   Check,
   Crown,
+  Loader2,
 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface AddonCardProps {
   addon: AddonDefinition;
   isPurchased: boolean;
-  purchasedBillingInterval?: "monthly" | "yearly"; // The billing interval the addon was purchased with
-  billingInterval: BillingInterval;
   onPurchase?: () => void;
   onCancel?: () => void;
   isLoading?: boolean;
-  // Dynamic price from Stripe (in cents) - if provided, overrides addon.pricing
+  // Dynamic price from Stripe (in cents) - REQUIRED, no fallback
   dynamicPriceMonthly?: number;
-  dynamicPriceYearly?: number;
+  isPriceLoading?: boolean;
 }
 
 // Map icon names to Lucide components
@@ -40,37 +39,19 @@ const iconMap: Record<string, typeof DollarSign> = {
 export function AddonCard({
   addon,
   isPurchased,
-  purchasedBillingInterval,
-  billingInterval,
   onPurchase,
   onCancel,
   isLoading = false,
   dynamicPriceMonthly,
-  dynamicPriceYearly,
+  isPriceLoading = false,
 }: AddonCardProps) {
   const { tenant } = useTenant();
   const IconComponent = iconMap[addon.icon] || DollarSign;
 
-  // Check if user can upgrade addon from monthly to yearly
-  const canUpgradeToYearly =
-    isPurchased &&
-    purchasedBillingInterval === "monthly" &&
-    billingInterval === "yearly";
-
-  // Use dynamic prices from Stripe if available, otherwise fallback to hardcoded
-  const monthlyPrice =
-    dynamicPriceMonthly !== undefined
-      ? dynamicPriceMonthly / 100
-      : addon.pricing.monthly;
-  const yearlyPrice =
-    dynamicPriceYearly !== undefined
-      ? dynamicPriceYearly / 100
-      : addon.pricing.yearly;
-
-  const price = billingInterval === "yearly" ? yearlyPrice / 12 : monthlyPrice;
-
-  const totalYearly = yearlyPrice;
-  const monthlyEquivalent = (totalYearly / 12).toFixed(0);
+  // Price comes ONLY from Stripe - no fallback
+  const monthlyPrice = dynamicPriceMonthly !== undefined
+    ? dynamicPriceMonthly / 100
+    : null;
 
   // Helper to lighten color
   const lightenColor = (hex: string, percent: number): string => {
@@ -89,9 +70,8 @@ export function AddonCard({
 
   return (
     <Card
-      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${
-        isPurchased ? "ring-2" : ""
-      }`}
+      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${isPurchased ? "ring-2" : ""
+        }`}
       style={{
         borderColor: isPurchased ? primaryColor : undefined,
       }}
@@ -123,27 +103,26 @@ export function AddonCard({
               {addon.description}
             </p>
 
-            {/* Pricing */}
+            {/* Pricing - from Stripe only */}
             <div className="mt-4 flex items-baseline gap-2">
-              <span
-                className="text-2xl font-bold"
-                style={{ color: primaryColor }}
-              >
-                R$ {price.toFixed(0)}
-              </span>
-              <span className="text-muted-foreground">/mês</span>
-              {billingInterval === "yearly" && (
-                <Badge variant="secondary" className="ml-2">
-                  15% off
-                </Badge>
+              {isPriceLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : monthlyPrice !== null ? (
+                <>
+                  <span
+                    className="text-2xl font-bold"
+                    style={{ color: primaryColor }}
+                  >
+                    R$ {monthlyPrice.toFixed(0)}
+                  </span>
+                  <span className="text-muted-foreground">/mês</span>
+                </>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Preço indisponível
+                </span>
               )}
             </div>
-
-            {billingInterval === "yearly" && (
-              <p className="text-xs text-muted-foreground mt-1">
-                R$ {totalYearly.toFixed(0)}/ano (R$ {monthlyEquivalent}/mês)
-              </p>
-            )}
           </div>
         </div>
       </CardContent>
@@ -151,41 +130,35 @@ export function AddonCard({
       {/* Action Button Footer */}
       <div className="p-6 pt-0 mt-auto">
         {isPurchased ? (
-          canUpgradeToYearly ? (
-            <Button
-              size="sm"
-              onClick={onPurchase}
-              disabled={isLoading}
-              className="w-full gap-2"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Crown className="w-4 h-4" />
-              Upgrade para Anual
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              disabled={isLoading}
-              className="w-full"
-            >
-              Cancelar Add-on
-            </Button>
-          )
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="w-full"
+          >
+            Cancelar Add-on
+          </Button>
         ) : (
           <Button
             size="sm"
             onClick={onPurchase}
-            disabled={isLoading}
+            disabled={isLoading || monthlyPrice === null}
             className="w-full gap-2"
             style={{ backgroundColor: primaryColor }}
           >
-            <Crown className="w-4 h-4" />
-            Adicionar
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Crown className="w-4 h-4" />
+                Adicionar
+              </>
+            )}
           </Button>
         )}
       </div>
     </Card>
   );
 }
+

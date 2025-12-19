@@ -60,7 +60,7 @@ export type BillingInterval = "monthly" | "yearly";
 // Price IDs configuration - loaded from environment
 export interface StripePriceConfig {
   plans: Record<string, Record<BillingInterval, string>>;
-  addons: Record<string, Record<BillingInterval, string>>;
+  addons: Record<string, { monthly: string }>; // Addons only have monthly billing
 }
 
 /**
@@ -106,29 +106,17 @@ export function getPriceConfig(): StripePriceConfig {
           config.addon_financial_monthly ||
           process.env.STRIPE_ADDON_FINANCIAL_MONTHLY ||
           "",
-        yearly:
-          config.addon_financial_yearly ||
-          process.env.STRIPE_ADDON_FINANCIAL_YEARLY ||
-          "",
       },
       pdf_editor_partial: {
         monthly:
           config.addon_pdf_partial_monthly ||
           process.env.STRIPE_ADDON_PDF_PARTIAL_MONTHLY ||
           "",
-        yearly:
-          config.addon_pdf_partial_yearly ||
-          process.env.STRIPE_ADDON_PDF_PARTIAL_YEARLY ||
-          "",
       },
       pdf_editor_full: {
         monthly:
           config.addon_pdf_full_monthly ||
           process.env.STRIPE_ADDON_PDF_FULL_MONTHLY ||
-          "",
-        yearly:
-          config.addon_pdf_full_yearly ||
-          process.env.STRIPE_ADDON_PDF_FULL_YEARLY ||
           "",
       },
     },
@@ -147,14 +135,11 @@ export function getPriceIdForTier(
 }
 
 /**
- * Get price ID for an add-on and billing interval
+ * Get price ID for an add-on (always monthly)
  */
-export function getPriceIdForAddon(
-  addonType: string,
-  interval: BillingInterval = "monthly"
-): string | null {
+export function getPriceIdForAddon(addonType: string): string | null {
   const config = getPriceConfig();
-  return config.addons[addonType]?.[interval] || null;
+  return config.addons[addonType]?.monthly || null;
 }
 
 /**

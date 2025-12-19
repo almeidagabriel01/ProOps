@@ -93,17 +93,14 @@ async function fetchAllPrices(): Promise<PricesResponse> {
     result.plans[tier] = { monthly, yearly };
   }
 
-  // Fetch add-on prices
+  // Fetch add-on prices (only monthly for addons)
   const addonTypes = Object.keys(config.addons);
   for (const addonType of addonTypes) {
     const addonPrices = config.addons[addonType];
 
-    const [monthly, yearly] = await Promise.all([
-      fetchPriceFromStripe(stripe, addonPrices.monthly),
-      fetchPriceFromStripe(stripe, addonPrices.yearly),
-    ]);
+    const monthly = await fetchPriceFromStripe(stripe, addonPrices.monthly);
 
-    result.addons[addonType] = { monthly, yearly };
+    result.addons[addonType] = { monthly, yearly: null };
   }
 
   return result;

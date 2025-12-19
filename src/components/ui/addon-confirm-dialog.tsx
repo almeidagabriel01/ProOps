@@ -10,15 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, Puzzle } from "lucide-react";
-import { AddonDefinition, BillingInterval } from "@/types";
+import { AddonDefinition } from "@/types";
 
 interface AddonConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   addon: AddonDefinition | null;
-  billingInterval: BillingInterval;
   priceMonthly: number; // in cents from Stripe
-  priceYearly: number; // in cents from Stripe
   isProcessing: boolean;
   onConfirm: () => void;
 }
@@ -27,9 +25,7 @@ export function AddonConfirmDialog({
   open,
   onOpenChange,
   addon,
-  billingInterval,
   priceMonthly,
-  priceYearly,
   isProcessing,
   onConfirm,
 }: AddonConfirmDialogProps) {
@@ -37,10 +33,6 @@ export function AddonConfirmDialog({
 
   // Convert from cents to reais
   const monthlyPrice = priceMonthly / 100;
-  const yearlyPrice = priceYearly / 100;
-  const displayPrice =
-    billingInterval === "yearly" ? yearlyPrice / 12 : monthlyPrice;
-  const totalPrice = billingInterval === "yearly" ? yearlyPrice : monthlyPrice;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -68,22 +60,14 @@ export function AddonConfirmDialog({
             <div className="flex justify-between text-sm">
               <span>{addon.name}</span>
               <span className="font-medium">
-                {formatPrice(displayPrice)}/mês
+                {formatPrice(monthlyPrice)}/mês
               </span>
             </div>
-
-            {billingInterval === "yearly" && (
-              <div className="flex justify-between text-sm text-emerald-600">
-                <span>Desconto anual (15% off)</span>
-                <span>Incluso</span>
-              </div>
-            )}
 
             <div className="border-t pt-2 flex justify-between font-semibold">
               <span>Total</span>
               <span className="text-primary">
-                {formatPrice(totalPrice)}/
-                {billingInterval === "yearly" ? "ano" : "mês"}
+                {formatPrice(monthlyPrice)}/mês
               </span>
             </div>
           </div>
@@ -115,3 +99,4 @@ export function AddonConfirmDialog({
     </Dialog>
   );
 }
+

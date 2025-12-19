@@ -2,13 +2,16 @@
  * Get Plans Cloud Function
  *
  * Fetches plans from Stripe and merges with defaults.
+ * IMPORTANT: Prices come from Stripe API, not from DEFAULT_PLANS
  * Migrated from: src/app/api/plans/route.ts + src/lib/stripe-sync.ts
  */
 
 import * as functions from "firebase-functions";
 import { getStripe } from "./stripeConfig";
 
-// Default plans configuration
+// Default plans configuration - FALLBACK ONLY
+// These values are used only when Stripe API is unavailable
+// In production, prices are always fetched from Stripe
 const DEFAULT_PLANS = [
   {
     tier: "starter",

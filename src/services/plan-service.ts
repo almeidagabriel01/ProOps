@@ -1,10 +1,12 @@
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
-import { UserPlan, PlanFeatures } from "@/types";
+import { UserPlan } from "@/types";
 
 const COLLECTION_NAME = "plans";
 
-// Default plans - these will be seeded if the collection is empty
+// Default plans - FALLBACK ONLY when Stripe is unavailable
+// IMPORTANT: In production, prices come from Stripe via StripeService.getPlans()
+// These values are only used as a last resort if Stripe API fails
 export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
   {
     name: "Starter",

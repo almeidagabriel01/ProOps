@@ -7,12 +7,7 @@
 
 import * as functions from "firebase-functions";
 import { getFirestore } from "firebase-admin/firestore";
-import {
-  getStripe,
-  getPriceIdForAddon,
-  BillingInterval,
-  getAppUrl,
-} from "./stripeConfig";
+import { getStripe, getPriceIdForAddon, getAppUrl } from "./stripeConfig";
 
 const db = getFirestore();
 
@@ -21,7 +16,6 @@ interface AddonCheckoutRequest {
   tenantId: string;
   addonType: string;
   userEmail?: string;
-  billingInterval?: BillingInterval;
 }
 
 interface AddonCheckoutResponse {
@@ -33,13 +27,7 @@ export const stripeAddonCheckout = functions
   .region("southamerica-east1")
   .https.onCall(
     async (data: AddonCheckoutRequest): Promise<AddonCheckoutResponse> => {
-      const {
-        userId,
-        tenantId,
-        addonType,
-        userEmail,
-        billingInterval = "monthly",
-      } = data || {};
+      const { userId, tenantId, addonType, userEmail } = data || {};
 
       // Validate input
       if (!userId || !tenantId || !addonType) {
@@ -49,12 +37,8 @@ export const stripeAddonCheckout = functions
         );
       }
 
-      // Validate billing interval
-      const validInterval: BillingInterval =
-        billingInterval === "yearly" ? "yearly" : "monthly";
-
-      // Get the price ID for the selected add-on and interval
-      const priceId = getPriceIdForAddon(addonType, validInterval);
+      // Get the price ID for the selected add-on (always monthly)
+      const priceId = getPriceIdForAddon(addonType);
       if (!priceId) {
         throw new functions.https.HttpsError(
           "invalid-argument",
@@ -95,7 +79,7 @@ export const stripeAddonCheckout = functions
 
         const appUrl = getAppUrl();
 
-        // Create checkout session for add-on subscription
+        // Create checkout session for add-on subscription (always monthly)
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           customer_email: customerId ? undefined : userEmail,
@@ -113,7 +97,7 @@ export const stripeAddonCheckout = functions
             userId: userId,
             tenantId: tenantId,
             addonType: addonType,
-            billingInterval: validInterval,
+            billingInterval: "monthly",
             type: "addon",
           },
           subscription_data: {
@@ -121,7 +105,7 @@ export const stripeAddonCheckout = functions
               userId: userId,
               tenantId: tenantId,
               addonType: addonType,
-              billingInterval: validInterval,
+              billingInterval: "monthly",
               type: "addon",
             },
           },

@@ -13,57 +13,40 @@ import { AddonType, PurchasedAddon, AddonDefinition, PlanTier } from "@/types";
 
 const COLLECTION_NAME = "addons";
 
-// Add-on definitions with pricing and feature mappings
+// Add-on definitions with metadata and feature mappings
+// IMPORTANT: Prices are NOT stored here - they come ONLY from Stripe via Cloud Functions
+// This ensures proper separation between dev/staging/production environments
+// Ordered by price ascending (R$19, R$29, R$40)
 export const ADDON_DEFINITIONS: AddonDefinition[] = [
+  {
+    id: "pdf_editor_partial",
+    name: "Editor PDF Parcial",
+    description: "Acesse 3 templates do editor de PDF (sem edição de conteúdo)",
+    featureKey: "maxPdfTemplates",
+    featureValue: 3,
+    icon: "Layout",
+    order: 1,
+    availableForTiers: ["starter"],
+  },
   {
     id: "financial",
     name: "Módulo Financeiro",
     description: "Controle de receitas, despesas e fluxo de caixa completo",
     featureKey: "hasFinancial",
     featureValue: true,
-    pricing: {
-      monthly: 29,
-      yearly: 296, // ~15% discount
-    },
-    stripePriceIds: {
-      monthly: "price_1SeyQtGrkF9UfsqcfBbA4bVG",
-      yearly: "price_1SeySnGrkF9UfsqcU0wYFJm3",
-    },
     icon: "DollarSign",
-    availableForTiers: ["starter"],
-  },
-  {
-    id: "pdf_editor_partial",
-    name: "Editor PDF Parcial",
-    description: "Acesse 3 templates do editor de PDF (sem edição de conteúdo)",
-    featureKey: "maxPdfTemplates",
-    featureValue: 3, // 3 templates, like Pro plan
-    pricing: {
-      monthly: 19,
-      yearly: 194, // ~15% discount
-    },
-    stripePriceIds: {
-      monthly: "price_1SeyW5GrkF9UfsqcWcaAne7e",
-      yearly: "price_1SeyWOGrkF9UfsqcYHrTww0e",
-    },
-    icon: "Layout",
+    order: 2,
     availableForTiers: ["starter"],
   },
   {
     id: "pdf_editor_full",
     name: "Editor PDF Completo",
-    description: "Acesso total ao editor: todos os templates + edição de conteúdo",
+    description:
+      "Acesso total ao editor: todos os templates + edição de conteúdo",
     featureKey: "canEditPdfSections",
-    featureValue: true, // Full access including content editing
-    pricing: {
-      monthly: 40,
-      yearly: 465,
-    },
-    stripePriceIds: {
-      monthly: "price_1Seyb4GrkF9UfsqcgOn6b6BT",
-      yearly: "price_1SeycQGrkF9UfsqcRXMhIHo3",
-    },
+    featureValue: true,
     icon: "FileEdit",
+    order: 3,
     availableForTiers: ["starter", "pro"],
   },
 ];
@@ -74,12 +57,10 @@ export const AddonService = {
    */
   async getAddonsForTenant(tenantId: string): Promise<PurchasedAddon[]> {
     if (!tenantId) {
-
       return [];
     }
 
     try {
-
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
@@ -88,7 +69,6 @@ export const AddonService = {
 
       const snapshot = await getDocs(q);
 
-      
       const addons = snapshot.docs.map((doc) => {
         const data = doc.data();
 
@@ -97,10 +77,10 @@ export const AddonService = {
           ...data,
         };
       }) as PurchasedAddon[];
-      
+
       return addons;
     } catch (error) {
-      console.error('[AddonService] Error querying addons:', error);
+      console.error("[AddonService] Error querying addons:", error);
       // If it's an index error, Firestore will provide a link to create it
       throw error;
     }
@@ -144,7 +124,7 @@ export const AddonService = {
    */
   async savePurchasedAddon(addon: Omit<PurchasedAddon, "id">): Promise<string> {
     const addonId = `${addon.tenantId}_${addon.addonType}`;
-    
+
     await setDoc(doc(db, COLLECTION_NAME, addonId), {
       ...addon,
       purchasedAt: addon.purchasedAt || new Date().toISOString(),
@@ -162,10 +142,12 @@ export const AddonService = {
     status: PurchasedAddon["status"]
   ): Promise<void> {
     const addonId = `${tenantId}_${addonType}`;
-    
+
     await updateDoc(doc(db, COLLECTION_NAME, addonId), {
       status,
-      ...(status === "cancelled" ? { expiresAt: new Date().toISOString() } : {}),
+      ...(status === "cancelled"
+        ? { expiresAt: new Date().toISOString() }
+        : {}),
     });
   },
 

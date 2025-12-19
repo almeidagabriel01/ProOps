@@ -13,10 +13,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
 import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
-import { BillingInterval, AddonType, AddonDefinition } from "@/types";
+import { AddonType, AddonDefinition } from "@/types";
 import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { BillingToggle } from "@/components/ui/billing-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +37,6 @@ export default function AddonsPage() {
   const { user } = useAuth();
   const {
     purchasedAddons,
-    purchasedAddonsData,
-    refreshAddons,
     isLoading: isPlanLoading,
     planTier,
   } = usePlanLimits();
@@ -47,8 +44,6 @@ export default function AddonsPage() {
   // Get dynamic prices from Stripe
   const { getAddonPrice, isLoading: isPriceLoading } = useStripePrices();
 
-  const [billingInterval, setBillingInterval] =
-    React.useState<BillingInterval>("monthly");
   const [isProcessing, setIsProcessing] = React.useState<AddonType | null>(
     null
   );
@@ -109,7 +104,7 @@ export default function AddonsPage() {
         tenantId: tenant?.id || "",
         addonType: selectedAddon.id,
         userEmail: user?.email,
-        billingInterval,
+        billingInterval: "monthly", // Always monthly for addons
       });
 
       if (data.url) {
@@ -209,34 +204,20 @@ export default function AddonsPage() {
         </CardContent>
       </Card>
 
-      {/* Billing Toggle */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        <BillingToggle
-          id="addon-billing-toggle"
-          value={billingInterval}
-          onChange={setBillingInterval}
-        />
-      </div>
-
       {/* Add-ons Grid */}
       {availableAddons.length > 0 ? (
         <div className="grid md:grid-cols-2 gap-4">
           {availableAddons.map((addon) => {
-            const purchasedData = purchasedAddonsData.find(
-              (a) => a.addonType === addon.id
-            );
             return (
               <AddonCard
                 key={addon.id}
                 addon={addon}
                 isPurchased={purchasedAddons.includes(addon.id)}
-                purchasedBillingInterval={purchasedData?.billingInterval}
-                billingInterval={billingInterval}
                 onPurchase={() => handlePurchaseClick(addon.id)}
                 onCancel={() => handleCancelClick(addon.id)}
                 isLoading={isProcessing === addon.id}
                 dynamicPriceMonthly={getAddonPrice(addon.id, "monthly")}
-                dynamicPriceYearly={getAddonPrice(addon.id, "yearly")}
+                isPriceLoading={isPriceLoading}
               />
             );
           })}
@@ -271,9 +252,6 @@ export default function AddonsPage() {
                 const isRedundant = !availableAddons.find(
                   (a) => a.id === addonType
                 );
-                const purchasedData = purchasedAddonsData.find(
-                  (a) => a.addonType === addonType
-                );
 
                 return (
                   <div
@@ -294,14 +272,9 @@ export default function AddonsPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {addon.description}
                         </p>
-                        {purchasedData && (
-                          <p className="text-xs text-muted-foreground mt-1 capitalize">
-                            Cobrança:{" "}
-                            {purchasedData.billingInterval === "yearly"
-                              ? "Anual"
-                              : "Mensal"}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Cobrança: Mensal
+                        </p>
                         {isRedundant && (
                           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
                             <Sparkles className="w-3 h-3" />
@@ -337,12 +310,8 @@ export default function AddonsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         addon={selectedAddon}
-        billingInterval={billingInterval}
         priceMonthly={
           selectedAddon ? getAddonPrice(selectedAddon.id, "monthly") : 0
-        }
-        priceYearly={
-          selectedAddon ? getAddonPrice(selectedAddon.id, "yearly") : 0
         }
         isProcessing={isProcessing !== null}
         onConfirm={handleConfirmPurchase}
@@ -378,3 +347,4 @@ export default function AddonsPage() {
     </div>
   );
 }
+
