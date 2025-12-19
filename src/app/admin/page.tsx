@@ -47,7 +47,7 @@ export default function AdminPage() {
           <Button
             variant="outline"
             size="lg"
-            onClick={() => router.push("/admin/billing")}
+            onClick={() => router.push("/admin/overview")}
             className="shadow-sm hover:shadow transition-all"
           >
             <CreditCard className="w-5 h-5 mr-2" /> Visão Geral
