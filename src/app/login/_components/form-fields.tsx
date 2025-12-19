@@ -217,11 +217,15 @@ export function CredentialFields({
         delete newErrors.password;
         return newErrors;
       });
-    }
+    };
   };
 
   const emailError = errors.email || localErrors.email;
   const passwordError = errors.password || localErrors.password;
+
+  // Prevent autofill on page load but allow autocomplete suggestions when user interacts
+  const [emailReadOnly, setEmailReadOnly] = useState(true);
+  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
 
   return (
     <>
@@ -236,8 +240,10 @@ export function CredentialFields({
           <input
             id="email"
             type="email"
-            name="login-email-field"
+            name="email"
             autoComplete="email"
+            readOnly={emailReadOnly}
+            onFocus={() => { setEmailReadOnly(false); setPasswordReadOnly(false); }}
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
@@ -265,8 +271,10 @@ export function CredentialFields({
           <input
             id="password"
             type={showPassword ? "text" : "password"}
-            name="login-password-field"
+            name="password"
             autoComplete="current-password"
+            readOnly={passwordReadOnly}
+            onFocus={() => setPasswordReadOnly(false)}
             placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
