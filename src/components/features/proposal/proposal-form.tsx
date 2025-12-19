@@ -52,7 +52,7 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                         validUntil: proposal.validUntil || "",
                         status: proposal.status || "draft"
                     })
-                    setSections(proposal.sections || [])
+                    setSections((proposal.sections as ProposalSection[]) || [])
                 }
                 setIsLoading(false)
             }

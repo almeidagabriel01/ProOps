@@ -35,7 +35,9 @@ export function useEditPdfPage() {
   const [coverImage, setCoverImage] = useState<string>("");
   const [coverLogo, setCoverLogo] = useState<string>("");
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
-  const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">("cover");
+  const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
+    "cover"
+  );
   const [coverImagePosition, setCoverImagePosition] = useState("center");
   const [theme, setTheme] = useState<ThemeType>("modern");
 
@@ -79,9 +81,9 @@ export function useEditPdfPage() {
                   prod.productImages && prod.productImages.length > 0
                     ? prod.productImages
                     : [
-                      prod.productImage ||
-                      "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
-                    ],
+                        prod.productImage ||
+                          "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
+                      ],
               }));
             } else {
               p.products = [];
@@ -102,7 +104,7 @@ export function useEditPdfPage() {
               setTemplate(baseTemplate);
 
               // Load saved settings
-              setCoverTitle(p.title || ""); 
+              setCoverTitle(p.title || "");
               if (s.primaryColor) {
                 setPrimaryColor(s.primaryColor);
               } else {
@@ -124,7 +126,7 @@ export function useEditPdfPage() {
 
               // Load sections
               if (s.sections && s.sections.length > 0) {
-                setSections(s.sections);
+                setSections(s.sections as PdfSection[]);
               } else {
                 const t = ProposalDefaults.createDefaultTemplate(
                   tenant.id,
@@ -174,19 +176,24 @@ export function useEditPdfPage() {
     setIsSaving(true);
 
     try {
-      const cleanForFirestore = (obj: any): any => {
+      const cleanForFirestore = (obj: unknown): unknown => {
         if (obj === undefined) return null;
         if (obj === null) return null;
         if (obj instanceof Blob || obj instanceof File) return null;
-        if (obj.nativeEvent || obj instanceof Element) return null;
+        if (obj instanceof Element) return null;
         if (typeof obj !== "object") return obj;
+
+        // Check for nativeEvent (React SyntheticEvent)
+        const objRecord = obj as Record<string, unknown>;
+        if ("nativeEvent" in objRecord) return null;
+
         if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
         if (obj instanceof Date) return obj.toISOString();
 
-        const newObj: any = {};
-        for (const key in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            const val = obj[key];
+        const newObj: Record<string, unknown> = {};
+        for (const key in objRecord) {
+          if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
+            const val = objRecord[key];
             if (typeof val === "function" || typeof val === "symbol") continue;
             newObj[key] = cleanForFirestore(val);
           }
@@ -220,7 +227,7 @@ export function useEditPdfPage() {
 
       await ProposalService.updateProposal(proposal.id, {
         title: coverTitle,
-        pdfSettings: sanitizedSettings,
+        pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
       });
 
       toast.success("Proposta e personalizações salvas com sucesso!");
@@ -332,7 +339,7 @@ export function useEditPdfPage() {
     isGenerating,
     showUpgradeModal,
     setShowUpgradeModal,
-    
+
     // Cover
     coverTitle,
     setCoverTitle,
@@ -346,7 +353,7 @@ export function useEditPdfPage() {
     setCoverImageFit,
     coverImagePosition,
     setCoverImagePosition,
-    
+
     // Theme
     theme,
     setTheme,
@@ -354,7 +361,7 @@ export function useEditPdfPage() {
     setPrimaryColor,
     fontFamily,
     setFontFamily,
-    
+
     // Sections
     sections,
     setSections,
@@ -362,11 +369,11 @@ export function useEditPdfPage() {
     setRepeatHeader,
     canEditPdfSections,
     maxPdfTemplates,
-    
+
     // Preview
     previewZoom,
     setPreviewZoom,
-    
+
     // Actions
     handleSave,
     handleGeneratePdf,
