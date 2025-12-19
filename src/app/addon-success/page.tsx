@@ -32,18 +32,9 @@ function AddonSuccessContent() {
       }
 
       try {
-        // Call API to confirm addon checkout and save to Firestore
-        const response = await fetch("/api/stripe/addon-confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Falha ao confirmar add-on");
-        }
-
-        const data = await response.json();
+        // Call Cloud Function to confirm addon checkout and save to Firestore
+        const { StripeService } = await import("@/services/stripe-service");
+        const data = await StripeService.confirmAddonCheckout({ sessionId });
 
         // Map addon type to display name
         const addonNames: Record<string, string> = {
@@ -51,7 +42,7 @@ function AddonSuccessContent() {
           pdf_editor_partial: "Editor PDF Parcial",
           pdf_editor_full: "Editor PDF Completo",
         };
-        setAddonName(addonNames[addonType || data.addonType] || "Add-on");
+        setAddonName(addonNames[addonType || data.addonType || ""] || "Add-on");
 
         // Show success state
         setStatus("success");

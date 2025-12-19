@@ -79,68 +79,9 @@ export function useLandingPage() {
     "monthly"
   );
   const [plans, setPlans] = useState(INITIAL_PLANS);
-  // Decision state for what skeleton to show while checking auth
-  // Uses initializer function to compute from localStorage synchronously
-  const [initialSkeleton] = useState<
-    | "dashboard"
-    | "profile"
-    | "financial"
-    | "products"
-    | "clients"
-    | "proposals"
-    | "team"
-    | "admin"
-    | "list"
-    | null
-  >(() => {
-    if (typeof window === "undefined") return null;
-
-    try {
-      const cached = localStorage.getItem("erp_user_cache");
-      if (cached) {
-        const data = JSON.parse(cached);
-        const { role, permissions, isAdmin } = data;
-
-        // Superadmin gets admin skeleton
-        if (role === "superadmin") {
-          return "admin";
-        } else if (isAdmin || permissions?.dashboard?.canView) {
-          return "dashboard";
-        } else {
-          // Find the first allowed page for this user to match redirection logic
-          const pages = [
-            "proposals",
-            "clients",
-            "products",
-            "financial",
-            "profile",
-          ] as const;
-          const firstAllowed = pages.find(
-            (page) => permissions[page]?.canView === true || page === "profile"
-          );
-
-          switch (firstAllowed) {
-            case "financial":
-              return "financial";
-            case "profile":
-              return "profile";
-            case "products":
-              return "products";
-            case "clients":
-              return "clients";
-            case "proposals":
-              return "proposals";
-            default:
-              return "list";
-          }
-        }
-      } else {
-        return "list";
-      }
-    } catch {
-      return "list";
-    }
-  });
+  // Always use "list" skeleton for consistency between SSR and CSR
+  // The loading time is short enough that the skeleton type doesn't matter much
+  const initialSkeleton = "list" as const;
 
   useEffect(() => {
     const fetchPlans = async () => {

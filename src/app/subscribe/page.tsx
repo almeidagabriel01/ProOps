@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { Loader2, CreditCard, ArrowLeft } from "lucide-react";
@@ -25,6 +25,9 @@ function SubscribeContent() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Ref to prevent multiple checkout initiations
+    const checkoutInitiatedRef = useRef(false);
+
     const planTier = searchParams.get("plan");
     const billingInterval = searchParams.get("interval") || "monthly";
 
@@ -45,44 +48,57 @@ function SubscribeContent() {
             return;
         }
 
+        // Prevent multiple checkout calls
+        if (checkoutInitiatedRef.current) return;
+        checkoutInitiatedRef.current = true;
+
         // User is logged in, proceed to Stripe checkout
         initiateCheckout();
-    }, [planTier, user, isAuthLoading, router]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planTier, user, isAuthLoading, router, billingInterval]);
 
     const initiateCheckout = async (retryCount = 0) => {
-        if (!user || !planTier || isProcessing) return;
+        if (!user || !planTier) return;
 
-        setIsProcessing(true);
-        setError(null);
+        // Only set processing on first attempt
+        if (retryCount === 0) {
+            setIsProcessing(true);
+            setError(null);
+        }
 
         try {
-            const response = await fetch("/api/stripe/checkout", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: user.id,
-                    planTier: planTier,
-                    userEmail: user.email,
-                    billingInterval: billingInterval,
-                }),
-            });
+            const { StripeService } = await import("@/services/stripe-service");
 
-            const data = await response.json();
+            const data = await StripeService.createCheckout({
+                userId: user.id,
+                planTier: planTier,
+                userEmail: user.email,
+                billingInterval: billingInterval as "monthly" | "yearly",
+            });
 
             if (data.url) {
                 window.location.href = data.url;
-            } else if (data.error === "User not found" && retryCount < 3) {
-                // Race condition after registration - retry after delay (silently)
+            } else if (data.success) {
+                // Subscription was updated (no redirect needed)
+                router.push("/profile");
+            } else {
+                throw new Error("Erro ao criar sessão de pagamento");
+            }
+        } catch (err: unknown) {
+            console.error("Checkout error:", err);
+
+            // Check for user not found error (race condition after registration)
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            if (errorMessage.includes("not-found") && retryCount < 3) {
                 console.log(`User not found, retrying... (${retryCount + 1}/3)`);
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 return initiateCheckout(retryCount + 1);
-            } else {
-                throw new Error(data.error || "Erro ao criar sessão de pagamento");
             }
-        } catch (err) {
-            console.error("Checkout error:", err);
+
             setError(err instanceof Error ? err.message : "Erro ao processar assinatura");
             setIsProcessing(false);
+            // Reset ref so user can retry manually
+            checkoutInitiatedRef.current = false;
         }
     };
 
