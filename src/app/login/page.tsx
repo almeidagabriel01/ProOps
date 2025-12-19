@@ -122,6 +122,7 @@ function LoginContent() {
   };
 
   // Limpar erros quando valores mudam
+  /* eslint-disable */
   useEffect(() => {
     if (name && name.trim().length >= 2 && registerErrors.name) {
       setRegisterErrors((prev) => {
@@ -132,6 +133,7 @@ function LoginContent() {
     }
   }, [name]);
 
+  /* eslint-disable */
   useEffect(() => {
     if (
       email &&
@@ -146,6 +148,7 @@ function LoginContent() {
     }
   }, [email]);
 
+  /* eslint-disable */
   useEffect(() => {
     if (password && password.length >= 6 && registerErrors.password) {
       setRegisterErrors((prev) => {
@@ -156,6 +159,7 @@ function LoginContent() {
     }
   }, [password]);
 
+  /* eslint-disable */
   useEffect(() => {
     if (
       companyName &&
@@ -184,7 +188,7 @@ function LoginContent() {
       user?.role === "user" ||
       user?.role === "member"
     ) {
-      const perms = user.permissions || {};
+      const perms = (user?.permissions || {}) as Record<string, { canView?: boolean }>;
       if (perms.dashboard && perms.dashboard.canView === false) {
         if (perms.proposals?.canView) content = <ProposalsSkeleton />;
         else if (perms.products?.canView) content = <ProductsSkeleton />;
@@ -246,7 +250,7 @@ function LoginContent() {
 
             <StepWizard
               steps={steps}
-              onComplete={() => {}}
+              onComplete={() => { }}
               indicatorContainerClassName="max-w-xs w-full"
             >
               {/* STEP 1: ACCOUNT INFO */}

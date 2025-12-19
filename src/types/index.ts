@@ -22,7 +22,7 @@ export type User = {
   name: string;
   email: string;
   password?: string; // Kept for types compatibility, but Firebase Auth handles passwords
-  role: "admin" | "user" | "superadmin" | "free";
+  role: "admin" | "user" | "superadmin" | "free" | "member";
   planId?: string; // Reference to user's subscription plan
   billingInterval?: BillingInterval; // 'monthly' | 'yearly'
   stripeCustomerId?: string; // Stripe customer ID

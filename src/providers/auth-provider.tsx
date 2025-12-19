@@ -15,7 +15,7 @@ export type User = {
   id: string;
   email: string;
   name: string;
-  role: "admin" | "user" | "superadmin" | "free";
+  role: "admin" | "user" | "superadmin" | "free" | "member";
   tenantId?: string; // Optional for free users
   planId?: string;
   stripeCustomerId?: string;
@@ -122,8 +122,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await fetchUserData(firebaseUser);
         console.log("[AuthProvider] User data fetched:", userData ? `tenantId: ${userData.tenantId}` : "null");
         setUser(userData);
+
+        // Set session cookie for middleware authentication
+        // This allows the middleware to know the user is authenticated
+        const token = await firebaseUser.getIdToken();
+        document.cookie = `firebase-auth-token=${token}; path=/; max-age=3600; SameSite=Lax`;
+        if (userData?.role) {
+          document.cookie = `user-role=${userData.role}; path=/; max-age=3600; SameSite=Lax`;
+        }
       } else {
         setUser(null);
+        // Clear session cookies on logout
+        document.cookie = "firebase-auth-token=; path=/; max-age=0";
+        document.cookie = "user-role=; path=/; max-age=0";
       }
       console.log("[AuthProvider] Setting isLoading to false");
       setIsLoading(false);
