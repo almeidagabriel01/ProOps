@@ -36,7 +36,6 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out cursor-pointer",
             "hover:border-primary/40 hover:shadow-md",
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
-            "focus:ring-4 focus:ring-primary/10",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",
             selectClassName
           )}

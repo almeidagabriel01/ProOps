@@ -23,7 +23,6 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             "placeholder:text-muted-foreground/60",
             "hover:border-primary/40 hover:shadow-md",
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
-            "focus:ring-4 focus:ring-primary/10",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",
             icon && "pl-11",
             suffix && "pr-11",
