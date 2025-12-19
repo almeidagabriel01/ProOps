@@ -186,7 +186,6 @@ export function CredentialFields({
 }: CredentialFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Validate email on blur
   const validateEmail = () => {
@@ -201,7 +200,6 @@ export function CredentialFields({
         return newErrors;
       });
     }
-    setTouched((prev) => ({ ...prev, email: true }));
   };
 
   // Validate password on blur
@@ -220,32 +218,7 @@ export function CredentialFields({
         return newErrors;
       });
     }
-    setTouched((prev) => ({ ...prev, password: true }));
   };
-
-  // Clear email error when valid
-  useEffect(() => {
-    if (touched.email && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setLocalErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.email;
-        return newErrors;
-      });
-    }
-  }, [email, touched.email]);
-
-  // Clear password error when valid
-  useEffect(() => {
-    if (touched.password && password) {
-      if (password.length >= 6) {
-        setLocalErrors((prev) => {
-          const newErrors = { ...prev };
-          delete newErrors.password;
-          return newErrors;
-        });
-      }
-    }
-  }, [password, touched.password, mode]);
 
   const emailError = errors.email || localErrors.email;
   const passwordError = errors.password || localErrors.password;
@@ -260,16 +233,22 @@ export function CredentialFields({
           Email <span className="text-destructive">*</span>
         </Label>
         <div className="relative">
-          <Input
+          <input
             id="email"
             type="email"
+            name="login-email-field"
+            autoComplete="email"
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             onBlur={validateEmail}
-            className={`pl-9 bg-background border-input text-foreground ${
-              emailError ? "border-destructive" : ""
-            }`}
+            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9
+              shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
+              placeholder:text-muted-foreground/60
+              hover:border-primary/40 hover:shadow-md
+              focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10
+              focus:ring-4 focus:ring-primary/10
+              ${emailError ? "border-destructive" : ""}`}
           />
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         </div>
@@ -283,18 +262,22 @@ export function CredentialFields({
           Senha <span className="text-destructive">*</span>
         </Label>
         <div className="relative">
-          <Input
+          <input
             id="password"
             type={showPassword ? "text" : "password"}
-            placeholder={
-              mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"
-            }
+            name="login-password-field"
+            autoComplete="current-password"
+            placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
             onBlur={validatePassword}
-            className={`pl-9 pr-10 bg-background border-input text-foreground ${
-              passwordError ? "border-destructive" : ""
-            }`}
+            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9 pr-10
+              shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
+              placeholder:text-muted-foreground/60
+              hover:border-primary/40 hover:shadow-md
+              focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10
+              focus:ring-4 focus:ring-primary/10
+              ${passwordError ? "border-destructive" : ""}`}
           />
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <button

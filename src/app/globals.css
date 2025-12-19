@@ -337,6 +337,17 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Autofill fix - Match background color */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--foreground) !important;
+    -webkit-box-shadow: 0 0 0px 1000px var(--card) inset !important;
+    caret-color: var(--foreground) !important;
+    transition: none !important;
+  }
 }
 
 ::view-transition-old(root),
