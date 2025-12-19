@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth, User } from "@/providers/auth-provider";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -42,7 +42,7 @@ interface UseLoginFormReturn {
   setMode: (value: AuthMode) => void;
   isLoading: boolean;
   resetSent: boolean;
-  user: any;
+  user: User | null;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -63,9 +63,9 @@ export function useLoginForm(): UseLoginFormReturn {
   const [companyName, setCompanyName] = React.useState("");
   const [companyColor, setCompanyColor] = React.useState("#8b5cf6");
   const [companyLogo, setCompanyLogo] = React.useState("");
-  const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>("automacao_residencial");
-
-
+  const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>(
+    "automacao_residencial"
+  );
 
   const [error, setError] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({}); // New: specific field errors
@@ -83,15 +83,15 @@ export function useLoginForm(): UseLoginFormReturn {
       setError("Digite seu email para redefinir a senha.");
       return;
     }
-    
+
     try {
-        const { sendPasswordResetEmail } = await import("firebase/auth");
-        await sendPasswordResetEmail(auth, email);
-        setResetSent(true);
-        setError("");
-    } catch (err: any) {
-        console.error("Reset password error:", err);
-        setError("Erro ao enviar email. Verifique se o email está correto.");
+      const { sendPasswordResetEmail } = await import("firebase/auth");
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+      setError("");
+    } catch (err: unknown) {
+      console.error("Reset password error:", err);
+      setError("Erro ao enviar email. Verifique se o email está correto.");
     }
   };
   const { login, user, isLoading } = useAuth();
@@ -102,33 +102,64 @@ export function useLoginForm(): UseLoginFormReturn {
   const redirectUrl = searchParams.get("redirect");
 
   const handleRedirectAfterAuth = React.useCallback(() => {
+    console.log("[LoginForm] handleRedirectAfterAuth called");
+    console.log(
+      "[LoginForm] redirectUrl:",
+      redirectUrl,
+      "user role:",
+      user?.role
+    );
+
     // If there's a redirect URL, go there
     if (redirectUrl) {
-      router.replace(decodeURIComponent(redirectUrl));
+      const target = decodeURIComponent(redirectUrl);
+      console.log("[LoginForm] Redirecting to:", target);
+      router.replace(target);
       return;
     }
 
     // Default redirects based on role
     if (user?.role === "superadmin") {
+      console.log("[LoginForm] Redirecting superadmin to /admin");
       router.replace("/admin");
     } else if (user?.role === "free") {
+      console.log("[LoginForm] Redirecting free user to /");
       router.replace("/");
     } else {
-      const perms = (user as any)?.permissions || {};
-      const userRole = (user as any)?.role;
-      const isAdmin = ["admin", "superadmin", "MASTER"].includes(userRole);
+      const perms = user?.permissions || {};
+      const userRole = user?.role;
+      const isAdmin = ["admin", "superadmin", "MASTER"].includes(
+        userRole || ""
+      );
 
       const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
+      console.log(
+        "[LoginForm] canViewDashboard:",
+        canViewDashboard,
+        "isAdmin:",
+        isAdmin
+      );
 
       if (canViewDashboard) {
+        console.log("[LoginForm] Redirecting to /dashboard");
         router.replace("/dashboard");
       } else {
-        const pages = ["proposals", "clients", "products", "financial", "profile"];
-        const firstAllowed = pages.find(page => perms[page]?.canView === true || page === "profile");
+        const pages = [
+          "proposals",
+          "clients",
+          "products",
+          "financial",
+          "profile",
+        ];
+        const firstAllowed = pages.find(
+          (page) => perms[page]?.canView === true || page === "profile"
+        );
 
         if (firstAllowed) {
+          console.log("[LoginForm] Redirecting to:", firstAllowed);
           router.replace(`/${firstAllowed}`);
         } else {
+          console.log("[LoginForm] No permissions, redirecting to /403");
           router.replace("/403");
         }
       }
@@ -137,7 +168,14 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // If already logged in, redirect
   React.useEffect(() => {
+    console.log(
+      "[LoginForm] Redirect effect - isLoading:",
+      isLoading,
+      "user:",
+      user?.id
+    );
     if (!isLoading && user) {
+      console.log("[LoginForm] User is logged in, triggering redirect...");
       handleRedirectAfterAuth();
     }
   }, [user, isLoading, handleRedirectAfterAuth]);
@@ -146,7 +184,7 @@ export function useLoginForm(): UseLoginFormReturn {
     e?.preventDefault();
     setError("");
     setErrors({});
-    
+
     // Manual validation
     const newErrors: Record<string, string> = {};
     let isValid = true;
@@ -237,7 +275,11 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsRegistering(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
       const firebaseUser = userCredential.user;
 
       const slug = companyName
@@ -262,12 +304,13 @@ export function useLoginForm(): UseLoginFormReturn {
         tenantId: tenantId,
         createdAt: new Date().toISOString(),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { code?: string };
       console.error("Registration error:", err);
-      if (err.code === "auth/email-already-in-use") {
+      if (error.code === "auth/email-already-in-use") {
         setError("Este email já está cadastrado. Tente fazer login.");
         setMode("login");
-      } else if (err.code === "auth/weak-password") {
+      } else if (error.code === "auth/weak-password") {
         setError("A senha é muito fraca. Use pelo menos 6 caracteres.");
       } else {
         setError("Erro ao criar conta. Tente novamente.");
@@ -277,18 +320,28 @@ export function useLoginForm(): UseLoginFormReturn {
   };
 
   return {
-    email, setEmail,
-    password, setPassword,
-    name, setName,
-    companyName, setCompanyName,
-    companyColor, setCompanyColor,
-    companyLogo, setCompanyLogo,
-    companyNiche, setCompanyNiche,
-    error, setError,
-    errors, setErrors,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    name,
+    setName,
+    companyName,
+    setCompanyName,
+    companyColor,
+    setCompanyColor,
+    companyLogo,
+    setCompanyLogo,
+    companyNiche,
+    setCompanyNiche,
+    error,
+    setError,
+    errors,
+    setErrors,
     isLoggingIn,
     isRegistering,
-    mode, setMode,
+    mode,
+    setMode,
     isLoading,
     user,
     handleLogin,
