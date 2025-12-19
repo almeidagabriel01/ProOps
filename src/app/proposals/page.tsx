@@ -128,7 +128,7 @@ export default function ProposalsPage() {
         status: "draft",
       });
 
-      if ((result.data as any)?.success) {
+      if ((result.data as { success?: boolean })?.success) {
         // Reload proposals
         if (tenant) {
           const data = await ProposalService.getProposals(tenant.id);
