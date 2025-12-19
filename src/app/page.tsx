@@ -38,7 +38,8 @@ export default function LandingPage() {
   // Show loading while checking auth
   if (isCheckingAuth) {
     // Determine content based on skeleton type
-    const skeletonType = initialSkeleton || "list";
+    type SkeletonType = "list" | "dashboard" | "profile" | "financial" | "team" | "admin" | "products" | "proposals" | "clients";
+    const skeletonType: SkeletonType = (initialSkeleton || "list") as SkeletonType;
 
     const renderSkeleton = () => {
       switch (skeletonType) {
