@@ -226,6 +226,67 @@ service cloud.firestore {
     }
     
     // ============================================
+    // TENANTS COLLECTION
+    // ============================================
+    
+    match /tenants/{tenantId} {
+      // READ: Only users of the same tenant
+      allow read: if isAuthenticated() && getUserData().tenantId == tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Tenants are managed only via Cloud Functions
+      allow create, update, delete: if false;
+      
+      // ----------------------------------------
+      // PROPOSALS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /proposals/{proposalId} {
+        // READ: Users of the same tenant
+        allow read: if isAuthenticated() && getUserData().tenantId == tenantId;
+        
+        // WRITE: ❌ NEVER from frontend
+        allow create, update, delete: if false;
+      }
+      
+      // ----------------------------------------
+      // CLIENTS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /clients/{clientId} {
+        // READ: Users of the same tenant
+        allow read: if isAuthenticated() && getUserData().tenantId == tenantId;
+        
+        // WRITE: ❌ NEVER from frontend
+        allow create, update, delete: if false;
+      }
+      
+      // ----------------------------------------
+      // PRODUCTS SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /products/{productId} {
+        // READ: Users of the same tenant
+        allow read: if isAuthenticated() && getUserData().tenantId == tenantId;
+        
+        // WRITE: ❌ NEVER from frontend
+        allow create, update, delete: if false;
+      }
+      
+      // ----------------------------------------
+      // TRANSACTIONS (FINANCIAL) SUBCOLLECTION
+      // ----------------------------------------
+      
+      match /transactions/{transactionId} {
+        // READ: Users of the same tenant
+        allow read: if isAuthenticated() && getUserData().tenantId == tenantId;
+        
+        // WRITE: ❌ NEVER from frontend
+        allow create, update, delete: if false;
+      }
+    }
+    
+    // ============================================
     // PLANS COLLECTION (Read-Only Reference Data)
     // ============================================
     
@@ -248,6 +309,19 @@ service cloud.firestore {
       
       // WRITE: ❌ NEVER
       // Pages are defined at deployment time
+      allow create, update, delete: if false;
+    }
+    
+    // ============================================
+    // ADDONS COLLECTION
+    // ============================================
+    
+    match /addons/{addonId} {
+      // READ: Users can read their own tenant's addons
+      allow read: if isAuthenticated() && resource.data.tenantId == getUserData().tenantId;
+      
+      // WRITE: ❌ NEVER from frontend
+      // Addons are managed only via Cloud Functions (Stripe webhooks)
       allow create, update, delete: if false;
     }
     
