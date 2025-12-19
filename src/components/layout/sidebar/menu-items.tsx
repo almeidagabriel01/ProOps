@@ -5,9 +5,7 @@ import { cn } from "@/lib/utils";
 import { Crown, ChevronRight } from "lucide-react";
 import {
   MenuItem,
-  SubMenuItem,
   getVisibleChildren,
-  lightenColor,
 } from "./config";
 import { usePermissions } from "@/providers/permissions-provider";
 
@@ -188,9 +186,7 @@ export function SubmenuItem({
               >
                 <child.icon className="w-4 h-4 shrink-0" />
                 <span>{child.label}</span>
-                {child.masterOnly && (
-                  <Crown className="w-3 h-3 ml-auto text-amber-500" />
-                )}
+
               </Link>
             );
           })}

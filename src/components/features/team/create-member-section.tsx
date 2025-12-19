@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/step-wizard";
 import {
   UserPlus,
-  Loader2,
   Eye,
   EyeOff,
   Edit3,
@@ -27,6 +26,7 @@ import {
   useCreateMember,
   getDefaultPermissions,
 } from "@/hooks/useCreateMember";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ROLE_PRESETS } from "./team-types";
 import { PermissionToggle } from "./permission-toggle";
 
@@ -84,6 +84,7 @@ const steps = [
 
 export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
   const { createMember, isLoading, error } = useCreateMember();
+  const upgradeModal = useUpgradeModal();
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -96,7 +97,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
 
   const handleRoleSelect = (roleId: string) => {
     setSelectedRole(roleId);
-    setCustomPermissions(getDefaultPermissions(roleId as any));
+    setCustomPermissions(getDefaultPermissions(roleId as keyof typeof roleConfig));
   };
 
   const handleSubmit = async () => {
@@ -114,6 +115,13 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
       setSelectedRole("viewer");
       setCustomPermissions(getDefaultPermissions("viewer"));
       onSuccess();
+    } else if (result?.error && ['resource-exhausted', 'failed-precondition'].includes(result.error.code)) {
+      // Show upgrade modal for limit errors
+      upgradeModal.showUpgradeModal(
+        "Limite de Equipe Atingido",
+        "Você atingiu o limite de membros do seu plano atual. Faça upgrade para adicionar mais pessoas à sua equipe.",
+        "pro"
+      );
     }
   };
 
@@ -126,7 +134,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
         return newErrors;
       });
     }
-  }, [name]);
+  }, [name, errors.name]);
 
   React.useEffect(() => {
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && errors.email) {
@@ -136,7 +144,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
         return newErrors;
       });
     }
-  }, [email]);
+  }, [email, errors.email]);
 
   React.useEffect(() => {
     if (password && password.length >= 6 && errors.password) {
@@ -146,7 +154,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
         return newErrors;
       });
     }
-  }, [password]);
+  }, [password, errors.password]);
 
   // Validação do Step 1 (Informações)
   const validateStep1 = (): boolean => {
@@ -175,19 +183,18 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
     return isValid;
   };
 
-  const currentRoleConfig =
-    roleConfig[selectedRole as keyof typeof roleConfig] || roleConfig.viewer;
+
 
   return (
     <div className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/5 overflow-hidden">
       {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-primary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-linear-to-br from-primary/10 to-transparent rounded-full -translate-y-32 translate-x-32" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-linear-to-tr from-primary/10 to-transparent rounded-full translate-y-24 -translate-x-24" />
 
       <div className="relative p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+          <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
             <UserPlus className="w-7 h-7 text-primary-foreground" />
           </div>
           <div>
@@ -213,7 +220,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
           <StepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
                   <User className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
@@ -310,7 +317,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
           <StepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
                   <Shield className="w-6 h-6 text-purple-600" />
                 </div>
                 <div>
@@ -355,7 +362,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
                                                 w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all
                                                 ${
                                                   isSelected
-                                                    ? `bg-gradient-to-br ${config.color} text-white shadow-lg`
+                                                    ? `bg-linear-to-br ${config.color} text-white shadow-lg`
                                                     : `${config.lightBg} ${config.textColor} group-hover:scale-110`
                                                 }
                                             `}
@@ -383,7 +390,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
           <StepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
                   <Settings className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
@@ -483,6 +490,14 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
         <p className="text-xs text-center text-muted-foreground mt-6">
           O novo membro poderá fazer login com o email e senha definidos.
         </p>
+
+        <UpgradeModal
+          open={upgradeModal.isOpen}
+          onOpenChange={upgradeModal.setIsOpen}
+          feature={upgradeModal.feature}
+          description={upgradeModal.description}
+          requiredPlan={upgradeModal.requiredPlan}
+        />
       </div>
     </div>
   );
