@@ -142,12 +142,38 @@ export function PlanCard({
               Benefícios
             </p>
             <div className="grid gap-3">
-              <FeatureRow label="Propostas" value={formatLimit(plan.features.maxProposals)} highlight={true} />
-              <FeatureRow label="Clientes" value={formatLimit(plan.features.maxClients)} />
-              <FeatureRow label="Usuários" value={formatLimit(plan.features.maxUsers)} />
-              <BooleanFeature label="Módulo Financeiro" available={plan.features.hasFinancial} />
-              <BooleanFeature label="Personalização de Tema" available={plan.features.canCustomizeTheme} />
-              <BooleanFeature label="Editor Avançado" available={plan.features.canEditPdfSections} />
+              <FeatureRow
+                label="Propostas comerciais"
+                value={plan.features.maxProposals === -1 ? "Ilimitadas" : `Até ${plan.features.maxProposals}/mês`}
+                highlight={true}
+              />
+              <FeatureRow
+                label="Clientes cadastrados"
+                value={plan.features.maxClients === -1 ? "Ilimitados" : `Até ${plan.features.maxClients}`}
+              />
+              <FeatureRow
+                label="Produtos para venda"
+                value={plan.features.maxProducts === -1 ? "Ilimitados" : `Até ${plan.features.maxProducts}`}
+              />
+              <FeatureRow
+                label="Membros da equipe"
+                value={plan.features.maxUsers === -1 ? "Ilimitados" : `Até ${plan.features.maxUsers}`}
+              />
+              <FeatureRow
+                label="Layouts de proposta"
+                value={plan.features.maxPdfTemplates === -1 ? "Todos" : `${plan.features.maxPdfTemplates}`}
+              />
+              <FeatureRow
+                label="Fotos por produto"
+                value={`Até ${plan.features.maxImagesPerProduct}`}
+              />
+              <FeatureRow
+                label="Espaço para arquivos"
+                value={plan.features.maxStorageMB === -1 ? "Ilimitado" : plan.features.maxStorageMB >= 1000 ? `${(plan.features.maxStorageMB / 1024).toFixed(1)} GB` : `${plan.features.maxStorageMB} MB`}
+              />
+              <BooleanFeature label="Controle financeiro" available={plan.features.hasFinancial} />
+              <BooleanFeature label="Cores personalizadas" available={plan.features.canCustomizeTheme} />
+              <BooleanFeature label="Editor de PDF avançado" available={plan.features.canEditPdfSections} />
             </div>
           </div>
 
