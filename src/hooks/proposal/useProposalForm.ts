@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Proposal, ProposalProduct, ProposalService } from "@/services/proposal-service";
+import {
+  Proposal,
+  ProposalProduct,
+  ProposalService,
+} from "@/services/proposal-service";
 import { Product, ProductService } from "@/services/product-service";
 import { ProposalTemplate } from "@/types";
 import { ProposalTemplateService } from "@/services/proposal-template-service";
@@ -33,7 +37,7 @@ export interface UseProposalFormReturn {
   extraProducts: ProposalProduct[];
   showLimitModal: boolean;
   currentProposalCount: number;
-  
+
   // Setters
   setSelectedClientId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setIsNewClient: React.Dispatch<React.SetStateAction<boolean>>;
@@ -41,18 +45,25 @@ export interface UseProposalFormReturn {
   setSelectedSistemas: React.Dispatch<React.SetStateAction<ProposalSistema[]>>;
   setSystemProductIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setShowLimitModal: React.Dispatch<React.SetStateAction<boolean>>;
-  
+
   // Actions
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleChange: (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   toggleProduct: (product: Product) => void;
-  updateProductQuantity: (productId: string, delta: number, systemInstanceId?: string) => void;
-  
+  updateProductQuantity: (
+    productId: string,
+    delta: number,
+    systemInstanceId?: string
+  ) => void;
+  removeProduct: (productId: string, systemInstanceId?: string) => void;
+
   // Calculations
   calculateSubtotal: () => number;
   calculateDiscount: () => number;
   calculateTotal: () => number;
-  
+
   // Context
   router: ReturnType<typeof useRouter>;
   tenant: ReturnType<typeof useTenant>["tenant"];
@@ -61,7 +72,9 @@ export interface UseProposalFormReturn {
   isAutomacaoNiche: boolean;
 }
 
-export function useProposalForm({ proposalId }: UseProposalFormProps): UseProposalFormReturn {
+export function useProposalForm({
+  proposalId,
+}: UseProposalFormProps): UseProposalFormReturn {
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateProposal, getProposalCount, features } = usePlanLimits();
@@ -76,7 +89,9 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
   const [isSaving, setIsSaving] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const [selectedClientId, setSelectedClientId] = React.useState<
+    string | undefined
+  >(undefined);
   const [isNewClient, setIsNewClient] = React.useState(true);
 
   const [formData, setFormData] = React.useState<Partial<Proposal>>({
@@ -91,8 +106,12 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
     products: [],
   });
 
-  const [selectedSistemas, setSelectedSistemas] = React.useState<ProposalSistema[]>([]);
-  const [systemProductIds, setSystemProductIds] = React.useState<Set<string>>(new Set());
+  const [selectedSistemas, setSelectedSistemas] = React.useState<
+    ProposalSistema[]
+  >([]);
+  const [systemProductIds, setSystemProductIds] = React.useState<Set<string>>(
+    new Set()
+  );
 
   const primaryColor = tenant?.primaryColor || "#2563eb";
   const isAutomacaoNiche = tenant?.niche === "automacao_residencial";
@@ -103,11 +122,16 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
       if (tenant) {
         try {
           const loadedProducts = await ProductService.getProducts(tenant.id);
-          const activeProducts = loadedProducts.filter((p) => p.status !== "inactive");
+          const activeProducts = loadedProducts.filter(
+            (p) => p.status !== "inactive"
+          );
           setProducts(activeProducts);
 
-          const templates = await ProposalTemplateService.getTemplates(tenant.id);
-          const defaultTemplate = templates.find((t) => t.isDefault) || templates[0];
+          const templates = await ProposalTemplateService.getTemplates(
+            tenant.id
+          );
+          const defaultTemplate =
+            templates.find((t) => t.isDefault) || templates[0];
           setTemplate(defaultTemplate || null);
         } catch (error) {
           console.error("Error loading products", error);
@@ -137,20 +161,24 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
             });
 
             if (proposal.sistemas && proposal.sistemas.length > 0) {
-              const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => ({
-                sistemaId: s.sistemaId,
-                sistemaName: s.sistemaName,
-                ambienteId: s.ambienteId,
-                ambienteName: s.ambienteName,
-                description: s.description || "",
-                products: (proposal.products || [])
-                  .filter((p: ProposalProduct) => s.productIds?.includes(p.productId))
-                  .map((p: ProposalProduct) => ({
-                    productId: p.productId,
-                    productName: p.productName,
-                    quantity: p.quantity,
-                  })),
-              }));
+              const sistemas: ProposalSistema[] = proposal.sistemas.map(
+                (s) => ({
+                  sistemaId: s.sistemaId,
+                  sistemaName: s.sistemaName,
+                  ambienteId: s.ambienteId,
+                  ambienteName: s.ambienteName,
+                  description: s.description || "",
+                  products: (proposal.products || [])
+                    .filter((p: ProposalProduct) =>
+                      s.productIds?.includes(p.productId)
+                    )
+                    .map((p: ProposalProduct) => ({
+                      productId: p.productId,
+                      productName: p.productName,
+                      quantity: p.quantity,
+                    })),
+                })
+              );
               setSelectedSistemas(sistemas);
 
               const sysProductIds = new Set(
@@ -185,7 +213,11 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
         productId: product.id,
         productName: product.name,
         productImage: product.images?.[0] || product.image || "",
-        productImages: product.images?.length ? product.images : product.image ? [product.image] : [],
+        productImages: product.images?.length
+          ? product.images
+          : product.image
+            ? [product.image]
+            : [],
         productDescription: product.description || "",
         quantity: 1,
         unitPrice: price,
@@ -200,14 +232,26 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
     }
   };
 
-  const updateProductQuantity = (productId: string, delta: number, systemInstanceId?: string) => {
+  const updateProductQuantity = (
+    productId: string,
+    delta: number,
+    systemInstanceId?: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       products: selectedProducts.map((p) => {
-        if (systemInstanceId && p.systemInstanceId === systemInstanceId && p.productId === productId) {
+        if (
+          systemInstanceId &&
+          p.systemInstanceId === systemInstanceId &&
+          p.productId === productId
+        ) {
           const newQty = Math.max(1, p.quantity + delta);
           return { ...p, quantity: newQty, total: newQty * p.unitPrice };
-        } else if (!systemInstanceId && !p.systemInstanceId && p.productId === productId) {
+        } else if (
+          !systemInstanceId &&
+          !p.systemInstanceId &&
+          p.productId === productId
+        ) {
           const newQty = Math.max(1, p.quantity + delta);
           return { ...p, quantity: newQty, total: newQty * p.unitPrice };
         }
@@ -216,12 +260,30 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
     }));
   };
 
+  const removeProduct = (productId: string, systemInstanceId?: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).filter((p) => {
+        if (systemInstanceId) {
+          return !(
+            p.systemInstanceId === systemInstanceId && p.productId === productId
+          );
+        }
+        return p.productId !== productId;
+      }),
+    }));
+  };
+
   // Calculations
-  const calculateSubtotal = () => selectedProducts.reduce((sum, p) => sum + p.total, 0);
-  const calculateDiscount = () => (calculateSubtotal() * (formData.discount || 0)) / 100;
+  const calculateSubtotal = () =>
+    selectedProducts.reduce((sum, p) => sum + p.total, 0);
+  const calculateDiscount = () =>
+    (calculateSubtotal() * (formData.discount || 0)) / 100;
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -247,8 +309,14 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
       return;
     }
 
-    if (!formData.title || !formData.clientName || selectedProducts.length === 0) {
-      alert("Preencha o título, nome do cliente e selecione pelo menos um produto!");
+    if (
+      !formData.title ||
+      !formData.clientName ||
+      selectedProducts.length === 0
+    ) {
+      alert(
+        "Preencha o título, nome do cliente e selecione pelo menos um produto!"
+      );
       return;
     }
 
@@ -258,13 +326,16 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
       let clientId: string | undefined = selectedClientId;
 
       if (!proposalId && isNewClient && formData.clientName) {
-        const newClientResult = await createClient({
-          name: formData.clientName,
-          email: formData.clientEmail,
-          phone: formData.clientPhone,
-          address: formData.clientAddress,
-          source: 'proposal'
-        }, { suppressSuccessToast: true });
+        const newClientResult = await createClient(
+          {
+            name: formData.clientName,
+            email: formData.clientEmail,
+            phone: formData.clientPhone,
+            address: formData.clientAddress,
+            source: "proposal",
+          },
+          { suppressSuccessToast: true }
+        );
 
         if (newClientResult?.success && newClientResult.clientId) {
           clientId = newClientResult.clientId;
@@ -328,6 +399,7 @@ export function useProposalForm({ proposalId }: UseProposalFormProps): UsePropos
     handleSubmit,
     toggleProduct,
     updateProductQuantity,
+    removeProduct,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,

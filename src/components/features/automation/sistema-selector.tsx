@@ -13,7 +13,7 @@ import { AmbienteManagerDialog } from "./ambiente-manager-dialog";
 import { SistemaTemplateDialog } from "./sistema-template-dialog";
 import { SistemaManagerDialog } from "./sistema-manager-dialog";
 
-interface SistemaSelectorProps {
+export interface SistemaSelectorProps {
     value?: ProposalSistema | null;
     onChange: (sistema: ProposalSistema | null) => void;
     onProductsChange?: (products: SistemaProduct[]) => void;
@@ -240,7 +240,7 @@ export function SistemaSelector({ value, onChange, onProductsChange }: SistemaSe
                             </Button>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <Select
                             value={selectedSistemaId}
                             onChange={(e) => handleSistemaChange(e.target.value)}

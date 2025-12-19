@@ -22,6 +22,18 @@ import {
     Trash2,
     Pencil,
 } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { SistemaSelectorProps } from "@/components/features/automation/sistema-selector";
 
 interface ProposalSystemsSectionProps {
     selectedSistemas: ProposalSistema[];
@@ -34,7 +46,8 @@ interface ProposalSystemsSectionProps {
     onUpdateProductQuantity: (productId: string, delta: number, systemInstanceId: string) => void;
     onAddExtraProductToSystem: (product: Product, sistemaIndex: number, systemInstanceId: string) => void;
     onAddNewSystem: (sistema: ProposalSistema) => void;
-    SistemaSelectorComponent: React.ComponentType<any>;
+    onRemoveProduct: (productId: string, systemInstanceId: string) => void;
+    SistemaSelectorComponent: React.ComponentType<SistemaSelectorProps>;
 }
 
 export function ProposalSystemsSection({
@@ -48,6 +61,7 @@ export function ProposalSystemsSection({
     onUpdateProductQuantity,
     onAddExtraProductToSystem,
     onAddNewSystem,
+    onRemoveProduct,
     SistemaSelectorComponent,
 }: ProposalSystemsSectionProps) {
     return (
@@ -90,6 +104,9 @@ export function ProposalSystemsSection({
                                     onUpdateQuantity={(productId, delta) =>
                                         onUpdateProductQuantity(productId, delta, systemInstanceId)
                                     }
+                                    onRemoveProduct={(productId) =>
+                                        onRemoveProduct(productId, systemInstanceId)
+                                    }
                                     onAddExtraProduct={(product) =>
                                         onAddExtraProductToSystem(product, sistemaIndex, systemInstanceId)
                                     }
@@ -109,7 +126,7 @@ export function ProposalSystemsSection({
                     <SistemaSelectorComponent
                         key={selectorKey}
                         value={null}
-                        onChange={onAddNewSystem}
+                        onChange={(s) => s && onAddNewSystem(s)}
                     />
                 </div>
             </CardContent>
@@ -129,6 +146,7 @@ interface SystemCardProps {
     onEdit: () => void;
     onRemove: () => void;
     onUpdateQuantity: (productId: string, delta: number) => void;
+    onRemoveProduct: (productId: string) => void;
     onAddExtraProduct: (product: Product) => void;
 }
 
@@ -141,6 +159,7 @@ function SystemCard({
     onEdit,
     onRemove,
     onUpdateQuantity,
+    onRemoveProduct,
     onAddExtraProduct,
 }: SystemCardProps) {
     return (
@@ -158,7 +177,7 @@ function SystemCard({
             >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
                         style={{ backgroundColor: primaryColor }}
                     >
                         <Cpu className="w-5 h-5" />
@@ -166,7 +185,7 @@ function SystemCard({
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             <span
-                                className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded flex-shrink-0"
+                                className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded shrink-0"
                                 style={{
                                     backgroundColor: primaryColor,
                                     color: getContrastTextColor(primaryColor),
@@ -181,13 +200,13 @@ function SystemCard({
                             </h4>
                         </div>
                         {sistema.description && (
-                            <p className="mt-1 text-sm text-foreground leading-relaxed break-words">
+                            <p className="mt-1 text-sm text-foreground leading-relaxed wrap-break-word">
                                 {sistema.description}
                             </p>
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                <div className="flex items-center gap-2 shrink-0 ml-4">
                     <span className="font-bold text-lg" style={{ color: primaryColor }}>
                         R$ {sistemaTotal.toFixed(2)}
                     </span>
@@ -221,6 +240,7 @@ function SystemCard({
                             key={`${product.productId}-${idx}`}
                             product={product}
                             onUpdateQuantity={onUpdateQuantity}
+                            onRemoveProduct={onRemoveProduct}
                         />
                     ))
                 ) : (
@@ -245,9 +265,12 @@ function SystemCard({
 interface ProductRowProps {
     product: ProposalProduct;
     onUpdateQuantity: (productId: string, delta: number) => void;
+    onRemoveProduct: (productId: string) => void;
 }
 
-function ProductRow({ product, onUpdateQuantity }: ProductRowProps) {
+function ProductRow({ product, onUpdateQuantity, onRemoveProduct }: ProductRowProps) {
+    const isExtra = !!product.isExtra;
+
     return (
         <div
             className={`flex items-center justify-between p-3 rounded-lg border ${product.isExtra ? "bg-blue-50/50 border-blue-100" : "bg-muted/30"
@@ -255,7 +278,7 @@ function ProductRow({ product, onUpdateQuantity }: ProductRowProps) {
         >
             <div className="flex items-center gap-3">
                 {product.productImage || product.productImages?.[0] ? (
-                    <div className="w-8 h-8 rounded border bg-card overflow-hidden flex-shrink-0">
+                    <div className="w-8 h-8 rounded border bg-card overflow-hidden shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={product.productImages?.[0] || product.productImage}
@@ -269,7 +292,7 @@ function ProductRow({ product, onUpdateQuantity }: ProductRowProps) {
                 <div>
                     <div className="flex items-center gap-2">
                         <h5 className="font-medium text-sm">{product.productName}</h5>
-                        {product.isExtra && (
+                        {isExtra && (
                             <Badge
                                 variant="default"
                                 className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"
@@ -303,6 +326,43 @@ function ProductRow({ product, onUpdateQuantity }: ProductRowProps) {
                 >
                     <Plus className="w-3 h-3" />
                 </Button>
+
+                {isExtra && (
+                    <>
+                        <div className="w-px h-4 bg-border mx-2" />
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    title="Remover produto"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Remover Produto Extra</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Tem certeza que deseja remover o produto <strong>{product.productName}</strong> deste sistema?
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                        className="bg-destructive hover:bg-destructive/90"
+                                        onClick={() => onRemoveProduct(product.productId)}
+                                    >
+                                        Remover
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </>
+                )}
+
                 <span className="font-semibold text-sm ml-2">
                     R$ {product.total.toFixed(2)}
                 </span>
@@ -367,7 +427,7 @@ function ExtraProductsGrid({
                         className="flex items-center gap-2 p-2 text-left rounded-lg border bg-background hover:border-primary hover:shadow-sm transition-all"
                         onClick={() => onAddProduct(product)}
                     >
-                        <Plus className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <Plus className="w-3 h-3 text-muted-foreground shrink-0" />
                         <div className="min-w-0">
                             <p className="text-xs font-medium truncate">{product.name}</p>
                             <p className="text-[10px] text-muted-foreground">
