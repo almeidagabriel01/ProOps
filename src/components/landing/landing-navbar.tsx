@@ -1,21 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import {
   Sparkles,
   Users,
   ChevronDown,
   LogOut,
   ArrowRight,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { MobileMenu } from "@/components/ui/mobile-menu";
-import { useTheme } from "next-themes";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { User } from "@/providers/auth-provider";
 
 interface LandingNavbarProps {
-  currentUser: any;
+  currentUser: User | null;
   onSignOut: () => void;
 }
 
@@ -26,17 +24,17 @@ const navLinks = [
 ];
 
 export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  // const { theme, setTheme } = useTheme(); // Removed unused
+  // const [mounted, setMounted] = useState(false); // Removed unused, AnimatedThemeToggler handles it
 
   // Only show theme icon after mounting to prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // useEffect(() => {
+  //   setMounted(true);
+  // }, []);
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  // const toggleTheme = () => {
+  //   setTheme(theme === "dark" ? "light" : "dark");
+  // };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/50">
@@ -65,21 +63,9 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
         {/* Buttons / User Menu */}
         <div className="flex items-center gap-3">
           {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer"
-            aria-label="Toggle theme"
-          >
-            {mounted ? (
-              theme === "dark" ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )
-            ) : (
-              <div className="w-5 h-5" /> /* Placeholder during SSR */
-            )}
-          </button>
+          <AnimatedThemeToggler
+            className="p-2.5 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all duration-200"
+          />
 
           {currentUser ? (
             <div className="relative group">

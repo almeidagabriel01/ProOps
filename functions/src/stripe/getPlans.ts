@@ -1,24 +1,22 @@
 /**
  * Get Plans Cloud Function
  *
- * Fetches plans from Stripe and merges with defaults.
- * IMPORTANT: Prices come from Stripe API, not from DEFAULT_PLANS
- * Migrated from: src/app/api/plans/route.ts + src/lib/stripe-sync.ts
+ * Fetches plans from Stripe using configured Price IDs.
+ * IMPORTANT: Prices come primarily from the IDs defined in stripeConfig.
  */
 
 import * as functions from "firebase-functions";
-import { getStripe } from "./stripeConfig";
+import Stripe from "stripe";
+import { getStripe, getPriceConfig } from "./stripeConfig";
 
 // Default plans configuration - FALLBACK ONLY
-// These values are used only when Stripe API is unavailable
-// In production, prices are always fetched from Stripe
 const DEFAULT_PLANS = [
   {
     tier: "starter",
     name: "Starter",
     description: "Ideal para profissionais autônomos e pequenos negócios.",
-    price: 49,
-    pricing: { monthly: 49, yearly: 490 },
+    price: 0,
+    pricing: { monthly: 0, yearly: 0 },
     order: 1,
     highlighted: false,
     features: {
@@ -38,8 +36,8 @@ const DEFAULT_PLANS = [
     tier: "pro",
     name: "Pro",
     description: "Para equipes em crescimento que precisam de mais recursos.",
-    price: 99,
-    pricing: { monthly: 99, yearly: 990 },
+    price: 0,
+    pricing: { monthly: 0, yearly: 0 },
     order: 2,
     highlighted: true,
     features: {
@@ -59,8 +57,8 @@ const DEFAULT_PLANS = [
     tier: "enterprise",
     name: "Enterprise",
     description: "Solução completa para grandes empresas.",
-    price: 199,
-    pricing: { monthly: 199, yearly: 1990 },
+    price: 0,
+    pricing: { monthly: 0, yearly: 0 },
     order: 3,
     highlighted: false,
     features: {
@@ -105,74 +103,136 @@ interface Plan {
 }
 
 /**
- * Fetch plans from Stripe
+ * Fetch plans from Stripe using configured Price IDs
  */
 async function fetchPlansFromStripe(): Promise<Plan[]> {
   const stripe = getStripe();
+  const config = getPriceConfig();
 
   try {
-    // Fetch active products
-    const products = await stripe.products.list({
-      active: true,
-      expand: ["data.default_price"],
-    });
-
-    // Fetch active prices
-    const prices = await stripe.prices.list({
-      active: true,
-      limit: 100,
-    });
-
-    const tierOrder: Record<string, number> = {
-      starter: 1,
-      pro: 2,
-      enterprise: 3,
+    // 2. Collect all configured Price IDs we care about
+    const tierConfigMap: Record<
+      string,
+      { tier: string; monthlyId: string; yearlyId: string }
+    > = {
+      starter: {
+        tier: "starter",
+        monthlyId: config.plans.starter.monthly,
+        yearlyId: config.plans.starter.yearly,
+      },
+      pro: {
+        tier: "pro",
+        monthlyId: config.plans.pro.monthly,
+        yearlyId: config.plans.pro.yearly,
+      },
+      enterprise: {
+        tier: "enterprise",
+        monthlyId: config.plans.enterprise.monthly,
+        yearlyId: config.plans.enterprise.yearly,
+      },
     };
+
+    const targetPriceIds = new Set<string>();
+    Object.values(tierConfigMap).forEach((conf) => {
+      if (conf.monthlyId) targetPriceIds.add(conf.monthlyId);
+      if (conf.yearlyId) targetPriceIds.add(conf.yearlyId);
+    });
+
+    if (targetPriceIds.size === 0) {
+      console.warn("No Price IDs configured in environment.");
+      return [];
+    }
+
+    // 3. Fetch all active prices, expanding product data
+    // We fetch list instead of individuals to minimize API calls (1 call vs N calls)
+    const pricesResponse = await stripe.prices.list({
+      active: true,
+      limit: 100, // Should cover our needs
+      expand: ["data.product"],
+    });
+
+    const relevantPrices = pricesResponse.data.filter((p) =>
+      targetPriceIds.has(p.id)
+    );
 
     const plans: Plan[] = [];
 
-    for (const product of products.data) {
-      const tier = product.metadata.tier || product.name.toLowerCase();
+    // 4. Build Plan objects based on configured tiers
+    for (const [key, conf] of Object.entries(tierConfigMap)) {
+      if (!conf.monthlyId) continue;
 
-      // Only include main plan tiers
-      if (!["starter", "pro", "enterprise"].includes(tier)) continue;
+      const monthlyPrice = relevantPrices.find((p) => p.id === conf.monthlyId);
+      const yearlyPrice = relevantPrices.find((p) => p.id === conf.yearlyId);
 
-      const productPrices = prices.data.filter((p) => p.product === product.id);
+      // If we can't find the monthly price (the base requirement), skip
+      if (!monthlyPrice) {
+        console.warn(
+          `Configured monthly price ${conf.monthlyId} for ${key} not found in Stripe responses.`
+        );
+        continue;
+      }
 
-      const monthlyPrice = productPrices.find(
-        (p) => p.recurring?.interval === "month"
-      );
-      const yearlyPrice = productPrices.find(
-        (p) => p.recurring?.interval === "year"
-      );
+      const product = monthlyPrice.product as Stripe.Product;
+      if (!product || typeof product === "string" || product.deleted) {
+        console.warn(
+          `Product not found or deleted for price ${monthlyPrice.id}`
+        );
+        continue;
+      }
 
-      if (!monthlyPrice) continue;
+      // Default features (fallback)
+      const defaultFeats =
+        DEFAULT_PLANS.find((d) => d.tier === conf.tier)?.features ||
+        DEFAULT_PLANS[0].features;
+
+      // Extract metadata features (safe parsing)
+      const meta = product.metadata || {};
 
       plans.push({
         id: product.id,
         name: product.name,
-        tier: tier as "starter" | "pro" | "enterprise",
+        tier: conf.tier,
         description: product.description || "",
         price: (monthlyPrice.unit_amount || 0) / 100,
         pricing: {
           monthly: (monthlyPrice.unit_amount || 0) / 100,
-          yearly: (yearlyPrice?.unit_amount || 0) / 100,
+          yearly: yearlyPrice ? (yearlyPrice.unit_amount || 0) / 100 : 0,
         },
-        order: parseInt(product.metadata.order || "0") || tierOrder[tier] || 99,
-        highlighted: product.metadata.highlighted === "true",
+        order:
+          parseInt(meta.order || "0") ||
+          (key === "starter" ? 1 : key === "pro" ? 2 : 3),
+        highlighted: meta.highlighted === "true",
         features: {
-          maxProposals: parseInt(product.metadata.maxProposals || "0"),
-          maxClients: parseInt(product.metadata.maxClients || "0"),
-          maxProducts: parseInt(product.metadata.maxProducts || "0"),
-          maxUsers: parseInt(product.metadata.maxUsers || "0"),
-          hasFinancial: product.metadata.hasFinancial === "true",
-          canCustomizeTheme: product.metadata.canCustomizeTheme === "true",
-          maxPdfTemplates: parseInt(product.metadata.maxPdfTemplates || "1"),
-          canEditPdfSections: product.metadata.canEditPdfSections === "true",
-          maxImagesPerProduct: parseInt(
-            product.metadata.maxImagesPerProduct || "2"
-          ),
-          maxStorageMB: parseInt(product.metadata.maxStorageMB || "200"),
+          maxProposals: meta.maxProposals
+            ? parseInt(meta.maxProposals)
+            : defaultFeats.maxProposals,
+          maxClients: meta.maxClients
+            ? parseInt(meta.maxClients)
+            : defaultFeats.maxClients,
+          maxProducts: meta.maxProducts
+            ? parseInt(meta.maxProducts)
+            : defaultFeats.maxProducts,
+          maxUsers: meta.maxUsers
+            ? parseInt(meta.maxUsers)
+            : defaultFeats.maxUsers,
+          hasFinancial: meta.hasFinancial
+            ? meta.hasFinancial === "true"
+            : defaultFeats.hasFinancial,
+          canCustomizeTheme: meta.canCustomizeTheme
+            ? meta.canCustomizeTheme === "true"
+            : defaultFeats.canCustomizeTheme,
+          maxPdfTemplates: meta.maxPdfTemplates
+            ? parseInt(meta.maxPdfTemplates)
+            : defaultFeats.maxPdfTemplates,
+          canEditPdfSections: meta.canEditPdfSections
+            ? meta.canEditPdfSections === "true"
+            : defaultFeats.canEditPdfSections,
+          maxImagesPerProduct: meta.maxImagesPerProduct
+            ? parseInt(meta.maxImagesPerProduct)
+            : defaultFeats.maxImagesPerProduct,
+          maxStorageMB: meta.maxStorageMB
+            ? parseInt(meta.maxStorageMB)
+            : defaultFeats.maxStorageMB,
         },
         createdAt: new Date().toISOString(),
       });
@@ -186,62 +246,22 @@ async function fetchPlansFromStripe(): Promise<Plan[]> {
 }
 
 /**
- * Merge Stripe plans with defaults
+ * Public Cloud Function
  */
-function mergePlans(stripePlans: Plan[]): Plan[] {
-  return stripePlans.map((stripePlan) => {
-    const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === stripePlan.tier);
-
-    if (!defaultPlan) return stripePlan;
-
-    // Use default features as base, override with Stripe values if present
-    const mergedFeatures: PlanFeatures = { ...defaultPlan.features };
-
-    if (stripePlan.features) {
-      const sf = stripePlan.features;
-      if (sf.maxProposals !== 0) mergedFeatures.maxProposals = sf.maxProposals;
-      if (sf.maxClients !== 0) mergedFeatures.maxClients = sf.maxClients;
-      if (sf.maxProducts !== 0) mergedFeatures.maxProducts = sf.maxProducts;
-      if (sf.maxUsers !== 0) mergedFeatures.maxUsers = sf.maxUsers;
-      if (sf.hasFinancial) mergedFeatures.hasFinancial = sf.hasFinancial;
-      if (sf.canCustomizeTheme) {
-        mergedFeatures.canCustomizeTheme = sf.canCustomizeTheme;
-      }
-      if (sf.maxPdfTemplates !== 1) {
-        mergedFeatures.maxPdfTemplates = sf.maxPdfTemplates;
-      }
-      if (sf.canEditPdfSections) {
-        mergedFeatures.canEditPdfSections = sf.canEditPdfSections;
-      }
-      if (sf.maxImagesPerProduct !== 2) {
-        mergedFeatures.maxImagesPerProduct = sf.maxImagesPerProduct;
-      }
-      if (sf.maxStorageMB !== 200) {
-        mergedFeatures.maxStorageMB = sf.maxStorageMB;
-      }
-    }
-
-    return {
-      ...defaultPlan,
-      ...stripePlan,
-      features: mergedFeatures,
-      description: stripePlan.description || defaultPlan.description,
-    };
-  });
-}
-
 export const getPlans = functions
   .region("southamerica-east1")
   .https.onCall(async (): Promise<Plan[]> => {
     try {
-      // Try to fetch from Stripe first
       const stripePlans = await fetchPlansFromStripe();
 
       if (stripePlans.length > 0) {
-        return mergePlans(stripePlans);
+        return stripePlans;
       }
 
-      // Fallback to defaults
+      console.warn(
+        "Returning default plans because Stripe fetch returned empty."
+      );
+      // Fallback
       return DEFAULT_PLANS.map((p) => ({
         ...p,
         id: p.tier,
@@ -249,7 +269,6 @@ export const getPlans = functions
       }));
     } catch (error) {
       console.error("Error in getPlans:", error);
-      // Fallback on error
       return DEFAULT_PLANS.map((p) => ({
         ...p,
         id: p.tier,

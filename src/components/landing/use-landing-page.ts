@@ -12,8 +12,8 @@ const INITIAL_PLANS = [
     name: "Starter",
     tier: "starter",
     prices: {
-      monthly: 79,
-      yearly: 804,
+      monthly: 0,
+      yearly: 0,
     },
     description: "Ideal para freelancers e pequenos negócios",
     features: [
@@ -31,8 +31,8 @@ const INITIAL_PLANS = [
     name: "Profissional",
     tier: "pro",
     prices: {
-      monthly: 149,
-      yearly: 1524,
+      monthly: 0,
+      yearly: 0,
     },
     description: "Para empresas em crescimento",
     features: [
@@ -52,8 +52,8 @@ const INITIAL_PLANS = [
     name: "Enterprise",
     tier: "enterprise",
     prices: {
-      monthly: 299,
-      yearly: 3048,
+      monthly: 0,
+      yearly: 0,
     },
     description: "Acesso total para grandes operações",
     features: [
@@ -202,11 +202,11 @@ export function useLandingPage() {
             console.warn(
               "User document not found in Firestore, treating as free user"
             );
-            setCurrentUser({ 
-              id: user.uid, 
+            setCurrentUser({
+              id: user.uid,
               email: user.email || "",
               role: "free",
-              name: user.displayName || user.email?.split("@")[0] || "User"
+              name: user.displayName || user.email?.split("@")[0] || "User",
             });
           }
         } catch (error) {

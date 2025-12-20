@@ -13,17 +13,13 @@ import {
 import {
   Loader2,
   ArrowLeft,
-  Sun,
-  Moon,
   User as UserIcon,
   Building2,
   Upload,
   CheckCircle,
   Mail,
-  Lock,
 } from "lucide-react";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import { AppSkeleton } from "@/components/layout/app-skeleton";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
@@ -32,7 +28,6 @@ import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleto
 import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleton";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
-import { FullPageLoading } from "@/components/ui/full-page-loading";
 import {
   StepWizard,
   StepCard,
@@ -42,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 function LoginContent() {
   const {
@@ -234,7 +230,9 @@ function LoginContent() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4 z-50">
-        <ThemeToggle />
+        <AnimatedThemeToggler
+          className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground"
+        />
       </div>
 
       <div
@@ -265,7 +263,7 @@ function LoginContent() {
 
             <StepWizard
               steps={steps}
-              onComplete={() => {}}
+              onComplete={() => { }}
               indicatorContainerClassName="max-w-xs w-full"
             >
               {/* STEP 1: ACCOUNT INFO */}
@@ -578,31 +576,6 @@ function LoginContent() {
         )}
       </div>
     </div>
-  );
-}
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
-  return (
-    <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 cursor-pointer text-foreground"
-      aria-label="Toggle theme"
-    >
-      {theme === "dark" ? (
-        <Sun className="w-5 h-5" />
-      ) : (
-        <Moon className="w-5 h-5" />
-      )}
-    </button>
   );
 }
 
