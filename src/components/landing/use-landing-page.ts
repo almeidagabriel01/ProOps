@@ -6,6 +6,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { PlanService } from "@/services/plan-service";
+import { User } from "@/providers/auth-provider";
 
 const INITIAL_PLANS = [
   {
@@ -71,10 +72,7 @@ const INITIAL_PLANS = [
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{
-    id: string;
-    [key: string]: unknown;
-  } | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly"
   );
@@ -195,7 +193,7 @@ export function useLandingPage() {
               }
               return;
             }
-            setCurrentUser({ id: user.uid, ...userData });
+            setCurrentUser({ id: user.uid, ...userData } as User);
           } else {
             // User document not found in Firestore - treat as free user with basic auth data
             // This allows users to stay logged in and be prompted to complete registration or subscribe
