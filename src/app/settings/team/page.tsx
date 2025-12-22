@@ -58,9 +58,22 @@ export default function TeamPage() {
     try {
       if (members.length === 0) setIsLoading(true);
 
+      // Check if super admin is viewing another tenant
+      const viewingAsTenant =
+        typeof window !== "undefined"
+          ? localStorage.getItem("viewingAsTenant")
+          : null;
+
+      // Determine the master ID to query
+      let masterId = user.id;
+      if (user.role === "superadmin" && viewingAsTenant) {
+        // Extract owner ID from tenant ID (format: tenant_{userId})
+        masterId = viewingAsTenant.replace("tenant_", "");
+      }
+
       const membersQuery = query(
         collection(db, "users"),
-        where("masterId", "==", user.id)
+        where("masterId", "==", masterId)
       );
 
       const snapshot = await getDocs(membersQuery);
