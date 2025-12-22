@@ -194,9 +194,12 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          getUserData().tenantId == tenantId)
       ));
-      // CREATE: Allowed during self-registration (tenant ID must match user's UID pattern)
-      allow create: if isAuthenticated() && tenantId == 'tenant_' + request.auth.uid;
-      allow update, delete: if false;
+      // CREATE: Super admin can create any tenant, users can only create their own (self-registration)
+      allow create: if isSuperAdmin() || (isAuthenticated() && tenantId == 'tenant_' + request.auth.uid);
+      // UPDATE: Only super admin can update tenants
+      allow update: if isSuperAdmin();
+      // DELETE: Only super admin can delete tenants
+      allow delete: if isSuperAdmin();
     }
 
     // PURCHASED ADDONS
