@@ -23,7 +23,9 @@ interface UseSidebarReturn {
   onExpandChange?: (expanded: boolean) => void;
 }
 
-export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSidebarReturn {
+export function useSidebar(
+  onExpandChange?: (expanded: boolean) => void
+): UseSidebarReturn {
   const pathname = usePathname();
   const { user } = useAuth();
   const { hasFinancial } = usePlanLimits();
@@ -46,10 +48,12 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
       if (item.pageId) {
         // For Settings, check if there are any visible children
         if (item.children) {
-          const visibleChildren = item.children.filter(child => !child.masterOnly);
+          const visibleChildren = item.children.filter(
+            (child) => !child.masterOnly
+          );
           return visibleChildren.length > 0;
         }
-        return hasPermission(item.pageId, 'view');
+        return hasPermission(item.pageId, "view");
       }
 
       return true;
@@ -58,7 +62,7 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
 
   // Toggle submenu expansion
   const toggleSubmenu = useCallback((href: string) => {
-    setExpandedMenus(prev => {
+    setExpandedMenus((prev) => {
       const next = new Set(prev);
       if (next.has(href)) {
         next.delete(href);
@@ -71,21 +75,54 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
 
   // Auto-expand menu if one of its children is active
   useEffect(() => {
-    menuItems.forEach(item => {
+    menuItems.forEach((item) => {
       if (item.children) {
-        const isChildActive = item.children.some(child =>
-          pathname === child.href || pathname.startsWith(child.href + "/")
+        const isChildActive = item.children.some(
+          (child) =>
+            pathname === child.href || pathname.startsWith(child.href + "/")
         );
         if (isChildActive) {
-          setExpandedMenus(prev => new Set([...prev, item.href]));
+          setExpandedMenus((prev) => new Set([...prev, item.href]));
         }
       }
     });
   }, [pathname]);
 
-  // Fetch user's current plan name
+  // Fetch user's current plan name (or tenant owner's plan for superadmin viewing)
   useEffect(() => {
     const fetchPlanName = async () => {
+      // Check if super admin is viewing another tenant
+      const viewingAsTenant =
+        typeof window !== "undefined"
+          ? localStorage.getItem("viewingAsTenant")
+          : null;
+
+      // If super admin is viewing a tenant, get the tenant owner's plan
+      if (user?.role === "superadmin" && viewingAsTenant) {
+        try {
+          // Extract owner ID from tenant ID (format: tenant_{userId})
+          const ownerId = viewingAsTenant.replace("tenant_", "");
+          const ownerDoc = await getDoc(doc(db, "users", ownerId));
+          if (ownerDoc.exists()) {
+            const ownerData = ownerDoc.data();
+            if (ownerData.planId) {
+              const planDoc = await getDoc(doc(db, "plans", ownerData.planId));
+              if (planDoc.exists()) {
+                const planData = planDoc.data();
+                setUserPlanName(planData.name || planData.tier);
+                return;
+              }
+            }
+            // If no plan, show as free
+            setUserPlanName("Gratuito");
+            return;
+          }
+        } catch (error) {
+          console.error("Error fetching tenant owner plan:", error);
+        }
+      }
+
+      // Default behavior for regular users
       if (!user?.planId) {
         setUserPlanName(user?.role === "free" ? "Gratuito" : null);
         return;
@@ -113,27 +150,41 @@ export function useSidebar(onExpandChange?: (expanded: boolean) => void): UseSid
     onExpandChange?.(false);
   }, [onExpandChange]);
 
-  const isMenuActive = useCallback((item: MenuItem): boolean => {
-    const isMatch = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-    const hasBetterMatch = visibleMenuItems.some(
-      (other) =>
-        other !== item &&
-        other.href.length > item.href.length &&
-        pathname.startsWith(other.href)
-    );
-    const hasChildren = item.children && item.children.length > 0;
-    return isMatch && !hasBetterMatch && !hasChildren;
-  }, [pathname, visibleMenuItems]);
+  const isMenuActive = useCallback(
+    (item: MenuItem): boolean => {
+      const isMatch =
+        pathname === item.href ||
+        (item.href !== "/" && pathname.startsWith(item.href));
+      const hasBetterMatch = visibleMenuItems.some(
+        (other) =>
+          other !== item &&
+          other.href.length > item.href.length &&
+          pathname.startsWith(other.href)
+      );
+      const hasChildren = item.children && item.children.length > 0;
+      return isMatch && !hasBetterMatch && !hasChildren;
+    },
+    [pathname, visibleMenuItems]
+  );
 
-  const isParentActive = useCallback((item: MenuItem): boolean => {
-    return item.children?.some(
-      child => pathname === child.href || pathname.startsWith(child.href + "/")
-    ) ?? false;
-  }, [pathname]);
+  const isParentActive = useCallback(
+    (item: MenuItem): boolean => {
+      return (
+        item.children?.some(
+          (child) =>
+            pathname === child.href || pathname.startsWith(child.href + "/")
+        ) ?? false
+      );
+    },
+    [pathname]
+  );
 
-  const isChildActive = useCallback((href: string): boolean => {
-    return pathname === href || pathname.startsWith(href + "/");
-  }, [pathname]);
+  const isChildActive = useCallback(
+    (href: string): boolean => {
+      return pathname === href || pathname.startsWith(href + "/");
+    },
+    [pathname]
+  );
 
   return {
     isExpanded,

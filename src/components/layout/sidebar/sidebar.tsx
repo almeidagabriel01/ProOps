@@ -84,7 +84,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
               )}
             >
               <span className="text-sm font-bold tracking-tight whitespace-nowrap">
-                {user?.name || "Usuário"}
+                {tenant?.name || user?.name || "Usuário"}
               </span>
               {tenant && userPlanName && (
                 <span className="text-[10px] text-muted-foreground uppercase whitespace-nowrap">
