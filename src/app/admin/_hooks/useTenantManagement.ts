@@ -29,16 +29,20 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingTenant, setEditingTenant] = React.useState<Tenant | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const { setViewingTenant } = useTenant();
   const router = useRouter();
 
   const loadTenants = React.useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await AdminService.getAllTenantsBilling();
       setTenantsData(data);
     } catch (error) {
       console.error("Failed to load tenants", error);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -190,6 +194,6 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDelete,
     handleLoginAs,
-    isLoading: tenantsData.length === 0, // inferred loading state since we don't have explicit one yet
+    isLoading,
   };
 }
