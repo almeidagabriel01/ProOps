@@ -97,11 +97,15 @@ export default function DashboardPage() {
               <div className="flex gap-4 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-                  <span className="text-muted-foreground font-medium">Receitas</span>
+                  <span className="text-muted-foreground font-medium">
+                    Receitas
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-rose-500 shadow-sm" />
-                  <span className="text-muted-foreground font-medium">Despesas</span>
+                  <span className="text-muted-foreground font-medium">
+                    Despesas
+                  </span>
                 </div>
               </div>
             </div>

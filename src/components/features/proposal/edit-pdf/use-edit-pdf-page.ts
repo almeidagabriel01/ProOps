@@ -292,14 +292,28 @@ export function useEditPdfPage() {
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
                 const cs = window.getComputedStyle(element);
-                if (
-                  cs.backgroundColor.includes("lab") ||
-                  cs.backgroundColor.includes("oklab")
-                ) {
+                
+                const hasModernColor = (value: string) => {
+                  return value && (
+                    value.includes("lab(") ||
+                    value.includes("oklab(") ||
+                    value.includes("lch(") ||
+                    value.includes("oklch(") ||
+                    value.includes("color(")
+                  );
+                };
+                
+                if (hasModernColor(cs.backgroundColor)) {
                   element.style.backgroundColor = "#ffffff";
                 }
-                if (cs.color.includes("lab") || cs.color.includes("oklab")) {
+                if (hasModernColor(cs.color)) {
                   element.style.color = "#000000";
+                }
+                if (hasModernColor(cs.borderColor)) {
+                  element.style.borderColor = "transparent";
+                }
+                if (hasModernColor(cs.boxShadow)) {
+                  element.style.boxShadow = "none";
                 }
               });
             },

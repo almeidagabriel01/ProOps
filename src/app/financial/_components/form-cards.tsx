@@ -48,13 +48,17 @@ export function TypeSelectorCard({
         <button
           type="button"
           onClick={() => onTypeChange("income")}
-          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${type === "income"
+          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${
+            type === "income"
               ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400 shadow-sm"
               : "border-border bg-card hover:border-green-500/50 hover:bg-green-500/5"
-            }`}
+          }`}
         >
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${type === "income" ? "bg-green-500/20" : "bg-muted"
-            }`}>
+          <div
+            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              type === "income" ? "bg-green-500/20" : "bg-muted"
+            }`}
+          >
             <ArrowUpCircle className="w-5 h-5" />
           </div>
           <span className="font-semibold text-base">Receita</span>
@@ -62,13 +66,17 @@ export function TypeSelectorCard({
         <button
           type="button"
           onClick={() => onTypeChange("expense")}
-          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${type === "expense"
+          className={`flex items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200 ${
+            type === "expense"
               ? "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400 shadow-sm"
               : "border-border bg-card hover:border-red-500/50 hover:bg-red-500/5"
-            }`}
+          }`}
         >
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${type === "expense" ? "bg-red-500/20" : "bg-muted"
-            }`}>
+          <div
+            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+              type === "expense" ? "bg-red-500/20" : "bg-muted"
+            }`}
+          >
             <ArrowDownCircle className="w-5 h-5" />
           </div>
           <span className="font-semibold text-base">Despesa</span>
@@ -272,7 +280,7 @@ export function ClientCard({
   return (
     <FormCard
       title="Cliente"
-      description="Vincule este lançamento a um cliente (opcional)"
+      description="Vincule este lançamento a um cliente"
       icon={User}
     >
       <ClientSelect

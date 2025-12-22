@@ -33,6 +33,7 @@ export default function FinancialPage() {
     setFilterType,
     filteredTransactions,
     deleteTransaction,
+    updateTransactionStatus,
     transactions,
   } = useFinancialData();
 
@@ -167,6 +168,7 @@ export default function FinancialPage() {
               canEdit={canEdit}
               canDelete={canDelete}
               onDelete={openDeleteDialog}
+              onStatusChange={updateTransactionStatus}
             />
           ))}
         </div>

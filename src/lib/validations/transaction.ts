@@ -40,11 +40,10 @@ export const transactionSchema = z.object({
     .default("pending"),
   clientId: z
     .string()
-    .optional(),
+    .min(1, "Cliente é obrigatório"),
   clientName: z
     .string()
-    .optional()
-    .or(z.literal("")),
+    .min(1, "Cliente é obrigatório"),
   category: z
     .string()
     .optional()
