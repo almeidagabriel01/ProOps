@@ -3,10 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Loader2, Wallet, AlertCircle } from "lucide-react";
 import { useEditTransaction } from "../_hooks/useEditTransaction";
-import {
-  FormContainer,
-  FormHeader,
-} from "@/components/ui/form-components";
+import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import {
   StepWizard,
   StepNavigation,
@@ -20,12 +17,7 @@ import {
 } from "../_components/form-steps";
 import { InstallmentsCard } from "../_components";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
-import {
-  TrendingUp,
-  FileText,
-  CreditCard,
-  CheckCircle,
-} from "lucide-react";
+import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 
 const transactionSteps = [
   {
@@ -110,12 +102,13 @@ export default function EditTransactionPage() {
   // Adapt formData type for shared components
   const adaptedFormData: TransactionFormData = {
     ...formData,
+    clientId: formData.clientId || "",
     isInstallment: false,
     installmentCount: 2,
   };
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -132,8 +125,8 @@ export default function EditTransactionPage() {
 
         <ReviewStep
           formData={adaptedFormData}
-          onChange={() => { }}
-          onClientChange={() => { }}
+          onChange={() => {}}
+          onClientChange={() => {}}
         />
 
         {relatedInstallments.length > 0 && (
@@ -185,10 +178,11 @@ export default function EditTransactionPage() {
           <PaymentStep
             formData={adaptedFormData}
             onFormDataChange={(updater) => {
-              if (typeof updater === 'function') {
+              if (typeof updater === "function") {
                 setFormData((prev) => {
                   const result = updater({
                     ...prev,
+                    clientId: prev.clientId || "",
                     isInstallment: false,
                     installmentCount: 2,
                   });
