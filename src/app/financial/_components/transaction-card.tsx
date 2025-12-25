@@ -1,11 +1,27 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit, Eye } from "lucide-react";
-import { Transaction } from "@/services/transaction-service";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Trash2,
+  Edit,
+  Eye,
+  Check,
+  Clock,
+  AlertTriangle,
+  Loader2,
+  ChevronDown,
+} from "lucide-react";
+import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
 import { formatCurrency } from "@/utils/format";
 
@@ -14,14 +30,30 @@ interface TransactionCardProps {
   canEdit: boolean;
   canDelete: boolean;
   onDelete: (transaction: Transaction) => void;
+  onStatusChange?: (
+    transaction: Transaction,
+    newStatus: TransactionStatus
+  ) => Promise<boolean>;
 }
+
+const statusOptions: {
+  value: TransactionStatus;
+  label: string;
+  icon: typeof Check;
+}[] = [
+  { value: "paid", label: "Pago", icon: Check },
+  { value: "pending", label: "Pendente", icon: Clock },
+  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
+];
 
 export function TransactionCard({
   transaction,
   canEdit,
   canDelete,
   onDelete,
+  onStatusChange,
 }: TransactionCardProps) {
+  const [isUpdating, setIsUpdating] = React.useState(false);
   const typeInfo = typeConfig[transaction.type];
   const statusInfo = statusConfig[transaction.status];
   const TypeIcon = typeInfo.icon;
@@ -32,6 +64,13 @@ export function TransactionCard({
       month: "short",
       year: "numeric",
     });
+  };
+
+  const handleStatusChange = async (newStatus: TransactionStatus) => {
+    if (!onStatusChange || newStatus === transaction.status) return;
+    setIsUpdating(true);
+    await onStatusChange(transaction, newStatus);
+    setIsUpdating(false);
   };
 
   return (
@@ -83,9 +122,50 @@ export function TransactionCard({
             {transaction.type === "expense" ? "-" : "+"}
             {formatCurrency(transaction.amount)}
           </div>
-          <Badge variant={statusInfo.variant} className="text-xs">
-            {statusInfo.label}
-          </Badge>
+
+          {/* Status Badge with Dropdown */}
+          {onStatusChange && canEdit ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="focus:outline-none cursor-pointer"
+                  disabled={isUpdating}
+                >
+                  <Badge
+                    variant={statusInfo.variant}
+                    className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5"
+                  >
+                    {isUpdating ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : null}
+                    {statusInfo.label}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </Badge>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[140px]">
+                {statusOptions.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = transaction.status === option.value;
+                  return (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => handleStatusChange(option.value)}
+                      className={isActive ? "bg-muted" : ""}
+                    >
+                      <Icon className="w-4 h-4 mr-2" />
+                      {option.label}
+                      {isActive && <Check className="w-4 h-4 ml-auto" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Badge variant={statusInfo.variant} className="text-xs">
+              {statusInfo.label}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

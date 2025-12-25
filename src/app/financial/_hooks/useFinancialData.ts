@@ -25,6 +25,7 @@ interface UseFinancialDataReturn {
   setFilterType: (type: TransactionType | "all") => void;
   filteredTransactions: Transaction[];
   deleteTransaction: (transaction: Transaction) => Promise<boolean>;
+  updateTransactionStatus: (transaction: Transaction, newStatus: Transaction["status"]) => Promise<boolean>;
   refreshData: () => Promise<void>;
 }
 
@@ -107,6 +108,32 @@ export function useFinancialData(): UseFinancialDataReturn {
     }
   }, [tenant]);
 
+  const updateTransactionStatus = React.useCallback(async (
+    transaction: Transaction,
+    newStatus: Transaction["status"]
+  ): Promise<boolean> => {
+    try {
+      await TransactionService.updateTransaction(transaction.id, { status: newStatus });
+      // Update local state
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transaction.id ? { ...t, status: newStatus } : t
+        )
+      );
+      // Refresh summary
+      if (tenant) {
+        const summaryData = await TransactionService.getSummary(tenant.id);
+        setSummary(summaryData);
+      }
+      toast.success("Status atualizado!");
+      return true;
+    } catch (error) {
+      console.error("Error updating transaction status:", error);
+      toast.error("Erro ao atualizar status");
+      return false;
+    }
+  }, [tenant]);
+
   return {
     transactions,
     summary,
@@ -119,6 +146,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     setFilterType,
     filteredTransactions,
     deleteTransaction,
+    updateTransactionStatus,
     refreshData: fetchData,
   };
 }

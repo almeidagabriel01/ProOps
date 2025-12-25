@@ -45,8 +45,28 @@ export function usePdfGenerator({
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
                 const computedStyle = window.getComputedStyle(element);
-                if (computedStyle.backgroundColor.includes("lab")) {
+                
+                const hasModernColor = (value: string) => {
+                  return value && (
+                    value.includes("lab(") ||
+                    value.includes("oklab(") ||
+                    value.includes("lch(") ||
+                    value.includes("oklch(") ||
+                    value.includes("color(")
+                  );
+                };
+                
+                if (hasModernColor(computedStyle.backgroundColor)) {
                   element.style.backgroundColor = "transparent";
+                }
+                if (hasModernColor(computedStyle.color)) {
+                  element.style.color = "#000000";
+                }
+                if (hasModernColor(computedStyle.borderColor)) {
+                  element.style.borderColor = "transparent";
+                }
+                if (hasModernColor(computedStyle.boxShadow)) {
+                  element.style.boxShadow = "none";
                 }
               });
             },
@@ -80,27 +100,28 @@ export function usePdfGenerator({
             allElements.forEach((el) => {
               const element = el as HTMLElement;
               const computedStyle = window.getComputedStyle(element);
-              // Fix modern color formats that html2canvas doesn't support well
-              if (
-                computedStyle.backgroundColor.includes("lab") ||
-                computedStyle.backgroundColor.includes("oklab") ||
-                computedStyle.backgroundColor.includes("lch")
-              ) {
+              
+              const hasModernColor = (value: string) => {
+                return value && (
+                  value.includes("lab(") ||
+                  value.includes("oklab(") ||
+                  value.includes("lch(") ||
+                  value.includes("oklch(") ||
+                  value.includes("color(")
+                );
+              };
+              
+              if (hasModernColor(computedStyle.backgroundColor)) {
                 element.style.backgroundColor = "#ffffff";
               }
-              if (
-                computedStyle.color.includes("lab") ||
-                computedStyle.color.includes("oklab") ||
-                computedStyle.color.includes("lch")
-              ) {
+              if (hasModernColor(computedStyle.color)) {
                 element.style.color = "#000000";
               }
-              if (
-                computedStyle.borderColor.includes("lab") ||
-                computedStyle.borderColor.includes("oklab") ||
-                computedStyle.borderColor.includes("lch")
-              ) {
+              if (hasModernColor(computedStyle.borderColor)) {
                 element.style.borderColor = "#cccccc";
+              }
+              if (hasModernColor(computedStyle.boxShadow)) {
+                element.style.boxShadow = "none";
               }
             });
           },
