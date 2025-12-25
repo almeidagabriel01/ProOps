@@ -176,6 +176,7 @@ export default function NewTransactionPage() {
             formData={formData}
             onChange={handleChange}
             onClientChange={handleClientChange}
+            errors={errors}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

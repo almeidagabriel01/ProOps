@@ -6,21 +6,23 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
+import { usePlanUsage } from "@/hooks/usePlanUsage";
 import {
   ProfileHeader,
   PlanChangeDialog,
   OverviewTab,
-  BillingTab
+  BillingTab,
 } from "@/components/profile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSkeleton } from "./_components/profile-skeleton";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 function ProfileContent() {
   const { user, isLoading: authLoading } = useAuth();
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { isMaster } = usePermissions();
+  const planUsageData = usePlanUsage();
 
   const {
     effectiveUser,
@@ -53,12 +55,31 @@ function ProfileContent() {
     }
   }, [effectiveUser?.billingInterval, setBillingInterval]);
 
-  // Loading state
-  const isPageLoading = isLoading || authLoading || (user?.role !== 'superadmin' && tenantLoading);
+  // Loading state - includes plan usage loading
+  const isPageLoading =
+    isLoading ||
+    authLoading ||
+    planUsageData.isLoading ||
+    (user?.role !== "superadmin" && tenantLoading);
 
   const searchParams = useSearchParams();
-  const defaultTab = searchParams.get("tab") === "billing" ? "billing" : "overview";
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const router = useRouter();
+  const tabFromUrl =
+    searchParams.get("tab") === "billing" ? "billing" : "overview";
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  // Sync activeTab with URL changes (for when clicking links within the page)
+  useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  // Update both state and URL when tab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    router.replace(`/profile${tab === "billing" ? "?tab=billing" : ""}`, {
+      scroll: false,
+    });
+  };
 
   if (isPageLoading) {
     return <ProfileSkeleton />;
@@ -74,13 +95,16 @@ function ProfileContent() {
           userPlan={userPlan}
         />
 
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-6"
+        >
           <div className="flex justify-center pb-2">
             <TabsList
               className="relative grid w-full max-w-[400px] grid-cols-2 h-12 p-1 rounded-full border border-border/10 shadow-sm"
               style={{
-                background: 'rgba(255,255,255,0.03)',
+                background: "rgba(255,255,255,0.03)",
               }}
             >
               {["overview", "billing"].map((tab) => (
@@ -98,7 +122,14 @@ function ProfileContent() {
                       transition={{ duration: 0.2 }}
                     />
                   )}
-                  <span className={cn("relative z-10 font-medium transition-colors duration-200", activeTab === tab ? "text-primary-foreground" : "text-muted-foreground")}>
+                  <span
+                    className={cn(
+                      "relative z-10 font-medium transition-colors duration-200",
+                      activeTab === tab
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground"
+                    )}
+                  >
                     {tab === "overview" ? "Visão Geral" : "Assinatura"}
                   </span>
                 </TabsTrigger>
@@ -117,6 +148,7 @@ function ProfileContent() {
                 user={effectiveUser}
                 tenant={tenant}
                 isMaster={isMaster}
+                planUsageData={planUsageData}
               />
             </motion.div>
           </TabsContent>

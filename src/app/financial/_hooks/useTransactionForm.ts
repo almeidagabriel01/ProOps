@@ -21,7 +21,7 @@ export interface TransactionFormData {
   date: string;
   dueDate: string;
   status: TransactionStatus;
-  clientId: string | undefined;
+  clientId: string;
   clientName: string;
   category: string;
   wallet: string;
@@ -37,7 +37,7 @@ const initialFormData: TransactionFormData = {
   date: "",
   dueDate: "",
   status: "pending",
-  clientId: undefined,
+  clientId: "",
   clientName: "",
   category: "",
   wallet: "",
@@ -101,9 +101,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const handleClientChange = (data: { clientId?: string; clientName: string; isNew: boolean }) => {
     setFormData((prev) => ({
       ...prev,
-      clientId: data.clientId,
+      clientId: data.clientId ?? "",
       clientName: data.clientName,
     }));
+    // Clear client errors when user selects a client
+    if (data.clientId || data.clientName) {
+      clearFieldError("clientId" as keyof TransactionFormData);
+      clearFieldError("clientName" as keyof TransactionFormData);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,7 +116,6 @@ export function useTransactionForm(): UseTransactionFormReturn {
 
     // Validate form before submit
     if (!validateForm(formData)) {
-      toast.error("Preencha todos os campos obrigatórios!");
       return;
     }
 

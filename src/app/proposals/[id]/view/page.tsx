@@ -104,17 +104,55 @@ export default function ViewProposalPage() {
           allElements.forEach((el) => {
             const element = el as HTMLElement;
             const computedStyle = window.getComputedStyle(element);
-            if (
-              computedStyle.backgroundColor.includes("lab") ||
-              computedStyle.backgroundColor.includes("oklab")
-            ) {
+
+            // Helper to check if a value contains modern color functions
+            const hasModernColor = (value: string) => {
+              return (
+                value &&
+                (value.includes("lab(") ||
+                  value.includes("oklab(") ||
+                  value.includes("lch(") ||
+                  value.includes("oklch(") ||
+                  value.includes("color("))
+              );
+            };
+
+            // Sanitize all color-related properties
+            if (hasModernColor(computedStyle.backgroundColor)) {
               element.style.backgroundColor = "#ffffff";
             }
-            if (
-              computedStyle.color.includes("lab") ||
-              computedStyle.color.includes("oklab")
-            ) {
+            if (hasModernColor(computedStyle.color)) {
               element.style.color = "#000000";
+            }
+            if (hasModernColor(computedStyle.borderColor)) {
+              element.style.borderColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.borderTopColor)) {
+              element.style.borderTopColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.borderRightColor)) {
+              element.style.borderRightColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.borderBottomColor)) {
+              element.style.borderBottomColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.borderLeftColor)) {
+              element.style.borderLeftColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.outlineColor)) {
+              element.style.outlineColor = "transparent";
+            }
+            if (hasModernColor(computedStyle.boxShadow)) {
+              element.style.boxShadow = "none";
+            }
+            if (hasModernColor(computedStyle.textShadow)) {
+              element.style.textShadow = "none";
+            }
+            if (hasModernColor(computedStyle.textDecorationColor)) {
+              element.style.textDecorationColor = "currentColor";
+            }
+            if (hasModernColor(computedStyle.caretColor)) {
+              element.style.caretColor = "auto";
             }
           });
         },
