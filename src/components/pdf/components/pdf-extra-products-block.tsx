@@ -2,8 +2,19 @@ import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 import { getContrastTextColor } from "@/utils/color-utils";
 
+interface PdfProduct {
+    productId: string;
+    productName: string;
+    productImage?: string;
+    productImages?: string[];
+    productDescription?: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+}
+
 interface PdfExtraProductsBlockProps {
-    products: any[];
+    products: PdfProduct[];
     primaryColor: string;
 }
 
@@ -11,7 +22,7 @@ interface PdfExtraProductsBlockProps {
  * Renders extra products block (products not tied to systems)
  */
 export function PdfExtraProductsBlock({ products, primaryColor }: PdfExtraProductsBlockProps) {
-    const extraSubtotal = products.reduce((sum: number, p: any) => sum + p.total, 0);
+    const extraSubtotal = products.reduce((sum: number, p: PdfProduct) => sum + p.total, 0);
 
     return (
         <div className="mt-6 mb-4">
@@ -37,17 +48,40 @@ export function PdfExtraProductsBlock({ products, primaryColor }: PdfExtraProduc
                             </svg>
                         </div>
                         <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span
-                                    className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow"
+                            {/* Avulso tag using SVG for precise text centering in html2canvas */}
+                            <svg
+                                width="90"
+                                height="22"
+                                style={{
+                                    overflow: "visible",
+                                    filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
+                                    display: "block",
+                                    marginBottom: "8px",
+                                }}
+                            >
+                                <rect
+                                    rx="11"
+                                    ry="11"
+                                    width="90"
+                                    height="22"
+                                    fill={primaryColor}
+                                />
+                                <text
+                                    x="50%"
+                                    y="50%"
+                                    dominantBaseline="central"
+                                    textAnchor="middle"
+                                    fill={getContrastTextColor(primaryColor)}
                                     style={{
-                                        backgroundColor: primaryColor,
-                                        color: getContrastTextColor(primaryColor),
+                                        fontSize: "0.75rem",
+                                        fontWeight: 700,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.05em",
                                     }}
                                 >
                                     📍 Avulso
-                                </span>
-                            </div>
+                                </text>
+                            </svg>
                             <h3 className="text-2xl font-bold" style={{ color: primaryColor }}>
                                 Produtos Extras
                             </h3>
@@ -60,7 +94,7 @@ export function PdfExtraProductsBlock({ products, primaryColor }: PdfExtraProduc
 
                 {/* Products */}
                 <div className="p-4 space-y-3 bg-white">
-                    {products.map((product: any, idx: number) => (
+                    {products.map((product: PdfProduct, idx: number) => (
                         <div
                             key={product.productId}
                             className="flex items-center gap-4 p-4 rounded-lg border"
