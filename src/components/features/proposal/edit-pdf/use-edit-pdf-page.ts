@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -16,7 +16,6 @@ import { ThemeType } from "./pdf-theme-utils";
 
 export function useEditPdfPage() {
   const params = useParams();
-  const router = useRouter();
   const { tenant } = useTenant();
   const { features, isLoading: isPlanLoading } = usePlanLimits();
   const proposalId = params.id as string;
@@ -292,17 +291,18 @@ export function useEditPdfPage() {
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
                 const cs = window.getComputedStyle(element);
-                
+
                 const hasModernColor = (value: string) => {
-                  return value && (
-                    value.includes("lab(") ||
-                    value.includes("oklab(") ||
-                    value.includes("lch(") ||
-                    value.includes("oklch(") ||
-                    value.includes("color(")
+                  return (
+                    value &&
+                    (value.includes("lab(") ||
+                      value.includes("oklab(") ||
+                      value.includes("lch(") ||
+                      value.includes("oklch(") ||
+                      value.includes("color("))
                   );
                 };
-                
+
                 if (hasModernColor(cs.backgroundColor)) {
                   element.style.backgroundColor = "#ffffff";
                 }
