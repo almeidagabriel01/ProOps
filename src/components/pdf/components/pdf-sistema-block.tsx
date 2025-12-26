@@ -2,9 +2,29 @@ import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 import { getContrastTextColor } from "@/utils/color-utils";
 
+interface PdfProduct {
+  productId: string;
+  productName: string;
+  productImage?: string;
+  productImages?: string[];
+  productDescription?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  isExtra?: boolean;
+}
+
+interface PdfSistema {
+  sistemaId: string;
+  sistemaName: string;
+  ambienteId: string;
+  ambienteName: string;
+  description?: string;
+}
+
 interface PdfSistemaBlockProps {
-  sistema: any;
-  products: any[];
+  sistema: PdfSistema;
+  products: PdfProduct[];
   primaryColor: string;
 }
 
@@ -18,7 +38,7 @@ export function PdfSistemaBlock({
   primaryColor,
 }: PdfSistemaBlockProps) {
   const sistemaSubtotal = products.reduce(
-    (sum: number, p: any) => sum + p.total,
+    (sum: number, p: PdfProduct) => sum + p.total,
     0
   );
 
@@ -57,19 +77,87 @@ export function PdfSistemaBlock({
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <span
-                className="ambiente-tag text-xs font-bold uppercase tracking-wider rounded-full shadow mb-2"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: getContrastTextColor(primaryColor),
-                  display: "inline-block",
-                  height: "22px",
-                  lineHeight: "22px",
-                  padding: "0 12px",
-                }}
-              >
-                {sistema.ambienteName}
-              </span>
+              {/* Ambiente tag using SVG for precise text centering in html2canvas */}
+              {(() => {
+                // Measure text for precise fitting with Icon
+                // IMPORTANT: Must measure UPPERCASE text because CSS applies text-transform: uppercase
+                const rawText = sistema.ambienteName || "Ambiente";
+                const text = rawText.toUpperCase();
+                const font = "700 12px ui-sans-serif, system-ui, sans-serif";
+
+                const measure = (t: string, f: string) => {
+                  if (typeof document === "undefined") return t.length * 8;
+                  const c = document.createElement("canvas");
+                  const ctx = c.getContext("2d");
+                  if (!ctx) return t.length * 8;
+                  ctx.font = f;
+                  return ctx.measureText(t).width;
+                };
+
+                const measuredTextWidth = measure(text, font);
+                // Multiplier to account for rendering diffs and ensure visual centering
+                const textWidth = measuredTextWidth * 1.05;
+
+                const iconSize = 12;
+                const iconGap = 4;
+                const padding = 36; // Increased padding slightly
+                const contentWidth = iconSize + iconGap + textWidth;
+                const svgWidth = Math.max(60, contentWidth + padding);
+
+                // Calculate start X to center the content group (Icon + Text)
+                // -2px visual correction to shift left
+                const startX = ((svgWidth - contentWidth) / 2) - 2;
+                const textColor = getContrastTextColor(primaryColor);
+
+                return (
+                  <svg
+                    className="ambiente-tag mb-2"
+                    width={svgWidth}
+                    height="22"
+                    style={{
+                      overflow: "visible",
+                      filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
+                      display: "block",
+                    }}
+                  >
+                    <rect
+                      rx="11"
+                      ry="11"
+                      width={svgWidth}
+                      height="22"
+                      fill={primaryColor}
+                    />
+
+                    {/* Content Group */}
+                    <g transform={`translate(${startX}, 0)`}>
+                      {/* Map Pin Icon (Scaled to ~12px) */}
+                      <g transform="translate(0, 5) scale(0.5)">
+                        <path
+                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                          fill={textColor}
+                        />
+                      </g>
+
+                      {/* Text */}
+                      <text
+                        x={iconSize + iconGap}
+                        y="50%"
+                        dominantBaseline="central"
+                        textAnchor="start"
+                        fill={textColor}
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {text}
+                      </text>
+                    </g>
+                  </svg>
+                );
+              })()}
               <h3
                 className="text-2xl font-bold"
                 style={{ color: primaryColor }}
@@ -87,7 +175,7 @@ export function PdfSistemaBlock({
 
         {/* Products */}
         <div className="p-4 space-y-3 bg-white">
-          {products.map((product: any, idx: number) => {
+          {products.map((product: PdfProduct, idx: number) => {
             const allImages = product.productImages?.length
               ? product.productImages
               : product.productImage
@@ -129,16 +217,89 @@ export function PdfSistemaBlock({
                 {/* Product Info */}
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-semibold text-gray-900">
+                    {/* Product Name & Extra Tag - Unified SVG Strategy */
+                      /* Uses canvas measurement to ensure consistent gap between Text and Badge */
+                    }
+                    {product.isExtra ? (
+                      (() => {
+                        const text = product.productName;
+                        // Use the exact font stack used in CSS: font-semibold (600) text-base (16px)
+                        // We assume standard sans-serif fallback if 'Inter' isn't explicitly measuring similarly
+                        const font = "600 16px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+                        // Helper inside scope or defined outside. Defining helper inline (or use the one we added if it was outside)
+                        // Since I can't add function outside easily in this replace, I'll inline a safe check
+                        const measure = (t: string, f: string) => {
+                          if (typeof document === "undefined") return t.length * 8;
+                          const c = document.createElement("canvas");
+                          const ctx = c.getContext("2d");
+                          if (!ctx) return t.length * 8;
+                          ctx.font = f;
+                          return ctx.measureText(t).width;
+                        };
+
+                        const textWidth = measure(text, font);
+                        const badgeWidth = 60;
+                        const gap = 16; // Adjusted for better spacing
+                        const totalWidth = textWidth + badgeWidth + gap + 4; // +4 buffer
+
+                        return (
+                          <svg
+                            width={totalWidth}
+                            height="24"
+                            style={{ display: "block", overflow: "visible" }}
+                          >
+                            <text
+                              x="0"
+                              y="50%"
+                              dominantBaseline="central"
+                              fill="#111827"
+                              style={{
+                                fontSize: "16px",
+                                fontWeight: 600,
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {text}
+                            </text>
+
+                            <g transform={`translate(${textWidth + gap}, 0)`}>
+                              <rect
+                                x="0"
+                                y="2"
+                                rx="4"
+                                ry="4"
+                                width={badgeWidth}
+                                height="20"
+                                fill="#dbeafe"
+                                stroke="#bfdbfe"
+                                strokeWidth="1"
+                              />
+                              <text
+                                x={badgeWidth / 2}
+                                y="50%" // Aligned same as title
+                                dominantBaseline="central"
+                                textAnchor="middle"
+                                fill="#1d4ed8"
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em",
+                                }}
+                              >
+                                Extra
+                              </text>
+                            </g>
+                          </svg>
+                        );
+                      })()
+                    ) : (
+                      <h4 className="font-semibold text-gray-900 text-base leading-none m-0 p-0">
                         {product.productName}
                       </h4>
-                      {product.isExtra && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
-                          Extra
-                        </span>
-                      )}
-                    </div>
+                    )}
+
                     {product.productDescription && (
                       <p className="text-xs text-gray-500">
                         {product.productDescription}
@@ -173,6 +334,6 @@ export function PdfSistemaBlock({
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
