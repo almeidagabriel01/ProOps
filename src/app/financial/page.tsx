@@ -31,7 +31,12 @@ export default function FinancialPage() {
     setSearchTerm,
     filterType,
     setFilterType,
+    filterStatus,
+    setFilterStatus,
+    filterWallet,
+    setFilterWallet,
     filteredTransactions,
+    totalWalletBalance,
     deleteTransaction,
     updateTransactionStatus,
     transactions,
@@ -74,7 +79,8 @@ export default function FinancialPage() {
     return <FinancialSkeleton />;
   }
 
-  const balance = summary.totalIncome - summary.totalExpense;
+  // Use total wallet balance instead of transaction-based calculation
+  const balance = totalWalletBalance;
 
   return (
     <div className="space-y-6">
@@ -122,6 +128,10 @@ export default function FinancialPage() {
         onSearchChange={setSearchTerm}
         filterType={filterType}
         onFilterChange={setFilterType}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        filterWallet={filterWallet}
+        onWalletChange={setFilterWallet}
       />
 
       {/* Transactions List */}

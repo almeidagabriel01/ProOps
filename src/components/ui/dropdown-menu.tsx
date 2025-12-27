@@ -46,9 +46,13 @@ export function DropdownMenuTrigger({ children, asChild }: { children: React.Rea
     const { open, setOpen } = React.useContext(DropdownMenuContext)
 
     if (asChild) {
-        // Clone element to attach onClick
-        const child = React.Children.only(children) as React.ReactElement<{ onClick?: React.MouseEventHandler }>
+        // Clone element to attach onClick and data-state
+        const child = React.Children.only(children) as React.ReactElement<{
+            onClick?: React.MouseEventHandler,
+            "data-state"?: string
+        }>
         return React.cloneElement(child, {
+            "data-state": open ? "open" : "closed",
             onClick: (e: React.MouseEvent) => {
                 // Determine if we should stop prop? maybe
                 if (child.props && typeof child.props.onClick === 'function') {
@@ -60,27 +64,52 @@ export function DropdownMenuTrigger({ children, asChild }: { children: React.Rea
     }
 
     return (
-        <button onClick={() => setOpen(!open)}>
+        <button onClick={() => setOpen(!open)} data-state={open ? "open" : "closed"}>
             {children}
         </button>
     )
 }
 
-export function DropdownMenuContent({ children, className, align = "center" }: { children: React.ReactNode, className?: string, align?: "start" | "center" | "end", forceMount?: boolean }) {
+export function DropdownMenuContent({
+    children,
+    className,
+    align = "center",
+    side = "bottom"
+}: {
+    children: React.ReactNode,
+    className?: string,
+    align?: "start" | "center" | "end",
+    side?: "top" | "right" | "bottom" | "left",
+    forceMount?: boolean
+}) {
     const { open } = React.useContext(DropdownMenuContext)
 
     if (!open) return null
 
+    // Alignment classes for horizontal positioning (when side is top/bottom)
     const alignmentClasses = {
         start: "left-0",
         center: "left-1/2 -translate-x-1/2",
         end: "right-0"
     }
 
+    // Side positioning classes
+    const sideClasses = {
+        top: "bottom-full mb-2",
+        bottom: "top-full mt-2",
+        left: "right-full mr-2 top-0",
+        right: "left-full ml-2 top-0"
+    }
+
+    // Only apply horizontal alignment for top/bottom sides
+    const positionClasses = side === "left" || side === "right"
+        ? sideClasses[side]
+        : cn(sideClasses[side], alignmentClasses[align])
+
     return (
         <div className={cn(
-            "absolute z-50 mt-2 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-            alignmentClasses[align],
+            "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+            positionClasses,
             className
         )}>
             {children}
