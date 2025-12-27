@@ -138,6 +138,20 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
     
+    // WALLETS
+    match /wallets/{walletId} {
+      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId)
+                  || isSuperAdmin();
+      allow write: if false; // Managed by Cloud Functions
+    }
+    
+    // WALLET TRANSACTIONS (audit log)
+    match /wallet_transactions/{transactionId} {
+      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId)
+                  || isSuperAdmin();
+      allow write: if false; // Managed by Cloud Functions
+    }
+    
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
       allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);

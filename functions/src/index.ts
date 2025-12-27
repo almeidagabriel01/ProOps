@@ -67,3 +67,12 @@ export {
   stripeWebhook,
   getPlans,
 } from "./stripe";
+
+// Wallet Functions
+export {
+  createWallet,
+  updateWallet,
+  deleteWallet,
+  transferBetweenWallets,
+  adjustWalletBalance,
+} from "./walletFunctions";

@@ -58,6 +58,18 @@ export const menuItems: MenuItem[] = [
     href: "/financial",
     pageId: "financial",
     requiresFinancial: true,
+    children: [
+      {
+        icon: FileText,
+        label: "Lançamentos",
+        href: "/financial",
+      },
+      {
+        icon: Wallet,
+        label: "Carteiras",
+        href: "/financial/wallets",
+      },
+    ],
   },
   {
     icon: Shield,

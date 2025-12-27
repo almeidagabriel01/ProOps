@@ -31,7 +31,12 @@ export default function FinancialPage() {
     setSearchTerm,
     filterType,
     setFilterType,
+    filterStatus,
+    setFilterStatus,
+    filterWallet,
+    setFilterWallet,
     filteredTransactions,
+    totalWalletBalance,
     deleteTransaction,
     updateTransactionStatus,
     transactions,
@@ -74,7 +79,8 @@ export default function FinancialPage() {
     return <FinancialSkeleton />;
   }
 
-  const balance = summary.totalIncome - summary.totalExpense;
+  // Use total wallet balance instead of transaction-based calculation
+  const balance = totalWalletBalance;
 
   return (
     <div className="space-y-6">
@@ -122,6 +128,10 @@ export default function FinancialPage() {
         onSearchChange={setSearchTerm}
         filterType={filterType}
         onFilterChange={setFilterType}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        filterWallet={filterWallet}
+        onWalletChange={setFilterWallet}
       />
 
       {/* Transactions List */}
@@ -161,16 +171,32 @@ export default function FinancialPage() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {filteredTransactions.map((transaction) => (
-            <TransactionCard
-              key={transaction.id}
-              transaction={transaction}
-              canEdit={canEdit}
-              canDelete={canDelete}
-              onDelete={openDeleteDialog}
-              onStatusChange={updateTransactionStatus}
-            />
-          ))}
+          {filteredTransactions.map((transaction) => {
+            const relatedInstallments =
+              transaction.isInstallment && transaction.installmentGroupId
+                ? transactions
+                  .filter(
+                    (t) =>
+                      t.installmentGroupId === transaction.installmentGroupId
+                  )
+                  .sort(
+                    (a, b) =>
+                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  )
+                : [];
+
+            return (
+              <TransactionCard
+                key={transaction.id}
+                transaction={transaction}
+                relatedInstallments={relatedInstallments}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onDelete={openDeleteDialog}
+                onStatusChange={updateTransactionStatus}
+              />
+            );
+          })}
         </div>
       )}
 

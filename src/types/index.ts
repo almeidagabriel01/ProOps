@@ -202,3 +202,61 @@ export type ProposalPdfSettings = {
   includeFooter: boolean;
   margins: "normal" | "narrow" | "wide";
 };
+
+// ============================================
+// WALLET TYPES
+// ============================================
+
+export type WalletType = "bank" | "cash" | "digital" | "credit_card" | "other";
+
+export type Wallet = {
+  id: string;
+  tenantId: string;
+  name: string; // "NuBank", "Caixa", "PicPay", etc.
+  type: WalletType;
+  balance: number; // Current balance in BRL (stored as number, e.g., 150.50)
+  color: string; // Hex color for UI
+  icon?: string; // Optional Lucide icon name
+  description?: string;
+  isDefault?: boolean; // Default wallet for new transactions
+  status: "active" | "archived";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WalletTransactionType =
+  | "deposit" // Add money to wallet
+  | "withdrawal" // Remove money from wallet
+  | "transfer_in" // Received from another wallet
+  | "transfer_out" // Sent to another wallet
+  | "adjustment"; // Manual balance adjustment
+
+export type WalletTransaction = {
+  id: string;
+  tenantId: string;
+  walletId: string;
+  type: WalletTransactionType;
+  amount: number; // Always positive, type determines direction
+  description: string;
+  relatedWalletId?: string; // For transfers: the other wallet
+  relatedTransactionId?: string; // Link to financial transaction if applicable
+  balanceAfter: number; // Wallet balance after this transaction
+  createdAt: string;
+  createdBy: string; // User ID who performed the action
+};
+
+export const WALLET_TYPE_LABELS: Record<WalletType, string> = {
+  bank: "Conta Bancária",
+  cash: "Dinheiro",
+  digital: "Carteira Digital",
+  credit_card: "Cartão de Crédito",
+  other: "Outro",
+};
+
+export const WALLET_TYPE_ICONS: Record<WalletType, string> = {
+  bank: "Building2",
+  cash: "Banknote",
+  digital: "Smartphone",
+  credit_card: "CreditCard",
+  other: "Wallet",
+};
