@@ -171,7 +171,8 @@ export function SubmenuItem({
         <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/50 pl-3">
           {visibleChildren.map((child) => {
             const isChildActive =
-              pathname === child.href || pathname.startsWith(child.href + "/");
+              pathname === child.href ||
+              (child.href !== "/financial" && pathname.startsWith(child.href + "/"));
 
             return (
               <Link

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DateInput } from "@/components/ui/date-input";
 import { ClientSelect } from "@/components/features/client-select";
-import { DynamicSelect } from "@/components/features/dynamic-select";
+import { WalletSelect } from "@/components/features/wallet-select";
 import { FormGroup, FormItem } from "@/components/ui/form-components";
 import { FormErrors } from "@/hooks/useFormValidation";
 import {
@@ -63,10 +63,9 @@ export function TypeSelectorStep({
           onClick={() => onTypeChange("income")}
           className={`
             relative rounded-2xl border-2 p-8 transition-all duration-300
-            ${
-              type === "income"
-                ? "border-green-500 bg-gradient-to-br from-green-500/10 to-green-500/5 shadow-xl shadow-green-500/10"
-                : "border-border/50 bg-card hover:border-green-500/40 hover:shadow-lg"
+            ${type === "income"
+              ? "border-green-500 bg-gradient-to-br from-green-500/10 to-green-500/5 shadow-xl shadow-green-500/10"
+              : "border-border/50 bg-card hover:border-green-500/40 hover:shadow-lg"
             }
           `}
         >
@@ -79,11 +78,10 @@ export function TypeSelectorStep({
             <div
               className={`
               w-20 h-20 rounded-2xl flex items-center justify-center transition-all
-              ${
-                type === "income"
+              ${type === "income"
                   ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-xl shadow-green-500/30"
                   : "bg-green-500/10 text-green-600"
-              }
+                }
             `}
             >
               <TrendingUp className="w-10 h-10" />
@@ -107,10 +105,9 @@ export function TypeSelectorStep({
           onClick={() => onTypeChange("expense")}
           className={`
             relative rounded-2xl border-2 p-8 transition-all duration-300
-            ${
-              type === "expense"
-                ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-xl shadow-red-500/10"
-                : "border-border/50 bg-card hover:border-red-500/40 hover:shadow-lg"
+            ${type === "expense"
+              ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-xl shadow-red-500/10"
+              : "border-border/50 bg-card hover:border-red-500/40 hover:shadow-lg"
             }
           `}
         >
@@ -123,11 +120,10 @@ export function TypeSelectorStep({
             <div
               className={`
               w-20 h-20 rounded-2xl flex items-center justify-center transition-all
-              ${
-                type === "expense"
+              ${type === "expense"
                   ? "bg-gradient-to-br from-red-500 to-rose-600 text-white shadow-xl shadow-red-500/30"
                   : "bg-red-500/10 text-red-500"
-              }
+                }
             `}
             >
               <TrendingDown className="w-10 h-10" />
@@ -310,9 +306,7 @@ export function PaymentStep({
         </div>
       </div>
 
-      <DynamicSelect
-        storageKey="wallets"
-        label="Carteira / Método"
+      <WalletSelect
         name="wallet"
         value={formData.wallet}
         onChange={onChange}
@@ -322,11 +316,10 @@ export function PaymentStep({
       <div
         className={`
         rounded-2xl border-2 p-6 transition-all duration-300
-        ${
-          formData.isInstallment
+        ${formData.isInstallment
             ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-lg"
             : "border-border/50 bg-card hover:border-primary/20"
-        }
+          }
       `}
       >
         <div className="flex items-center gap-4">
@@ -423,11 +416,10 @@ export function ReviewStep({
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-8">
         <div
-          className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-            isIncome
+          className={`w-12 h-12 rounded-xl flex items-center justify-center ${isIncome
               ? "bg-gradient-to-br from-green-500/15 to-green-500/5"
               : "bg-gradient-to-br from-red-500/15 to-red-500/5"
-          }`}
+            }`}
         >
           {isIncome ? (
             <TrendingUp className="w-6 h-6 text-green-600" />
@@ -445,16 +437,14 @@ export function ReviewStep({
 
       {/* Summary Card */}
       <div
-        className={`rounded-2xl border-2 overflow-hidden ${
-          isIncome ? "border-green-500/30" : "border-red-500/30"
-        }`}
+        className={`rounded-2xl border-2 overflow-hidden ${isIncome ? "border-green-500/30" : "border-red-500/30"
+          }`}
       >
         <div
-          className={`px-6 py-4 ${
-            isIncome
+          className={`px-6 py-4 ${isIncome
               ? "bg-gradient-to-r from-green-500/10 to-transparent"
               : "bg-gradient-to-r from-red-500/10 to-transparent"
-          }`}
+            }`}
         >
           <div className="flex items-center justify-between">
             <div>

@@ -54,8 +54,9 @@ export function FormHeader({
       <div className="flex items-start gap-5">
         {onBack && (
           <button
+            type="button"
             onClick={onBack}
-            className="mt-1.5 w-11 h-11 rounded-xl bg-card border border-border/60 flex items-center justify-center hover:bg-muted hover:border-primary/40 transition-all duration-200 group shadow-sm cursor-pointer"
+            className="mt-1.5 w-11 h-11 rounded-xl bg-card border border-border/60 flex items-center justify-center hover:bg-muted hover:border-primary/40 transition-all duration-200 group shadow-sm cursor-pointer z-10"
           >
             <svg
               className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:-translate-x-0.5 transition-all"
@@ -136,7 +137,7 @@ export function FormSection({
         className={cn(
           "px-6 py-5 border-b border-border/30 bg-gradient-to-r from-muted/50 to-transparent",
           collapsible &&
-            "cursor-pointer select-none hover:from-muted/70 transition-colors"
+          "cursor-pointer select-none hover:from-muted/70 transition-colors"
         )}
         onClick={collapsible ? () => setIsOpen(!isOpen) : undefined}
       >
