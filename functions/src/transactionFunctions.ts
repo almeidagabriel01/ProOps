@@ -5,11 +5,12 @@
  * - Authentication verification
  * - Permission checks (MASTER or MEMBER with 'financial' page access)
  * - Tenant isolation
- * - Plan limit enforcement (future: maxTransactions)
+ * - Atomic updates (Transaction + Wallet)
+ * - Server-side installment generation
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 
 // ============================================
 // TYPES
@@ -29,8 +30,8 @@ interface TransactionInput {
   clientName?: string;
   proposalId?: string;
   category?: string;
-  wallet?: string;
-  isInstallment?: boolean;
+  wallet?: string; // Can be ID or Name (for legacy support)
+  isInstallment?: boolean; // If true, backend will generate installments if installmentCount > 1
   installmentCount?: number;
   installmentNumber?: number;
   installmentGroupId?: string;
@@ -71,124 +72,104 @@ interface UserDoc {
   subscription?: { status: string };
 }
 
+interface WalletDoc {
+  name: string;
+  balance: number;
+  tenantId: string;
+}
+
+interface TransactionDoc {
+  tenantId: string;
+  type: TransactionType;
+  description: string;
+  amount: number;
+  date: string;
+  dueDate?: string;
+  status: TransactionStatus;
+  clientId?: string | null;
+  clientName?: string | null;
+  proposalId?: string | null;
+  category?: string | null;
+  wallet?: string | null;
+  isInstallment?: boolean;
+  installmentCount?: number | null;
+  installmentNumber?: number | null;
+  installmentGroupId?: string | null;
+  notes?: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdById: string;
+}
+
 const COLLECTION_NAME = "transactions";
 
 // ============================================
-// HELPER: Check Permission
+// HELPER: Date Math (Add Months safely)
 // ============================================
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr);
+  const targetMonth = d.getMonth() + months;
+  const yearDiff = Math.floor(targetMonth / 12);
+  const month = targetMonth % 12;
+  const day = d.getDate();
 
-async function checkFinancialPermission(
-  db: FirebaseFirestore.Firestore,
-  userId: string,
-  requiredPermission: "canView" | "canCreate" | "canEdit" | "canDelete"
-): Promise<{ tenantId: string; isMaster: boolean }> {
-  const userRef = db.collection("users").doc(userId);
-  const userSnap = await userRef.get();
+  const newDate = new Date(d.getFullYear() + yearDiff, month, 1);
+  // Check if day exists in new month (e.g. Jan 31 -> Feb 28)
+  const daysInMonth = new Date(
+    d.getFullYear() + yearDiff,
+    month + 1,
+    0
+  ).getDate();
+  newDate.setDate(Math.min(day, daysInMonth));
 
-  if (!userSnap.exists) {
-    throw new functions.https.HttpsError(
-      "not-found",
-      "Usuário não encontrado."
-    );
-  }
-
-  const userData = userSnap.data() as UserDoc;
-  const tenantId = userData.tenantId || userData.companyId;
-
-  if (!tenantId) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Usuário sem tenantId."
-    );
-  }
-
-  const role = (userData.role as string)?.toUpperCase();
-  const isMaster =
-    role === "MASTER" ||
-    role === "ADMIN" ||
-    role === "WK" ||
-    Boolean(!userData.masterId && userData.subscription);
-
-  if (!isMaster) {
-    const permRef = userRef.collection("permissions").doc("financial");
-    const permSnap = await permRef.get();
-    if (!permSnap.exists || !permSnap.data()?.[requiredPermission]) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        `Sem permissão para ${requiredPermission} transações financeiras.`
-      );
-    }
-  }
-
-  return { tenantId, isMaster };
+  // Keep original time components if any, but usually we just want YYYY-MM-DD
+  return newDate.toISOString().split("T")[0];
 }
 
 // ============================================
-// HELPER: Update Wallet Balance
+// HELPER: Resolve Wallet (ID or Name)
 // ============================================
-
-/**
- * Finds a wallet by name and updates its balance
- * @param db Firestore instance
- * @param tenantId Tenant ID for filtering
- * @param walletName Name of the wallet to update
- * @param amount Amount to add (positive) or subtract (negative)
- * @returns true if wallet was found and updated, false otherwise
- */
-async function updateWalletBalance(
+async function resolveWalletRef(
+  transaction: FirebaseFirestore.Transaction,
   db: FirebaseFirestore.Firestore,
   tenantId: string,
-  walletName: string,
-  amount: number
-): Promise<boolean> {
-  try {
-    // Find wallet by name and tenantId
-    const walletsQuery = await db
-      .collection("wallets")
-      .where("tenantId", "==", tenantId)
-      .where("name", "==", walletName)
-      .limit(1)
-      .get();
+  identifier: string
+): Promise<{
+  ref: FirebaseFirestore.DocumentReference;
+  data: WalletDoc;
+} | null> {
+  if (!identifier) return null;
 
-    if (walletsQuery.empty) {
-      console.log(`Wallet "${walletName}" not found for tenant ${tenantId}`);
-      return false;
+  // 1. Try as ID
+  const directRef = db.collection("wallets").doc(identifier);
+  const directSnap = await transaction.get(directRef);
+
+  if (directSnap.exists) {
+    const data = directSnap.data() as WalletDoc;
+    if (data.tenantId === tenantId) {
+      return { ref: directRef, data };
     }
-
-    const walletDoc = walletsQuery.docs[0];
-    const walletData = walletDoc.data();
-    const newBalance = (walletData.balance || 0) + amount;
-
-    await walletDoc.ref.update({
-      balance: newBalance,
-      updatedAt: Timestamp.now(),
-    });
-
-    console.log(
-      `Wallet "${walletName}" balance updated: ${walletData.balance} -> ${newBalance} (${amount > 0 ? "+" : ""}${amount})`
-    );
-    return true;
-  } catch (error) {
-    console.error("Error updating wallet balance:", error);
-    return false;
   }
-}
 
-/**
- * Calculate the balance adjustment based on transaction type and status change
- * @returns The amount to add to wallet (positive for income, negative for expense)
- */
-function calculateBalanceAdjustment(
-  type: TransactionType,
-  amount: number,
-  isPaying: boolean // true = becoming paid, false = becoming unpaid
-): number {
-  const sign = type === "income" ? 1 : -1;
-  return isPaying ? sign * amount : -sign * amount;
+  // 2. Try as Name (Fallback)
+  const nameQuery = db
+    .collection("wallets")
+    .where("tenantId", "==", tenantId)
+    .where("name", "==", identifier)
+    .limit(1);
+
+  const querySnap = await transaction.get(nameQuery);
+
+  if (!querySnap.empty) {
+    const doc = querySnap.docs[0];
+    return { ref: doc.ref, data: doc.data() as WalletDoc };
+  }
+
+  return null;
 }
 
 // ============================================
-// CREATE TRANSACTION
+// CREATE TRANSACTION (Atomic + Batch Generation)
 // ============================================
 
 export const createTransaction = functions
@@ -204,13 +185,9 @@ export const createTransaction = functions
     }
 
     const userId = context.auth.uid;
-    const { tenantId } = await checkFinancialPermission(
-      db,
-      userId,
-      "canCreate"
-    );
+    const now = Timestamp.now();
 
-    // Validate required fields
+    // 1. Input Validation
     if (
       !data.description ||
       !data.amount ||
@@ -220,60 +197,193 @@ export const createTransaction = functions
     ) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        "Campos obrigatórios: description, amount, date, type, status."
+        "Campos obrigatórios faltando."
       );
     }
 
-    const now = Timestamp.now();
+    // 2. Parallel Fetch (User & Permissions)
+    const userRef = db.collection("users").doc(userId);
+    const permRef = userRef.collection("permissions").doc("financial");
 
-    // Build transaction data (only defined fields)
-    const transactionData: Record<string, unknown> = {
-      tenantId,
-      type: data.type,
-      description: data.description.trim(),
-      amount: data.amount,
-      date: data.date,
-      status: data.status,
-      createdAt: now,
-      updatedAt: now,
-      createdById: userId,
-    };
+    const [userSnap, permSnap] = await Promise.all([
+      userRef.get(),
+      permRef.get(),
+    ]);
 
-    // Optional fields
-    if (data.dueDate) transactionData.dueDate = data.dueDate;
-    if (data.clientId) transactionData.clientId = data.clientId;
-    if (data.clientName) transactionData.clientName = data.clientName;
-    if (data.proposalId) transactionData.proposalId = data.proposalId;
-    if (data.category) transactionData.category = data.category;
-    if (data.wallet) transactionData.wallet = data.wallet;
-    if (data.isInstallment !== undefined)
-      transactionData.isInstallment = data.isInstallment;
-    if (data.installmentCount)
-      transactionData.installmentCount = data.installmentCount;
-    if (data.installmentNumber)
-      transactionData.installmentNumber = data.installmentNumber;
-    if (data.installmentGroupId)
-      transactionData.installmentGroupId = data.installmentGroupId;
-    if (data.notes) transactionData.notes = data.notes;
+    if (!userSnap.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "Usuário não encontrado."
+      );
+    }
 
-    try {
-      const docRef = await db.collection(COLLECTION_NAME).add(transactionData);
+    const userData = userSnap.data() as UserDoc;
+    const tenantId = userData.tenantId || userData.companyId;
 
-      // If transaction is paid and has a wallet, update wallet balance
-      if (data.status === "paid" && data.wallet) {
-        const adjustment = calculateBalanceAdjustment(
-          data.type,
-          data.amount,
-          true
+    if (!tenantId) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Usuário sem tenantId."
+      );
+    }
+
+    const role = (userData.role as string)?.toUpperCase();
+    const isMaster =
+      role === "MASTER" ||
+      role === "ADMIN" ||
+      role === "WK" ||
+      (!userData.masterId && userData.subscription);
+
+    if (!isMaster) {
+      if (!permSnap.exists || !permSnap.data()?.canCreate) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Sem permissão para criar transações."
         );
-        await updateWalletBalance(db, tenantId, data.wallet, adjustment);
       }
+    }
 
-      return {
-        success: true,
-        transactionId: docRef.id,
-        message: "Transação criada com sucesso.",
-      };
+    // 3. Execute Atomic Transaction
+    try {
+      const result = await db.runTransaction(async (t) => {
+        // B. Prepare Data Generation (Single or Installments)
+        const transactionsToCreate: TransactionDoc[] = [];
+        const walletAdjustments = new Map<string, number>(); // Identifier -> Amount Adjustment
+
+        const shouldGenerateInstallments =
+          data.isInstallment &&
+          (data.installmentCount || 0) > 1 &&
+          !data.installmentNumber; // Only if not manually specifying number (backend gen mode)
+
+        if (shouldGenerateInstallments) {
+          const count = data.installmentCount!;
+          const groupId = data.installmentGroupId || `gen_${now.toMillis()}`;
+          const baseAmount = data.amount; // Assuming input is PER INSTALLMENT
+
+          for (let i = 0; i < count; i++) {
+            const isFirst = i === 0;
+            // First one keeps status, others are pending
+            const currentStatus = isFirst ? data.status : "pending";
+            const currentDate = isFirst ? data.date : addMonths(data.date, i);
+            const currentDueDate = data.dueDate
+              ? isFirst
+                ? data.dueDate
+                : addMonths(data.dueDate, i)
+              : undefined;
+
+            transactionsToCreate.push({
+              tenantId,
+              type: data.type,
+              description: data.description.trim(),
+              amount: baseAmount,
+              date: currentDate,
+              dueDate: currentDueDate,
+              status: currentStatus,
+              clientId: data.clientId || null,
+              clientName: data.clientName || null,
+              proposalId: data.proposalId || null,
+              category: data.category || null,
+              wallet: data.wallet || null,
+              isInstallment: true,
+              installmentCount: count,
+              installmentNumber: i + 1,
+              installmentGroupId: groupId,
+              notes: data.notes || null,
+              createdAt: now,
+              updatedAt: now,
+              createdById: userId,
+            });
+
+            // Calculate wallet impact
+            if (currentStatus === "paid" && data.wallet) {
+              const sign = data.type === "income" ? 1 : -1;
+              const adj = sign * baseAmount;
+              walletAdjustments.set(
+                data.wallet,
+                (walletAdjustments.get(data.wallet) || 0) + adj
+              );
+            }
+          }
+        } else {
+          // Single Transaction
+          transactionsToCreate.push({
+            tenantId,
+            type: data.type,
+            description: data.description.trim(),
+            amount: data.amount,
+            date: data.date,
+            dueDate: data.dueDate,
+            status: data.status,
+            clientId: data.clientId || null,
+            clientName: data.clientName || null,
+            proposalId: data.proposalId || null,
+            category: data.category || null,
+            wallet: data.wallet || null,
+            isInstallment: !!data.isInstallment,
+            installmentCount: data.installmentCount || null,
+            installmentNumber: data.installmentNumber || null,
+            installmentGroupId: data.installmentGroupId || null,
+            notes: data.notes || null,
+            createdAt: now,
+            updatedAt: now,
+            createdById: userId,
+          });
+
+          if (data.status === "paid" && data.wallet) {
+            const sign = data.type === "income" ? 1 : -1;
+            const adj = sign * data.amount;
+            walletAdjustments.set(data.wallet, adj);
+          }
+        }
+
+        // C. Update Wallets (if any)
+        for (const [
+          walletIdentifier,
+          adjustment,
+        ] of walletAdjustments.entries()) {
+          if (adjustment === 0) continue;
+
+          const walletInfo = await resolveWalletRef(
+            t,
+            db,
+            tenantId,
+            walletIdentifier
+          );
+          if (walletInfo) {
+            const newBalance = (walletInfo.data.balance || 0) + adjustment;
+            t.update(walletInfo.ref, {
+              balance: newBalance,
+              updatedAt: now,
+            });
+          } else {
+            console.warn(
+              `Wallet '${walletIdentifier}' not found for tenant '${tenantId}' during transaction creation.`
+            );
+          }
+        }
+
+        // D. Write Transactions
+        const createdIds: string[] = [];
+        const collectionRef = db.collection(COLLECTION_NAME);
+
+        for (const txData of transactionsToCreate) {
+          const ref = collectionRef.doc();
+          createdIds.push(ref.id);
+          t.set(ref, txData);
+        }
+
+        return {
+          success: true,
+          transactionId: createdIds[0], // Return first ID
+          transactionIds: createdIds,
+          message:
+            transactionsToCreate.length > 1
+              ? `${transactionsToCreate.length} parcelas criadas com sucesso.`
+              : "Transação criada com sucesso.",
+        };
+      });
+
+      return result;
     } catch (error) {
       console.error("Create Transaction Error:", error);
       throw new functions.https.HttpsError(
@@ -284,9 +394,8 @@ export const createTransaction = functions
   });
 
 // ============================================
-// UPDATE TRANSACTION
+// UPDATE TRANSACTION (Atomic)
 // ============================================
-
 export const updateTransaction = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateTransactionInput, context) => {
@@ -298,133 +407,146 @@ export const updateTransaction = functions
         "Login necessário."
       );
     }
-
     const userId = context.auth.uid;
     const { transactionId, ...updateData } = data;
 
     if (!transactionId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "ID da transação inválido."
-      );
+      throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
     }
 
-    const { tenantId } = await checkFinancialPermission(db, userId, "canEdit");
+    // 2. Parallel Fetch (User & Permission)
+    const userRef = db.collection("users").doc(userId);
+    const permRef = userRef.collection("permissions").doc("financial");
 
-    // Verify transaction exists and belongs to tenant
-    const transactionRef = db.collection(COLLECTION_NAME).doc(transactionId);
-    const transactionSnap = await transactionRef.get();
+    const [userSnap, permSnap] = await Promise.all([
+      userRef.get(),
+      permRef.get(),
+    ]);
 
-    if (!transactionSnap.exists) {
+    if (!userSnap.exists)
+      throw new functions.https.HttpsError("not-found", "User not found");
+
+    const userData = userSnap.data() as UserDoc;
+    const tenantId = userData.tenantId || userData.companyId;
+
+    if (!tenantId)
       throw new functions.https.HttpsError(
-        "not-found",
-        "Transação não encontrada."
+        "failed-precondition",
+        "Usuário sem tenantId."
       );
+
+    const role = (userData.role as string)?.toUpperCase();
+    const isMaster =
+      role === "MASTER" ||
+      role === "ADMIN" ||
+      role === "WK" ||
+      (!userData.masterId && userData.subscription);
+
+    if (!isMaster) {
+      if (!permSnap.exists || !permSnap.data()?.canEdit) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Sem permissão."
+        );
+      }
     }
-
-    const existingData = transactionSnap.data();
-    if (existingData?.tenantId !== tenantId) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Esta transação não pertence a sua organização."
-      );
-    }
-
-    // Build safe update object
-    const safeUpdate: Record<string, unknown> = {
-      updatedAt: Timestamp.now(),
-    };
-
-    if (updateData.type !== undefined) safeUpdate.type = updateData.type;
-    if (updateData.description !== undefined)
-      safeUpdate.description = updateData.description;
-    if (updateData.amount !== undefined) safeUpdate.amount = updateData.amount;
-    if (updateData.date !== undefined) safeUpdate.date = updateData.date;
-    if (updateData.dueDate !== undefined)
-      safeUpdate.dueDate = updateData.dueDate;
-    if (updateData.status !== undefined) safeUpdate.status = updateData.status;
-    if (updateData.clientId !== undefined)
-      safeUpdate.clientId = updateData.clientId;
-    if (updateData.clientName !== undefined)
-      safeUpdate.clientName = updateData.clientName;
-    if (updateData.proposalId !== undefined)
-      safeUpdate.proposalId = updateData.proposalId;
-    if (updateData.category !== undefined)
-      safeUpdate.category = updateData.category;
-    if (updateData.wallet !== undefined) safeUpdate.wallet = updateData.wallet;
-    if (updateData.isInstallment !== undefined)
-      safeUpdate.isInstallment = updateData.isInstallment;
-    if (updateData.installmentCount !== undefined)
-      safeUpdate.installmentCount = updateData.installmentCount;
-    if (updateData.installmentNumber !== undefined)
-      safeUpdate.installmentNumber = updateData.installmentNumber;
-    if (updateData.installmentGroupId !== undefined)
-      safeUpdate.installmentGroupId = updateData.installmentGroupId;
-    if (updateData.notes !== undefined) safeUpdate.notes = updateData.notes;
 
     try {
-      // Handle wallet balance sync when status changes
-      const oldStatus = existingData?.status as TransactionStatus;
-      const newStatus = updateData.status ?? oldStatus;
-      const oldWallet = existingData?.wallet as string | undefined;
-      const newWallet = updateData.wallet ?? oldWallet;
-      const oldAmount = existingData?.amount as number;
-      const newAmount = updateData.amount ?? oldAmount;
-      const oldType = existingData?.type as TransactionType;
-      const newType = updateData.type ?? oldType;
+      await db.runTransaction(async (t) => {
+        // 2. Fetch Transaction
+        const ref = db.collection(COLLECTION_NAME).doc(transactionId);
+        const snap = await t.get(ref);
+        if (!snap.exists)
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Transação não encontrada."
+          );
 
-      // Case 1: Was paid with wallet, status changing to not paid - revert balance
-      if (oldStatus === "paid" && newStatus !== "paid" && oldWallet) {
-        const revertAdjustment = calculateBalanceAdjustment(
-          oldType,
-          oldAmount,
-          false
-        );
-        await updateWalletBalance(db, tenantId, oldWallet, revertAdjustment);
-      }
-      // Case 2: Becoming paid with wallet - add to balance
-      else if (oldStatus !== "paid" && newStatus === "paid" && newWallet) {
-        const addAdjustment = calculateBalanceAdjustment(
-          newType,
-          newAmount,
-          true
-        );
-        await updateWalletBalance(db, tenantId, newWallet, addAdjustment);
-      }
-      // Case 3: Was paid, still paid, but wallet or amount changed
-      else if (oldStatus === "paid" && newStatus === "paid") {
-        // If wallet changed, revert from old and add to new
-        if (
-          oldWallet !== newWallet ||
-          oldAmount !== newAmount ||
-          oldType !== newType
-        ) {
-          if (oldWallet) {
-            const revertAdjustment = calculateBalanceAdjustment(
-              oldType,
-              oldAmount,
-              false
-            );
-            await updateWalletBalance(
-              db,
-              tenantId,
-              oldWallet,
-              revertAdjustment
-            );
-          }
-          if (newWallet) {
-            const addAdjustment = calculateBalanceAdjustment(
-              newType,
-              newAmount,
-              true
-            );
-            await updateWalletBalance(db, tenantId, newWallet, addAdjustment);
+        const currentData = snap.data() as TransactionDoc;
+        if (currentData.tenantId !== tenantId)
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "Acesso negado."
+          );
+
+        // 3. Logic for Wallet Balance Adjustment
+        // Calculate old impact
+        let oldImpact = 0;
+        if (currentData.status === "paid" && currentData.wallet) {
+          oldImpact =
+            (currentData.type === "income" ? 1 : -1) *
+            (currentData.amount || 0);
+        }
+
+        // Merge Data
+        const newData = { ...currentData, ...updateData };
+
+        // Calculate new impact
+        let newImpact = 0;
+        if (newData.status === "paid" && newData.wallet) {
+          newImpact =
+            (newData.type === "income" ? 1 : -1) * (newData.amount || 0);
+        }
+
+        // If impact changed, update wallets
+        if (oldImpact !== newImpact || currentData.wallet !== newData.wallet) {
+          // If wallet changed, we must reverse old and apply new separately
+          if (currentData.wallet !== newData.wallet) {
+            // Reverse old
+            if (oldImpact !== 0 && currentData.wallet) {
+              const wInfo = await resolveWalletRef(
+                t,
+                db,
+                tenantId,
+                currentData.wallet
+              );
+              if (wInfo)
+                t.update(wInfo.ref, {
+                  balance: FieldValue.increment(-oldImpact),
+                  updatedAt: Timestamp.now(),
+                });
+            }
+            // Apply new
+            if (newImpact !== 0 && newData.wallet) {
+              const wInfo = await resolveWalletRef(
+                t,
+                db,
+                tenantId,
+                newData.wallet
+              );
+              if (wInfo)
+                t.update(wInfo.ref, {
+                  balance: FieldValue.increment(newImpact),
+                  updatedAt: Timestamp.now(),
+                });
+            }
+          } else {
+            // Same wallet, just diff
+            const diff = newImpact - oldImpact;
+            if (diff !== 0 && newData.wallet) {
+              const wInfo = await resolveWalletRef(
+                t,
+                db,
+                tenantId,
+                newData.wallet
+              );
+              if (wInfo)
+                t.update(wInfo.ref, {
+                  balance: FieldValue.increment(diff),
+                  updatedAt: Timestamp.now(),
+                });
+            }
           }
         }
-      }
 
-      await transactionRef.update(safeUpdate);
-      return { success: true, message: "Transação atualizada com sucesso." };
+        // 4. Update Document
+        t.update(ref, {
+          ...updateData,
+          updatedAt: Timestamp.now(),
+        });
+      });
+
+      return { success: true, message: "Atualizado com sucesso." };
     } catch (error) {
       console.error("Update Transaction Error:", error);
       throw new functions.https.HttpsError(
@@ -435,74 +557,98 @@ export const updateTransaction = functions
   });
 
 // ============================================
-// DELETE TRANSACTION
+// DELETE TRANSACTION (Atomic)
 // ============================================
-
 export const deleteTransaction = functions
   .region("southamerica-east1")
   .https.onCall(async (data: DeleteTransactionInput, context) => {
     const db = getFirestore();
-
-    if (!context.auth) {
+    if (!context.auth)
       throw new functions.https.HttpsError(
         "unauthenticated",
         "Login necessário."
       );
-    }
-
     const userId = context.auth.uid;
-    const { transactionId } = data;
 
-    if (!transactionId) {
+    // 2. Parallel Fetch (User & Permission)
+    const userRef = db.collection("users").doc(userId);
+    const permRef = userRef.collection("permissions").doc("financial");
+
+    const [userSnap, permSnap] = await Promise.all([
+      userRef.get(),
+      permRef.get(),
+    ]);
+
+    if (!userSnap.exists)
+      throw new functions.https.HttpsError("not-found", "User not found");
+
+    const userData = userSnap.data() as UserDoc;
+    const tenantId = userData.tenantId || userData.companyId;
+
+    if (!tenantId)
       throw new functions.https.HttpsError(
-        "invalid-argument",
-        "ID da transação inválido."
+        "failed-precondition",
+        "Usuário sem tenantId."
       );
-    }
 
-    const { tenantId } = await checkFinancialPermission(
-      db,
-      userId,
-      "canDelete"
-    );
+    const role = (userData.role as string)?.toUpperCase();
+    const isMaster =
+      role === "MASTER" ||
+      role === "ADMIN" ||
+      role === "WK" ||
+      (!userData.masterId && userData.subscription);
 
-    // Verify transaction exists and belongs to tenant
-    const transactionRef = db.collection(COLLECTION_NAME).doc(transactionId);
-    const transactionSnap = await transactionRef.get();
-
-    if (!transactionSnap.exists) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        "Transação não encontrada."
-      );
-    }
-
-    const existingData = transactionSnap.data();
-    if (existingData?.tenantId !== tenantId) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Esta transação não pertence a sua organização."
-      );
+    if (!isMaster) {
+      if (!permSnap.exists || !permSnap.data()?.canDelete) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Sem permissão."
+        );
+      }
     }
 
     try {
-      // If transaction was paid with a wallet, revert the balance
-      const status = existingData?.status as TransactionStatus;
-      const wallet = existingData?.wallet as string | undefined;
-      const amount = existingData?.amount as number;
-      const type = existingData?.type as TransactionType;
+      await db.runTransaction(async (t) => {
+        // 2. Fetch Transaction
+        const ref = db.collection(COLLECTION_NAME).doc(data.transactionId);
+        const snap = await t.get(ref);
+        if (!snap.exists)
+          throw new functions.https.HttpsError(
+            "not-found",
+            "Transação não encontrada."
+          );
 
-      if (status === "paid" && wallet) {
-        const revertAdjustment = calculateBalanceAdjustment(
-          type,
-          amount,
-          false
-        );
-        await updateWalletBalance(db, tenantId, wallet, revertAdjustment);
-      }
+        const currentData = snap.data() as TransactionDoc;
+        if (currentData.tenantId !== tenantId)
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "Acesso negado."
+          );
 
-      await transactionRef.delete();
-      return { success: true, message: "Transação excluída com sucesso." };
+        // 3. Revert Wallet Balance if needed
+        if (currentData.status === "paid" && currentData.wallet) {
+          const impact =
+            (currentData.type === "income" ? 1 : -1) *
+            (currentData.amount || 0);
+          const wInfo = await resolveWalletRef(
+            t,
+            db,
+            tenantId,
+            currentData.wallet
+          );
+          if (wInfo) {
+            t.update(wInfo.ref, {
+              balance: FieldValue.increment(-impact),
+              updatedAt: Timestamp.now(),
+            });
+          }
+        }
+
+        // 4. Delete
+        t.delete(ref);
+      });
+
+      return { success: true, message: "Excluído com sucesso." };
     } catch (error) {
       console.error("Delete Transaction Error:", error);
       throw new functions.https.HttpsError(

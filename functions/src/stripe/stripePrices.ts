@@ -80,28 +80,39 @@ async function fetchAllPrices(): Promise<PricesResponse> {
     addons: {},
   };
 
-  // Fetch plan prices
+  // Fetch plan prices in parallel
   const planTiers = Object.keys(config.plans);
-  for (const tier of planTiers) {
+  const planPromises = planTiers.map(async (tier) => {
     const tierPrices = config.plans[tier];
-
     const [monthly, yearly] = await Promise.all([
       fetchPriceFromStripe(stripe, tierPrices.monthly),
       fetchPriceFromStripe(stripe, tierPrices.yearly),
     ]);
+    return { tier, monthly, yearly };
+  });
 
-    result.plans[tier] = { monthly, yearly };
-  }
-
-  // Fetch add-on prices (only monthly for addons)
+  // Fetch add-on prices in parallel
   const addonTypes = Object.keys(config.addons);
-  for (const addonType of addonTypes) {
+  const addonPromises = addonTypes.map(async (addonType) => {
     const addonPrices = config.addons[addonType];
-
     const monthly = await fetchPriceFromStripe(stripe, addonPrices.monthly);
+    return { addonType, monthly, yearly: null };
+  });
 
-    result.addons[addonType] = { monthly, yearly: null };
-  }
+  // Execute all fetches
+  const [plans, addons] = await Promise.all([
+    Promise.all(planPromises),
+    Promise.all(addonPromises),
+  ]);
+
+  // key: tier -> value
+  plans.forEach(({ tier, monthly, yearly }) => {
+    result.plans[tier] = { monthly, yearly };
+  });
+
+  addons.forEach(({ addonType, monthly, yearly }) => {
+    result.addons[addonType] = { monthly, yearly };
+  });
 
   return result;
 }

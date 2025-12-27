@@ -78,7 +78,11 @@ async function checkFinancialPermission(
   userId: string,
   requiredPermission: "canView" | "canCreate" | "canEdit" | "canDelete"
 ): Promise<{ tenantId: string; isMaster: boolean }> {
-  const userDoc = await db.collection("users").doc(userId).get();
+  const userRef = db.collection("users").doc(userId);
+  const permRef = userRef.collection("permissions").doc("financial");
+
+  // Parallel Fetch
+  const [userDoc, permDoc] = await Promise.all([userRef.get(), permRef.get()]);
 
   if (!userDoc.exists) {
     throw new functions.https.HttpsError(
@@ -101,20 +105,19 @@ async function checkFinancialPermission(
     );
   }
 
+  const isMaster =
+    role === "MASTER" ||
+    role === "ADMIN" ||
+    role === "WK" ||
+    (!userData.masterId && userData.subscription);
+
   // MASTER or ADMIN role: Full access
-  if (role === "MASTER" || role === "ADMIN") {
+  if (isMaster) {
     return { tenantId, isMaster: true };
   }
 
   // MEMBER role: Check page permissions
-  if (role === "MEMBER" && userData.masterId) {
-    const permDoc = await db
-      .collection("users")
-      .doc(userId)
-      .collection("permissions")
-      .doc("financial")
-      .get();
-
+  if (role === "MEMBER") {
     if (!permDoc.exists) {
       throw new functions.https.HttpsError(
         "permission-denied",
@@ -274,11 +277,14 @@ export const updateWallet = functions
       );
     }
 
-    const { tenantId } = await checkFinancialPermission(db, userId, "canEdit");
-
-    // Verify wallet exists and belongs to tenant
+    // Parallel Fetch (Permission & Wallet)
     const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);
-    const walletDoc = await walletRef.get();
+
+    const [permResult, walletDoc] = await Promise.all([
+      checkFinancialPermission(db, userId, "canEdit"),
+      walletRef.get(),
+    ]);
+    const { tenantId } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
@@ -368,15 +374,14 @@ export const deleteWallet = functions
       );
     }
 
-    const { tenantId } = await checkFinancialPermission(
-      db,
-      userId,
-      "canDelete"
-    );
-
-    // Verify wallet exists and belongs to tenant
+    // Parallel Fetch
     const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);
-    const walletDoc = await walletRef.get();
+
+    const [permResult, walletDoc] = await Promise.all([
+      checkFinancialPermission(db, userId, "canDelete"),
+      walletRef.get(),
+    ]);
+    const { tenantId } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
@@ -466,13 +471,13 @@ export const transferBetweenWallets = functions
       );
     }
 
-    const { tenantId } = await checkFinancialPermission(db, userId, "canEdit");
-
-    // Get both wallets
-    const [fromDoc, toDoc] = await Promise.all([
+    // Parallel Fetch (Permission, From, To)
+    const [permResult, fromDoc, toDoc] = await Promise.all([
+      checkFinancialPermission(db, userId, "canEdit"),
       db.collection(WALLETS_COLLECTION).doc(fromWalletId).get(),
       db.collection(WALLETS_COLLECTION).doc(toWalletId).get(),
     ]);
+    const { tenantId } = permResult;
 
     if (!fromDoc.exists) {
       throw new functions.https.HttpsError(
@@ -613,11 +618,14 @@ export const adjustWalletBalance = functions
       );
     }
 
-    const { tenantId } = await checkFinancialPermission(db, userId, "canEdit");
-
-    // Get wallet
+    // Parallel Fetch
     const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);
-    const walletDoc = await walletRef.get();
+
+    const [permResult, walletDoc] = await Promise.all([
+      checkFinancialPermission(db, userId, "canEdit"),
+      walletRef.get(),
+    ]);
+    const { tenantId } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
