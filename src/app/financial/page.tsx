@@ -171,16 +171,32 @@ export default function FinancialPage() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {filteredTransactions.map((transaction) => (
-            <TransactionCard
-              key={transaction.id}
-              transaction={transaction}
-              canEdit={canEdit}
-              canDelete={canDelete}
-              onDelete={openDeleteDialog}
-              onStatusChange={updateTransactionStatus}
-            />
-          ))}
+          {filteredTransactions.map((transaction) => {
+            const relatedInstallments =
+              transaction.isInstallment && transaction.installmentGroupId
+                ? transactions
+                  .filter(
+                    (t) =>
+                      t.installmentGroupId === transaction.installmentGroupId
+                  )
+                  .sort(
+                    (a, b) =>
+                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  )
+                : [];
+
+            return (
+              <TransactionCard
+                key={transaction.id}
+                transaction={transaction}
+                relatedInstallments={relatedInstallments}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onDelete={openDeleteDialog}
+                onStatusChange={updateTransactionStatus}
+              />
+            );
+          })}
         </div>
       )}
 

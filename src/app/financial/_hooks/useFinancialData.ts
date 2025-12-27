@@ -94,12 +94,50 @@ export function useFinancialData(): UseFinancialDataReturn {
   }, [fetchData]);
 
   const filteredTransactions = React.useMemo(() => {
-    let filtered = transactions;
+    // 1. Group installments and select the "active" one for each group
+    const processedGroups = new Set<string>();
+    const effectiveTransactions: Transaction[] = [];
 
-    // Filter out subsequent installments (show only installmentNumber === 1 or non-installments)
-    filtered = filtered.filter(
-      (t) => !t.isInstallment || t.installmentNumber === 1
+    // Pre-sort transactions by date to ensure order (though we sort again later)
+    // We need to look at all transactions to find the representatives
+    const sortedRaw = [...transactions].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
+
+    sortedRaw.forEach((t) => {
+      if (!t.isInstallment || !t.installmentGroupId) {
+        effectiveTransactions.push(t);
+        return;
+      }
+
+      if (processedGroups.has(t.installmentGroupId)) return;
+
+      // Find all belonging to this group
+      const group = transactions.filter(
+        (g) => g.installmentGroupId === t.installmentGroupId
+      );
+
+      // Sort group by installment number
+      group.sort(
+        (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0)
+      );
+
+      // Find the first "pending" or "overdue" installment (not paid)
+      let active = group.find((g) => g.status !== "paid");
+
+      // If all are paid, show the last one
+      if (!active && group.length > 0) {
+        active = group[group.length - 1];
+      }
+
+      // If for some reason we didn't find one (empty group?), skip
+      if (active) {
+        effectiveTransactions.push(active);
+        processedGroups.add(t.installmentGroupId);
+      }
+    });
+
+    let filtered = effectiveTransactions;
 
     // Filter by type
     if (filterType !== "all") {
@@ -128,7 +166,10 @@ export function useFinancialData(): UseFinancialDataReturn {
       );
     }
 
-    return filtered;
+    // Sort by date descending
+    return filtered.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   }, [transactions, searchTerm, filterType, filterStatus, filterWallet]);
 
   const deleteTransaction = React.useCallback(
