@@ -17,6 +17,7 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { updateProposal, prepareCreatePayload } from "./submit-helpers";
 import { getExtraProducts } from "./product-handlers";
+import { toast } from "react-toastify";
 
 export interface UseProposalFormProps {
   proposalId?: string;
@@ -58,6 +59,7 @@ export interface UseProposalFormReturn {
     systemInstanceId?: string
   ) => void;
   removeProduct: (productId: string, systemInstanceId?: string) => void;
+  handleToggleProductStatus: (productId: string, newStatus: 'active' | 'inactive') => Promise<void>;
 
   // Calculations
   calculateSubtotal: () => number;
@@ -272,6 +274,37 @@ export function useProposalForm({
     }));
   };
 
+  // Toggle product status (active/inactive)
+  const handleToggleProductStatus = async (
+    productId: string,
+    newStatus: 'active' | 'inactive'
+  ) => {
+    try {
+      // Optimistic update - update local state immediately
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId ? { ...p, status: newStatus } : p
+        )
+      );
+
+      // Persist to Firebase
+      await ProductService.updateProduct(productId, { status: newStatus });
+    } catch (error) {
+      console.error('Error toggling product status:', error);
+      
+      // Revert optimistic update on error
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === productId
+            ? { ...p, status: newStatus === 'active' ? 'inactive' : 'active' }
+            : p
+        )
+      );
+
+      toast.error('Erro ao alterar status do produto');
+    }
+  };
+
   // Calculations
   const calculateSubtotal = () =>
     selectedProducts.reduce((sum, p) => sum + p.total, 0);
@@ -398,6 +431,7 @@ export function useProposalForm({
     toggleProduct,
     updateProductQuantity,
     removeProduct,
+    handleToggleProductStatus,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,
