@@ -107,6 +107,7 @@ export function SimpleProposalForm({
     toggleProduct,
     updateProductQuantity,
     removeProduct,
+    handleToggleProductStatus,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,
@@ -134,7 +135,11 @@ export function SimpleProposalForm({
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
 
   // Ref to prevent duplicate additions from double-firing events
-  const lastAddedSystemRef = React.useRef<{ sistemaId: string; ambienteId: string; time: number } | null>(null);
+  const lastAddedSystemRef = React.useRef<{
+    sistemaId: string;
+    ambienteId: string;
+    time: number;
+  } | null>(null);
 
   // Estado para edição de seleção
   const [editingSelectionIndex, setEditingSelectionIndex] = React.useState<
@@ -209,7 +214,12 @@ export function SimpleProposalForm({
   }, [formData.validUntil]);
 
   React.useEffect(() => {
-    if (selectedSistemas.length > 0 && formData.products && formData.products.length > 0 && errors.sistemas) {
+    if (
+      selectedSistemas.length > 0 &&
+      formData.products &&
+      formData.products.length > 0 &&
+      errors.sistemas
+    ) {
       clearFieldError("sistemas");
     }
   }, [selectedSistemas, formData.products]);
@@ -286,7 +296,10 @@ export function SimpleProposalForm({
 
     if (isAutomacaoNiche) {
       if (selectedSistemas.length === 0) {
-        setFieldError("sistemas", "Selecione pelo menos 1 sistema de automação");
+        setFieldError(
+          "sistemas",
+          "Selecione pelo menos 1 sistema de automação"
+        );
         return false;
       }
 
@@ -310,18 +323,21 @@ export function SimpleProposalForm({
     // Validate if at least one selected product is active
     if (hasItems) {
       // Get all selected product IDs
-      const selectedIds = new Set(selectedProducts.map(sp => sp.productId));
+      const selectedIds = new Set(selectedProducts.map((sp) => sp.productId));
 
       // Check if ANY of the selected products in the master list are active
       // We assume if a product is not found in master list (e.g. deleted), it's not "active" for this purpose, or we could handle safely
       // Status undefined/null means active (legacy)
-      hasActiveProduct = products.some(p =>
-        selectedIds.has(p.id) && (!p.status || p.status === 'active')
+      hasActiveProduct = products.some(
+        (p) => selectedIds.has(p.id) && (!p.status || p.status === "active")
       );
 
       if (!hasActiveProduct) {
         const field = isAutomacaoNiche ? "sistemas" : "products";
-        setFieldError(field, "Selecione pelo menos um produto ativo para continuar.");
+        setFieldError(
+          field,
+          "Selecione pelo menos um produto ativo para continuar."
+        );
         return false;
       }
     }
@@ -420,7 +436,7 @@ export function SimpleProposalForm({
     lastAddedSystemRef.current = {
       sistemaId: sistema.sistemaId,
       ambienteId: sistema.ambienteId,
-      time: now
+      time: now,
     };
 
     // Check for duplicates
@@ -552,7 +568,7 @@ export function SimpleProposalForm({
   };
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -655,6 +671,7 @@ export function SimpleProposalForm({
                   onAddNewSystem={handleAddNewSystem}
                   SistemaSelectorComponent={SistemaSelector}
                   onRemoveProduct={removeProduct}
+                  onToggleStatus={handleToggleProductStatus}
                 />
               </>
             ) : (
@@ -679,6 +696,7 @@ export function SimpleProposalForm({
                   onToggleProduct={toggleProduct}
                   onUpdateQuantity={updateProductQuantity}
                   onNavigateToProducts={() => router.push("/products/new")}
+                  onToggleStatus={handleToggleProductStatus}
                 />
               </>
             )}
