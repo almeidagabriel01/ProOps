@@ -372,7 +372,7 @@ body {
 .Toastify__toast-container {
   padding: 0;
   width: auto !important;
-  max-width: 420px;
+  max-width: 600px;
 }
 
 .Toastify__toast-container--top-center {
@@ -391,6 +391,10 @@ body {
     0 10px 25px -5px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
 }
 
 /* Toast body styling */
@@ -402,6 +406,8 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
+  flex: 1;
+  white-space: nowrap;
 }
 
 /* Toast icon - add spacing */
@@ -421,9 +427,9 @@ body {
   color: currentColor !important;
   opacity: 0.6;
   transition: opacity 0.2s ease;
-  align-self: flex-start;
+  align-self: center;
   padding: 4px;
-  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .Toastify__close-button:hover {
