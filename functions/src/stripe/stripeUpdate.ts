@@ -76,23 +76,25 @@ export const stripeUpdate = functions
         );
       }
 
-      // Update subscription to new price (downgrade or upgrade)
-      await stripe.subscriptions.update(subscriptionId, {
-        items: [
-          {
-            id: subscriptionItemId,
-            price: priceId,
+      // Parallel: Update Stripe Subscription & Fetch Plan ID
+      const [, planId] = await Promise.all([
+        stripe.subscriptions.update(subscriptionId, {
+          items: [
+            {
+              id: subscriptionItemId,
+              price: priceId,
+            },
+          ],
+          proration_behavior: "create_prorations",
+          metadata: {
+            userId: userId,
+            planTier: planTier,
           },
-        ],
-        proration_behavior: "create_prorations",
-        metadata: {
-          userId: userId,
-          planTier: planTier,
-        },
-      });
+        }),
+        getPlanIdByTier(planTier),
+      ]);
 
       // Update user's plan in Firestore
-      const planId = await getPlanIdByTier(planTier);
       if (planId) {
         await userRef.update({
           planId: planId,
