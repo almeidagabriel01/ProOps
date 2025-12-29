@@ -139,12 +139,12 @@ function ProductCard({
     <div
       className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
         !isActive
-          ? "border-muted bg-muted/30 opacity-60"
+          ? "border-muted bg-muted/30 opacity-60 hover:opacity-80"
           : selected
             ? "border-primary bg-primary/5 ring-2 ring-primary/20"
             : "border-border hover:border-primary/50"
       }`}
-      onClick={isActive ? onToggle : undefined}
+      onClick={onToggle}
     >
       {/* Status Toggle */}
       {onToggleStatus && (
@@ -195,11 +195,11 @@ function ProductCard({
       {/* Inactive message */}
       {!isActive && (
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-          Ative o produto para selecioná-lo
+          Produto inativo (não aparecerá no PDF)
         </p>
       )}
 
-      {selected && isActive && (
+      {selected && (
         <div
           className="flex items-center justify-center gap-2 mt-3 pt-3 border-t"
           onClick={(e) => e.stopPropagation()}

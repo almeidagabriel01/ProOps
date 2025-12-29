@@ -239,29 +239,65 @@ function SystemCard({
           >
             <Pencil className="w-4 h-4" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={onRemove}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Remover sistema"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja remover o sistema{" "}
+                  <strong>{sistema.sistemaName}</strong> ({sistema.ambienteName}
+                  ) desta proposta?
+                  <br />
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Todos os produtos deste sistema serão removidos.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive hover:bg-destructive/90"
+                  onClick={onRemove}
+                >
+                  Remover Sistema
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
       {/* Produtos do Sistema */}
       <div className="p-4 space-y-2 bg-background">
         {sistemaProducts.length > 0 ? (
-          sistemaProducts.map((product, idx) => (
-            <ProductRow
-              key={`${product.productId}-${idx}`}
-              product={product}
-              onUpdateQuantity={onUpdateQuantity}
-              onRemoveProduct={onRemoveProduct}
-            />
-          ))
+          sistemaProducts.map((product, idx) => {
+            const productData = products.find(
+              (p) => p.id === product.productId
+            );
+            const isActive =
+              !productData?.status || productData.status === "active";
+            return (
+              <ProductRow
+                key={`${product.productId}-${idx}`}
+                product={product}
+                isActive={isActive}
+                onUpdateQuantity={onUpdateQuantity}
+                onRemoveProduct={onRemoveProduct}
+                onToggleStatus={onToggleStatus}
+              />
+            );
+          })
         ) : (
           <p className="text-sm text-muted-foreground text-center py-2">
             Nenhum produto neste sistema
@@ -284,119 +320,185 @@ function SystemCard({
 // Sub-component for product row
 interface ProductRowProps {
   product: ProposalProduct;
+  isActive: boolean;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onRemoveProduct: (productId: string) => void;
+  onToggleStatus?: (
+    productId: string,
+    newStatus: "active" | "inactive"
+  ) => Promise<void>;
 }
 
 function ProductRow({
   product,
+  isActive,
   onUpdateQuantity,
   onRemoveProduct,
+  onToggleStatus,
 }: ProductRowProps) {
   const isExtra = !!product.isExtra;
+  const [isUpdating, setIsUpdating] = React.useState(false);
+
+  const handleStatusToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onToggleStatus || isUpdating) return;
+
+    setIsUpdating(true);
+    try {
+      await onToggleStatus(product.productId, isActive ? "inactive" : "active");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <div
-      className={`flex items-center justify-between p-3 rounded-lg border ${
-        product.isExtra
-          ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
-          : "bg-muted/30"
+      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+        !isActive
+          ? "bg-muted/5 border-dashed border-muted-foreground/20"
+          : product.isExtra
+            ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
+            : "bg-muted/30"
       }`}
     >
-      <div className="flex items-center gap-3">
-        {product.productImage || product.productImages?.[0] ? (
-          <div className="w-8 h-8 rounded border bg-card overflow-hidden shrink-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={product.productImages?.[0] || product.productImage}
-              alt=""
-              className="w-full h-full object-contain"
-            />
-          </div>
-        ) : (
-          <Package className="w-4 h-4 text-muted-foreground" />
-        )}
-        <div>
-          <div className="flex items-center gap-2">
-            <h5 className="font-medium text-sm">{product.productName}</h5>
-            {isExtra && (
-              <Badge
-                variant="default"
-                className="text-[10px] h-5 px-1 bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/30"
-              >
-                Extra
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {product.productDescription || "Sem descrição"}
-          </p>
+      {/* Toggle - compact on left */}
+      {onToggleStatus && (
+        <div
+          className="shrink-0 cursor-pointer flex items-center gap-1"
+          onClick={handleStatusToggle}
+          title={
+            isActive
+              ? "Clique para ocultar do PDF"
+              : "Clique para mostrar no PDF"
+          }
+        >
+          <span className="text-[10px] text-muted-foreground">
+            {isActive ? "Ativo" : "Inativo"}
+          </span>
+          <Switch
+            checked={isActive}
+            disabled={isUpdating}
+            className="scale-75"
+          />
         </div>
+      )}
+
+      {/* Product image */}
+      {product.productImage || product.productImages?.[0] ? (
+        <div
+          className={`w-9 h-9 rounded-lg border bg-card overflow-hidden shrink-0 ${!isActive ? "opacity-40" : ""}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.productImages?.[0] || product.productImage}
+            alt=""
+            className="w-full h-full object-contain"
+          />
+        </div>
+      ) : (
+        <div
+          className={`w-9 h-9 rounded-lg border bg-muted/30 flex items-center justify-center shrink-0 ${!isActive ? "opacity-40" : ""}`}
+        >
+          <Package className="w-4 h-4 text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Product info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <h5
+            className={`font-medium text-sm truncate ${!isActive ? "text-muted-foreground" : ""}`}
+          >
+            {product.productName}
+          </h5>
+          {isExtra && (
+            <Badge
+              variant="default"
+              className="text-[9px] h-4 px-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/15 border-0"
+            >
+              Extra
+            </Badge>
+          )}
+          {!isActive && (
+            <Badge
+              variant="outline"
+              className="text-[9px] h-4 px-1 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5"
+            >
+              Oculto no PDF
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+          {product.productDescription || "Sem descrição"}
+        </p>
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* Quantity controls */}
+      <div className="flex items-center gap-0.5 shrink-0">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
           className="h-7 w-7"
           onClick={() => onUpdateQuantity(product.productId, -1)}
         >
           <Minus className="w-3 h-3" />
         </Button>
-        <span className="font-bold w-6 text-center text-sm">
+        <span className="font-semibold w-6 text-center text-sm tabular-nums">
           {product.quantity}
         </span>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
           className="h-7 w-7"
           onClick={() => onUpdateQuantity(product.productId, 1)}
         >
           <Plus className="w-3 h-3" />
         </Button>
-
-        {isExtra && (
-          <>
-            <div className="w-px h-4 bg-border mx-2" />
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  title="Remover produto"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remover Produto Extra</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja remover o produto{" "}
-                    <strong>{product.productName}</strong> deste sistema?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive hover:bg-destructive/90"
-                    onClick={() => onRemoveProduct(product.productId)}
-                  >
-                    Remover
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
-
-        <span className="font-semibold text-sm ml-2">
-          R$ {product.total.toFixed(2)}
-        </span>
       </div>
+
+      {/* Price */}
+      <span
+        className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
+      >
+        R$ {product.total.toFixed(2)}
+      </span>
+
+      {/* Remove button for extras */}
+      {isExtra && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+              title="Remover produto"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover Produto Extra</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja remover o produto{" "}
+                <strong>{product.productName}</strong> deste sistema?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={() => onRemoveProduct(product.productId)}
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
@@ -481,55 +583,50 @@ function ExtraProductsGrid({
           return (
             <div
               key={product.id}
-              className={`relative flex flex-col p-2 text-left rounded-lg border bg-background transition-all ${
-                !isActive
-                  ? "border-border/60 bg-muted/20"
-                  : "hover:border-primary hover:shadow-sm cursor-pointer"
+              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${
+                !isActive ? "opacity-60 hover:opacity-100" : ""
               }`}
+              onClick={() => onAddProduct(product)}
             >
-              {/* Status toggle */}
+              {/* Toggle - subtle on left */}
               {onToggleStatus && (
-                <div className="flex items-center gap-1 mb-2">
-                  <span className="text-[10px] text-muted-foreground">
+                <div
+                  className="shrink-0 flex items-center gap-1"
+                  onClick={(e) => handleStatusToggle(e, product)}
+                  title={isActive ? "Ocultar do PDF" : "Mostrar no PDF"}
+                >
+                  <span className="text-[9px] text-muted-foreground">
                     {isActive ? "Ativo" : "Inativo"}
                   </span>
-                  <div
-                    onClick={(e) => handleStatusToggle(e, product)}
-                    className="cursor-pointer"
+                  <Switch
+                    checked={isActive}
+                    disabled={isUpdating}
+                    className="scale-[0.55]"
+                  />
+                </div>
+              )}
+
+              {/* Product info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  <p
+                    className={`text-xs font-medium truncate ${!isActive ? "text-muted-foreground" : ""}`}
                   >
-                    <Switch
-                      checked={isActive}
-                      disabled={isUpdating}
-                      className="scale-[0.6]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Add button */}
-              <button
-                type="button"
-                className={`flex items-center gap-2 ${!isActive ? "pointer-events-none" : ""}`}
-                onClick={() => isActive && onAddProduct(product)}
-                disabled={!isActive}
-              >
-                <Plus
-                  className={`w-3 h-3 shrink-0 ${!isActive ? "text-muted-foreground/50" : "text-muted-foreground"}`}
-                />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium truncate">{product.name}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    R$ {parseFloat(product.price).toFixed(2)}
+                    {product.name}
                   </p>
+                  {!isActive && (
+                    <span className="text-[8px] text-amber-600 dark:text-amber-400 px-1 py-0.5 bg-amber-500/10 rounded shrink-0">
+                      PDF
+                    </span>
+                  )}
                 </div>
-              </button>
-
-              {/* Inactive message */}
-              {!isActive && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
-                  Ative para adicionar
+                <p className="text-[10px] text-muted-foreground">
+                  R$ {parseFloat(product.price).toFixed(2)}
                 </p>
-              )}
+              </div>
+
+              {/* Add icon */}
+              <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0" />
             </div>
           );
         })}
