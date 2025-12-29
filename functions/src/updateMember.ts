@@ -32,30 +32,23 @@ export const updateMember = functions
       );
     }
 
-    // 3. Fetch MASTER user and validate role
+    // 2. Parallel Fetch (Master, Member)
     const masterId = context.auth.uid;
-    const masterRef = db.collection('users').doc(masterId);
-    const masterSnap = await masterRef.get();
+    const masterRef = db.collection("users").doc(masterId);
+    const memberRef = db.collection("users").doc(memberId);
 
+    const [masterSnap, memberSnap] = await Promise.all([
+      masterRef.get(),
+      memberRef.get(),
+    ]);
+
+    // 3. Validation
     if (!masterSnap.exists) {
-        throw new functions.https.HttpsError(
-            "unauthenticated",
-            "Usuário master não encontrado"
-        );
-    }
-
-    const masterData = masterSnap.data();
-    if (!canManageTeam(masterData?.role)) {
       throw new functions.https.HttpsError(
-        "permission-denied",
-        "Apenas administradores podem editar membros."
+        "unauthenticated",
+        "Usuário master não encontrado"
       );
     }
-
-    // 3. Verify target member belongs to this Master
-    const memberRef = db.collection('users').doc(memberId);
-    const memberSnap = await memberRef.get();
-
     if (!memberSnap.exists) {
       throw new functions.https.HttpsError(
         "not-found",
@@ -63,46 +56,69 @@ export const updateMember = functions
       );
     }
 
+    const masterData = masterSnap.data();
     const memberData = memberSnap.data();
+
+    if (!canManageTeam(masterData?.role)) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Apenas administradores podem editar membros."
+      );
+    }
+
     if (memberData?.masterId !== masterId) {
-       throw new functions.https.HttpsError(
+      throw new functions.https.HttpsError(
         "permission-denied",
         "Você não tem permissão para editar este membro."
       );
     }
 
     // 4. Update Firebase Auth (if email or password changed)
-    const authUpdates: any = {};
+    const authUpdates: {
+      email?: string;
+      password?: string;
+      displayName?: string;
+    } = {};
     if (email && email !== memberData?.email) authUpdates.email = email;
     if (password && password.length >= 6) authUpdates.password = password;
     if (name) authUpdates.displayName = name;
 
     if (Object.keys(authUpdates).length > 0) {
-        try {
-            await auth.updateUser(memberId, authUpdates);
-            console.log(`[updateMember] Auth updated for ${memberId}`);
-        } catch (err: any) {
-            console.error(`[updateMember] Auth update failed`, err);
-            if (err.code === 'auth/email-already-exists') {
-                throw new functions.https.HttpsError("already-exists", "Este email já está em uso.");
-            }
-             throw new functions.https.HttpsError("internal", "Erro ao atualizar credenciais.");
+      try {
+        await auth.updateUser(memberId, authUpdates);
+        console.log(`[updateMember] Auth updated for ${memberId}`);
+      } catch (err) {
+        console.error(`[updateMember] Auth update failed`, err);
+        const error = err as { code?: string; message?: string };
+        if (error.code === "auth/email-already-exists") {
+          throw new functions.https.HttpsError(
+            "already-exists",
+            "Este email já está em uso."
+          );
         }
+        throw new functions.https.HttpsError(
+          "internal",
+          "Erro ao atualizar credenciais."
+        );
+      }
     }
 
     // 5. Update Firestore
-    const firestoreUpdates: any = {
-        updatedAt: Timestamp.now()
+    const firestoreUpdates: Record<string, unknown> = {
+      updatedAt: Timestamp.now(),
     };
     if (name) firestoreUpdates.name = name;
     if (email) firestoreUpdates.email = email;
 
     try {
-        await memberRef.update(firestoreUpdates);
-        console.log(`[updateMember] Firestore updated for ${memberId}`);
+      await memberRef.update(firestoreUpdates);
+      console.log(`[updateMember] Firestore updated for ${memberId}`);
     } catch (err) {
-        console.error(`[updateMember] Firestore update failed`, err);
-        throw new functions.https.HttpsError("internal", "Erro ao salvar alterações.");
+      console.error(`[updateMember] Firestore update failed`, err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Erro ao salvar alterações."
+      );
     }
 
     return { success: true, message: "Membro atualizado com sucesso." };

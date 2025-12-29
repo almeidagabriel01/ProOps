@@ -90,7 +90,7 @@ export const createProduct = functions
       );
     }
 
-    let effectiveMasterId: string;
+    // Resolve Master
     let masterData: UserDoc;
     let masterRef: FirebaseFirestore.DocumentReference;
 
@@ -102,7 +102,6 @@ export const createProduct = functions
       (!userData.masterId && !userData.masterID && userData.subscription);
 
     if (isMaster) {
-      effectiveMasterId = userId;
       masterData = userData;
       masterRef = userRef;
     } else {
@@ -113,15 +112,31 @@ export const createProduct = functions
           "failed-precondition",
           "Erro de configuração."
         );
-      effectiveMasterId = masterId;
-      masterRef = db.collection("users").doc(effectiveMasterId);
-      const masterSnap = await masterRef.get();
+
+      const permRef = userRef.collection("permissions").doc("products");
+      const masterDocRef = db.collection("users").doc(masterId);
+
+      // Parallel Fetch
+      const [permSnap, masterSnap] = await Promise.all([
+        permRef.get(),
+        masterDocRef.get(),
+      ]);
+
+      if (!permSnap.exists || !permSnap.data()?.canCreate) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Sem permissão para criar produtos."
+        );
+      }
+
       if (!masterSnap.exists)
         throw new functions.https.HttpsError(
           "not-found",
           "Conta principal 404."
         );
+
       masterData = masterSnap.data() as UserDoc;
+      masterRef = masterDocRef;
     }
 
     const targetCompanyId = masterData.companyId || masterData.tenantId;
@@ -133,20 +148,11 @@ export const createProduct = functions
       );
     }
 
-    const companyRef = db.collection("companies").doc(targetCompanyId);
-    const companySnap = await companyRef.get();
-
-    // 4. Permission Check
-    if (userData.role === "MEMBER") {
-      const permRef = userRef.collection("permissions").doc("products");
-      const permSnap = await permRef.get();
-      if (!permSnap.exists || !permSnap.data()?.canCreate) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "Sem permissão para criar produtos."
-        );
-      }
-    }
+    // Remove redundant company fetch if it's re-fetched in transaction, or keep if needed for pre-check.
+    // Assuming we do transaction later.
+    // Optimization: Don't fetch companyRef here if we are going to do it in runTransaction.
+    // But we need to know if company exists? Transaction will fail if not found?
+    // Let's keep it simple and just do the Auth parallelization first.
 
     // 5. Plan Limit Enforcement
     const maxProducts = masterData.subscription?.limits?.maxProducts;
@@ -165,13 +171,15 @@ export const createProduct = functions
 
     try {
       productId = await db.runTransaction(async (transaction) => {
+        const companyRef = db.collection("companies").doc(targetCompanyId);
+        const companySnap = await transaction.get(companyRef);
         const newProductRef = db.collection("products").doc(); // Auto-generate ID
 
         transaction.set(newProductRef, {
           tenantId: targetCompanyId,
           name: input.name.trim(),
           description: input.description || "",
-          price: input.price, // string or number? Input says string, but ideally value
+          price: input.price,
           manufacturer: input.manufacturer || "",
           category: input.category || "",
           sku: input.sku || "",
@@ -192,10 +200,6 @@ export const createProduct = functions
             "usage.products": FieldValue.increment(1),
             updatedAt: now,
           });
-        } else {
-          console.warn(
-            `[createProduct] Company ${targetCompanyId} not found. Skipping usage increment.`
-          );
         }
 
         return newProductRef.id;

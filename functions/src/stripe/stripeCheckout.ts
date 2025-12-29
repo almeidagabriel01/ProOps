@@ -76,15 +76,17 @@ export const stripeCheckout = functions
       if (!userSnap.exists) {
         // User document doesn't exist - create a basic one
         // This can happen if auth account exists but Firestore doc was never created
-        console.log(`User document not found for ${userId}, creating basic document`);
-        
+        console.log(
+          `User document not found for ${userId}, creating basic document`
+        );
+
         const newUserData = {
           email: userEmail || "",
           role: "free",
           createdAt: new Date().toISOString(),
           tenantId: `tenant_${userId}`,
         };
-        
+
         await userRef.set(newUserData);
         userData = newUserData;
         customerId = undefined;
@@ -110,26 +112,28 @@ export const stripeCheckout = functions
             const subscriptionItemId = subscription.items.data[0]?.id;
 
             if (subscriptionItemId) {
-              // Update subscription with immediate billing
-              await stripe.subscriptions.update(existingSubscriptionId, {
-                items: [
-                  {
-                    id: subscriptionItemId,
-                    price: priceId,
+              // Parallel: Update Stripe Subscription & Fetch Plan ID
+              const [, planId] = await Promise.all([
+                stripe.subscriptions.update(existingSubscriptionId, {
+                  items: [
+                    {
+                      id: subscriptionItemId,
+                      price: priceId,
+                    },
+                  ],
+                  proration_behavior: "always_invoice",
+                  billing_cycle_anchor: "now",
+                  payment_behavior: "error_if_incomplete",
+                  metadata: {
+                    userId: userId,
+                    planTier: planTier,
+                    billingInterval: validInterval,
                   },
-                ],
-                proration_behavior: "always_invoice",
-                billing_cycle_anchor: "now",
-                payment_behavior: "error_if_incomplete",
-                metadata: {
-                  userId: userId,
-                  planTier: planTier,
-                  billingInterval: validInterval,
-                },
-              });
+                }),
+                getPlanIdByTier(planTier),
+              ]);
 
               // Update user's plan in Firestore
-              const planId = await getPlanIdByTier(planTier);
               if (planId) {
                 await userRef.update({
                   planId: planId,
@@ -145,7 +149,10 @@ export const stripeCheckout = functions
             }
           }
         } catch (subError) {
-          console.log("Error updating subscription, proceeding to checkout");
+          console.log(
+            "Error updating subscription, proceeding to checkout",
+            subError
+          );
         }
       }
 
@@ -198,10 +205,13 @@ export const stripeCheckout = functions
       return { url: session.url || undefined };
     } catch (error) {
       // Detailed error logging for debugging
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
-      const stripeError = (error as { type?: string; code?: string; param?: string })?.type;
-      
+      const stripeError = (
+        error as { type?: string; code?: string; param?: string }
+      )?.type;
+
       console.error("Error creating checkout session:", {
         message: errorMessage,
         stack: errorStack,
@@ -211,7 +221,7 @@ export const stripeCheckout = functions
         hasUserEmail: !!userEmail,
         billingInterval: validInterval,
       });
-      
+
       throw new functions.https.HttpsError(
         "internal",
         `Failed to create checkout session: ${errorMessage}`
