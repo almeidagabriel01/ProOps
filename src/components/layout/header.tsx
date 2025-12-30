@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bell, User as UserIcon, LogOut, ArrowLeft } from "lucide-react";
+import { User as UserIcon, LogOut, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
@@ -95,14 +95,6 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative text-muted-foreground hover:text-foreground rounded-full"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
-        </Button>
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
         <div className="h-8 w-px bg-border mx-2" />
         <div className="flex items-center gap-3 pl-2">
