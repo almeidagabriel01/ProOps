@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { useAuth, SubscriptionStatus } from "@/providers/auth-provider";
-import { AlertTriangle, CreditCard, ExternalLink } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
 import { useRouter } from "next/navigation";
@@ -11,6 +10,8 @@ import { useRouter } from "next/navigation";
 interface SubscriptionGuardProps {
   children: React.ReactNode;
 }
+
+const GRACE_PERIOD_DAYS = 7;
 
 export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const { user, isLoading } = useAuth();
@@ -25,6 +26,25 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   }, [user]);
 
   const subscriptionStatus = user?.subscriptionStatus;
+  const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
+
+  const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
+    if (subscriptionStatus !== "PAST_DUE" || !subscriptionUpdatedAt) {
+      return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
+    }
+
+    const updatedDate = new Date(subscriptionUpdatedAt);
+    const now = new Date();
+    const daysPassed = Math.floor(
+      (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const remaining = Math.max(0, GRACE_PERIOD_DAYS - daysPassed);
+
+    return {
+      daysRemaining: remaining,
+      isGracePeriodExpired: remaining <= 0,
+    };
+  }, [subscriptionStatus, subscriptionUpdatedAt]);
 
   React.useEffect(() => {
     if (!shouldCheckSubscription || isLoading) return;
@@ -37,11 +57,24 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
     if (subscriptionStatus && blockedStatuses.includes(subscriptionStatus)) {
       router.push("/subscription-blocked");
+      return;
     }
-  }, [subscriptionStatus, shouldCheckSubscription, isLoading, router]);
+
+    if (subscriptionStatus === "PAST_DUE" && isGracePeriodExpired) {
+      router.push("/subscription-blocked");
+    }
+  }, [
+    subscriptionStatus,
+    shouldCheckSubscription,
+    isLoading,
+    router,
+    isGracePeriodExpired,
+  ]);
 
   const showWarningBanner =
-    shouldCheckSubscription && subscriptionStatus === "PAST_DUE";
+    shouldCheckSubscription &&
+    subscriptionStatus === "PAST_DUE" &&
+    !isGracePeriodExpired;
 
   const handleManageBilling = async () => {
     if (!user) return;
@@ -80,6 +113,14 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
                   Sua assinatura está com pagamento atrasado. Atualize para
                   evitar a perda de acesso.
                 </p>
+                <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-yellow-800 dark:text-yellow-200">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>
+                    {daysRemaining === 1
+                      ? "Último dia para regularizar"
+                      : `${daysRemaining} dias restantes`}
+                  </span>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

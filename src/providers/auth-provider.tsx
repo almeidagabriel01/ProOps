@@ -39,6 +39,7 @@ export type User = {
     }
   >;
   subscriptionStatus?: SubscriptionStatus;
+  subscriptionUpdatedAt?: string;
 };
 
 interface AuthContextType {
@@ -121,6 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           masterId: userData.masterId || undefined,
           permissions: permissions,
           subscriptionStatus: userData.subscription?.status || undefined,
+          subscriptionUpdatedAt:
+            userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
+            userData.subscription?.updatedAt ||
+            undefined,
         } as User;
       } else {
         console.warn(
