@@ -17,6 +17,7 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { SubscriptionGuard } from "@/components/shared/subscription-guard";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
 const geistSans = Geist({
@@ -36,19 +37,17 @@ export default function RootLayout({
 }>) {
   const pathname = usePathname();
 
-  // Set page title based on current route
   usePageTitle();
 
-  // Landing page - completely isolated from ERP (no providers)
   const isLandingPage = pathname === "/";
 
-  // Pages that need auth provider but no sidebar/header (login, subscribe, checkout-success)
   const isAuthOnlyPage =
     pathname === "/login" ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
-    pathname === "/403";
+    pathname === "/403" ||
+    pathname === "/subscription-blocked";
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
@@ -58,10 +57,8 @@ export default function RootLayout({
       >
         <ThemeProvider>
           {isLandingPage ? (
-            // Landing page - NO providers, completely isolated
             <main className="min-h-screen">{children}</main>
           ) : (
-            // All other pages - wrapped with providers
             <AuthProvider>
               <PermissionsProvider>
                 <TenantProvider>
@@ -86,9 +83,11 @@ export default function RootLayout({
                               sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
                             }
                           />
-                          <main className="flex-1 mt-16 p-8 overflow-y-auto">
-                            {children}
-                          </main>
+                          <SubscriptionGuard>
+                            <main className="flex-1 mt-16 p-8 overflow-y-auto">
+                              {children}
+                            </main>
+                          </SubscriptionGuard>
                         </div>
                       </div>
                     )}
