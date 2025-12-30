@@ -1,16 +1,7 @@
-/**
- * Stripe Helper Functions for Cloud Functions
- *
- * Shared utilities for Stripe operations.
- */
-
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const db = getFirestore();
 
-/**
- * Get plan ID by tier from Firestore
- */
 export async function getPlanIdByTier(tier: string): Promise<string | null> {
   const plansRef = db.collection("plans");
   const snapshot = await plansRef.where("tier", "==", tier).get();
@@ -21,9 +12,6 @@ export async function getPlanIdByTier(tier: string): Promise<string | null> {
   return null;
 }
 
-/**
- * Update user's plan in Firestore
- */
 export async function updateUserPlan(
   userId: string,
   planTier: string,
@@ -41,6 +29,8 @@ export async function updateUserPlan(
       stripeSubscriptionId: stripeSubscriptionId,
       planUpdatedAt: FieldValue.serverTimestamp(),
       role: "admin",
+      "subscription.status": "ACTIVE",
+      "subscription.updatedAt": FieldValue.serverTimestamp(),
     });
     console.log(
       `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`
@@ -50,14 +40,30 @@ export async function updateUserPlan(
   }
 }
 
-/**
- * Add-on type (matches frontend types)
- */
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "TRIALING"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "PAYMENT_FAILED"
+  | "INACTIVE";
+
+export async function updateSubscriptionStatus(
+  userId: string,
+  status: SubscriptionStatus,
+  reason?: string
+): Promise<void> {
+  const userRef = db.collection("users").doc(userId);
+  await userRef.update({
+    "subscription.status": status,
+    "subscription.updatedAt": FieldValue.serverTimestamp(),
+    ...(reason && { "subscription.reason": reason }),
+  });
+  console.log(`Updated subscription status for user ${userId} to ${status}`);
+}
+
 export type AddonType = "financial" | "pdf_editor_partial" | "pdf_editor_full";
 
-/**
- * Save add-on to Firestore
- */
 export async function saveAddon(
   tenantId: string,
   addonType: AddonType,
@@ -76,9 +82,6 @@ export async function saveAddon(
   console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
 }
 
-/**
- * Cancel add-on in Firestore
- */
 export async function cancelAddon(
   tenantId: string,
   addonType: AddonType
