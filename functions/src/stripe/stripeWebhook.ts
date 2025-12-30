@@ -1,12 +1,3 @@
-/**
- * Stripe Webhook Cloud Function
- *
- * Handles Stripe webhook events.
- * Migrated from: src/app/api/webhooks/stripe/route.ts
- *
- * IMPORTANT: Update the webhook URL in Stripe Dashboard after deployment.
- */
-
 import * as functions from "firebase-functions";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
@@ -14,6 +5,7 @@ import {
   saveAddon,
   cancelAddon,
   getPlanIdByTier,
+  updateSubscriptionStatus,
   AddonType,
 } from "./stripeHelpers";
 import { getFirestore } from "firebase-admin/firestore";
@@ -21,9 +13,6 @@ import Stripe from "stripe";
 
 const db = getFirestore();
 
-/**
- * Handle checkout.session.completed event
- */
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
 ): Promise<void> {
@@ -35,7 +24,6 @@ async function handleCheckoutCompleted(
   console.log("Subscription ID:", subscriptionId);
   console.log("Metadata:", JSON.stringify(metadata, null, 2));
 
-  // Check if this is an add-on purchase
   if (metadata.type === "addon") {
     const tenantId = metadata.tenantId;
     const addonType = metadata.addonType as AddonType;
@@ -59,7 +47,6 @@ async function handleCheckoutCompleted(
 
   console.log("=== PROCESSING PLAN (not addon) ===");
 
-  // Handle plan checkout
   const userId = metadata.userId;
   const planTier = metadata.planTier;
   const billingInterval = metadata.billingInterval;
@@ -80,15 +67,10 @@ async function handleCheckoutCompleted(
   }
 }
 
-/**
- * Handle customer.subscription.updated event
- */
 async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription
 ): Promise<void> {
   const metadata = subscription.metadata || {};
-
-  // Add-on subscription updated
   if (metadata.type === "addon") {
     console.log(
       `Add-on subscription ${subscription.id} updated ` +
@@ -97,25 +79,68 @@ async function handleSubscriptionUpdated(
     return;
   }
 
-  // Plan subscription updated
   const userId = metadata.userId;
   const planTier = metadata.planTier;
   const interval = subscription.items.data[0]?.price.recurring?.interval;
 
-  if (userId && planTier) {
-    await updateUserPlan(userId, planTier, subscription.id, interval);
+  if (userId) {
+    let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
+    switch (subscription.status) {
+      case "active":
+        status = "ACTIVE";
+        break;
+      case "trialing":
+        status = "TRIALING";
+        break;
+      case "past_due":
+        status = "PAST_DUE";
+        break;
+      case "canceled":
+      case "unpaid":
+        status = "CANCELED";
+        break;
+      default:
+        status = "INACTIVE";
+    }
+
+    await updateSubscriptionStatus(userId, status);
+    console.log(`User ${userId} subscription status synced to ${status}`);
+
+    if (planTier) {
+      await updateUserPlan(userId, planTier, subscription.id, interval);
+    }
   }
 }
 
-/**
- * Handle customer.subscription.deleted event
- */
+async function handleInvoicePaymentFailed(
+  invoice: Stripe.Invoice
+): Promise<void> {
+  const customerId = invoice.customer as string;
+  const subscriptionId = invoice.subscription as string;
+
+  console.log(`Invoice payment failed for customer ${customerId}`);
+
+  if (subscriptionId) {
+    const stripe = getStripe();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const userId = subscription.metadata?.userId;
+
+    if (userId) {
+      await updateSubscriptionStatus(
+        userId,
+        "PAYMENT_FAILED",
+        `Invoice ${invoice.id} payment failed`
+      );
+      console.log(`User ${userId} marked as PAYMENT_FAILED`);
+    }
+  }
+}
+
 async function handleSubscriptionDeleted(
   subscription: Stripe.Subscription
 ): Promise<void> {
   const metadata = subscription.metadata || {};
 
-  // Check if this is an add-on subscription
   if (metadata.type === "addon") {
     const tenantId = metadata.tenantId;
     const addonType = metadata.addonType as AddonType;
@@ -126,11 +151,10 @@ async function handleSubscriptionDeleted(
     return;
   }
 
-  // Plan subscription deleted
   const userId = metadata.userId;
 
   if (userId) {
-    // Downgrade to starter plan when subscription is canceled
+    await updateSubscriptionStatus(userId, "CANCELED");
     const starterPlanId = await getPlanIdByTier("starter");
 
     if (starterPlanId) {
@@ -147,11 +171,6 @@ async function handleSubscriptionDeleted(
   }
 }
 
-/**
- * Stripe Webhook Handler
- *
- * This is an HTTP function (not callable) to handle Stripe webhooks.
- */
 export const stripeWebhook = functions
   .region("southamerica-east1")
   .https.onRequest(async (req, res) => {
@@ -171,7 +190,6 @@ export const stripeWebhook = functions
       const stripe = getStripe();
       const webhookSecret = getWebhookSecret();
 
-      // Get raw body for signature verification
       const rawBody = req.rawBody;
 
       let event: Stripe.Event;
@@ -187,7 +205,6 @@ export const stripeWebhook = functions
         return;
       }
 
-      // Handle the event
       switch (event.type) {
         case "checkout.session.completed":
           await handleCheckoutCompleted(
@@ -204,6 +221,12 @@ export const stripeWebhook = functions
         case "customer.subscription.deleted":
           await handleSubscriptionDeleted(
             event.data.object as Stripe.Subscription
+          );
+          break;
+
+        case "invoice.payment_failed":
+          await handleInvoicePaymentFailed(
+            event.data.object as Stripe.Invoice
           );
           break;
 

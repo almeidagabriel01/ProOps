@@ -11,17 +11,35 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "TRIALING"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "PAYMENT_FAILED"
+  | "INACTIVE";
+
 export type User = {
   id: string;
   email: string;
   name: string;
   role: "admin" | "user" | "superadmin" | "free" | "member";
-  tenantId?: string; // Optional for free users
+  tenantId?: string;
   planId?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
-  masterId?: string; // For members, points to the master user
-  permissions?: Record<string, { canView?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }>; // Member permissions
+  masterId?: string;
+  permissions?: Record<
+    string,
+    {
+      canView?: boolean;
+      canCreate?: boolean;
+      canEdit?: boolean;
+      canDelete?: boolean;
+    }
+  >;
+  subscriptionStatus?: SubscriptionStatus;
+  subscriptionUpdatedAt?: string;
 };
 
 interface AuthContextType {
@@ -36,8 +54,8 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => false,
-  logout: async () => { },
-  refreshUser: async () => { },
+  logout: async () => {},
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -45,7 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
-  const fetchUserData = async (firebaseUser: FirebaseUser): Promise<User | null> => {
+  const fetchUserData = async (
+    firebaseUser: FirebaseUser
+  ): Promise<User | null> => {
     try {
       const userDocRef = doc(db, "users", firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
@@ -54,27 +74,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = userDoc.data();
         let permissions = userData.permissions || {};
 
-        // If permissions are missing on the main doc, try to fetch from subcollection
-        // We do this for ALL roles except 'free' to ensure we capture any fine-grained permissions
-        // This fixes issues where role might be 'member', 'viewer', etc.
-        if (userData.role !== 'free' && !userData.permissions) {
+        if (userData.role !== "free" && !userData.permissions) {
           try {
-            // console.log("Fetching permissions from subcollection for user:", firebaseUser.uid);
             const { collection, getDocs } = await import("firebase/firestore");
-            const permsRef = collection(db, "users", firebaseUser.uid, "permissions");
+            const permsRef = collection(
+              db,
+              "users",
+              firebaseUser.uid,
+              "permissions"
+            );
             const permsSnap = await getDocs(permsRef);
 
-            const loadedPerms: Record<string, { canView?: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean }> = {};
-            permsSnap.forEach(doc => {
+            const loadedPerms: Record<
+              string,
+              {
+                canView?: boolean;
+                canCreate?: boolean;
+                canEdit?: boolean;
+                canDelete?: boolean;
+              }
+            > = {};
+            permsSnap.forEach((doc) => {
               loadedPerms[doc.id] = doc.data();
             });
 
             if (Object.keys(loadedPerms).length > 0) {
               permissions = loadedPerms;
-              // console.log("Loaded permissions:", Object.keys(permissions));
             }
           } catch (err) {
-            console.error("Error fetching member permissions in auth-provider:", err);
+            console.error(
+              "Error fetching member permissions in auth-provider:",
+              err
+            );
           }
         }
 
@@ -90,9 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           billingInterval: userData.billingInterval || undefined,
           masterId: userData.masterId || undefined,
           permissions: permissions,
+          subscriptionStatus: userData.subscription?.status || undefined,
+          subscriptionUpdatedAt:
+            userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
+            userData.subscription?.updatedAt ||
+            undefined,
         } as User;
       } else {
-        console.warn("User document not found in Firestore, treating as free user.");
+        console.warn(
+          "User document not found in Firestore, treating as free user."
+        );
         return {
           id: firebaseUser.uid,
           email: firebaseUser.email || "",
@@ -119,8 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData = await fetchUserData(firebaseUser);
         setUser(userData);
 
-        // Set session cookie for middleware authentication
-        // This allows the middleware to know the user is authenticated
         const token = await firebaseUser.getIdToken();
         document.cookie = `firebase-auth-token=${token}; path=/; max-age=3600; SameSite=Lax`;
         if (userData?.role) {
@@ -128,7 +164,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUser(null);
-        // Clear session cookies on logout
         document.cookie = "firebase-auth-token=; path=/; max-age=0";
         document.cookie = "user-role=; path=/; max-age=0";
       }
@@ -150,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      // onAuthStateChanged will handle the state update
       return true;
     } catch (error) {
       console.error("Login failed", error);
@@ -164,10 +198,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOut(auth);
       setUser(null);
 
-      // Clear any "Viewing As" tenant from localStorage
       localStorage.removeItem("viewingAsTenant");
 
-      // Reset theme colors to default (remove tenant customization)
       document.documentElement.style.removeProperty("--primary");
       const styleTag = document.getElementById("tenant-styles");
       if (styleTag) {
@@ -181,11 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => React.useContext(AuthContext);
-

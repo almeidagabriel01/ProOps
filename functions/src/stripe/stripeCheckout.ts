@@ -139,6 +139,8 @@ export const stripeCheckout = functions
                   planId: planId,
                   billingInterval: validInterval,
                   planUpdatedAt: new Date().toISOString(),
+                  "subscription.status": "ACTIVE",
+                  "subscription.updatedAt": new Date().toISOString(),
                 });
               }
 
