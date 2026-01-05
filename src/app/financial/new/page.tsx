@@ -144,6 +144,15 @@ export default function NewTransactionPage() {
     return isValid;
   };
 
+  // Step 3 validation: Wallet is required
+  const validateStep3 = (): boolean => {
+    if (!formData.wallet || formData.wallet.trim() === "") {
+      setFieldError("wallet", "Carteira é obrigatória");
+      return false;
+    }
+    return true;
+  };
+
   return (
     <FormContainer className="max-w-3xl">
       <FormHeader
@@ -180,8 +189,9 @@ export default function NewTransactionPage() {
             formData={formData}
             onFormDataChange={setFormData}
             onChange={handleChange}
+            errors={errors}
           />
-          <StepNavigation />
+          <StepNavigation onBeforeNext={validateStep3} />
         </StepCard>
 
         {/* Step 4: Review */}
