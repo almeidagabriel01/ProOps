@@ -55,7 +55,7 @@ interface UserDoc {
 export const createClient = functions
   .region("southamerica-east1")
   .https.onCall(async (data: CreateClientInput, context) => {
-    console.log("createClient: Function started", { data, auth: context.auth?.uid });
+    console.log("createClient v2: Started", { data, auth: context.auth?.uid });
     
     try {
       // 1. Authentication
