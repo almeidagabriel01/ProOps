@@ -76,6 +76,7 @@ function SubscribeContent() {
         planTier: planTier,
         userEmail: user.email,
         billingInterval: billingInterval as "monthly" | "yearly",
+        origin: window.location.origin,
       });
 
       if (data.url) {

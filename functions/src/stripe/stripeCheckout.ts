@@ -22,6 +22,7 @@ interface CheckoutRequest {
   planTier: string;
   userEmail?: string;
   billingInterval?: BillingInterval;
+  origin?: string;
 }
 
 interface CheckoutResponse {
@@ -174,7 +175,7 @@ export const stripeCheckout = functions
         });
       }
 
-      const appUrl = getAppUrl();
+      const appUrl = data?.origin || getAppUrl();
 
       // Create checkout session for new subscription
       const session = await stripe.checkout.sessions.create({

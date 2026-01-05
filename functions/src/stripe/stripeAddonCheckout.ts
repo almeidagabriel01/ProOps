@@ -16,6 +16,7 @@ interface AddonCheckoutRequest {
   tenantId: string;
   addonType: string;
   userEmail?: string;
+  origin?: string;
 }
 
 interface AddonCheckoutResponse {
@@ -77,7 +78,7 @@ export const stripeAddonCheckout = functions
           });
         }
 
-        const appUrl = getAppUrl();
+        const appUrl = data?.origin || getAppUrl();
 
         // Create checkout session for add-on subscription (always monthly)
         const session = await stripe.checkout.sessions.create({
