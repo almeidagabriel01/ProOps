@@ -9,7 +9,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import { db } from "./init";
 
 // ============================================
 // TYPES
@@ -146,7 +147,7 @@ async function checkFinancialPermission(
 export const createWallet = functions
   .region("southamerica-east1")
   .https.onCall(async (data: CreateWalletInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -258,7 +259,7 @@ export const createWallet = functions
 export const updateWallet = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateWalletInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -355,7 +356,7 @@ export const updateWallet = functions
 export const deleteWallet = functions
   .region("southamerica-east1")
   .https.onCall(async (data: DeleteWalletInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -438,7 +439,7 @@ export const deleteWallet = functions
 export const transferBetweenWallets = functions
   .region("southamerica-east1")
   .https.onCall(async (data: TransferInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -585,7 +586,7 @@ export const transferBetweenWallets = functions
 export const adjustWalletBalance = functions
   .region("southamerica-east1")
   .https.onCall(async (data: AdjustBalanceInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(

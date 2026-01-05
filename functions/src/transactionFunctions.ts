@@ -10,7 +10,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { db } from "./init";
 
 // ============================================
 // TYPES
@@ -175,7 +176,7 @@ async function resolveWalletRef(
 export const createTransaction = functions
   .region("southamerica-east1")
   .https.onCall(async (data: CreateTransactionInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -409,7 +410,7 @@ export const createTransaction = functions
 export const updateTransaction = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateTransactionInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -572,7 +573,7 @@ export const updateTransaction = functions
 export const deleteTransaction = functions
   .region("southamerica-east1")
   .https.onCall(async (data: DeleteTransactionInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
     if (!context.auth)
       throw new functions.https.HttpsError(
         "unauthenticated",

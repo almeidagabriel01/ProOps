@@ -6,7 +6,7 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
+// import { getFirestore } from "firebase-admin/firestore";
 import {
   getStripe,
   getPriceIdForTier,
@@ -15,7 +15,7 @@ import {
 } from "./stripeConfig";
 import { getPlanIdByTier } from "./stripeHelpers";
 
-const db = getFirestore();
+import { db } from "../init";
 
 interface CheckoutRequest {
   userId: string;

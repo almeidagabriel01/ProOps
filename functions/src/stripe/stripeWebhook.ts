@@ -8,10 +8,8 @@ import {
   updateSubscriptionStatus,
   AddonType,
 } from "./stripeHelpers";
-import { getFirestore } from "firebase-admin/firestore";
+import { db } from "../init";
 import Stripe from "stripe";
-
-const db = getFirestore();
 
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session
