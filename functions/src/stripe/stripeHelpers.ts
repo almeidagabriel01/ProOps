@@ -1,6 +1,5 @@
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-
-const db = getFirestore();
+import { db } from "../init";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function getPlanIdByTier(tier: string): Promise<string | null> {
   const plansRef = db.collection("plans");
