@@ -16,7 +16,7 @@ export default function AdminPage() {
     setSearch,
     isDialogOpen,
     setIsDialogOpen,
-    editingTenant,
+    editingData,
     filteredTenants,
     openCreate,
     openEdit,
@@ -24,6 +24,7 @@ export default function AdminPage() {
     handleDelete,
     handleLoginAs,
     isLoading,
+    isSaving,
   } = useTenantManagement();
 
   if (isLoading) {
@@ -99,8 +100,9 @@ export default function AdminPage() {
       <TenantDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        initialData={editingTenant}
+        initialData={editingData}
         onSave={handleSave}
+        isSaving={isSaving}
       />
     </div>
   );

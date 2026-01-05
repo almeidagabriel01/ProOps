@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import { TenantService } from "@/services/tenant-service";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { Tenant } from "@/types";
@@ -14,22 +15,25 @@ interface UseTenantManagementReturn {
   setSearch: (value: string) => void;
   isDialogOpen: boolean;
   setIsDialogOpen: (value: boolean) => void;
-  editingTenant: Tenant | null;
+  editingData: TenantBillingInfo | null;
   filteredTenants: TenantBillingInfo[];
   openCreate: () => void;
-  openEdit: (tenant: Tenant) => void;
+  openEdit: (data: TenantBillingInfo) => void;
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   handleLoginAs: (tenant: Tenant) => void;
   isLoading: boolean;
+  isSaving: boolean;
 }
 
 export function useTenantManagement(): UseTenantManagementReturn {
   const [tenantsData, setTenantsData] = React.useState<TenantBillingInfo[]>([]);
   const [search, setSearch] = React.useState("");
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [editingTenant, setEditingTenant] = React.useState<Tenant | null>(null);
+  const [editingData, setEditingData] =
+    React.useState<TenantBillingInfo | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const { setViewingTenant } = useTenant();
   const router = useRouter();
@@ -41,6 +45,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
       setTenantsData(data);
     } catch (error) {
       console.error("Failed to load tenants", error);
+      toast.error("Erro ao carregar empresas");
     } finally {
       setIsLoading(false);
     }
@@ -51,18 +56,53 @@ export function useTenantManagement(): UseTenantManagementReturn {
   }, [loadTenants]);
 
   const handleSave = async (data: TenantFormData) => {
+    setIsSaving(true);
     try {
-      if (editingTenant) {
-        await TenantService.updateTenant(editingTenant.id, {
+      if (editingData) {
+        // Update tenant
+        await TenantService.updateTenant(editingData.tenant.id, {
           name: data.name,
           primaryColor: data.color,
           logoUrl: data.logoUrl,
           niche: data.niche,
         });
-        alert("Empresa atualizada com sucesso!");
+
+        // Update admin user plan if changed
+        if (data.planId && data.planId !== editingData.planId) {
+          await AdminService.updateUserPlan(editingData.admin.id, data.planId);
+        }
+
+        // Update admin credentials if provided
+        if (data.email || data.password) {
+          await AdminService.updateAdminCredentials(
+            editingData.admin.id,
+            editingData.tenant.id,
+            data.email || undefined,
+            data.password || undefined
+          );
+        }
+
+        if (data.planId !== "free") {
+          await AdminService.updateUserSubscription(editingData.admin.id, {
+            subscriptionStatus: data.subscriptionStatus,
+            currentPeriodEnd: data.currentPeriodEnd,
+            isManualSubscription: true,
+          });
+        } else {
+          // If switching to free, clear subscription? user might want to keep history.
+          // But usually free = no sub.
+          await AdminService.updateUserSubscription(editingData.admin.id, {
+            subscriptionStatus: "active", // Free is always active
+            // currentPeriodEnd: null, // Firestore update doesn't support null directly often without FieldValue.delete()
+            isManualSubscription: false,
+          });
+        }
+
+        toast.success("Empresa atualizada com sucesso!");
       } else {
         if (data.password && data.password.length < 6) {
-          alert("A senha deve ter pelo menos 6 caracteres.");
+          toast.error("A senha deve ter pelo menos 6 caracteres.");
+          setIsSaving(false);
           return;
         }
 
@@ -118,62 +158,70 @@ export function useTenantManagement(): UseTenantManagementReturn {
               email: data.email,
               role: "admin",
               tenantId: newTenant.id,
+              planId: data.planId || "free",
+              subscriptionStatus: data.subscriptionStatus,
+              currentPeriodEnd: data.currentPeriodEnd,
+              isManualSubscription: data.planId !== "free",
               createdAt: new Date().toISOString(),
             });
             await signOut(secondaryAuth);
             if (!getApps().every((app) => app.name !== secondaryAppName))
               await deleteApp(secondaryApp);
-            alert(`Empresa ${data.name} e usuário admin criada!`);
+            toast.success(`Empresa "${data.name}" e usuário admin criados!`);
           } catch (e: unknown) {
             const error = e as Error;
             console.error(error);
-            alert("Erro ao criar usuário (email em uso?): " + error.message);
+            const errorMessage = error.message.includes("email-already-in-use")
+              ? "Este email já está em uso."
+              : error.message;
+            toast.error(`Erro ao criar usuário: ${errorMessage}`);
             try {
               await signOut(secondaryAuth);
               if (!getApps().every((app) => app.name !== secondaryAppName))
                 await deleteApp(secondaryApp);
             } catch {}
+            setIsSaving(false);
+            return;
           }
         } else {
-          alert(`Empresa ${data.name} criada!`);
+          toast.success(`Empresa "${data.name}" criada!`);
         }
       }
       setIsDialogOpen(false);
       loadTenants();
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar empresa");
+      toast.error("Erro ao salvar empresa");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (
-      !confirm(
-        "Tem certeza? Esta ação removerá a empresa e todos os seus dados."
-      )
-    )
-      return;
     try {
       await TenantService.deleteTenant(id);
+      toast.success("Empresa removida com sucesso!");
       loadTenants();
     } catch (error) {
       console.error(error);
-      alert("Erro ao remover empresa");
+      toast.error("Erro ao remover empresa");
+      throw error; // Re-throw para o componente saber que falhou
     }
   };
 
   const openCreate = () => {
-    setEditingTenant(null);
+    setEditingData(null);
     setIsDialogOpen(true);
   };
 
-  const openEdit = (tenant: Tenant) => {
-    setEditingTenant(tenant);
+  const openEdit = (data: TenantBillingInfo) => {
+    setEditingData(data);
     setIsDialogOpen(true);
   };
 
   const handleLoginAs = (tenant: Tenant) => {
     setViewingTenant(tenant);
+    toast.info(`Acessando painel de "${tenant.name}"...`);
     router.push("/dashboard");
   };
 
@@ -187,7 +235,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setSearch,
     isDialogOpen,
     setIsDialogOpen,
-    editingTenant,
+    editingData,
     filteredTenants,
     openCreate,
     openEdit,
@@ -195,5 +243,6 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleDelete,
     handleLoginAs,
     isLoading,
+    isSaving,
   };
 }

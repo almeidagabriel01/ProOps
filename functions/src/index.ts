@@ -19,6 +19,7 @@ export { deleteProposal } from "./deleteProposal";
 export { updateMemberPermissions } from "./updateMemberPermissions";
 export { deleteMember } from "./deleteMember";
 export { updateMember } from "./updateMember";
+export { updateAdminCredentials } from "./updateAdminCredentials";
 
 export { createClient } from "./createClient";
 export { updateClient } from "./updateClient";
@@ -79,3 +80,4 @@ export {
 } from "./walletFunctions";
 
 export { proxyImage } from "./proxyImage";
+export { checkManualSubscriptions } from "./checkManualSubscriptions";

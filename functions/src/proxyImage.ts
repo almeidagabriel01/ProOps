@@ -1,24 +1,18 @@
 import * as functions from "firebase-functions";
 
-interface ProxyImageRequest {
-  url: string;
-}
-
 export const proxyImage = functions
   .region("southamerica-east1")
-  .https.onCall(async (request) => {
-    // Support both direct data access and wrapped data access
-    const data = (request.data || request) as ProxyImageRequest;
-    const { url } = data;
+  .runWith({ memory: "256MB" })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .https.onCall(async (data: any) => {
+    // Handle both direct data and wrapped data if needed, but standard V1 onCall passes data directly
+    const url = data?.url || data;
 
-    if (!url) {
+    if (!url || typeof url !== "string") {
       throw new functions.https.HttpsError("invalid-argument", "Missing URL");
     }
 
     try {
-      // Validate that the URL is from an allowed domain (optional but good practice)
-      // For now, we allow any URL, or we could restrict to firebasestorage.googleapis.com
-
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -40,13 +34,10 @@ export const proxyImage = functions
         success: true,
         dataUrl: `data:${mimeType};base64,${base64}`,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Proxy image error:", error);
-      // Return a failed response mostly to avoid crushing the client logic completely
-      // or just throw
-      throw new functions.https.HttpsError(
-        "internal",
-        error.message || "Unknown error proxying image"
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error proxying image";
+      throw new functions.https.HttpsError("internal", errorMessage);
     }
   });

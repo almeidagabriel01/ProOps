@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -91,6 +91,40 @@ export function useSidebar(
   // Fetch user's current plan name (or tenant owner's plan for superadmin viewing)
   useEffect(() => {
     const fetchPlanName = async () => {
+      // Helper function for robust plan fetch
+      const getPlanName = async (planId: string) => {
+        if (!planId) return null;
+        try {
+          // 1. Try fetching by ID
+          const docSnap = await getDoc(doc(db, "plans", planId));
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            return data.name || data.tier;
+          }
+          // 2. Fallback: Try fetching by tier
+          const q = query(
+            collection(db, "plans"),
+            where("tier", "==", planId)
+          );
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            const data = qSnap.docs[0].data();
+            return data.name || data.tier;
+          }
+          // 3. Static fallback
+          const PLAN_NAMES: Record<string, string> = {
+            free: "Gratuito",
+            starter: "Starter",
+            pro: "Profissional",
+            enterprise: "Enterprise",
+          };
+          return PLAN_NAMES[planId] || null;
+        } catch (e) {
+          console.error("Plan fetch error", e);
+          return null;
+        }
+      };
+
       // Check if super admin is viewing another tenant
       const viewingAsTenant =
         typeof window !== "undefined"
@@ -106,10 +140,9 @@ export function useSidebar(
           if (ownerDoc.exists()) {
             const ownerData = ownerDoc.data();
             if (ownerData.planId) {
-              const planDoc = await getDoc(doc(db, "plans", ownerData.planId));
-              if (planDoc.exists()) {
-                const planData = planDoc.data();
-                setUserPlanName(planData.name || planData.tier);
+              const name = await getPlanName(ownerData.planId);
+              if (name) {
+                setUserPlanName(name);
                 return;
               }
             }
@@ -127,16 +160,13 @@ export function useSidebar(
         setUserPlanName(user?.role === "free" ? "Gratuito" : null);
         return;
       }
-      try {
-        const planDoc = await getDoc(doc(db, "plans", user.planId));
-        if (planDoc.exists()) {
-          const planData = planDoc.data();
-          setUserPlanName(planData.name || planData.tier);
-        }
-      } catch (error) {
-        console.error("Error fetching plan:", error);
+
+      const name = await getPlanName(user.planId);
+      if (name) {
+        setUserPlanName(name);
       }
     };
+
     fetchPlanName();
   }, [user?.planId, user?.role]);
 
