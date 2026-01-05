@@ -19,6 +19,7 @@ interface CheckoutRequest {
   planTier: string;
   userEmail?: string;
   billingInterval?: BillingInterval;
+  origin?: string;
 }
 
 interface CheckoutResponse {
@@ -43,6 +44,7 @@ interface AddonCheckoutRequest {
   addonType: string;
   userEmail?: string;
   billingInterval?: BillingInterval;
+  origin?: string;
 }
 
 interface AddonCheckoutResponse {
@@ -62,6 +64,7 @@ interface AddonConfirmResponse {
 
 interface PortalRequest {
   userId: string;
+  origin?: string;
 }
 
 interface PortalResponse {

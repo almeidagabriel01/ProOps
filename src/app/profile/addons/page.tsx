@@ -105,6 +105,7 @@ export default function AddonsPage() {
         addonType: selectedAddon.id,
         userEmail: user?.email,
         billingInterval: "monthly", // Always monthly for addons
+        origin: window.location.origin,
       });
 
       if (data.url) {

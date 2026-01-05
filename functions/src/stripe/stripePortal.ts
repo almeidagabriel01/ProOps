@@ -13,6 +13,7 @@ const db = getFirestore();
 
 interface PortalRequest {
   userId: string;
+  origin?: string;
 }
 
 interface PortalResponse {
@@ -53,10 +54,12 @@ export const stripePortal = functions
         );
       }
 
+      const appUrl = data?.origin || getAppUrl();
+
       // Create a Customer Portal session
       const session = await stripe.billingPortal.sessions.create({
         customer: customerId,
-        return_url: `${getAppUrl()}/profile`,
+        return_url: `${appUrl}/profile`,
       });
 
       return { url: session.url };
