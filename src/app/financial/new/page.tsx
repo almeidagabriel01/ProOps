@@ -16,12 +16,7 @@ import {
   PaymentStep,
   ReviewStep,
 } from "../_components/form-steps";
-import {
-  TrendingUp,
-  FileText,
-  CreditCard,
-  CheckCircle,
-} from "lucide-react";
+import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
@@ -77,17 +72,7 @@ export default function NewTransactionPage() {
     }
   }, [permLoading, canCreate, router]);
 
-  // Check plan access first - show upgrade page
-  if (!planLoading && !hasFinancial) {
-    return (
-      <UpgradeRequired
-        feature="Novo Lançamento"
-        description="O módulo Financeiro permite gerenciar suas receitas, despesas e fluxo de caixa. Faça upgrade para o plano Profissional ou Enterprise para acessar."
-      />
-    );
-  }
-
-  // Show loading while checking permissions OR plan OR while redirecting (no permission)
+  // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading || permLoading || !canCreate) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -99,8 +84,18 @@ export default function NewTransactionPage() {
     );
   }
 
+  // Check plan access after loading is complete
+  if (!hasFinancial) {
+    return (
+      <UpgradeRequired
+        feature="Novo Lançamento"
+        description="O módulo Financeiro permite gerenciar suas receitas, despesas e fluxo de caixa. Faça upgrade para o plano Profissional ou Enterprise para acessar."
+      />
+    );
+  }
+
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 

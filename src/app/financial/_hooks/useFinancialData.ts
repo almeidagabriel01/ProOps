@@ -24,7 +24,35 @@ type DateLike =
 // Helper to get YYYY-MM-DD string in Local Time matching user perception
 function getDateString(val: DateLike): string {
   if (!val) return "";
-  if (typeof val === "string") return val.split("T")[0];
+  
+  // If it's a string, handle it carefully to avoid timezone issues
+  if (typeof val === "string") {
+    // If it's just a date (YYYY-MM-DD), return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      return val;
+    }
+    // If it has a time component (ISO format), extract just the date part
+    // This avoids timezone conversion issues
+    if (val.includes("T")) {
+      return val.split("T")[0];
+    }
+    // For other string formats, try to parse and convert
+    // Parse as local date to avoid timezone shift
+    const parts = val.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (parts) {
+      return `${parts[1]}-${parts[2]}-${parts[3]}`;
+    }
+    // Fallback: try parsing as date
+    const date = new Date(val + "T12:00:00"); // Add noon time to avoid day boundary issues
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+    return "";
+  }
+  
   let date: Date;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const v = val as any;
@@ -200,16 +228,27 @@ export function useFinancialData(): UseFinancialDataReturn {
     // Filter by date range
     if (filterStartDate || filterEndDate) {
       filtered = filtered.filter((t) => {
-        let dateVal = t.date;
+        let dateVal: string | undefined = t.date;
+        
         if (filterDateType === "dueDate") {
-          dateVal = t.dueDate || t.date; // Fallback to main date if due date is missing
+          // When filtering by due date, only consider transactions that have a due date
+          // Don't fallback to main date - if no due date, exclude from filter
+          if (!t.dueDate) return false;
+          dateVal = t.dueDate;
         }
 
         const dateStr = getDateString(dateVal);
         if (!dateStr) return false;
 
-        if (filterStartDate && dateStr < filterStartDate) return false;
-        if (filterEndDate && dateStr > filterEndDate) return false;
+        // Compare dates using localeCompare for reliable string comparison
+        if (filterStartDate) {
+          // dateStr must be >= filterStartDate
+          if (dateStr.localeCompare(filterStartDate) < 0) return false;
+        }
+        if (filterEndDate) {
+          // dateStr must be <= filterEndDate
+          if (dateStr.localeCompare(filterEndDate) > 0) return false;
+        }
         return true;
       });
     }

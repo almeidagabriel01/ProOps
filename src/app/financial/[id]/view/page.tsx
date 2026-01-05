@@ -102,7 +102,10 @@ export default function ViewTransactionPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
+    // Parse date parts manually to avoid timezone issues
+    const [year, month, day] = dateString.split("-").map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -141,8 +144,8 @@ export default function ViewTransactionPage() {
   const paidAmount =
     relatedInstallments.length > 0
       ? relatedInstallments
-        .filter((t) => t.status === "paid")
-        .reduce((sum, t) => sum + t.amount, 0)
+          .filter((t) => t.status === "paid")
+          .reduce((sum, t) => sum + t.amount, 0)
       : transaction.status === "paid"
         ? transaction.amount
         : 0;

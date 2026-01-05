@@ -231,11 +231,13 @@ export const WalletService = {
    * Get wallet transaction history
    */
   getWalletTransactions: async (
-    walletId: string
+    walletId: string,
+    tenantId: string
   ): Promise<WalletTransaction[]> => {
     try {
       const q = query(
         collection(db, TRANSACTIONS_COLLECTION),
+        where("tenantId", "==", tenantId),
         where("walletId", "==", walletId)
       );
       const querySnapshot = await getDocs(q);

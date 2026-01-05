@@ -50,7 +50,7 @@ export default function FinancialPage() {
     transactions,
   } = useFinancialData();
 
-  const isLoading = tenantLoading || dataLoading;
+  const isLoading = tenantLoading || dataLoading || isPlanLoading;
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -58,8 +58,13 @@ export default function FinancialPage() {
     React.useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  // Check plan access - MUST be AFTER all hooks
-  if (!isPlanLoading && !hasFinancial) {
+  // Show loading first - before checking plan access to avoid flash
+  if (isLoading) {
+    return <FinancialSkeleton />;
+  }
+
+  // Check plan access after loading is complete
+  if (!hasFinancial) {
     return (
       <UpgradeRequired
         feature="Financeiro"
@@ -82,10 +87,6 @@ export default function FinancialPage() {
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
   };
-
-  if (isLoading) {
-    return <FinancialSkeleton />;
-  }
 
   // Use total wallet balance instead of transaction-based calculation
   const balance = totalWalletBalance;
@@ -191,14 +192,14 @@ export default function FinancialPage() {
             const relatedInstallments =
               transaction.isInstallment && transaction.installmentGroupId
                 ? transactions
-                  .filter(
-                    (t) =>
-                      t.installmentGroupId === transaction.installmentGroupId
-                  )
-                  .sort(
-                    (a, b) =>
-                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                  )
+                    .filter(
+                      (t) =>
+                        t.installmentGroupId === transaction.installmentGroupId
+                    )
+                    .sort(
+                      (a, b) =>
+                        (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                    )
                 : [];
 
             return (
