@@ -11,37 +11,12 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-export type SubscriptionStatus =
-  | "ACTIVE"
-  | "TRIALING"
-  | "PAST_DUE"
-  | "CANCELED"
-  | "PAYMENT_FAILED"
-  | "INACTIVE";
 
-export type User = {
-  id: string;
-  email: string;
-  name: string;
-  role: "admin" | "user" | "superadmin" | "free" | "member";
-  tenantId?: string;
-  planId?: string;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
-  masterId?: string;
-  permissions?: Record<
-    string,
-    {
-      canView?: boolean;
-      canCreate?: boolean;
-      canEdit?: boolean;
-      canDelete?: boolean;
-    }
-  >;
-  subscriptionStatus?: SubscriptionStatus;
-  currentPeriodEnd?: string;
-  subscriptionUpdatedAt?: string;
-};
+
+import { User, SubscriptionStatus } from "@/types";
+
+// Removed local User type definition
+
 
 interface AuthContextType {
   user: User | null;
@@ -123,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           masterId: userData.masterId || undefined,
           permissions: permissions,
           currentPeriodEnd: userData.currentPeriodEnd || undefined,
-          subscriptionStatus: ((userData.subscriptionStatus || userData.subscription?.status) as string)?.toUpperCase() as SubscriptionStatus | undefined,
+          subscriptionStatus: (userData.subscriptionStatus || userData.subscription?.status)?.toLowerCase() as SubscriptionStatus | undefined,
           subscriptionUpdatedAt:
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||

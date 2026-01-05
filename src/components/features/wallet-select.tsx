@@ -231,7 +231,7 @@ export function WalletSelect({
           <Select
             {...props}
             onChange={onChange}
-            selectClassName={cn(error && "border-destructive border-2")}
+            error={error}
           >
             <option value="">Selecione uma carteira...</option>
             {wallets.map((wallet) => (
@@ -296,8 +296,8 @@ export function WalletSelect({
                       type="button"
                       onClick={() => setColor(c)}
                       className={`w-8 h-8 rounded-full transition-all ${color === c
-                          ? "ring-2 ring-offset-2 ring-primary scale-110"
-                          : "hover:scale-105"
+                        ? "ring-2 ring-offset-2 ring-primary scale-110"
+                        : "hover:scale-105"
                         }`}
                       style={{ backgroundColor: c }}
                     />

@@ -89,7 +89,7 @@ export function DynamicSelect({
 
       <Select
         {...props}
-        selectClassName={cn(error && "border-destructive border-2")}
+        error={error}
       >
         <option value="">Selecione...</option>
         {options.map((opt) => (

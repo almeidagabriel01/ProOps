@@ -28,7 +28,7 @@ export interface TenantFormData {
   email?: string;
   password?: string;
   planId?: string;
-  subscriptionStatus?: "active" | "past_due" | "canceled" | "unpaid" | "trialing";
+  subscriptionStatus?: "active" | "past_due" | "canceled" | "unpaid" | "trialing" | "free" | "inactive" | "trial";
   currentPeriodEnd?: string;
 }
 
@@ -114,7 +114,7 @@ export function TenantDialog({
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       setFormData(prev => ({ ...prev, currentPeriodEnd: nextMonth.toISOString() }));
     }
-  }, [formData.planId, initialData]); // removed formData.currentPeriodEnd to avoid overwrite loop
+  }, [formData.planId, initialData, formData.currentPeriodEnd]);
 
   // Auto-calculate status based on date (Manual Subscription)
   React.useEffect(() => {
@@ -312,8 +312,10 @@ export function TenantDialog({
                           formData.subscriptionStatus === "active" ? "Ativa" :
                             formData.subscriptionStatus === "past_due" ? "Em Atraso (Past Due)" :
                               formData.subscriptionStatus === "canceled" ? "Cancelada" :
-                                formData.subscriptionStatus === "trialing" ? "Em Teste" :
-                                  "Não Paga"
+                                formData.subscriptionStatus === "trialing" || formData.subscriptionStatus === "trial" ? "Em Teste" :
+                                  formData.subscriptionStatus === "free" ? "Gratuita" :
+                                    formData.subscriptionStatus === "inactive" ? "Inativa" :
+                                      "Não Paga"
                         }
                         disabled
                         className="bg-muted opacity-100 text-foreground"

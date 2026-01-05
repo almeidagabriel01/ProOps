@@ -13,7 +13,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, onChange, value, placeholder, disabled, ...props }, ref) => {
+  ({ className, children, onChange, value, placeholder, disabled, error, options: propsOptions, ...props }, ref) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
     const portalContentRef = React.useRef<HTMLDivElement>(null);
@@ -33,9 +33,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       const opts: { value: string; label: React.ReactNode }[] = [];
       React.Children.forEach(children, (child) => {
         if (React.isValidElement(child) && child.type === "option") {
+          const element = child as React.ReactElement<{ value: string; children: React.ReactNode }>;
           opts.push({
-            value: child.props.value,
-            label: child.props.children
+            value: element.props.value,
+            label: element.props.children
           });
         }
       });
@@ -199,6 +200,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             "shadow-sm transition-all duration-200 ease-out cursor-pointer",
             "hover:border-primary/50 hover:bg-accent/5",
             isOpen && "border-primary ring-2 ring-primary/20",
+            error && "border-destructive ring-1 ring-destructive/20",
             disabled && "cursor-not-allowed opacity-50 bg-muted"
           )}
         >

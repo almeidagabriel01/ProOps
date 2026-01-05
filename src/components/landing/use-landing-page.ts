@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { PlanService } from "@/services/plan-service";
-import { User } from "@/providers/auth-provider";
+import { User } from "@/types";
 
 const INITIAL_PLANS = [
   {

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { MobileMenu } from "@/components/ui/mobile-menu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { User } from "@/providers/auth-provider";
+import { User } from "@/types";
 
 interface LandingNavbarProps {
   currentUser: User | null;
