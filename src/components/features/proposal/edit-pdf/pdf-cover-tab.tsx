@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, X, Crown } from "lucide-react";
 import { ThemeType, themeOptions } from "./pdf-theme-utils";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 
 interface PdfCoverTabProps {
   coverTitle: string;
@@ -54,8 +55,8 @@ export function PdfCoverTab({
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        alert("O arquivo deve ser uma imagem.");
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
         e.target.value = "";
         return;
       }
@@ -75,8 +76,8 @@ export function PdfCoverTab({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        alert("O arquivo deve ser uma imagem.");
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
         e.target.value = "";
         return;
       }

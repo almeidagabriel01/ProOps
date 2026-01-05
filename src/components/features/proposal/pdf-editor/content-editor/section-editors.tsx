@@ -12,6 +12,7 @@ import {
   HorizontalAlignControls,
   VerticalAlignControls,
 } from "./style-controls";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 
 // ============================================
 // COLUMN LAYOUT CONTROL
@@ -199,8 +200,8 @@ export function ImageEditor({
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file && !file.type.startsWith("image/")) {
-                    alert("O arquivo deve ser uma imagem.");
+                  if (file && !ALLOWED_TYPES.includes(file.type)) {
+                    alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
                     e.target.value = "";
                     return;
                   }

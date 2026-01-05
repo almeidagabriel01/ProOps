@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Tenant, TenantNiche, NICHE_LABELS } from "@/types";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 export interface TenantFormData {
   name: string;
   color: string;
@@ -174,8 +175,8 @@ export function TenantDialog({
                         const file = e.target.files?.[0];
                         if (file) {
                           // Validate file type
-                          if (!file.type.startsWith("image/")) {
-                            alert("O arquivo deve ser uma imagem (PNG, JPG, SVG).");
+                          if (!ALLOWED_TYPES.includes(file.type)) {
+                            alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
                             e.target.value = "";
                             return;
                           }

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -16,7 +16,8 @@ import {
 import { CustomFieldType, CustomFieldItem } from "@/types"
 import { CustomFieldService } from "@/services/custom-field-service"
 import { useTenant } from "@/providers/tenant-provider"
-import { Plus, Trash2, Edit2, Image, Settings, X, Check } from "lucide-react"
+import { ALLOWED_TYPES } from "@/services/storage-service"
+import { Plus, Trash2, Image as ImageIcon, Settings } from "lucide-react"
 
 export function CustomFieldManager() {
     const { tenant } = useTenant()
@@ -250,7 +251,7 @@ function ItemCard({ item, onDelete, onImageUpload }: ItemCardProps) {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={item.image} alt={item.label} className="w-full h-full object-cover" />
                         ) : (
-                            <Image className="w-6 h-6 text-muted-foreground" />
+                            <ImageIcon className="w-6 h-6 text-muted-foreground" />
                         )}
                         <input
                             ref={fileInputRef}
@@ -260,8 +261,8 @@ function ItemCard({ item, onDelete, onImageUpload }: ItemCardProps) {
                             onChange={(e) => {
                                 const file = e.target.files?.[0]
                                 if (file) {
-                                    if (!file.type.startsWith("image/")) {
-                                        alert("O arquivo deve ser uma imagem.");
+                                    if (!ALLOWED_TYPES.includes(file.type)) {
+                                        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
                                         e.target.value = "";
                                         return;
                                     }
