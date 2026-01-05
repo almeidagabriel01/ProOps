@@ -46,7 +46,7 @@ interface UserDoc {
 export const createProduct = functions
   .region("southamerica-east1")
   .https.onCall(async (data: CreateProductInput, context) => {
-    console.log("createProduct: Function started", { data, auth: context.auth?.uid });
+    console.log("createProduct v2: Started", { data, auth: context.auth?.uid });
     
     try {
       // 1. Authentication

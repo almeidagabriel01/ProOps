@@ -452,7 +452,7 @@ export const deleteCustomField = functions
 export const createOption = functions
   .region("southamerica-east1")
   .https.onCall(async (data: { fieldType: string; label: string }, context) => {
-    console.log("createOption: Started", { data, auth: context.auth?.uid });
+    console.log("createOption v2: Started", { data, auth: context.auth?.uid });
     try {
       if (!context.auth) {
         console.warn("createOption: Unauthenticated");
