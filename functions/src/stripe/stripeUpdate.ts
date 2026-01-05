@@ -6,11 +6,9 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
 import { getStripe, getPriceIdForTier } from "./stripeConfig";
 import { getPlanIdByTier } from "./stripeHelpers";
-
-const db = getFirestore();
+import { db } from "../init";
 
 interface UpdateRequest {
   userId: string;

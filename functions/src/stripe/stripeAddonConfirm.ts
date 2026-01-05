@@ -6,11 +6,10 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { db } from "../init";
 import { getStripe } from "./stripeConfig";
 import { AddonType } from "./stripeHelpers";
-
-const db = getFirestore();
 
 interface AddonConfirmRequest {
   sessionId: string;

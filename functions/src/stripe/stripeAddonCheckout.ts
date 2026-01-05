@@ -6,10 +6,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
+import { db } from "../init";
 import { getStripe, getPriceIdForAddon, getAppUrl } from "./stripeConfig";
-
-const db = getFirestore();
 
 interface AddonCheckoutRequest {
   userId: string;
