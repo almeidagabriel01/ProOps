@@ -56,7 +56,9 @@ export function PdfCoverTab({
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
+        alert(
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+        );
         e.target.value = "";
         return;
       }
@@ -77,7 +79,9 @@ export function PdfCoverTab({
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
+        alert(
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+        );
         e.target.value = "";
         return;
       }
@@ -212,7 +216,9 @@ export function PdfCoverTab({
                 <Label className="text-xs">Ajuste</Label>
                 <Select
                   value={coverImageFit}
-                  onChange={(e) => setCoverImageFit(e.target.value as "cover" | "contain")}
+                  onChange={(e) =>
+                    setCoverImageFit(e.target.value as "cover" | "contain")
+                  }
                 >
                   <option value="cover">Preencher (Cover)</option>
                   <option value="contain">Conter (Contain)</option>
@@ -266,26 +272,30 @@ export function PdfCoverTab({
                           color: undefined,
                           backgroundColor:
                             s.styles.backgroundColor === "#ffffff" ||
-                              s.styles.backgroundColor === "#f9fafb"
+                            s.styles.backgroundColor === "#f9fafb"
                               ? undefined
                               : s.styles.backgroundColor,
                         },
                       }))
                     );
                   }}
-                  className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${isPremiumTemplate
-                    ? "border-border opacity-75 hover:opacity-100"
-                    : theme === t.value
-                      ? "border-primary ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/50"
-                    }`}
+                  className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
+                    isPremiumTemplate
+                      ? "border-border opacity-75 hover:opacity-100"
+                      : theme === t.value
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/50"
+                  }`}
                 >
                   {isPremiumTemplate && (
                     <div
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
-                      style={{ backgroundColor: premiumColor }}
+                      className="absolute -top-2 -right-2 p-1.5 rounded-full shadow-md bg-background border"
+                      style={{ borderColor: `${premiumColor}40` }}
                     >
-                      <Crown className="w-3.5 h-3.5 text-white" />
+                      <Crown
+                        className="w-4 h-4"
+                        style={{ color: premiumColor, fill: premiumColor }}
+                      />
                     </div>
                   )}
                   <div

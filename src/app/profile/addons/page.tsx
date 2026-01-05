@@ -136,11 +136,19 @@ export default function AddonsPage() {
     setCancelDialogOpen(false);
 
     try {
-      await AddonService.updateAddonStatus(
-        tenant?.id || "",
-        addonToCancel.id,
-        "cancelled"
-      );
+      // Call Cloud Function to cancel addon (handles Stripe cancellation + Firestore update)
+      const { getFunctions, httpsCallable } =
+        await import("firebase/functions");
+      const functions = getFunctions(undefined, "southamerica-east1");
+      const cancelFunc = httpsCallable<
+        { tenantId: string; addonType: string },
+        { success: boolean; message: string }
+      >(functions, "stripeCancelAddon");
+
+      await cancelFunc({
+        tenantId: tenant?.id || "",
+        addonType: addonToCancel.id,
+      });
 
       // Reload page with query param to show toast after reload
       window.location.href = "/profile/addons?addon_cancelled=true";
@@ -348,4 +356,3 @@ export default function AddonsPage() {
     </div>
   );
 }
-

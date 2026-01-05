@@ -69,11 +69,12 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   const [purchasedAddonsData, setPurchasedAddonsData] = useState<
     PurchasedAddon[]
   >([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [isAddonsLoading, setIsAddonsLoading] = useState(true);
 
   useEffect(() => {
     const loadFeatures = async () => {
-      setIsLoading(true);
+      setIsPlanLoading(true);
 
       if (user?.role === "superadmin") {
         setBaseFeatures({
@@ -89,7 +90,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
           maxStorageMB: -1, // Unlimited
         });
         setPlanTier("enterprise");
-        setIsLoading(false);
+        setIsPlanLoading(false);
         return;
       }
 
@@ -115,7 +116,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       if (!effectivePlanId) {
         setBaseFeatures(FREE_PLAN_FEATURES);
         setPlanTier("starter");
-        setIsLoading(false);
+        setIsPlanLoading(false);
         return;
       }
 
@@ -150,7 +151,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
         setBaseFeatures(FREE_PLAN_FEATURES);
       }
 
-      setIsLoading(false);
+      setIsPlanLoading(false);
     };
 
     loadFeatures();
@@ -159,9 +160,12 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   // Load addons when tenant changes
   useEffect(() => {
     const loadAddonsAsync = async () => {
+      setIsAddonsLoading(true);
+      
       if (!tenant?.id) {
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
+        setIsAddonsLoading(false);
         return;
       }
 
@@ -174,6 +178,8 @@ export function usePlanLimits(): UsePlanLimitsReturn {
         console.error("Error loading add-ons:", error);
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
+      } finally {
+        setIsAddonsLoading(false);
       }
     };
 
@@ -330,7 +336,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
   return {
     features: mergedFeatures,
-    isLoading,
+    isLoading: isPlanLoading || isAddonsLoading,
 
     purchasedAddons,
     purchasedAddonsData,

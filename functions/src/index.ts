@@ -59,6 +59,7 @@ export {
   stripeConfirm,
   stripeAddonCheckout,
   stripeAddonConfirm,
+  stripeCancelAddon,
   stripePortal,
   stripeUpdate,
   stripePreview,

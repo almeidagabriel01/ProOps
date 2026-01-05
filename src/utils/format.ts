@@ -22,10 +22,24 @@ export function formatCurrency(value: number): string {
 }
 
 /**
+ * Parse a date string safely, avoiding timezone issues
+ * When using new Date("2026-01-05"), JS interprets it as UTC midnight,
+ * which becomes the previous day in timezones like Brazil (UTC-3)
+ */
+function parseLocalDate(dateString: string): Date {
+    if (dateString.includes("-")) {
+        const [year, month, day] = dateString.split("-").map(Number);
+        return new Date(year, month - 1, day); // month is 0-indexed
+    }
+    // Fallback for other formats
+    return new Date(dateString);
+}
+
+/**
  * Format date to Brazilian short format (e.g., "15 dez")
  */
 export function formatDateShort(dateString: string): string {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
+    return parseLocalDate(dateString).toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "short",
     });
@@ -35,7 +49,7 @@ export function formatDateShort(dateString: string): string {
  * Format date to Brazilian full format (e.g., "15/12/2024")
  */
 export function formatDateFull(dateString: string): string {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    return parseLocalDate(dateString).toLocaleDateString("pt-BR");
 }
 
 /**

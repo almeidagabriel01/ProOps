@@ -6,3 +6,4 @@ export { DeleteWalletDialog } from "./delete-wallet-dialog";
 export { ArchiveWalletDialog } from "./archive-wallet-dialog";
 export { WalletsSkeleton } from "./wallets-skeleton";
 export { WalletFilters } from "./wallet-filters";
+export { WalletHistoryDialog } from "./wallet-history-dialog";

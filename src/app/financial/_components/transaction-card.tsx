@@ -44,10 +44,10 @@ const statusOptions: {
   label: string;
   icon: typeof Check;
 }[] = [
-    { value: "paid", label: "Pago", icon: Check },
-    { value: "pending", label: "Pendente", icon: Clock },
-    { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-  ];
+  { value: "paid", label: "Pago", icon: Check },
+  { value: "pending", label: "Pendente", icon: Clock },
+  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
+];
 
 export function TransactionCard({
   transaction,
@@ -64,7 +64,12 @@ export function TransactionCard({
   const TypeIcon = typeInfo.icon;
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR", {
+    // Parse date parts manually to avoid timezone issues
+    // When using new Date("2026-01-05"), JS interprets it as UTC midnight,
+    // which becomes the previous day in timezones like Brazil (UTC-3)
+    const [year, month, day] = dateString.split("-").map(Number);
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -81,8 +86,9 @@ export function TransactionCard({
   return (
     <div className="group">
       <Card
-        className={`transition-all duration-200 ${isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
-          }`}
+        className={`transition-all duration-200 ${
+          isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
+        }`}
       >
         <CardContent className="p-0">
           <div
@@ -128,15 +134,15 @@ export function TransactionCard({
                     <span>•</span>
                     <div className="flex items-center gap-2">
                       <span className="text-primary font-medium">
-                        {transaction.installmentNumber}/{transaction.installmentCount}
-                        x
+                        {transaction.installmentNumber}/
+                        {transaction.installmentCount}x
                       </span>
                       {/* Mini Progress Bar */}
                       <div className="h-1.5 w-12 bg-muted rounded-full overflow-hidden hidden sm:block">
                         <div
-                          className={`h-full ${typeInfo.color.replace('text-', 'bg-')}`}
+                          className={`h-full ${typeInfo.color.replace("text-", "bg-")}`}
                           style={{
-                            width: `${Math.min(((transaction.installmentNumber || 1) / (transaction.installmentCount || 1)) * 100, 100)}%`
+                            width: `${Math.min(((transaction.installmentNumber || 1) / (transaction.installmentCount || 1)) * 100, 100)}%`,
                           }}
                         />
                       </div>
@@ -214,7 +220,10 @@ export function TransactionCard({
               )}
             </div>
 
-            <div className="flex items-center gap-1 pl-2 border-l ml-2" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="flex items-center gap-1 pl-2 border-l ml-2"
+              onClick={(e) => e.stopPropagation()}
+            >
               <Link href={`/financial/${transaction.id}/view`}>
                 <Button
                   variant="ghost"
