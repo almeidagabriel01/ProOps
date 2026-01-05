@@ -163,15 +163,16 @@ export function useWalletsData(): UseWalletsDataReturn {
 
   const getWalletTransactions = React.useCallback(
     async (walletId: string): Promise<WalletTransaction[]> => {
+      if (!tenant?.id) return [];
       try {
-        return await WalletService.getWalletTransactions(walletId);
+        return await WalletService.getWalletTransactions(walletId, tenant.id);
       } catch (error) {
         console.error("Error fetching wallet transactions:", error);
         toast.error("Erro ao carregar movimentações");
         return [];
       }
     },
-    []
+    [tenant?.id]
   );
 
   const setWalletAsDefault = React.useCallback(
