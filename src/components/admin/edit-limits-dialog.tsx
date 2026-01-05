@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { PlanFeatures } from "@/types";
 import { AdminService } from "@/services/admin-service";
 import { Loader2 } from "lucide-react";
+import { toast } from "react-toastify";
 
 interface Props {
   open: boolean;
@@ -43,7 +44,7 @@ export function EditLimitsDialog({
     }
   }, [currentFeatures, open]);
 
-  const handleChange = (field: keyof PlanFeatures, value: any) => {
+  const handleChange = (field: keyof PlanFeatures, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -51,11 +52,12 @@ export function EditLimitsDialog({
     setLoading(true);
     try {
       await AdminService.updateTenantLimits(tenantId, formData);
+      toast.success(`Limites de "${tenantName}" atualizados com sucesso!`);
       onSaved();
       onClose();
     } catch (error) {
       console.error(error);
-      alert("Erro ao atualizar limites.");
+      toast.error("Erro ao atualizar limites.");
     } finally {
       setLoading(false);
     }

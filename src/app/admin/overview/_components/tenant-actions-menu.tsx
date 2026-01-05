@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Copy, Settings2 } from "lucide-react";
 import { TenantBillingInfo } from "@/services/admin-service";
+import { toast } from "react-toastify";
 
 interface TenantActionsMenuProps {
     item: TenantBillingInfo;
@@ -23,10 +24,12 @@ export function TenantActionsMenu({
 }: TenantActionsMenuProps) {
     const handleCopyAdminId = () => {
         navigator.clipboard.writeText(item.admin.id);
+        toast.success("ID do admin copiado!", { autoClose: 2000 });
     };
 
     const handleCopyTenantId = () => {
         navigator.clipboard.writeText(item.tenant.id);
+        toast.success("ID da empresa copiado!", { autoClose: 2000 });
     };
 
     return (

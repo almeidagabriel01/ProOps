@@ -25,26 +25,41 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     return true;
   }, [user]);
 
+  const currentPeriodEnd = user?.currentPeriodEnd;
   const subscriptionStatus = user?.subscriptionStatus;
   const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
 
   const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
-    if (subscriptionStatus !== "PAST_DUE" || !subscriptionUpdatedAt) {
+    if (subscriptionStatus !== "PAST_DUE") {
       return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
     }
 
-    const updatedDate = new Date(subscriptionUpdatedAt);
+    // Reference Date: When the subscription effectively ended (due date)
+    // If we don't have currentPeriodEnd, fallback to updatedAt (manual set time), or now (safeguard)
+    const referenceDate = currentPeriodEnd
+      ? new Date(currentPeriodEnd)
+      : (subscriptionUpdatedAt ? new Date(subscriptionUpdatedAt) : new Date());
+
+    // Deadline is Grace Period AFTER the due date
+    const deadline = new Date(referenceDate);
+    deadline.setDate(deadline.getDate() + GRACE_PERIOD_DAYS);
+
+    // Calculate remaining days from NOW until Deadline
     const now = new Date();
-    const daysPassed = Math.floor(
-      (now.getTime() - updatedDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const remaining = Math.max(0, GRACE_PERIOD_DAYS - daysPassed);
+    // Reset hours to midnight for cleaner day diff? Or keep precise? 
+    // Precise is better for "just expired".
+
+    const diffTime = deadline.getTime() - now.getTime();
+    // ceil so 0.1 days counts as "1 day remaining" (today)
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const remaining = Math.max(0, days);
 
     return {
       daysRemaining: remaining,
-      isGracePeriodExpired: remaining <= 0,
+      isGracePeriodExpired: days <= 0,
     };
-  }, [subscriptionStatus, subscriptionUpdatedAt]);
+  }, [subscriptionStatus, currentPeriodEnd, subscriptionUpdatedAt]);
 
   React.useEffect(() => {
     if (!shouldCheckSubscription || isLoading) return;

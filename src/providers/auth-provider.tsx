@@ -39,6 +39,7 @@ export type User = {
     }
   >;
   subscriptionStatus?: SubscriptionStatus;
+  currentPeriodEnd?: string;
   subscriptionUpdatedAt?: string;
 };
 
@@ -54,8 +55,8 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => false,
-  logout: async () => {},
-  refreshUser: async () => {},
+  logout: async () => { },
+  refreshUser: async () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -121,7 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           billingInterval: userData.billingInterval || undefined,
           masterId: userData.masterId || undefined,
           permissions: permissions,
-          subscriptionStatus: userData.subscription?.status || undefined,
+          currentPeriodEnd: userData.currentPeriodEnd || undefined,
+          subscriptionStatus: ((userData.subscriptionStatus || userData.subscription?.status) as string)?.toUpperCase() as SubscriptionStatus | undefined,
           subscriptionUpdatedAt:
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||

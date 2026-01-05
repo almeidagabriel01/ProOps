@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { useRouter } from "next/navigation";
@@ -31,6 +31,8 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false);
   const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
 
+  // ... inside Header component ...
+
   // Fetch user's plan name
   React.useEffect(() => {
     const fetchPlanName = async () => {
@@ -39,10 +41,35 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         return;
       }
       try {
+        // 1. Try fetching by ID
         const planDoc = await getDoc(doc(db, "plans", user.planId));
         if (planDoc.exists()) {
           const planData = planDoc.data();
           setUserPlanName(planData.name || planData.tier);
+          return;
+        }
+
+        // 2. Fallback: Try fetching by tier (if planId is a tier name like 'starter')
+        const q = query(
+          collection(db, "plans"),
+          where("tier", "==", user.planId)
+        );
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const planData = querySnapshot.docs[0].data();
+          setUserPlanName(planData.name || planData.tier);
+          return;
+        }
+
+        // 3. Static fallback
+        const PLAN_NAMES: Record<string, string> = {
+          free: "Gratuito",
+          starter: "Starter",
+          pro: "Profissional",
+          enterprise: "Enterprise",
+        };
+        if (PLAN_NAMES[user.planId]) {
+          setUserPlanName(PLAN_NAMES[user.planId]);
         }
       } catch (error) {
         console.error("Error fetching plan:", error);

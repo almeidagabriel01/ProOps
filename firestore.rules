@@ -89,14 +89,16 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // UPDATE: Owner can update profile info, but NOT sensitive roles/ids.
-      allow update: if isOwner(userId)
-                    && onlyUpdatesFields(['name', 'photoUrl', 'updatedAt'])
-                    && !request.resource.data.diff(resource.data).affectedKeys()
-                        .hasAny(['role', 'masterId', 'tenantId', 'companyId', 
-                                 'subscription', 'usage', 'stripeCustomerId', 'stripeSubscriptionId']);
+      // Super admin can update any field for tenant management.
+      allow update: if isSuperAdmin()
+                    || (isOwner(userId)
+                        && onlyUpdatesFields(['name', 'photoUrl', 'updatedAt'])
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                            .hasAny(['role', 'masterId', 'tenantId', 'companyId', 
+                                     'subscription', 'usage', 'stripeCustomerId', 'stripeSubscriptionId']));
                                  
-      // DELETE: Blocked. Must use admin function to cleanup Auth + Firestore.
-      allow delete: if false;
+      // DELETE: Blocked for regular users. Super admin can delete for tenant cleanup.
+      allow delete: if isSuperAdmin();
       
       // PERMISSIONS SUBCOLLECTION: User can read their own permissions, their Master can, or Super Admin
       match /permissions/{permissionId} {
@@ -117,18 +119,21 @@ service cloud.firestore {
     match /proposals/{proposalId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
     
     // CLIENTS
     match /clients/{clientId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
     
     // PRODUCTS
     match /products/{productId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
     
     // TRANSACTIONS (Financial)
@@ -174,12 +179,21 @@ service cloud.firestore {
     match /custom_fields/{fieldId} {
       allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
       allow write: if false;
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
+    }
+    
+    // CUSTOM OPTIONS (Legacy)
+    match /custom_options/{optionId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false;
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
     
     // OPTIONS (Dynamic Selects)
     match /options/{optionId} {
       allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
       allow write: if false;
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
     
     // ADDONS

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,15 +9,24 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tenant } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
-import { LogIn, Trash2, Pencil, Calendar, CheckCircle2 } from "lucide-react";
+import { LogIn, Trash2, Pencil, Calendar, CheckCircle2, Loader2 } from "lucide-react";
 import { calculateNextBillingDate } from "../_utils/billing-date";
 
 interface TenantCardProps {
   item: TenantBillingInfo;
-  onEdit: (tenant: Tenant) => void;
-  onDelete: (id: string) => void;
+  onEdit: (data: TenantBillingInfo) => void;
+  onDelete: (id: string) => Promise<void>;
   onLoginAs: (tenant: Tenant) => void;
 }
 
@@ -26,12 +36,28 @@ export function TenantCard({
   onDelete,
   onLoginAs,
 }: TenantCardProps) {
-  const { tenant, planName, subscriptionStatus, billingInterval } = item;
-  const nextBillingDate = calculateNextBillingDate(
-    tenant.createdAt,
-    billingInterval
-  );
+  const { tenant, planName, subscriptionStatus, billingInterval, admin } = item;
+  const nextBillingDate = admin.currentPeriodEnd
+    ? new Date(admin.currentPeriodEnd)
+    : calculateNextBillingDate(tenant.createdAt, billingInterval);
   const isPastDue = subscriptionStatus === "past_due";
+
+  // Controlled dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(tenant.id);
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      // Keep dialog open on error so user can see the error toast
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <Card
@@ -61,7 +87,8 @@ export function TenantCard({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => onEdit(tenant)}
+              onClick={() => onEdit(item)}
+              disabled={isDeleting}
             >
               <Pencil className="w-4 h-4" />
             </Button>
@@ -69,9 +96,14 @@ export function TenantCard({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:bg-destructive/10"
-              onClick={() => onDelete(tenant.id)}
+              onClick={() => setIsDeleteDialogOpen(true)}
+              disabled={isDeleting}
             >
-              <Trash2 className="w-4 h-4" />
+              {isDeleting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -150,10 +182,36 @@ export function TenantCard({
           className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
           variant="ghost"
           onClick={() => onLoginAs(tenant)}
+          disabled={isDeleting}
         >
           <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
         </Button>
       </CardFooter>
+
+      {/* Delete Confirmation Dialog - Controlled */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Empresa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover <strong>{tenant.name}</strong>?
+              Esta ação irá excluir permanentemente a empresa e todos os seus dados
+              (usuários, produtos, propostas, etc).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <Button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              variant="destructive"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isDeleting ? "Removendo..." : "Remover"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
