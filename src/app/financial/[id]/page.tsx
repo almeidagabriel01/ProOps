@@ -117,8 +117,15 @@ export default function EditTransactionPage() {
     ...formData,
     clientId: formData.clientId || "",
     isInstallment: false,
-    installmentCount: 2,
+    installmentCount: transaction?.installmentCount || 2,
   };
+
+  // Calculate total amount (sum of all installments) for display
+  const totalValueOverride = transaction?.isInstallment && relatedInstallments.length > 0
+    ? relatedInstallments
+      .filter(t => t.id !== transaction!.id)
+      .reduce((sum, t) => sum + t.amount, 0) + parseFloat(formData.amount || "0")
+    : undefined;
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
@@ -140,6 +147,7 @@ export default function EditTransactionPage() {
           formData={adaptedFormData}
           onChange={() => { }}
           onClientChange={() => { }}
+          totalOverride={totalValueOverride}
         />
 
         {relatedInstallments.length > 0 && (
@@ -236,6 +244,7 @@ export default function EditTransactionPage() {
             formData={adaptedFormData}
             onChange={handleChange}
             onClientChange={handleClientChange}
+            totalOverride={totalValueOverride}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

@@ -35,6 +35,14 @@ export default function FinancialPage() {
     setFilterStatus,
     filterWallet,
     setFilterWallet,
+    filterStartDate,
+    setFilterStartDate,
+    filterEndDate,
+    setFilterEndDate,
+    filterDateType,
+    setFilterDateType,
+    sortBy,
+    setSortBy,
     filteredTransactions,
     totalWalletBalance,
     deleteTransaction,
@@ -132,6 +140,14 @@ export default function FinancialPage() {
         onStatusChange={setFilterStatus}
         filterWallet={filterWallet}
         onWalletChange={setFilterWallet}
+        filterStartDate={filterStartDate}
+        onStartDateChange={setFilterStartDate}
+        filterEndDate={filterEndDate}
+        onEndDateChange={setFilterEndDate}
+        filterDateType={filterDateType}
+        onDateTypeChange={setFilterDateType}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
       />
 
       {/* Transactions List */}
