@@ -197,7 +197,15 @@ export function ImageEditor({
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => handleImageUpload(section.id, e)}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && !file.type.startsWith("image/")) {
+                    alert("O arquivo deve ser uma imagem.");
+                    e.target.value = "";
+                    return;
+                  }
+                  handleImageUpload(section.id, e);
+                }}
               />
             </label>
           )}

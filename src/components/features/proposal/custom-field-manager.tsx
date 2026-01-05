@@ -259,7 +259,14 @@ function ItemCard({ item, onDelete, onImageUpload }: ItemCardProps) {
                             className="hidden"
                             onChange={(e) => {
                                 const file = e.target.files?.[0]
-                                if (file) onImageUpload(file)
+                                if (file) {
+                                    if (!file.type.startsWith("image/")) {
+                                        alert("O arquivo deve ser uma imagem.");
+                                        e.target.value = "";
+                                        return;
+                                    }
+                                    onImageUpload(file)
+                                }
                             }}
                         />
                     </div>

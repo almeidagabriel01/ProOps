@@ -187,6 +187,12 @@ export function useProductForm(
       return;
     }
 
+    // Validation: File type
+    if (!file.type.startsWith("image/")) {
+      toast.error("O arquivo deve ser uma imagem (PNG, JPG, JPEG, WEBP).");
+      return;
+    }
+
     // Validation: File size (5MB max per image)
     if (file.size > MAX_FILE_SIZE) {
       toast.error(

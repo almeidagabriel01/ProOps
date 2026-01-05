@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, X, Crown, Flag } from "lucide-react";
+import { Upload, X, Crown } from "lucide-react";
 import { ThemeType, themeOptions } from "./pdf-theme-utils";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 
@@ -54,6 +54,11 @@ export function PdfCoverTab({
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        alert("O arquivo deve ser uma imagem.");
+        e.target.value = "";
+        return;
+      }
       if (file.size > 2 * 1024 * 1024) {
         alert("A imagem de capa deve ter no máximo 2MB.");
         e.target.value = "";
@@ -70,6 +75,11 @@ export function PdfCoverTab({
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        alert("O arquivo deve ser uma imagem.");
+        e.target.value = "";
+        return;
+      }
       if (file.size > 1 * 1024 * 1024) {
         alert("O logo deve ter no máximo 1MB.");
         e.target.value = "";
@@ -201,7 +211,7 @@ export function PdfCoverTab({
                 <Label className="text-xs">Ajuste</Label>
                 <Select
                   value={coverImageFit}
-                  onChange={(e) => setCoverImageFit(e.target.value as any)}
+                  onChange={(e) => setCoverImageFit(e.target.value as "cover" | "contain")}
                 >
                   <option value="cover">Preencher (Cover)</option>
                   <option value="contain">Conter (Contain)</option>
@@ -241,7 +251,9 @@ export function PdfCoverTab({
                     }
                     setTheme(t.value as ThemeType);
                     // Set default color if available
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     if ((t as any).defaultColor) {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       setPrimaryColor((t as any).defaultColor);
                     }
                     // Reset section colors to ensure theme application
@@ -253,20 +265,19 @@ export function PdfCoverTab({
                           color: undefined,
                           backgroundColor:
                             s.styles.backgroundColor === "#ffffff" ||
-                            s.styles.backgroundColor === "#f9fafb"
+                              s.styles.backgroundColor === "#f9fafb"
                               ? undefined
                               : s.styles.backgroundColor,
                         },
                       }))
                     );
                   }}
-                  className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
-                    isPremiumTemplate
-                      ? "border-border opacity-75 hover:opacity-100"
-                      : theme === t.value
-                        ? "border-primary ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/50"
-                  }`}
+                  className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${isPremiumTemplate
+                    ? "border-border opacity-75 hover:opacity-100"
+                    : theme === t.value
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-border hover:border-primary/50"
+                    }`}
                 >
                   {isPremiumTemplate && (
                     <div

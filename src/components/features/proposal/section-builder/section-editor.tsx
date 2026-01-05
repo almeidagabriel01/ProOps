@@ -21,6 +21,11 @@ export function SectionEditor({ section, onUpdate }: SectionEditorProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("O arquivo deve ser uma imagem.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
@@ -199,10 +204,10 @@ export function SectionEditor({ section, onUpdate }: SectionEditorProps) {
             systemTypeId: content.systemTypeId as string | undefined,
             entries: content.entries as
               | {
-                  id: string;
-                  environmentItemId: string;
-                  systemItems: string[];
-                }[]
+                id: string;
+                environmentItemId: string;
+                systemItems: string[];
+              }[]
               | undefined,
           }}
           onUpdate={(c) => onUpdate({ content: JSON.stringify(c) })}

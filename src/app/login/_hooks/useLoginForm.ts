@@ -240,6 +240,11 @@ export function useLoginForm(): UseLoginFormReturn {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError("O arquivo deve ser uma imagem (PNG, JPG, SVG).");
+        e.target.value = "";
+        return;
+      }
       if (file.size > 2 * 1024 * 1024) {
         setError("O logo deve ter no máximo 2MB.");
         e.target.value = "";
@@ -268,7 +273,10 @@ export function useLoginForm(): UseLoginFormReturn {
     }
 
     if (!companyName.trim() || companyName.trim().length < 2) {
-      setErrors(prev => ({ ...prev, companyName: "Nome da empresa é obrigatório" }));
+      setErrors((prev) => ({
+        ...prev,
+        companyName: "Nome da empresa é obrigatório",
+      }));
       return;
     }
 
@@ -307,7 +315,7 @@ export function useLoginForm(): UseLoginFormReturn {
 
       // Small delay to ensure Firestore writes propagate before redirect
       // This helps prevent race conditions when the checkout page loads
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (err: unknown) {
       const error = err as { code?: string };
       console.error("Registration error:", err);

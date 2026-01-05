@@ -173,6 +173,12 @@ export function TenantDialog({
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
+                          // Validate file type
+                          if (!file.type.startsWith("image/")) {
+                            alert("O arquivo deve ser uma imagem (PNG, JPG, SVG).");
+                            e.target.value = "";
+                            return;
+                          }
                           // Validate size (max 2MB)
                           if (file.size > 2 * 1024 * 1024) {
                             alert("O logo deve ter no máximo 2MB.");
