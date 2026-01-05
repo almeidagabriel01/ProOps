@@ -2,10 +2,6 @@
 
 import { z } from "zod";
 
-// ============================================
-// TRANSACTION VALIDATION SCHEMA
-// ============================================
-
 export const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
   description: z
@@ -24,17 +20,16 @@ export const transactionSchema = z.object({
     .min(1, "Data é obrigatória")
     .refine((val) => {
       if (!val) return false;
-      // Parse date parts to avoid timezone issues
+      // Parse date parts to validate format
       const [year, month, day] = val.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
-      return selectedDate >= today;
-    }, "Data deve ser hoje ou posterior"),
+      // Just check if it's a valid date
+      return !isNaN(selectedDate.getTime());
+    }, "Data inválida"),
   dueDate: z
     .string()
-    .min(1, "Vencimento é obrigatório"),
+    .optional()
+    .or(z.literal("")),
   status: z
     .enum(["pending", "paid", "overdue"])
     .default("pending"),
@@ -64,6 +59,15 @@ export const transactionSchema = z.object({
     .string()
     .optional()
     .or(z.literal("")),
+}).refine((data) => {
+  // dueDate é obrigatório apenas para receitas (income)
+  if (data.type === "income" && (!data.dueDate || data.dueDate.trim() === "")) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Vencimento é obrigatório para receitas",
+  path: ["dueDate"],
 }).refine((data) => {
   if (!data.date || !data.dueDate) return true;
   // Parse date parts to avoid timezone issues

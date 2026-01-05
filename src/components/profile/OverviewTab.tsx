@@ -23,12 +23,15 @@ import {
   Loader2,
   Save,
   Palette,
+  Camera,
+  X,
 } from "lucide-react";
 import { UserService } from "@/services/user-service";
 import { TenantService } from "@/services/tenant-service";
 import { toast } from "react-toastify";
 import { PlanUsageCard } from "@/components/shared/plan-usage-card";
 import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface OverviewTabProps {
   user: User | null;
@@ -183,6 +186,7 @@ function OrganizationForm({
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#000000"
   );
+  const [logoUrl, setLogoUrl] = useState(tenant?.logoUrl || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -190,12 +194,32 @@ function OrganizationForm({
   const initialName = tenant?.name || "";
   const initialNiche = tenant?.niche || "";
   const initialColor = tenant?.primaryColor || "#000000";
+  const initialLogo = tenant?.logoUrl || "";
 
   const hasChanges =
     (name !== initialName ||
       niche !== initialNiche ||
-      primaryColor !== initialColor) &&
+      primaryColor !== initialColor ||
+      logoUrl !== initialLogo) &&
     name.trim().length > 0;
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("O logo deve ter no máximo 2MB.");
+        e.target.value = "";
+        return;
+      }
+      // Convert to Base64
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setLogoUrl(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSave = async () => {
     if (!tenant || !hasChanges) return;
@@ -206,6 +230,7 @@ function OrganizationForm({
         name,
         niche: niche as TenantNiche,
         primaryColor,
+        logoUrl,
       });
       toast.success("Organização atualizada com sucesso!");
       window.location.reload();
@@ -329,6 +354,66 @@ function OrganizationForm({
               </option>
             ))}
           </Select>
+        </div>
+
+        {/* Logo Upload Section */}
+        <div className="flex flex-col gap-4">
+          <Label>Foto de Perfil da Organização</Label>
+          <div className="flex items-center gap-4">
+            {/* Avatar Preview */}
+            <div className="relative">
+              <Avatar className="w-20 h-20 border-2 border-muted">
+                {logoUrl ? (
+                  <AvatarImage
+                    src={logoUrl}
+                    alt={name}
+                    className="object-cover"
+                  />
+                ) : (
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                    {name ? name.charAt(0).toUpperCase() : "?"}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              {isEditing && logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl("")}
+                  className="absolute -top-1 -right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center hover:bg-destructive/80 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Upload Controls */}
+            <div className="flex flex-col gap-2">
+              <input
+                type="file"
+                id="orgLogoPicker"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="hidden"
+                disabled={!isEditing}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  document.getElementById("orgLogoPicker")?.click()
+                }
+                className="gap-2"
+                disabled={!isEditing}
+              >
+                <Camera className="w-4 h-4" />
+                {logoUrl ? "Alterar Logo" : "Adicionar Logo"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG ou SVG. Máximo 2MB.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4">

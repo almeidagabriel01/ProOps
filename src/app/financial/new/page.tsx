@@ -81,7 +81,7 @@ export default function NewTransactionPage() {
     await handleSubmit(fakeEvent);
   };
 
-  // Step 2 validation: Description, amount, date and dueDate are required
+  // Step 2 validation: Description, amount, date are required. dueDate required only for income.
   const validateStep2 = (): boolean => {
     let isValid = true;
 
@@ -96,20 +96,11 @@ export default function NewTransactionPage() {
     if (!formData.date) {
       setFieldError("date", "Data é obrigatória");
       isValid = false;
-    } else {
-      // Check if date is today or later - parse date parts to avoid timezone issues
-      const [year, month, day] = formData.date.split("-").map(Number);
-      const selectedDate = new Date(year, month - 1, day);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
-      if (selectedDate < today) {
-        setFieldError("date", "Data deve ser hoje ou posterior");
-        isValid = false;
-      }
     }
-    if (!formData.dueDate) {
-      setFieldError("dueDate", "Vencimento é obrigatório");
+
+    // dueDate is required only for income (receita)
+    if (formData.type === "income" && !formData.dueDate) {
+      setFieldError("dueDate", "Vencimento é obrigatório para receitas");
       isValid = false;
     } else if (formData.date && formData.dueDate) {
       // Check if dueDate is not before date - parse date parts to avoid timezone issues

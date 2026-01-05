@@ -337,7 +337,7 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Autofill fix - Match background color */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
@@ -384,9 +384,9 @@ body {
 /* Individual toast styling */
 .Toastify__toast {
   min-height: 48px;
-  padding: 12px 16px;
+  padding: 12px 36px 12px 12px;
   border-radius: 12px;
-  box-shadow: 
+  box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 10px 25px -5px rgba(0, 0, 0, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -395,6 +395,8 @@ body {
   align-items: center !important;
   gap: 12px !important;
   flex-wrap: nowrap !important;
+  width: fit-content !important;
+  max-width: 100%;
 }
 
 /* Toast body styling */
@@ -406,13 +408,13 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.4;
-  flex: 1;
+  flex: 0 1 auto;
   white-space: nowrap;
 }
 
 /* Toast icon - add spacing */
 .Toastify__toast-icon {
-  margin-right: 12px !important;
+  margin-right: 4px !important;
   flex-shrink: 0;
 }
 
@@ -428,8 +430,9 @@ body {
   opacity: 0.6;
   transition: opacity 0.2s ease;
   align-self: center;
-  padding: 4px;
+  padding: 2px;
   flex-shrink: 0;
+  margin-left: 16px !important;
 }
 
 .Toastify__close-button:hover {
@@ -443,72 +446,96 @@ body {
 
 /* Success toast */
 .Toastify__toast--success.Toastify__toast-theme--dark {
-  background: linear-gradient(135deg, oklch(0.18 0.04 145 / 0.95), oklch(0.16 0.03 145 / 0.95)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.18 0.04 145 / 0.95),
+    oklch(0.16 0.03 145 / 0.95)
+  ) !important;
   border: 1px solid oklch(0.4 0.1 145 / 0.3) !important;
 }
 
 .Toastify__toast--success::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg, oklch(0.5 0.15 145 / 0.2), transparent);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }
 
 /* Error toast */
 .Toastify__toast--error.Toastify__toast-theme--dark {
-  background: linear-gradient(135deg, oklch(0.18 0.04 25 / 0.95), oklch(0.16 0.03 25 / 0.95)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.18 0.04 25 / 0.95),
+    oklch(0.16 0.03 25 / 0.95)
+  ) !important;
   border: 1px solid oklch(0.45 0.15 25 / 0.3) !important;
 }
 
 .Toastify__toast--error::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg, oklch(0.55 0.2 25 / 0.2), transparent);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }
 
 /* Warning toast */
 .Toastify__toast--warning.Toastify__toast-theme--dark {
-  background: linear-gradient(135deg, oklch(0.2 0.04 75 / 0.95), oklch(0.18 0.03 75 / 0.95)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.2 0.04 75 / 0.95),
+    oklch(0.18 0.03 75 / 0.95)
+  ) !important;
   border: 1px solid oklch(0.5 0.12 75 / 0.3) !important;
 }
 
 .Toastify__toast--warning::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg, oklch(0.6 0.15 75 / 0.2), transparent);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }
 
 /* Info toast */
 .Toastify__toast--info.Toastify__toast-theme--dark {
-  background: linear-gradient(135deg, oklch(0.18 0.04 250 / 0.95), oklch(0.16 0.03 250 / 0.95)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.18 0.04 250 / 0.95),
+    oklch(0.16 0.03 250 / 0.95)
+  ) !important;
   border: 1px solid oklch(0.45 0.12 250 / 0.3) !important;
 }
 
 .Toastify__toast--info::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: 1px;
   background: linear-gradient(135deg, oklch(0.55 0.15 250 / 0.2), transparent);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
   pointer-events: none;
 }
@@ -517,7 +544,7 @@ body {
 .Toastify__toast-icon {
   width: 20px;
   height: 20px;
-  margin-right: 0;
+  margin-right: 4px !important;
   flex-shrink: 0;
 }
 
@@ -543,25 +570,41 @@ body {
 
 /* Light mode overrides */
 :root:not(.dark) .Toastify__toast--success {
-  background: linear-gradient(135deg, oklch(0.97 0.02 145 / 0.98), oklch(0.95 0.015 145 / 0.98)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.97 0.02 145 / 0.98),
+    oklch(0.95 0.015 145 / 0.98)
+  ) !important;
   border: 1px solid oklch(0.7 0.12 145 / 0.4) !important;
   color: oklch(0.25 0.05 145) !important;
 }
 
 :root:not(.dark) .Toastify__toast--error {
-  background: linear-gradient(135deg, oklch(0.97 0.02 25 / 0.98), oklch(0.95 0.015 25 / 0.98)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.97 0.02 25 / 0.98),
+    oklch(0.95 0.015 25 / 0.98)
+  ) !important;
   border: 1px solid oklch(0.65 0.15 25 / 0.4) !important;
   color: oklch(0.35 0.08 25) !important;
 }
 
 :root:not(.dark) .Toastify__toast--warning {
-  background: linear-gradient(135deg, oklch(0.97 0.02 75 / 0.98), oklch(0.95 0.015 75 / 0.98)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.97 0.02 75 / 0.98),
+    oklch(0.95 0.015 75 / 0.98)
+  ) !important;
   border: 1px solid oklch(0.7 0.12 75 / 0.4) !important;
   color: oklch(0.35 0.08 75) !important;
 }
 
 :root:not(.dark) .Toastify__toast--info {
-  background: linear-gradient(135deg, oklch(0.97 0.02 250 / 0.98), oklch(0.95 0.015 250 / 0.98)) !important;
+  background: linear-gradient(
+    135deg,
+    oklch(0.97 0.02 250 / 0.98),
+    oklch(0.95 0.015 250 / 0.98)
+  ) !important;
   border: 1px solid oklch(0.65 0.12 250 / 0.4) !important;
   color: oklch(0.3 0.06 250) !important;
 }

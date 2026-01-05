@@ -260,7 +260,7 @@ export function PdfCoverTab({
                       }))
                     );
                   }}
-                  className={`relative p-3 rounded-lg border-2 text-left transition-all ${
+                  className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
                     isPremiumTemplate
                       ? "border-border opacity-75 hover:opacity-100"
                       : theme === t.value

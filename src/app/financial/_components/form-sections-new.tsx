@@ -217,12 +217,17 @@ export function DetailsSection({ formData, onChange }: DetailsSectionProps) {
           />
         </FormItem>
 
-        <FormItem label="Vencimento" htmlFor="dueDate">
+        <FormItem
+          label="Vencimento"
+          htmlFor="dueDate"
+          required={formData.type === "income"}
+        >
           <DateInput
             id="dueDate"
             name="dueDate"
             value={formData.dueDate}
             onChange={onChange}
+            required={formData.type === "income"}
           />
         </FormItem>
 
