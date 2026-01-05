@@ -151,8 +151,7 @@ export function TenantsTable({
               <Select
                 value={filterStatus}
                 onChange={(e) => onFilterChange(e.target.value)}
-                wrapperClassName="w-32"
-                selectClassName="h-10 text-sm border-0 bg-transparent"
+                className="w-32"
               >
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>

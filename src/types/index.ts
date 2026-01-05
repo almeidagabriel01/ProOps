@@ -27,15 +27,20 @@ export type User = {
   billingInterval?: BillingInterval; // 'monthly' | 'yearly'
   stripeCustomerId?: string; // Stripe customer ID
   stripeSubscriptionId?: string; // Active Stripe subscription ID
+  masterId?: string; // ID of the master account if this is a sub-user
+  permissions?: Record<
+    string,
+    {
+      canView?: boolean;
+      canCreate?: boolean;
+      canEdit?: boolean;
+      canDelete?: boolean;
+    }
+  >;
   planUpdatedAt?: string; // Last plan change date
 
   // Manual Subscription Fields
-  subscriptionStatus?:
-    | "active"
-    | "past_due"
-    | "canceled"
-    | "unpaid"
-    | "trialing";
+  subscriptionStatus?: SubscriptionStatus;
   currentPeriodEnd?: string; // ISO Date string for expiration
   isManualSubscription?: boolean; // If true, handled by internal cron, not Stripe
   cancelAtPeriodEnd?: boolean;
@@ -43,7 +48,18 @@ export type User = {
     status: string;
     updatedAt?: string | Date;
   };
+  subscriptionUpdatedAt?: string;
 };
+
+export type SubscriptionStatus =
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "trialing"
+  | "free"
+  | "inactive"
+  | "trial";
 
 // Subscription Plans
 export type PlanTier = "starter" | "pro" | "enterprise";

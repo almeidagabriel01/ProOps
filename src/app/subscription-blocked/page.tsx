@@ -27,7 +27,7 @@ export default function SubscriptionBlockedPage() {
       return;
     }
 
-    const validStatuses = ["ACTIVE", "TRIALING"];
+    const validStatuses = ["active", "trialing"];
     if (
       user.subscriptionStatus &&
       validStatuses.includes(user.subscriptionStatus)
@@ -54,21 +54,22 @@ export default function SubscriptionBlockedPage() {
 
   const getStatusMessage = () => {
     switch (user?.subscriptionStatus) {
-      case "PAYMENT_FAILED":
+      case "unpaid":
+      case "past_due":
         return {
           title: "Falha no Pagamento",
           description:
             "Não foi possível processar o pagamento da sua assinatura. Atualize seu método de pagamento para continuar usando o sistema.",
           icon: CreditCard,
         };
-      case "CANCELED":
+      case "canceled":
         return {
           title: "Assinatura Cancelada",
           description:
             "Sua assinatura foi cancelada. Para continuar usando o sistema, você precisa reativar sua assinatura.",
           icon: AlertTriangle,
         };
-      case "INACTIVE":
+      case "inactive":
       default:
         return {
           title: "Assinatura Inativa",

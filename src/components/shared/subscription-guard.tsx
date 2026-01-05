@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useAuth, SubscriptionStatus } from "@/providers/auth-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { SubscriptionStatus } from "@/types";
 import { AlertTriangle, CreditCard, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
@@ -30,7 +31,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
 
   const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
-    if (subscriptionStatus !== "PAST_DUE") {
+    if (subscriptionStatus !== "past_due") {
       return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
     }
 
@@ -65,9 +66,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     if (!shouldCheckSubscription || isLoading) return;
 
     const blockedStatuses: SubscriptionStatus[] = [
-      "CANCELED",
-      "PAYMENT_FAILED",
-      "INACTIVE",
+      "canceled",
+      "unpaid",
+      "inactive",
     ];
 
     if (subscriptionStatus && blockedStatuses.includes(subscriptionStatus)) {
@@ -75,7 +76,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
       return;
     }
 
-    if (subscriptionStatus === "PAST_DUE" && isGracePeriodExpired) {
+    if (subscriptionStatus === "past_due" && isGracePeriodExpired) {
       router.push("/subscription-blocked");
     }
   }, [
@@ -88,7 +89,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
   const showWarningBanner =
     shouldCheckSubscription &&
-    subscriptionStatus === "PAST_DUE" &&
+    subscriptionStatus === "past_due" &&
     !isGracePeriodExpired;
 
   const handleManageBilling = async () => {

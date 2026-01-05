@@ -75,7 +75,10 @@ export const AdminService = {
         | "past_due"
         | "canceled"
         | "unpaid"
-        | "trialing";
+        | "trialing"
+        | "free"
+        | "inactive"
+        | "trial";
       currentPeriodEnd?: string;
       isManualSubscription?: boolean;
     }
@@ -86,7 +89,6 @@ export const AdminService = {
       const { deleteField } = await import("firebase/firestore");
 
       await updateDoc(ref, {
-
         "subscription.status": nestedStatus,
         "subscription.updatedAt": new Date(),
 
