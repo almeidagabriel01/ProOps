@@ -84,7 +84,7 @@ interface TransactionDoc {
   description: string;
   amount: number;
   date: string;
-  dueDate?: string;
+  dueDate?: string | null;
   status: TransactionStatus;
   clientId?: string | null;
   clientName?: string | null;
@@ -250,15 +250,25 @@ export const createTransaction = functions
         const transactionsToCreate: TransactionDoc[] = [];
         const walletAdjustments = new Map<string, number>(); // Identifier -> Amount Adjustment
 
+        // DEBUG: Internal Log
+        console.log("CreateTransaction Data:", JSON.stringify(data));
+
         const shouldGenerateInstallments =
           data.isInstallment &&
           (data.installmentCount || 0) > 1 &&
-          !data.installmentNumber; // Only if not manually specifying number (backend gen mode)
+          (!data.installmentNumber || data.installmentNumber === 1); // Allow generation if number is missing OR 1
+
+        console.log(
+          "Should Generate Installments:",
+          shouldGenerateInstallments
+        );
 
         if (shouldGenerateInstallments) {
           const count = data.installmentCount!;
           const groupId = data.installmentGroupId || `gen_${now.toMillis()}`;
           const baseAmount = data.amount; // Assuming input is PER INSTALLMENT
+
+          console.log(`Generating ${count} installments for group ${groupId}`);
 
           for (let i = 0; i < count; i++) {
             const isFirst = i === 0;
@@ -277,7 +287,7 @@ export const createTransaction = functions
               description: data.description.trim(),
               amount: baseAmount,
               date: currentDate,
-              dueDate: currentDueDate,
+              dueDate: currentDueDate || null,
               status: currentStatus,
               clientId: data.clientId || null,
               clientName: data.clientName || null,
@@ -312,7 +322,7 @@ export const createTransaction = functions
             description: data.description.trim(),
             amount: data.amount,
             date: data.date,
-            dueDate: data.dueDate,
+            dueDate: data.dueDate || null,
             status: data.status,
             clientId: data.clientId || null,
             clientName: data.clientName || null,

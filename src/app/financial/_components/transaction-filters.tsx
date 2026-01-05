@@ -19,6 +19,14 @@ interface TransactionFiltersProps {
   onStatusChange: (status: TransactionStatus | "all") => void;
   filterWallet: string;
   onWalletChange: (wallet: string) => void;
+  filterStartDate?: string;
+  onStartDateChange?: (date: string) => void;
+  filterEndDate?: string;
+  onEndDateChange?: (date: string) => void;
+  filterDateType?: "date" | "dueDate";
+  onDateTypeChange?: (type: "date" | "dueDate") => void;
+  sortBy?: "date" | "created";
+  onSortChange?: (sort: "date" | "created") => void;
 }
 
 export function TransactionFilters({
@@ -30,6 +38,14 @@ export function TransactionFilters({
   onStatusChange,
   filterWallet,
   onWalletChange,
+  filterStartDate,
+  onStartDateChange,
+  filterEndDate,
+  onEndDateChange,
+  filterDateType,
+  onDateTypeChange,
+  sortBy,
+  onSortChange,
 }: TransactionFiltersProps) {
   const { tenant } = useTenant();
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
@@ -141,6 +157,54 @@ export function TransactionFilters({
             </option>
           ))}
         </Select>
+      </div>
+
+      {/* Row 3: Date Range + Sort */}
+      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/50">
+        <div className="flex items-center gap-2">
+          <Select
+            value={filterDateType || "date"}
+            onChange={(e) =>
+              onDateTypeChange?.(e.target.value as "date" | "dueDate")
+            }
+            className="w-32 h-9 py-1"
+          >
+            <option value="date">Data Lanç.</option>
+            <option value="dueDate">Vencimento</option>
+          </Select>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            de:
+          </span>
+          <Input
+            type="date"
+            value={filterStartDate || ""}
+            onChange={(e) => onStartDateChange?.(e.target.value)}
+            className="w-auto min-w-[140px] h-9 py-1"
+          />
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            até
+          </span>
+          <Input
+            type="date"
+            value={filterEndDate || ""}
+            onChange={(e) => onEndDateChange?.(e.target.value)}
+            className="w-auto min-w-[140px] h-9 py-1"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 md:ml-auto">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            Ordenar:
+          </span>
+          <Select
+            value={sortBy || "date"}
+            onChange={(e) => onSortChange?.(e.target.value as "date" | "created")}
+            className="w-44 h-9 py-1"
+          >
+            <option value="date">Data Lançamento</option>
+            <option value="created">Data Criação</option>
+          </Select>
+        </div>
       </div>
     </div>
   );

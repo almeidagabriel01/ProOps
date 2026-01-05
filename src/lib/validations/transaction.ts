@@ -29,8 +29,8 @@ export const transactionSchema = z
       }, "Data inválida"),
     dueDate: z.string().optional().or(z.literal("")),
     status: z.enum(["pending", "paid", "overdue"]).default("pending"),
-    clientId: z.string().min(1, "Cliente é obrigatório"),
-    clientName: z.string().min(1, "Cliente é obrigatório"),
+    clientId: z.string().optional().or(z.literal("")),
+    clientName: z.string().optional().or(z.literal("")),
     category: z.string().optional().or(z.literal("")),
     wallet: z.string().min(1, "Carteira é obrigatória"),
     isInstallment: z.boolean().default(false),
@@ -51,6 +51,24 @@ export const transactionSchema = z
     {
       message: "Vencimento é obrigatório para receitas",
       path: ["dueDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Cliente é obrigatório apenas para receitas (income)
+      if (data.type === "income") {
+        if (!data.clientId && !data.clientName) {
+          return false;
+        }
+        if (data.clientName && data.clientName.trim() === "") {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Cliente é obrigatório para receitas",
+      path: ["clientId"],
     }
   )
   .refine(

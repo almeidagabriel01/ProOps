@@ -10,6 +10,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { ClientSelect } from "@/components/features/client-select";
 import { WalletSelect } from "@/components/features/wallet-select";
 import { FormGroup, FormItem } from "@/components/ui/form-components";
+import { formatCurrency } from "@/utils/format";
 import { FormErrors } from "@/hooks/useFormValidation";
 import {
   TrendingUp,
@@ -408,6 +409,7 @@ interface ReviewStepProps {
     isNew: boolean;
   }) => void;
   errors?: FormErrors<TransactionFormData>;
+  totalOverride?: number;
 }
 
 export function ReviewStep({
@@ -415,6 +417,7 @@ export function ReviewStep({
   onChange,
   onClientChange,
   errors = {},
+  totalOverride,
 }: ReviewStepProps) {
   const isIncome = formData.type === "income";
 
@@ -466,8 +469,7 @@ export function ReviewStep({
             >
               <p className="text-sm">Valor Total</p>
               <p className="text-2xl font-bold">
-                {isIncome ? "+" : "-"} R${" "}
-                {parseFloat(formData.amount || "0").toFixed(2)}
+                {isIncome ? "+" : "-"} {formatCurrency(totalOverride ?? parseFloat(formData.amount || "0"))}
               </p>
             </div>
           </div>
@@ -497,22 +499,24 @@ export function ReviewStep({
             <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
               <p className="text-sm text-muted-foreground">Parcelamento</p>
               <p className="font-semibold">
-                {formData.installmentCount}x de R${" "}
-                {(
-                  parseFloat(formData.amount || "0") / formData.installmentCount
-                ).toFixed(2)}
+                {formData.installmentCount}x de {formatCurrency(
+                  totalOverride !== undefined
+                    ? parseFloat(formData.amount || "0")
+                    : (parseFloat(formData.amount || "0") / formData.installmentCount)
+                )}
               </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Client (required) */}
+      {/* Client */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <User className="w-4 h-4 text-muted-foreground" />
           <Label className="text-sm font-medium">
-            Cliente <span className="text-destructive">*</span>
+            Cliente{" "}
+            {isIncome && <span className="text-destructive">*</span>}
           </Label>
         </div>
         <ClientSelect

@@ -199,7 +199,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         wallet: formData.wallet || undefined,
         isInstallment: formData.isInstallment,
         installmentCount: formData.installmentCount,
-        installmentNumber: formData.isInstallment ? 1 : undefined, // First one is 1
+        // installmentNumber: undefined - Let backend handle generation
         installmentGroupId,
         notes: formData.notes || undefined,
         createdAt: now,
