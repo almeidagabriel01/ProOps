@@ -121,6 +121,7 @@ export const deleteProduct = functions
     }
     const userData = userSnap.data() as LocalUserDoc;
     const productData = productSnap.data();
+    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
     // Resolve Master
     let masterRef: FirebaseFirestore.DocumentReference;
@@ -131,7 +132,7 @@ export const deleteProduct = functions
       role === "WK" ||
       (!userData.masterId && !userData.masterID && userData.subscription);
 
-    if (isMaster) {
+    if (isMaster || isSuperAdmin) {
       masterRef = userRef;
     } else {
       const masterId =
@@ -145,14 +146,15 @@ export const deleteProduct = functions
     }
 
     const userCompanyId = userData.companyId || userData.tenantId;
-    if (!userCompanyId) {
+    if (!userCompanyId && !isSuperAdmin) {
       throw new functions.https.HttpsError(
         "failed-precondition",
         "Configuração de conta inválida: companyId/tenantId ausente."
       );
     }
 
-    if (productData?.tenantId !== userCompanyId) {
+    // Super admin can delete any product
+    if (!isSuperAdmin && productData?.tenantId !== userCompanyId) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Acesso negado (Tenant Mismatch)."
@@ -181,8 +183,8 @@ export const deleteProduct = functions
 
       // Now run the transaction to delete the Firestore document
       await db.runTransaction(async (transaction) => {
-        const companyRef = db.collection("companies").doc(userCompanyId);
-        const companySnap = await transaction.get(companyRef);
+        const companyRef = userCompanyId ? db.collection("companies").doc(userCompanyId) : null;
+        const companySnap = companyRef ? await transaction.get(companyRef) : null;
 
         // WRITES
         transaction.delete(productRef);
@@ -192,7 +194,7 @@ export const deleteProduct = functions
           updatedAt: Timestamp.now(),
         });
 
-        if (companySnap.exists) {
+        if (companySnap && companySnap.exists && companyRef) {
           transaction.update(companyRef, {
             "usage.products": FieldValue.increment(-1),
             updatedAt: Timestamp.now(),

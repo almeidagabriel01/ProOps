@@ -78,7 +78,7 @@ async function checkFinancialPermission(
   db: FirebaseFirestore.Firestore,
   userId: string,
   requiredPermission: "canView" | "canCreate" | "canEdit" | "canDelete"
-): Promise<{ tenantId: string; isMaster: boolean }> {
+): Promise<{ tenantId: string; isMaster: boolean; isSuperAdmin: boolean }> {
   const userRef = db.collection("users").doc(userId);
   const permRef = userRef.collection("permissions").doc("financial");
 
@@ -93,17 +93,23 @@ async function checkFinancialPermission(
   }
 
   const userData = userDoc.data() as UserDoc;
+  const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
   // Normalize role to uppercase for comparison
   const role = (userData.role as string)?.toUpperCase();
 
   // Determine tenant ID
   const tenantId = userData.tenantId || userData.companyId;
-  if (!tenantId) {
+  if (!tenantId && !isSuperAdmin) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "Usuário não está associado a nenhuma empresa."
     );
+  }
+
+  // Super admin has full access
+  if (isSuperAdmin) {
+    return { tenantId: tenantId || "", isMaster: true, isSuperAdmin: true };
   }
 
   const isMaster =
@@ -114,7 +120,7 @@ async function checkFinancialPermission(
 
   // MASTER or ADMIN role: Full access
   if (isMaster) {
-    return { tenantId, isMaster: true };
+    return { tenantId: tenantId!, isMaster: true, isSuperAdmin: false };
   }
 
   // MEMBER role: Check page permissions
@@ -134,7 +140,7 @@ async function checkFinancialPermission(
       );
     }
 
-    return { tenantId, isMaster: false };
+    return { tenantId: tenantId!, isMaster: false, isSuperAdmin: false };
   }
 
   throw new functions.https.HttpsError("permission-denied", "Acesso negado.");
@@ -285,7 +291,7 @@ export const updateWallet = functions
       checkFinancialPermission(db, userId, "canEdit"),
       walletRef.get(),
     ]);
-    const { tenantId } = permResult;
+    const { tenantId, isSuperAdmin } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
@@ -295,7 +301,8 @@ export const updateWallet = functions
     }
 
     const walletData = walletDoc.data();
-    if (walletData?.tenantId !== tenantId) {
+    // Super admin can edit any wallet
+    if (!isSuperAdmin && walletData?.tenantId !== tenantId) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Sem permissão para editar esta carteira."
@@ -382,7 +389,7 @@ export const deleteWallet = functions
       checkFinancialPermission(db, userId, "canDelete"),
       walletRef.get(),
     ]);
-    const { tenantId } = permResult;
+    const { tenantId, isSuperAdmin } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
@@ -392,7 +399,8 @@ export const deleteWallet = functions
     }
 
     const walletData = walletDoc.data();
-    if (walletData?.tenantId !== tenantId) {
+    // Super admin can delete any wallet
+    if (!isSuperAdmin && walletData?.tenantId !== tenantId) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Sem permissão para excluir esta carteira."
@@ -478,7 +486,7 @@ export const transferBetweenWallets = functions
       db.collection(WALLETS_COLLECTION).doc(fromWalletId).get(),
       db.collection(WALLETS_COLLECTION).doc(toWalletId).get(),
     ]);
-    const { tenantId } = permResult;
+    const { tenantId, isSuperAdmin } = permResult;
 
     if (!fromDoc.exists) {
       throw new functions.https.HttpsError(
@@ -497,8 +505,8 @@ export const transferBetweenWallets = functions
     const fromData = fromDoc.data();
     const toData = toDoc.data();
 
-    // Verify tenant
-    if (fromData?.tenantId !== tenantId || toData?.tenantId !== tenantId) {
+    // Super admin can transfer between any wallets
+    if (!isSuperAdmin && (fromData?.tenantId !== tenantId || toData?.tenantId !== tenantId)) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Sem permissão para transferir entre estas carteiras."
@@ -626,7 +634,7 @@ export const adjustWalletBalance = functions
       checkFinancialPermission(db, userId, "canEdit"),
       walletRef.get(),
     ]);
-    const { tenantId } = permResult;
+    const { tenantId, isSuperAdmin } = permResult;
 
     if (!walletDoc.exists) {
       throw new functions.https.HttpsError(
@@ -636,7 +644,8 @@ export const adjustWalletBalance = functions
     }
 
     const walletData = walletDoc.data();
-    if (walletData?.tenantId !== tenantId) {
+    // Super admin can adjust any wallet
+    if (!isSuperAdmin && walletData?.tenantId !== tenantId) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Sem permissão para ajustar esta carteira."

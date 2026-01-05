@@ -84,8 +84,9 @@ export const updateClient = functions
       const userData = userSnap.data() as UserDoc;
       const clientData = clientSnap.data();
       const tenantId = userData.tenantId || userData.companyId;
+      const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
-      if (!tenantId) {
+      if (!tenantId && !isSuperAdmin) {
         console.error(`updateClient: User ${userId} has no tenantId`);
         throw new functions.https.HttpsError(
           "failed-precondition",
@@ -93,7 +94,8 @@ export const updateClient = functions
         );
       }
 
-      if (clientData?.tenantId !== tenantId) {
+      // Super admin can update any client
+      if (!isSuperAdmin && clientData?.tenantId !== tenantId) {
         console.warn(`updateClient: Tenant mismatch. User: ${tenantId}, Client: ${clientData?.tenantId}`);
         throw new functions.https.HttpsError(
           "permission-denied",

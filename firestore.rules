@@ -159,25 +159,25 @@ service cloud.firestore {
     
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false;
     }
     
     // AMBIENTES (Automation)
     match /ambientes/{ambienteId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false;
     }
     
     // PROPOSAL TEMPLATES
     match /proposal_templates/{templateId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false;
     }
     
     // CUSTOM FIELDS
     match /custom_fields/{fieldId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -191,7 +191,7 @@ service cloud.firestore {
     
     // OPTIONS (Dynamic Selects)
     match /options/{optionId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }

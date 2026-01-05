@@ -45,6 +45,7 @@ export const OptionService = {
             const createFunc = httpsCallable<any, { success: boolean; optionId: string }>(functions, 'createOption');
             
             const result = await createFunc({
+                tenantId, // For super admin support
                 fieldType: type,
                 label,
             });
