@@ -1,6 +1,6 @@
 "use client";
 
-import { FormCard, FormSection } from "@/components/ui/form-card";
+import { FormCard } from "@/components/ui/form-card";
 import { FormField, FormRow, FormDisplayField } from "@/components/ui/form-field";
 import { FormActions } from "@/components/ui/form-actions";
 import { Input } from "@/components/ui/input";
@@ -189,6 +189,7 @@ interface ImagesCardProps {
   onAddImage: (file: File | null) => void;
   onRemoveImage: (index: number) => void;
   isReadOnly?: boolean;
+  maxImages: number;
 }
 
 export function ImagesCard({
@@ -196,11 +197,12 @@ export function ImagesCard({
   onAddImage,
   onRemoveImage,
   isReadOnly,
+  maxImages,
 }: ImagesCardProps) {
   return (
     <FormCard
       title="Imagens do Produto"
-      description="Adicione até 3 imagens (máx 2MB cada)"
+      description={`Adicione até ${maxImages} imagens (máx 2MB cada)`}
       icon={ImageIcon}
     >
       {images.length > 0 && (
@@ -231,7 +233,7 @@ export function ImagesCard({
         </div>
       )}
 
-      {!isReadOnly && images.length < 3 && (
+      {!isReadOnly && images.length < maxImages && (
         <FileUpload
           value={null}
           onChange={onAddImage}
@@ -240,7 +242,7 @@ export function ImagesCard({
       )}
 
       <p className="text-xs text-muted-foreground text-center">
-        {images.length} de 3 imagens
+        {images.length} de {maxImages} imagens
       </p>
     </FormCard>
   );

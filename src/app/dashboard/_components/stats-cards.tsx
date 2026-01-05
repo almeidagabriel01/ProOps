@@ -4,18 +4,15 @@ import Link from "next/link";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Wallet,
   Users,
   FileText,
   Package,
-  ArrowRight,
   UserPlus,
 } from "lucide-react";
 import {
@@ -25,85 +22,106 @@ import {
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from "recharts";
+import { usePagePermission } from "@/hooks/usePagePermission";
 
 export function QuickActionsCard() {
+  const { canCreate: canCreateProposal } = usePagePermission("proposals");
+  const { canCreate: canCreateFinancial } = usePagePermission("financial");
+  const { canCreate: canCreateClient } = usePagePermission("clients");
+  const { canCreate: canCreateProduct } = usePagePermission("products");
+
+  // If user can't create anything, don't show the quick actions section
+  const hasAnyCreatePermission = canCreateProposal || canCreateFinancial || canCreateClient || canCreateProduct;
+
+  if (!hasAnyCreatePermission) {
+    return null;
+  }
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      <Link href="/proposals/new" className="group">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-primary/5 dark:to-primary/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-8 -mt-8 group-hover:bg-primary/10 transition-colors" />
-          <div className="p-5 h-full flex flex-col justify-between relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-foreground">
-                Nova Proposta
-              </h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
-                Criar Orçamento
-              </p>
+      {canCreateProposal && (
+        <Link href="/proposals/new" className="group">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-primary/5 dark:to-primary/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-8 -mt-8 group-hover:bg-primary/10 transition-colors" />
+            <div className="p-5 h-full flex flex-col justify-between relative z-10">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Nova Proposta
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                  Criar Orçamento
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      )}
 
-      <Link href="/financial/new" className="group">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-emerald-500/10 transition-colors" />
-          <div className="p-5 h-full flex flex-col justify-between relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-foreground">
-                Novo Lançamento
-              </h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
-                Entrada/Saída
-              </p>
+      {canCreateFinancial && (
+        <Link href="/financial/new" className="group">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-emerald-500/10 transition-colors" />
+            <div className="p-5 h-full flex flex-col justify-between relative z-10">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Novo Lançamento
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                  Entrada/Saída
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      )}
 
-      <Link href="/customers/new" className="group">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-blue-50/30 dark:to-blue-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-blue-500/10 transition-colors" />
-          <div className="p-5 h-full flex flex-col justify-between relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-foreground">
-                Novo Cliente
-              </h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
-                Cadastro
-              </p>
+      {canCreateClient && (
+        <Link href="/customers/new" className="group">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-blue-50/30 dark:to-blue-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-blue-500/10 transition-colors" />
+            <div className="p-5 h-full flex flex-col justify-between relative z-10">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Novo Cliente
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                  Cadastro
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      )}
 
-      <Link href="/products/new" className="group">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-amber-50/30 dark:to-amber-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-amber-500/10 transition-colors" />
-          <div className="p-5 h-full flex flex-col justify-between relative z-10">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
-              <Package className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-foreground">
-                Novo Produto
-              </h3>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
-                Inventário
-              </p>
+      {canCreateProduct && (
+        <Link href="/products/new" className="group">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-amber-50/30 dark:to-amber-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-amber-500/10 transition-colors" />
+            <div className="p-5 h-full flex flex-col justify-between relative z-10">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-foreground">
+                  Novo Produto
+                </h3>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1">
+                  Inventário
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+      )}
     </div>
   );
 }

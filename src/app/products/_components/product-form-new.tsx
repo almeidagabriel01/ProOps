@@ -93,7 +93,7 @@ export function ProductFormNew({
   } = useProductForm(initialData, productId);
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -344,7 +344,7 @@ export function ProductFormNew({
               <div>
                 <h3 className="text-lg font-semibold">Imagens do Produto</h3>
                 <p className="text-sm text-muted-foreground">
-                  Adicione até 3 imagens (máx 2MB cada)
+                  Adicione até {maxImagesPerProduct} imagens (máx 2MB cada)
                 </p>
               </div>
             </div>
@@ -369,14 +369,14 @@ export function ProductFormNew({
                       <X className="w-4 h-4" />
                     </button>
                     <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium">
-                      {index + 1}/3
+                      {index + 1}/{maxImagesPerProduct}
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {imageUrls.length < 3 && (
+            {imageUrls.length < maxImagesPerProduct && (
               <FileUpload
                 value={null}
                 onChange={handleAddImage}
@@ -384,16 +384,14 @@ export function ProductFormNew({
               />
             )}
 
-            {/* Progress indicators */}
             <div className="flex items-center justify-center gap-3">
-              {[0, 1, 2].map((i) => (
+              {Array.from({ length: maxImagesPerProduct }).map((_, i) => (
                 <div
                   key={i}
-                  className={`w-16 h-2 rounded-full transition-all duration-300 ${
-                    i < imageUrls.length
-                      ? "bg-gradient-to-r from-primary to-primary/80"
-                      : "bg-border/50"
-                  }`}
+                  className={`w-16 h-2 rounded-full transition-all duration-300 ${i < imageUrls.length
+                    ? "bg-gradient-to-r from-primary to-primary/80"
+                    : "bg-border/50"
+                    }`}
                 />
               ))}
             </div>
@@ -463,10 +461,10 @@ export function ProductFormNew({
             submitLabel={productId ? "Salvar Alterações" : "Criar Produto"}
           />
         </StepCard>
-      </StepWizard>
+      </StepWizard >
 
       {/* Modals */}
-      <LimitReachedModal
+      < LimitReachedModal
         open={showLimitModal}
         onOpenChange={setShowLimitModal}
         resourceType="products"

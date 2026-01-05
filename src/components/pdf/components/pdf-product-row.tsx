@@ -22,13 +22,13 @@ export function PdfProductRow({ product, index, contentStyles }: PdfProductRowPr
                     product.productImages.map((img: string, idx: number) => (
                         <div key={idx} className="w-48 h-48 bg-white rounded-lg border overflow-hidden flex-shrink-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={img} alt={`Product ${idx}`} className="w-full h-full object-contain p-2" />
+                            <img src={img} alt={`Product ${idx}`} crossOrigin="anonymous" className="w-full h-full object-contain p-2" />
                         </div>
                     ))
                 ) : product.productImage ? (
                     <div className="w-48 h-48 bg-white rounded-lg border overflow-hidden flex-shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.productImage} alt="" className="w-full h-full object-contain p-2" />
+                        <img src={product.productImage} alt="" crossOrigin="anonymous" className="w-full h-full object-contain p-2" />
                     </div>
                 ) : null}
             </div>

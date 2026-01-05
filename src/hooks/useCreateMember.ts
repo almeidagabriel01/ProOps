@@ -1,11 +1,11 @@
 /**
  * Hook: useCreateMember
- * 
+ *
  * React hook for creating MEMBER users linked to the current MASTER.
- * 
+ *
  * IMPORTANT: Uses Firebase Callable Cloud Functions DIRECTLY.
  * Does NOT use Next.js API Routes - those don't have Firebase Auth context.
- * 
+ *
  * The Cloud Function 'createMember' validates:
  * - User is authenticated
  * - User has MASTER role
@@ -61,14 +61,14 @@ interface UseCreateMemberReturn {
 // ============================================
 
 const ERROR_MESSAGES: Record<string, string> = {
-  'unauthenticated': 'Você precisa estar logado para criar membros.',
-  'permission-denied': 'Apenas administradores podem criar membros.',
-  'already-exists': 'Este email já está cadastrado.',
-  'invalid-argument': 'Dados inválidos. Verifique nome e email.',
-  'internal': 'Erro interno. Verifique se as Cloud Functions foram implantadas.',
+  unauthenticated: "Você precisa estar logado para criar membros.",
+  "permission-denied": "Apenas administradores podem criar membros.",
+  "already-exists": "Este email já está cadastrado.",
+  "invalid-argument": "Dados inválidos. Verifique nome e email.",
+  internal: "Erro interno. Verifique se as Cloud Functions foram implantadas.",
 };
 
-const LIMIT_ERROR_CODES = ['resource-exhausted', 'failed-precondition'];
+const LIMIT_ERROR_CODES = ["resource-exhausted", "failed-precondition"];
 
 // Custom error interface for Firebase/Function errors
 interface FirebaseError {
@@ -80,17 +80,17 @@ interface FirebaseError {
 function getErrorMessage(error: unknown): string {
   const err = error as FirebaseError;
   // Firebase Functions error code
-  const code = err?.code?.replace('functions/', '');
+  const code = err?.code?.replace("functions/", "");
   if (code && ERROR_MESSAGES[code]) {
     return ERROR_MESSAGES[code];
   }
-  
+
   // Custom message from Cloud Function
   if (err?.message) {
     return err.message;
   }
-  
-  return 'Erro ao criar membro. Tente novamente.';
+
+  return "Erro ao criar membro. Tente novamente.";
 }
 
 // ============================================
@@ -101,51 +101,53 @@ export function useCreateMember(): UseCreateMemberReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const createMember = useCallback(async (data: CreateMemberData): Promise<CreateMemberResult> => {
-    setIsLoading(true);
-    setError(null);
+  const createMember = useCallback(
+    async (data: CreateMemberData): Promise<CreateMemberResult> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Use pre-configured functions instance with correct region
-      // (configured in src/lib/firebase.ts as 'southamerica-east1')
-      const createMemberFn = httpsCallable<CreateMemberData, CreateMemberResult>(
-        functions, 
-        'createMember'
-      );
+      try {
+        // Use pre-configured functions instance with correct region
+        // (configured in src/lib/firebase.ts as 'southamerica-east1')
+        const createMemberFn = httpsCallable<
+          CreateMemberData,
+          CreateMemberResult
+        >(functions, "createMember");
 
-      // Call the Cloud Function
-      // Firebase automatically includes the auth token!
-      const result: HttpsCallableResult<CreateMemberResult> = await createMemberFn(data);
+        // Call the Cloud Function
+        // Firebase automatically includes the auth token!
+        const result: HttpsCallableResult<CreateMemberResult> =
+          await createMemberFn(data);
 
-      // Success!
-      toast.success(result.data.message || "Membro criado com sucesso!");
-      return result.data;
+        // Success!
+        toast.success(result.data.message || "Membro criado com sucesso!");
+        return result.data;
+      } catch (err: unknown) {
+        const errorMessage = getErrorMessage(err);
+        const errorObj = err as FirebaseError;
+        const code = errorObj?.code?.replace("functions/", "") || "unknown";
 
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      const errorObj = err as FirebaseError;
-      const code = errorObj?.code?.replace('functions/', '') || 'unknown';
-      
-      setError(errorMessage);
+        setError(errorMessage);
 
-      // Only show toast if NOT a limit error (limit errors will show UpgradeModal)
-      if (!LIMIT_ERROR_CODES.includes(code)) {
-        toast.error(errorMessage);
-      }
-      
-      return {
-        success: false,
-        message: errorMessage,
-        error: {
-          code,
-          message: errorMessage
+        // Only show toast if NOT a limit error (limit errors will show UpgradeModal)
+        if (!LIMIT_ERROR_CODES.includes(code)) {
+          toast.error(errorMessage);
         }
-      };
 
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+        return {
+          success: false,
+          message: errorMessage,
+          error: {
+            code,
+            message: errorMessage,
+          },
+        };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
 
   return {
     createMember,
@@ -161,32 +163,63 @@ export function useCreateMember(): UseCreateMemberReturn {
 /**
  * Returns default permissions for a new MEMBER based on role type.
  * Uses pageId format (not path format) to match Cloud Function expectations.
+ * @param roleType - The role type: viewer, editor, or admin
+ * @param hasFinancial - Whether the user has access to the financial module (optional, defaults to true for backwards compatibility)
  */
-export function getDefaultPermissions(roleType: 'viewer' | 'editor' | 'admin' = 'viewer'): MemberPermissions {
+export function getDefaultPermissions(
+  roleType: "viewer" | "editor" | "admin" = "viewer",
+  hasFinancial: boolean = true
+): MemberPermissions {
+  // Dashboard is view-only (no create/edit/delete functionality)
   const basePermissions: MemberPermissions = {
-    'dashboard': { canView: true },
-    'proposals': { canView: true },
-    'clients': { canView: true },
-    'products': { canView: true },
+    dashboard: { canView: true },
+    proposals: { canView: true },
+    clients: { canView: true },
+    products: { canView: true },
+    ...(hasFinancial && { financial: { canView: true } }),
   };
 
-  if (roleType === 'editor') {
+  if (roleType === "editor") {
     return {
-      'dashboard': { canView: true },
-      'proposals': { canView: true, canCreate: true, canEdit: true },
-      'clients': { canView: true, canCreate: true, canEdit: true },
-      'products': { canView: true, canCreate: true, canEdit: true },
+      dashboard: { canView: true },
+      proposals: { canView: true, canCreate: true, canEdit: true },
+      clients: { canView: true, canCreate: true, canEdit: true },
+      products: { canView: true, canCreate: true, canEdit: true },
+      ...(hasFinancial && {
+        financial: { canView: true, canCreate: true, canEdit: true },
+      }),
     };
   }
 
-  if (roleType === 'admin') {
+  if (roleType === "admin") {
     return {
-      'dashboard': { canView: true },
-      'proposals': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      'clients': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      'products': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      'financial': { canView: true, canCreate: true, canEdit: true, canDelete: true },
-      'settings': { canView: true, canEdit: true },
+      dashboard: { canView: true },
+      proposals: {
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      },
+      clients: {
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      },
+      products: {
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      },
+      ...(hasFinancial && {
+        financial: {
+          canView: true,
+          canCreate: true,
+          canEdit: true,
+          canDelete: true,
+        },
+      }),
     };
   }
 

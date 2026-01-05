@@ -19,11 +19,24 @@ export interface Permission {
 }
 
 export const AVAILABLE_PAGES = [
-  { id: "dashboard", name: "Dashboard", description: "Visão geral e métricas" },
-  { id: "proposals", name: "Propostas", description: "Criar e gerenciar propostas" },
+  {
+    id: "dashboard",
+    name: "Dashboard",
+    description: "Visão geral e métricas",
+    viewOnly: true,
+  },
+  {
+    id: "proposals",
+    name: "Propostas",
+    description: "Criar e gerenciar propostas",
+  },
   { id: "clients", name: "Clientes", description: "Base de clientes" },
   { id: "products", name: "Produtos", description: "Catálogo de produtos" },
-  { id: "financial", name: "Financeiro", description: "Fluxo de caixa e transações" },
+  {
+    id: "financial",
+    name: "Financeiro",
+    description: "Fluxo de caixa e transações",
+  },
 ];
 
 export const ROLE_PRESETS = [

@@ -66,6 +66,7 @@ export function ProductForm({
               onAddImage={handleAddImage}
               onRemoveImage={handleRemoveImage}
               isReadOnly={isReadOnly}
+              maxImages={maxImagesPerProduct}
             />
             <PublishCard
               formData={formData}

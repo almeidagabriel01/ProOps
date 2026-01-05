@@ -207,6 +207,7 @@ export function PdfSistemaBlock({
                         <img
                           src={imgSrc}
                           alt=""
+                          crossOrigin="anonymous"
                           className="w-full h-full object-contain p-1"
                         />
                       </div>

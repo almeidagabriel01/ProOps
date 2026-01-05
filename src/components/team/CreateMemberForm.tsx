@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { FormCard } from "@/components/ui/form-card";
-import { FormField, FormRow } from "@/components/ui/form-field";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,19 @@ import {
 } from "lucide-react";
 import { useCreateMember, getDefaultPermissions } from "@/hooks/useCreateMember";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+
+// Pages that only support view (no create/edit/delete functionality)
+const VIEW_ONLY_PAGES = ['dashboard'];
+
+// Page display names for better UX
+const PAGE_NAMES: Record<string, string> = {
+    'dashboard': 'Dashboard',
+    'proposals': 'Propostas',
+    'clients': 'Clientes',
+    'products': 'Produtos',
+    'financial': 'Financeiro',
+};
 
 // Simple permission toggle component
 function PermissionRow({
@@ -34,10 +47,13 @@ function PermissionRow({
     permissions: { canView: boolean; canCreate?: boolean; canEdit?: boolean; canDelete?: boolean };
     onChange: (page: string, key: string, value: boolean) => void;
 }) {
+    const isViewOnly = VIEW_ONLY_PAGES.includes(page);
+    const displayName = PAGE_NAMES[page] || page.replace("/", "");
+
     return (
         <div className="flex items-center justify-between py-3 border-b border-border/50 last:border-0">
-            <span className="font-medium text-sm capitalize">
-                {page.replace("/", "")}
+            <span className="font-medium text-sm">
+                {displayName}
             </span>
             <div className="flex gap-3 flex-wrap">
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
@@ -50,36 +66,40 @@ function PermissionRow({
                     <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                     Ver
                 </label>
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={permissions.canCreate ?? false}
-                        onChange={(e) => onChange(page, "canCreate", e.target.checked)}
-                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
-                    />
-                    <UserPlus className="w-3.5 h-3.5 text-muted-foreground" />
-                    Criar
-                </label>
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={permissions.canEdit ?? false}
-                        onChange={(e) => onChange(page, "canEdit", e.target.checked)}
-                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
-                    />
-                    <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
-                    Editar
-                </label>
-                <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={permissions.canDelete ?? false}
-                        onChange={(e) => onChange(page, "canDelete", e.target.checked)}
-                        className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
-                    />
-                    <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    Excluir
-                </label>
+                {!isViewOnly && (
+                    <>
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={permissions.canCreate ?? false}
+                                onChange={(e) => onChange(page, "canCreate", e.target.checked)}
+                                className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
+                            />
+                            <UserPlus className="w-3.5 h-3.5 text-muted-foreground" />
+                            Criar
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={permissions.canEdit ?? false}
+                                onChange={(e) => onChange(page, "canEdit", e.target.checked)}
+                                className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
+                            />
+                            <Edit3 className="w-3.5 h-3.5 text-muted-foreground" />
+                            Editar
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={permissions.canDelete ?? false}
+                                onChange={(e) => onChange(page, "canDelete", e.target.checked)}
+                                className="rounded border-input h-4 w-4 text-primary focus:ring-primary/20"
+                            />
+                            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                            Excluir
+                        </label>
+                    </>
+                )}
             </div>
         </div>
     );
@@ -88,18 +108,19 @@ function PermissionRow({
 export function CreateMemberForm() {
     const { createMember, isLoading, error } = useCreateMember();
     const upgradeModal = useUpgradeModal();
+    const { hasFinancial } = usePlanLimits();
 
     // Form state
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [roleType, setRoleType] = useState<"viewer" | "editor" | "admin">("viewer");
-    const [permissions, setPermissions] = useState(getDefaultPermissions("viewer"));
+    const [permissions, setPermissions] = useState(getDefaultPermissions("viewer", hasFinancial));
 
     // Update permissions when role type changes
     const handleRoleChange = (role: "viewer" | "editor" | "admin") => {
         setRoleType(role);
-        setPermissions(getDefaultPermissions(role));
+        setPermissions(getDefaultPermissions(role, hasFinancial));
     };
 
     // Update individual permission
@@ -130,7 +151,7 @@ export function CreateMemberForm() {
             setEmail("");
             setPassword("");
             setRoleType("viewer");
-            setPermissions(getDefaultPermissions("viewer"));
+            setPermissions(getDefaultPermissions("viewer", hasFinancial));
         } else if (result?.error && ['resource-exhausted', 'failed-precondition'].includes(result.error.code)) {
             // Show upgrade modal for limit errors
             upgradeModal.showUpgradeModal(
@@ -231,14 +252,16 @@ export function CreateMemberForm() {
                             Permissões por Página
                         </label>
                         <div className="rounded-xl border border-border p-4 bg-muted/20">
-                            {Object.entries(permissions).map(([page, perms]) => (
-                                <PermissionRow
-                                    key={page}
-                                    page={page}
-                                    permissions={perms}
-                                    onChange={handlePermissionChange}
-                                />
-                            ))}
+                            {Object.entries(permissions)
+                                .filter(([page]) => page !== 'financial' || hasFinancial)
+                                .map(([page, perms]) => (
+                                    <PermissionRow
+                                        key={page}
+                                        page={page}
+                                        permissions={perms}
+                                        onChange={handlePermissionChange}
+                                    />
+                                ))}
                         </div>
                     </div>
 
@@ -271,7 +294,7 @@ export function CreateMemberForm() {
                     </Button>
                 </form>
             </FormCard>
-            
+
             <UpgradeModal
                 open={upgradeModal.isOpen}
                 onOpenChange={upgradeModal.setIsOpen}

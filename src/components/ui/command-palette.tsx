@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
+import { usePermissions } from "@/providers/permissions-provider";
 
 // Define searchable items with their icons and paths
 interface SearchItem {
@@ -29,6 +30,7 @@ interface SearchItem {
     keywords?: string[];
     masterOnly?: boolean;
     requiresFinancial?: boolean;
+    requiresCreate?: string; // pageId that requires create permission
 }
 
 const searchItems: SearchItem[] = [
@@ -55,6 +57,7 @@ const searchItems: SearchItem[] = [
         path: "/products/new",
         icon: Package,
         keywords: ["adicionar", "criar", "cadastrar"],
+        requiresCreate: "products",
     },
     {
         id: "proposals",
@@ -71,6 +74,7 @@ const searchItems: SearchItem[] = [
         path: "/proposals/new",
         icon: FileText,
         keywords: ["adicionar", "criar", "orçamento"],
+        requiresCreate: "proposals",
     },
     {
         id: "customers",
@@ -87,6 +91,7 @@ const searchItems: SearchItem[] = [
         path: "/customers/new",
         icon: UsersRound,
         keywords: ["adicionar", "criar", "cadastrar"],
+        requiresCreate: "clients",
     },
     {
         id: "financial",
@@ -105,6 +110,7 @@ const searchItems: SearchItem[] = [
         icon: Wallet,
         keywords: ["adicionar", "entrada", "recebimento"],
         requiresFinancial: true,
+        requiresCreate: "financial",
     },
     {
         id: "new-expense",
@@ -114,6 +120,7 @@ const searchItems: SearchItem[] = [
         icon: Wallet,
         keywords: ["adicionar", "saída", "pagamento"],
         requiresFinancial: true,
+        requiresCreate: "financial",
     },
     {
         id: "profile",
@@ -159,6 +166,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
     const router = useRouter();
     const { user } = useAuth();
     const { hasFinancial } = usePlanLimits();
+    const { hasPermission } = usePermissions();
     const [isOpen, setIsOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState("");
     const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -173,6 +181,8 @@ export function CommandPalette({ className }: CommandPaletteProps) {
             // Check permission restrictions
             if (item.masterOnly && !isMaster) return false;
             if (item.requiresFinancial && !hasFinancial) return false;
+            // Check create permission if required
+            if (item.requiresCreate && !hasPermission(item.requiresCreate, 'create')) return false;
 
             // If no search term, don't show any results
             if (!searchTerm.trim()) return false;
@@ -185,7 +195,15 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
             return matchesLabel || matchesDescription || matchesKeywords;
         });
-    }, [searchTerm, isMaster, hasFinancial]);
+    }, [searchTerm, isMaster, hasFinancial, hasPermission]);
+
+    // Handle item selection
+    const handleSelect = React.useCallback((item: SearchItem) => {
+        router.push(item.path);
+        setIsOpen(false);
+        setSearchTerm("");
+        inputRef.current?.blur();
+    }, [router]);
 
     // Handle keyboard navigation
     const handleKeyDown = React.useCallback(
@@ -211,16 +229,8 @@ export function CommandPalette({ className }: CommandPaletteProps) {
                 inputRef.current?.blur();
             }
         },
-        [isOpen, filteredItems, selectedIndex]
+        [isOpen, filteredItems, selectedIndex, handleSelect]
     );
-
-    // Handle item selection
-    const handleSelect = (item: SearchItem) => {
-        router.push(item.path);
-        setIsOpen(false);
-        setSearchTerm("");
-        inputRef.current?.blur();
-    };
 
     // Global keyboard shortcut (Cmd/Ctrl + K)
     React.useEffect(() => {
