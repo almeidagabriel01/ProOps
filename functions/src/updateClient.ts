@@ -32,10 +32,7 @@ interface UserDoc {
 export const updateClient = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateClientInput, context) => {
-    console.log("updateClient: Function started", { 
-      data, 
-      auth: context.auth?.uid 
-    });
+    console.log("updateClient v2: Function started", { data, auth: context.auth?.uid });
 
     try {
       // 1. Auth Check
