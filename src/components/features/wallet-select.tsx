@@ -207,7 +207,12 @@ export function WalletSelect({
             </span>
           </div>
         ) : wallets.length === 0 ? (
-          <div className="p-4 rounded-xl border-2 border-dashed border-border bg-muted/30 text-center">
+          <div
+            className={cn(
+              "p-4 rounded-xl border-2 border-dashed bg-muted/30 text-center",
+              error ? "border-destructive" : "border-border"
+            )}
+          >
             <WalletIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
               Nenhuma carteira cadastrada.
@@ -290,11 +295,10 @@ export function WalletSelect({
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`w-8 h-8 rounded-full transition-all ${
-                        color === c
+                      className={`w-8 h-8 rounded-full transition-all ${color === c
                           ? "ring-2 ring-offset-2 ring-primary scale-110"
                           : "hover:scale-105"
-                      }`}
+                        }`}
                       style={{ backgroundColor: c }}
                     />
                   ))}
