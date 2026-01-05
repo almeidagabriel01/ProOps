@@ -85,8 +85,6 @@ export function ProposalPdfViewer({
   const repeatHeader =
     customSettings?.repeatHeader ?? template?.repeatHeader ?? false;
 
-  const pageNumberStart = customSettings?.pageNumberStart ?? (showCover ? 2 : 1);
-
   // If custom sections provided (preview mode), use them
   // Otherwise, generate from template (view mode) - simulating what edit page does
   const displaySections =
@@ -126,9 +124,6 @@ export function ProposalPdfViewer({
         coverTitle={coverTitle}
         proposal={proposal}
         repeatHeader={repeatHeader}
-        className={className}
-        noMargins={noMargins}
-        pageNumberStart={pageNumberStart}
       />
     </>
   );

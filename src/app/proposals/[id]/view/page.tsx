@@ -369,49 +369,49 @@ export default function ViewProposalPage() {
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
 
-        // --- 5. RENDER ---
-        const canvas = await html2canvas(container, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          windowWidth: 794,
-          windowHeight: 1123,
-        });
+        // --- 5. RENDER EACH PAGE INDIVIDUALLY ---
+        const pageContainers = container.querySelectorAll('[data-page-index]');
+
+        if (pageContainers.length === 0) {
+          toast.error("Erro: Nenhuma página encontrada para gerar PDF");
+          return;
+        }
 
         const pdf = new jsPDF("p", "mm", "a4");
         const pageWidth = 210;
         const pageHeight = 297;
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
 
-        pdf.addImage(
-          canvas.toDataURL("image/jpeg", 0.95),
-          "JPEG",
-          0,
-          position,
-          imgWidth,
-          imgHeight
-        );
-        heightLeft -= pageHeight;
+        // Capture and add each page individually
+        for (let i = 0; i < pageContainers.length; i++) {
+          const pageElement = pageContainers[i] as HTMLElement;
 
-        // Tolerance of 1mm (approx 4px) to avoid blank pages for tiny overflows or artifacts
-        while (heightLeft > 1.0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
+          // Capture this specific page
+          const pageCanvas = await html2canvas(pageElement, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            allowTaint: true,
+            backgroundColor: "#ffffff",
+            width: 794,  // Fixed A4 width
+            height: 1123, // Fixed A4 height
+          });
+
+          // Add page to PDF (add new page for all except first)
+          if (i > 0) {
+            pdf.addPage();
+          }
+
+          // Add the page image to fill the entire PDF page
           pdf.addImage(
-            canvas.toDataURL("image/jpeg", 0.95),
+            pageCanvas.toDataURL("image/jpeg", 0.95),
             "JPEG",
             0,
-            position,
-            imgWidth,
-            imgHeight
+            0,
+            pageWidth,
+            pageHeight
           );
-          heightLeft -= pageHeight;
         }
+
 
         const filename = `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`;
         pdf.save(filename);
