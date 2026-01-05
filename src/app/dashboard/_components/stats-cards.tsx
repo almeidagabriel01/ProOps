@@ -23,15 +23,20 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 export function QuickActionsCard() {
   const { canCreate: canCreateProposal } = usePagePermission("proposals");
   const { canCreate: canCreateFinancial } = usePagePermission("financial");
   const { canCreate: canCreateClient } = usePagePermission("clients");
   const { canCreate: canCreateProduct } = usePagePermission("products");
+  const { hasFinancial } = usePlanLimits();
+
+  // For financial, user must have both permission AND the financial module
+  const canShowFinancial = canCreateFinancial && hasFinancial;
 
   // If user can't create anything, don't show the quick actions section
-  const hasAnyCreatePermission = canCreateProposal || canCreateFinancial || canCreateClient || canCreateProduct;
+  const hasAnyCreatePermission = canCreateProposal || canShowFinancial || canCreateClient || canCreateProduct;
 
   if (!hasAnyCreatePermission) {
     return null;
@@ -60,7 +65,7 @@ export function QuickActionsCard() {
         </Link>
       )}
 
-      {canCreateFinancial && (
+      {canShowFinancial && (
         <Link href="/financial/new" className="group">
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-emerald-500/10 transition-colors" />

@@ -3,7 +3,9 @@ import { usePermissions } from "@/providers/permissions-provider";
 export function usePagePermission(pageId: string) {
   const { permissions, isMaster, isLoading } = usePermissions();
 
-  if (isLoading) {
+  // Treat as loading if permissions haven't been fetched yet
+  // This prevents race conditions where null permissions cause incorrect denials
+  if (isLoading || permissions === null) {
     return {
       isLoading: true,
       canView: false,

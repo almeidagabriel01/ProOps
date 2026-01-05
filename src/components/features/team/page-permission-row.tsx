@@ -74,30 +74,35 @@ export function PagePermissionRow({
                     disabled={saving}
                     loading={isUpdating("canView")}
                 />
-                <PermissionToggle
-                    enabled={permission?.canCreate ?? false}
-                    onChange={(v) => onUpdate("canCreate", v)}
-                    label="Criar"
-                    icon={UserPlus}
-                    disabled={saving || !canView}
-                    loading={isUpdating("canCreate")}
-                />
-                <PermissionToggle
-                    enabled={canEdit}
-                    onChange={(v) => onUpdate("canEdit", v)}
-                    label="Editar"
-                    icon={Edit3}
-                    disabled={saving || !canView}
-                    loading={isUpdating("canEdit")}
-                />
-                <PermissionToggle
-                    enabled={permission?.canDelete ?? false}
-                    onChange={(v) => onUpdate("canDelete", v)}
-                    label="Excluir"
-                    icon={Trash2}
-                    disabled={saving || !canView}
-                    loading={isUpdating("canDelete")}
-                />
+                {/* Only show create/edit/delete for non-viewOnly pages */}
+                {!page.viewOnly && (
+                    <>
+                        <PermissionToggle
+                            enabled={permission?.canCreate ?? false}
+                            onChange={(v) => onUpdate("canCreate", v)}
+                            label="Criar"
+                            icon={UserPlus}
+                            disabled={saving || !canView}
+                            loading={isUpdating("canCreate")}
+                        />
+                        <PermissionToggle
+                            enabled={canEdit}
+                            onChange={(v) => onUpdate("canEdit", v)}
+                            label="Editar"
+                            icon={Edit3}
+                            disabled={saving || !canView}
+                            loading={isUpdating("canEdit")}
+                        />
+                        <PermissionToggle
+                            enabled={permission?.canDelete ?? false}
+                            onChange={(v) => onUpdate("canDelete", v)}
+                            label="Excluir"
+                            icon={Trash2}
+                            disabled={saving || !canView}
+                            loading={isUpdating("canDelete")}
+                        />
+                    </>
+                )}
             </div>
         </div>
     );

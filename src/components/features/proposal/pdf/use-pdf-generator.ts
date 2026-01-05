@@ -19,6 +19,59 @@ export function usePdfGenerator({
 }: UsePdfGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
+  /**
+   * Preloads all images in a container by converting them to data URLs.
+   * This fixes issues with html2canvas not properly rendering cross-origin images
+   * from Firebase Storage even with useCORS: true.
+   */
+  const preloadImages = async (container: HTMLElement): Promise<void> => {
+    const images = container.querySelectorAll("img");
+    const imagePromises: Promise<void>[] = [];
+
+    images.forEach((img) => {
+      const src = img.src;
+      if (!src || src.startsWith("data:")) return;
+
+      const promise = new Promise<void>((resolve) => {
+        // Create an image element to load the image
+        const tempImg = new Image();
+        tempImg.crossOrigin = "anonymous";
+
+        tempImg.onload = () => {
+          try {
+            // Create a canvas to convert to data URL
+            const canvas = document.createElement("canvas");
+            canvas.width = tempImg.naturalWidth;
+            canvas.height = tempImg.naturalHeight;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(tempImg, 0, 0);
+              // Replace the image src with data URL
+              const dataUrl = canvas.toDataURL("image/png");
+              img.src = dataUrl;
+            }
+          } catch (e) {
+            console.warn("Failed to convert image to data URL:", src, e);
+          }
+          resolve();
+        };
+
+        tempImg.onerror = () => {
+          console.warn("Failed to load image:", src);
+          resolve();
+        };
+
+        tempImg.src = src;
+      });
+
+      imagePromises.push(promise);
+    });
+
+    await Promise.all(imagePromises);
+    // Give a small delay for DOM to update
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
 
@@ -35,6 +88,9 @@ export function usePdfGenerator({
       if (includeCover) {
         const coverElement = document.getElementById("pdf-cover-page");
         if (coverElement) {
+          // Preload all images in cover before rendering
+          await preloadImages(coverElement);
+
           const canvas = await html2canvas(coverElement, {
             scale: 2,
             useCORS: true,
@@ -45,17 +101,18 @@ export function usePdfGenerator({
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
                 const computedStyle = window.getComputedStyle(element);
-                
+
                 const hasModernColor = (value: string) => {
-                  return value && (
-                    value.includes("lab(") ||
-                    value.includes("oklab(") ||
-                    value.includes("lch(") ||
-                    value.includes("oklch(") ||
-                    value.includes("color(")
+                  return (
+                    value &&
+                    (value.includes("lab(") ||
+                      value.includes("oklab(") ||
+                      value.includes("lch(") ||
+                      value.includes("oklch(") ||
+                      value.includes("color("))
                   );
                 };
-                
+
                 if (hasModernColor(computedStyle.backgroundColor)) {
                   element.style.backgroundColor = "transparent";
                 }
@@ -90,6 +147,9 @@ export function usePdfGenerator({
         previewElement.style.width = "210mm";
         previewElement.style.fontFamily = settings.fontFamily;
 
+        // Preload all images in content before rendering
+        await preloadImages(previewElement);
+
         const canvas = await html2canvas(previewElement, {
           scale: 2,
           useCORS: true,
@@ -100,17 +160,18 @@ export function usePdfGenerator({
             allElements.forEach((el) => {
               const element = el as HTMLElement;
               const computedStyle = window.getComputedStyle(element);
-              
+
               const hasModernColor = (value: string) => {
-                return value && (
-                  value.includes("lab(") ||
-                  value.includes("oklab(") ||
-                  value.includes("lch(") ||
-                  value.includes("oklch(") ||
-                  value.includes("color(")
+                return (
+                  value &&
+                  (value.includes("lab(") ||
+                    value.includes("oklab(") ||
+                    value.includes("lch(") ||
+                    value.includes("oklch(") ||
+                    value.includes("color("))
                 );
               };
-              
+
               if (hasModernColor(computedStyle.backgroundColor)) {
                 element.style.backgroundColor = "#ffffff";
               }

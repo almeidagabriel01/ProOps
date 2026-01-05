@@ -22,6 +22,8 @@ import {
   CreditCard,
   CheckCircle,
 } from "lucide-react";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 
 const transactionSteps = [
   {
@@ -52,6 +54,7 @@ const transactionSteps = [
 
 export default function NewTransactionPage() {
   const router = useRouter();
+  const { hasFinancial, isLoading: planLoading } = usePlanLimits();
   const {
     formData,
     setFormData,
@@ -65,7 +68,17 @@ export default function NewTransactionPage() {
     isLoading,
   } = useTransactionForm();
 
-  if (isLoading) {
+  // Check plan access first
+  if (!planLoading && !hasFinancial) {
+    return (
+      <UpgradeRequired
+        feature="Novo Lançamento"
+        description="O módulo Financeiro permite gerenciar suas receitas, despesas e fluxo de caixa. Faça upgrade para o plano Profissional ou Enterprise para acessar."
+      />
+    );
+  }
+
+  if (isLoading || planLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
@@ -77,7 +90,7 @@ export default function NewTransactionPage() {
   }
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
