@@ -108,7 +108,7 @@ export function usePlanChange(
         }
         toastShownRef.current = true;
         localStorage.removeItem("profile_message");
-      } catch (e) {
+      } catch {
         localStorage.removeItem("profile_message");
       }
       window.history.replaceState({}, "", "/profile");

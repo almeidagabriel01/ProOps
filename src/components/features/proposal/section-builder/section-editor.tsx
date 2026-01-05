@@ -10,6 +10,7 @@ import { HierarchicalFieldSection } from "../hierarchical-field-section";
 import { Minus, Upload } from "lucide-react";
 import { ParsedContent, TableItem, parseContent } from "./constants";
 import { ListEditor, TableEditor } from "./editors";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 
 interface SectionEditorProps {
   section: ProposalSection;
@@ -21,8 +22,8 @@ export function SectionEditor({ section, onUpdate }: SectionEditorProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("O arquivo deve ser uma imagem.");
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }

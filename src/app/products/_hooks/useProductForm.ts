@@ -11,6 +11,7 @@ import {
   uploadImage,
   deleteImage,
   isStorageUrl,
+  ALLOWED_TYPES,
 } from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema } from "@/lib/validations";
@@ -188,8 +189,10 @@ export function useProductForm(
     }
 
     // Validation: File type
-    if (!file.type.startsWith("image/")) {
-      toast.error("O arquivo deve ser uma imagem (PNG, JPG, JPEG, WEBP).");
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error(
+        "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+      );
       return;
     }
 

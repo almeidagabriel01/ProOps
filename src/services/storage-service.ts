@@ -11,7 +11,7 @@ import {
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // Allowed image MIME types
-const ALLOWED_TYPES = [
+export const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/gif",
@@ -94,11 +94,11 @@ export async function uploadBase64Image(
 ): Promise<UploadResult> {
   // Check if it's a data URL or raw base64
   const isDataUrl = base64Data.startsWith("data:");
-  
+
   // Extract the actual base64 content and content type
   let contentType = "image/png"; // default
   let base64Content = base64Data;
-  
+
   if (isDataUrl) {
     const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
     if (matches) {
@@ -135,8 +135,10 @@ export async function deleteImage(urlOrPath: string): Promise<void> {
     let storagePath = urlOrPath;
 
     // If it's a download URL, extract the path
-    if (urlOrPath.includes("firebasestorage.googleapis.com") || 
-        urlOrPath.includes("storage.googleapis.com")) {
+    if (
+      urlOrPath.includes("firebasestorage.googleapis.com") ||
+      urlOrPath.includes("storage.googleapis.com")
+    ) {
       // Extract path from URL
       const decodedUrl = decodeURIComponent(urlOrPath);
       const pathMatch = decodedUrl.match(/\/o\/(.+?)\?/);

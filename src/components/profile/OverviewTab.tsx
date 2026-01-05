@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { UserService } from "@/services/user-service";
 import { TenantService } from "@/services/tenant-service";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 import { toast } from "react-toastify";
 import { PlanUsageCard } from "@/components/shared/plan-usage-card";
 import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
@@ -207,8 +208,8 @@ function OrganizationForm({
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
-      if (!file.type.startsWith("image/")) {
-        toast.error("O arquivo deve ser uma imagem (PNG, JPG, SVG).");
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
         e.target.value = "";
         return;
       }

@@ -6,6 +6,7 @@ import { useAuth, User } from "@/providers/auth-provider";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
 
 type AuthMode = "login" | "register" | "forgot";
@@ -240,8 +241,10 @@ export function useLoginForm(): UseLoginFormReturn {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        setError("O arquivo deve ser uma imagem (PNG, JPG, SVG).");
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setError(
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+        );
         e.target.value = "";
         return;
       }
