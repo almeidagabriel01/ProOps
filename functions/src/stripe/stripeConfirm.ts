@@ -6,11 +6,10 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { db } from "../init";
 import { getStripe } from "./stripeConfig";
 import { getPlanIdByTier } from "./stripeHelpers";
-
-const db = getFirestore();
 
 // Default plans for seeding if not found
 const DEFAULT_PLANS = [

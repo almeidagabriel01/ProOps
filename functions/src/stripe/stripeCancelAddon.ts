@@ -1,8 +1,7 @@
 import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { db } from "../init";
 import { getStripe } from "./stripeConfig";
-
-const db = getFirestore();
 
 type AddonType = "financial" | "pdf_editor_partial" | "pdf_editor_full";
 

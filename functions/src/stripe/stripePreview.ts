@@ -6,10 +6,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
 import { getStripe, getPriceIdForTier, BillingInterval } from "./stripeConfig";
-
-const db = getFirestore();
+import { db } from "../init";
 
 interface PreviewRequest {
   userId: string;

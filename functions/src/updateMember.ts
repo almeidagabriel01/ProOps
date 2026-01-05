@@ -1,10 +1,7 @@
 import * as functions from "firebase-functions";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 import { canManageTeam } from "./authUtils";
-
-const db = getFirestore();
-const auth = getAuth();
+import { db, auth } from "./init";
 
 interface UpdateMemberInput {
   memberId: string;
