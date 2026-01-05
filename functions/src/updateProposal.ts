@@ -10,7 +10,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import { db } from "./init";
 
 // ============================================
 // TYPES
@@ -73,7 +74,7 @@ interface UserDoc {
 export const updateProposal = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateProposalInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     // 1. Auth Check
     if (!context.auth) {

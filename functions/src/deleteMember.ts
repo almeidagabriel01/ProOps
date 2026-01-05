@@ -1,10 +1,8 @@
 import * as functions from "firebase-functions";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { canManageTeam } from "./authUtils";
 
-const db = getFirestore();
-const auth = getAuth();
+import { FieldValue } from "firebase-admin/firestore";
+import { canManageTeam } from "./authUtils";
+import { db, auth } from "./init";
 
 interface DeleteMemberInput {
   memberId: string;

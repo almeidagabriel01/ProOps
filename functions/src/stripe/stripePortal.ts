@@ -6,10 +6,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
 import { getStripe, getAppUrl } from "./stripeConfig";
-
-const db = getFirestore();
+import { db } from "../init";
 
 interface PortalRequest {
   userId: string;

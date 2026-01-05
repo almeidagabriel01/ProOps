@@ -10,7 +10,7 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore } from "firebase-admin/firestore";
+import { db } from "./init";
 import { canEditPermissions } from "./authUtils";
 
 // ============================================
@@ -36,7 +36,7 @@ interface UpdatePermissionsInput {
 export const updateMemberPermissions = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdatePermissionsInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     // ========================================
     // 1. AUTHENTICATION CHECK

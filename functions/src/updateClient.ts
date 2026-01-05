@@ -9,7 +9,8 @@
  */
 
 import * as functions from "firebase-functions";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import { db } from "./init";
 
 interface UpdateClientInput {
   clientId: string;
@@ -31,7 +32,7 @@ interface UserDoc {
 export const updateClient = functions
   .region("southamerica-east1")
   .https.onCall(async (data: UpdateClientInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     // 1. Auth Check
     if (!context.auth) {

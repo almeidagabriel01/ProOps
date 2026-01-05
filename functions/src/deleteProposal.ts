@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { db } from "./init";
 
 interface DeleteProposalInput {
   proposalId: string;
@@ -18,7 +19,7 @@ interface UserDoc {
 export const deleteProposal = functions
   .region("southamerica-east1")
   .https.onCall(async (data: DeleteProposalInput, context) => {
-    const db = getFirestore();
+    // const db = getFirestore();
 
     // 1. Auth Check
     if (!context.auth) {
