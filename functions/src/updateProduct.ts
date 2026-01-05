@@ -86,15 +86,17 @@ export const updateProduct = functions
       const userData = userSnap.data() as UserDoc;
       const productData = productSnap.data();
       const tenantId = userData.tenantId || userData.companyId;
+      const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
-      if (!tenantId) {
+      if (!tenantId && !isSuperAdmin) {
         throw new functions.https.HttpsError(
           "failed-precondition",
           "Usuário sem tenantId."
         );
       }
 
-      if (productData?.tenantId !== tenantId) {
+      // Super admin can update any product
+      if (!isSuperAdmin && productData?.tenantId !== tenantId) {
         throw new functions.https.HttpsError(
           "permission-denied",
           "Este produto não pertence a sua organização."

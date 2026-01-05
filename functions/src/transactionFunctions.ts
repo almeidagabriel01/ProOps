@@ -439,8 +439,9 @@ export const updateTransaction = functions
 
     const userData = userSnap.data() as UserDoc;
     const tenantId = userData.tenantId || userData.companyId;
+    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
-    if (!tenantId)
+    if (!tenantId && !isSuperAdmin)
       throw new functions.https.HttpsError(
         "failed-precondition",
         "Usuário sem tenantId."
@@ -453,7 +454,7 @@ export const updateTransaction = functions
       role === "WK" ||
       (!userData.masterId && userData.subscription);
 
-    if (!isMaster) {
+    if (!isMaster && !isSuperAdmin) {
       if (!permSnap.exists || !permSnap.data()?.canEdit) {
         throw new functions.https.HttpsError(
           "permission-denied",
@@ -474,7 +475,8 @@ export const updateTransaction = functions
           );
 
         const currentData = snap.data() as TransactionDoc;
-        if (currentData.tenantId !== tenantId)
+        // Super admin can update any transaction
+        if (!isSuperAdmin && currentData.tenantId !== tenantId)
           throw new functions.https.HttpsError(
             "permission-denied",
             "Acesso negado."
@@ -508,7 +510,7 @@ export const updateTransaction = functions
               const wInfo = await resolveWalletRef(
                 t,
                 db,
-                tenantId,
+                tenantId || "",
                 currentData.wallet
               );
               if (wInfo)
@@ -522,7 +524,7 @@ export const updateTransaction = functions
               const wInfo = await resolveWalletRef(
                 t,
                 db,
-                tenantId,
+                tenantId || "",
                 newData.wallet
               );
               if (wInfo)
@@ -538,7 +540,7 @@ export const updateTransaction = functions
               const wInfo = await resolveWalletRef(
                 t,
                 db,
-                tenantId,
+                tenantId || "",
                 newData.wallet
               );
               if (wInfo)
@@ -595,8 +597,9 @@ export const deleteTransaction = functions
 
     const userData = userSnap.data() as UserDoc;
     const tenantId = userData.tenantId || userData.companyId;
+    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
 
-    if (!tenantId)
+    if (!tenantId && !isSuperAdmin)
       throw new functions.https.HttpsError(
         "failed-precondition",
         "Usuário sem tenantId."
@@ -609,7 +612,7 @@ export const deleteTransaction = functions
       role === "WK" ||
       (!userData.masterId && userData.subscription);
 
-    if (!isMaster) {
+    if (!isMaster && !isSuperAdmin) {
       if (!permSnap.exists || !permSnap.data()?.canDelete) {
         throw new functions.https.HttpsError(
           "permission-denied",
@@ -630,7 +633,8 @@ export const deleteTransaction = functions
           );
 
         const currentData = snap.data() as TransactionDoc;
-        if (currentData.tenantId !== tenantId)
+        // Super admin can delete any transaction
+        if (!isSuperAdmin && currentData.tenantId !== tenantId)
           throw new functions.https.HttpsError(
             "permission-denied",
             "Acesso negado."
@@ -644,7 +648,7 @@ export const deleteTransaction = functions
           const wInfo = await resolveWalletRef(
             t,
             db,
-            tenantId,
+            tenantId || "",
             currentData.wallet
           );
           if (wInfo) {

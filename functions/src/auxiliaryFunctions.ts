@@ -73,30 +73,46 @@ async function checkAuthAndDoc(
   tenantId: string;
   docRef: FirebaseFirestore.DocumentReference;
   docSnap: FirebaseFirestore.DocumentSnapshot;
+  isSuperAdmin: boolean;
 }> {
   if (!docId)
     throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
 
   const docRef = db.collection(collectionName).doc(docId);
+  const userRef = db.collection("users").doc(userId);
 
-  // Parallel Fetch
-  const [tenantId, docSnap] = await Promise.all([
-    getTenantId(db, userId),
+  // Parallel Fetch - get user data to check role
+  const [userSnap, docSnap] = await Promise.all([
+    userRef.get(),
     docRef.get(),
   ]);
+
+  if (!userSnap.exists) {
+    throw new functions.https.HttpsError("not-found", "Usuário não encontrado.");
+  }
+
+  const userData = userSnap.data() as UserDoc;
+  const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
+  const tenantId = userData.tenantId || userData.companyId || "";
+
+  if (!tenantId && !isSuperAdmin) {
+    throw new functions.https.HttpsError("failed-precondition", "Usuário sem tenantId.");
+  }
 
   if (!docSnap.exists)
     throw new functions.https.HttpsError(
       "not-found",
       "Documento não encontrado."
     );
-  if (docSnap.data()?.tenantId !== tenantId)
+  
+  // Super admin can access any document
+  if (!isSuperAdmin && docSnap.data()?.tenantId !== tenantId)
     throw new functions.https.HttpsError(
       "permission-denied",
       "Este documento não pertence a sua organização."
     );
 
-  return { tenantId, docRef, docSnap };
+  return { tenantId, docRef, docSnap, isSuperAdmin };
 }
 
 // ============================================
@@ -451,7 +467,7 @@ export const deleteCustomField = functions
 
 export const createOption = functions
   .region("southamerica-east1")
-  .https.onCall(async (data: { fieldType: string; label: string }, context) => {
+  .https.onCall(async (data: { fieldType: string; label: string; tenantId?: string }, context) => {
     console.log("createOption v2: Started", { data, auth: context.auth?.uid });
     try {
       if (!context.auth) {
@@ -462,7 +478,28 @@ export const createOption = functions
         );
       }
 
-      const tenantId = await getTenantId(db, context.auth.uid);
+      // Get user data to check role
+      const userRef = db.collection("users").doc(context.auth.uid);
+      const userSnap = await userRef.get();
+      
+      if (!userSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "Usuário não encontrado.");
+      }
+      
+      const userData = userSnap.data() as { role?: string; tenantId?: string; companyId?: string };
+      const isSuperAdmin = userData.role === "superadmin";
+      
+      // Determine tenantId: super admin can use provided tenantId, others must use their own
+      let tenantId: string;
+      if (isSuperAdmin && data.tenantId) {
+        tenantId = data.tenantId;
+        console.log("createOption: Super admin creating option for tenant:", tenantId);
+      } else {
+        tenantId = userData.tenantId || userData.companyId || "";
+        if (!tenantId) {
+          throw new functions.https.HttpsError("failed-precondition", "Usuário sem tenantId.");
+        }
+      }
 
       if (!data.fieldType || !data.label) {
         console.warn("createOption: Missing fields");

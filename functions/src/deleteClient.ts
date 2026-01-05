@@ -52,6 +52,7 @@ export const deleteClient = functions
     }
 
     const userData = userSnap.data() as LocalUserDoc;
+    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
     // console.log(`[deleteClient] User ${userId} data:`, JSON.stringify(userData)); // Debug if needed
 
     // Resolve Master
@@ -63,7 +64,7 @@ export const deleteClient = functions
       role === "WK" ||
       (!userData.masterId && !userData.masterID && userData.subscription);
 
-    if (isMaster) {
+    if (isMaster || isSuperAdmin) {
       masterRef = userRef;
     } else {
       const masterId =
@@ -78,7 +79,7 @@ export const deleteClient = functions
     }
 
     const userCompanyId = userData.companyId || userData.tenantId;
-    if (!userCompanyId) {
+    if (!userCompanyId && !isSuperAdmin) {
       throw new functions.https.HttpsError(
         "failed-precondition",
         "Configuração de conta inválida: companyId/tenantId ausente."
@@ -99,11 +100,11 @@ export const deleteClient = functions
     try {
       await db.runTransaction(async (transaction) => {
         const clientRef = db.collection("clients").doc(clientId);
-        const companyRef = db.collection("companies").doc(userCompanyId);
+        const companyRef = userCompanyId ? db.collection("companies").doc(userCompanyId) : null;
 
         // READS
         const clientSnap = await transaction.get(clientRef);
-        const companySnap = await transaction.get(companyRef);
+        const companySnap = companyRef ? await transaction.get(companyRef) : null;
 
         // CHECKS
         if (!clientSnap.exists)
@@ -113,7 +114,8 @@ export const deleteClient = functions
           );
 
         const clientData = clientSnap.data();
-        if (clientData?.tenantId !== userCompanyId) {
+        // Super admin can delete any client
+        if (!isSuperAdmin && clientData?.tenantId !== userCompanyId) {
           console.warn(
             `[deleteClient] Access denied. Client tenant: ${clientData?.tenantId}, User tenant: ${userCompanyId}`
           );
@@ -131,7 +133,7 @@ export const deleteClient = functions
           updatedAt: Timestamp.now(),
         });
 
-        if (companySnap.exists) {
+        if (companySnap && companySnap.exists && companyRef) {
           transaction.update(companyRef, {
             "usage.clients": FieldValue.increment(-1),
             updatedAt: Timestamp.now(),
