@@ -45,22 +45,50 @@ export const createProposal = async (req: Request, res: Response) => {
       }
     }
 
-    const userCompanyId = tenantId;
+    const userCompanyId =
+      input.targetTenantId && isSuperAdmin ? input.targetTenantId : tenantId;
+
+    // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
+    let targetMasterRef = masterRef;
+    let targetMasterData = masterData;
+    
+    // We already resolved masterData for the logged user (Super Admin). 
+    // If target is different, we must find the actual master of that tenant.
+    if (isSuperAdmin && userCompanyId && userCompanyId !== tenantId) {
+      const ownerQuery = await db.collection("users")
+        .where("tenantId", "==", userCompanyId)
+        .limit(10)
+        .get();
+
+      let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+      if (!ownerDoc && !ownerQuery.empty) {
+         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+      }
+
+      if (ownerDoc) {
+        targetMasterRef = db.collection("users").doc(ownerDoc.id);
+        targetMasterData = ownerDoc.data() as UserDoc;
+      }
+    }
 
     if (
-      masterData.subscription?.status &&
-      !["ACTIVE", "TRIALING"].includes(masterData.subscription.status)
+      targetMasterData.subscription?.status &&
+      !["ACTIVE", "TRIALING"].includes(targetMasterData.subscription.status)
     ) {
       // Optional: check strict status
     }
 
     try {
-      await checkProposalLimit(masterData);
+      await checkProposalLimit(targetMasterData);
     } catch (e) {
-      const error = e as Error;
-      return res
-        .status(402)
-        .json({ message: error.message, code: "resource-exhausted" });
+      // Allow bypass for Super Admin
+      if (!isSuperAdmin) {
+        const error = e as Error;
+        return res
+          .status(402)
+          .json({ message: error.message, code: "resource-exhausted" });
+      }
     }
 
     const proposalId = await db.runTransaction(async (t) => {
@@ -107,7 +135,7 @@ export const createProposal = async (req: Request, res: Response) => {
         updatedAt: now,
       });
 
-      t.update(masterRef, {
+      t.update(targetMasterRef, {
         "usage.proposals": FieldValue.increment(1),
         updatedAt: now,
       });
@@ -154,7 +182,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Proposta não encontrada." });
 
     const proposalData = proposalSnap.data();
-    if (proposalData?.tenantId !== tenantId)
+    if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
 
     if (!isMaster && !isSuperAdmin) {
@@ -226,7 +254,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Proposta não encontrada." });
 
     const proposalData = proposalSnap.data();
-    if (proposalData?.tenantId !== tenantId)
+    if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
 
     if (!isMaster && !isSuperAdmin) {
@@ -238,15 +266,35 @@ export const deleteProposal = async (req: Request, res: Response) => {
       }
     }
 
+    // Determine correct masterRef for usage decrement
+    let targetMasterRef = masterRef;
+    
+    if (isSuperAdmin && proposalData?.tenantId && proposalData.tenantId !== tenantId) {
+       const ownerQuery = await db.collection("users")
+         .where("tenantId", "==", proposalData.tenantId)
+         .limit(10)
+         .get();
+         
+       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+       if (!ownerDoc && !ownerQuery.empty) {
+         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+       }
+       
+       if (ownerDoc) {
+         targetMasterRef = db.collection("users").doc(ownerDoc.id);
+       }
+    }
+
     await db.runTransaction(async (t) => {
       const pSnap = await t.get(proposalRef);
       if (!pSnap.exists) throw new Error("Proposta não encontrada.");
 
-      const companyRef = db.collection("companies").doc(tenantId);
+      const companyRef = db.collection("companies").doc(proposalData?.tenantId || tenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
-      t.update(masterRef, { "usage.proposals": FieldValue.increment(-1) });
+      t.update(targetMasterRef, { "usage.proposals": FieldValue.increment(-1) });
 
       if (companySnap.exists) {
         t.update(companyRef, { "usage.proposals": FieldValue.increment(-1) });

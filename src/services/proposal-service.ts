@@ -119,13 +119,38 @@ export const ProposalService = {
     return !snap.empty;
   },
 
-  isProductUsedInProposal: async (productId: string): Promise<boolean> => {
-    // Products are inside an array, so we can't easily query with simple 'where' if it's a complex object array
-    // But if we just check text search or if structure allows:
-    // Firestore simple query cannot check inside array of objects easily without composite index or if structure is just IDs
-    // For now, returning false or ensuring usage check is done properly
-    // A proper implementation requires a collection group query or backend function
-    // returning false to unblock build, but this logic is brittle client-side without proper data structure
-    return false;
+  isProductUsedInProposal: async (productId: string, tenantId?: string): Promise<boolean> => {
+    // Basic validation
+    if (!productId || !tenantId) {
+      console.warn("isProductUsedInProposal called without productId or tenantId");
+      return false; 
+    }
+
+    try {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Client-side filtering because Firestore can't query inside array of objects easily
+      // without specific structure or third-party search (like Algolia)
+      for (const doc of querySnapshot.docs) {
+        const data = doc.data();
+        const products = data.products || [];
+        // Check if any product in the array matches exactly the productId
+        if (Array.isArray(products) && products.some((p: any) => p.productId === productId)) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error checking product usage:", error);
+      // In case of error, better NOT to block deletion unless we are sure, or block to be safe?
+      // Blocking to be safe is better to prevent data integrity issues.
+      return true; 
+    }
   },
 };

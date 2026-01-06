@@ -79,6 +79,7 @@ export const SistemaService = {
         icon: data.icon,
         ambienteIds: data.ambienteIds || [],
         defaultProducts: sanitizedProducts,
+        tenantId: data.tenantId, // Ensure tenantId is passed
       };
 
       const result = await callApi<{ success: boolean; id: string; message: string }>(

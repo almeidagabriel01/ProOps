@@ -274,6 +274,12 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   const getUserCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
 
+    // Members don't have permission to query other users
+    // They don't need this info anyway (can't create team members)
+    if (user?.role?.toLowerCase() === 'member') {
+      return 0; 
+    }
+
     // Only count MEMBER users (not MASTER/admin users)
     // The limit is for team members, not the account owner
     const q = query(
@@ -284,7 +290,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     const snapshot = await getDocs(q);
     return snapshot.size;
-  }, [tenant]);
+  }, [tenant, user]);
 
   const canCreateProposal = useCallback(async (): Promise<boolean> => {
     if (!mergedFeatures) return false;

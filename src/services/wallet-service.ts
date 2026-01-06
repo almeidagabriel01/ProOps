@@ -25,6 +25,7 @@ export interface CreateWalletInput {
   icon?: string;
   description?: string;
   isDefault?: boolean;
+  targetTenantId?: string; // For super admin to create for a specific tenant
 }
 
 export interface UpdateWalletInput {

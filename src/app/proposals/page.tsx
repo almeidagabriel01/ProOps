@@ -2,10 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Proposal, ProposalStatus } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
@@ -98,7 +95,6 @@ export default function ProposalsPage() {
     }
   };
 
-
   const handleDuplicate = async (id: string) => {
     try {
       const original = proposals.find((p) => p.id === id);
@@ -141,203 +137,217 @@ export default function ProposalsPage() {
     });
   };
 
+  const proposalToDelete = proposals.find((p) => p.id === deleteId);
+
+  const renderDialogs = () => (
+    <AlertDialog
+      open={!!deleteId}
+      onOpenChange={(open) => {
+        if (!isDeleting) {
+          if (!open) setDeleteId(null);
+        }
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza que deseja excluir a proposta{" "}
+            <strong>{proposalToDelete?.title}</strong>? Esta ação não pode ser
+            desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="bg-destructive hover:bg-destructive/90 gap-2"
+            disabled={isDeleting}
+          >
+            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+            {isDeleting ? "Excluindo..." : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (isPageLoading) {
-    return <ProposalsSkeleton />;
+    return (
+      <>
+        <ProposalsSkeleton />
+        {renderDialogs()}
+      </>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie suas propostas comerciais
-          </p>
-        </div>
-        {canCreate && (
-          <Link href="/proposals/new">
-            <Button size="lg" className="gap-2">
-              <Plus className="w-5 h-5" />
-              Novo Proposta
-            </Button>
-          </Link>
-        )}
-      </div>
-
-      {/* Search */}
-      {proposals.length > 0 && (
-        <div className="max-w-md">
-          <Input
-            placeholder="Buscar por título, cliente ou status..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            icon={<Search className="w-4 h-4" />}
-          />
-        </div>
-      )}
-
-      {proposals.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <FileText className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">
-              Nenhuma proposta encontrada
-            </h3>
-            <p className="text-muted-foreground text-center mb-6 max-w-md">
-              Crie sua primeira proposta comercial e comece a fechar negócios!
+    <>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie suas propostas comerciais
             </p>
-            {canCreate && (
-              <Link href="/proposals/new">
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Criar Primeira Proposta
-                </Button>
-              </Link>
-            )}
-          </CardContent>
-        </Card>
-      ) : filteredProposals.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Search className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              Nenhum resultado encontrado
-            </h3>
-            <p className="text-muted-foreground text-center">
-              Tente buscar por outro termo.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {/* Header */}
-          <div className="grid grid-cols-5 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-            <div>Título</div>
-            <div className="text-center">Cliente</div>
-            <div className="text-center">Criado em</div>
-            <div className="text-center">Validade</div>
-            <div className="text-right">Ações</div>
           </div>
+          {canCreate && (
+            <Link href="/proposals/new">
+              <Button size="lg" className="gap-2">
+                <Plus className="w-5 h-5" />
+                Novo Proposta
+              </Button>
+            </Link>
+          )}
+        </div>
 
-          {/* Rows */}
-          {filteredProposals.map((proposal) => {
-            const productCount = proposal.products?.length || 0;
-            const total =
-              proposal.products?.reduce((sum: number, p: any) => sum + p.total, 0) || 0;
-            return (
-              <Card
-                key={proposal.id}
-                className="hover:bg-muted/50 transition-colors"
-              >
-                <CardContent className="grid grid-cols-5 gap-4 items-center py-4 px-4">
-                  <div>
-                    <Link
-                      href={`/proposals/${proposal.id}/view`}
-                      className="font-medium hover:underline"
-                    >
-                      {proposal.title}
-                    </Link>
-                    {productCount > 0 && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {productCount} produto(s) • R$ {total.toFixed(2)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-sm text-muted-foreground truncate text-center">
-                    {proposal.clientName}
-                  </div>
-                  <div className="text-sm text-muted-foreground text-center">
-                    {formatDate(proposal.createdAt)}
-                  </div>
-                  <div className="text-sm text-muted-foreground text-center">
-                    {formatDate(proposal.validUntil)}
-                  </div>
-                  <div className="flex items-center justify-end gap-1">
-                    <Link href={`/proposals/${proposal.id}/view`}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Ver PDF"
+        {/* Search */}
+        {proposals.length > 0 && (
+          <div className="max-w-md">
+            <Input
+              placeholder="Buscar por título, cliente ou status..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              icon={<Search className="w-4 h-4" />}
+            />
+          </div>
+        )}
+
+        {proposals.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">
+                Nenhuma proposta encontrada
+              </h3>
+              <p className="text-muted-foreground text-center mb-6 max-w-md">
+                Crie sua primeira proposta comercial e comece a fechar negócios!
+              </p>
+              {canCreate && (
+                <Link href="/proposals/new">
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Criar Primeira Proposta
+                  </Button>
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        ) : filteredProposals.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Search className="w-12 h-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                Nenhum resultado encontrado
+              </h3>
+              <p className="text-muted-foreground text-center">
+                Tente buscar por outro termo.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {/* Header */}
+            <div className="grid grid-cols-5 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+              <div>Título</div>
+              <div className="text-center">Cliente</div>
+              <div className="text-center">Criado em</div>
+              <div className="text-center">Validade</div>
+              <div className="text-right">Ações</div>
+            </div>
+
+            {/* Rows */}
+            {filteredProposals.map((proposal) => {
+              const productCount = proposal.products?.length || 0;
+              const total =
+                proposal.products?.reduce(
+                  (sum: number, p: any) => sum + p.total,
+                  0
+                ) || 0;
+              return (
+                <Card
+                  key={proposal.id}
+                  className="hover:bg-muted/50 transition-colors"
+                >
+                  <CardContent className="grid grid-cols-5 gap-4 items-center py-4 px-4">
+                    <div>
+                      <Link
+                        href={`/proposals/${proposal.id}/view`}
+                        className="font-medium hover:underline"
                       >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                    {canEdit && (
-                      <Link href={`/proposals/${proposal.id}`}>
+                        {proposal.title}
+                      </Link>
+                      {productCount > 0 && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {productCount} produto(s) • R$ {total.toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate text-center">
+                      {proposal.clientName}
+                    </div>
+                    <div className="text-sm text-muted-foreground text-center">
+                      {formatDate(proposal.createdAt)}
+                    </div>
+                    <div className="text-sm text-muted-foreground text-center">
+                      {formatDate(proposal.validUntil)}
+                    </div>
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/proposals/${proposal.id}/view`}>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          title="Editar"
+                          title="Ver PDF"
                         >
-                          <FileText className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Button>
                       </Link>
-                    )}
-                    {canCreate && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDuplicate(proposal.id)}
-                        title="Duplicar"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {canDelete && (
-                      <AlertDialog
-                        open={deleteId === proposal.id}
-                        onOpenChange={(open: boolean) => {
-                          if (!isDeleting) {
-                            if (!open) setDeleteId(null);
-                          }
-                        }}
-                      >
-                        <AlertDialogTrigger asChild>
+                      {canEdit && (
+                        <Link href={`/proposals/${proposal.id}`}>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteId(proposal.id)}
-                            title="Excluir"
+                            className="h-8 w-8"
+                            title="Editar"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <FileText className="w-4 h-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir a proposta{" "}
-                              <strong>{proposal.title}</strong>? Esta ação não pode
-                              ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleDelete}
-                              className="bg-destructive hover:bg-destructive/90 gap-2"
-                              disabled={isDeleting}
-                            >
-                              {isDeleting && <Spinner className="w-4 h-4 text-white" />}
-                              {isDeleting ? "Excluindo..." : "Excluir"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                        </Link>
+                      )}
+                      {canCreate && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDuplicate(proposal.id)}
+                          title="Duplicar"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteId(proposal.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {renderDialogs()}
+    </>
   );
 }

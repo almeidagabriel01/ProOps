@@ -37,6 +37,7 @@ interface CreateMemberData {
   email: string;
   password?: string;
   permissions: MemberPermissions;
+  targetMasterId?: string; // For super admin to create member for a specific master
 }
 
 interface CreateMemberResult {

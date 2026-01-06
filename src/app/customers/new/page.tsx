@@ -152,6 +152,7 @@ export default function NewCustomerPage() {
         address: formData.address || undefined,
         notes: formData.notes || undefined,
         source: "manual",
+        targetTenantId: tenant?.id, // Ensure correct tenant for super admin
       });
 
       if (result?.success) {

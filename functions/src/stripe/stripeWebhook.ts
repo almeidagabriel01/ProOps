@@ -171,7 +171,7 @@ async function handleSubscriptionDeleted(
 }
 
 export const stripeWebhook = onRequest(
-  { region: "southamerica-east1" },
+  { region: "southamerica-east1", invoker: "public" },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
