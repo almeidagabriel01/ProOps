@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import {
   getStripe,
   getPriceIdForTier,
+  getPriceConfig,
   BillingInterval,
 } from "../../stripe/stripeConfig";
+
 import { db } from "../../init";
 
 // Handlers adapted from original onCall functions
@@ -106,9 +108,145 @@ export const createPortalSession = async (req: Request, res: Response) => {
   }
 };
 
-export const getPlans = async (req: Request, res: Response) => {
-  // Return plans config
-  // This could also be just static data or fetched from Stripe
-  // For now, returning success
-  return res.json({ success: true, plans: [] });
+export const getPlans = async (_req: Request, res: Response) => {
+  try {
+    const stripe = getStripe();
+    const priceConfig = getPriceConfig();
+
+    // Plan metadata (features, descriptions, etc.)
+    const planMetadata: Record<
+      string,
+      {
+        name: string;
+        description: string;
+        order: number;
+        highlighted?: boolean;
+        features: Record<string, number | boolean>;
+      }
+    > = {
+      starter: {
+        name: "Starter",
+        description: "Ideal para freelancers e pequenos negócios",
+        order: 1,
+        features: {
+          maxProposals: 80,
+          maxClients: 120,
+          maxProducts: 220,
+          maxUsers: 2,
+          hasFinancial: false,
+          canCustomizeTheme: false,
+          maxPdfTemplates: 1,
+          canEditPdfSections: false,
+          maxImagesPerProduct: 2,
+          maxStorageMB: 200,
+        },
+      },
+      pro: {
+        name: "Profissional",
+        description: "Para empresas em crescimento",
+        order: 2,
+        highlighted: true,
+        features: {
+          maxProposals: -1,
+          maxClients: -1,
+          maxProducts: -1,
+          maxUsers: 10,
+          hasFinancial: true,
+          canCustomizeTheme: true,
+          maxPdfTemplates: 3,
+          canEditPdfSections: false,
+          maxImagesPerProduct: 3,
+          maxStorageMB: 2560,
+        },
+      },
+      enterprise: {
+        name: "Enterprise",
+        description: "Acesso total para grandes operações",
+        order: 3,
+        features: {
+          maxProposals: -1,
+          maxClients: -1,
+          maxProducts: -1,
+          maxUsers: -1,
+          hasFinancial: true,
+          canCustomizeTheme: true,
+          maxPdfTemplates: -1,
+          canEditPdfSections: true,
+          maxImagesPerProduct: 3,
+          maxStorageMB: -1,
+        },
+      },
+    };
+
+    // Collect all price IDs to fetch from Stripe
+    const priceIds: string[] = [];
+    for (const tier of Object.keys(priceConfig.plans)) {
+      const tierConfig = priceConfig.plans[tier];
+      if (tierConfig.monthly) priceIds.push(tierConfig.monthly);
+      if (tierConfig.yearly) priceIds.push(tierConfig.yearly);
+    }
+
+    // Fetch all prices from Stripe in parallel
+    const pricePromises = priceIds
+      .filter((id) => id)
+      .map((id) => stripe.prices.retrieve(id).catch(() => null));
+    const stripePrices = await Promise.all(pricePromises);
+
+    // Build price map: priceId -> { amount, interval }
+    const priceMap: Record<string, { amount: number; interval: string }> = {};
+    for (const price of stripePrices) {
+      if (price && price.unit_amount !== null) {
+        priceMap[price.id] = {
+          amount: price.unit_amount / 100, // Convert from cents to BRL
+          interval: price.recurring?.interval || "month",
+        };
+      }
+    }
+
+    // Build plans response with real Stripe prices
+    const plans = Object.entries(priceConfig.plans).map(
+      ([tier, tierPrices]) => {
+        const prices = tierPrices as { monthly: string; yearly: string };
+        const monthlyPriceId = prices.monthly;
+        const yearlyPriceId = prices.yearly;
+
+        const monthlyAmount = priceMap[monthlyPriceId]?.amount || 0;
+        const yearlyAmount = priceMap[yearlyPriceId]?.amount || 0;
+
+        const metadata = planMetadata[tier] || {
+          name: tier,
+          description: "",
+          order: 99,
+          features: {},
+        };
+
+        return {
+          id: tier,
+          tier,
+          name: metadata.name,
+          description: metadata.description,
+          price: monthlyAmount, // Default to monthly price
+          pricing: {
+            monthly: monthlyAmount,
+            yearly: yearlyAmount,
+          },
+          order: metadata.order,
+          highlighted: metadata.highlighted || false,
+          features: metadata.features,
+        };
+      }
+    );
+
+    // Sort by order
+    plans.sort((a, b) => a.order - b.order);
+
+    return res.json({ success: true, plans });
+  } catch (error) {
+    console.error("Error fetching plans from Stripe:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching plans",
+      plans: [],
+    });
+  }
 };
