@@ -167,9 +167,9 @@ export function TransactionFilters({
             onChange={(e) =>
               onDateTypeChange?.(e.target.value as "date" | "dueDate")
             }
-            className="w-32 h-9 py-1"
+            className="w-44 h-auto py-1"
           >
-            <option value="date">Data Lanç.</option>
+            <option value="date">Data Lançamento</option>
             <option value="dueDate">Vencimento</option>
           </Select>
           <span className="text-sm text-muted-foreground whitespace-nowrap">
@@ -199,7 +199,7 @@ export function TransactionFilters({
           <Select
             value={sortBy || "date"}
             onChange={(e) => onSortChange?.(e.target.value as "date" | "created")}
-            className="w-44 h-9 py-1"
+            className="w-44 h-auto py-1"
           >
             <option value="date">Data Lançamento</option>
             <option value="created">Data Criação</option>

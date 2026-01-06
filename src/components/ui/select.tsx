@@ -196,7 +196,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={containerRef}
           onMouseDown={handleOpen} // Use onMouseDown to prevent focus issues
           className={cn(
-            "flex h-12 w-full items-center justify-between rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm text-foreground",
+            "flex h-9 w-full items-center justify-between rounded-xl border-2 border-border/60 bg-card px-4 text-sm text-foreground",
             "shadow-sm transition-all duration-200 ease-out cursor-pointer",
             "hover:border-primary/50 hover:bg-accent/5",
             isOpen && "border-primary ring-2 ring-primary/20",

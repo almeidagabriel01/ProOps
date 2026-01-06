@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { CORS_OPTIONS } from "../deploymentConfig";
+import { proxyImage } from "./controllers/proxy.controller";
 
 const app = express();
 
@@ -15,12 +16,15 @@ app.use((req, res, next) => {
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// Public routes (if any)
+// Public routes (no authentication required)
 app.get("/health", (req: express.Request, res: express.Response) => {
   res.send("OK");
 });
 
-// Protected routes
+// Proxy image - must be public for PDF generation
+app.get("/v1/aux/proxy-image", proxyImage);
+
+// Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
 
 // Placeholder for routes - will be imported dynamically or added here
