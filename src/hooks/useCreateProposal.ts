@@ -61,6 +61,7 @@ interface CreateProposalData {
   discount?: number;
   notes?: string;
   customNotes?: string;
+  targetTenantId?: string; // For super admin to create as specific tenant
 }
 
 interface CreateProposalResult {

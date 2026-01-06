@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
 import { checkClientLimit } from "../../lib/billing-helpers";
 
 // Create Client
@@ -16,7 +16,7 @@ export const createClient = async (req: Request, res: Response) => {
         .json({ message: "Nome deve ter pelo menos 2 caracteres." });
     }
 
-    const { userData, masterData, masterRef, isMaster, isSuperAdmin } =
+    const { userData, masterData, masterRef, isMaster, isSuperAdmin, tenantId } =
       await resolveUserAndTenant(userId, req.user);
 
     // Permission Check
@@ -37,11 +37,15 @@ export const createClient = async (req: Request, res: Response) => {
       }
     }
 
+    // Super admin can specify target tenant
     const targetTenantId =
-      masterData.companyId ||
-      masterData.tenantId ||
-      userData.companyId ||
-      userData.tenantId;
+      input.targetTenantId && isSuperAdmin
+        ? input.targetTenantId
+        : tenantId ||
+          masterData.companyId ||
+          masterData.tenantId ||
+          userData.companyId ||
+          userData.tenantId;
 
     if (!targetTenantId) {
       return res
@@ -49,12 +53,47 @@ export const createClient = async (req: Request, res: Response) => {
         .json({ message: "Configuração de conta inválida: tenantId ausente." });
     }
 
+    // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
+    let targetMasterRef = masterRef;
+    let targetMasterData = masterData;
+
+    if (isSuperAdmin && targetTenantId && targetTenantId !== userData.tenantId) {
+      console.log(`[CreateClient] SuperAdmin acting for targetTenantId: ${targetTenantId}`);
+      
+       // Find the owner of this tenant
+       // Fetch a few users and find the one without masterId to ensure we get the owner.
+       // avoiding orderBy createdAt because usage of an index that might not exist or be reliable finding the master first.
+       const ownerQuery = await db.collection("users")
+         .where("tenantId", "==", targetTenantId)
+         .limit(10)
+         .get();
+
+      console.log(`[CreateClient] Owner query found ${ownerQuery.size} docs`);
+
+       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+       if (!ownerDoc && !ownerQuery.empty) {
+          // If all have masterId (unlikely for a valid tenant), try to find one with role MASTER/admin
+          ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+          if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+       }
+
+       if (ownerDoc) {
+          targetMasterRef = db.collection("users").doc(ownerDoc.id);
+          targetMasterData = ownerDoc.data() as UserDoc;
+       }
+    }
+
     // Limit Check
     try {
-      await checkClientLimit(masterData);
+      if (targetMasterData) {
+        await checkClientLimit(targetMasterData);
+      }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Erro desconhecido";
-      return res.status(402).json({ message, code: "resource-exhausted" });
+      // If Super Admin, allow proceeding even if limit reached
+      if (!isSuperAdmin) {
+         const message = e instanceof Error ? e.message : "Erro desconhecido";
+         return res.status(402).json({ message, code: "resource-exhausted" });
+      }
     }
 
     // Transaction
@@ -94,7 +133,7 @@ export const createClient = async (req: Request, res: Response) => {
 
       transaction.set(newClientRef, clientData);
 
-      transaction.update(masterRef, {
+      transaction.update(targetMasterRef, {
         "usage.clients": FieldValue.increment(1),
         updatedAt: now,
       });
@@ -230,13 +269,34 @@ export const deleteClient = async (req: Request, res: Response) => {
       }
     }
 
+    // Determine correct masterRef for usage decrement
+    let targetMasterRef = masterRef;
+    
+    // If Super Admin deleting a client from another tenant, find that tenant's owner
+    if (isSuperAdmin && clientData?.tenantId && clientData.tenantId !== tenantId) {
+       const ownerQuery = await db.collection("users")
+         .where("tenantId", "==", clientData.tenantId)
+         .limit(10)
+         .get();
+         
+       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+       if (!ownerDoc && !ownerQuery.empty) {
+         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+       }
+       
+       if (ownerDoc) {
+         targetMasterRef = db.collection("users").doc(ownerDoc.id);
+       }
+    }
+
     await db.runTransaction(async (transaction) => {
-      const companyRef = db.collection("companies").doc(tenantId);
+      const companyRef = db.collection("companies").doc(clientData?.tenantId || tenantId);
       const companySnap = await transaction.get(companyRef);
 
       transaction.delete(clientRef);
 
-      transaction.update(masterRef, {
+      transaction.update(targetMasterRef, {
         "usage.clients": FieldValue.increment(-1),
         updatedAt: Timestamp.now(),
       });

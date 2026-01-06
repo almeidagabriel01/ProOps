@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
 
 // Create Product
@@ -30,15 +30,40 @@ export const createProduct = async (req: Request, res: Response) => {
     const targetTenantId =
       input.targetTenantId && isSuperAdmin ? input.targetTenantId : tenantId;
 
+    // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
+    let targetMasterRef = masterRef;
+    let targetMasterData = masterData;
+
+    if (isSuperAdmin && targetTenantId && targetTenantId !== tenantId) {
+      const ownerQuery = await db.collection("users")
+        .where("tenantId", "==", targetTenantId)
+        .limit(10)
+        .get();
+
+      let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+      if (!ownerDoc && !ownerQuery.empty) {
+         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+      }
+
+      if (ownerDoc) {
+        targetMasterRef = db.collection("users").doc(ownerDoc.id);
+        targetMasterData = ownerDoc.data() as UserDoc;
+      }
+    }
+
     // Plan Limits
-    const maxProducts = masterData.subscription?.limits?.maxProducts;
-    const currentProducts = masterData.usage?.products || 0;
+    const maxProducts = targetMasterData.subscription?.limits?.maxProducts;
+    const currentProducts = targetMasterData.usage?.products || 0;
 
     if (maxProducts !== undefined && currentProducts >= maxProducts) {
-      return res.status(402).json({
-        message: "Limite de produtos atingido para o seu plano.",
-        code: "resource-exhausted",
-      });
+      // If Super Admin, allow proceeding
+      if (!isSuperAdmin) {
+        return res.status(402).json({
+          message: "Limite de produtos atingido para o seu plano.",
+          code: "resource-exhausted",
+        });
+      }
     }
 
     // Transaction
@@ -64,7 +89,7 @@ export const createProduct = async (req: Request, res: Response) => {
       });
 
       // Increment Usage
-      transaction.update(masterRef, {
+      transaction.update(targetMasterRef, {
         "usage.products": FieldValue.increment(1),
         updatedAt: now,
       });
@@ -209,15 +234,35 @@ export const deleteProduct = async (req: Request, res: Response) => {
     const images = productData?.images as string[] | undefined;
     await deleteProductImages(images);
 
+    // Determine correct masterRef for usage decrement
+    let targetMasterRef = masterRef;
+    
+    if (isSuperAdmin && productData?.tenantId && productData.tenantId !== tenantId) {
+       const ownerQuery = await db.collection("users")
+         .where("tenantId", "==", productData.tenantId)
+         .limit(10)
+         .get();
+         
+       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+       if (!ownerDoc && !ownerQuery.empty) {
+         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
+         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+       }
+       
+       if (ownerDoc) {
+         targetMasterRef = db.collection("users").doc(ownerDoc.id);
+       }
+    }
+
     // Transaction Delete
     await db.runTransaction(async (transaction) => {
-      const companyRef = db.collection("companies").doc(tenantId);
+      const companyRef = db.collection("companies").doc(productData?.tenantId || tenantId);
       const companySnap = await transaction.get(companyRef); // Optimistic read
 
       transaction.delete(productRef);
 
       // Decrement Master Usage
-      transaction.update(masterRef, {
+      transaction.update(targetMasterRef, {
         "usage.products": FieldValue.increment(-1),
         updatedAt: Timestamp.now(),
       });

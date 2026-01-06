@@ -66,10 +66,11 @@ export const callApi = async <T = unknown>(
 
     if (!response.ok) {
       let errorData;
+      const text = await response.text();
       try {
-        errorData = await response.json();
+        errorData = JSON.parse(text);
       } catch {
-        errorData = { raw: await response.text() };
+        errorData = { raw: text };
       }
       throw new ApiError(
         response.status,

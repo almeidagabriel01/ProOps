@@ -154,17 +154,21 @@ export function useSistemaForm({
         updatedAt: new Date().toISOString(),
       };
 
+      /*
       if (selectedProducts.length === 0) {
         toast.error("O sistema deve ter pelo menos um produto selecionado.");
         return;
       }
+      */
 
       let savedSistema: Sistema;
       if (isEditing && editingSistema) {
         await SistemaService.updateSistema(editingSistema.id, sistemaData);
         savedSistema = { id: editingSistema.id, ...sistemaData };
+        toast.success("Sistema atualizado com sucesso!");
       } else {
         savedSistema = await SistemaService.createSistema(sistemaData);
+        toast.success("Sistema criado com sucesso!");
       }
 
       onSave?.(savedSistema);

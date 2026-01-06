@@ -20,6 +20,7 @@ export interface CreateClientData {
   address?: string;
   notes?: string;
   source?: "manual" | "proposal" | "financial"; // default manual
+  targetTenantId?: string; // For super admin to create for a specific tenant
 }
 
 interface CreateClientResult {

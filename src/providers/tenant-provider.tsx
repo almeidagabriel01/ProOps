@@ -4,7 +4,15 @@ import * as React from "react";
 import { Tenant, User } from "@/types"; // Keep Type
 import { TenantService } from "@/services/tenant-service";
 import { useAuth } from "@/providers/auth-provider";
-import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  limit,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface TenantContextType {
@@ -20,9 +28,9 @@ const TenantContext = React.createContext<TenantContextType>({
   tenant: null,
   tenantOwner: null,
   isLoading: true,
-  refreshTenant: () => { },
-  clearViewingTenant: () => { },
-  setViewingTenant: () => { },
+  refreshTenant: () => {},
+  clearViewingTenant: () => {},
+  setViewingTenant: () => {},
 });
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
@@ -70,38 +78,62 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
           // Fetch Tenant Owner
           try {
-            // Owner is usually the one with masterId: null (or undefined) in this tenant
-            // And usually role 'admin' or 'free' - basically the root user
-            const q = query(
-              collection(db, "users"),
-              where("tenantId", "==", fetchedTenant.id),
-              limit(20)
-            );
+            // For members, fetch owner directly by masterId (they have permission)
+            // For admins/masters, use query to find owner in tenant
+            const isMember =
+              user?.masterId && user?.role?.toLowerCase() === "member";
+            const isSuperAdmin = user?.role?.toLowerCase() === "superadmin";
 
-            const usersSnap = await getDocs(q);
-            if (!usersSnap.empty) {
-              // Client-side filter for the "Master" / Owner
-              // The owner is the one with no masterId
-              const owner = usersSnap.docs
-                .map(d => ({ id: d.id, ...d.data() } as User))
-                .find(u => !u.masterId);
-
-              if (owner) {
-                setTenantOwner(owner);
+            if (isMember && user.masterId) {
+              // Member: fetch their master directly
+              const masterDoc = await getDoc(doc(db, "users", user.masterId));
+              if (masterDoc.exists()) {
+                setTenantOwner({
+                  id: masterDoc.id,
+                  ...masterDoc.data(),
+                } as User);
               } else {
-                // Fallback: pick the first one or one with admin role?
-                setTenantOwner(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as User))[0]);
-                console.warn(`Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`);
+                setTenantOwner(null);
+              }
+            } else if (isSuperAdmin || !user?.masterId) {
+              // Admin/Master/SuperAdmin: query users in tenant to find owner
+              const q = query(
+                collection(db, "users"),
+                where("tenantId", "==", fetchedTenant.id),
+                limit(20)
+              );
+
+              const usersSnap = await getDocs(q);
+              if (!usersSnap.empty) {
+                // Client-side filter for the "Master" / Owner
+                // The owner is the one with no masterId
+                const owner = usersSnap.docs
+                  .map((d) => ({ id: d.id, ...d.data() }) as User)
+                  .find((u) => !u.masterId);
+
+                if (owner) {
+                  setTenantOwner(owner);
+                } else {
+                  // Fallback: pick the first one or one with admin role?
+                  setTenantOwner(
+                    usersSnap.docs.map(
+                      (d) => ({ id: d.id, ...d.data() }) as User
+                    )[0]
+                  );
+                  console.warn(
+                    `Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`
+                  );
+                }
+              } else {
+                setTenantOwner(null);
               }
             } else {
               setTenantOwner(null);
             }
-
           } catch (ownerErr) {
             console.error("Error fetching tenant owner", ownerErr);
             setTenantOwner(null);
           }
-
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
           setTenant(null);

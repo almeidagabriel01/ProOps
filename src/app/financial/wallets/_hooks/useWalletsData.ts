@@ -70,7 +70,10 @@ export function useWalletsData(): UseWalletsDataReturn {
   const createWallet = React.useCallback(
     async (data: CreateWalletInput): Promise<string | null> => {
       try {
-        const result = await WalletService.createWallet(data);
+        const result = await WalletService.createWallet({
+          ...data,
+          targetTenantId: tenant?.id, // Pass tenant ID for super admin support
+        });
         await fetchData(); // Refresh data
         toast.success("Carteira criada com sucesso!");
         return result.walletId;
@@ -82,7 +85,7 @@ export function useWalletsData(): UseWalletsDataReturn {
         return null;
       }
     },
-    [fetchData]
+    [fetchData, tenant?.id]
   );
 
   const updateWallet = React.useCallback(

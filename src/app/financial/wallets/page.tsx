@@ -106,21 +106,6 @@ export default function WalletsPage() {
   // Include isPlanLoading in isLoading to show skeleton while loading plan data
   const showSkeleton = isLoading || isPlanLoading || isTransferring;
 
-  // Show loading first - before checking plan access to avoid flash
-  if (showSkeleton) {
-    return <WalletsSkeleton />;
-  }
-
-  // Check plan access after loading is complete
-  if (!hasFinancial) {
-    return (
-      <UpgradeRequired
-        feature="Carteiras"
-        description="O módulo de Carteiras permite gerenciar suas contas bancárias, dinheiro em espécie e carteiras digitais. Faça upgrade para o plano Profissional ou adquira o módulo Financeiro para acessar."
-      />
-    );
-  }
-
   // Handlers
   const handleCreateWallet = () => {
     setSelectedWallet(null);
@@ -206,168 +191,9 @@ export default function WalletsPage() {
 
   const activeWallets = wallets.filter((w) => w.status === "active");
 
-  return (
-    <div className="space-y-6">
-      {/* Header with Total Balance */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Carteiras</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie suas contas e carteiras financeiras
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="text-center md:text-right">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
-              <WalletIcon className="w-4 h-4" />
-              <span className="text-xs font-medium uppercase tracking-wide">
-                Saldo Total
-              </span>
-            </div>
-            <div
-              className={`text-2xl font-bold ${
-                summary.totalBalance >= 0 ? "text-green-500" : "text-red-500"
-              }`}
-            >
-              {formatCurrency(summary.totalBalance)}
-            </div>
-          </div>
-
-          {canCreate && (
-            <Button size="lg" className="gap-2" onClick={handleCreateWallet}>
-              <Plus className="w-5 h-5" />
-              Nova Carteira
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Layers className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Carteiras Ativas
-                </p>
-                <p className="text-2xl font-bold">{summary.activeWallets}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Saldo Consolidado
-                </p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(summary.totalBalance)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <ArrowRightLeft className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Transferências</p>
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-lg font-semibold"
-                  onClick={() => handleOpenTransfer()}
-                  disabled={activeWallets.length < 2}
-                >
-                  Transferir
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <WalletFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filterType={filterType}
-        onTypeChange={setFilterType}
-        filterStatus={filterStatus}
-        onStatusChange={setFilterStatus}
-      />
-
-      {/* Wallets Grid */}
-      {wallets.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <WalletIcon className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">
-              Nenhuma carteira cadastrada
-            </h3>
-            <p className="text-muted-foreground text-center mb-6 max-w-md">
-              Comece criando sua primeira carteira para gerenciar seu dinheiro.
-            </p>
-            {canCreate && (
-              <Button className="gap-2" onClick={handleCreateWallet}>
-                <Plus className="w-4 h-4" />
-                Criar Primeira Carteira
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : filteredWallets.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <WalletIcon className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              Nenhum resultado encontrado
-            </h3>
-            <p className="text-muted-foreground text-center">
-              Tente buscar por outro termo ou remova os filtros.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredWallets.map((wallet) => (
-            <WalletCard
-              key={wallet.id}
-              wallet={wallet}
-              canEdit={canEdit}
-              canDelete={canDelete}
-              onEdit={handleEditWallet}
-              onDelete={handleOpenDelete}
-              onTransfer={handleOpenTransfer}
-              onAdjust={handleOpenAdjust}
-              onArchive={handleOpenArchive}
-              onSetDefault={handleSetDefault}
-              onViewHistory={(wallet) => {
-                setWalletForHistory(wallet);
-                setHistoryDialogOpen(true);
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Dialogs */}
+  // Dialogs component to ensure stability
+  const renderDialogs = () => (
+    <>
       <WalletFormDialog
         open={formDialogOpen}
         onOpenChange={setFormDialogOpen}
@@ -411,6 +237,198 @@ export default function WalletsPage() {
         open={historyDialogOpen}
         onOpenChange={setHistoryDialogOpen}
       />
-    </div>
+    </>
+  );
+
+  // Show loading first - before checking plan access to avoid flash
+  if (showSkeleton) {
+    return (
+      <>
+        <WalletsSkeleton />
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  // Check plan access after loading is complete
+  if (!hasFinancial) {
+    return (
+      <>
+        <UpgradeRequired
+          feature="Carteiras"
+          description="O módulo de Carteiras permite gerenciar suas contas bancárias, dinheiro em espécie e carteiras digitais. Faça upgrade para o plano Profissional ou adquira o módulo Financeiro para acessar."
+        />
+        {renderDialogs()}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Header with Total Balance */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Carteiras</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie suas contas e carteiras financeiras
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 md:gap-8">
+            <div className="text-center md:text-right">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
+                <WalletIcon className="w-4 h-4" />
+                <span className="text-xs font-medium uppercase tracking-wide">
+                  Saldo Total
+                </span>
+              </div>
+              <div
+                className={`text-2xl font-bold ${
+                  summary.totalBalance >= 0 ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                {formatCurrency(summary.totalBalance)}
+              </div>
+            </div>
+
+            {canCreate && (
+              <Button size="lg" className="gap-2" onClick={handleCreateWallet}>
+                <Plus className="w-5 h-5" />
+                Nova Carteira
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Layers className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Carteiras Ativas
+                  </p>
+                  <p className="text-2xl font-bold">{summary.activeWallets}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <TrendingUp className="w-5 h-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Saldo Consolidado
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(summary.totalBalance)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <ArrowRightLeft className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Transferências
+                  </p>
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-lg font-semibold"
+                    onClick={() => handleOpenTransfer()}
+                    disabled={activeWallets.length < 2}
+                  >
+                    Transferir
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <WalletFilters
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          filterType={filterType}
+          onTypeChange={setFilterType}
+          filterStatus={filterStatus}
+          onStatusChange={setFilterStatus}
+        />
+
+        {/* Wallets Grid */}
+        {wallets.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <WalletIcon className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">
+                Nenhuma carteira cadastrada
+              </h3>
+              <p className="text-muted-foreground text-center mb-6 max-w-md">
+                Comece criando sua primeira carteira para gerenciar seu
+                dinheiro.
+              </p>
+              {canCreate && (
+                <Button className="gap-2" onClick={handleCreateWallet}>
+                  <Plus className="w-4 h-4" />
+                  Criar Primeira Carteira
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : filteredWallets.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <WalletIcon className="w-12 h-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                Nenhum resultado encontrado
+              </h3>
+              <p className="text-muted-foreground text-center">
+                Tente buscar por outro termo ou remova os filtros.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredWallets.map((wallet) => (
+              <WalletCard
+                key={wallet.id}
+                wallet={wallet}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onEdit={handleEditWallet}
+                onDelete={handleOpenDelete}
+                onTransfer={handleOpenTransfer}
+                onAdjust={handleOpenAdjust}
+                onArchive={handleOpenArchive}
+                onSetDefault={handleSetDefault}
+                onViewHistory={(wallet) => {
+                  setWalletForHistory(wallet);
+                  setHistoryDialogOpen(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {renderDialogs()}
+    </>
   );
 }

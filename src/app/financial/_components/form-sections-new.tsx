@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { DateInput } from "@/components/ui/date-input";
 import { ClientSelect } from "@/components/features/client-select";
-import { DynamicSelect } from "@/components/features/dynamic-select";
+import { WalletSelect } from "@/components/features/wallet-select";
+// import { DynamicSelect } from "@/components/features/dynamic-select";
 import {
   FormSection,
   FormGroup,
@@ -47,9 +48,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("income")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${type === "income"
-            ? "border-green-500 bg-gradient-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
-            : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
+          ${
+            type === "income"
+              ? "border-green-500 bg-gradient-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
+              : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
           }
         `}
       >
@@ -57,10 +59,11 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           <div
             className={`
             w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-            ${type === "income"
+            ${
+              type === "income"
                 ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
                 : "bg-green-500/10 text-green-500"
-              }
+            }
           `}
           >
             <TrendingUp className="w-7 h-7" />
@@ -99,9 +102,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("expense")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${type === "expense"
-            ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
-            : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
+          ${
+            type === "expense"
+              ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
+              : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
           }
         `}
       >
@@ -109,10 +113,11 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           <div
             className={`
             w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-            ${type === "expense"
+            ${
+              type === "expense"
                 ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
                 : "bg-red-500/10 text-red-500"
-              }
+            }
           `}
           >
             <TrendingDown className="w-7 h-7" />
@@ -267,8 +272,7 @@ export function PaymentSection({
       description="Configure como será pago este lançamento"
       icon={CreditCard}
     >
-      <DynamicSelect
-        storageKey="wallets"
+      <WalletSelect
         label="Carteira / Método"
         name="wallet"
         value={formData.wallet}
@@ -279,10 +283,11 @@ export function PaymentSection({
       <div
         className={`
         rounded-xl border-2 p-5 transition-all duration-300
-        ${formData.isInstallment
+        ${
+          formData.isInstallment
             ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
             : "border-border/50 bg-muted/20"
-          }
+        }
       `}
       >
         <div className="flex items-center gap-3 mb-4">
