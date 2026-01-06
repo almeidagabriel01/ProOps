@@ -60,7 +60,9 @@ export function CustomFieldManager() {
         // Ideally we would have a subcollection or array union, but let's update the array
         const newItem: CustomFieldItem = {
             id: Math.random().toString(36).substr(2, 9),
-            label: newItemLabel.trim()
+            label: newItemLabel.trim(),
+            value: newItemLabel.trim(),
+            order: selectedType.items.length,
         }
 
         const updatedItems = [...selectedType.items, newItem]

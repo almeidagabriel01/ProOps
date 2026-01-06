@@ -1,6 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
@@ -9,8 +10,17 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { Ambiente } from "@/types/automation";
+
+// Shared Type Definition
+export interface Ambiente {
+  id: string;
+  tenantId: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  order?: number;
+  createdAt?: string;
+}
 
 const COLLECTION_NAME = "ambientes";
 
@@ -22,18 +32,19 @@ export const AmbienteService = {
         where("tenantId", "==", tenantId)
       );
       const querySnapshot = await getDocs(q);
-      const ambientes = querySnapshot.docs.map(
+      return querySnapshot.docs.map(
         (doc) =>
           ({
             id: doc.id,
             ...doc.data(),
+            createdAt:
+              doc.data().createdAt?.toDate?.()?.toISOString() ||
+              doc.data().createdAt,
           }) as Ambiente
       );
-      // Ordenar no cliente para evitar necessidade de índice composto
-      return ambientes.sort((a, b) => (a.order || 0) - (b.order || 0));
     } catch (error) {
       console.error("Error fetching ambientes:", error);
-      throw error;
+      throw error; // Let the caller handle
     }
   },
 
@@ -52,69 +63,44 @@ export const AmbienteService = {
     }
   },
 
-  createAmbiente: async (data: Omit<Ambiente, "id">): Promise<Ambiente> => {
-    try {
-      const createFunc = httpsCallable<
-        any,
-        { success: boolean; ambienteId: string }
-      >(functions, "createAmbiente");
-
-      // Ensure order is a valid number (default to 0 if NaN or undefined)
-      const safeOrder =
-        typeof data.order === "number" && !isNaN(data.order) ? data.order : 0;
-
-      const result = await createFunc({
-        name: data.name,
-        icon: data.icon,
-        order: safeOrder,
-      });
-
-      return { id: result.data.ambienteId, ...data, order: safeOrder };
-    } catch (error) {
-      console.error("Error creating ambiente:", error);
-      throw error;
-    }
+  createAmbiente: async (data: Partial<Ambiente>): Promise<Ambiente> => {
+    const result = await callApi<{ success: boolean; id: string }>(
+      "/v1/aux/ambientes",
+      "POST",
+      data
+    );
+    return {
+      id: result.id,
+      tenantId: data.tenantId || "",
+      name: data.name || "",
+      ...data,
+    } as Ambiente;
   },
 
   updateAmbiente: async (
     id: string,
-    data: Partial<Omit<Ambiente, "id">>
+    data: Partial<Ambiente>
   ): Promise<void> => {
-    try {
-      const updateFunc = httpsCallable(functions, "updateAmbiente");
-
-      await updateFunc({ ambienteId: id, ...data });
-    } catch (error) {
-      console.error("Error updating ambiente:", error);
-      throw error;
-    }
+    await callApi(`/v1/aux/ambientes/${id}`, "PUT", data);
   },
 
   deleteAmbiente: async (id: string): Promise<void> => {
-    try {
-      const deleteFunc = httpsCallable(functions, "deleteAmbiente");
-
-      await deleteFunc({ ambienteId: id });
-    } catch (error) {
-      console.error("Error deleting ambiente:", error);
-      throw error;
-    }
+    await callApi(`/v1/aux/ambientes/${id}`, "DELETE");
   },
 
-  // Obter próximo número de ordem
   getNextOrder: async (tenantId: string): Promise<number> => {
+    // Logic to find max order + 1
     try {
-      const ambientes = await AmbienteService.getAmbientes(tenantId);
-      if (ambientes.length === 0) return 0;
-      // Filter out any NaN or undefined values, default to 0
-      const orders = ambientes.map((a) => {
-        const orderValue =
-          typeof a.order === "number" && !isNaN(a.order) ? a.order : 0;
-        return orderValue;
-      });
-      return Math.max(...orders) + 1;
-    } catch {
-      return 0;
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) return 1;
+      const maxOrder = Math.max(...snap.docs.map((d) => d.data().order || 0));
+      return maxOrder + 1;
+    } catch (e) {
+      return 1;
     }
   },
 };

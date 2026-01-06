@@ -15,8 +15,6 @@ import { useStripePrices } from "@/hooks/useStripePrices";
 import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
 import { AddonType, AddonDefinition } from "@/types";
 import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2 } from "lucide-react";
-import { functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
 import { toast } from "react-toastify";
 import {
   AlertDialog,
@@ -104,9 +102,7 @@ export default function AddonsPage() {
       const data = await StripeService.createAddonCheckout({
         userId: user?.id || "",
         tenantId: tenant?.id || "",
-        addonType: selectedAddon.id,
-        userEmail: user?.email,
-        billingInterval: "monthly", // Always monthly for addons
+        addonId: selectedAddon.id, // Fixed: use addonId instead of addonType
         origin: window.location.origin,
       });
 
@@ -138,16 +134,16 @@ export default function AddonsPage() {
     setCancelDialogOpen(false);
 
     try {
-      // Call Cloud Function to cancel addon (handles Stripe cancellation + Firestore update)
-      const cancelFunc = httpsCallable<
-        { tenantId: string; addonType: string },
-        { success: boolean; message: string }
-      >(functions, "stripeCancelAddon");
-
-      await cancelFunc({
-        tenantId: tenant?.id || "",
-        addonType: addonToCancel.id,
+      const { StripeService } = await import("@/services/stripe-service");
+      await StripeService.cancelAddon({
+        addonId: addonToCancel.id,
+        tenantId: tenant?.id
       });
+
+
+      // Reload page with query param to show toast after reload
+      window.location.href = "/profile/addons?addon_cancelled=true";
+
 
       // Reload page with query param to show toast after reload
       window.location.href = "/profile/addons?addon_cancelled=true";

@@ -1,6 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
@@ -9,7 +10,6 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 import { ProposalTemplate } from "@/types";
 
 const COLLECTION_NAME = "proposal_templates";
@@ -55,27 +55,26 @@ export const ProposalTemplateService = {
     data: Omit<ProposalTemplate, "id">
   ): Promise<ProposalTemplate> => {
     try {
-      const createFunc = httpsCallable<
-        Partial<ProposalTemplate>,
-        { success: boolean; templateId: string }
-      >(functions, "createProposalTemplate");
+      const result = await callApi<{ success: boolean; id: string }>(
+        "/v1/aux/proposal-templates",
+        "POST",
+        {
+            name: data.name,
+            isDefault: data.isDefault,
+            introductionText: data.introductionText,
+            scopeText: data.scopeText,
+            paymentTerms: data.paymentTerms,
+            warrantyText: data.warrantyText,
+            footerText: data.footerText,
+            coverImage: data.coverImage,
+            theme: data.theme,
+            primaryColor: data.primaryColor,
+            fontFamily: data.fontFamily,
+            repeatHeader: data.repeatHeader,
+        }
+      );
 
-      const result = await createFunc({
-        name: data.name,
-        isDefault: data.isDefault,
-        introductionText: data.introductionText,
-        scopeText: data.scopeText,
-        paymentTerms: data.paymentTerms,
-        warrantyText: data.warrantyText,
-        footerText: data.footerText,
-        coverImage: data.coverImage,
-        theme: data.theme,
-        primaryColor: data.primaryColor,
-        fontFamily: data.fontFamily,
-        repeatHeader: data.repeatHeader,
-      });
-
-      return { id: result.data.templateId, ...data };
+      return { id: result.id, ...data };
     } catch (error) {
       console.error("Error creating template:", error);
       throw error;
@@ -87,9 +86,7 @@ export const ProposalTemplateService = {
     data: Partial<Omit<ProposalTemplate, "id">>
   ): Promise<void> => {
     try {
-      const updateFunc = httpsCallable(functions, "updateProposalTemplate");
-
-      await updateFunc({ templateId: id, ...data });
+      await callApi(`/v1/aux/proposal-templates/${id}`, "PUT", data);
     } catch (error) {
       console.error("Error updating template:", error);
       throw error;
@@ -98,9 +95,7 @@ export const ProposalTemplateService = {
 
   deleteTemplate: async (id: string): Promise<void> => {
     try {
-      const deleteFunc = httpsCallable(functions, "deleteProposalTemplate");
-
-      await deleteFunc({ templateId: id });
+      await callApi(`/v1/aux/proposal-templates/${id}`, "DELETE");
     } catch (error) {
       console.error("Error deleting template:", error);
       throw error;
@@ -128,8 +123,8 @@ export const ProposalTemplateService = {
       const all = await ProposalTemplateService.getTemplates(tenantId);
       return all.length > 0 ? all[0] : null;
     } catch (error) {
-      console.error("Error fetching default template:", error);
-      return null;
+        console.error("Error", error); 
+        return null;
     }
-  },
+  }
 };

@@ -7,7 +7,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Proposal, ProposalStatus } from "@/services/proposal-service";
+import { Proposal, ProposalStatus } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
 import { Plus, FileText, Copy, Trash2, Eye, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -37,9 +37,6 @@ const statusConfig: Record<
 };
 
 import { ProposalService } from "@/services/proposal-service";
-import { functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
-
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function ProposalsPage() {
@@ -106,41 +103,37 @@ export default function ProposalsPage() {
     try {
       const original = proposals.find((p) => p.id === id);
       if (!original) return;
+      if (!tenant) return;
 
-      // Using centralized functions instance
-      const createProposalFn = httpsCallable(functions, "createProposal");
-
-      const result = await createProposalFn({
+      await ProposalService.createProposal({
         title: `${original.title} (Cópia)`,
+        tenantId: original.tenantId,
         clientId: original.clientId || "",
-        clientName: original.clientName,
+        clientName: original.clientName || "",
         clientEmail: original.clientEmail,
         clientPhone: original.clientPhone,
         clientAddress: original.clientAddress,
         validUntil: original.validUntil,
-        totalValue: 0, // Will be recalculated
-        discount: original.discount || 0,
+        status: "draft",
         products: original.products || [],
         sistemas: original.sistemas || [],
         customNotes: original.customNotes,
-        status: "draft",
+        discount: original.discount || 0,
+        totalValue: original.totalValue || 0,
+        sections: original.sections || [],
       });
 
-      if ((result.data as { success: boolean })?.success) {
-        // Reload proposals
-        if (tenant) {
-          const data = await ProposalService.getProposals(tenant.id);
-          setProposals(data);
-        }
-        toast.success("Proposta duplicada com sucesso!");
-      }
+      const data = await ProposalService.getProposals(tenant.id);
+      setProposals(data);
+      toast.success("Proposta duplicada com sucesso!");
     } catch (error) {
-      console.error("Error duplicating proposal:", error);
-      toast.error("Erro ao duplicar proposta");
+      console.error("Duplicate error:", error);
+      toast.error("Erro ao duplicar proposta.");
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "short",
@@ -232,7 +225,7 @@ export default function ProposalsPage() {
           {filteredProposals.map((proposal) => {
             const productCount = proposal.products?.length || 0;
             const total =
-              proposal.products?.reduce((sum, p) => sum + p.total, 0) || 0;
+              proposal.products?.reduce((sum: number, p: any) => sum + p.total, 0) || 0;
             return (
               <Card
                 key={proposal.id}

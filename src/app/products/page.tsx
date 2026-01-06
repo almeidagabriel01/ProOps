@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from "react-toastify";
@@ -51,7 +51,7 @@ export default function ProductsPage() {
     // If no tenant yet, we are still loading (handled by initial state true)
   }, [tenant]);
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     if (!tenant) return;
     setLoading(true);
     try {
@@ -62,7 +62,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenant]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -72,7 +72,6 @@ export default function ProductsPage() {
     try {
       // Check if product is used in any proposal
       const isUsed = await ProposalService.isProductUsedInProposal(
-        tenant.id,
         deleteId
       );
       if (isUsed) {

@@ -3,81 +3,27 @@
  *
  * Export all Cloud Functions from this file.
  *
- * DEPLOYMENT:
- * firebase deploy --only functions
- *
- * INDIVIDUAL DEPLOYMENT:
- * firebase deploy --only functions:createMember
- * firebase deploy --only functions:createProposal
- * firebase deploy --only functions:updateMemberPermissions
+ * ARCHITECTURE:
+ * - api: Monolithic Express App (Cloud Run V2) handling all REST logic
+ * - checkManualSubscriptions: Scheduled Task
+ * - stripeWebhook: Webhook Handler
  */
 
-export { createMember } from "./createMember";
-export { createProposal } from "./createProposal";
-export { updateProposal } from "./updateProposal";
-export { deleteProposal } from "./deleteProposal";
-export { updateMemberPermissions } from "./updateMemberPermissions";
-export { deleteMember } from "./deleteMember";
-export { updateMember } from "./updateMember";
-export { updateAdminCredentials } from "./updateAdminCredentials";
+import { setGlobalOptions } from "firebase-functions/v2";
 
-export { createClient } from "./createClient";
-export { updateClient } from "./updateClient";
-export { deleteClient } from "./deleteClient";
-export { createProduct } from "./createProduct";
-export { updateProduct } from "./updateProduct";
-export { deleteProduct } from "./deleteProduct";
+// Global Options for V2 Functions
+setGlobalOptions({
+  region: "southamerica-east1",
+  memory: "1GiB",
+});
 
-// Transaction Functions
-export {
-  createTransaction,
-  updateTransaction,
-  deleteTransaction,
-} from "./transactionFunctions";
+// 1. Core API (Express App)
+export { api } from "./api";
 
-// Auxiliary Functions (Config Data)
-export {
-  createAmbiente,
-  updateAmbiente,
-  deleteAmbiente,
-  createSistema,
-  updateSistema,
-  deleteSistema,
-  createCustomField,
-  updateCustomField,
-  deleteCustomField,
-  createOption,
-  updateOption,
-  deleteOption,
-  createProposalTemplate,
-  updateProposalTemplate,
-  deleteProposalTemplate,
-} from "./auxiliaryFunctions";
-
-// Stripe Functions
-export {
-  stripeCheckout,
-  stripeConfirm,
-  stripeAddonCheckout,
-  stripeAddonConfirm,
-  stripeCancelAddon,
-  stripePortal,
-  stripeUpdate,
-  stripePreview,
-  stripePrices,
-  stripePricesRefresh,
-  stripeWebhook,
-  getPlans,
-} from "./stripe";
-
-// Wallet Functions
-export {
-  createWallet,
-  updateWallet,
-  deleteWallet,
-  transferBetweenWallets,
-  adjustWalletBalance,
-} from "./walletFunctions";
-
-export { proxyImage } from "./proxyImage";
+// 2. Scheduled Tasks
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
+
+// 3. Webhooks
+export { stripeWebhook } from "./stripe/stripeWebhook";
+
+// NOTE: All other individual functions have been consolidated into the 'api' monolith.

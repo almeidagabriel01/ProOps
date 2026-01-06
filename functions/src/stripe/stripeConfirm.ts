@@ -5,13 +5,20 @@
  * Migrated from: src/app/api/stripe/confirm/route.ts
  */
 
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getStripe } from "./stripeConfig";
 import { getPlanIdByTier } from "./stripeHelpers";
 
 // Default plans for seeding if not found
+
 const DEFAULT_PLANS = [
   {
     tier: "starter",
@@ -104,16 +111,16 @@ interface ConfirmResponse {
   error?: string;
 }
 
-export const stripeConfirm = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: ConfirmRequest): Promise<ConfirmResponse> => {
+export const stripeConfirm = onCall(
+  CORS_OPTIONS,
+  async (
+    request: CallableRequest<ConfirmRequest>
+  ): Promise<ConfirmResponse> => {
+    const { data } = request;
     const { sessionId } = data || {};
 
     if (!sessionId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "sessionId is required"
-      );
+      throw new HttpsError("invalid-argument", "sessionId is required");
     }
 
     try {
@@ -125,10 +132,7 @@ export const stripeConfirm = functions
       });
 
       if (session.payment_status !== "paid") {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "Payment not completed"
-        );
+        throw new HttpsError("failed-precondition", "Payment not completed");
       }
 
       const userId = session.metadata?.userId;
@@ -139,7 +143,7 @@ export const stripeConfirm = functions
           : session.subscription?.id;
 
       if (!userId || !planTier) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Missing metadata in session"
         );
@@ -149,7 +153,7 @@ export const stripeConfirm = functions
       const planId = await getOrCreatePlanId(planTier);
 
       if (!planId) {
-        throw new functions.https.HttpsError("not-found", "Plan not found");
+        throw new HttpsError("not-found", "Plan not found");
       }
 
       // Determine billing interval
@@ -185,12 +189,10 @@ export const stripeConfirm = functions
       };
     } catch (error) {
       console.error("Error confirming checkout:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to confirm checkout"
-      );
+      throw new HttpsError("internal", "Failed to confirm checkout");
     }
-  });
+  }
+);

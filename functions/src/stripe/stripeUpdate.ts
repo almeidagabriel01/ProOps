@@ -5,7 +5,13 @@
  * Migrated from: src/app/api/stripe/update/route.ts
  */
 
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 import { getStripe, getPriceIdForTier } from "./stripeConfig";
 import { getPlanIdByTier } from "./stripeHelpers";
 import { db } from "../init";
@@ -21,13 +27,14 @@ interface UpdateResponse {
   error?: string;
 }
 
-export const stripeUpdate = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: UpdateRequest): Promise<UpdateResponse> => {
+export const stripeUpdate = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<UpdateRequest>): Promise<UpdateResponse> => {
+    const { data } = request;
     const { userId, planTier } = data || {};
 
     if (!userId || !planTier) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "userId and planTier are required"
       );
@@ -36,7 +43,7 @@ export const stripeUpdate = functions
     // Get the price ID for the selected plan
     const priceId = getPriceIdForTier(planTier);
     if (!priceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Invalid plan tier or price not configured"
       );
@@ -50,14 +57,14 @@ export const stripeUpdate = functions
       const userSnap = await userRef.get();
 
       if (!userSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "User not found");
+        throw new HttpsError("not-found", "User not found");
       }
 
       const userData = userSnap.data()!;
       const subscriptionId = userData.stripeSubscriptionId;
 
       if (!subscriptionId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No active subscription found"
         );
@@ -68,7 +75,7 @@ export const stripeUpdate = functions
       const subscriptionItemId = subscription.items.data[0]?.id;
 
       if (!subscriptionItemId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Subscription item not found"
         );
@@ -103,12 +110,10 @@ export const stripeUpdate = functions
       return { success: true, message: "Subscription updated successfully" };
     } catch (error) {
       console.error("Error updating subscription:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to update subscription"
-      );
+      throw new HttpsError("internal", "Failed to update subscription");
     }
-  });
+  }
+);

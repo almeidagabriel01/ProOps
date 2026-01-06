@@ -6,9 +6,8 @@
  */
 
 import { useState } from "react";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
 import { toast } from "react-toastify";
+import { callApi } from "@/lib/api-client";
 
 // ============================================
 // TYPES
@@ -50,11 +49,6 @@ export function useProductActions() {
   ): Promise<CreateProductResult | null> => {
     setIsLoading(true);
     try {
-      const createFn = httpsCallable<CreateProductData, CreateProductResult>(
-        functions,
-        "createProduct"
-      );
-
       const payload = {
         name: data.name,
         description: data.description || "",
@@ -68,10 +62,14 @@ export function useProductActions() {
         targetTenantId: data.targetTenantId,
       };
 
-      const result = await createFn(payload);
+      const result = await callApi<CreateProductResult>(
+        "v1/products",
+        "POST",
+        payload
+      );
 
       toast.success("Produto criado com sucesso!");
-      return result.data;
+      return result;
     } catch (error: unknown) {
       console.error("Error creating product:", error);
       const message =
@@ -88,12 +86,10 @@ export function useProductActions() {
 
     setIsLoading(true);
     try {
-      const deleteFn = httpsCallable<
-        { productId: string },
-        DeleteProductResult
-      >(functions, "deleteProduct");
-
-      await deleteFn({ productId });
+      await callApi<{ success: boolean; message: string }>(
+        `v1/products/${productId}`,
+        "DELETE"
+      );
 
       toast.success("Produto removido com sucesso!");
       return true;

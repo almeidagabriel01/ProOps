@@ -1,7 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   getDocs,
@@ -125,13 +125,12 @@ export const WalletService = {
     data: CreateWalletInput
   ): Promise<{ walletId: string }> => {
     try {
-      const createFunc = httpsCallable<
-        CreateWalletInput,
-        { success: boolean; walletId: string; message: string }
-      >(functions, "createWallet");
-
-      const result = await createFunc(data);
-      return { walletId: result.data.walletId };
+      const result = await callApi<{
+        success: boolean;
+        walletId: string;
+        message: string;
+      }>("v1/wallets", "POST", data);
+      return { walletId: result.walletId };
     } catch (error) {
       console.error("Error creating wallet:", error);
       throw error;
@@ -146,12 +145,7 @@ export const WalletService = {
     data: UpdateWalletInput
   ): Promise<void> => {
     try {
-      const updateFunc = httpsCallable<
-        { walletId: string } & UpdateWalletInput,
-        { success: boolean; message: string }
-      >(functions, "updateWallet");
-
-      await updateFunc({ walletId, ...data });
+      await callApi(`v1/wallets/${walletId}`, "PUT", data);
     } catch (error) {
       console.error("Error updating wallet:", error);
       throw error;
@@ -163,12 +157,7 @@ export const WalletService = {
    */
   deleteWallet: async (walletId: string, force = false): Promise<void> => {
     try {
-      const deleteFunc = httpsCallable<
-        { walletId: string; force: boolean },
-        { success: boolean; message: string }
-      >(functions, "deleteWallet");
-
-      await deleteFunc({ walletId, force });
+      await callApi(`v1/wallets/${walletId}?force=${force}`, "DELETE");
     } catch (error) {
       console.error("Error deleting wallet:", error);
       throw error;
@@ -180,12 +169,7 @@ export const WalletService = {
    */
   transferBalance: async (data: TransferInput): Promise<void> => {
     try {
-      const transferFunc = httpsCallable<
-        TransferInput,
-        { success: boolean; message: string }
-      >(functions, "transferBetweenWallets");
-
-      await transferFunc(data);
+      await callApi("v1/wallets/transfer", "POST", data);
     } catch (error) {
       console.error("Error transferring balance:", error);
       throw error;
@@ -200,13 +184,12 @@ export const WalletService = {
     data: AdjustBalanceInput
   ): Promise<{ newBalance: number }> => {
     try {
-      const adjustFunc = httpsCallable<
-        { walletId: string } & AdjustBalanceInput,
-        { success: boolean; newBalance: number; message: string }
-      >(functions, "adjustWalletBalance");
-
-      const result = await adjustFunc({ walletId, ...data });
-      return { newBalance: result.data.newBalance };
+      const result = await callApi<{
+        success: boolean;
+        newBalance: number;
+        message: string;
+      }>("v1/wallets/adjust", "POST", { walletId, ...data });
+      return { newBalance: result.newBalance };
     } catch (error) {
       console.error("Error adjusting balance:", error);
       throw error;

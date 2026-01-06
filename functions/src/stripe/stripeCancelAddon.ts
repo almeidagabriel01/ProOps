@@ -1,4 +1,10 @@
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getStripe } from "./stripeConfig";
@@ -10,28 +16,27 @@ interface CancelAddonRequest {
   addonType: AddonType;
 }
 
-export const stripeCancelAddon = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: CancelAddonRequest, context) => {
+// Moved import to top-level
+export const stripeCancelAddon = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<CancelAddonRequest>) => {
+    const { data, auth } = request;
     console.log("stripeCancelAddon called (v1)");
 
     try {
       // Check authentication
-      if (!context.auth) {
+      if (!auth) {
         console.warn("User not authenticated");
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "User must be authenticated"
-        );
+        throw new HttpsError("unauthenticated", "User must be authenticated");
       }
 
       const { tenantId, addonType } = data;
       console.log(
-        `Request data: tenantId=${tenantId}, addonType=${addonType}, uid=${context.auth.uid}`
+        `Request data: tenantId=${tenantId}, addonType=${addonType}, uid=${auth.uid}`
       );
 
       if (!tenantId || !addonType) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           "tenantId and addonType are required"
         );
@@ -45,21 +50,21 @@ export const stripeCancelAddon = functions
 
       if (!addonDoc.exists) {
         console.warn(`Addon not found: ${addonId}`);
-        throw new functions.https.HttpsError("not-found", "Add-on not found");
+        throw new HttpsError("not-found", "Add-on not found");
       }
 
       const addonData = addonDoc.data();
       console.log("Addon data found, verifying user permissions");
 
       // Verify user belongs to this tenant
-      const userRef = db.collection("users").doc(context.auth.uid);
+      const userRef = db.collection("users").doc(auth.uid);
       const userDoc = await userRef.get();
-      
+
       if (!userDoc.exists) {
-         console.warn(`User not found: ${context.auth.uid}`);
-         throw new functions.https.HttpsError("permission-denied", "User profile not found");
+        console.warn(`User not found: ${auth.uid}`);
+        throw new HttpsError("permission-denied", "User profile not found");
       }
-      
+
       const userData = userDoc.data();
 
       // Check permissions: Must be superadmin OR (member of tenant AND match tenantId)
@@ -69,9 +74,9 @@ export const stripeCancelAddon = functions
 
       if (!isTenantMember && !isSuperAdmin) {
         console.warn(
-          `Permission denied: uid=${context.auth.uid}, userTenant=${userData?.tenantId}, targetTenant=${tenantId}, role=${userData?.role}`
+          `Permission denied: uid=${auth.uid}, userTenant=${userData?.tenantId}, targetTenant=${tenantId}, role=${userData?.role}`
         );
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "You do not have permission to cancel this add-on"
         );
@@ -93,10 +98,10 @@ export const stripeCancelAddon = functions
           console.error("Error cancelling Stripe subscription:", stripeError);
           // Log config error specifically if needed
           if ((stripeError as Error).message.includes("STRIPE_SECRET_KEY")) {
-             throw new functions.https.HttpsError("internal", "Stripe configuration error");
+            throw new HttpsError("internal", "Stripe configuration error");
           }
           // Continue even if Stripe cancellation fails (e.g. already cancelled) - we still update our db
-          // But if it's a configuration error, we might want to stop? 
+          // But if it's a configuration error, we might want to stop?
           // For now, let's assume if it fails it's safer to mark as cancelled in DB so user doesn't get stuck
         }
       } else {
@@ -109,7 +114,7 @@ export const stripeCancelAddon = functions
         status: "cancelled",
         expiresAt: FieldValue.serverTimestamp(),
         cancelledAt: FieldValue.serverTimestamp(),
-        cancelledBy: context.auth.uid,
+        cancelledBy: auth.uid,
       });
 
       console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
@@ -121,14 +126,15 @@ export const stripeCancelAddon = functions
     } catch (error) {
       console.error("Error in stripeCancelAddon:", error);
 
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
 
       // Ensure we return a structured error that the SDK can parse
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         error instanceof Error ? error.message : "An internal error occurred"
       );
     }
-  });
+  }
+);

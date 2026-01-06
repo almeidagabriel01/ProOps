@@ -5,9 +5,11 @@
  * IMPORTANT: Prices come primarily from the IDs defined in stripeConfig.
  */
 
-import * as functions from "firebase-functions";
+import { onCall, CallableRequest } from "firebase-functions/v2/https";
+
 import Stripe from "stripe";
 import { getStripe, getPriceConfig } from "./stripeConfig";
+import { CORS_OPTIONS } from "../deploymentConfig";
 
 // Default plans configuration - FALLBACK ONLY
 const DEFAULT_PLANS = [
@@ -248,9 +250,9 @@ async function fetchPlansFromStripe(): Promise<Plan[]> {
 /**
  * Public Cloud Function
  */
-export const getPlans = functions
-  .region("southamerica-east1")
-  .https.onCall(async (): Promise<Plan[]> => {
+export const getPlans = onCall(
+  CORS_OPTIONS,
+  async (_request: CallableRequest<void>): Promise<Plan[]> => {
     try {
       const stripePlans = await fetchPlansFromStripe();
 
@@ -275,4 +277,5 @@ export const getPlans = functions
         createdAt: new Date().toISOString(),
       }));
     }
-  });
+  }
+);

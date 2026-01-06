@@ -74,7 +74,6 @@ export default function CustomersPage() {
     try {
       // Check if client is used in any proposal
       const isUsed = await ProposalService.isClientUsedInProposal(
-        tenant.id,
         deleteId
       );
       if (isUsed) {

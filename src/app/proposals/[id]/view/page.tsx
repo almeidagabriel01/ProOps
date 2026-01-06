@@ -4,7 +4,7 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Proposal } from "@/services/proposal-service"; // Types only
+import { Proposal } from "@/types/proposal";
 import { ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -21,9 +21,9 @@ import {
 } from "lucide-react";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
+import { toast } from "react-toastify";
 import { functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
-import { toast } from "react-toastify";
 
 export default function ViewProposalPage() {
   const params = useParams();
@@ -70,7 +70,7 @@ export default function ViewProposalPage() {
             const t = ProposalDefaults.createDefaultTemplate(
               tenant.id,
               tenant.name,
-              tenant.primaryColor
+              tenant.primaryColor || "#2563eb"
             );
             setTemplate(t);
           }

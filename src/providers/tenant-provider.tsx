@@ -133,7 +133,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (tenant) {
       document.documentElement.style.setProperty(
         "--primary",
-        tenant.primaryColor
+        tenant.primaryColor || "#3b82f6"
       );
       // We could add more advanced theming here later
       const styleId = "tenant-styles";
@@ -145,11 +145,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
       styleTag.innerHTML = `
                ::selection {
-                   background-color: ${tenant.primaryColor} !important;
+                   background-color: ${tenant.primaryColor || "#3b82f6"} !important;
                    color: #ffffff !important;
                }
                .tenant-border {
-                   border-color: ${tenant.primaryColor} !important;
+                   border-color: ${tenant.primaryColor || "#3b82f6"} !important;
                }
            `;
     } else {

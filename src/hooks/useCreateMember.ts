@@ -14,8 +14,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { httpsCallable, HttpsCallableResult } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import { toast } from "react-toastify";
 
 // ============================================
@@ -109,19 +108,17 @@ export function useCreateMember(): UseCreateMemberReturn {
       try {
         // Use pre-configured functions instance with correct region
         // (configured in src/lib/firebase.ts as 'southamerica-east1')
-        const createMemberFn = httpsCallable<
-          CreateMemberData,
-          CreateMemberResult
-        >(functions, "createMember");
-
-        // Call the Cloud Function
-        // Firebase automatically includes the auth token!
-        const result: HttpsCallableResult<CreateMemberResult> =
-          await createMemberFn(data);
+        // Use callApi
+        const result = await callApi<CreateMemberResult>(
+          "v1/admin/members",
+          "POST",
+          data
+        );
 
         // Success!
-        toast.success(result.data.message || "Membro criado com sucesso!");
-        return result.data;
+        // Success!
+        toast.success(result.message || "Membro criado com sucesso!");
+        return result;
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
         const errorObj = err as FirebaseError;

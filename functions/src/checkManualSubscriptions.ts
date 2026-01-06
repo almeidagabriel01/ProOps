@@ -1,21 +1,14 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import * as admin from "firebase-admin";
-
-// Ensure admin is initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const db = admin.firestore();
+import { db } from "./init";
+import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 
 export const checkManualSubscriptions = onSchedule(
   {
+    ...SCHEDULE_OPTIONS,
     schedule: "every 24 hours",
-    timeZone: "America/Sao_Paulo",
-    region: "southamerica-east1",
     timeoutSeconds: 300,
   },
-  async (event) => {
+  async (_event) => {
     console.log("Starting manual subscription check...");
     const now = new Date();
 

@@ -82,10 +82,11 @@ export const createProposal = async (req: Request, res: Response) => {
 
     try {
       await checkProposalLimit(masterData);
-    } catch (e: any) {
+    } catch (e) {
+      const error = e as Error;
       return res
         .status(402)
-        .json({ message: e.message, code: "resource-exhausted" });
+        .json({ message: error.message, code: "resource-exhausted" });
     }
 
     const proposalId = await db.runTransaction(async (t) => {
@@ -94,8 +95,9 @@ export const createProposal = async (req: Request, res: Response) => {
       const freshMasterData = freshMasterSnap.data() as UserDoc;
       try {
         await checkProposalLimit(freshMasterData);
-      } catch (e: any) {
-        throw new Error(e.message);
+      } catch (e) {
+        const error = e as Error;
+        throw new Error(error.message);
       }
 
       const newRef = db.collection(PROPOSALS_COLLECTION).doc();
@@ -141,16 +143,15 @@ export const createProposal = async (req: Request, res: Response) => {
       return newRef.id;
     });
 
-    return res
-      .status(201)
-      .json({
-        success: true,
-        proposalId,
-        message: "Proposta criada com sucesso!",
-      });
-  } catch (error: any) {
+    return res.status(201).json({
+      success: true,
+      proposalId,
+      message: "Proposta criada com sucesso!",
+    });
+  } catch (error) {
     console.error("createProposal Error:", error);
-    return res.status(500).json({ message: error.message });
+    const err = error as Error;
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -200,7 +201,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
-    const safeUpdate: any = { updatedAt: Timestamp.now() };
+    const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
       "title",
       "clientId",
@@ -226,7 +227,7 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (updateData.products) {
       const subtotal = updateData.products.reduce(
-        (sum: number, p: any) => sum + (p.total || 0),
+        (sum: number, p: { total: number }) => sum + (p.total || 0),
         0
       );
       const discountAmount =
@@ -237,8 +238,9 @@ export const updateProposal = async (req: Request, res: Response) => {
     await db.collection(PROPOSALS_COLLECTION).doc(id).update(safeUpdate);
 
     return res.json({ success: true, message: "Proposta atualizada." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error) {
+    const err = error as Error;
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -308,8 +310,9 @@ export const deleteProposal = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Proposta excluída." });
-  } catch (error: any) {
+  } catch (error) {
     // Map "Proposta não encontrada" to 404 if needed, but 500 is ok for now or custom handling
-    return res.status(500).json({ message: error.message });
+    const err = error as Error;
+    return res.status(500).json({ message: err.message });
   }
 };

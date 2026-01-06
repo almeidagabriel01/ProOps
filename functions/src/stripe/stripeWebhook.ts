@@ -1,4 +1,5 @@
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
+// import * as logger from "firebase-functions/logger";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
@@ -169,9 +170,9 @@ async function handleSubscriptionDeleted(
   }
 }
 
-export const stripeWebhook = functions
-  .region("southamerica-east1")
-  .https.onRequest(async (req, res) => {
+export const stripeWebhook = onRequest(
+  { region: "southamerica-east1" },
+  async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
       return;
@@ -223,9 +224,7 @@ export const stripeWebhook = functions
           break;
 
         case "invoice.payment_failed":
-          await handleInvoicePaymentFailed(
-            event.data.object as Stripe.Invoice
-          );
+          await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
           break;
 
         default:
@@ -237,4 +236,5 @@ export const stripeWebhook = functions
       console.error("Webhook error:", error);
       res.status(500).json({ error: "Webhook handler failed" });
     }
-  });
+  }
+);
