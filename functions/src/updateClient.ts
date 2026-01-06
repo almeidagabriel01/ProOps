@@ -9,8 +9,14 @@
  */
 
 import * as functions from "firebase-functions";
-import { Timestamp } from "firebase-admin/firestore";
-import { db } from "./init";
+import * as admin from "firebase-admin";
+
+// Local initialization for debugging PROD issue
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+const Timestamp = admin.firestore.Timestamp;
 
 interface UpdateClientInput {
   clientId: string;
@@ -111,7 +117,8 @@ export const updateClient = functions
         role === "WK" ||
         (!userData.masterId && userData.subscription);
 
-      if (!isMaster) {
+      // Super admin and master have full access, members need canEdit permission
+      if (!isMaster && !isSuperAdmin) {
         if (!permSnap.exists || !permSnap.data()?.canEdit) {
           console.warn(`updateClient: User ${userId} lacks permission`);
           throw new functions.https.HttpsError(
