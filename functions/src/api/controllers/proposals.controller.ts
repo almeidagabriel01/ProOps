@@ -45,7 +45,8 @@ export const createProposal = async (req: Request, res: Response) => {
       }
     }
 
-    const userCompanyId = tenantId;
+    const userCompanyId =
+      input.targetTenantId && isSuperAdmin ? input.targetTenantId : tenantId;
 
     if (
       masterData.subscription?.status &&

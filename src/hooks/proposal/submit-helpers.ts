@@ -75,7 +75,7 @@ export async function updateProposal(payload: UpdateProposalPayload): Promise<vo
 
 // Prepare proposal data for creation
 export function prepareCreatePayload(payload: CreateProposalPayload) {
-  const { formData, selectedProducts, selectedSistemas, clientId, calculateTotal } = payload;
+  const { formData, selectedProducts, selectedSistemas, clientId, tenantId, calculateTotal } = payload;
   
   const sanitizedProducts = sanitizeProducts(selectedProducts);
   const safeTotal = calculateTotal();
@@ -97,5 +97,6 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     sistemas: selectedSistemas.length > 0 
       ? transformSistemas(selectedSistemas) 
       : undefined,
+    targetTenantId: tenantId, // Pass tenant ID to backend (for super admin)
   };
 }
