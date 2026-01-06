@@ -487,7 +487,7 @@ export const createOption = functions
       }
       
       const userData = userSnap.data() as { role?: string; tenantId?: string; companyId?: string };
-      const isSuperAdmin = userData.role === "superadmin";
+      const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
       
       // Determine tenantId: super admin can use provided tenantId, others must use their own
       let tenantId: string;

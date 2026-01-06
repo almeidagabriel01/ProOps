@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { menuItems, MenuItem } from "./config";
 
 interface UseSidebarReturn {
@@ -28,6 +29,7 @@ export function useSidebar(
 ): UseSidebarReturn {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { tenant, tenantOwner } = useTenant();
   const { hasFinancial } = usePlanLimits();
   const { hasPermission, isMaster } = usePermissions();
 
@@ -125,50 +127,25 @@ export function useSidebar(
         }
       };
 
-      // Check if super admin is viewing another tenant
-      const viewingAsTenant =
-        typeof window !== "undefined"
-          ? localStorage.getItem("viewingAsTenant")
-          : null;
+      // Determine which user plan to use
+      // If superadmin is viewing a tenant, use the tenant owner's plan
+      const targetUser = (user?.role === "superadmin" && tenant?.id && tenantOwner)
+        ? tenantOwner
+        : user;
 
-      // If super admin is viewing a tenant, get the tenant owner's plan
-      if (user?.role === "superadmin" && viewingAsTenant) {
-        try {
-          // Extract owner ID from tenant ID (format: tenant_{userId})
-          const ownerId = viewingAsTenant.replace("tenant_", "");
-          const ownerDoc = await getDoc(doc(db, "users", ownerId));
-          if (ownerDoc.exists()) {
-            const ownerData = ownerDoc.data();
-            if (ownerData.planId) {
-              const name = await getPlanName(ownerData.planId);
-              if (name) {
-                setUserPlanName(name);
-                return;
-              }
-            }
-            // If no plan, show as free
-            setUserPlanName("Gratuito");
-            return;
-          }
-        } catch (error) {
-          console.error("Error fetching tenant owner plan:", error);
-        }
-      }
-
-      // Default behavior for regular users
-      if (!user?.planId) {
-        setUserPlanName(user?.role === "free" ? "Gratuito" : null);
+      if (!targetUser?.planId) {
+        setUserPlanName(targetUser?.role === "free" ? "Gratuito" : null);
         return;
       }
 
-      const name = await getPlanName(user.planId);
+      const name = await getPlanName(targetUser.planId);
       if (name) {
         setUserPlanName(name);
       }
     };
 
     fetchPlanName();
-  }, [user?.planId, user?.role]);
+  }, [user?.planId, user?.role, tenant?.id, tenantOwner]);
 
   const handleMouseEnter = useCallback(() => {
     setIsExpanded(true);

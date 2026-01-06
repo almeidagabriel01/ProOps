@@ -17,7 +17,6 @@ const COLLECTION_NAME = "options";
 export const OptionService = {
     getOptions: async (tenantId: string, type: string): Promise<Option[]> => {
         try {
-            // Cloud Function uses 'fieldType' field instead of 'type'
             const q = query(
                 collection(db, COLLECTION_NAME),
                 where("tenantId", "==", tenantId),
@@ -28,7 +27,7 @@ export const OptionService = {
             return querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 tenantId: doc.data().tenantId,
-                type: doc.data().fieldType, // Map fieldType to type for consistency
+                type: doc.data().fieldType,
                 label: doc.data().label,
                 createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
             } as Option));

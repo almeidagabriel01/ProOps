@@ -26,7 +26,7 @@ interface HeaderProps {
 
 export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const { user, logout } = useAuth();
-  const { tenant, refreshTenant, clearViewingTenant } = useTenant();
+  const { tenant, tenantOwner, refreshTenant, clearViewingTenant } = useTenant();
   const router = useRouter();
   const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false);
   const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
@@ -36,13 +36,16 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   // Fetch user's plan name
   React.useEffect(() => {
     const fetchPlanName = async () => {
-      if (!user?.planId) {
-        setUserPlanName(user?.role === "free" ? "Gratuito" : null);
+      // Determine which user's plan to fetch
+      const targetUser = isViewingAsTenant && tenant?.id ? tenantOwner : user;
+
+      if (!targetUser?.planId) {
+        setUserPlanName(targetUser?.role === "free" ? "Gratuito" : null);
         return;
       }
       try {
         // 1. Try fetching by ID
-        const planDoc = await getDoc(doc(db, "plans", user.planId));
+        const planDoc = await getDoc(doc(db, "plans", targetUser.planId));
         if (planDoc.exists()) {
           const planData = planDoc.data();
           setUserPlanName(planData.name || planData.tier);
@@ -52,7 +55,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         // 2. Fallback: Try fetching by tier (if planId is a tier name like 'starter')
         const q = query(
           collection(db, "plans"),
-          where("tier", "==", user.planId)
+          where("tier", "==", targetUser.planId)
         );
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -68,15 +71,15 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
           pro: "Profissional",
           enterprise: "Enterprise",
         };
-        if (PLAN_NAMES[user.planId]) {
-          setUserPlanName(PLAN_NAMES[user.planId]);
+        if (PLAN_NAMES[targetUser.planId]) {
+          setUserPlanName(PLAN_NAMES[targetUser.planId]);
         }
       } catch (error) {
         console.error("Error fetching plan:", error);
       }
     };
     fetchPlanName();
-  }, [user?.planId, user?.role]);
+  }, [user?.planId, user?.role, isViewingAsTenant, tenantOwner?.planId]);
 
   React.useEffect(() => {
     // Check localStorage directly
@@ -127,13 +130,15 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         <div className="flex items-center gap-3 pl-2">
           <div className="flex flex-col items-end hidden md:flex">
             <span className="text-sm font-medium">
-              {user ? user.name : "Visitante"}
+              {isViewingAsTenant && tenantOwner
+                ? tenantOwner.name
+                : (user ? user.name : "Visitante")}
             </span>
             <span className="text-xs text-muted-foreground capitalize">
               {userPlanName ||
-                (user?.role === "superadmin"
+                (user?.role === "superadmin" && !isViewingAsTenant
                   ? "Super Admin"
-                  : user?.role || "Guest")}
+                  : (isViewingAsTenant && tenantOwner ? (tenantOwner.role || "Membro") : (user?.role || "Guest")))}
             </span>
           </div>
           <DropdownMenu>

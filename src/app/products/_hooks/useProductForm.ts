@@ -320,6 +320,7 @@ export function useProductForm(
         router.refresh();
       } else {
         const result = await createProduct({
+          targetTenantId: tenant.id, // Pass tenant ID. Backend only respects it if superadmin.
           name: formData.name,
           description: formData.description,
           price: formData.price,

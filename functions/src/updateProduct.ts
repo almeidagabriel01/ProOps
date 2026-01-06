@@ -111,7 +111,8 @@ export const updateProduct = functions
         role === "WK" ||
         (!userData.masterId && userData.subscription);
 
-      if (!isMaster) {
+      // Super admin and master have full access, members need canEdit permission
+      if (!isMaster && !isSuperAdmin) {
         if (!permSnap.exists || !permSnap.data()?.canEdit) {
           throw new functions.https.HttpsError(
             "permission-denied",
