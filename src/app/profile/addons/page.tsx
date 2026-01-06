@@ -15,6 +15,8 @@ import { useStripePrices } from "@/hooks/useStripePrices";
 import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
 import { AddonType, AddonDefinition } from "@/types";
 import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2 } from "lucide-react";
+import { functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { toast } from "react-toastify";
 import {
   AlertDialog,
@@ -137,9 +139,6 @@ export default function AddonsPage() {
 
     try {
       // Call Cloud Function to cancel addon (handles Stripe cancellation + Firestore update)
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const cancelFunc = httpsCallable<
         { tenantId: string; addonType: string },
         { success: boolean; message: string }

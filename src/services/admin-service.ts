@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
 import {
   collection,
   getDocs,
@@ -9,6 +9,7 @@ import {
   getCountFromServer,
   updateDoc,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { Tenant, User, AddonType, PlanFeatures, UserPlan } from "@/types";
 import { PlanService } from "./plan-service";
 
@@ -107,8 +108,6 @@ export const AdminService = {
     email?: string,
     password?: string
   ) {
-    const { getFunctions, httpsCallable } = await import("firebase/functions");
-    const functions = getFunctions(undefined, "southamerica-east1");
     const updateCredentialsFn = httpsCallable(
       functions,
       "updateAdminCredentials"

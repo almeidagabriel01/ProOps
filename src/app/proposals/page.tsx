@@ -37,6 +37,8 @@ const statusConfig: Record<
 };
 
 import { ProposalService } from "@/services/proposal-service";
+import { functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 
 import { usePagePermission } from "@/hooks/usePagePermission";
 
@@ -105,10 +107,7 @@ export default function ProposalsPage() {
       const original = proposals.find((p) => p.id === id);
       if (!original) return;
 
-      // Import createProposal hook dynamically
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
+      // Using centralized functions instance
       const createProposalFn = httpsCallable(functions, "createProposal");
 
       const result = await createProposalFn({

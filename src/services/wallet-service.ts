@@ -1,6 +1,7 @@
 "use client";
 
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import {
   collection,
   getDocs,
@@ -124,9 +125,6 @@ export const WalletService = {
     data: CreateWalletInput
   ): Promise<{ walletId: string }> => {
     try {
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const createFunc = httpsCallable<
         CreateWalletInput,
         { success: boolean; walletId: string; message: string }
@@ -148,9 +146,6 @@ export const WalletService = {
     data: UpdateWalletInput
   ): Promise<void> => {
     try {
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const updateFunc = httpsCallable<
         { walletId: string } & UpdateWalletInput,
         { success: boolean; message: string }
@@ -168,9 +163,6 @@ export const WalletService = {
    */
   deleteWallet: async (walletId: string, force = false): Promise<void> => {
     try {
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const deleteFunc = httpsCallable<
         { walletId: string; force: boolean },
         { success: boolean; message: string }
@@ -188,9 +180,6 @@ export const WalletService = {
    */
   transferBalance: async (data: TransferInput): Promise<void> => {
     try {
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const transferFunc = httpsCallable<
         TransferInput,
         { success: boolean; message: string }
@@ -211,9 +200,6 @@ export const WalletService = {
     data: AdjustBalanceInput
   ): Promise<{ newBalance: number }> => {
     try {
-      const { getFunctions, httpsCallable } =
-        await import("firebase/functions");
-      const functions = getFunctions(undefined, "southamerica-east1");
       const adjustFunc = httpsCallable<
         { walletId: string } & AdjustBalanceInput,
         { success: boolean; newBalance: number; message: string }

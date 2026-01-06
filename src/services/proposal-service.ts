@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
 import {
   collection,
   doc,
@@ -7,7 +7,7 @@ import {
   where,
   getDoc,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
 
 // Define compatible types based on usage
 export type ProposalStatus = "draft" | "sent" | "approved" | "rejected";
@@ -128,7 +128,6 @@ export const ProposalService = {
 
   deleteProposal: async (id: string): Promise<void> => {
     try {
-      const functions = getFunctions(undefined, "southamerica-east1");
       const deleteFunc = httpsCallable(functions, "deleteProposal");
       await deleteFunc({ proposalId: id });
     } catch (error) {
@@ -142,7 +141,6 @@ export const ProposalService = {
     data: Partial<Proposal>
   ): Promise<void> => {
     try {
-      const functions = getFunctions(undefined, "southamerica-east1");
       const updateFunc = httpsCallable(functions, "updateProposal");
       await updateFunc({ proposalId: id, ...data });
     } catch (error) {
