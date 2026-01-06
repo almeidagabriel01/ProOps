@@ -12,10 +12,15 @@
  *
  * The Next.js API route version uses the same core logic from create-member.ts
  *
- * MIGRATED TO V1: Uses firebase-functions (v1) for full httpsCallable compatibility
+ * MIGRATED TO V2: Uses firebase-functions/v2 for better CORS support
  */
 
-import * as functions from "firebase-functions";
+// Using v2 API for better CORS support
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { canManageTeam } from "./authUtils";
 
@@ -23,7 +28,8 @@ import { canManageTeam } from "./authUtils";
 // Initialize Firebase Admin check moved to ./init
 import { db, auth } from "./init";
 
-// ============================================
+// CORS configuration for v2 functions
+const CORS_OPTIONS = { cors: true, region: "southamerica-east1" };
 // TYPES
 // ============================================
 
@@ -104,24 +110,23 @@ function isValidEmail(email: string): boolean {
  * });
  * ```
  */
-export const createMember = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: CreateMemberInput, context) => {
-    // const db = getFirestore();
-    // const auth = getAuth();
+export const createMember = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<CreateMemberInput>) => {
+    const { data, auth: authContext } = request;
 
     // ============================================
     // STEP 1: Validate Authentication
     // ============================================
 
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
+    if (!authContext) {
+      throw new HttpsError(
         "unauthenticated",
         "Você precisa estar logado para criar membros"
       );
     }
 
-    const masterId = context.auth.uid;
+    const masterId = authContext.uid;
     const input = data;
 
     // ============================================
@@ -129,17 +134,14 @@ export const createMember = functions
     // ============================================
 
     if (!input.name || input.name.trim().length < 2) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Nome deve ter pelo menos 2 caracteres"
       );
     }
 
     if (!input.email || !isValidEmail(input.email)) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Email inválido"
-      );
+      throw new HttpsError("invalid-argument", "Email inválido");
     }
 
     // ============================================
@@ -150,10 +152,7 @@ export const createMember = functions
     const masterSnap = await masterRef.get();
 
     if (!masterSnap.exists) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        "Usuário não encontrado"
-      );
+      throw new HttpsError("not-found", "Usuário não encontrado");
     }
 
     const masterData = masterSnap.data() as MasterUserDoc;
@@ -168,7 +167,7 @@ export const createMember = functions
       canManageTeam(masterData.role);
 
     if (!isMaster) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "permission-denied",
         "Apenas administradores podem criar membros da equipe"
       );
@@ -177,7 +176,7 @@ export const createMember = functions
     // Verify critical data existence
     if (!masterData.tenantId) {
       console.error(`[createMember] User ${masterId} has no tenantId`);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "failed-precondition",
         "Erro na conta: Identificador do tenant não encontrado. Contate o suporte."
       );
@@ -237,7 +236,7 @@ export const createMember = functions
     console.log(`[createMember] Limit: ${maxUsers}, Usage: ${currentUsers}`);
 
     if (maxUsers >= 0 && currentUsers >= maxUsers) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "failed-precondition",
         `Limite de usuários atingido (${currentUsers}/${maxUsers}). Faça upgrade para adicionar mais membros.`
       );
@@ -249,7 +248,7 @@ export const createMember = functions
 
     try {
       await auth.getUserByEmail(input.email);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "already-exists",
         "Este email já está cadastrado no sistema"
       );
@@ -257,11 +256,11 @@ export const createMember = functions
       const error = err as { code?: string };
       if (
         error.code !== "auth/user-not-found" &&
-        (err as functions.https.HttpsError).code !== "already-exists"
+        (err as { code?: string }).code !== "already-exists"
       ) {
         throw err;
       }
-      if ((err as functions.https.HttpsError).code === "already-exists") {
+      if ((err as { code?: string }).code === "already-exists") {
         throw err;
       }
     }
@@ -282,7 +281,7 @@ export const createMember = functions
       });
     } catch (err) {
       console.error("Error creating Firebase Auth user:", err);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Erro ao criar usuário. Tente novamente."
       );
@@ -371,7 +370,7 @@ export const createMember = functions
         console.error("Failed to rollback Auth user:", deleteErr);
       }
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         "Erro ao salvar dados do usuário. Tente novamente."
       );
@@ -386,4 +385,5 @@ export const createMember = functions
       memberId: memberId,
       message: `Usuário ${input.name} criado com sucesso!`,
     };
-  });
+  }
+);

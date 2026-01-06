@@ -9,9 +9,17 @@
  * - Server-side installment generation
  */
 
-import * as functions from "firebase-functions";
+// Removed import * as functions from "firebase-functions" - using v2 API
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { db } from "./init";
+
+// CORS configuration for v2 functions
+const CORS_OPTIONS = { cors: true, region: "southamerica-east1" };
 
 // ============================================
 // TYPES
@@ -173,19 +181,16 @@ async function resolveWalletRef(
 // CREATE TRANSACTION (Atomic + Batch Generation)
 // ============================================
 
-export const createTransaction = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: CreateTransactionInput, context) => {
-    // const db = getFirestore();
+export const createTransaction = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<CreateTransactionInput>) => {
+    const { data, auth } = request;
 
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Login necessário."
-      );
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Login necessário.");
     }
 
-    const userId = context.auth.uid;
+    const userId = auth.uid;
     const now = Timestamp.now();
 
     // 1. Input Validation
@@ -196,10 +201,7 @@ export const createTransaction = functions
       !data.type ||
       !data.status
     ) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Campos obrigatórios faltando."
-      );
+      throw new HttpsError("invalid-argument", "Campos obrigatórios faltando.");
     }
 
     // 2. Parallel Fetch (User & Permissions)
@@ -212,20 +214,14 @@ export const createTransaction = functions
     ]);
 
     if (!userSnap.exists) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        "Usuário não encontrado."
-      );
+      throw new HttpsError("not-found", "Usuário não encontrado.");
     }
 
     const userData = userSnap.data() as UserDoc;
     const tenantId = userData.tenantId || userData.companyId;
 
     if (!tenantId) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Usuário sem tenantId."
-      );
+      throw new HttpsError("failed-precondition", "Usuário sem tenantId.");
     }
 
     const role = (userData.role as string)?.toUpperCase();
@@ -237,7 +233,7 @@ export const createTransaction = functions
 
     if (!isMaster) {
       if (!permSnap.exists || !permSnap.data()?.canCreate) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "permission-denied",
           "Sem permissão para criar transações."
         );
@@ -397,32 +393,27 @@ export const createTransaction = functions
       return result;
     } catch (error) {
       console.error("Create Transaction Error:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        (error as Error).message
-      );
+      throw new HttpsError("internal", (error as Error).message);
     }
-  });
+  }
+);
 
 // ============================================
 // UPDATE TRANSACTION (Atomic)
 // ============================================
-export const updateTransaction = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: UpdateTransactionInput, context) => {
-    // const db = getFirestore();
+export const updateTransaction = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<UpdateTransactionInput>) => {
+    const { data, auth } = request;
 
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Login necessário."
-      );
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "Login necessário.");
     }
-    const userId = context.auth.uid;
+    const userId = auth.uid;
     const { transactionId, ...updateData } = data;
 
     if (!transactionId) {
-      throw new functions.https.HttpsError("invalid-argument", "ID inválido.");
+      throw new HttpsError("invalid-argument", "ID inválido.");
     }
 
     // 2. Parallel Fetch (User & Permission)
@@ -434,18 +425,15 @@ export const updateTransaction = functions
       permRef.get(),
     ]);
 
-    if (!userSnap.exists)
-      throw new functions.https.HttpsError("not-found", "User not found");
+    if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
 
     const userData = userSnap.data() as UserDoc;
     const tenantId = userData.tenantId || userData.companyId;
-    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
+    const isSuperAdmin =
+      (userData.role as string)?.toLowerCase() === "superadmin";
 
     if (!tenantId && !isSuperAdmin)
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Usuário sem tenantId."
-      );
+      throw new HttpsError("failed-precondition", "Usuário sem tenantId.");
 
     const role = (userData.role as string)?.toUpperCase();
     const isMaster =
@@ -456,10 +444,7 @@ export const updateTransaction = functions
 
     if (!isMaster && !isSuperAdmin) {
       if (!permSnap.exists || !permSnap.data()?.canEdit) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "Sem permissão."
-        );
+        throw new HttpsError("permission-denied", "Sem permissão.");
       }
     }
 
@@ -469,18 +454,12 @@ export const updateTransaction = functions
         const ref = db.collection(COLLECTION_NAME).doc(transactionId);
         const snap = await t.get(ref);
         if (!snap.exists)
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Transação não encontrada."
-          );
+          throw new HttpsError("not-found", "Transação não encontrada.");
 
         const currentData = snap.data() as TransactionDoc;
         // Super admin can update any transaction
         if (!isSuperAdmin && currentData.tenantId !== tenantId)
-          throw new functions.https.HttpsError(
-            "permission-denied",
-            "Acesso negado."
-          );
+          throw new HttpsError("permission-denied", "Acesso negado.");
 
         // 3. Logic for Wallet Balance Adjustment
         // Calculate old impact
@@ -562,26 +541,20 @@ export const updateTransaction = functions
       return { success: true, message: "Atualizado com sucesso." };
     } catch (error) {
       console.error("Update Transaction Error:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        (error as Error).message
-      );
+      throw new HttpsError("internal", (error as Error).message);
     }
-  });
+  }
+);
 
 // ============================================
 // DELETE TRANSACTION (Atomic)
 // ============================================
-export const deleteTransaction = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: DeleteTransactionInput, context) => {
-    // const db = getFirestore();
-    if (!context.auth)
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Login necessário."
-      );
-    const userId = context.auth.uid;
+export const deleteTransaction = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<DeleteTransactionInput>) => {
+    const { data, auth } = request;
+    if (!auth) throw new HttpsError("unauthenticated", "Login necessário.");
+    const userId = auth.uid;
 
     // 2. Parallel Fetch (User & Permission)
     const userRef = db.collection("users").doc(userId);
@@ -592,18 +565,15 @@ export const deleteTransaction = functions
       permRef.get(),
     ]);
 
-    if (!userSnap.exists)
-      throw new functions.https.HttpsError("not-found", "User not found");
+    if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
 
     const userData = userSnap.data() as UserDoc;
     const tenantId = userData.tenantId || userData.companyId;
-    const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
+    const isSuperAdmin =
+      (userData.role as string)?.toLowerCase() === "superadmin";
 
     if (!tenantId && !isSuperAdmin)
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Usuário sem tenantId."
-      );
+      throw new HttpsError("failed-precondition", "Usuário sem tenantId.");
 
     const role = (userData.role as string)?.toUpperCase();
     const isMaster =
@@ -614,10 +584,7 @@ export const deleteTransaction = functions
 
     if (!isMaster && !isSuperAdmin) {
       if (!permSnap.exists || !permSnap.data()?.canDelete) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "Sem permissão."
-        );
+        throw new HttpsError("permission-denied", "Sem permissão.");
       }
     }
 
@@ -627,18 +594,12 @@ export const deleteTransaction = functions
         const ref = db.collection(COLLECTION_NAME).doc(data.transactionId);
         const snap = await t.get(ref);
         if (!snap.exists)
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Transação não encontrada."
-          );
+          throw new HttpsError("not-found", "Transação não encontrada.");
 
         const currentData = snap.data() as TransactionDoc;
         // Super admin can delete any transaction
         if (!isSuperAdmin && currentData.tenantId !== tenantId)
-          throw new functions.https.HttpsError(
-            "permission-denied",
-            "Acesso negado."
-          );
+          throw new HttpsError("permission-denied", "Acesso negado.");
 
         // 3. Revert Wallet Balance if needed
         if (currentData.status === "paid" && currentData.wallet) {
@@ -666,9 +627,7 @@ export const deleteTransaction = functions
       return { success: true, message: "Excluído com sucesso." };
     } catch (error) {
       console.error("Delete Transaction Error:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        (error as Error).message
-      );
+      throw new HttpsError("internal", (error as Error).message);
     }
-  });
+  }
+);

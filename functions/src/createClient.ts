@@ -10,9 +10,17 @@
  * the authenticated user - NEVER trusted from frontend input.
  */
 
-import * as functions from "firebase-functions";
+// Using v2 API for better CORS support
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "./init";
+
+// CORS configuration for v2 functions
+const CORS_OPTIONS = { cors: true, region: "southamerica-east1" };
 
 // ============================================
 // TYPES
@@ -52,27 +60,28 @@ interface UserDoc {
 // CLOUD FUNCTION
 // ============================================
 
-export const createClient = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: CreateClientInput, context) => {
-    console.log("createClient v2: Started", { data, auth: context.auth?.uid });
-    
+export const createClient = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<CreateClientInput>) => {
+    const { data, auth } = request;
+    console.log("createClient v2: Started", { data, auth: auth?.uid });
+
     try {
       // 1. Authentication
-      if (!context.auth) {
+      if (!auth) {
         console.warn("createClient: Unauthenticated");
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "unauthenticated",
           "Você precisa estar logado para criar clientes"
         );
       }
 
-      const userId = context.auth.uid;
+      const userId = auth.uid;
       const input = data;
 
       // 2. Input Validation
       if (!input.name || input.name.trim().length < 2) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           "Nome deve ter pelo menos 2 caracteres"
         );
@@ -83,10 +92,7 @@ export const createClient = functions
       const userSnap = await userRef.get();
 
       if (!userSnap.exists) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "Usuário não encontrado"
-        );
+        throw new HttpsError("not-found", "Usuário não encontrado");
       }
 
       const userData = (userSnap.data() || {}) as UserDoc;
@@ -94,7 +100,7 @@ export const createClient = functions
       const userCompanyId = userData.tenantId || userData.companyId;
 
       if (!userCompanyId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Usuário sem tenantId/companyId vinculado."
         );
@@ -118,7 +124,7 @@ export const createClient = functions
         const masterId =
           userData.masterId || userData.masterID || userData.ownerId;
         if (!masterId)
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "failed-precondition",
             "Erro de configuração de conta."
           );
@@ -134,17 +140,14 @@ export const createClient = functions
 
         // Check Permission
         if (!permSnap.exists || !permSnap.data()?.canCreate) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "permission-denied",
             "Sem permissão para criar clientes."
           );
         }
 
         if (!masterSnap.exists)
-          throw new functions.https.HttpsError(
-            "not-found",
-            "Conta principal não encontrada."
-          );
+          throw new HttpsError("not-found", "Conta principal não encontrada.");
 
         masterData = masterSnap.data() as UserDoc;
         masterRef = masterDocRef;
@@ -157,7 +160,7 @@ export const createClient = functions
         userData.tenantId;
 
       if (!targetCompanyId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "Configuração de conta inválida: companyId/tenantId ausente."
         );
@@ -199,7 +202,7 @@ export const createClient = functions
         `[createClient] Limit: ${maxClients}, Usage: ${currentClients}`
       );
       if (maxClients >= 0 && currentClients >= maxClients) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "resource-exhausted",
           `Limite de clientes atingido (${currentClients}/${maxClients}). Faça upgrade do plano.`
         );
@@ -217,7 +220,7 @@ export const createClient = functions
         const freshUsage = Number(freshMasterSnap.data()?.usage?.clients ?? 0);
 
         if (maxClients >= 0 && freshUsage >= maxClients) {
-          throw new functions.https.HttpsError(
+          throw new HttpsError(
             "resource-exhausted",
             "Limite de clientes atingido."
           );
@@ -270,10 +273,11 @@ export const createClient = functions
       };
     } catch (error) {
       console.error("createClient: Critical Error", error);
-      if (error instanceof functions.https.HttpsError) throw error;
-      throw new functions.https.HttpsError(
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError(
         "internal",
         `Erro ao criar cliente: ${(error as Error).message}`
       );
     }
-  });
+  }
+);
