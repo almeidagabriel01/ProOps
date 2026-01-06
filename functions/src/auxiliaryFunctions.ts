@@ -15,8 +15,19 @@
  */
 
 import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "./init";
+
+// CORS configuration - allow all origins for callable functions
+const CORS_OPTIONS = {
+  cors: true, // Allow all origins
+  region: "southamerica-east1",
+};
 
 // ============================================
 // TYPES
@@ -82,21 +93,25 @@ async function checkAuthAndDoc(
   const userRef = db.collection("users").doc(userId);
 
   // Parallel Fetch - get user data to check role
-  const [userSnap, docSnap] = await Promise.all([
-    userRef.get(),
-    docRef.get(),
-  ]);
+  const [userSnap, docSnap] = await Promise.all([userRef.get(), docRef.get()]);
 
   if (!userSnap.exists) {
-    throw new functions.https.HttpsError("not-found", "Usuário não encontrado.");
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Usuário não encontrado."
+    );
   }
 
   const userData = userSnap.data() as UserDoc;
-  const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
+  const isSuperAdmin =
+    (userData.role as string)?.toLowerCase() === "superadmin";
   const tenantId = userData.tenantId || userData.companyId || "";
 
   if (!tenantId && !isSuperAdmin) {
-    throw new functions.https.HttpsError("failed-precondition", "Usuário sem tenantId.");
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Usuário sem tenantId."
+    );
   }
 
   if (!docSnap.exists)
@@ -104,7 +119,7 @@ async function checkAuthAndDoc(
       "not-found",
       "Documento não encontrado."
     );
-  
+
   // Super admin can access any document
   if (!isSuperAdmin && docSnap.data()?.tenantId !== tenantId)
     throw new functions.https.HttpsError(
@@ -465,45 +480,60 @@ export const deleteCustomField = functions
 // OPTION FUNCTIONS (for dropdowns)
 // ============================================
 
-export const createOption = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: { fieldType: string; label: string; tenantId?: string }, context) => {
-    console.log("createOption v2: Started", { data, auth: context.auth?.uid });
+export const createOption = onCall(
+  CORS_OPTIONS,
+  async (
+    request: CallableRequest<{
+      fieldType: string;
+      label: string;
+      tenantId?: string;
+    }>
+  ) => {
+    const { data, auth } = request;
+    console.log("createOption v3: Started", {
+      data,
+      auth: auth?.uid,
+    });
     try {
-      if (!context.auth) {
+      if (!auth) {
         console.warn("createOption: Unauthenticated");
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "Login necessário."
-        );
+        throw new HttpsError("unauthenticated", "Login necessário.");
       }
 
       // Get user data to check role
-      const userRef = db.collection("users").doc(context.auth.uid);
+      const userRef = db.collection("users").doc(auth.uid);
       const userSnap = await userRef.get();
-      
+
       if (!userSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Usuário não encontrado.");
+        throw new HttpsError("not-found", "Usuário não encontrado.");
       }
-      
-      const userData = userSnap.data() as { role?: string; tenantId?: string; companyId?: string };
-      const isSuperAdmin = (userData.role as string)?.toLowerCase() === "superadmin";
-      
+
+      const userData = userSnap.data() as {
+        role?: string;
+        tenantId?: string;
+        companyId?: string;
+      };
+      const isSuperAdmin =
+        (userData.role as string)?.toLowerCase() === "superadmin";
+
       // Determine tenantId: super admin can use provided tenantId, others must use their own
       let tenantId: string;
       if (isSuperAdmin && data.tenantId) {
         tenantId = data.tenantId;
-        console.log("createOption: Super admin creating option for tenant:", tenantId);
+        console.log(
+          "createOption: Super admin creating option for tenant:",
+          tenantId
+        );
       } else {
         tenantId = userData.tenantId || userData.companyId || "";
         if (!tenantId) {
-          throw new functions.https.HttpsError("failed-precondition", "Usuário sem tenantId.");
+          throw new HttpsError("failed-precondition", "Usuário sem tenantId.");
         }
       }
 
       if (!data.fieldType || !data.label) {
         console.warn("createOption: Missing fields");
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "invalid-argument",
           "Tipo de campo e label são obrigatórios."
         );
@@ -526,27 +556,26 @@ export const createOption = functions
       };
     } catch (error) {
       console.error("createOption: Error", error);
-      if (error instanceof functions.https.HttpsError) throw error;
-      throw new functions.https.HttpsError("internal", `Erro: ${(error as Error).message}`);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", `Erro: ${(error as Error).message}`);
     }
-  });
+  }
+);
 
-export const updateOption = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: { optionId: string; label: string }, context) => {
-    console.log("updateOption: Started", { data, auth: context.auth?.uid });
+export const updateOption = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<{ optionId: string; label: string }>) => {
+    const { data, auth } = request;
+    console.log("updateOption v3: Started", { data, auth: auth?.uid });
     try {
-      if (!context.auth) {
+      if (!auth) {
         console.warn("updateOption: Unauthenticated");
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "Login necessário."
-        );
+        throw new HttpsError("unauthenticated", "Login necessário.");
       }
 
       const { docRef } = await checkAuthAndDoc(
         db,
-        context.auth.uid,
+        auth.uid,
         "options",
         data.optionId
       );
@@ -555,27 +584,26 @@ export const updateOption = functions
       return { success: true, message: "Opção atualizada com sucesso." };
     } catch (error) {
       console.error("updateOption: Error", error);
-      if (error instanceof functions.https.HttpsError) throw error;
-      throw new functions.https.HttpsError("internal", `Erro: ${(error as Error).message}`);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", `Erro: ${(error as Error).message}`);
     }
-  });
+  }
+);
 
-export const deleteOption = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: { optionId: string }, context) => {
-    console.log("deleteOption: Started", { data, auth: context.auth?.uid });
+export const deleteOption = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<{ optionId: string }>) => {
+    const { data, auth } = request;
+    console.log("deleteOption v3: Started", { data, auth: auth?.uid });
     try {
-      if (!context.auth) {
+      if (!auth) {
         console.warn("deleteOption: Unauthenticated");
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "Login necessário."
-        );
+        throw new HttpsError("unauthenticated", "Login necessário.");
       }
 
       const { docRef } = await checkAuthAndDoc(
         db,
-        context.auth.uid,
+        auth.uid,
         "options",
         data.optionId
       );
@@ -583,11 +611,12 @@ export const deleteOption = functions
       console.log(`deleteOption: Success for ${data.optionId}`);
       return { success: true, message: "Opção excluída com sucesso." };
     } catch (error) {
-       console.error("deleteOption: Error", error);
-       if (error instanceof functions.https.HttpsError) throw error;
-       throw new functions.https.HttpsError("internal", `Erro: ${(error as Error).message}`);
+      console.error("deleteOption: Error", error);
+      if (error instanceof HttpsError) throw error;
+      throw new HttpsError("internal", `Erro: ${(error as Error).message}`);
     }
-  });
+  }
+);
 
 // ============================================
 // PROPOSAL TEMPLATE FUNCTIONS
