@@ -82,11 +82,25 @@ export function useTenantsData(): UseTenantsDataReturn {
 
   const metrics = React.useMemo<TenantsMetrics>(() => {
     const totalTenants = tenantsData.length;
-    const totalUsers = tenantsData.reduce((acc, curr) => acc + curr.usage.users, 0);
-    const totalProducts = tenantsData.reduce((acc, curr) => acc + curr.usage.products, 0);
-    const totalClients = tenantsData.reduce((acc, curr) => acc + curr.usage.clients, 0);
-    const totalProposals = tenantsData.reduce((acc, curr) => acc + curr.usage.proposals, 0);
-    const activeTenants = tenantsData.filter((t) => t.subscriptionStatus === "active").length;
+    const totalUsers = tenantsData.reduce(
+      (acc, curr) => acc + curr.usage.users,
+      0
+    );
+    const totalProducts = tenantsData.reduce(
+      (acc, curr) => acc + curr.usage.products,
+      0
+    );
+    const totalClients = tenantsData.reduce(
+      (acc, curr) => acc + curr.usage.clients,
+      0
+    );
+    const totalProposals = tenantsData.reduce(
+      (acc, curr) => acc + curr.usage.proposals,
+      0
+    );
+    const activeTenants = tenantsData.filter(
+      (t) => t.subscriptionStatus === "active"
+    ).length;
 
     return {
       totalTenants,
@@ -117,7 +131,7 @@ export function useTenantsData(): UseTenantsDataReturn {
       open: true,
       tenantId: item.tenant.id,
       tenantName: item.tenant.name,
-      features: item.planFeatures,
+      features: item.planFeatures as PlanFeatures,
     });
   }, []);
 

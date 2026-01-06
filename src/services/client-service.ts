@@ -1,7 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
@@ -131,8 +131,7 @@ export const ClientService = {
 
   updateClient: async (id: string, data: Partial<Client>): Promise<void> => {
     try {
-      const updateFunc = httpsCallable(functions, "updateClient");
-      await updateFunc({ clientId: id, ...data });
+      await callApi(`v1/clients/${id}`, "PUT", data);
     } catch (error) {
       console.error("Error updating client:", error);
       throw error;

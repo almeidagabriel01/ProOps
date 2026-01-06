@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { ProposalService, Proposal } from "@/services/proposal-service";
+import { ProposalService } from "@/services/proposal-service";
+import { Proposal } from "@/types/proposal";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 import {
@@ -72,7 +73,7 @@ export function useEditPdfPage() {
           if (p) {
             // Inject placeholders for missing images (for demo purposes)
             if (p.products) {
-              p.products = p.products.map((prod) => ({
+              p.products = p.products.map((prod: any) => ({
                 ...prod,
                 productImage:
                   prod.productImage ||
@@ -99,7 +100,7 @@ export function useEditPdfPage() {
               const baseTemplate = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                s.primaryColor || tenant.primaryColor
+                s.primaryColor || tenant.primaryColor || "#2563eb"
               );
               setTemplate(baseTemplate);
 
@@ -131,7 +132,7 @@ export function useEditPdfPage() {
                 const t = ProposalDefaults.createDefaultTemplate(
                   tenant.id,
                   tenant.name,
-                  s.primaryColor || tenant.primaryColor
+                  s.primaryColor || tenant.primaryColor || "#2563eb"
                 );
                 setSections(createDefaultSections(t, t.primaryColor));
               }
@@ -140,7 +141,7 @@ export function useEditPdfPage() {
               const t = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                tenant.primaryColor
+                tenant.primaryColor || "#2563eb"
               );
 
               if (t) {

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import { toast } from "react-toastify";
 
 // ============================================
@@ -28,24 +27,19 @@ export function useMemberActions() {
 
   const deleteMember = async (memberId: string): Promise<boolean> => {
     if (!memberId) return false;
-    
+
     setIsLoading(true);
     try {
-        const deleteFn = httpsCallable<{ memberId: string }, ActionResult>(
-            functions, 
-            'deleteMember'
-        );
-        
-        await deleteFn({ memberId });
-        
-        toast.success("Membro removido com sucesso.");
-        return true;
+      await callApi(`v1/admin/members/${memberId}`, "DELETE");
+
+      toast.success("Membro removido com sucesso.");
+      return true;
     } catch (error: any) {
-        console.error("Error deleting member:", error);
-        toast.error(error.message || "Erro ao remover membro.");
-        return false;
+      console.error("Error deleting member:", error);
+      toast.error(error.message || "Erro ao remover membro.");
+      return false;
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -54,27 +48,23 @@ export function useMemberActions() {
 
     setIsLoading(true);
     try {
-        const updateFn = httpsCallable<UpdateMemberData, ActionResult>(
-            functions,
-            'updateMember'
-        );
+      const { memberId, ...updateData } = data;
+      await callApi(`v1/admin/members/${memberId}`, "PUT", updateData);
 
-        await updateFn(data);
-        
-        toast.success("Membro atualizado com sucesso.");
-        return true;
+      toast.success("Membro atualizado com sucesso.");
+      return true;
     } catch (error: any) {
-        console.error("Error updating member:", error);
-        toast.error(error.message || "Erro ao atualizar membro.");
-        return false;
+      console.error("Error updating member:", error);
+      toast.error(error.message || "Erro ao atualizar membro.");
+      return false;
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   return {
     deleteMember,
     updateMember,
-    isLoading
+    isLoading,
   };
 }

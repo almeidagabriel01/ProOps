@@ -9,11 +9,11 @@ export const NICHE_LABELS: Record<TenantNiche, string> = {
 export type Tenant = {
   id: string;
   name: string;
-  slug: string;
-  primaryColor: string; // Hex code
+  slug?: string;
+  primaryColor?: string; // Hex code
   logoUrl?: string;
   niche: TenantNiche;
-  createdAt: string;
+  createdAt?: string;
 };
 
 export type User = {
@@ -190,6 +190,9 @@ export type ProposalStatus = "draft" | "sent" | "approved" | "rejected";
 export type CustomFieldItem = {
   id: string;
   label: string;
+  value: string; // Used for option value
+  order: number;
+  isDefault?: boolean;
   image?: string; // Base64 encoded image
   description?: string;
   parentItemIds?: string[]; // For linked fields: which parent items this belongs to
@@ -202,7 +205,7 @@ export type CustomFieldType = {
   description?: string;
   parentTypeId?: string; // For linked fields: if set, this field depends on another
   items: CustomFieldItem[];
-  createdAt: string;
+  createdAt?: string;
 };
 
 // Proposal Template

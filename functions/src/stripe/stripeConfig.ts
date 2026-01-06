@@ -2,11 +2,11 @@
  * Stripe Configuration for Cloud Functions
  *
  * Centralized Stripe SDK initialization and configuration.
- * Uses Firebase Functions environment variables for secrets.
+ * Uses Firebase Functions environment variables (v2 compatible).
  */
 
 import Stripe from "stripe";
-import * as functions from "firebase-functions";
+// import * as functions from "firebase-functions"; // Removed v1 import
 
 // Lazy initialization to avoid issues during deployment
 let stripeInstance: Stripe | null = null;
@@ -16,13 +16,12 @@ let stripeInstance: Stripe | null = null;
  */
 export function getStripe(): Stripe {
   if (!stripeInstance) {
-    const secretKey =
-      process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+    const secretKey = process.env.STRIPE_SECRET_KEY;
 
     if (!secretKey) {
       throw new Error(
         "STRIPE_SECRET_KEY is not defined. " +
-          'Set it via: firebase functions:config:set stripe.secret_key="sk_..."'
+          "Set it via .env file or environment variables."
       );
     }
 
@@ -40,14 +39,12 @@ export function getStripe(): Stripe {
  * Get the Stripe webhook secret
  */
 export function getWebhookSecret(): string {
-  const secret =
-    process.env.STRIPE_WEBHOOK_SECRET ||
-    functions.config().stripe?.webhook_secret;
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!secret) {
     throw new Error(
       "STRIPE_WEBHOOK_SECRET is not defined. " +
-        'Set it via: firebase functions:config:set stripe.webhook_secret="whsec_..."'
+        "Set it via .env file or environment variables."
     );
   }
 
@@ -67,57 +64,30 @@ export interface StripePriceConfig {
  * Get price configuration from environment
  */
 export function getPriceConfig(): StripePriceConfig {
-  const config = functions.config().stripe || {};
-
   return {
     plans: {
       starter: {
-        monthly:
-          config.price_starter_monthly ||
-          process.env.STRIPE_PRICE_STARTER_MONTHLY ||
-          "",
-        yearly:
-          config.price_starter_yearly ||
-          process.env.STRIPE_PRICE_STARTER_YEARLY ||
-          "",
+        monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY || "",
+        yearly: process.env.STRIPE_PRICE_STARTER_YEARLY || "",
       },
       pro: {
-        monthly:
-          config.price_pro_monthly ||
-          process.env.STRIPE_PRICE_PRO_MONTHLY ||
-          "",
-        yearly:
-          config.price_pro_yearly || process.env.STRIPE_PRICE_PRO_YEARLY || "",
+        monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || "",
+        yearly: process.env.STRIPE_PRICE_PRO_YEARLY || "",
       },
       enterprise: {
-        monthly:
-          config.price_enterprise_monthly ||
-          process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY ||
-          "",
-        yearly:
-          config.price_enterprise_yearly ||
-          process.env.STRIPE_PRICE_ENTERPRISE_YEARLY ||
-          "",
+        monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY || "",
+        yearly: process.env.STRIPE_PRICE_ENTERPRISE_YEARLY || "",
       },
     },
     addons: {
       financial: {
-        monthly:
-          config.addon_financial_monthly ||
-          process.env.STRIPE_ADDON_FINANCIAL_MONTHLY ||
-          "",
+        monthly: process.env.STRIPE_ADDON_FINANCIAL_MONTHLY || "",
       },
       pdf_editor_partial: {
-        monthly:
-          config.addon_pdf_partial_monthly ||
-          process.env.STRIPE_ADDON_PDF_PARTIAL_MONTHLY ||
-          "",
+        monthly: process.env.STRIPE_ADDON_PDF_PARTIAL_MONTHLY || "",
       },
       pdf_editor_full: {
-        monthly:
-          config.addon_pdf_full_monthly ||
-          process.env.STRIPE_ADDON_PDF_FULL_MONTHLY ||
-          "",
+        monthly: process.env.STRIPE_ADDON_PDF_FULL_MONTHLY || "",
       },
     },
   };
@@ -146,9 +116,5 @@ export function getPriceIdForAddon(addonType: string): string | null {
  * Get the app URL for redirects
  */
 export function getAppUrl(): string {
-  return (
-    process.env.APP_URL ||
-    functions.config().app?.url ||
-    "http://localhost:3000"
-  );
+  return process.env.APP_URL || "http://localhost:3000";
 }

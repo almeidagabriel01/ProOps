@@ -1,4 +1,5 @@
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
@@ -7,7 +8,6 @@ import {
   where,
   getDoc,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 
 export type Product = {
   id: string;
@@ -86,8 +86,7 @@ export const ProductService = {
 
   updateProduct: async (id: string, data: Partial<Product>): Promise<void> => {
     try {
-      const updateFunc = httpsCallable(functions, "updateProduct");
-      await updateFunc({ productId: id, ...data });
+      await callApi(`v1/products/${id}`, "PUT", data);
     } catch (error) {
       console.error("Error updating product:", error);
       throw error;

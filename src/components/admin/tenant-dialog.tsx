@@ -81,13 +81,13 @@ export function TenantDialog({
       if (initialData) {
         setFormData({
           name: initialData.tenant.name,
-          color: initialData.tenant.primaryColor,
+          color: initialData.tenant.primaryColor || "#3b82f6",
           logoUrl: initialData.tenant.logoUrl || "",
-          niche: initialData.tenant.niche || "automacao_residencial",
+          niche: (initialData.tenant.niche as TenantNiche) || "automacao_residencial",
           email: initialData.admin?.email || "",
           password: "",
           planId: initialData.planId || "free",
-          subscriptionStatus: (initialData.admin?.subscription?.status?.toLowerCase() as TenantFormData["subscriptionStatus"]) || initialData.admin?.subscriptionStatus || "active",
+          subscriptionStatus: (initialData.admin?.subscription?.status?.toLowerCase() as TenantFormData["subscriptionStatus"]) || (initialData.admin?.subscriptionStatus as TenantFormData["subscriptionStatus"]) || "active",
           currentPeriodEnd: initialData.admin?.currentPeriodEnd || "",
         });
       } else {

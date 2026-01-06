@@ -181,7 +181,7 @@ export function TenantCard({
         <Button
           className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
           variant="ghost"
-          onClick={() => onLoginAs(tenant)}
+          onClick={() => onLoginAs(tenant as Tenant)}
           disabled={isDeleting}
         >
           <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel

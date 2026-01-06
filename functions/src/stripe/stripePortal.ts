@@ -5,7 +5,13 @@
  * Migrated from: src/app/api/stripe/portal/route.ts
  */
 
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 import { getStripe, getAppUrl } from "./stripeConfig";
 import { db } from "../init";
 
@@ -19,16 +25,14 @@ interface PortalResponse {
   error?: string;
 }
 
-export const stripePortal = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: PortalRequest): Promise<PortalResponse> => {
+export const stripePortal = onCall(
+  CORS_OPTIONS,
+  async (request: CallableRequest<PortalRequest>): Promise<PortalResponse> => {
+    const { data } = request;
     const { userId } = data || {};
 
     if (!userId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "userId is required"
-      );
+      throw new HttpsError("invalid-argument", "userId is required");
     }
 
     try {
@@ -39,14 +43,14 @@ export const stripePortal = functions
       const userSnap = await userRef.get();
 
       if (!userSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "User not found");
+        throw new HttpsError("not-found", "User not found");
       }
 
       const userData = userSnap.data()!;
       const customerId = userData.stripeCustomerId;
 
       if (!customerId) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "failed-precondition",
           "No payment method on file. Please subscribe to a plan first."
         );
@@ -63,12 +67,10 @@ export const stripePortal = functions
       return { url: session.url };
     } catch (error) {
       console.error("Error creating portal session:", error);
-      if (error instanceof functions.https.HttpsError) {
+      if (error instanceof HttpsError) {
         throw error;
       }
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to create portal session"
-      );
+      throw new HttpsError("internal", "Failed to create portal session");
     }
-  });
+  }
+);

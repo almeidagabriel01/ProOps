@@ -1,7 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   addDoc,
@@ -86,32 +86,31 @@ export const TransactionService = {
     transaction: Omit<Transaction, "id">
   ): Promise<Transaction> => {
     try {
-      const createFunc = httpsCallable<
-        any,
-        { success: boolean; transactionId: string }
-      >(functions, "createTransaction");
-
-      const result = await createFunc({
-        type: transaction.type,
-        description: transaction.description,
-        amount: transaction.amount,
-        date: transaction.date,
-        dueDate: transaction.dueDate,
-        status: transaction.status,
-        clientId: transaction.clientId,
-        clientName: transaction.clientName,
-        proposalId: transaction.proposalId,
-        category: transaction.category,
-        wallet: transaction.wallet,
-        isInstallment: transaction.isInstallment,
-        installmentCount: transaction.installmentCount,
-        installmentNumber: transaction.installmentNumber,
-        installmentGroupId: transaction.installmentGroupId,
-        notes: transaction.notes,
-      });
+      const result = await callApi<{ success: boolean; transactionId: string }>(
+        "v1/transactions",
+        "POST",
+        {
+          type: transaction.type,
+          description: transaction.description,
+          amount: transaction.amount,
+          date: transaction.date,
+          dueDate: transaction.dueDate,
+          status: transaction.status,
+          clientId: transaction.clientId,
+          clientName: transaction.clientName,
+          proposalId: transaction.proposalId,
+          category: transaction.category,
+          wallet: transaction.wallet,
+          isInstallment: transaction.isInstallment,
+          installmentCount: transaction.installmentCount,
+          installmentNumber: transaction.installmentNumber,
+          installmentGroupId: transaction.installmentGroupId,
+          notes: transaction.notes,
+        }
+      );
 
       return {
-        id: result.data.transactionId,
+        id: result.transactionId,
         ...transaction,
       } as Transaction;
     } catch (error) {
@@ -125,9 +124,7 @@ export const TransactionService = {
     updates: Partial<Omit<Transaction, "id">>
   ) => {
     try {
-      const updateFunc = httpsCallable(functions, "updateTransaction");
-
-      await updateFunc({ transactionId: id, ...updates });
+      await callApi(`v1/transactions/${id}`, "PUT", updates);
       return { id, ...updates };
     } catch (error) {
       console.error("Error updating transaction:", error);
@@ -137,9 +134,7 @@ export const TransactionService = {
 
   deleteTransaction: async (id: string) => {
     try {
-      const deleteFunc = httpsCallable(functions, "deleteTransaction");
-
-      await deleteFunc({ transactionId: id });
+      await callApi(`v1/transactions/${id}`, "DELETE");
       return true;
     } catch (error) {
       console.error("Error deleting transaction:", error);

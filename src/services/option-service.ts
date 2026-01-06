@@ -1,18 +1,17 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
-import { collection, doc, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
 export type Option = {
   id: string;
   tenantId: string;
-  type: string; // e.g. "product_categories", "product_manufacturers", "wallets"
+  type: string;
   label: string;
   createdAt?: string;
 };
 
-// Use the same collection name as the Cloud Function
 const COLLECTION_NAME = "options";
 
 export const OptionService = {
@@ -21,7 +20,7 @@ export const OptionService = {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
-        where("fieldType", "==", type)
+        where("type", "==", type) // Note: ensure field name matches API (was fieldType in old function?) API uses standard fields
       );
 
       const querySnapshot = await getDocs(q);
@@ -29,12 +28,8 @@ export const OptionService = {
         (doc) =>
           ({
             id: doc.id,
-            tenantId: doc.data().tenantId,
-            type: doc.data().fieldType,
-            label: doc.data().label,
-            createdAt:
-              doc.data().createdAt?.toDate?.()?.toISOString() ||
-              doc.data().createdAt,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
           }) as Option
       );
     } catch (error) {
@@ -48,50 +43,25 @@ export const OptionService = {
     type: string,
     label: string
   ): Promise<Option> => {
-    try {
-      const createFunc = httpsCallable<
-        any,
-        { success: boolean; optionId: string }
-      >(functions, "createOption");
-
-      const result = await createFunc({
-        tenantId, // For super admin support
-        fieldType: type,
-        label,
-      });
-
+      const result = await callApi<{ success: boolean; id: string }>(
+        "/v1/aux/options",
+        "POST",
+        { tenantId, type, label }
+      );
       return {
-        id: result.data.optionId,
-        tenantId,
-        type,
-        label,
-        createdAt: new Date().toISOString(),
+          id: result.id,
+          tenantId,
+          type,
+          label,
+          createdAt: new Date().toISOString()
       };
-    } catch (error) {
-      console.error("Error creating option:", error);
-      throw error;
-    }
   },
 
   updateOption: async (id: string, label: string): Promise<void> => {
-    try {
-      const updateFunc = httpsCallable(functions, "updateOption");
-
-      await updateFunc({ optionId: id, label });
-    } catch (error) {
-      console.error("Error updating option:", error);
-      throw error;
-    }
+      await callApi(`/v1/aux/options/${id}`, "PUT", { label });
   },
 
   deleteOption: async (id: string): Promise<void> => {
-    try {
-      const deleteFunc = httpsCallable(functions, "deleteOption");
-
-      await deleteFunc({ optionId: id });
-    } catch (error) {
-      console.error("Error deleting option:", error);
-      throw error;
-    }
+      await callApi(`/v1/aux/options/${id}`, "DELETE");
   },
 };

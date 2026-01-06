@@ -78,7 +78,7 @@ function TenantRow({ item, index, onEditLimits }: TenantRowProps) {
       <TableCell className="py-4">
         <PlanBadge
           planName={item.planName}
-          billingInterval={item.billingInterval}
+          billingInterval={item.billingInterval || "monthly"}
         />
       </TableCell>
       <TableCell className="py-4">
@@ -100,7 +100,7 @@ function TenantRow({ item, index, onEditLimits }: TenantRowProps) {
         />
       </TableCell>
       <TableCell className="py-4">
-        <StatusBadge status={item.subscriptionStatus} />
+        <StatusBadge status={item.subscriptionStatus || "active"} />
       </TableCell>
       <TableCell className="pr-6 py-4 text-right">
         <TenantActionsMenu item={item} onEditLimits={onEditLimits} />

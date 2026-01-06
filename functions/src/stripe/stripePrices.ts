@@ -5,7 +5,13 @@
  * Migrated from: src/app/api/stripe/prices/route.ts
  */
 
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 import { getStripe, getPriceConfig, BillingInterval } from "./stripeConfig";
 import Stripe from "stripe";
 
@@ -118,9 +124,9 @@ async function fetchAllPrices(): Promise<PricesResponse> {
 }
 
 // Get prices (with caching)
-export const stripePrices = functions
-  .region("southamerica-east1")
-  .https.onCall(async (): Promise<PricesResponse> => {
+export const stripePrices = onCall(
+  CORS_OPTIONS,
+  async (_request: CallableRequest<void>): Promise<PricesResponse> => {
     try {
       const now = Date.now();
 
@@ -158,17 +164,15 @@ export const stripePrices = functions
         };
       }
 
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to fetch prices"
-      );
+      throw new HttpsError("internal", "Failed to fetch prices");
     }
-  });
+  }
+);
 
 // Force cache refresh
-export const stripePricesRefresh = functions
-  .region("southamerica-east1")
-  .https.onCall(async (): Promise<PricesResponse> => {
+export const stripePricesRefresh = onCall(
+  CORS_OPTIONS,
+  async (_request: CallableRequest<void>): Promise<PricesResponse> => {
     try {
       const prices = await fetchAllPrices();
 
@@ -183,9 +187,7 @@ export const stripePricesRefresh = functions
       };
     } catch (error) {
       console.error("Error refreshing prices:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to refresh prices"
-      );
+      throw new HttpsError("internal", "Failed to refresh prices");
     }
-  });
+  }
+);

@@ -1,6 +1,7 @@
 "use client";
 
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
@@ -9,7 +10,6 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 import { Sistema } from "@/types/automation";
 
 const COLLECTION_NAME = "sistemas";
@@ -35,7 +35,6 @@ export const SistemaService = {
     }
   },
 
-  // Obter sistemas filtrados por ambiente
   getSistemasByAmbiente: async (
     tenantId: string,
     ambienteId: string
@@ -66,12 +65,6 @@ export const SistemaService = {
 
   createSistema: async (data: Omit<Sistema, "id">): Promise<Sistema> => {
     try {
-      const createFunc = httpsCallable<
-        any,
-        { success: boolean; sistemaId: string }
-      >(functions, "createSistema");
-
-      // Sanitize product quantities to ensure no NaN values
       const sanitizedProducts = (data.defaultProducts || []).map((p) => ({
         ...p,
         quantity:
@@ -80,16 +73,22 @@ export const SistemaService = {
             : 1,
       }));
 
-      const result = await createFunc({
+      const payload = {
         name: data.name,
         description: data.description,
         icon: data.icon,
         ambienteIds: data.ambienteIds || [],
         defaultProducts: sanitizedProducts,
-      });
+      };
+
+      const result = await callApi<{ success: boolean; id: string; message: string }>(
+        "/v1/aux/sistemas", 
+        "POST", 
+        payload
+      );
 
       return {
-        id: result.data.sistemaId,
+        id: result.id,
         ...data,
         defaultProducts: sanitizedProducts,
       };
@@ -104,9 +103,7 @@ export const SistemaService = {
     data: Partial<Omit<Sistema, "id">>
   ): Promise<void> => {
     try {
-      const updateFunc = httpsCallable(functions, "updateSistema");
-
-      await updateFunc({ sistemaId: id, ...data });
+      await callApi(`/v1/aux/sistemas/${id}`, "PUT", data);
     } catch (error) {
       console.error("Error updating sistema:", error);
       throw error;
@@ -115,9 +112,7 @@ export const SistemaService = {
 
   deleteSistema: async (id: string): Promise<void> => {
     try {
-      const deleteFunc = httpsCallable(functions, "deleteSistema");
-
-      await deleteFunc({ sistemaId: id });
+      await callApi(`/v1/aux/sistemas/${id}`, "DELETE");
     } catch (error) {
       console.error("Error deleting sistema:", error);
       throw error;

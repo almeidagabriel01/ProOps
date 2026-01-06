@@ -74,12 +74,12 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
         // Update admin credentials if provided
         if (data.email || data.password) {
-          await AdminService.updateAdminCredentials(
-            editingData.admin.id,
-            editingData.tenant.id,
-            data.email || undefined,
-            data.password || undefined
-          );
+          await AdminService.updateAdminCredentials({
+            userId: editingData.admin.id,
+            tenantId: editingData.tenant.id,
+            email: data.email || undefined,
+            password: data.password || undefined,
+          });
         }
 
         if (data.planId !== "free") {

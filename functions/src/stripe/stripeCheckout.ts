@@ -5,7 +5,13 @@
  * Migrated from: src/app/api/stripe/checkout/route.ts
  */
 
-import * as functions from "firebase-functions";
+import {
+  onCall,
+  HttpsError,
+  CallableRequest,
+} from "firebase-functions/v2/https";
+import { CORS_OPTIONS } from "../deploymentConfig";
+
 // import { getFirestore } from "firebase-admin/firestore";
 import {
   getStripe,
@@ -32,9 +38,12 @@ interface CheckoutResponse {
   error?: string;
 }
 
-export const stripeCheckout = functions
-  .region("southamerica-east1")
-  .https.onCall(async (data: CheckoutRequest): Promise<CheckoutResponse> => {
+export const stripeCheckout = onCall(
+  CORS_OPTIONS,
+  async (
+    request: CallableRequest<CheckoutRequest>
+  ): Promise<CheckoutResponse> => {
+    const { data } = request;
     const {
       userId,
       planTier,
@@ -44,7 +53,7 @@ export const stripeCheckout = functions
 
     // Validate input
     if (!userId || !planTier) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "userId and planTier are required"
       );
@@ -57,7 +66,7 @@ export const stripeCheckout = functions
     // Get the price ID for the selected plan and interval
     const priceId = getPriceIdForTier(planTier, validInterval);
     if (!priceId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Invalid plan tier or price not configured"
       );
@@ -225,9 +234,10 @@ export const stripeCheckout = functions
         billingInterval: validInterval,
       });
 
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "internal",
         `Failed to create checkout session: ${errorMessage}`
       );
     }
-  });
+  }
+);
