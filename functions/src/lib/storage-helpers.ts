@@ -33,8 +33,8 @@ export async function deleteProductImages(
         await bucket.file(filePath).delete();
         console.log(`[Storage] Deleted: ${filePath}`);
       }
-    } catch (error) {
-      const err = error as any;
+    } catch (error: unknown) {
+      const err = error as { code?: number; message?: string };
       // Ignore if not found
       if (err.code === 404 || err.message?.includes("No such object")) continue;
       console.error(`[Storage] Error deleting ${imageUrl}:`, error);

@@ -1,10 +1,10 @@
-import React from "react";
+import { ProposalProduct } from "@/types/proposal";
 import { formatCurrency } from "@/utils/format-utils";
 
 interface PdfTotalsProps {
-    products: any[];
+    products: ProposalProduct[];
     discount: number;
-    contentStyles: any;
+    contentStyles: Record<string, React.CSSProperties>;
 }
 
 /**

@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { getStripe, getPriceIdForTier, BillingInterval } from "../../stripe/stripeConfig";
+import {
+  getStripe,
+  getPriceIdForTier,
+  BillingInterval,
+} from "../../stripe/stripeConfig";
 import { db } from "../../init";
 
 // Handlers adapted from original onCall functions
@@ -9,46 +13,55 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     const { planTier, userEmail, billingInterval = "monthly" } = req.body;
     const userId = req.user!.uid;
 
-     if (!planTier) {
+    if (!planTier) {
       return res.status(400).json({ message: "Plan tier is required" });
     }
 
-    const validInterval: BillingInterval = billingInterval === "yearly" ? "yearly" : "monthly";
+    const validInterval: BillingInterval =
+      billingInterval === "yearly" ? "yearly" : "monthly";
     const priceId = getPriceIdForTier(planTier, validInterval);
 
     if (!priceId) {
-      return res.status(400).json({ message: "Invalid plan tier or price not configured" });
+      return res
+        .status(400)
+        .json({ message: "Invalid plan tier or price not configured" });
     }
 
     const stripe = getStripe();
+    let customerId = req.user!.stripeId;
     const userRef = db.collection("users").doc(userId);
-    const userSnap = await userRef.get();
 
-    let customerId: string | undefined;
+    // Only fetch if missing
+    let userSnap: FirebaseFirestore.DocumentSnapshot | undefined;
+    if (!customerId) {
+      userSnap = await userRef.get();
+    }
 
-    if (!userSnap.exists) {
-        // Create basic user doc if missing
-        const newUserData = {
-          email: userEmail || "",
-          role: "free",
-          createdAt: new Date().toISOString(),
-          tenantId: `tenant_${userId}`,
-        };
-        await userRef.set(newUserData);
-    } else {
-        customerId = userSnap.data()?.stripeId;
-        // If user has subscription, logic to handle upgrade/downgrade should be here
-         // For now, following the simple checkout flow
+    // let customerId: string | undefined; // Removed
+
+    if (userSnap && !userSnap.exists) {
+      // Create basic user doc if missing
+      const newUserData = {
+        email: userEmail || "",
+        role: "free",
+        createdAt: new Date().toISOString(),
+        tenantId: `tenant_${userId}`,
+      };
+      await userRef.set(newUserData);
+    } else if (userSnap) {
+      customerId = userSnap.data()?.stripeId;
+      // If user has subscription, logic to handle upgrade/downgrade should be here
+      // For now, following the simple checkout flow
     }
 
     if (!customerId) {
-        // Create stripe customer if not exists
-        const customer = await stripe.customers.create({
-            email: userEmail,
-            metadata: { firebaseUID: userId }
-        });
-        customerId = customer.id;
-        await userRef.update({ stripeId: customerId });
+      // Create stripe customer if not exists
+      const customer = await stripe.customers.create({
+        email: userEmail,
+        metadata: { firebaseUID: userId },
+      });
+      customerId = customer.id;
+      await userRef.update({ stripeId: customerId });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -63,38 +76,39 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     });
 
     return res.json({ url: session.url });
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
-    return res.status(500).json({ message: error.message });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
   }
 };
 
 export const createPortalSession = async (req: Request, res: Response) => {
-    try {
-        const userId = req.user!.uid;
-        const userSnap = await db.collection("users").doc(userId).get();
-        const stripeId = userSnap.data()?.stripeId;
+  try {
+    const userId = req.user!.uid;
+    const userSnap = await db.collection("users").doc(userId).get();
+    const stripeId = userSnap.data()?.stripeId;
 
-        if (!stripeId) {
-            return res.status(404).json({ message: "Customer not found" });
-        }
-
-        const stripe = getStripe();
-        const session = await stripe.billingPortal.sessions.create({
-            customer: stripeId,
-            return_url: `${req.headers.origin || "https://app-url.com"}/profile`,
-        });
-
-        return res.json({ url: session.url });
-    } catch (error: any) {
-        return res.status(500).json({ message: error.message });
+    if (!stripeId) {
+      return res.status(404).json({ message: "Customer not found" });
     }
+
+    const stripe = getStripe();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: stripeId,
+      return_url: `${req.headers.origin || "https://app-url.com"}/profile`,
+    });
+
+    return res.json({ url: session.url });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
+  }
 };
 
 export const getPlans = async (req: Request, res: Response) => {
-    // Return plans config
-    // This could also be just static data or fetched from Stripe
-    // For now, returning success
-    return res.json({ success: true, plans: [] });
+  // Return plans config
+  // This could also be just static data or fetched from Stripe
+  // For now, returning success
+  return res.json({ success: true, plans: [] });
 };

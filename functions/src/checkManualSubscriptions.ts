@@ -8,7 +8,7 @@ export const checkManualSubscriptions = onSchedule(
     schedule: "every 24 hours",
     timeoutSeconds: 300,
   },
-  async (_event) => {
+  async () => {
     console.log("Starting manual subscription check...");
     const now = new Date();
 

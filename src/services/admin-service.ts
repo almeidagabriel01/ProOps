@@ -60,19 +60,25 @@ export const AdminService = {
     );
   },
 
-  updateUserPlan: async (userId: string, planId: string): Promise<void> => {
+  updateUserPlan: async (_userId: string, _planId: string): Promise<void> => {
     // Placeholder for plan update logic if implemented in API
     console.warn(
       "updateUserPlan usage detected but not fully implemented in frontend service"
     );
   },
 
-  updateUserSubscription: async (userId: string, data: any): Promise<void> => {
+  updateUserSubscription: async (
+    _userId: string,
+    _data: Record<string, unknown>
+  ): Promise<void> => {
     // Placeholder
     console.warn("updateUserSubscription usage detected");
   },
 
-  updateTenantLimits: async (tenantId: string, limits: any): Promise<void> => {
+  updateTenantLimits: async (
+    tenantId: string,
+    limits: Record<string, unknown>
+  ): Promise<void> => {
     await callApi(`/v1/admin/tenants/${tenantId}/limits`, "PUT", limits);
   },
 };

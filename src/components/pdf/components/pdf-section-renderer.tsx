@@ -1,9 +1,10 @@
 import React from "react";
 
 interface PdfSectionRendererProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     section: any;
     primaryColor: string;
-    contentStyles: any;
+    contentStyles: Record<string, React.CSSProperties>;
 }
 
 /**

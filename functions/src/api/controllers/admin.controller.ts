@@ -35,30 +35,25 @@ export const createMember = async (req: Request, res: Response) => {
 
     if (!canManageTeam(role) && role !== "MASTER") {
       // canManageTeam includes MASTER but being explicit
-      return res
-        .status(403)
-        .json({
-          message: "Apenas administradores podem criar membros da equipe",
-        });
+      return res.status(403).json({
+        message: "Apenas administradores podem criar membros da equipe",
+      });
     }
 
     const tenantId = masterData.tenantId || masterData.companyId;
 
     if (!tenantId) {
-      return res
-        .status(412)
-        .json({
-          message: "Erro na conta: Identificador do tenant não encontrado.",
-        });
+      return res.status(412).json({
+        message: "Erro na conta: Identificador do tenant não encontrado.",
+      });
     }
 
     // Limit Check
     try {
       await checkUserLimit(masterData, masterId);
-    } catch (e: any) {
-      return res
-        .status(402)
-        .json({ message: e.message, code: "resource-exhausted" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erro desconhecido";
+      return res.status(402).json({ message, code: "resource-exhausted" });
     }
 
     // Check Email in Auth
@@ -67,8 +62,13 @@ export const createMember = async (req: Request, res: Response) => {
       return res
         .status(409)
         .json({ message: "Este email já está cadastrado no sistema" });
-    } catch (err: any) {
-      if (err.code !== "auth/user-not-found") {
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code !== "auth/user-not-found"
+      ) {
         throw err;
       }
     }
@@ -114,8 +114,8 @@ export const createMember = async (req: Request, res: Response) => {
 
         const permissionsInput = input.permissions || {};
         for (const [pageSlug, perms] of Object.entries(permissionsInput)) {
-          // @ts-ignore
-          const permData = perms as any;
+          // perms is untyped input
+          const permData = perms as Record<string, boolean>;
           const pageId = pageSlug.replace(/\//g, "_").replace(/^_/, "");
           const permRef = memberRef.collection("permissions").doc(pageId);
 
@@ -153,14 +153,18 @@ export const createMember = async (req: Request, res: Response) => {
       console.error("Transaction failed, rolling back:", err);
       try {
         await auth.deleteUser(memberId);
-      } catch (e) {}
+      } catch (e) {
+        // Safe to ignore rollback failure
+        console.error("Rollback failed", e);
+      }
       return res
         .status(500)
         .json({ message: "Erro ao salvar dados do usuário." });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("createMember Error:", error);
-    return res.status(500).json({ message: error.message || "Erro interno." });
+    const message = error instanceof Error ? error.message : "Erro interno.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -191,7 +195,11 @@ export const updateMember = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Permissão negada." });
 
     // Update Auth
-    const authUpdates: any = {};
+    const authUpdates: {
+      email?: string;
+      password?: string;
+      displayName?: string;
+    } = {};
     if (email && email !== memberData?.email) authUpdates.email = email;
     if (password && password.length >= 6) authUpdates.password = password;
     if (name) authUpdates.displayName = name;
@@ -199,8 +207,13 @@ export const updateMember = async (req: Request, res: Response) => {
     if (Object.keys(authUpdates).length > 0) {
       try {
         await auth.updateUser(id, authUpdates);
-      } catch (err: any) {
-        if (err.code === "auth/email-already-exists") {
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as { code: string }).code === "auth/email-already-exists"
+        ) {
           return res.status(409).json({ message: "Email já em uso." });
         }
         return res
@@ -209,7 +222,9 @@ export const updateMember = async (req: Request, res: Response) => {
       }
     }
 
-    const firestoreUpdates: any = { updatedAt: Timestamp.now() };
+    const firestoreUpdates: Record<string, unknown> = {
+      updatedAt: Timestamp.now(),
+    };
     if (name) firestoreUpdates.name = name;
     if (email) firestoreUpdates.email = email;
 
@@ -219,8 +234,10 @@ export const updateMember = async (req: Request, res: Response) => {
       success: true,
       message: "Membro atualizado com sucesso.",
     });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -253,8 +270,13 @@ export const deleteMember = async (req: Request, res: Response) => {
 
     try {
       await auth.deleteUser(id);
-    } catch (err: any) {
-      if (err.code !== "auth/user-not-found") {
+    } catch (err: unknown) {
+      if (
+        !err ||
+        typeof err !== "object" ||
+        !("code" in err) ||
+        (err as { code: string }).code !== "auth/user-not-found"
+      ) {
         return res
           .status(500)
           .json({ message: "Erro ao remover acesso do usuário." });
@@ -276,8 +298,10 @@ export const deleteMember = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Membro removido." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -312,8 +336,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
       .collection("permissions");
 
     for (const [pageId, perms] of Object.entries(permissions)) {
-      // @ts-ignore
-      const p = perms as any;
+      // perms is untyped
+      const p = perms as Record<string, boolean>;
       const docRef = permissionsRef.doc(pageId);
       batch.set(docRef, {
         pageId,
@@ -329,21 +353,26 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
     await batch.commit();
     return res.json({ success: true, message: "Permissões atualizadas." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const { isSuperAdmin } = await resolveUserAndTenant(userId);
+    const { isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     if (!isSuperAdmin) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 
-    const snapshot = await db.collection("users").where("role", "==", "MASTER").get();
+    const snapshot = await db
+      .collection("users")
+      .where("role", "==", "MASTER")
+      .get();
 
     const tenants = snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -354,7 +383,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
     });
 
     return res.json(tenants);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error getting tenants:", error);
     return res.status(500).json({ message: "Erro ao buscar tenants." });
   }

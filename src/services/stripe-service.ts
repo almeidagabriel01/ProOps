@@ -90,13 +90,13 @@ interface PreviewRequest {
 interface PreviewResponse {
   amountDue: number;
   currency: string;
-  preview?: any;
+  preview?: Record<string, unknown>;
   isNewSubscription?: boolean;
 }
 
 interface PricesResponse {
-  plans: any;
-  addons: any;
+  plans: unknown;
+  addons: unknown;
 }
 
 interface Plan {
@@ -133,7 +133,7 @@ export const StripeService = {
     }
   },
 
-  confirmCheckout: async (data: ConfirmRequest): Promise<ConfirmResponse> => {
+  confirmCheckout: async (_data: ConfirmRequest): Promise<ConfirmResponse> => {
     // NOTE: Checkout confirmation usually happens via Webhook or just on success page.
     return { success: true };
   },
@@ -145,7 +145,7 @@ export const StripeService = {
   },
 
   createAddonCheckoutSession: async (
-    data: AddonCheckoutRequest
+    _data: AddonCheckoutRequest
   ): Promise<AddonCheckoutResponse> => {
     // Not implemented in API yet - mocking or failing
     console.warn("Addon checkout not fully migrated to API");
@@ -153,7 +153,7 @@ export const StripeService = {
   },
 
   confirmAddonCheckout: async (
-    data: AddonConfirmRequest
+    _data: AddonConfirmRequest
   ): Promise<AddonConfirmResponse> => {
     return { success: true };
   },
@@ -180,21 +180,28 @@ export const StripeService = {
     }
   },
 
-  updateSubscription: async (data: UpdateRequest): Promise<UpdateResponse> => {
+  updateSubscription: async (_data: UpdateRequest): Promise<UpdateResponse> => {
     return { success: true, message: "Use portal" };
   },
 
-  previewProration: async (data: PreviewRequest): Promise<PreviewResponse> => {
+  previewProration: async (_data: PreviewRequest): Promise<PreviewResponse> => {
     return { amountDue: 0, currency: "brl" };
   },
 
   getPrices: async (): Promise<PricesResponse> => {
-    const result = await callApi<any>("/v1/stripe/plans", "GET");
-    return result.data || result;
+    const result = await callApi<{ data: PricesResponse }>(
+      "/v1/stripe/plans",
+      "GET"
+    );
+    const data = result.data || result;
+    return {
+      plans: (data as PricesResponse).plans,
+      addons: (data as PricesResponse).addons,
+    };
   },
 
   getPlans: async (): Promise<Plan[]> => {
-    const result = await callApi<any>("/v1/stripe/plans", "GET");
+    const result = await callApi<{ plans: Plan[] }>("/v1/stripe/plans", "GET");
     return result.plans || [];
   },
 

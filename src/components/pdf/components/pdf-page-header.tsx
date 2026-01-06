@@ -4,7 +4,7 @@ interface PdfPageHeaderProps {
     tenantName: string;
     coverTitle: string;
     clientName: string;
-    contentStyles: any;
+    contentStyles: Record<string, React.CSSProperties>;
 }
 
 /**

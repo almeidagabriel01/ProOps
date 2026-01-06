@@ -218,7 +218,7 @@ export function usePlanChange(
         });
 
         if (data.preview) {
-          setPlanPreview(data.preview);
+          setPlanPreview(data.preview as unknown as PlanPreview);
         } else if (data.isNewSubscription) {
           setIsFirstSubscription(true);
           setPlanPreview(null);

@@ -18,7 +18,11 @@ export const createWallet = async (req: Request, res: Response) => {
         .json({ message: "Nome, tipo e cor são obrigatórios." });
     }
 
-    const { tenantId } = await checkFinancialPermission(userId, "canCreate");
+    const { tenantId } = await checkFinancialPermission(
+      userId,
+      "canCreate",
+      req.user
+    );
     const now = Timestamp.now();
     const initialBalance = data.initialBalance || 0;
 
@@ -65,17 +69,15 @@ export const createWallet = async (req: Request, res: Response) => {
       });
     }
 
-    return res
-      .status(201)
-      .json({
-        success: true,
-        walletId: walletRef.id,
-        message: "Carteira criada.",
-      });
-  } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao criar carteira." });
+    return res.status(201).json({
+      success: true,
+      walletId: walletRef.id,
+      message: "Carteira criada.",
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao criar carteira.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -87,7 +89,8 @@ export const updateWallet = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canEdit"
+      "canEdit",
+      req.user
     );
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
@@ -117,7 +120,7 @@ export const updateWallet = async (req: Request, res: Response) => {
       if (!defaults.empty) await batch.commit();
     }
 
-    const safeUpdate: any = { updatedAt: now };
+    const safeUpdate: Record<string, unknown> = { updatedAt: now };
     const fields = [
       "name",
       "type",
@@ -130,12 +133,15 @@ export const updateWallet = async (req: Request, res: Response) => {
     fields.forEach((f) => {
       if (updateData[f] !== undefined) safeUpdate[f] = updateData[f];
     });
-    if (safeUpdate.name) safeUpdate.name = safeUpdate.name.trim();
+    if (typeof safeUpdate.name === "string")
+      safeUpdate.name = safeUpdate.name.trim();
 
     await walletRef.update(safeUpdate);
     return res.json({ success: true, message: "Carteira atualizada." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -147,7 +153,8 @@ export const deleteWallet = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canDelete"
+      "canDelete",
+      req.user
     );
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
@@ -175,8 +182,10 @@ export const deleteWallet = async (req: Request, res: Response) => {
     await batch.commit();
 
     return res.json({ success: true, message: "Carteira excluída." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -193,7 +202,8 @@ export const transferValues = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canEdit"
+      "canEdit",
+      req.user
     );
 
     await db.runTransaction(async (t) => {
@@ -256,8 +266,10 @@ export const transferValues = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Transferência realizada." });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -271,7 +283,8 @@ export const adjustBalance = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canEdit"
+      "canEdit",
+      req.user
     );
 
     const result = await db.runTransaction(async (t) => {
@@ -312,7 +325,9 @@ export const adjustBalance = async (req: Request, res: Response) => {
       newBalance: result,
       message: "Saldo ajustado.",
     });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
