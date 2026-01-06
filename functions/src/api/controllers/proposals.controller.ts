@@ -45,13 +45,13 @@ export const createProposal = async (req: Request, res: Response) => {
       }
     }
 
-    const userCompanyId = tenantId; // Alias for compatibility with logic below
+    const userCompanyId = tenantId;
 
     if (
       masterData.subscription?.status &&
       !["ACTIVE", "TRIALING"].includes(masterData.subscription.status)
     ) {
-      // Optional: check strict status. Existing code was loose for Admin/Free.
+      // Optional: check strict status
     }
 
     try {
@@ -64,9 +64,14 @@ export const createProposal = async (req: Request, res: Response) => {
     }
 
     const proposalId = await db.runTransaction(async (t) => {
-      // Re-read master usage
+      // === ALL READS FIRST ===
       const freshMasterSnap = await t.get(masterRef);
       const freshMasterData = freshMasterSnap.data() as UserDoc;
+
+      const companyRef = db.collection("companies").doc(userCompanyId);
+      const companySnap = await t.get(companyRef);
+
+      // Validate limit after reads
       try {
         await checkProposalLimit(freshMasterData);
       } catch (e) {
@@ -74,6 +79,7 @@ export const createProposal = async (req: Request, res: Response) => {
         throw new Error(error.message);
       }
 
+      // === ALL WRITES AFTER READS ===
       const newRef = db.collection(PROPOSALS_COLLECTION).doc();
       const now = Timestamp.now();
 
@@ -94,7 +100,7 @@ export const createProposal = async (req: Request, res: Response) => {
         sistemas: input.sistemas || [],
         sections: input.sections || [],
         createdById: userId,
-        createdByName: userData?.name || "Usuário", // Fallback if optimization skipped name
+        createdByName: userData?.name || "Usuário",
         companyId: userCompanyId,
         tenantId: userCompanyId,
         createdAt: now,
@@ -106,8 +112,6 @@ export const createProposal = async (req: Request, res: Response) => {
         updatedAt: now,
       });
 
-      const companyRef = db.collection("companies").doc(userCompanyId);
-      const companySnap = await t.get(companyRef);
       if (companySnap.exists) {
         t.update(companyRef, {
           "usage.proposals": FieldValue.increment(1),
@@ -235,12 +239,9 @@ export const deleteProposal = async (req: Request, res: Response) => {
     }
 
     await db.runTransaction(async (t) => {
-      // Re-verify existence inside transaction not strictly needed if we trust snap,
-      // but good for concurrency.
       const pSnap = await t.get(proposalRef);
       if (!pSnap.exists) throw new Error("Proposta não encontrada.");
 
-      // Decrement usage
       const companyRef = db.collection("companies").doc(tenantId);
       const companySnap = await t.get(companyRef);
 

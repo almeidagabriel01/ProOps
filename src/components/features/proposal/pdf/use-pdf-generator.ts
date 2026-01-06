@@ -3,11 +3,16 @@
 import { useState } from "react";
 import { ProposalPdfSettings } from "@/types";
 import { Proposal } from "@/services/proposal-service";
-import { functions } from "@/lib/firebase";
-import { httpsCallable } from "firebase/functions";
 import { toast } from "react-toastify";
-import type { jsPDF } from "jspdf";
 import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
+
+// API base URL for proxy-image
+const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  return "https://api-2lumykmdwa-rj.a.run.app";
+};
 
 interface UsePdfGeneratorProps {
   proposal: Partial<Proposal>;
@@ -26,14 +31,11 @@ export function usePdfGenerator({
 
   /**
    * Proxies all images in a container by replacing their src with base64 data
-   * fetched via Cloud Function to bypass CORS.
+   * fetched via REST API to bypass CORS.
    */
   const processImages = async (container: HTMLElement): Promise<void> => {
     const images = Array.from(container.querySelectorAll("img"));
-    const proxyImageFn = httpsCallable<
-      { url: string },
-      { success: boolean; dataUrl: string }
-    >(functions, "proxyImage");
+    const apiBaseUrl = getApiBaseUrl();
 
     // Filter unique URLs to avoid duplicate fetches
     const uniqueUrls = new Set(
@@ -42,24 +44,24 @@ export function usePdfGenerator({
         .filter((src) => src && !src.startsWith("data:"))
     );
 
-    console.log(
-      `[PDF Debug] Found ${images.length} images, ${uniqueUrls.size} unique URLs to proxy.`
-    );
-
     const urlMap = new Map<string, string>();
 
-    // Fetch all unique images in parallel
+    // Fetch all unique images in parallel using REST API
     await Promise.all(
       Array.from(uniqueUrls).map(async (url) => {
         try {
-          const result = await proxyImageFn({ url });
-          if (result.data.success) {
-            console.log(`[PDF Debug] Successfully proxied: ${url}`);
-            urlMap.set(url, result.data.dataUrl);
-          } else {
-            console.error(
-              `[PDF Debug] Proxy returned unsuccessful for: ${url}`
-            );
+          // Use the REST API proxy endpoint
+          const proxyUrl = `${apiBaseUrl}/v1/aux/proxy-image?url=${encodeURIComponent(url)}`;
+          const response = await fetch(proxyUrl);
+
+          if (response.ok) {
+            const blob = await response.blob();
+            const reader = new FileReader();
+            const dataUrl = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            urlMap.set(url, dataUrl);
           }
         } catch (error) {
           console.error("[PDF Debug] Failed to proxy image:", url, error);
@@ -74,14 +76,7 @@ export function usePdfGenerator({
     images.forEach((img) => {
       img.loading = "eager";
       if (urlMap.has(img.src)) {
-        console.log(
-          `[PDF Debug] Replacing src for image: ${img.src.substring(0, 30)}...`
-        );
         img.src = urlMap.get(img.src)!;
-      } else {
-        console.warn(
-          `[PDF Debug] No proxy URL found for image: ${img.src.substring(0, 30)}...`
-        );
       }
     });
 
@@ -112,7 +107,6 @@ export function usePdfGenerator({
       const jsPDF = (await import("jspdf")).default;
 
       const pdf = new jsPDF("p", "mm", "a4");
-      // Keep jsPDF in mm, but html2canvas capture uses matching px dimensions
       const pageWidth = 210;
       const pageHeight = 297;
 
@@ -139,10 +133,10 @@ export function usePdfGenerator({
             clonedCover.style.height = `${PAGE_HEIGHT_PX}px`;
             clonedCover.style.margin = "0";
             clonedCover.style.padding = "0";
-            
+
             container.appendChild(clonedCover);
             await processImages(clonedCover);
-            
+
             const canvas = await html2canvas(clonedCover, {
               scale: 2,
               useCORS: true,
@@ -153,9 +147,16 @@ export function usePdfGenerator({
             });
 
             if (!isFirstPage) pdf.addPage();
-            pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+            pdf.addImage(
+              canvas.toDataURL("image/jpeg", 0.95),
+              "JPEG",
+              0,
+              0,
+              210,
+              297
+            );
             isFirstPage = false;
-            
+
             container.removeChild(clonedCover);
           }
         }
@@ -167,13 +168,13 @@ export function usePdfGenerator({
           clonedSource.style.width = `${PAGE_WIDTH_PX}px`;
           clonedSource.style.margin = "0";
           clonedSource.style.padding = "0";
-          
+
           container.appendChild(clonedSource);
           await processImages(clonedSource);
 
           // Find all page containers
           const pages = clonedSource.querySelectorAll(".pdf-page-container");
-          
+
           if (pages.length > 0) {
             for (let i = 0; i < pages.length; i++) {
               const pageEl = pages[i] as HTMLElement;
@@ -182,7 +183,6 @@ export function usePdfGenerator({
               pageEl.style.margin = "0";
               pageEl.style.boxShadow = "none";
               pageEl.style.transform = "none";
-              // Ensure background is white
               pageEl.style.backgroundColor = "#ffffff";
 
               const canvas = await html2canvas(pageEl, {
@@ -199,11 +199,18 @@ export function usePdfGenerator({
               });
 
               if (!isFirstPage) pdf.addPage();
-              pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 210, 297);
+              pdf.addImage(
+                canvas.toDataURL("image/jpeg", 0.95),
+                "JPEG",
+                0,
+                0,
+                210,
+                297
+              );
               isFirstPage = false;
             }
           } else {
-            // Fallback: Render as single block (legacy behavior, but shouldn't happen)
+            // Fallback: Render as single block
             const canvas = await html2canvas(clonedSource, {
               scale: 2,
               useCORS: true,
@@ -211,24 +218,38 @@ export function usePdfGenerator({
               allowTaint: true,
               backgroundColor: "#ffffff",
             });
-            
+
             const imgWidth = pageWidth;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             let heightLeft = imgHeight;
             let position = 0;
 
             if (!isFirstPage) pdf.addPage();
-            pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
+            pdf.addImage(
+              canvas.toDataURL("image/jpeg", 0.95),
+              "JPEG",
+              0,
+              position,
+              imgWidth,
+              imgHeight
+            );
             heightLeft -= pageHeight;
 
             while (heightLeft > 1) {
               position = heightLeft - imgHeight;
               pdf.addPage();
-              pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, position, imgWidth, imgHeight);
+              pdf.addImage(
+                canvas.toDataURL("image/jpeg", 0.95),
+                "JPEG",
+                0,
+                position,
+                imgWidth,
+                imgHeight
+              );
               heightLeft -= pageHeight;
             }
           }
-          
+
           container.removeChild(clonedSource);
         }
       } finally {

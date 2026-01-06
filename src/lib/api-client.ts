@@ -1,21 +1,26 @@
 import { auth } from "./firebase";
 
-// Constants for configuration
-// const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-// const REGION = "southamerica-east1";
-// const IS_DEV = process.env.NODE_ENV === "development";
-// const EMULATOR_HOST = "http://127.0.0.1:5001";
+// API URLs per Firebase Project
+const API_URLS: Record<string, string> = {
+  "erp-softcode": "https://api-2lumykmdwa-rj.a.run.app", // DEV
+  "template-erp-prod": "https://api-XXXXXXXXXX-rj.a.run.app", // PROD - update after deploy
+};
 
-const getBaseUrl = () => {
+const getBaseUrl = (): string => {
+  // 1. Explicit override via env var (highest priority)
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
-  // If you want to force local emulator use in dev:
-  // if (IS_DEV) return `${EMULATOR_HOST}/${PROJECT_ID}/${REGION}/api`;
+  // 2. Dynamic selection based on Firebase project
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (projectId && API_URLS[projectId]) {
+    return API_URLS[projectId];
+  }
 
-  // Production Cloud Run URL (v2)
-  return "https://api-2lumykmdwa-rj.a.run.app";
+  // 3. Fallback to DEV
+  console.warn("[API] Unknown project, falling back to DEV API");
+  return API_URLS["erp-softcode"];
 };
 
 export class ApiError extends Error {
