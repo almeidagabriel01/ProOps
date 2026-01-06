@@ -26,11 +26,14 @@ export const createTransaction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Campos obrigatórios faltando." });
     }
 
-    const { tenantId } = await checkFinancialPermission(
+    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canCreate",
       req.user
     );
+
+    // Super admin can specify target tenant
+    const tenantId = data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
 
     const result = await db.runTransaction(async (t) => {
       const transactionsToCreate: Record<string, unknown>[] = [];

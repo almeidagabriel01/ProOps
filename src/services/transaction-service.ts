@@ -106,6 +106,7 @@ export const TransactionService = {
           installmentNumber: transaction.installmentNumber,
           installmentGroupId: transaction.installmentGroupId,
           notes: transaction.notes,
+          targetTenantId: transaction.tenantId, // Pass tenantId to backend (for super admin)
         }
       );
 

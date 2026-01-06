@@ -18,11 +18,14 @@ export const createWallet = async (req: Request, res: Response) => {
         .json({ message: "Nome, tipo e cor são obrigatórios." });
     }
 
-    const { tenantId } = await checkFinancialPermission(
+    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canCreate",
       req.user
     );
+    
+    // Super admin can specify target tenant
+    const tenantId = data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
     const now = Timestamp.now();
     const initialBalance = data.initialBalance || 0;
 
@@ -240,7 +243,7 @@ export const transferValues = async (req: Request, res: Response) => {
 
       const txRef1 = db.collection(WALLET_TRANSACTIONS_COLLECTION).doc();
       t.set(txRef1, {
-        tenantId,
+        tenantId: fromData?.tenantId, // Use wallet's tenantId
         walletId: fromWalletId,
         type: "transfer_out",
         amount,
@@ -253,7 +256,7 @@ export const transferValues = async (req: Request, res: Response) => {
 
       const txRef2 = db.collection(WALLET_TRANSACTIONS_COLLECTION).doc();
       t.set(txRef2, {
-        tenantId,
+        tenantId: toData?.tenantId, // Use wallet's tenantId
         walletId: toWalletId,
         type: "transfer_in",
         amount,
@@ -307,7 +310,7 @@ export const adjustBalance = async (req: Request, res: Response) => {
 
       const txRef = db.collection(WALLET_TRANSACTIONS_COLLECTION).doc();
       t.set(txRef, {
-        tenantId,
+        tenantId: walletData?.tenantId, // Use wallet's tenantId, not user's
         walletId,
         type: amount > 0 ? "deposit" : "withdrawal",
         amount: Math.abs(amount),

@@ -31,6 +31,8 @@ import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ROLE_PRESETS, AVAILABLE_PAGES } from "./team-types";
 import { PermissionToggle } from "./permission-toggle";
 
+import { useTenant } from "@/providers/tenant-provider";
+
 interface CreateMemberSectionProps {
   onSuccess: () => void;
 }
@@ -85,6 +87,7 @@ const steps = [
 
 export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
   const { createMember, isLoading, error } = useCreateMember();
+  const { tenantOwner } = useTenant();
   const upgradeModal = useUpgradeModal();
   const { hasFinancial } = usePlanLimits();
   const [name, setName] = React.useState("");
@@ -99,7 +102,9 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
 
   const handleRoleSelect = (roleId: string) => {
     setSelectedRole(roleId);
-    setCustomPermissions(getDefaultPermissions(roleId as keyof typeof roleConfig));
+    setCustomPermissions(
+      getDefaultPermissions(roleId as keyof typeof roleConfig)
+    );
   };
 
   const handleSubmit = async () => {
@@ -108,6 +113,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
       email,
       password: password || undefined,
       permissions: customPermissions,
+      targetMasterId: tenantOwner?.id, // Pass master ID for super admin support
     });
 
     if (result?.success) {
@@ -117,7 +123,10 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
       setSelectedRole("viewer");
       setCustomPermissions(getDefaultPermissions("viewer"));
       onSuccess();
-    } else if (result?.error && ['resource-exhausted', 'failed-precondition'].includes(result.error.code)) {
+    } else if (
+      result?.error &&
+      ["resource-exhausted", "failed-precondition"].includes(result.error.code)
+    ) {
       // Show upgrade modal for limit errors
       upgradeModal.showUpgradeModal(
         "Limite de Equipe Atingido",
@@ -184,8 +193,6 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
     setErrors(newErrors);
     return isValid;
   };
-
-
 
   return (
     <div className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-linear-to-br from-primary/5 via-background to-primary/5 overflow-hidden">
@@ -355,10 +362,11 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
                       onClick={() => handleRoleSelect(role.id)}
                       className={`
                                                 relative p-5 rounded-xl border-2 text-left transition-all duration-300 group cursor-pointer
-                                                ${isSelected
-                          ? `${config.borderColor} ${config.lightBg} shadow-lg`
-                          : "border-border/50 bg-card hover:border-border hover:shadow-md"
-                        }
+                                                ${
+                                                  isSelected
+                                                    ? `${config.borderColor} ${config.lightBg} shadow-lg`
+                                                    : "border-border/50 bg-card hover:border-border hover:shadow-md"
+                                                }
                                             `}
                     >
                       {/* Selected indicator */}
@@ -373,10 +381,11 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
                       <div
                         className={`
                                                 w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all
-                                                ${isSelected
-                            ? `bg-linear-to-br ${config.color} text-white shadow-lg`
-                            : `${config.lightBg} ${config.textColor} group-hover:scale-110`
-                          }
+                                                ${
+                                                  isSelected
+                                                    ? `bg-linear-to-br ${config.color} text-white shadow-lg`
+                                                    : `${config.lightBg} ${config.textColor} group-hover:scale-110`
+                                                }
                                             `}
                       >
                         <RoleIcon className="w-6 h-6" />
@@ -423,7 +432,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
                 </div>
                 <div className="p-4 space-y-1 bg-card max-h-[400px] overflow-y-auto">
                   {Object.entries(customPermissions).map(([page, perms]) => {
-                    const pageInfo = AVAILABLE_PAGES.find(p => p.id === page);
+                    const pageInfo = AVAILABLE_PAGES.find((p) => p.id === page);
                     const pageName = pageInfo?.name || page;
                     const isViewOnly = pageInfo?.viewOnly || false;
 

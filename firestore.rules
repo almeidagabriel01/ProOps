@@ -81,7 +81,7 @@ service cloud.firestore {
       // Using resource.data.get() with default to avoid null errors for non-existent docs
       allow read: if isOwner(userId) 
                   || (isAuthenticated() && resource.data.get('masterId', '') == request.auth.uid)
-                  || (isAuthenticated() && getUserData().role in ['admin', 'master'] && belongsToTenant(resource.data.get('tenantId', '')))
+                  || (isAuthenticated() && getUserData().role in ['admin', 'master', 'ADMIN', 'MASTER', 'Admin', 'Master'] && belongsToTenant(resource.data.get('tenantId', '')))
                   || (isAuthenticated() && getUserData().get('masterId', '') == userId)
                   || isSuperAdmin();
       
@@ -238,7 +238,7 @@ service cloud.firestore {
     
     // PLANS (Public/Reference)
     match /plans/{planId} {
-      allow read: if isAuthenticated(); // Public read for plan display
+      allow read: if true; // Public read for landing page plan display
       allow write: if false;
     }
     

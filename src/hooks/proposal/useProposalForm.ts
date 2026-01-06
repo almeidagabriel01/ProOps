@@ -369,6 +369,7 @@ export function useProposalForm({
             phone: formData.clientPhone,
             address: formData.clientAddress,
             source: "proposal",
+            targetTenantId: tenant.id,
           },
           { suppressSuccessToast: true }
         );

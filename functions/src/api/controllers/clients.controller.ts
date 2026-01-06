@@ -16,7 +16,7 @@ export const createClient = async (req: Request, res: Response) => {
         .json({ message: "Nome deve ter pelo menos 2 caracteres." });
     }
 
-    const { userData, masterData, masterRef, isMaster, isSuperAdmin } =
+    const { userData, masterData, masterRef, isMaster, isSuperAdmin, tenantId } =
       await resolveUserAndTenant(userId, req.user);
 
     // Permission Check
@@ -37,11 +37,15 @@ export const createClient = async (req: Request, res: Response) => {
       }
     }
 
+    // Super admin can specify target tenant
     const targetTenantId =
-      masterData.companyId ||
-      masterData.tenantId ||
-      userData.companyId ||
-      userData.tenantId;
+      input.targetTenantId && isSuperAdmin
+        ? input.targetTenantId
+        : tenantId ||
+          masterData.companyId ||
+          masterData.tenantId ||
+          userData.companyId ||
+          userData.tenantId;
 
     if (!targetTenantId) {
       return res
