@@ -10,10 +10,12 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   error?: string;
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /** Size variant: sm = h-9 (compact), md = h-12 (default for forms) */
+  inputSize?: "sm" | "md";
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, onChange, value, placeholder, disabled, error, options: propsOptions, ...props }, ref) => {
+  ({ className, children, onChange, value, placeholder, disabled, error, options: propsOptions, inputSize = "md", ...props }, ref) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
     const portalContentRef = React.useRef<HTMLDivElement>(null);
@@ -196,7 +198,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={containerRef}
           onMouseDown={handleOpen} // Use onMouseDown to prevent focus issues
           className={cn(
-            "flex h-9 w-full items-center justify-between rounded-xl border-2 border-border/60 bg-card px-4 text-sm text-foreground",
+            "flex w-full items-center justify-between rounded-xl border-2 border-border/60 bg-card px-4 text-sm text-foreground",
+            inputSize === "sm" ? "h-9" : "h-12",
             "shadow-sm transition-all duration-200 ease-out cursor-pointer",
             "hover:border-primary/50 hover:bg-accent/5",
             isOpen && "border-primary ring-2 ring-primary/20",

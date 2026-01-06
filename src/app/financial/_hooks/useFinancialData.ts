@@ -24,7 +24,7 @@ type DateLike =
 // Helper to get YYYY-MM-DD string in Local Time matching user perception
 function getDateString(val: DateLike): string {
   if (!val) return "";
-  
+
   // If it's a string, handle it carefully to avoid timezone issues
   if (typeof val === "string") {
     // If it's just a date (YYYY-MM-DD), return as-is
@@ -52,7 +52,7 @@ function getDateString(val: DateLike): string {
     }
     return "";
   }
-  
+
   let date: Date;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const v = val as any;
@@ -228,8 +228,41 @@ export function useFinancialData(): UseFinancialDataReturn {
     // Filter by date range
     if (filterStartDate || filterEndDate) {
       filtered = filtered.filter((t) => {
+        // For installment transactions, check if ANY installment in the group matches the date range
+        if (
+          filterDateType === "dueDate" &&
+          t.isInstallment &&
+          t.installmentGroupId
+        ) {
+          // Get all installments in this group
+          const group = transactions.filter(
+            (g) => g.installmentGroupId === t.installmentGroupId
+          );
+
+          // Check if ANY installment has dueDate in the range
+          const hasMatchingInstallment = group.some((installment) => {
+            if (!installment.dueDate) return false;
+            const dueDateStr = getDateString(installment.dueDate);
+            if (!dueDateStr) return false;
+
+            if (
+              filterStartDate &&
+              dueDateStr.localeCompare(filterStartDate) < 0
+            ) {
+              return false;
+            }
+            if (filterEndDate && dueDateStr.localeCompare(filterEndDate) > 0) {
+              return false;
+            }
+            return true;
+          });
+
+          return hasMatchingInstallment;
+        }
+
+        // For non-installment transactions, use the transaction's own date
         let dateVal: string | undefined = t.date;
-        
+
         if (filterDateType === "dueDate") {
           // When filtering by due date, only consider transactions that have a due date
           // Don't fallback to main date - if no due date, exclude from filter
