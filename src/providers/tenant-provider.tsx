@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Tenant } from "@/types"; // Keep Type
+import { Tenant, User } from "@/types"; // Keep Type
 import { TenantService } from "@/services/tenant-service";
 import { useAuth } from "@/providers/auth-provider";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface TenantContextType {
   tenant: Tenant | null;
+  tenantOwner: User | null;
   isLoading: boolean;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
@@ -15,6 +18,7 @@ interface TenantContextType {
 
 const TenantContext = React.createContext<TenantContextType>({
   tenant: null,
+  tenantOwner: null,
   isLoading: true,
   refreshTenant: () => { },
   clearViewingTenant: () => { },
@@ -23,6 +27,7 @@ const TenantContext = React.createContext<TenantContextType>({
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
+  const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user } = useAuth();
@@ -62,18 +67,56 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         if (fetchedTenant) {
           setTenant(fetchedTenant);
           currentTenantIdRef.current = fetchedTenant.id;
+
+          // Fetch Tenant Owner
+          try {
+            // Owner is usually the one with masterId: null (or undefined) in this tenant
+            // And usually role 'admin' or 'free' - basically the root user
+            const q = query(
+              collection(db, "users"),
+              where("tenantId", "==", fetchedTenant.id),
+              limit(20)
+            );
+
+            const usersSnap = await getDocs(q);
+            if (!usersSnap.empty) {
+              // Client-side filter for the "Master" / Owner
+              // The owner is the one with no masterId
+              const owner = usersSnap.docs
+                .map(d => ({ id: d.id, ...d.data() } as User))
+                .find(u => !u.masterId);
+
+              if (owner) {
+                setTenantOwner(owner);
+              } else {
+                // Fallback: pick the first one or one with admin role?
+                setTenantOwner(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as User))[0]);
+                console.warn(`Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`);
+              }
+            } else {
+              setTenantOwner(null);
+            }
+
+          } catch (ownerErr) {
+            console.error("Error fetching tenant owner", ownerErr);
+            setTenantOwner(null);
+          }
+
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
           setTenant(null);
+          setTenantOwner(null);
           currentTenantIdRef.current = null;
         }
       } catch (error) {
         console.error("Error loading tenant", error);
         setTenant(null);
+        setTenantOwner(null);
         currentTenantIdRef.current = null;
       }
     } else {
       setTenant(null);
+      setTenantOwner(null);
       currentTenantIdRef.current = null;
     }
 
@@ -133,12 +176,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("viewingAsTenant", newTenant.id);
     setTenant(newTenant); // Immediate update
     // We don't trigger refresh here because we just manually set the state
+    // ideally we should also fetch owner here or trigger refresh
+    refreshTenant(); // Trigger full refresh to get owner data
   };
 
   return (
     <TenantContext.Provider
       value={{
         tenant,
+        tenantOwner,
         isLoading,
         refreshTenant,
         clearViewingTenant,

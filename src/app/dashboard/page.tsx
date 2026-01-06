@@ -23,8 +23,11 @@ import {
 } from "./_components";
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
+import { useTenant } from "@/providers/tenant-provider";
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { tenantOwner } = useTenant();
   const {
     financialSummary,
     clients,
@@ -50,7 +53,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-              {getGreeting()}, {user?.name || "Usuário"}!
+              {getGreeting()}, {tenantOwner?.name || user?.name || "Usuário"}!
             </span>{" "}
             <span className="text-foreground">👋</span>
           </h1>

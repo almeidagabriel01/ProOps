@@ -21,6 +21,7 @@ interface CreateProductInput {
   stock: string;
   status?: string;
   images: string[];
+  targetTenantId?: string;
 }
 
 interface UserDoc {
@@ -47,7 +48,7 @@ export const createProduct = functions
   .region("southamerica-east1")
   .https.onCall(async (data: CreateProductInput, context) => {
     console.log("createProduct v2: Started", { data, auth: context.auth?.uid });
-    
+
     try {
       // 1. Authentication
       if (!context.auth) {
@@ -137,7 +138,10 @@ export const createProduct = functions
         masterRef = masterDocRef;
       }
 
-      const targetCompanyId = masterData.companyId || masterData.tenantId;
+      const targetCompanyId =
+        data.targetTenantId && role === "SUPERADMIN"
+          ? data.targetTenantId
+          : masterData.companyId || masterData.tenantId;
 
       if (!targetCompanyId) {
         throw new functions.https.HttpsError(
@@ -159,9 +163,8 @@ export const createProduct = functions
 
       // 6. Atomic Write with Usage Counter Increment
       const now = Timestamp.now();
-      let productId: string;
 
-      productId = await db.runTransaction(async (transaction) => {
+      const productId = await db.runTransaction(async (transaction) => {
         const companyRef = db.collection("companies").doc(targetCompanyId);
         const companySnap = await transaction.get(companyRef);
         const newProductRef = db.collection("products").doc(); // Auto-generate ID
@@ -203,11 +206,11 @@ export const createProduct = functions
         message: "Produto criado com sucesso!",
       };
     } catch (error) {
-       console.error("createProduct: Critical Error", error);
-       if (error instanceof functions.https.HttpsError) throw error;
-       throw new functions.https.HttpsError(
-         "internal",
-         `Erro ao criar produto: ${(error as Error).message}`
-       );
+      console.error("createProduct: Critical Error", error);
+      if (error instanceof functions.https.HttpsError) throw error;
+      throw new functions.https.HttpsError(
+        "internal",
+        `Erro ao criar produto: ${(error as Error).message}`
+      );
     }
   });

@@ -24,6 +24,7 @@ export interface CreateProductData {
   stock?: string;
   status?: string;
   images?: string[];
+  targetTenantId?: string;
 }
 
 interface CreateProductResult {
@@ -64,6 +65,7 @@ export function useProductActions() {
         stock: data.stock || "0",
         status: data.status || "active",
         images: data.images || [],
+        targetTenantId: data.targetTenantId,
       };
 
       const result = await createFn(payload);
