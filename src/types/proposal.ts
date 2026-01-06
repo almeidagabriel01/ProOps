@@ -30,13 +30,13 @@ export interface Proposal {
   clientAddress?: string;
   validUntil?: string;
   products: ProposalProduct[];
-  sistemas: any[]; // Define a more specific type if possible
-  sections: any[]; // Define a more specific type if possible
+  sistemas: Record<string, unknown>[];
+  sections: Record<string, unknown>[];
   discount?: number;
   totalValue?: number;
   customNotes?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  pdfSettings?: any;
+  pdfSettings?: Record<string, unknown>;
 }

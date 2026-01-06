@@ -16,13 +16,8 @@ export const createClient = async (req: Request, res: Response) => {
         .json({ message: "Nome deve ter pelo menos 2 caracteres." });
     }
 
-    const {
-      userData,
-      masterData,
-      masterRef,
-      isMaster,
-      isSuperAdmin,
-    } = await resolveUserAndTenant(userId);
+    const { userData, masterData, masterRef, isMaster, isSuperAdmin } =
+      await resolveUserAndTenant(userId, req.user);
 
     // Permission Check
     if (!isMaster && !isSuperAdmin) {
@@ -57,10 +52,9 @@ export const createClient = async (req: Request, res: Response) => {
     // Limit Check
     try {
       await checkClientLimit(masterData);
-    } catch (e: any) {
-      return res
-        .status(402)
-        .json({ message: e.message, code: "resource-exhausted" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erro desconhecido";
+      return res.status(402).json({ message, code: "resource-exhausted" });
     }
 
     // Transaction
@@ -115,18 +109,16 @@ export const createClient = async (req: Request, res: Response) => {
       return newClientRef.id;
     });
 
-    return res
-      .status(201)
-      .json({
-        success: true,
-        clientId,
-        message: "Cliente criado com sucesso!",
-      });
-  } catch (error: any) {
+    return res.status(201).json({
+      success: true,
+      clientId,
+      message: "Cliente criado com sucesso!",
+    });
+  } catch (error: unknown) {
     console.error("createClient Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao criar cliente." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao criar cliente.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -140,8 +132,10 @@ export const updateClient = async (req: Request, res: Response) => {
     if (!id)
       return res.status(400).json({ message: "ID do cliente inválido." });
 
-    const { tenantId, isMaster, isSuperAdmin } =
-      await resolveUserAndTenant(userId);
+    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user
+    );
 
     const clientRef = db.collection("clients").doc(id);
     const clientSnap = await clientRef.get();
@@ -189,11 +183,11 @@ export const updateClient = async (req: Request, res: Response) => {
       success: true,
       message: "Cliente atualizado com sucesso.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("updateClient Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao atualizar cliente." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar cliente.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -207,7 +201,7 @@ export const deleteClient = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID do cliente obrigatório." });
 
     const { tenantId, isMaster, isSuperAdmin, masterRef } =
-      await resolveUserAndTenant(userId);
+      await resolveUserAndTenant(userId, req.user);
 
     const clientRef = db.collection("clients").doc(id);
     const clientSnap = await clientRef.get();
@@ -256,10 +250,10 @@ export const deleteClient = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Cliente removido." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("deleteClient Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao deletar cliente." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao deletar cliente.";
+    return res.status(500).json({ message });
   }
 };

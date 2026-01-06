@@ -66,35 +66,43 @@ export async function resolveWalletRef(
 
 export async function checkFinancialPermission(
   userId: string,
-  permission: string
+  permission: string,
+  claims?: { role?: string; tenantId?: string; [key: string]: unknown }
 ): Promise<{
-  userDoc: UserDoc;
+  userDoc?: UserDoc;
   tenantId: string;
   isMaster: boolean;
   isSuperAdmin: boolean;
 }> {
   const userRef = db.collection("users").doc(userId);
-  const permRef = userRef.collection("permissions").doc("financial");
+  let userDoc: UserDoc | undefined;
+  let tenantId: string | undefined;
+  let role: string | undefined;
 
-  const [userSnap, permSnap] = await Promise.all([
-    userRef.get(),
-    permRef.get(),
-  ]);
+  // Use Claims
+  if (claims && claims.role && claims.tenantId) {
+    role = claims.role.toUpperCase();
+    tenantId = claims.tenantId;
+  } else {
+    // Fallback Fetch
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) throw new Error("Usuário não encontrado.");
+    userDoc = userSnap.data() as UserDoc;
+    role = (userDoc.role || "").toUpperCase();
+    tenantId = userDoc.tenantId || userDoc.companyId;
+  }
 
-  if (!userSnap.exists) throw new Error("Usuário não encontrado.");
-
-  const userDoc = userSnap.data() as UserDoc;
-  const role = (userDoc.role || "").toUpperCase();
   const isSuperAdmin = role === "SUPERADMIN";
-  const tenantId = userDoc.tenantId || userDoc.companyId;
-
   if (!tenantId && !isSuperAdmin) throw new Error("Usuário sem tenantId.");
 
-  const isMaster =
-    role === "MASTER" ||
-    role === "ADMIN" ||
-    role === "WK" ||
-    (!userDoc.masterId && !userDoc.masterID && !!userDoc.subscription);
+  // Check Master logic using Role or Data
+  let isMaster = false;
+  if (role === "MASTER" || role === "ADMIN" || role === "WK") {
+    isMaster = true;
+  } else if (userDoc) {
+    // If we fetched userDoc, check generic fields
+    isMaster = !userDoc.masterId && !userDoc.masterID && !!userDoc.subscription;
+  }
 
   if (isSuperAdmin)
     return { userDoc, tenantId: tenantId!, isMaster: true, isSuperAdmin: true };
@@ -106,7 +114,11 @@ export async function checkFinancialPermission(
       isSuperAdmin: false,
     };
 
-  // Member check
+  // Member check - Needs Permissions Doc
+  // We can skip userRef fetch but we need permRef fetch
+  const permRef = userRef.collection("permissions").doc("financial");
+  const permSnap = await permRef.get();
+
   if (!permSnap.exists || !permSnap.data()?.[permission]) {
     throw new Error("Sem permissão financeira.");
   }

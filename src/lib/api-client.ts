@@ -1,13 +1,10 @@
 import { auth } from "./firebase";
 
-const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const REGION = "southamerica-east1";
-
-// Determine API Base URL
-// In development, you might want to point this to localhost:5001 if using emulators
-// For now, we default to the deployed Cloud Function URL
-const IS_DEV = process.env.NODE_ENV === "development";
-const EMULATOR_HOST = "http://127.0.0.1:5001";
+// Constants for configuration
+// const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+// const REGION = "southamerica-east1";
+// const IS_DEV = process.env.NODE_ENV === "development";
+// const EMULATOR_HOST = "http://127.0.0.1:5001";
 
 const getBaseUrl = () => {
   if (process.env.NEXT_PUBLIC_API_URL) {
@@ -25,17 +22,17 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public message: string,
-    public data?: any
+    public data?: unknown
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
-export const callApi = async <T = any>(
+export const callApi = async <T = unknown>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
-  body?: any
+  body?: unknown
 ): Promise<T> => {
   const user = auth.currentUser;
   if (!user) {
@@ -70,7 +67,7 @@ export const callApi = async <T = any>(
       let errorData;
       try {
         errorData = await response.json();
-      } catch (e) {
+      } catch {
         errorData = { raw: await response.text() };
       }
       throw new ApiError(

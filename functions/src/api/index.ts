@@ -1,5 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
+import cors from "cors";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
@@ -11,23 +12,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Manual CORS Middleware
-app.use((req, res, next) => {
-  res.set("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.set("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
-  res.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Content-Length, X-Requested-With, Accept"
-  );
-  res.set("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    res.status(200).send("OK");
-    return;
-  }
-
-  next();
-});
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 // Public routes (if any)

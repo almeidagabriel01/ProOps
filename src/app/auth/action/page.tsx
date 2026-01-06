@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { confirmPasswordReset, verifyPasswordResetCode, getAuth, signOut } from "firebase/auth";
+import { confirmPasswordReset, verifyPasswordResetCode, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase"; // Ensure this import path is correct for your project
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,10 +71,11 @@ function AuthActionContent() {
             setTimeout(() => {
                 router.push("/login");
             }, 3000);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            toast.error(error.message || "Erro ao redefinir senha.");
-            setError(error.message || "Ocorreu um erro ao redefinir sua senha.");
+            const message = error instanceof Error ? error.message : "Erro desconhecido";
+            toast.error(message || "Erro ao redefinir senha.");
+            setError(message || "Ocorreu um erro ao redefinir sua senha.");
         } finally {
             setIsLoading(false);
         }

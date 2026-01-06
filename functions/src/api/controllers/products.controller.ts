@@ -14,13 +14,8 @@ export const createProduct = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Nome inválido." });
     }
 
-    const {
-      masterData,
-      masterRef,
-      tenantId,
-      isMaster,
-      isSuperAdmin,
-    } = await resolveUserAndTenant(userId);
+    const { masterData, masterRef, tenantId, isMaster, isSuperAdmin } =
+      await resolveUserAndTenant(userId, req.user);
 
     // Permission Check
     if (!isMaster && !isSuperAdmin) {
@@ -89,11 +84,11 @@ export const createProduct = async (req: Request, res: Response) => {
       productId,
       message: "Produto criado com sucesso!",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("createProduct Error:", error);
-    return res.status(500).json({
-      message: error.message || "Erro interno ao criar produto.",
-    });
+    const message =
+      error instanceof Error ? error.message : "Erro interno ao criar produto.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -164,11 +159,11 @@ export const updateProduct = async (req: Request, res: Response) => {
       success: true,
       message: "Produto atualizado com sucesso.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("updateProduct Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao atualizar produto." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar produto.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -237,10 +232,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Produto e imagens removidos." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("deleteProduct Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao deletar produto." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao deletar produto.";
+    return res.status(500).json({ message });
   }
 };

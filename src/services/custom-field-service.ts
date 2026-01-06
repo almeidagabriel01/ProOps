@@ -10,7 +10,7 @@ export type CustomField = {
   tenantId: string;
   label: string;
   type: string; // text, number, date, etc.
-  params?: any;
+  params?: Record<string, unknown>;
   createdAt?: string;
 };
 

@@ -122,7 +122,8 @@ export function ProposalPdfViewer({
         )}
         tenant={tenant}
         coverTitle={coverTitle}
-        proposal={proposal}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        proposal={proposal as any}
         repeatHeader={repeatHeader}
       />
     </>

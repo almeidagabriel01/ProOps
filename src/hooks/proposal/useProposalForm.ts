@@ -59,7 +59,10 @@ export interface UseProposalFormReturn {
     systemInstanceId?: string
   ) => void;
   removeProduct: (productId: string, systemInstanceId?: string) => void;
-  handleToggleProductStatus: (productId: string, newStatus: 'active' | 'inactive') => Promise<void>;
+  handleToggleProductStatus: (
+    productId: string,
+    newStatus: "active" | "inactive"
+  ) => Promise<void>;
 
   // Calculations
   calculateSubtotal: () => number;
@@ -163,14 +166,16 @@ export function useProposalForm({
             if (proposal.sistemas && proposal.sistemas.length > 0) {
               const sistemas: ProposalSistema[] = proposal.sistemas.map(
                 (s) => ({
-                  sistemaId: s.sistemaId,
-                  sistemaName: s.sistemaName,
-                  ambienteId: s.ambienteId,
-                  ambienteName: s.ambienteName,
-                  description: s.description || "",
+                  sistemaId: s.sistemaId as string,
+                  sistemaName: s.sistemaName as string,
+                  ambienteId: s.ambienteId as string,
+                  ambienteName: s.ambienteName as string,
+                  description: (s.description as string) || "",
                   products: (proposal.products || [])
                     .filter((p: ProposalProduct) =>
-                      s.productIds?.includes(p.productId)
+                      (s.productIds as string[] | undefined)?.includes(
+                        p.productId
+                      )
                     )
                     .map((p: ProposalProduct) => ({
                       productId: p.productId,
@@ -182,7 +187,9 @@ export function useProposalForm({
               setSelectedSistemas(sistemas);
 
               const sysProductIds = new Set(
-                proposal.sistemas.flatMap((s) => s.productIds || [])
+                proposal.sistemas.flatMap(
+                  (s) => (s.productIds as string[] | undefined) || []
+                )
               );
               setSystemProductIds(sysProductIds);
             }
@@ -277,31 +284,29 @@ export function useProposalForm({
   // Toggle product status (active/inactive)
   const handleToggleProductStatus = async (
     productId: string,
-    newStatus: 'active' | 'inactive'
+    newStatus: "active" | "inactive"
   ) => {
     try {
       // Optimistic update - update local state immediately
       setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId ? { ...p, status: newStatus } : p
-        )
+        prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p))
       );
 
       // Persist to Firebase
       await ProductService.updateProduct(productId, { status: newStatus });
     } catch (error) {
-      console.error('Error toggling product status:', error);
-      
+      console.error("Error toggling product status:", error);
+
       // Revert optimistic update on error
       setProducts((prev) =>
         prev.map((p) =>
           p.id === productId
-            ? { ...p, status: newStatus === 'active' ? 'inactive' : 'active' }
+            ? { ...p, status: newStatus === "active" ? "inactive" : "active" }
             : p
         )
       );
 
-      toast.error('Erro ao alterar status do produto');
+      toast.error("Erro ao alterar status do produto");
     }
   };
 

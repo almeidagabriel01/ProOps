@@ -26,10 +26,14 @@ export const createTransaction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Campos obrigatórios faltando." });
     }
 
-    const { tenantId } = await checkFinancialPermission(userId, "canCreate");
+    const { tenantId } = await checkFinancialPermission(
+      userId,
+      "canCreate",
+      req.user
+    );
 
     const result = await db.runTransaction(async (t) => {
-      const transactionsToCreate: any[] = [];
+      const transactionsToCreate: Record<string, unknown>[] = [];
       const walletAdjustments = new Map<string, number>();
 
       const shouldGenerateInstallments =
@@ -161,9 +165,10 @@ export const createTransaction = async (req: Request, res: Response) => {
           ? `${result.count} parcelas criadas.`
           : "Transação criada.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("createTransaction Error:", error);
-    return res.status(500).json({ message: error.message || "Erro interno." });
+    const message = error instanceof Error ? error.message : "Erro interno.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -177,7 +182,8 @@ export const updateTransaction = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canEdit"
+      "canEdit",
+      req.user
     );
 
     await db.runTransaction(async (t) => {
@@ -247,11 +253,11 @@ export const updateTransaction = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Atualizado com sucesso." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("updateTransaction Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao atualizar." });
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -264,7 +270,8 @@ export const deleteTransaction = async (req: Request, res: Response) => {
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
-      "canDelete"
+      "canDelete",
+      req.user
     );
 
     await db.runTransaction(async (t) => {
@@ -292,10 +299,9 @@ export const deleteTransaction = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Excluído com sucesso." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("deleteTransaction Error:", error);
-    return res
-      .status(500)
-      .json({ message: error.message || "Erro ao excluir." });
+    const message = error instanceof Error ? error.message : "Erro ao excluir.";
+    return res.status(500).json({ message });
   }
 };

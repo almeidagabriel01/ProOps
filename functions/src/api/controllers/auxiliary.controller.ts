@@ -20,15 +20,11 @@ const handleCreate = async (
     // Basic Validation
     for (const field of requiredFields) {
       if (!input[field]) {
-        return res
-          .status(400)
-          .json({ message: `${field} é obrigatório.` });
+        return res.status(400).json({ message: `${field} é obrigatório.` });
       }
     }
 
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(
-      userId
-    );
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId);
 
     // Permission: usually being authenticated and part of tenant is enough for auxiliary?
     // The original code checked: getTenantId, then docData = { tenantId, ... }
@@ -41,12 +37,13 @@ const handleCreate = async (
 
     const now = Timestamp.now();
     const docData: Record<string, unknown> = {
-      tenantId: isSuperAdmin && input.targetTenantId ? input.targetTenantId : tenantId,
+      tenantId:
+        isSuperAdmin && input.targetTenantId ? input.targetTenantId : tenantId,
       ...input,
       createdAt: now,
       updatedAt: now,
     };
-    
+
     // Remove sensitive or computed fields if passed
     delete docData.id;
     delete docData.targetTenantId; // Clean up
@@ -58,9 +55,11 @@ const handleCreate = async (
       id: docRef.id,
       message: "Criado com sucesso.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error creating ${collectionName}:`, error);
-    return res.status(500).json({ message: error.message });
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -100,9 +99,11 @@ const handleUpdate = async (
     await docRef.update(updateData);
 
     return res.json({ success: true, message: "Atualizado com sucesso." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error updating ${collectionName}:`, error);
-    return res.status(500).json({ message: error.message });
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
@@ -132,29 +133,46 @@ const handleDelete = async (
     await docRef.delete();
 
     return res.json({ success: true, message: "Removido com sucesso." });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Error deleting ${collectionName}:`, error);
-    return res.status(500).json({ message: error.message });
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
   }
 };
 
 // Export specific handlers
-export const createAmbiente = (req: Request, res: Response) => handleCreate(req, res, "ambientes", ["name"]);
-export const updateAmbiente = (req: Request, res: Response) => handleUpdate(req, res, "ambientes");
-export const deleteAmbiente = (req: Request, res: Response) => handleDelete(req, res, "ambientes");
+export const createAmbiente = (req: Request, res: Response) =>
+  handleCreate(req, res, "ambientes", ["name"]);
+export const updateAmbiente = (req: Request, res: Response) =>
+  handleUpdate(req, res, "ambientes");
+export const deleteAmbiente = (req: Request, res: Response) =>
+  handleDelete(req, res, "ambientes");
 
-export const createSistema = (req: Request, res: Response) => handleCreate(req, res, "sistemas", ["name"]);
-export const updateSistema = (req: Request, res: Response) => handleUpdate(req, res, "sistemas");
-export const deleteSistema = (req: Request, res: Response) => handleDelete(req, res, "sistemas");
+export const createSistema = (req: Request, res: Response) =>
+  handleCreate(req, res, "sistemas", ["name"]);
+export const updateSistema = (req: Request, res: Response) =>
+  handleUpdate(req, res, "sistemas");
+export const deleteSistema = (req: Request, res: Response) =>
+  handleDelete(req, res, "sistemas");
 
-export const createCustomField = (req: Request, res: Response) => handleCreate(req, res, "customFields", ["label", "type"]);
-export const updateCustomField = (req: Request, res: Response) => handleUpdate(req, res, "customFields");
-export const deleteCustomField = (req: Request, res: Response) => handleDelete(req, res, "customFields");
+export const createCustomField = (req: Request, res: Response) =>
+  handleCreate(req, res, "customFields", ["label", "type"]);
+export const updateCustomField = (req: Request, res: Response) =>
+  handleUpdate(req, res, "customFields");
+export const deleteCustomField = (req: Request, res: Response) =>
+  handleDelete(req, res, "customFields");
 
-export const createOption = (req: Request, res: Response) => handleCreate(req, res, "options", ["label"]);
-export const updateOption = (req: Request, res: Response) => handleUpdate(req, res, "options");
-export const deleteOption = (req: Request, res: Response) => handleDelete(req, res, "options");
+export const createOption = (req: Request, res: Response) =>
+  handleCreate(req, res, "options", ["label"]);
+export const updateOption = (req: Request, res: Response) =>
+  handleUpdate(req, res, "options");
+export const deleteOption = (req: Request, res: Response) =>
+  handleDelete(req, res, "options");
 
-export const createProposalTemplate = (req: Request, res: Response) => handleCreate(req, res, "proposalTemplates", ["name", "content"]);
-export const updateProposalTemplate = (req: Request, res: Response) => handleUpdate(req, res, "proposalTemplates");
-export const deleteProposalTemplate = (req: Request, res: Response) => handleDelete(req, res, "proposalTemplates");
+export const createProposalTemplate = (req: Request, res: Response) =>
+  handleCreate(req, res, "proposalTemplates", ["name", "content"]);
+export const updateProposalTemplate = (req: Request, res: Response) =>
+  handleUpdate(req, res, "proposalTemplates");
+export const deleteProposalTemplate = (req: Request, res: Response) =>
+  handleDelete(req, res, "proposalTemplates");

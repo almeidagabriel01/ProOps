@@ -52,7 +52,7 @@ export function useStripePrices(): UseStripePricesReturn {
 
       // Use Cloud Function via StripeService instead of local API route
       const data = await StripeService.getPrices();
-      setPrices(data);
+      setPrices(data as unknown as StripePricesData);
     } catch (err) {
       console.error("Error fetching prices:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch prices");

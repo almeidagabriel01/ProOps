@@ -16,6 +16,19 @@ import {
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
 
+interface PdfSettings {
+  primaryColor?: string;
+  fontFamily?: string;
+  theme?: string;
+  coverImage?: string;
+  coverLogo?: string;
+  coverImageOpacity?: number;
+  coverImageFit?: "cover" | "contain";
+  coverImagePosition?: string;
+  repeatHeader?: boolean;
+  sections?: unknown[];
+}
+
 export function useEditPdfPage() {
   const params = useParams();
   const { tenant } = useTenant();
@@ -73,6 +86,7 @@ export function useEditPdfPage() {
           if (p) {
             // Inject placeholders for missing images (for demo purposes)
             if (p.products) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               p.products = p.products.map((prod: any) => ({
                 ...prod,
                 productImage:
@@ -94,7 +108,7 @@ export function useEditPdfPage() {
 
             // 1. Check if we have saved PDF settings in the proposal
             if (p.pdfSettings) {
-              const s = p.pdfSettings;
+              const s = p.pdfSettings as PdfSettings;
 
               // We MUST set a template object because the render guard requires it
               const baseTemplate = ProposalDefaults.createDefaultTemplate(

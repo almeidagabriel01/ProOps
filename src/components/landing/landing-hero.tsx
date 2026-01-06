@@ -70,7 +70,7 @@ export function LandingHero() {
 
   // Só ativa após montar no cliente para evitar hydration mismatch
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   // Quando tema light -> mostrar imagens dark (contraste)

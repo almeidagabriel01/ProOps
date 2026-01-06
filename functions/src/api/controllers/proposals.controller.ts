@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { checkProposalLimit } from "../../lib/billing-helpers";
-import { UserDoc } from "../../lib/auth-helpers";
+import {
+  UserDoc,
+  resolveUserAndTenant,
+  checkPermission,
+} from "../../lib/auth-helpers";
 
 const PROPOSALS_COLLECTION = "proposals";
 
@@ -23,55 +27,25 @@ export const createProposal = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Valor total inválido" });
     }
 
-    const userRef = db.collection("users").doc(userId);
-    const userSnap = await userRef.get();
-    if (!userSnap.exists)
-      return res.status(404).json({ message: "Usuário não encontrado" });
+    const {
+      masterData,
+      masterRef,
+      tenantId,
+      isMaster,
+      isSuperAdmin,
+      userData,
+    } = await resolveUserAndTenant(userId, req.user);
 
-    const userData = userSnap.data() as UserDoc;
-    const userCompanyId = userData.tenantId || userData.companyId;
-
-    if (!userCompanyId)
-      return res.status(412).json({ message: "Usuário sem tenantId." });
-
-    let masterData: UserDoc;
-    let masterRef: FirebaseFirestore.DocumentReference;
-
-    const role = (userData.role as string)?.toUpperCase();
-    const isMaster =
-      role === "MASTER" ||
-      role === "ADMIN" ||
-      role === "WK" ||
-      (!userData.masterId && !!userData.subscription);
-
-    if (isMaster) {
-      masterData = userData;
-      masterRef = userRef;
-    } else {
-      const masterId = userData.masterId || userData.masterID;
-      if (!masterId)
-        return res
-          .status(412)
-          .json({ message: "Erro na conta: Master não encontrado." });
-
-      const [permSnap, masterSnap] = await Promise.all([
-        userRef.collection("permissions").doc("proposals").get(),
-        db.collection("users").doc(masterId).get(),
-      ]);
-
-      if (!permSnap.exists || !permSnap.data()?.canCreate) {
+    if (!isMaster && !isSuperAdmin) {
+      const canCreate = await checkPermission(userId, "proposals", "canCreate");
+      if (!canCreate) {
         return res
           .status(403)
           .json({ message: "Sem permissão para criar propostas." });
       }
-      if (!masterSnap.exists) {
-        return res
-          .status(412)
-          .json({ message: "Conta principal não encontrada." });
-      }
-      masterData = masterSnap.data() as UserDoc;
-      masterRef = db.collection("users").doc(masterId);
     }
+
+    const userCompanyId = tenantId; // Alias for compatibility with logic below
 
     if (
       masterData.subscription?.status &&
@@ -101,6 +75,7 @@ export const createProposal = async (req: Request, res: Response) => {
       }
 
       const newRef = db.collection(PROPOSALS_COLLECTION).doc();
+      const now = Timestamp.now();
 
       t.set(newRef, {
         title: input.title.trim(),
@@ -119,16 +94,16 @@ export const createProposal = async (req: Request, res: Response) => {
         sistemas: input.sistemas || [],
         sections: input.sections || [],
         createdById: userId,
-        createdByName: userData.name,
+        createdByName: userData?.name || "Usuário", // Fallback if optimization skipped name
         companyId: userCompanyId,
         tenantId: userCompanyId,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: now,
+        updatedAt: now,
       });
 
       t.update(masterRef, {
         "usage.proposals": FieldValue.increment(1),
-        updatedAt: Timestamp.now(),
+        updatedAt: now,
       });
 
       const companyRef = db.collection("companies").doc(userCompanyId);
@@ -136,7 +111,7 @@ export const createProposal = async (req: Request, res: Response) => {
       if (companySnap.exists) {
         t.update(companyRef, {
           "usage.proposals": FieldValue.increment(1),
-          updatedAt: Timestamp.now(),
+          updatedAt: now,
         });
       }
 
@@ -148,10 +123,10 @@ export const createProposal = async (req: Request, res: Response) => {
       proposalId,
       message: "Proposta criada com sucesso!",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("createProposal Error:", error);
-    const err = error as Error;
-    return res.status(500).json({ message: err.message });
+    const message = error instanceof Error ? error.message : "Erro interno.";
+    return res.status(500).json({ message });
   }
 };
 
@@ -163,38 +138,24 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
-    const [userSnap, proposalSnap, permSnap] = await Promise.all([
-      db.collection("users").doc(userId).get(),
-      db.collection(PROPOSALS_COLLECTION).doc(id).get(),
-      db
-        .collection("users")
-        .doc(userId)
-        .collection("permissions")
-        .doc("proposals")
-        .get(),
-    ]);
+    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user
+    );
 
-    if (!userSnap.exists)
-      return res.status(404).json({ message: "Usuário não encontrado." });
+    const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
+    const proposalSnap = await proposalRef.get();
+
     if (!proposalSnap.exists)
       return res.status(404).json({ message: "Proposta não encontrada." });
-
-    const userData = userSnap.data() as UserDoc;
-    const tenantId = userData.tenantId || userData.companyId;
 
     const proposalData = proposalSnap.data();
     if (proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
 
-    const role = (userData.role as string)?.toUpperCase();
-    const isMaster =
-      role === "MASTER" ||
-      role === "ADMIN" ||
-      role === "WK" ||
-      (!userData.masterId && !!userData.subscription);
-
-    if (!isMaster) {
-      if (!permSnap.exists || !permSnap.data()?.canEdit) {
+    if (!isMaster && !isSuperAdmin) {
+      const canEdit = await checkPermission(userId, "proposals", "canEdit");
+      if (!canEdit) {
         return res
           .status(403)
           .json({ message: "Sem permissão para editar propostas." });
@@ -235,10 +196,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       safeUpdate.totalValue = subtotal - discountAmount;
     }
 
-    await db.collection(PROPOSALS_COLLECTION).doc(id).update(safeUpdate);
+    await proposalRef.update(safeUpdate);
 
     return res.json({ success: true, message: "Proposta atualizada." });
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error as Error;
     return res.status(500).json({ message: err.message });
   }
@@ -251,54 +212,36 @@ export const deleteProposal = async (req: Request, res: Response) => {
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
-    const userRef = db.collection("users").doc(userId);
-    const [userSnap, permSnap] = await Promise.all([
-      userRef.get(),
-      userRef.collection("permissions").doc("proposals").get(),
-    ]);
+    const { tenantId, isMaster, isSuperAdmin, masterRef } =
+      await resolveUserAndTenant(userId, req.user);
 
-    if (!userSnap.exists)
-      return res.status(404).json({ message: "Usuário não encontrado." });
-    const userData = userSnap.data() as UserDoc;
-    const tenantId = userData.tenantId || userData.companyId;
+    const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
+    const proposalSnap = await proposalRef.get();
 
-    const role = (userData.role as string)?.toUpperCase();
-    const isMaster =
-      role === "MASTER" ||
-      role === "ADMIN" ||
-      role === "WK" ||
-      (!userData.masterId && !!userData.subscription);
+    if (!proposalSnap.exists)
+      return res.status(404).json({ message: "Proposta não encontrada." });
 
-    if (!isMaster) {
-      if (!permSnap.exists || !permSnap.data()?.canDelete) {
+    const proposalData = proposalSnap.data();
+    if (proposalData?.tenantId !== tenantId)
+      return res.status(403).json({ message: "Acesso negado." });
+
+    if (!isMaster && !isSuperAdmin) {
+      const canDelete = await checkPermission(userId, "proposals", "canDelete");
+      if (!canDelete) {
         return res
           .status(403)
           .json({ message: "Sem permissão para deletar propostas." });
       }
     }
 
-    let masterRef: FirebaseFirestore.DocumentReference;
-    if (isMaster) {
-      masterRef = userRef;
-    } else {
-      const masterId = userData.masterId;
-      if (!masterId)
-        return res
-          .status(412)
-          .json({ message: "Configuração de conta inválida." });
-      masterRef = db.collection("users").doc(masterId);
-    }
-
     await db.runTransaction(async (t) => {
-      const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
-      const proposalSnap = await t.get(proposalRef);
-
-      if (!proposalSnap.exists) throw new Error("Proposta não encontrada.");
-      if (proposalSnap.data()?.tenantId !== tenantId)
-        throw new Error("Acesso negado.");
+      // Re-verify existence inside transaction not strictly needed if we trust snap,
+      // but good for concurrency.
+      const pSnap = await t.get(proposalRef);
+      if (!pSnap.exists) throw new Error("Proposta não encontrada.");
 
       // Decrement usage
-      const companyRef = db.collection("companies").doc(tenantId!);
+      const companyRef = db.collection("companies").doc(tenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
@@ -310,8 +253,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
     });
 
     return res.json({ success: true, message: "Proposta excluída." });
-  } catch (error) {
-    // Map "Proposta não encontrada" to 404 if needed, but 500 is ok for now or custom handling
+  } catch (error: unknown) {
     const err = error as Error;
     return res.status(500).json({ message: err.message });
   }

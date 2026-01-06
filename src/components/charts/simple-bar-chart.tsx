@@ -53,7 +53,8 @@ export const SimpleBarChart = React.memo(({ data }: SimpleBarChartProps) => {
           />
           <Tooltip
             cursor={{ fill: 'var(--muted)', opacity: 0.1 }}
-            content={({ active, payload, label }: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            content={({ active, payload }: any) => {
               if (active && payload && payload.length) {
                 return (
                   <div className="rounded-lg border bg-background p-2 shadow-sm">

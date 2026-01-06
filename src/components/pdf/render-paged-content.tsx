@@ -41,7 +41,7 @@ interface Sistema {
 }
 
 interface Proposal {
-  sistemas?: Sistema[];
+  sistemas?: Record<string, unknown>[];
   discount?: number;
   clientName: string;
   title?: string;
@@ -59,6 +59,7 @@ interface ContentStyles {
   headerTitle: Record<string, string | number>;
   sectionText: Record<string, string | number>;
   productTitle: Record<string, string | number>;
+  [key: string]: Record<string, string | number>;
 }
 
 interface RenderPagedContentProps {
@@ -122,7 +123,8 @@ function buildContentItems(
     sections.forEach(section => {
       if (section.type === 'product-table') {
         if (hasSistemas) {
-          proposal.sistemas!.forEach((sistema: Sistema) => {
+          proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
+            const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
             let productsForSistema = products.filter((p: Product) => p.systemInstanceId === systemInstanceId);
 
@@ -137,7 +139,7 @@ function buildContentItems(
           });
 
           const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap((s: Sistema) => s.productIds || [])
+            proposal.sistemas!.flatMap((s: Record<string, unknown>) => (s.productIds as string[]) || [])
           );
           const extraProducts = products.filter((p: Product) => !p.systemInstanceId && !sistemaProductIds.has(p.productId));
 
@@ -186,7 +188,8 @@ function buildContentItems(
     for (let i = 0; i < sections.length; i++) {
       if (i === insertIndex) {
         if (hasSistemas) {
-          proposal.sistemas!.forEach((sistema: Sistema) => {
+          proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
+            const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
             let productsForSistema = products.filter((p: Product) => p.systemInstanceId === systemInstanceId);
 
@@ -201,7 +204,7 @@ function buildContentItems(
           });
 
           const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap((s: Sistema) => s.productIds || [])
+            proposal.sistemas!.flatMap((s: Record<string, unknown>) => (s.productIds as string[]) || [])
           );
           const extraProducts = products.filter((p: Product) => !p.systemInstanceId && !sistemaProductIds.has(p.productId));
 
@@ -225,7 +228,8 @@ function buildContentItems(
 
     if (insertIndex >= sections.length) {
       if (hasSistemas) {
-        proposal.sistemas!.forEach((sistema: Sistema) => {
+        proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
+          const sistema = rawSistema as unknown as Sistema;
           const productsForSistema = products.filter((p: Product) =>
             sistema.productIds?.includes(p.productId)
           );
@@ -307,7 +311,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             key={item.data.id}
             section={item.data}
             primaryColor={primaryColor}
-            contentStyles={contentStyles}
+            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
           />
         );
 
@@ -347,7 +351,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             key={`product-${item.data.productId}-${item.data.index}`}
             product={item.data}
             index={item.data.index}
-            contentStyles={contentStyles}
+            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
           />
         );
 
@@ -357,7 +361,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             key="totals"
             products={products}
             discount={proposal.discount || 0}
-            contentStyles={contentStyles}
+            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
           />
         );
 
@@ -419,7 +423,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                 tenantName={tenant?.name || ""}
                 coverTitle={coverTitle}
                 clientName={proposal.clientName}
-                contentStyles={contentStyles}
+                contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
               />
             )}
 
