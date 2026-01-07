@@ -6,7 +6,7 @@ import {
   ContentItem,
   calculateSectionHeight,
   calculateProductHeight,
-  calculateSistemaBlockHeight
+  calculateSistemaBlockHeight,
 } from "@/utils/pdf-helpers";
 import {
   PdfSistemaBlock,
@@ -86,12 +86,17 @@ function buildContentItems(
   const items: ContentItem[] = [];
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
 
-  const addSistemaProducts = (sistema: Sistema, productsForSistema: Product[]) => {
-    const sortedProducts = [...productsForSistema].sort((a: Product, b: Product) => {
-      if (a.isExtra && !b.isExtra) return 1;
-      if (!a.isExtra && b.isExtra) return -1;
-      return 0;
-    });
+  const addSistemaProducts = (
+    sistema: Sistema,
+    productsForSistema: Product[]
+  ) => {
+    const sortedProducts = [...productsForSistema].sort(
+      (a: Product, b: Product) => {
+        if (a.isExtra && !b.isExtra) return 1;
+        if (!a.isExtra && b.isExtra) return -1;
+        return 0;
+      }
+    );
 
     const totalHeight = calculateSistemaBlockHeight(sortedProducts);
 
@@ -104,7 +109,10 @@ function buildContentItems(
 
   const addRegularProducts = (productsToAdd: Product[]) => {
     if (productsToAdd.length > 0) {
-      items.push({ type: "product-header", height: ESTIMATED_HEIGHTS.PRODUCT_HEADER });
+      items.push({
+        type: "product-header",
+        height: ESTIMATED_HEIGHTS.PRODUCT_HEADER,
+      });
       productsToAdd.forEach((product, i) => {
         const h = calculateProductHeight(product);
         items.push({
@@ -117,20 +125,26 @@ function buildContentItems(
     }
   };
 
-  const productSectionIndex = sections.findIndex(s => s.type === 'product-table');
+  const productSectionIndex = sections.findIndex(
+    (s) => s.type === "product-table"
+  );
 
   if (productSectionIndex !== -1) {
-    sections.forEach(section => {
-      if (section.type === 'product-table') {
+    sections.forEach((section) => {
+      if (section.type === "product-table") {
         if (hasSistemas) {
           proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
             const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-            let productsForSistema = products.filter((p: Product) => p.systemInstanceId === systemInstanceId);
+            let productsForSistema = products.filter(
+              (p: Product) => p.systemInstanceId === systemInstanceId
+            );
 
             const isLegacy = !products.some((p: Product) => p.systemInstanceId);
             if (productsForSistema.length === 0 && isLegacy) {
-              productsForSistema = products.filter((p: Product) => sistema.productIds?.includes(p.productId));
+              productsForSistema = products.filter((p: Product) =>
+                sistema.productIds?.includes(p.productId)
+              );
             }
 
             if (productsForSistema.length > 0) {
@@ -139,15 +153,23 @@ function buildContentItems(
           });
 
           const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap((s: Record<string, unknown>) => (s.productIds as string[]) || [])
+            proposal.sistemas!.flatMap(
+              (s: Record<string, unknown>) => (s.productIds as string[]) || []
+            )
           );
-          const extraProducts = products.filter((p: Product) => !p.systemInstanceId && !sistemaProductIds.has(p.productId));
+          const extraProducts = products.filter(
+            (p: Product) =>
+              !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+          );
 
           if (extraProducts.length > 0) {
             let blockHeight = 140;
             extraProducts.forEach((product) => {
               let h = 80;
-              if ((product.productImages && product.productImages.length > 0) || product.productImage) {
+              if (
+                (product.productImages && product.productImages.length > 0) ||
+                product.productImage
+              ) {
                 h += 100;
               }
               blockHeight += h;
@@ -171,11 +193,19 @@ function buildContentItems(
     });
   } else {
     let insertIndex = -1;
-    const footerKeywords = ["garantia", "termos", "condições", "considerações", "obrigado", "agradecemos", "validade"];
+    const footerKeywords = [
+      "garantia",
+      "termos",
+      "condições",
+      "considerações",
+      "obrigado",
+      "agradecemos",
+      "validade",
+    ];
 
     for (let i = 0; i < sections.length; i++) {
       const text = (sections[i].content || "").toLowerCase();
-      if (footerKeywords.some(k => text.includes(k))) {
+      if (footerKeywords.some((k) => text.includes(k))) {
         insertIndex = i;
         break;
       }
@@ -191,11 +221,15 @@ function buildContentItems(
           proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
             const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-            let productsForSistema = products.filter((p: Product) => p.systemInstanceId === systemInstanceId);
+            let productsForSistema = products.filter(
+              (p: Product) => p.systemInstanceId === systemInstanceId
+            );
 
             const isLegacy = !products.some((p: Product) => p.systemInstanceId);
             if (productsForSistema.length === 0 && isLegacy) {
-              productsForSistema = products.filter((p: Product) => sistema.productIds?.includes(p.productId));
+              productsForSistema = products.filter((p: Product) =>
+                sistema.productIds?.includes(p.productId)
+              );
             }
 
             if (productsForSistema.length > 0) {
@@ -204,15 +238,24 @@ function buildContentItems(
           });
 
           const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap((s: Record<string, unknown>) => (s.productIds as string[]) || [])
+            proposal.sistemas!.flatMap(
+              (s: Record<string, unknown>) => (s.productIds as string[]) || []
+            )
           );
-          const extraProducts = products.filter((p: Product) => !p.systemInstanceId && !sistemaProductIds.has(p.productId));
+          const extraProducts = products.filter(
+            (p: Product) =>
+              !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+          );
 
           if (extraProducts.length > 0) {
             items.push({ type: "extra-products-header", height: 60 });
             extraProducts.forEach((product, idx) => {
               const h = calculateProductHeight(product);
-              items.push({ type: "product-row", data: { ...product, index: idx }, height: h });
+              items.push({
+                type: "product-row",
+                data: { ...product, index: idx },
+                height: h,
+              });
             });
           }
           items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
@@ -258,15 +301,24 @@ function distributeIntoPages(items: ContentItem[]): ContentItem[][] {
   items.forEach((item, index) => {
     let forceBreak = false;
 
-    if (item.type === "product-header" || (item.type === "section" && item.data?.type === "title")) {
+    if (
+      item.type === "product-header" ||
+      (item.type === "section" && item.data?.type === "title")
+    ) {
       const nextItem = items[index + 1];
-      if (nextItem && currentHeight + item.height + nextItem.height > SAFE_HEIGHT) {
+      if (
+        nextItem &&
+        currentHeight + item.height + nextItem.height > SAFE_HEIGHT
+      ) {
         forceBreak = true;
       }
     }
 
     if (item.type === "sistema-block" || item.type === "extra-products-block") {
-      if (currentHeight + item.height > SAFE_HEIGHT && currentHeight > ESTIMATED_HEIGHTS.HEADER) {
+      if (
+        currentHeight + item.height > SAFE_HEIGHT &&
+        currentHeight > ESTIMATED_HEIGHTS.HEADER
+      ) {
         forceBreak = true;
       }
     }
@@ -311,27 +363,34 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             key={item.data.id}
             section={item.data}
             primaryColor={primaryColor}
-            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
+            contentStyles={
+              contentStyles as unknown as Record<string, React.CSSProperties>
+            }
           />
         );
 
       case "sistema-block":
         return (
-          <PdfSistemaBlock
+          <div
             key={`sistema-${item.data.sistema.sistemaId}-${item.data.sistema.ambienteId}`}
-            sistema={item.data.sistema}
-            products={item.data.products}
-            primaryColor={primaryColor}
-          />
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaBlock
+              sistema={item.data.sistema}
+              products={item.data.products}
+              primaryColor={primaryColor}
+            />
+          </div>
         );
 
       case "extra-products-block":
         return (
-          <PdfExtraProductsBlock
-            key="extra-products"
-            products={item.data.products}
-            primaryColor={primaryColor}
-          />
+          <div key="extra-products" style={{ width: "100%" }}>
+            <PdfExtraProductsBlock
+              products={item.data.products}
+              primaryColor={primaryColor}
+            />
+          </div>
         );
 
       case "product-header":
@@ -339,7 +398,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
           <h2
             key="product-header"
             className="text-xl font-bold mb-4 pb-2 border-b-2 mt-4"
-            style={contentStyles.productTitle}
+            style={{ ...contentStyles.productTitle, width: "100%" }}
           >
             Produtos e Serviços
           </h2>
@@ -347,22 +406,31 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
 
       case "product-row":
         return (
-          <PdfProductRow
+          <div
             key={`product-${item.data.productId}-${item.data.index}`}
-            product={item.data}
-            index={item.data.index}
-            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
-          />
+            style={{ width: "100%" }}
+          >
+            <PdfProductRow
+              product={item.data}
+              index={item.data.index}
+              contentStyles={
+                contentStyles as unknown as Record<string, React.CSSProperties>
+              }
+            />
+          </div>
         );
 
       case "totals":
         return (
-          <PdfTotals
-            key="totals"
-            products={products}
-            discount={proposal.discount || 0}
-            contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
-          />
+          <div key="totals" style={{ width: "100%" }}>
+            <PdfTotals
+              products={products}
+              discount={proposal.discount || 0}
+              contentStyles={
+                contentStyles as unknown as Record<string, React.CSSProperties>
+              }
+            />
+          </div>
         );
 
       case "extra-products-header":
@@ -378,7 +446,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
       {pages.map((pageItems, pageIndex) => (
         <div
           key={pageIndex}
-          className="mx-auto bg-white shadow-sm mb-8"
+          className="mx-auto bg-white shadow-sm mb-8 pdf-page-container"
           style={{
             fontFamily,
             width: "210mm",
@@ -423,12 +491,26 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                 tenantName={tenant?.name || ""}
                 coverTitle={coverTitle}
                 clientName={proposal.clientName}
-                contentStyles={contentStyles as unknown as Record<string, React.CSSProperties>}
+                contentStyles={
+                  contentStyles as unknown as Record<
+                    string,
+                    React.CSSProperties
+                  >
+                }
               />
             )}
 
             {/* Main Content - Grows to fill space */}
-            <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflow: "hidden",
+                display: "flex",
+                flexWrap: "wrap",
+                alignContent: "flex-start",
+              }}
+            >
               {pageItems.map((item, idx) => (
                 <React.Fragment key={idx}>{renderItem(item)}</React.Fragment>
               ))}
