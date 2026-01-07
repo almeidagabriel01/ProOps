@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Wallet, AlertCircle } from "lucide-react";
 import { useEditTransaction } from "../_hooks/useEditTransaction";
@@ -20,6 +21,7 @@ import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
+import { Transaction } from "@/services/transaction-service";
 
 const transactionSteps = [
   {
@@ -59,11 +61,30 @@ export default function EditTransactionPage() {
     handleSubmit,
     transaction,
     relatedInstallments,
-    transactionId,
+    previewInstallments, // Use from hook
     isLoading,
     isSaving,
     canEdit,
   } = useEditTransaction();
+
+  // Adapt formData type for shared components
+  // Moved to top and handled null transaction
+  const adaptedFormData: TransactionFormData = React.useMemo(() => ({
+    ...formData,
+    clientId: formData.clientId || "",
+    isInstallment: formData.isInstallment,
+    installmentCount: formData.installmentCount,
+  }), [formData]);
+
+  // Calculate total amount (sum of all installments) for display
+  const totalValueOverride = React.useMemo(() => {
+    if (!transaction?.isInstallment || relatedInstallments.length === 0) return undefined;
+
+    return relatedInstallments
+      .filter((t: Transaction) => t.id !== transaction.id)
+      .reduce((sum: number, t: Transaction) => sum + t.amount, 0) +
+      parseFloat(formData.amount || "0");
+  }, [transaction, relatedInstallments, formData.amount]);
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading) {
@@ -113,25 +134,8 @@ export default function EditTransactionPage() {
     );
   }
 
-  // Adapt formData type for shared components
-  const adaptedFormData: TransactionFormData = {
-    ...formData,
-    clientId: formData.clientId || "",
-    isInstallment: false,
-    installmentCount: transaction?.installmentCount || 2,
-  };
-
-  // Calculate total amount (sum of all installments) for display
-  const totalValueOverride =
-    transaction?.isInstallment && relatedInstallments.length > 0
-      ? relatedInstallments
-          .filter((t) => t.id !== transaction!.id)
-          .reduce((sum, t) => sum + t.amount, 0) +
-        parseFloat(formData.amount || "0")
-      : undefined;
-
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -148,15 +152,14 @@ export default function EditTransactionPage() {
 
         <ReviewStep
           formData={adaptedFormData}
-          onChange={() => {}}
-          onClientChange={() => {}}
+          onChange={() => { }}
+          onClientChange={() => { }}
           totalOverride={totalValueOverride}
         />
 
-        {relatedInstallments.length > 0 && (
+        {previewInstallments.length > 0 && (
           <InstallmentsCard
-            installments={relatedInstallments}
-            currentTransactionId={transactionId}
+            installments={previewInstallments} // No currentTransactionId passed here to avoid "Editing" highlight
           />
         )}
 
@@ -207,8 +210,7 @@ export default function EditTransactionPage() {
                   const result = updater({
                     ...prev,
                     clientId: prev.clientId || "",
-                    isInstallment: false,
-                    installmentCount: 2,
+                    installmentCount: prev.installmentCount || 2,
                   });
                   return {
                     type: result.type,
@@ -222,6 +224,9 @@ export default function EditTransactionPage() {
                     clientName: result.clientName,
                     clientId: result.clientId,
                     notes: result.notes,
+                    // Preserve installment data
+                    isInstallment: result.isInstallment,
+                    installmentCount: result.installmentCount,
                   };
                 });
               }
@@ -229,11 +234,10 @@ export default function EditTransactionPage() {
             onChange={handleChange}
           />
 
-          {relatedInstallments.length > 0 && (
+          {previewInstallments.length > 0 && (
             <div className="mt-6">
               <InstallmentsCard
-                installments={relatedInstallments}
-                currentTransactionId={transactionId}
+                installments={previewInstallments}
               />
             </div>
           )}

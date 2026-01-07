@@ -24,7 +24,8 @@ interface TransactionInstallmentsListProps {
   installments: Transaction[];
   onStatusChange: (
     transaction: Transaction,
-    newStatus: TransactionStatus
+    newStatus: TransactionStatus,
+    updateAll?: boolean
   ) => Promise<boolean>;
   canEdit: boolean;
 }
@@ -34,10 +35,10 @@ const statusOptions: {
   label: string;
   icon: typeof Check;
 }[] = [
-  { value: "paid", label: "Pago", icon: Check },
-  { value: "pending", label: "Pendente", icon: Clock },
-  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-];
+    { value: "paid", label: "Pago", icon: Check },
+    { value: "pending", label: "Pendente", icon: Clock },
+    { value: "overdue", label: "Atrasado", icon: AlertTriangle },
+  ];
 
 export function TransactionInstallmentsList({
   installments,
@@ -77,13 +78,21 @@ export function TransactionInstallmentsList({
     }
 
     setUpdatingId(transaction.id);
-    await onStatusChange(transaction, newStatus);
+    await onStatusChange(transaction, newStatus, false); // Single update
     setUpdatingId(null);
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    // Extract date part if ISO format
+    const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+
     // Parse date parts manually to avoid timezone issues
-    const [year, month, day] = dateString.split("-").map(Number);
+    const parts = datePart.split("-").map(Number);
+    if (parts.length !== 3) return dateString;
+
+    const [year, month, day] = parts;
     const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -91,6 +100,7 @@ export function TransactionInstallmentsList({
       year: "numeric",
     });
   };
+
 
   return (
     <div className="border-t bg-muted/30 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
@@ -112,8 +122,9 @@ export function TransactionInstallmentsList({
                   {installment.installmentNumber}ª Parcela
                 </div>
                 <div className="text-muted-foreground">
-                  {formatDate(installment.date)}
+                  {formatDate(installment.dueDate || installment.date)}
                 </div>
+
                 <div className="font-semibold w-24">
                   {formatCurrency(installment.amount)}
                 </div>

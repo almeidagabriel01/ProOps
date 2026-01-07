@@ -112,18 +112,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         setIsOpen(false);
       };
 
-      const handleResize = () => setIsOpen(false);
-      const handleScroll = () => setIsOpen(false);
-
       if (isOpen) {
         window.addEventListener("mousedown", handleGlobalMouseDown);
-        window.addEventListener("resize", handleResize);
-        window.addEventListener("scroll", handleScroll, { capture: true });
       }
       return () => {
         window.removeEventListener("mousedown", handleGlobalMouseDown);
-        window.removeEventListener("resize", handleResize);
-        window.removeEventListener("scroll", handleScroll, { capture: true });
       };
     }, [isOpen]);
 

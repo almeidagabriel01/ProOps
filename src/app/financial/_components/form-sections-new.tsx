@@ -9,7 +9,6 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { DateInput } from "@/components/ui/date-input";
 import { ClientSelect } from "@/components/features/client-select";
 import { WalletSelect } from "@/components/features/wallet-select";
-// import { DynamicSelect } from "@/components/features/dynamic-select";
 import {
   FormSection,
   FormGroup,
@@ -23,9 +22,6 @@ import {
   User,
   Calendar,
   DollarSign,
-  Tag,
-  Clock,
-  Wallet,
 } from "lucide-react";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TransactionType } from "@/services/transaction-service";
@@ -48,29 +44,28 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("income")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${
-            type === "income"
-              ? "border-green-500 bg-gradient-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
-              : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
+          ${type === "income"
+            ? "border-green-500 bg-linear-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
+            : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
           }
         `}
       >
         <div className="flex flex-col items-center gap-3">
           <div
             className={`
-            w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-            ${
-              type === "income"
+              w-14 h-14 rounded-2xl flex items-center justify-center transition-all
+              ${type === "income"
                 ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
                 : "bg-green-500/10 text-green-500"
-            }
-          `}
+              }
+            `}
           >
             <TrendingUp className="w-7 h-7" />
           </div>
           <div className="text-center">
             <p
-              className={`font-bold text-lg ${type === "income" ? "text-green-600 dark:text-green-400" : "text-foreground"}`}
+              className={`font-bold text-lg ${type === "income" ? "text-green-600 dark:text-green-400" : "text-foreground"
+                }`}
             >
               Receita
             </p>
@@ -102,29 +97,28 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("expense")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${
-            type === "expense"
-              ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
-              : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
+          ${type === "expense"
+            ? "border-red-500 bg-linear-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
+            : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
           }
         `}
       >
         <div className="flex flex-col items-center gap-3">
           <div
             className={`
-            w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-            ${
-              type === "expense"
+              w-14 h-14 rounded-2xl flex items-center justify-center transition-all
+              ${type === "expense"
                 ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
                 : "bg-red-500/10 text-red-500"
-            }
-          `}
+              }
+            `}
           >
             <TrendingDown className="w-7 h-7" />
           </div>
           <div className="text-center">
             <p
-              className={`font-bold text-lg ${type === "expense" ? "text-red-600 dark:text-red-400" : "text-foreground"}`}
+              className={`font-bold text-lg ${type === "expense" ? "text-red-600 dark:text-red-400" : "text-foreground"
+                }`}
             >
               Despesa
             </p>
@@ -154,148 +148,123 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
 }
 
 // ============================================
-// DETAILS SECTION
+// DETAILS SECTION (Core Info)
 // ============================================
 
-interface DetailsSectionProps {
+interface DetailsStepProps {
   formData: TransactionFormData;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => void;
 }
 
-export function DetailsSection({ formData, onChange }: DetailsSectionProps) {
+export function DetailsStep({ formData, onChange }: DetailsStepProps) {
   return (
     <FormSection
       title="Detalhes do Lançamento"
-      description="Informações básicas sobre a transação"
+      description="Informações principais"
       icon={FileText}
     >
-      <FormItem label="Descrição" htmlFor="description" required>
-        <Input
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={onChange}
-          placeholder="Ex: Venda de equipamentos, Pagamento de fornecedor..."
-          icon={<FileText className="w-4 h-4" />}
-          required
-        />
-      </FormItem>
+      <div className="space-y-4">
+        <FormGroup>
+          <FormItem label="Descrição *" htmlFor="description">
+            <Input
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={onChange}
+              placeholder="Ex: Consultoria Web"
+              className="font-medium"
+            />
+          </FormItem>
+          <FormItem label="Valor *" htmlFor="amount">
+            <CurrencyInput
+              name="amount"
+              value={formData.amount}
+              onChange={onChange}
+              placeholder="0,00"
+            />
+          </FormItem>
+        </FormGroup>
 
-      <FormGroup>
-        <FormItem label="Valor Total" htmlFor="amount" required>
-          <CurrencyInput
-            id="amount"
-            name="amount"
-            value={formData.amount}
+        <FormGroup>
+          <FormItem label="Data de Competência *" htmlFor="date">
+            <DateInput
+              name="date"
+              value={formData.date}
+              onChange={onChange}
+            />
+          </FormItem>
+          <FormItem label="Data de Vencimento" htmlFor="dueDate">
+            <DateInput
+              name="dueDate"
+              value={formData.dueDate || ""}
+              onChange={onChange}
+            />
+          </FormItem>
+        </FormGroup>
+
+        <FormGroup>
+          <FormItem label="Categoria" htmlFor="category">
+            <Input
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={onChange}
+              placeholder="Ex: Serviços"
+            />
+          </FormItem>
+          <WalletSelect
+            label="Conta / Carteira"
+            name="wallet"
+            value={formData.wallet || ""}
             onChange={onChange}
-            placeholder="0,00"
-            required
           />
-        </FormItem>
-
-        <FormItem label="Categoria" htmlFor="category">
-          <Input
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={onChange}
-            placeholder="Vendas, Material, Serviço..."
-            icon={<Tag className="w-4 h-4" />}
-          />
-        </FormItem>
-      </FormGroup>
-
-      <FormGroup cols={3}>
-        <FormItem label="Data" htmlFor="date" required>
-          <DateInput
-            id="date"
-            name="date"
-            value={formData.date}
-            onChange={onChange}
-            required
-          />
-        </FormItem>
-
-        <FormItem
-          label="Vencimento"
-          htmlFor="dueDate"
-          required={formData.type === "income"}
-        >
-          <DateInput
-            id="dueDate"
-            name="dueDate"
-            value={formData.dueDate}
-            onChange={onChange}
-            required={formData.type === "income"}
-          />
-        </FormItem>
-
-        <FormItem label="Status" htmlFor="status">
-          <Select
-            id="status"
-            name="status"
-            value={formData.status}
-            onChange={onChange}
-          >
-            <option value="pending">⏳ Pendente</option>
-            <option value="paid">✅ Pago</option>
-            <option value="overdue">⚠️ Atrasado</option>
-          </Select>
-        </FormItem>
-      </FormGroup>
+        </FormGroup>
+      </div>
     </FormSection>
   );
 }
 
 // ============================================
-// PAYMENT SECTION
+// PAYMENT SECTION (Installments)
 // ============================================
 
-interface PaymentSectionProps {
+interface PaymentStepProps {
   formData: TransactionFormData;
-  onFormDataChange: React.Dispatch<React.SetStateAction<TransactionFormData>>;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => void;
+  onFormDataChange: (
+    updater: (prev: TransactionFormData) => TransactionFormData
   ) => void;
 }
 
-export function PaymentSection({
+export function PaymentStep({
   formData,
-  onFormDataChange,
   onChange,
-}: PaymentSectionProps) {
+  onFormDataChange,
+}: PaymentStepProps) {
   return (
     <FormSection
-      title="Forma de Pagamento"
-      description="Configure como será pago este lançamento"
+      title="Pagamento e Parcelamento"
+      description="Configure como este lançamento será pago"
       icon={CreditCard}
     >
-      <WalletSelect
-        label="Carteira / Método"
-        name="wallet"
-        value={formData.wallet}
-        onChange={onChange}
-      />
-
-      {/* Installments Card */}
-      <div
-        className={`
-        rounded-xl border-2 p-5 transition-all duration-300
-        ${
-          formData.isInstallment
-            ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
-            : "border-border/50 bg-muted/20"
-        }
-      `}
-      >
+      <div className="space-y-4">
         <div className="flex items-center gap-3 mb-4">
           <div
             className={`
-            w-10 h-10 rounded-xl flex items-center justify-center
-            ${formData.isInstallment ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}
-          `}
+              w-10 h-10 rounded-xl flex items-center justify-center
+              ${formData.isInstallment
+                ? "bg-primary/15 text-primary"
+                : "bg-muted text-muted-foreground"
+              }
+            `}
           >
             <Calendar className="w-5 h-5" />
           </div>
@@ -305,7 +274,7 @@ export function PaymentSection({
               Divida o valor em múltiplas parcelas
             </p>
           </label>
-          <input
+          <Input
             type="checkbox"
             id="isInstallment"
             name="isInstallment"
@@ -328,6 +297,7 @@ export function PaymentSection({
                     installmentCount: parseInt(e.target.value),
                   }))
                 }
+                placeholder="Selecione..."
               >
                 {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
                   <option key={n} value={n}>
@@ -339,11 +309,13 @@ export function PaymentSection({
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Valor por Parcela</Label>
-              <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-2">
+              <div className="h-12 px-4 rounded-xl bg-linear-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-primary" />
                 <span className="font-bold text-primary">
                   {formData.amount
-                    ? `R$ ${(parseFloat(formData.amount) / formData.installmentCount).toFixed(2)}`
+                    ? `R$ ${(
+                      parseFloat(formData.amount) / formData.installmentCount
+                    ).toFixed(2)}`
                     : "R$ 0,00"}
                 </span>
               </div>
