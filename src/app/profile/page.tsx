@@ -7,11 +7,13 @@ import { useTenant } from "@/providers/tenant-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
 import { usePlanUsage } from "@/hooks/usePlanUsage";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import {
   ProfileHeader,
   PlanChangeDialog,
   OverviewTab,
   BillingTab,
+  MySubscriptionTab,
 } from "@/components/profile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSkeleton } from "./_components/profile-skeleton";
@@ -23,6 +25,7 @@ function ProfileContent() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { isMaster } = usePermissions();
   const planUsageData = usePlanUsage();
+  const { purchasedAddons, purchasedAddonsData } = usePlanLimits();
 
   const {
     effectiveUser,
@@ -64,8 +67,11 @@ function ProfileContent() {
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tabFromUrl =
-    searchParams.get("tab") === "billing" ? "billing" : "overview";
+  const tabParam = searchParams.get("tab");
+  const validTabs = ["overview", "subscription", "billing"];
+  const tabFromUrl = validTabs.includes(tabParam || "")
+    ? tabParam!
+    : "overview";
   const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   // Sync activeTab with URL changes (for when clicking links within the page)
@@ -76,9 +82,8 @@ function ProfileContent() {
   // Update both state and URL when tab changes
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    router.replace(`/profile${tab === "billing" ? "?tab=billing" : ""}`, {
-      scroll: false,
-    });
+    const query = tab === "overview" ? "" : `?tab=${tab}`;
+    router.replace(`/profile${query}`, { scroll: false });
   };
 
   if (isPageLoading) {
@@ -102,12 +107,12 @@ function ProfileContent() {
         >
           <div className="flex justify-center pb-2">
             <TabsList
-              className="relative grid w-full max-w-[400px] grid-cols-2 h-12 p-1 rounded-full border border-border/10 shadow-sm"
+              className="relative grid w-full max-w-[500px] grid-cols-3 h-12 p-1 rounded-full border border-border/10 shadow-sm"
               style={{
                 background: "rgba(255,255,255,0.03)",
               }}
             >
-              {["overview", "billing"].map((tab) => (
+              {["overview", "subscription", "billing"].map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -124,13 +129,17 @@ function ProfileContent() {
                   )}
                   <span
                     className={cn(
-                      "relative z-10 font-medium transition-colors duration-200",
+                      "relative z-10 font-medium transition-colors duration-200 text-sm",
                       activeTab === tab
                         ? "text-primary-foreground"
                         : "text-muted-foreground"
                     )}
                   >
-                    {tab === "overview" ? "Visão Geral" : "Assinatura"}
+                    {tab === "overview"
+                      ? "Visão Geral"
+                      : tab === "subscription"
+                        ? "Minha Assinatura"
+                        : "Planos"}
                   </span>
                 </TabsTrigger>
               ))}
@@ -149,6 +158,25 @@ function ProfileContent() {
                 tenant={tenant}
                 isMaster={isMaster}
                 planUsageData={planUsageData}
+              />
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="mt-0">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <MySubscriptionTab
+                user={effectiveUser}
+                userPlan={userPlan}
+                purchasedAddons={purchasedAddons}
+                addonsData={purchasedAddonsData}
+                handleManagePayment={handleManagePayment}
+                openingPortal={openingPortal}
+                isMaster={isMaster}
               />
             </motion.div>
           </TabsContent>

@@ -11,12 +11,9 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
-
-
 import { User, SubscriptionStatus } from "@/types";
 
 // Removed local User type definition
-
 
 interface AuthContextType {
   user: User | null;
@@ -30,8 +27,8 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => false,
-  logout: async () => { },
-  refreshUser: async () => { },
+  logout: async () => {},
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -93,12 +90,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           tenantId: userData.tenantId || "default-tenant",
           planId: userData.planId || undefined,
           stripeCustomerId: userData.stripeCustomerId || undefined,
-          stripeSubscriptionId: userData.stripeSubscriptionId || undefined,
+          stripeSubscriptionId:
+            userData.stripeSubscriptionId ||
+            userData.subscription?.id ||
+            undefined,
           billingInterval: userData.billingInterval || undefined,
           masterId: userData.masterId || undefined,
           permissions: permissions,
-          currentPeriodEnd: userData.currentPeriodEnd || undefined,
-          subscriptionStatus: (userData.subscriptionStatus || userData.subscription?.status)?.toLowerCase() as SubscriptionStatus | undefined,
+          currentPeriodEnd:
+            userData.currentPeriodEnd ||
+            userData.subscription?.currentPeriodEnd
+              ?.toDate?.()
+              ?.toISOString() ||
+            userData.subscription?.current_period_end
+              ?.toDate?.()
+              ?.toISOString() ||
+            undefined,
+          subscriptionStatus: (
+            userData.subscriptionStatus || userData.subscription?.status
+          )?.toLowerCase() as SubscriptionStatus | undefined,
           subscriptionUpdatedAt:
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||

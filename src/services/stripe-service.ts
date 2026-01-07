@@ -112,6 +112,14 @@ interface CancelAddonRequest {
   tenantId?: string;
 }
 
+interface SyncResponse {
+  success: boolean;
+  data: {
+    status: string;
+    currentPeriodEnd: string;
+  };
+}
+
 // ============================================
 // SERVICE
 // ============================================
@@ -145,11 +153,19 @@ export const StripeService = {
   },
 
   createAddonCheckoutSession: async (
-    _data: AddonCheckoutRequest
+    data: AddonCheckoutRequest
   ): Promise<AddonCheckoutResponse> => {
-    // Not implemented in API yet - mocking or failing
-    console.warn("Addon checkout not fully migrated to API");
-    return { success: false };
+    try {
+      const response = await callApi<AddonCheckoutResponse>(
+        "/v1/stripe/checkout-addon",
+        "POST",
+        data
+      );
+      return response;
+    } catch (error) {
+      console.error("Error creating addon checkout session:", error);
+      throw error;
+    }
   },
 
   confirmAddonCheckout: async (
@@ -176,6 +192,20 @@ export const StripeService = {
       return response;
     } catch (error) {
       console.error("Error creating portal session:", error);
+      throw error;
+    }
+  },
+
+  syncSubscription: async (): Promise<SyncResponse> => {
+    try {
+      const response = await callApi<SyncResponse>(
+        "/v1/stripe/sync",
+        "POST",
+        {}
+      );
+      return response;
+    } catch (error) {
+      console.error("Error syncing subscription:", error);
       throw error;
     }
   },

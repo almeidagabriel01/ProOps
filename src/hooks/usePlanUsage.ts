@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 interface UsageItem {
@@ -40,13 +40,18 @@ export function usePlanUsage(): UsePlanUsageReturn {
     users: 0,
     storageMB: 0,
   });
+  const hasLoadedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchCounts = async () => {
       if (planLoading || !features) return;
 
-      setIsLoading(true);
+      // Only show loading state if it is the first load
+      if (!hasLoadedRef.current) {
+        setIsLoading(true);
+      }
+
       try {
         const [proposalCount, clientCount, productCount, userCount] = await Promise.all([
           getProposalCount(),
@@ -62,6 +67,7 @@ export function usePlanUsage(): UsePlanUsageReturn {
           users: userCount,
           storageMB: 0, // TODO: Implement storage calculation if needed
         });
+        hasLoadedRef.current = true;
       } catch (error) {
         console.error("Error fetching usage counts:", error);
       } finally {

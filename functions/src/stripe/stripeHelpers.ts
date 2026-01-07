@@ -50,13 +50,18 @@ export type SubscriptionStatus =
 export async function updateSubscriptionStatus(
   userId: string,
   status: SubscriptionStatus,
-  reason?: string
+  reason?: string,
+  currentPeriodEnd?: Date
 ): Promise<void> {
   const userRef = db.collection("users").doc(userId);
   await userRef.update({
     "subscription.status": status,
     "subscription.updatedAt": FieldValue.serverTimestamp(),
     ...(reason && { "subscription.reason": reason }),
+    ...(currentPeriodEnd && {
+      "subscription.currentPeriodEnd": currentPeriodEnd,
+      currentPeriodEnd: currentPeriodEnd.toISOString(),
+    }),
   });
   console.log(`Updated subscription status for user ${userId} to ${status}`);
 }

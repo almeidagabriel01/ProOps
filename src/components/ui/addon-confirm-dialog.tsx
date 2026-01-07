@@ -31,8 +31,8 @@ export function AddonConfirmDialog({
 }: AddonConfirmDialogProps) {
   if (!addon) return null;
 
-  // Convert from cents to reais
-  const monthlyPrice = priceMonthly / 100;
+  // Price comes in UNITS (BRL)
+  const monthlyPrice = priceMonthly;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -99,4 +99,3 @@ export function AddonConfirmDialog({
     </Dialog>
   );
 }
-

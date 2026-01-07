@@ -160,6 +160,25 @@ export function usePlanChange(
       } finally {
         setIsLoading(false);
       }
+
+      // Fetch live prices in background
+      try {
+        const livePlans = await PlanService.getLivePlans();
+        if (livePlans && livePlans.length > 0) {
+          setAllPlans(livePlans);
+          
+          // Update user plan with live data if needed
+          const targetPlanId = effectiveUser?.planId;
+          if (targetPlanId) {
+             const liveUserPlan = livePlans.find(p => p.id === targetPlanId || p.tier === targetPlanId);
+             if (liveUserPlan) {
+               setUserPlan(liveUserPlan);
+             }
+          }
+        }
+      } catch (error) {
+        console.warn("Background price update failed:", error);
+      }
     };
 
     loadPlans();

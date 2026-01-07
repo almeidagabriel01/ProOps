@@ -88,19 +88,20 @@ export const PlanService = {
    * Get all available plans, ordered by hierarchy
    */
   getPlans: async (): Promise<UserPlan[]> => {
-    try {
-      // Try to fetch from Cloud Function first (which syncs with Stripe)
-      const { StripeService } = await import("./stripe-service");
-      const plans = await StripeService.getPlans();
-      if (plans && plans.length > 0) {
-        return plans as UserPlan[];
-      }
-    } catch (error) {
-      console.warn(
-        "Failed to fetch plans from Cloud Function, falling back to Firestore/Defaults",
-        error
-      );
-    }
+    // We rely on Firestore for speed. Live prices are fetched separately if needed.
+    // try {
+    //   // Try to fetch from Cloud Function first (which syncs with Stripe)
+    //   const { StripeService } = await import("./stripe-service");
+    //   const plans = await StripeService.getPlans();
+    //   if (plans && plans.length > 0) {
+    //     return plans as UserPlan[];
+    //   }
+    // } catch (error) {
+    //   console.warn(
+    //     "Failed to fetch plans from Cloud Function, falling back to Firestore/Defaults",
+    //     error
+    //   );
+    // }
 
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
 
@@ -133,6 +134,24 @@ export const PlanService = {
 
     // Sort by order
     return plans.sort((a, b) => a.order - b.order);
+  },
+
+  /**
+   * Get plans directly from Cloud Function (Stripe synced)
+   * Use this when you need absolutely fresh prices
+   */
+  getLivePlans: async (): Promise<UserPlan[] | null> => {
+    try {
+      const { StripeService } = await import("./stripe-service");
+      const plans = await StripeService.getPlans();
+      if (plans && plans.length > 0) {
+        return plans as UserPlan[];
+      }
+      return null;
+    } catch (error) {
+      console.warn("Failed to fetch live plans:", error);
+      return null;
+    }
   },
 
   /**

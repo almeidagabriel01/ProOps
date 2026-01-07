@@ -101,7 +101,9 @@ async function handleSubscriptionUpdated(
         status = "INACTIVE";
     }
 
-    await updateSubscriptionStatus(userId, status);
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+    await updateSubscriptionStatus(userId, status, undefined, currentPeriodEnd);
     console.log(`User ${userId} subscription status synced to ${status}`);
 
     if (planTier) {

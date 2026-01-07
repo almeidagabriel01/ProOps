@@ -4,16 +4,150 @@ import {
   getPriceIdForTier,
   getPriceConfig,
   BillingInterval,
+  getPriceIdForAddon,
 } from "../../stripe/stripeConfig";
+import { updateSubscriptionStatus, cancelAddon as cancelAddonHelper } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
 
 // Handlers adapted from original onCall functions
 
+export const cancelAddon = async (req: Request, res: Response) => {
+  try {
+    const { addonId, tenantId: bodyTenantId } = req.body;
+    const userId = (req as any).user!.uid;
+
+
+    if (!addonId) {
+      return res.status(400).json({ message: "Addon ID is required" });
+    }
+
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    
+    let tenantId = bodyTenantId;
+    if (!tenantId && userSnap.exists) {
+        tenantId = userSnap.data()?.tenantId;
+    }
+
+    if (!tenantId) {
+         tenantId = `tenant_${userId}`;
+    }
+
+    // Look up the addon purchase
+    const dbAddonId = `${tenantId}_${addonId}`;
+    const addonRef = db.collection("addons").doc(dbAddonId);
+    const addonSnap = await addonRef.get();
+
+    if (!addonSnap.exists) {
+       return res.status(404).json({ message: "Addon subscription not found" });
+    }
+
+    const addonData = addonSnap.data();
+    const stripeSubscriptionId = addonData?.stripeSubscriptionId;
+
+    if (!stripeSubscriptionId) {
+         return res.status(400).json({ message: "No active Stripe subscription for this addon" });
+    }
+
+    // Cancel in Stripe
+    const stripe = getStripe();
+    await stripe.subscriptions.cancel(stripeSubscriptionId);
+
+    // Update in Firestore immediately
+    await cancelAddonHelper(tenantId, addonId);
+
+    return res.json({ success: true });
+
+  } catch (error: unknown) {
+    console.error("Cancel Addon Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
+  }
+};
+
+export const createAddonCheckoutSession = async (req: Request, res: Response) => {
+  try {
+    const { addonId, userEmail, tenantId: bodyTenantId } = req.body;
+    const userId = (req as any).user!.uid;
+
+    if (!addonId) {
+      return res.status(400).json({ message: "Addon ID is required" });
+    }
+
+    const priceId = getPriceIdForAddon(addonId);
+
+    if (!priceId) {
+      return res.status(400).json({ message: "Invalid addon or price not configured" });
+    }
+
+    const stripe = getStripe();
+    let customerId = (req as any).user!.stripeId;
+    const userRef = db.collection("users").doc(userId);
+
+    // Only fetch if missing or if we need tenantId
+    let userSnap: FirebaseFirestore.DocumentSnapshot | undefined;
+    
+    // Always fetch user data to get tenantId if not provided
+    userSnap = await userRef.get();
+
+    let tenantId = bodyTenantId;
+    if (userSnap && userSnap.exists) {
+        customerId = userSnap.data()?.stripeId;
+        if (!tenantId) {
+            tenantId = userSnap.data()?.tenantId;
+        }
+    }
+    
+    // Fallback if tenantId is still missing
+    if (!tenantId) {
+        tenantId = `tenant_${userId}`;
+    }
+
+    if (!userSnap.exists) {
+      // Create basic user doc if missing
+         const newUserData = {
+        email: userEmail || "",
+        role: "free",
+        createdAt: new Date().toISOString(),
+        tenantId: tenantId,
+      };
+      await userRef.set(newUserData);
+    } 
+
+    if (!customerId) {
+      // Create stripe customer if not exists
+      const customer = await stripe.customers.create({
+        email: userEmail,
+        metadata: { firebaseUID: userId },
+      });
+      customerId = customer.id;
+      await userRef.update({ stripeId: customerId });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      customer: customerId,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${req.headers.origin || "https://app-url.com"}/profile/addons?success=true`,
+      cancel_url: `${req.headers.origin || "https://app-url.com"}/profile/addons?canceled=true`,
+      metadata: { userId, addonType: addonId, tenantId, type: "addon" },
+      allow_promotion_codes: true,
+    });
+
+    return res.json({ url: session.url });
+  } catch (error: unknown) {
+    console.error("Stripe Addon Checkout Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
+  }
+};
+
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
     const { planTier, userEmail, billingInterval = "monthly" } = req.body;
-    const userId = req.user!.uid;
+    const userId = (req as any).user!.uid;
 
     if (!planTier) {
       return res.status(400).json({ message: "Plan tier is required" });
@@ -30,7 +164,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     }
 
     const stripe = getStripe();
-    let customerId = req.user!.stripeId;
+    let customerId = (req as any).user!.stripeId;
     const userRef = db.collection("users").doc(userId);
 
     // Only fetch if missing
@@ -87,7 +221,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
 export const createPortalSession = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.uid;
+    const userId = (req as any).user!.uid;
     const userSnap = await db.collection("users").doc(userId).get();
     const stripeId = userSnap.data()?.stripeId;
 
@@ -112,6 +246,7 @@ export const getPlans = async (_req: Request, res: Response) => {
   try {
     const stripe = getStripe();
     const priceConfig = getPriceConfig();
+    console.log("Fetching plans and addons prices");
 
     // Plan metadata (features, descriptions, etc.)
     const planMetadata: Record<
@@ -180,10 +315,18 @@ export const getPlans = async (_req: Request, res: Response) => {
 
     // Collect all price IDs to fetch from Stripe
     const priceIds: string[] = [];
+
+    // Plans
     for (const tier of Object.keys(priceConfig.plans)) {
       const tierConfig = priceConfig.plans[tier];
       if (tierConfig.monthly) priceIds.push(tierConfig.monthly);
       if (tierConfig.yearly) priceIds.push(tierConfig.yearly);
+    }
+
+    // Addons
+    for (const addonType of Object.keys(priceConfig.addons)) {
+      const addonConfig = priceConfig.addons[addonType];
+      if (addonConfig.monthly) priceIds.push(addonConfig.monthly);
     }
 
     // Fetch all prices from Stripe in parallel
@@ -237,10 +380,20 @@ export const getPlans = async (_req: Request, res: Response) => {
       }
     );
 
+    // Build addons response
+    const addons: Record<string, { monthly: { amount: number } }> = {};
+    for (const [addonType, config] of Object.entries(priceConfig.addons)) {
+      const monthlyId = config.monthly;
+      const amount = priceMap[monthlyId]?.amount || 0;
+      addons[addonType] = {
+        monthly: { amount },
+      };
+    }
+
     // Sort by order
     plans.sort((a, b) => a.order - b.order);
 
-    return res.json({ success: true, plans });
+    return res.json({ success: true, plans, addons });
   } catch (error) {
     console.error("Error fetching plans from Stripe:", error);
     return res.status(500).json({
@@ -248,5 +401,81 @@ export const getPlans = async (_req: Request, res: Response) => {
       message: "Error fetching plans",
       plans: [],
     });
+  }
+};
+
+export const syncSubscription = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user!.uid;
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
+
+    if (!userData) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Try to find subscription ID from various fields
+    const stripeSubscriptionId =
+      userData.stripeSubscriptionId || userData.subscription?.id;
+
+    if (!stripeSubscriptionId) {
+      return res.status(400).json({ message: "No active subscription found" });
+    }
+
+    const stripe = getStripe();
+    let subscription;
+
+    try {
+      subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    } catch (e) {
+      console.error("Stripe retrieve error:", e);
+      return res.status(400).json({ message: "Subscription not found in Stripe" });
+    }
+
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found" });
+    }
+
+    // Update status
+    let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
+    switch (subscription.status) {
+      case "active":
+        status = "ACTIVE";
+        break;
+      case "trialing":
+        status = "TRIALING";
+        break;
+      case "past_due":
+        status = "PAST_DUE";
+        break;
+      case "canceled":
+      case "unpaid":
+        status = "CANCELED";
+        break;
+      default:
+        status = "INACTIVE";
+    }
+
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+    await updateSubscriptionStatus(
+      userId,
+      status,
+      "Manual Sync",
+      currentPeriodEnd
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        status,
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error("Sync Subscription Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
   }
 };

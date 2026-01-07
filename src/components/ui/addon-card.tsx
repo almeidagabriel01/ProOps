@@ -48,10 +48,9 @@ export function AddonCard({
   const { tenant } = useTenant();
   const IconComponent = iconMap[addon.icon] || DollarSign;
 
-  // Price comes ONLY from Stripe - no fallback
-  const monthlyPrice = dynamicPriceMonthly !== undefined
-    ? dynamicPriceMonthly / 100
-    : null;
+  // Price comes from Stripe in UNITS (BRL), not cents
+  const monthlyPrice =
+    dynamicPriceMonthly !== undefined ? dynamicPriceMonthly : null;
 
   // Helper to lighten color
   const lightenColor = (hex: string, percent: number): string => {
@@ -70,8 +69,9 @@ export function AddonCard({
 
   return (
     <Card
-      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${isPurchased ? "ring-2" : ""
-        }`}
+      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${
+        isPurchased ? "ring-2" : ""
+      }`}
       style={{
         borderColor: isPurchased ? primaryColor : undefined,
       }}
@@ -161,4 +161,3 @@ export function AddonCard({
     </Card>
   );
 }
-

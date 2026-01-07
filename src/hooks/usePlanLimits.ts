@@ -62,7 +62,7 @@ interface UsePlanLimitsReturn {
 
 export function usePlanLimits(): UsePlanLimitsReturn {
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, isLoading: isTenantLoading } = useTenant();
   const [baseFeatures, setBaseFeatures] = useState<PlanFeatures | null>(null);
   const [planTier, setPlanTier] = useState<PlanTier>("starter");
   const [purchasedAddons, setPurchasedAddons] = useState<AddonType[]>([]);
@@ -155,11 +155,18 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadFeatures();
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.planId, (user as any)?.masterId]);
 
-  // Load addons when tenant changes
+  // Load addons when tenant changes or finishes loading
   useEffect(() => {
     const loadAddonsAsync = async () => {
+      // If tenant is still loading globally, keep addons loading state true
+      if (isTenantLoading) {
+        setIsAddonsLoading(true);
+        return;
+      }
+
       setIsAddonsLoading(true);
       
       if (!tenant?.id) {
@@ -184,7 +191,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadAddonsAsync();
-  }, [tenant]);
+  }, [tenant, isTenantLoading]);
 
   // Refresh addons function (for external calls)
   const refreshAddons = useCallback(async () => {

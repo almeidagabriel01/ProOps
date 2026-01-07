@@ -58,10 +58,21 @@ export default function AddonsPage() {
   const [addonToCancel, setAddonToCancel] =
     React.useState<AddonDefinition | null>(null);
 
-  // Handle canceled URL param and addon_cancelled param
+  // Handle success/canceled URL params
   React.useEffect(() => {
+    const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
     const addonCancelled = searchParams.get("addon_cancelled");
+
+    if (success === "true") {
+      toast.success(
+        "Pagamento realizado com sucesso! Seu add-on será ativado em instantes.",
+        {
+          toastId: "addon-payment-success",
+        }
+      );
+      router.replace("/profile/addons");
+    }
 
     if (canceled === "true") {
       toast.error("Pagamento cancelado. Nenhuma alteração foi feita.", {
@@ -111,10 +122,12 @@ export default function AddonsPage() {
         window.location.href = data.url;
       } else {
         console.error("No checkout URL returned:", data);
+        toast.error("Erro ao gerar link de pagamento. Tente novamente.");
         setIsProcessing(null);
       }
     } catch (error) {
       console.error("Error purchasing add-on:", error);
+      toast.error("Erro ao processar a solicitação. Tente novamente.");
       setIsProcessing(null);
     }
   };
@@ -137,13 +150,11 @@ export default function AddonsPage() {
       const { StripeService } = await import("@/services/stripe-service");
       await StripeService.cancelAddon({
         addonId: addonToCancel.id,
-        tenantId: tenant?.id
+        tenantId: tenant?.id,
       });
-
 
       // Reload page with query param to show toast after reload
       window.location.href = "/profile/addons?addon_cancelled=true";
-
 
       // Reload page with query param to show toast after reload
       window.location.href = "/profile/addons?addon_cancelled=true";
