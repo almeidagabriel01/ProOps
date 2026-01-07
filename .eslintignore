@@ -1,6 +1,0 @@
-functions/**
-functions/lib/**
-node_modules
-.next
-build
-out

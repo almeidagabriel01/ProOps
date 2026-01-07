@@ -18,9 +18,10 @@ export function useUpdatePermissions() {
 
       toast.success("Permissões atualizadas com sucesso!");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating permissions:", error);
-      toast.error(error.message || "Erro ao atualizar permissões.");
+      const message = error instanceof Error ? error.message : "Erro ao atualizar permissões.";
+      toast.error(message);
       return false;
     } finally {
       setLoading(false);
@@ -32,7 +33,7 @@ export function useUpdatePermissions() {
     pageId: string,
     key: string,
     value: boolean,
-    _currentPermissions: any
+    _currentPermissions: unknown
   ) => {
     setLoading(true);
     try {
@@ -48,9 +49,10 @@ export function useUpdatePermissions() {
       });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating permissions:", error);
-      toast.error(error.message || "Erro ao atualizar permissões.");
+      const message = error instanceof Error ? error.message : "Erro ao atualizar permissões.";
+      toast.error(message);
       return { success: false };
     } finally {
       setLoading(false);

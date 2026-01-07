@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { PlanFeatures, AddonType, PlanTier, PurchasedAddon } from "@/types";
+import { PlanFeatures, AddonType, PlanTier, PurchasedAddon, User } from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
 import { AddonService } from "@/services/addon-service";
 import {
@@ -156,7 +156,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     loadFeatures();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.planId, (user as any)?.masterId]);
+  }, [user?.role, user?.planId, (user as User & { masterId?: string })?.masterId]);
 
   // Load addons when tenant changes or finishes loading
   useEffect(() => {

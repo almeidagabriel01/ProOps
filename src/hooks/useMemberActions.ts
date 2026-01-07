@@ -34,9 +34,10 @@ export function useMemberActions() {
 
       toast.success("Membro removido com sucesso.");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting member:", error);
-      toast.error(error.message || "Erro ao remover membro.");
+      const message = error instanceof Error ? error.message : "Erro ao remover membro.";
+      toast.error(message);
       return false;
     } finally {
       setIsLoading(false);
@@ -53,9 +54,10 @@ export function useMemberActions() {
 
       toast.success("Membro atualizado com sucesso.");
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error updating member:", error);
-      toast.error(error.message || "Erro ao atualizar membro.");
+      const message = error instanceof Error ? error.message : "Erro ao atualizar membro.";
+      toast.error(message);
       return false;
     } finally {
       setIsLoading(false);

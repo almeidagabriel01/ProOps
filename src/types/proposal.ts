@@ -18,6 +18,15 @@ export interface ProposalProduct {
   isMonthly?: boolean;
 }
 
+export interface ProposalSystemInstance {
+  sistemaId: string;
+  ambienteId: string;
+  sistemaName: string;
+  ambienteName: string;
+  description?: string;
+  productIds: string[];
+}
+
 export interface Proposal {
   id: string;
   tenantId: string;
@@ -30,7 +39,7 @@ export interface Proposal {
   clientAddress?: string;
   validUntil?: string;
   products: ProposalProduct[];
-  sistemas: Record<string, unknown>[];
+  sistemas: ProposalSystemInstance[];
   sections: Record<string, unknown>[];
   discount?: number;
   totalValue?: number;

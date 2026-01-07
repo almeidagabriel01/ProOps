@@ -130,7 +130,9 @@ export function SistemaManagerDialog({
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
               <p>Nenhum template de sistema criado.</p>
-              <p className="text-sm">Clique em "Novo Template" para criar.</p>
+              <p className="text-sm">
+                Clique em &quot;Novo Template&quot; para criar.
+              </p>
             </div>
           ) : (
             sistemas.map((sistema) => (

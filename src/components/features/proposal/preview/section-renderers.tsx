@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { ProposalSection, CustomFieldType } from "@/types";
-import { Proposal } from "@/services/proposal-service";
+import {
+  Proposal,
+  ProposalProduct,
+  ProposalSystemInstance,
+} from "@/services/proposal-service";
 import { CustomFieldService } from "@/services/custom-field-service";
 
 // ============================================
@@ -28,14 +32,21 @@ export function parseContent(content: string): Record<string, unknown> {
   }
 }
 
-export function getTextStyleObj(textStyle: any) {
+export function getTextStyleObj(
+  textStyle: Record<string, string | number> | undefined
+) {
+  if (!textStyle) return {};
   return {
-    color: textStyle?.color || undefined,
-    fontSize: textStyle?.fontSize ? `${textStyle.fontSize}px` : undefined,
-    fontWeight: textStyle?.fontWeight || undefined,
-    fontStyle: textStyle?.fontStyle || undefined,
-    textAlign: textStyle?.textAlign || undefined,
-    textDecoration: textStyle?.textDecoration || undefined,
+    color: textStyle.color ? String(textStyle.color) : undefined,
+    fontSize: textStyle.fontSize ? `${textStyle.fontSize}px` : undefined,
+    fontWeight: textStyle.fontWeight ? String(textStyle.fontWeight) : undefined,
+    fontStyle: textStyle.fontStyle ? String(textStyle.fontStyle) : undefined,
+    textAlign:
+      (textStyle.textAlign as "left" | "center" | "right" | "justify") ||
+      undefined,
+    textDecoration: textStyle.textDecoration
+      ? String(textStyle.textDecoration)
+      : undefined,
   };
 }
 
@@ -67,9 +78,9 @@ export function ProductTableSection({
   }
 
   const renderProductTable = (
-    items: any[],
+    items: ProposalProduct[],
     title?: string,
-    sistemaInfo?: any
+    sistemaInfo?: ProposalSystemInstance
   ) => {
     const total = items.reduce(
       (sum, item) => sum + (item.total || item.quantity * item.unitPrice),
@@ -164,10 +175,10 @@ export function ProductTableSection({
 
   if (hasSistemas) {
     const sistemaProductIds = new Set(
-      sistemas.flatMap((s: any) => s.productIds || [])
+      sistemas.flatMap((s) => s.productIds || [])
     );
     const extraProducts = products.filter(
-      (p: any) => !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+      (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId)
     );
 
     return (
@@ -181,16 +192,16 @@ export function ProductTableSection({
           </h2>
         )}
 
-        {sistemas.map((sistema: any) => {
+        {sistemas.map((sistema) => {
           const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
           let sistemaProducts = products.filter(
-            (p: any) => p.systemInstanceId === systemInstanceId
+            (p) => p.systemInstanceId === systemInstanceId
           );
 
           // Fallback for legacy proposals
-          const isLegacy = !products.some((p: any) => p.systemInstanceId);
+          const isLegacy = !products.some((p) => p.systemInstanceId);
           if (sistemaProducts.length === 0 && isLegacy) {
-            sistemaProducts = products.filter((p: any) =>
+            sistemaProducts = products.filter((p) =>
               sistema.productIds?.includes(p.productId)
             );
           }

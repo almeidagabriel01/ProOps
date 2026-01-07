@@ -10,7 +10,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { Proposal } from "@/types/proposal";
+import { Proposal, ProposalProduct } from "@/types/proposal";
 
 const COLLECTION_NAME = "proposals";
 
@@ -140,7 +140,7 @@ export const ProposalService = {
         const data = doc.data();
         const products = data.products || [];
         // Check if any product in the array matches exactly the productId
-        if (Array.isArray(products) && products.some((p: any) => p.productId === productId)) {
+        if (Array.isArray(products) && products.some((p: ProposalProduct) => p.productId === productId)) {
           return true;
         }
       }

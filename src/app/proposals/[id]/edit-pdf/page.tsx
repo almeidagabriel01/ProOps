@@ -227,7 +227,7 @@ export default function EditPdfPage() {
                       coverLogo,
                       coverImageOpacity,
                       coverImageFit,
-                      coverImagePosition: coverImagePosition as any,
+                      coverImagePosition: coverImagePosition as string,
                       sections,
                       repeatHeader,
                     }}

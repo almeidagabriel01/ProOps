@@ -129,7 +129,7 @@ function PdfDownloader({
         proposal={proposal}
         template={template}
         tenant={tenant}
-        customSettings={proposal.pdfSettings as any}
+        customSettings={proposal.pdfSettings as ProposalPdfSettings}
         showCover={true}
         noMargins={true}
       />
@@ -395,7 +395,7 @@ export default function ProposalsPage() {
               const productCount = proposal.products?.length || 0;
               const total =
                 proposal.products?.reduce(
-                  (sum: number, p: any) => sum + p.total,
+                  (sum: number, p: { total: number }) => sum + p.total,
                   0
                 ) || 0;
               return (
