@@ -6,14 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import {
-  ArrowLeft,
-  FileDown,
-  Save,
-  Loader2,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { ArrowLeft, Save, Loader2, ZoomIn, ZoomOut } from "lucide-react";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useEditPdfPage } from "@/components/features/proposal/edit-pdf/use-edit-pdf-page";
 import { PdfEditorTabs } from "@/components/features/proposal/edit-pdf/pdf-editor-tabs";
@@ -138,18 +131,6 @@ export default function EditPdfPage() {
               <Save className="w-4 h-4" />
             )}
             Salvar
-          </Button>
-          <Button
-            onClick={handleGeneratePdf}
-            disabled={isGenerating}
-            className="gap-2"
-          >
-            {isGenerating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <FileDown className="w-4 h-4" />
-            )}
-            Baixar PDF
           </Button>
         </div>
       </div>

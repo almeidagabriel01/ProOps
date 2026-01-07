@@ -201,7 +201,9 @@ export function ImageEditor({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file && !ALLOWED_TYPES.includes(file.type)) {
-                    alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
+                    alert(
+                      "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+                    );
                     e.target.value = "";
                     return;
                   }
@@ -298,13 +300,14 @@ export function ImageEditor({
           <input
             type="checkbox"
             id={`border-${section.id}`}
-            checked={section.styles.imageBorder || false}
+            checked={!!section.styles.imageBorder}
             onChange={(e) =>
-              updateStyle(
-                section.id,
-                "imageBorder",
-                e.target.checked ? "true" : ""
-              )
+              updateSection(section.id, {
+                styles: {
+                  ...section.styles,
+                  imageBorder: e.target.checked,
+                },
+              })
             }
             className="w-4 h-4"
           />

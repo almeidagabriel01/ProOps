@@ -20,6 +20,7 @@ import {
   Send,
   XCircle,
   Clock,
+  FileDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -66,6 +67,75 @@ const statusOptions: {
 
 import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
+import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
+import { ProposalPdfSettings, Tenant } from "@/types";
+
+import { ProposalDefaults } from "@/lib/proposal-defaults";
+
+function PdfDownloader({
+  proposal,
+  tenant,
+  isOpen,
+  onClose,
+}: {
+  proposal: Proposal | null;
+  tenant: Tenant | null;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const { handleGenerate, isGenerating } = usePdfGenerator({
+    proposal: proposal || {},
+    settings: (proposal?.pdfSettings as ProposalPdfSettings) || {},
+    includeCover: true,
+    setIsOpen: (v) => !v && onClose(),
+  });
+
+  const template = React.useMemo(() => {
+    if (!tenant) return null;
+    return ProposalDefaults.createDefaultTemplate(
+      tenant.id,
+      tenant.name,
+      tenant.primaryColor || "#2563eb"
+    );
+  }, [tenant]);
+
+  React.useEffect(() => {
+    if (isOpen && proposal && !isGenerating) {
+      // Small timeout to ensure rendering is complete
+      const timer = setTimeout(() => {
+        handleGenerate("proposal-pdf-source-root");
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, proposal]);
+
+  if (!proposal) return null;
+
+  return (
+    <div
+      id="proposal-pdf-source-root"
+      style={{
+        position: "fixed",
+        top: "-10000px",
+        left: "-10000px",
+        zIndex: -1,
+        // Ensure container has width/height context for children
+        width: "210mm",
+        height: "auto",
+      }}
+    >
+      <ProposalPdfViewer
+        proposal={proposal}
+        template={template}
+        tenant={tenant}
+        customSettings={proposal.pdfSettings as any}
+        showCover={true}
+        noMargins={true}
+      />
+    </div>
+  );
+}
 
 export default function ProposalsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -78,6 +148,11 @@ export default function ProposalsPage() {
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null
   );
+  const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
+
+  const handleDownload = (proposal: Proposal) => {
+    setDownloadingId(proposal.id);
+  };
 
   // Filter proposals based on search term
   const filteredProposals = React.useMemo(() => {
@@ -427,6 +502,20 @@ export default function ProposalsPage() {
                           <Eye className="w-4 h-4" />
                         </Button>
                       </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleDownload(proposal)}
+                        disabled={downloadingId === proposal.id}
+                        title="Baixar PDF"
+                      >
+                        {downloadingId === proposal.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FileDown className="w-4 h-4" />
+                        )}
+                      </Button>
                       {canEdit && (
                         <Link href={`/proposals/${proposal.id}`}>
                           <Button
@@ -470,6 +559,13 @@ export default function ProposalsPage() {
         )}
       </div>
       {renderDialogs()}
+
+      <PdfDownloader
+        proposal={proposals.find((p) => p.id === downloadingId) || null}
+        tenant={tenant}
+        isOpen={!!downloadingId}
+        onClose={() => setDownloadingId(null)}
+      />
     </>
   );
 }

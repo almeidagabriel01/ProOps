@@ -125,14 +125,18 @@ export default function ViewProposalPage() {
           const [r, g, b, a] = canvasCtx.getImageData(0, 0, 1, 1).data;
 
           if (a === 0) {
-            if (propertyName.toLowerCase() === 'color') return "#000000";
-            if (propertyName.toLowerCase().includes("border") || propertyName.toLowerCase().includes("stroke")) return "#000000";
+            if (propertyName.toLowerCase() === "color") return "#000000";
+            if (
+              propertyName.toLowerCase().includes("border") ||
+              propertyName.toLowerCase().includes("stroke")
+            )
+              return "#000000";
           }
 
           const rgba = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
           return rgba;
         } catch {
-          if (propertyName.toLowerCase() === 'color') return "#000000";
+          if (propertyName.toLowerCase() === "color") return "#000000";
           return "transparent";
         }
       };
@@ -152,42 +156,126 @@ export default function ViewProposalPage() {
         // COMPREHENSIVE LIST OF PROPERTIES FOR VISUAL FIDELITY
         const propertiesToCopy = [
           // Layout Enforcers (Critical)
-          "display", "position", "boxSizing",
-          "top", "left", "right", "bottom",
-          "width", "height", "minWidth", "minHeight", "maxWidth", "maxHeight",
-          "margin", "marginTop", "marginBottom", "marginLeft", "marginRight",
-          "padding", "paddingTop", "paddingBottom", "paddingLeft", "paddingRight",
+          "display",
+          "position",
+          "boxSizing",
+          "top",
+          "left",
+          "right",
+          "bottom",
+          "width",
+          "height",
+          "minWidth",
+          "minHeight",
+          "maxWidth",
+          "maxHeight",
+          "margin",
+          "marginTop",
+          "marginBottom",
+          "marginLeft",
+          "marginRight",
+          "padding",
+          "paddingTop",
+          "paddingBottom",
+          "paddingLeft",
+          "paddingRight",
 
           // Borders
-          "borderTopWidth", "borderBottomWidth", "borderLeftWidth", "borderRightWidth",
-          "borderTopStyle", "borderBottomStyle", "borderLeftStyle", "borderRightStyle",
-          "borderTopColor", "borderBottomColor", "borderLeftColor", "borderRightColor",
-          "borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius",
-          "outline", "outlineColor", "outlineStyle", "outlineWidth",
+          "borderTopWidth",
+          "borderBottomWidth",
+          "borderLeftWidth",
+          "borderRightWidth",
+          "borderTopStyle",
+          "borderBottomStyle",
+          "borderLeftStyle",
+          "borderRightStyle",
+          "borderTopColor",
+          "borderBottomColor",
+          "borderLeftColor",
+          "borderRightColor",
+          "borderTopLeftRadius",
+          "borderTopRightRadius",
+          "borderBottomLeftRadius",
+          "borderBottomRightRadius",
+          "outline",
+          "outlineColor",
+          "outlineStyle",
+          "outlineWidth",
 
           // Flex & Grid
-          "flex", "flexDirection", "flexWrap", "justifyContent", "alignItems", "alignContent", "gap", "order", "flexGrow", "flexShrink", "flexBasis",
-          "gridTemplateColumns", "gridTemplateRows", "gridTemplateAreas", "gridAutoColumns", "gridAutoRows", "gridAutoFlow", "gridColumn", "gridRow", "gridArea", "columnGap", "rowGap",
+          "flex",
+          "flexDirection",
+          "flexWrap",
+          "justifyContent",
+          "alignItems",
+          "alignContent",
+          "gap",
+          "order",
+          "flexGrow",
+          "flexShrink",
+          "flexBasis",
+          "gridTemplateColumns",
+          "gridTemplateRows",
+          "gridTemplateAreas",
+          "gridAutoColumns",
+          "gridAutoRows",
+          "gridAutoFlow",
+          "gridColumn",
+          "gridRow",
+          "gridArea",
+          "columnGap",
+          "rowGap",
 
           // Typography
-          "font", "fontFamily", "fontSize", "fontWeight", "fontStyle", "lineHeight", "letterSpacing", "textAlign", "textTransform", "textDecoration", "textDecorationColor", "textUnderlineOffset", "whiteSpace", "wordBreak", "overflowWrap", "textOverflow", "verticalAlign",
+          "font",
+          "fontFamily",
+          "fontSize",
+          "fontWeight",
+          "fontStyle",
+          "lineHeight",
+          "letterSpacing",
+          "textAlign",
+          "textTransform",
+          "textDecoration",
+          "textDecorationColor",
+          "textUnderlineOffset",
+          "whiteSpace",
+          "wordBreak",
+          "overflowWrap",
+          "textOverflow",
+          "verticalAlign",
 
           // Visuals
-          "color", "backgroundColor",
-          "opacity", "visibility", "zIndex",
-          "boxShadow", "overflow", "overflowX", "overflowY",
-          "transform", "transformOrigin",
-          "fill", "stroke", "strokeWidth",
-          "objectFit", "objectPosition", "aspectRatio"
+          "color",
+          "backgroundColor",
+          "opacity",
+          "visibility",
+          "zIndex",
+          "boxShadow",
+          "overflow",
+          "overflowX",
+          "overflowY",
+          "transform",
+          "transformOrigin",
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "objectFit",
+          "objectPosition",
+          "aspectRatio",
         ];
 
-        propertiesToCopy.forEach(prop => {
+        propertiesToCopy.forEach((prop) => {
           let val = computed[prop as keyof CSSStyleDeclaration];
-          if (!val || typeof val !== 'string') return;
+          if (!val || typeof val !== "string") return;
 
           // 1. Sanitize Colors
-          if (typeof val === 'string') {
-            if (prop.toLowerCase().includes("color") || prop.toLowerCase() === "fill" || prop.toLowerCase() === "stroke") {
+          if (typeof val === "string") {
+            if (
+              prop.toLowerCase().includes("color") ||
+              prop.toLowerCase() === "fill" ||
+              prop.toLowerCase() === "stroke"
+            ) {
               val = safeColor(val, prop);
             }
             // 2. Kill Complex Bad Color Strings
@@ -201,7 +289,9 @@ export default function ViewProposalPage() {
           }
 
           if (val) {
-            const kebab = prop.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
+            const kebab = prop
+              .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2")
+              .toLowerCase();
             clone.style.setProperty(kebab, val, "important");
           }
         });
@@ -210,7 +300,10 @@ export default function ViewProposalPage() {
         if (computed.backgroundImage && computed.backgroundImage !== "none") {
           if (containsModernColor(computed.backgroundImage)) {
             clone.style.backgroundImage = "none";
-            clone.style.backgroundColor = safeColor(computed.backgroundColor, "backgroundColor");
+            clone.style.backgroundColor = safeColor(
+              computed.backgroundColor,
+              "backgroundColor"
+            );
           } else {
             clone.style.backgroundImage = computed.backgroundImage;
           }
@@ -226,18 +319,28 @@ export default function ViewProposalPage() {
           const fill = computed.fill;
           const stroke = computed.stroke;
           if (fill && containsModernColor(fill)) {
-            clone.style.setProperty("fill", safeColor(fill, "fill"), "important");
+            clone.style.setProperty(
+              "fill",
+              safeColor(fill, "fill"),
+              "important"
+            );
           }
           if (stroke && containsModernColor(stroke)) {
-            clone.style.setProperty("stroke", safeColor(stroke, "stroke"), "important");
+            clone.style.setProperty(
+              "stroke",
+              safeColor(stroke, "stroke"),
+              "important"
+            );
           }
         }
 
         // --- CRITICAL FIX: USE childNodes INSTEAD OF children TO INCLUDE TEXT NODES ---
-        Array.from(node.childNodes).forEach(child => {
-          if (child.nodeType === Node.ELEMENT_NODE) { // 1
+        Array.from(node.childNodes).forEach((child) => {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            // 1
             clone.appendChild(deepCloneWithStyles(child as HTMLElement));
-          } else if (child.nodeType === Node.TEXT_NODE) { // 3
+          } else if (child.nodeType === Node.TEXT_NODE) {
+            // 3
             clone.appendChild(child.cloneNode(true));
           } else if (child.nodeType === Node.COMMENT_NODE) {
             // Ignore comments
@@ -273,9 +376,9 @@ export default function ViewProposalPage() {
         let fontFaceRules = "";
 
         try {
-          Array.from(document.styleSheets).forEach(sheet => {
+          Array.from(document.styleSheets).forEach((sheet) => {
             try {
-              Array.from(sheet.cssRules).forEach(rule => {
+              Array.from(sheet.cssRules).forEach((rule) => {
                 if (rule.type === CSSRule.FONT_FACE_RULE) {
                   let ruleText = rule.cssText;
                   ruleText = ruleText.replace(
@@ -295,7 +398,6 @@ export default function ViewProposalPage() {
 
         styleElement.textContent = fontFaceRules;
         iframeDoc.head.appendChild(styleElement);
-
 
         // --- 2. CLONE & INSERT ---
         const clonedElement = deepCloneWithStyles(previewElement);
@@ -367,20 +469,23 @@ export default function ViewProposalPage() {
           });
 
           await Promise.all(
-            images.map((img) => new Promise<void>((resolve) => {
-              if (img.complete) resolve();
-              else {
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-              }
-            }))
+            images.map(
+              (img) =>
+                new Promise<void>((resolve) => {
+                  if (img.complete) resolve();
+                  else {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve();
+                  }
+                })
+            )
           );
 
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
 
         // --- 5. RENDER EACH PAGE INDIVIDUALLY ---
-        const pageContainers = container.querySelectorAll('[data-page-index]');
+        const pageContainers = container.querySelectorAll("[data-page-index]");
 
         if (pageContainers.length === 0) {
           toast.error("Erro: Nenhuma página encontrada para gerar PDF");
@@ -402,7 +507,7 @@ export default function ViewProposalPage() {
             logging: false,
             allowTaint: true,
             backgroundColor: "#ffffff",
-            width: 794,  // Fixed A4 width
+            width: 794, // Fixed A4 width
             height: 1123, // Fixed A4 height
           });
 
@@ -422,16 +527,13 @@ export default function ViewProposalPage() {
           );
         }
 
-
         const filename = `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`;
         pdf.save(filename);
-
       } finally {
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe);
         }
       }
-
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       toast.error("Erro ao gerar PDF: Cores não suportadas detectadas.");
@@ -554,7 +656,11 @@ export default function ViewProposalPage() {
               template={template} // Keep for fallback or minimal defaults
               tenant={tenant}
               // Inject saved settings from Firestore if available
-              customSettings={(proposal.pdfSettings as Parameters<typeof ProposalPdfViewer>[0]['customSettings']) ?? undefined}
+              customSettings={
+                (proposal.pdfSettings as Parameters<
+                  typeof ProposalPdfViewer
+                >[0]["customSettings"]) ?? undefined
+              }
             />
           </div>
         </CardContent>

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React from "react";
 
 export const fontOptions = [
   { value: "'Inter', sans-serif", label: "Inter (Moderna)" },
@@ -55,7 +54,13 @@ export const themeOptions = [
   },
 ];
 
-export type ThemeType = "modern" | "classic" | "minimal" | "tech" | "elegant" | "bold";
+export type ThemeType =
+  | "modern"
+  | "classic"
+  | "minimal"
+  | "tech"
+  | "elegant"
+  | "bold";
 
 export function lightenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace("#", ""), 16);
@@ -72,9 +77,7 @@ export const adjustColor = (hex: string, percent: number): string => {
   const R = Math.min(255, Math.max(0, (num >> 16) + amt));
   const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
   const B = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
-  return (
-    "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)
-  );
+  return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 };
 
 export const getContentStyles = (theme: ThemeType, primaryColor: string) => {
@@ -102,6 +105,8 @@ export const getContentStyles = (theme: ThemeType, primaryColor: string) => {
       color: "#1f2937",
     },
     productSub: { color: "#6b7280" },
+    subtotal: { color: "#374151" },
+    discount: { color: "#dc2626" },
     total: { color: primaryColor },
   };
 
@@ -112,11 +117,11 @@ export const getContentStyles = (theme: ThemeType, primaryColor: string) => {
         headerSub: { color: "#6b7280" },
         productCard: {
           backgroundColor: "#ffffff",
-          borderColor: primaryColor, 
+          borderColor: primaryColor,
           color: "#1f2937",
         },
         productCardAlt: {
-          backgroundColor: "#f3f4f6", 
+          backgroundColor: "#f3f4f6",
           borderColor: primaryColor,
           color: "#1f2937",
         },
@@ -143,29 +148,31 @@ export const getContentStyles = (theme: ThemeType, primaryColor: string) => {
       return {
         ...base,
         container: {
-          backgroundColor: primaryColor,
-          color: "#ffffff",
+          backgroundColor: "#ffffff",
+          color: "#1f2937",
           padding: "48px",
           position: "relative" as const,
           overflow: "hidden" as const,
         },
-        headerBorder: { borderColor: "#ffffff" },
-        headerTitle: { color: "#ffffff" },
-        headerSub: { color: "rgba(255,255,255,0.8)" },
-        sectionText: { color: "#ffffff" },
-        productTitle: { borderColor: "#ffffff", color: "#ffffff" },
+        headerBorder: { borderColor: primaryColor },
+        headerTitle: { color: primaryColor },
+        headerSub: { color: "#4b5563" },
+        sectionText: { color: "#374151" },
+        productTitle: { borderColor: primaryColor, color: primaryColor },
         productCard: {
-          backgroundColor: "rgba(255,255,255,0.1)",
-          borderColor: "rgba(255,255,255,0.2)",
-          color: "#ffffff",
+          backgroundColor: `${primaryColor}08`,
+          borderColor: `${primaryColor}30`,
+          color: "#1f2937",
         },
         productCardAlt: {
-          backgroundColor: "rgba(255,255,255,0.05)",
-          borderColor: "rgba(255,255,255,0.1)",
-          color: "#ffffff",
+          backgroundColor: `${primaryColor}05`,
+          borderColor: `${primaryColor}20`,
+          color: "#1f2937",
         },
-        productSub: { color: "rgba(255,255,255,0.7)" },
-        total: { color: "#ffffff" },
+        productSub: { color: "#6b7280" },
+        subtotal: { color: "#374151" },
+        discount: { color: "#dc2626" },
+        total: { color: primaryColor },
       };
     case "minimal":
       return base;
@@ -174,7 +181,10 @@ export const getContentStyles = (theme: ThemeType, primaryColor: string) => {
   }
 };
 
-export const PdfThemeDecorations: React.FC<{ theme: ThemeType; primaryColor: string }> = ({ theme, primaryColor }) => {
+export const PdfThemeDecorations: React.FC<{
+  theme: ThemeType;
+  primaryColor: string;
+}> = ({ theme, primaryColor }) => {
   switch (theme) {
     case "modern":
       return (

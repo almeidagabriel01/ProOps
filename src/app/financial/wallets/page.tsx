@@ -64,6 +64,9 @@ export default function WalletsPage() {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isArchiving, setIsArchiving] = React.useState(false);
   const [isTransferring, setIsTransferring] = React.useState(false);
+  const [settingDefaultId, setSettingDefaultId] = React.useState<string | null>(
+    null
+  );
   const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false);
   const [walletForHistory, setWalletForHistory] = React.useState<Wallet | null>(
     null
@@ -104,7 +107,8 @@ export default function WalletsPage() {
   }, [wallets, searchTerm, filterType, filterStatus]);
 
   // Include isPlanLoading in isLoading to show skeleton while loading plan data
-  const showSkeleton = isLoading || isPlanLoading || isTransferring;
+  const showSkeleton =
+    isLoading || isPlanLoading || isTransferring || settingDefaultId !== null;
 
   // Handlers
   const handleCreateWallet = () => {
@@ -158,11 +162,11 @@ export default function WalletsPage() {
     return await adjustBalance(walletId, data);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (force: boolean) => {
     if (!selectedWallet) return;
 
     setIsDeleting(true);
-    await deleteWallet(selectedWallet.id);
+    await deleteWallet(selectedWallet.id, force);
     setIsDeleting(false);
     setDeleteDialogOpen(false);
     setSelectedWallet(null);
@@ -186,7 +190,9 @@ export default function WalletsPage() {
   };
 
   const handleSetDefault = async (wallet: Wallet) => {
+    setSettingDefaultId(wallet.id);
     await setWalletAsDefault(wallet.id);
+    setSettingDefaultId(null);
   };
 
   const activeWallets = wallets.filter((w) => w.status === "active");
