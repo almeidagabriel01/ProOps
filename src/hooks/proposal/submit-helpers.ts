@@ -1,5 +1,6 @@
 import { Proposal, ProposalProduct, ProposalService } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
+import { ProposalStatus } from "@/types/proposal";
 import { toast } from "react-toastify";
 
 interface CreateProposalPayload {
@@ -68,6 +69,7 @@ export async function updateProposal(payload: UpdateProposalPayload): Promise<vo
     discount: formData.discount || 0,
     products: productsForUpdate,
     sistemas: sistemasPayload,
+    status: (formData.status as ProposalStatus) || "draft",
   });
   
   toast.success("Proposta atualizada com sucesso!");
@@ -98,5 +100,6 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
       ? transformSistemas(selectedSistemas) 
       : undefined,
     targetTenantId: tenantId, // Pass tenant ID to backend (for super admin)
+    status: (formData.status as ProposalStatus) || "draft",
   };
 }

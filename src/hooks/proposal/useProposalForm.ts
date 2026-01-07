@@ -8,7 +8,7 @@ import {
   ProposalService,
 } from "@/services/proposal-service";
 import { Product, ProductService } from "@/services/product-service";
-import { ProposalTemplate } from "@/types";
+import { ProposalTemplate, ProposalStatus } from "@/types";
 import { ProposalTemplateService } from "@/services/proposal-template-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -49,7 +49,7 @@ export interface UseProposalFormReturn {
 
   // Actions
   handleChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   toggleProduct: (product: Product) => void;
@@ -109,6 +109,7 @@ export function useProposalForm({
     customNotes: "",
     discount: 0,
     products: [],
+    status: "draft" as ProposalStatus,
   });
 
   const [selectedSistemas, setSelectedSistemas] = React.useState<
@@ -161,6 +162,7 @@ export function useProposalForm({
               customNotes: proposal.customNotes || "",
               discount: proposal.discount || 0,
               products: proposal.products || [],
+              status: (proposal.status as ProposalStatus) || "draft",
             });
 
             if (proposal.sistemas && proposal.sistemas.length > 0) {
@@ -318,7 +320,7 @@ export function useProposalForm({
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({

@@ -4,9 +4,23 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Proposal, ProposalStatus } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
-import { Plus, FileText, Copy, Trash2, Eye, Search } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Copy,
+  Trash2,
+  Eye,
+  Search,
+  ChevronDown,
+  Loader2,
+  Check,
+  Send,
+  XCircle,
+  Clock,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,6 +36,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const statusConfig: Record<
   ProposalStatus,
@@ -32,6 +52,17 @@ const statusConfig: Record<
   approved: { label: "Aprovada", variant: "success" },
   rejected: { label: "Rejeitada", variant: "destructive" },
 };
+
+const statusOptions: {
+  value: ProposalStatus;
+  label: string;
+  icon: typeof Clock;
+}[] = [
+  { value: "draft", label: "Rascunho", icon: Clock },
+  { value: "sent", label: "Enviada", icon: Send },
+  { value: "approved", label: "Aprovada", icon: Check },
+  { value: "rejected", label: "Rejeitada", icon: XCircle },
+];
 
 import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -44,6 +75,9 @@ export default function ProposalsPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
+    null
+  );
 
   // Filter proposals based on search term
   const filteredProposals = React.useMemo(() => {
@@ -135,6 +169,28 @@ export default function ProposalsPage() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const handleStatusChange = async (
+    proposalId: string,
+    newStatus: ProposalStatus
+  ) => {
+    const proposal = proposals.find((p) => p.id === proposalId);
+    if (!proposal || proposal.status === newStatus) return;
+
+    setUpdatingStatusId(proposalId);
+    try {
+      await ProposalService.updateProposal(proposalId, { status: newStatus });
+      setProposals((prev) =>
+        prev.map((p) => (p.id === proposalId ? { ...p, status: newStatus } : p))
+      );
+      toast.success(`Status alterado para "${statusConfig[newStatus].label}"`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Erro ao alterar status");
+    } finally {
+      setUpdatingStatusId(null);
+    }
   };
 
   const proposalToDelete = proposals.find((p) => p.id === deleteId);
@@ -250,9 +306,10 @@ export default function ProposalsPage() {
         ) : (
           <div className="grid gap-4">
             {/* Header */}
-            <div className="grid grid-cols-5 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+            <div className="grid grid-cols-6 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div>Título</div>
               <div className="text-center">Cliente</div>
+              <div className="text-center">Status</div>
               <div className="text-center">Criado em</div>
               <div className="text-center">Validade</div>
               <div className="text-right">Ações</div>
@@ -271,7 +328,7 @@ export default function ProposalsPage() {
                   key={proposal.id}
                   className="hover:bg-muted/50 transition-colors"
                 >
-                  <CardContent className="grid grid-cols-5 gap-4 items-center py-4 px-4">
+                  <CardContent className="grid grid-cols-6 gap-4 items-center py-4 px-4">
                     <div>
                       <Link
                         href={`/proposals/${proposal.id}/view`}
@@ -287,6 +344,71 @@ export default function ProposalsPage() {
                     </div>
                     <div className="text-sm text-muted-foreground truncate text-center">
                       {proposal.clientName}
+                    </div>
+                    <div className="text-center">
+                      {canEdit ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="focus:outline-none cursor-pointer"
+                              disabled={updatingStatusId === proposal.id}
+                            >
+                              <Badge
+                                variant={
+                                  statusConfig[
+                                    proposal.status as ProposalStatus
+                                  ]?.variant || "default"
+                                }
+                                className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-center"
+                              >
+                                {updatingStatusId === proposal.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : null}
+                                {statusConfig[proposal.status as ProposalStatus]
+                                  ?.label || "Rascunho"}
+                                <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="center"
+                            className="min-w-[140px]"
+                          >
+                            {statusOptions.map((option) => {
+                              const Icon = option.icon;
+                              const isActive = proposal.status === option.value;
+                              return (
+                                <DropdownMenuItem
+                                  key={option.value}
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      proposal.id,
+                                      option.value
+                                    )
+                                  }
+                                  className={isActive ? "bg-muted" : ""}
+                                >
+                                  <Icon className="w-4 h-4 mr-2" />
+                                  {option.label}
+                                  {isActive && (
+                                    <Check className="w-4 h-4 ml-auto" />
+                                  )}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Badge
+                          variant={
+                            statusConfig[proposal.status as ProposalStatus]
+                              ?.variant || "default"
+                          }
+                        >
+                          {statusConfig[proposal.status as ProposalStatus]
+                            ?.label || "Rascunho"}
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-sm text-muted-foreground text-center">
                       {formatDate(proposal.createdAt)}

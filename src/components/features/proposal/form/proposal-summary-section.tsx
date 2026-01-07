@@ -6,9 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { ProposalProduct, Proposal } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
-import { FileText, Percent } from "lucide-react";
+import { ProposalStatus } from "@/types/proposal";
+import { FileText, Percent, Tag } from "lucide-react";
+
+const statusOptions: { value: ProposalStatus; label: string }[] = [
+  { value: "draft", label: "Rascunho" },
+  { value: "sent", label: "Enviada" },
+  { value: "approved", label: "Aprovada" },
+  { value: "rejected", label: "Rejeitada" },
+];
 
 interface ProposalSummarySectionProps {
   formData: Partial<Proposal>;
@@ -21,7 +30,9 @@ interface ProposalSummarySectionProps {
   calculateDiscount: () => number;
   calculateTotal: () => number;
   onFormChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => void;
 }
 
@@ -237,6 +248,27 @@ export function ProposalSummarySection({
             className="w-24"
           />
           <span className="text-muted-foreground">%</span>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="status">Status:</Label>
+          </div>
+          <Select
+            id="status"
+            name="status"
+            value={formData.status || "draft"}
+            onChange={onFormChange}
+            className="w-40"
+          >
+            {statusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </div>
 
         {/* Custom Notes */}
