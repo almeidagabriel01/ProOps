@@ -60,7 +60,7 @@ export const HeroParallax = ({
   return (
     <div
       ref={ref}
-      className="h-[300vh] py-40 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
+      className="h-[300vh] py-40 overflow-hidden antialiased relative flex flex-col self-auto perspective-[1000px] transform-3d"
     >
       <Header title={title} subtitle={subtitle} />
       <motion.div
@@ -153,7 +153,7 @@ export const ProductCard = ({
         x: translate,
       }}
       key={product.title}
-      className="h-72 w-[28rem] relative shrink-0"
+      className="h-72 w-md relative shrink-0"
     >
       <div className="block h-full w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}

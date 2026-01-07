@@ -72,22 +72,18 @@ const INITIAL_PLANS = [
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Initialize from cache to prevent flash, but handle hydration mismatch
+  // by using useEffect for the redirect logic
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly"
   );
   const [plans, setPlans] = useState(INITIAL_PLANS);
-  const initialSkeleton:
-    | "list"
-    | "dashboard"
-    | "profile"
-    | "financial"
-    | "team"
-    | "admin"
-    | "products"
-    | "proposals"
-    | "clients" = "list";
+
+  // Fixed initial skeleton value
+  const initialSkeleton = "list";
 
   // Fetch plans on mount
   useEffect(() => {
@@ -142,21 +138,6 @@ export function useLandingPage() {
   // Auth state listener - handles both login check and redirect
   useEffect(() => {
     // Check for cached session on mount (client-side only)
-    // This provides immediate visual feedback while Firebase initializes
-    let hasCachedSession = false;
-    try {
-      const cached = localStorage.getItem("erp_user_cache");
-      if (cached) {
-        const { role } = JSON.parse(cached);
-        hasCachedSession = role && role !== "free";
-        if (hasCachedSession) {
-          setIsRedirecting(true);
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {

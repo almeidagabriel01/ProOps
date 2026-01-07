@@ -269,7 +269,7 @@ export function MySubscriptionTab({
     <div className="space-y-6">
       {/* Main Subscription Card */}
       <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6 border-b">
+        <div className="bg-linear-to-r from-primary/10 via-primary/5 to-transparent p-6 border-b">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
