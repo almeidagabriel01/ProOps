@@ -13,6 +13,7 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
+import { useWalletsData } from "../wallets/_hooks/useWalletsData";
 
 export interface TransactionFormData {
   type: TransactionType;
@@ -90,11 +91,27 @@ export function useTransactionForm(): UseTransactionFormReturn {
     schema: transactionSchema,
   });
 
+  const { wallets } = useWalletsData();
+
   React.useEffect(() => {
     if (!permLoading && !canCreate) {
       router.push("/financial");
     }
   }, [permLoading, canCreate, router]);
+
+  // Pre-select default wallet
+  React.useEffect(() => {
+    if (formData.wallet || wallets.length === 0) return;
+
+    const defaultWallet = wallets.find((w) => w.isDefault);
+    if (defaultWallet) {
+      setFormData((prev) => ({ ...prev, wallet: defaultWallet.name }));
+      // Also clear error if any
+      if (errors.wallet) {
+        clearFieldError("wallet");
+      }
+    }
+  }, [wallets, formData.wallet, errors.wallet, clearFieldError]);
 
   const handleChange = (
     e: React.ChangeEvent<
