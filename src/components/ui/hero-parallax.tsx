@@ -73,29 +73,32 @@ export const HeroParallax = ({
         className=""
       >
         <motion.div className="flex flex-row-reverse space-x-reverse space-x-20 mb-20">
-          {firstRow.map((product) => (
+          {firstRow.map((product, i) => (
             <ProductCard
               product={product}
               translate={translateX}
               key={product.title}
+              index={i}
             />
           ))}
         </motion.div>
         <motion.div className="flex flex-row mb-20 space-x-20">
-          {secondRow.map((product) => (
+          {secondRow.map((product, i) => (
             <ProductCard
               product={product}
               translate={translateXReverse}
               key={product.title}
+              index={5 + i}
             />
           ))}
         </motion.div>
         <motion.div className="flex flex-row-reverse space-x-reverse space-x-20">
-          {thirdRow.map((product) => (
+          {thirdRow.map((product, i) => (
             <ProductCard
               product={product}
               translate={translateX}
               key={product.title}
+              index={10 + i}
             />
           ))}
         </motion.div>
@@ -131,6 +134,7 @@ export const Header = ({
 export const ProductCard = ({
   product,
   translate,
+  index = 0,
 }: {
   product: {
     title: string;
@@ -138,7 +142,11 @@ export const ProductCard = ({
     thumbnail: string;
   };
   translate: MotionValue<number>;
+  index?: number;
 }) => {
+  // First row images (0-4) get priority loading
+  const isPriority = index < 5;
+
   return (
     <motion.div
       style={{
@@ -153,6 +161,9 @@ export const ProductCard = ({
           src={product.thumbnail}
           height="600"
           width="800"
+          loading={isPriority ? "eager" : "lazy"}
+          fetchPriority={isPriority ? "high" : "auto"}
+          decoding={isPriority ? "sync" : "async"}
           className="object-contain absolute h-full w-full inset-0 rounded-xl bg-muted/30"
           alt={product.title}
         />

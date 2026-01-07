@@ -72,13 +72,12 @@ const INITIAL_PLANS = [
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly"
   );
   const [plans, setPlans] = useState(INITIAL_PLANS);
-  // Always use "list" skeleton for consistency between SSR and CSR
-  // The loading time is short enough that the skeleton type doesn't matter much
   const initialSkeleton:
     | "list"
     | "dashboard"
@@ -90,6 +89,7 @@ export function useLandingPage() {
     | "proposals"
     | "clients" = "list";
 
+  // Fetch plans on mount
   useEffect(() => {
     const fetchPlans = async () => {
       try {
@@ -139,7 +139,24 @@ export function useLandingPage() {
     fetchPlans();
   }, []);
 
+  // Auth state listener - handles both login check and redirect
   useEffect(() => {
+    // Check for cached session on mount (client-side only)
+    // This provides immediate visual feedback while Firebase initializes
+    let hasCachedSession = false;
+    try {
+      const cached = localStorage.getItem("erp_user_cache");
+      if (cached) {
+        const { role } = JSON.parse(cached);
+        hasCachedSession = role && role !== "free";
+        if (hasCachedSession) {
+          setIsRedirecting(true);
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
@@ -196,7 +213,6 @@ export function useLandingPage() {
             setCurrentUser({ id: user.uid, ...userData } as User);
           } else {
             // User document not found in Firestore - treat as free user with basic auth data
-            // This allows users to stay logged in and be prompted to complete registration or subscribe
             console.warn(
               "User document not found in Firestore, treating as free user"
             );
@@ -211,9 +227,19 @@ export function useLandingPage() {
           console.error("Error fetching user data:", error);
         }
         setIsCheckingAuth(false);
+        setIsRedirecting(false);
       } else {
+        // User is NOT logged in - clear cache and reset state
         setCurrentUser(null);
         setIsCheckingAuth(false);
+        setIsRedirecting(false);
+
+        // Clear the cached session since user is not logged in
+        try {
+          localStorage.removeItem("erp_user_cache");
+        } catch {
+          // Ignore storage errors
+        }
       }
     });
 
@@ -223,10 +249,17 @@ export function useLandingPage() {
   const handleSignOut = async () => {
     await signOut(auth);
     setCurrentUser(null);
+    // Clear cache on sign out
+    try {
+      localStorage.removeItem("erp_user_cache");
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   return {
     isCheckingAuth,
+    isRedirecting,
     currentUser,
     billingInterval,
     setBillingInterval,
