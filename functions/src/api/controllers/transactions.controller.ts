@@ -26,14 +26,12 @@ export const createTransaction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Campos obrigatórios faltando." });
     }
 
-    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canCreate",
-      req.user
-    );
+    const { tenantId: userTenantId, isSuperAdmin } =
+      await checkFinancialPermission(userId, "canCreate", req.user);
 
     // Super admin can specify target tenant
-    const tenantId = data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
+    const tenantId =
+      data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
 
     const result = await db.runTransaction(async (t) => {
       const transactionsToCreate: Record<string, unknown>[] = [];
@@ -52,12 +50,14 @@ export const createTransaction = async (req: Request, res: Response) => {
         for (let i = 0; i < count; i++) {
           const isFirst = i === 0;
           const currentStatus = isFirst ? data.status : "pending";
-          const currentDate = isFirst ? data.date : addMonths(data.date, i);
-          const currentDueDate = data.dueDate
-            ? isFirst
-              ? data.dueDate
-              : addMonths(data.dueDate, i)
-            : undefined;
+
+          // Date (launch date) stays the same for all installments
+          const currentDate = data.date;
+
+          // DueDate (vencimento) increments by month for each installment
+          // If no dueDate provided, use date as base
+          const baseDueDate = data.dueDate || data.date;
+          const currentDueDate = addMonths(baseDueDate, i);
 
           transactionsToCreate.push({
             tenantId,
@@ -67,7 +67,8 @@ export const createTransaction = async (req: Request, res: Response) => {
               : `${data.description} (${i + 1}/${count})`,
             amount: baseAmount,
             date: currentDate,
-            dueDate: currentDueDate || null,
+            dueDate: currentDueDate,
+
             status: currentStatus,
             clientId: data.clientId || null,
             clientName: data.clientName || null,

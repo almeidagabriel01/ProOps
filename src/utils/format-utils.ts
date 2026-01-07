@@ -14,12 +14,26 @@ export function formatCurrency(value: number): string {
 }
 
 /**
- * Format a date string to Brazilian locale
+ * Format a date string to Brazilian locale (timezone-safe)
+ * Parses dates manually to avoid timezone conversion issues
  */
 export function formatDate(dateString: string): string {
   if (!dateString) return "-";
   try {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    // Extract date part if ISO format
+    const datePart = dateString.includes("T")
+      ? dateString.split("T")[0]
+      : dateString;
+
+    // Parse manually to avoid timezone issues
+    const parts = datePart.split("-").map(Number);
+    if (parts.length !== 3) {
+      return new Date(dateString).toLocaleDateString("pt-BR");
+    }
+
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day); // month is 0-indexed
+    return date.toLocaleDateString("pt-BR");
   } catch {
     return dateString;
   }

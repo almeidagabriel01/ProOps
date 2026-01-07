@@ -35,7 +35,8 @@ interface TransactionCardProps {
   onDelete: (transaction: Transaction) => void;
   onStatusChange?: (
     transaction: Transaction,
-    newStatus: TransactionStatus
+    newStatus: TransactionStatus,
+    updateAll?: boolean
   ) => Promise<boolean>;
 }
 
@@ -44,10 +45,10 @@ const statusOptions: {
   label: string;
   icon: typeof Check;
 }[] = [
-  { value: "paid", label: "Pago", icon: Check },
-  { value: "pending", label: "Pendente", icon: Clock },
-  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-];
+    { value: "paid", label: "Pago", icon: Check },
+    { value: "pending", label: "Pendente", icon: Clock },
+    { value: "overdue", label: "Atrasado", icon: AlertTriangle },
+  ];
 
 export function TransactionCard({
   transaction,
@@ -64,10 +65,18 @@ export function TransactionCard({
   const TypeIcon = typeInfo.icon;
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    // Extract date part if ISO format
+    const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+
     // Parse date parts manually to avoid timezone issues
     // When using new Date("2026-01-05"), JS interprets it as UTC midnight,
     // which becomes the previous day in timezones like Brazil (UTC-3)
-    const [year, month, day] = dateString.split("-").map(Number);
+    const parts = datePart.split("-").map(Number);
+    if (parts.length !== 3) return dateString;
+
+    const [year, month, day] = parts;
     const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -76,19 +85,20 @@ export function TransactionCard({
     });
   };
 
+
   const handleStatusChange = async (newStatus: TransactionStatus) => {
     if (!onStatusChange || newStatus === transaction.status) return;
     setIsUpdating(true);
-    await onStatusChange(transaction, newStatus);
+    // Default to updating all for the main card action
+    await onStatusChange(transaction, newStatus, true);
     setIsUpdating(false);
   };
 
   return (
     <div className="group">
       <Card
-        className={`transition-all duration-200 ${
-          isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
-        }`}
+        className={`transition-all duration-200 ${isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
+          }`}
       >
         <CardContent className="p-0">
           <div
@@ -167,43 +177,53 @@ export function TransactionCard({
 
                 {/* Status Badge with Dropdown */}
                 {onStatusChange && canEdit ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="focus:outline-none cursor-pointer mt-1"
-                        disabled={isUpdating}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Badge
-                          variant={statusInfo.variant}
-                          className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5"
+                  <div className="flex items-center gap-2 mt-1 w-full sm:w-auto justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={isUpdating}
+                          className="h-8 gap-2 rounded-lg font-medium transition-colors border hover:bg-opacity-80"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {isUpdating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : null}
-                          {statusInfo.label}
-                          <ChevronDown className="w-3 h-3 opacity-60" />
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[140px]">
-                      {statusOptions.map((option) => {
-                        const Icon = option.icon;
-                        const isActive = transaction.status === option.value;
-                        return (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span className="text-xs">Atualizando...</span>
+                            </>
+                          ) : (
+                            <>
+                              {(() => {
+                                const option = statusOptions.find(o => o.value === transaction.status);
+                                const Icon = option?.icon || Check;
+                                return <Icon className="h-3.5 w-3.5" />;
+                              })()}
+                              <span className="text-xs">{statusInfo.label}</span>
+                              <ChevronDown className="h-3 w-3 opacity-50" />
+                            </>
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-[140px]">
+                        {statusOptions.map((option) => (
                           <DropdownMenuItem
                             key={option.value}
-                            onClick={() => handleStatusChange(option.value)}
-                            className={isActive ? "bg-muted" : ""}
+                            onClick={() => {
+                              handleStatusChange(option.value);
+                            }}
+                            className="gap-2 cursor-pointer"
                           >
-                            <Icon className="w-4 h-4 mr-2" />
-                            {option.label}
-                            {isActive && <Check className="w-4 h-4 ml-auto" />}
+                            <option.icon className="h-4 w-4" />
+                            <span>{option.label}</span>
+                            {transaction.status === option.value && (
+                              <Check className="h-3 w-3 ml-auto opacity-50" />
+                            )}
                           </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 ) : (
                   <Badge variant={statusInfo.variant} className="text-xs mt-1">
                     {statusInfo.label}

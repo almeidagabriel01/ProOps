@@ -29,15 +29,30 @@ export function DeleteTransactionDialog({
   onConfirm,
   isDeleting,
 }: DeleteTransactionDialogProps) {
+  const isInstallment = transaction?.isInstallment && transaction.installmentCount && transaction.installmentCount > 1;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir Lançamento</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isInstallment ? "Excluir Lançamento Parcelado" : "Excluir Lançamento"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir o lançamento{" "}
-            <strong>"{transaction?.description}"</strong>? Esta ação não pode
-            ser desfeita.
+            {isInstallment ? (
+              <>
+                Tem certeza que deseja excluir o lançamento{" "}
+                <strong>&quot;{transaction?.description}&quot;</strong> e{" "}
+                <strong>todas as suas {transaction?.installmentCount} parcelas</strong>?
+                Esta ação não pode ser desfeita.
+              </>
+            ) : (
+              <>
+                Tem certeza que deseja excluir o lançamento{" "}
+                <strong>&quot;{transaction?.description}&quot;</strong>? Esta ação não pode
+                ser desfeita.
+              </>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -51,10 +66,16 @@ export function DeleteTransactionDialog({
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
           >
             {isDeleting && <Spinner className="h-4 w-4 text-white" />}
-            {isDeleting ? "Excluindo..." : "Sim, Excluir"}
+            {isDeleting
+              ? "Excluindo..."
+              : isInstallment
+                ? `Sim, Excluir ${transaction?.installmentCount} Parcelas`
+                : "Sim, Excluir"
+            }
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
+

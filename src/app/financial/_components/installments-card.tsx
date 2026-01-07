@@ -8,7 +8,28 @@ import { Transaction } from "@/services/transaction-service";
 
 interface InstallmentsCardProps {
   installments: Transaction[];
-  currentTransactionId: string;
+  currentTransactionId?: string;
+}
+
+/**
+ * Format date safely avoiding timezone issues.
+ * Parses YYYY-MM-DD manually instead of using new Date().
+ */
+function formatDateSafe(dateString: string): string {
+  if (!dateString) return "";
+
+  // Extract date part if ISO format
+  const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+  const parts = datePart.split("-");
+
+  if (parts.length !== 3) return dateString;
+
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+  const day = parseInt(parts[2], 10);
+
+  const date = new Date(year, month, day);
+  return date.toLocaleDateString("pt-BR");
 }
 
 export function InstallmentsCard({
@@ -16,6 +37,7 @@ export function InstallmentsCard({
   currentTransactionId,
 }: InstallmentsCardProps) {
   if (installments.length <= 1) return null;
+
 
   return (
     <Card>
@@ -31,27 +53,26 @@ export function InstallmentsCard({
             <Link
               key={installment.id}
               href={`/financial/${installment.id}`}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                installment.id === currentTransactionId
-                  ? "bg-primary/10 border-primary"
-                  : "hover:bg-muted"
-              }`}
+              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${installment.id === currentTransactionId
+                ? "bg-primary/10 border-primary"
+                : "hover:bg-muted"
+                }`}
             >
               <div className="flex items-center gap-3">
                 <span
-                  className={`text-sm font-medium ${
-                    installment.id === currentTransactionId
-                      ? "text-primary"
-                      : ""
-                  }`}
+                  className={`text-sm font-medium ${installment.id === currentTransactionId
+                    ? "text-primary"
+                    : ""
+                    }`}
                 >
                   Parcela {installment.installmentNumber}/
                   {installment.installmentCount}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {new Date(installment.date).toLocaleDateString("pt-BR")}
+                  {formatDateSafe(installment.dueDate || installment.date)}
                 </span>
               </div>
+
               <div className="flex items-center gap-2">
                 <Badge
                   variant={

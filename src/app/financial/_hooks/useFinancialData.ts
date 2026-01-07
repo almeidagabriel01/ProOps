@@ -101,7 +101,12 @@ interface UseFinancialDataReturn {
   filteredTransactions: Transaction[];
   totalWalletBalance: number;
   deleteTransaction: (transaction: Transaction) => Promise<boolean>;
+  deleteTransactionGroup: (transaction: Transaction) => Promise<boolean>;
   updateTransactionStatus: (
+    transaction: Transaction,
+    newStatus: Transaction["status"]
+  ) => Promise<boolean>;
+  updateGroupStatus: (
     transaction: Transaction,
     newStatus: Transaction["status"]
   ) => Promise<boolean>;
@@ -327,6 +332,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     sortBy,
   ]);
 
+  // Delete a single transaction (individual installment)
   const deleteTransaction = React.useCallback(
     async (transaction: Transaction): Promise<boolean> => {
       try {
@@ -355,21 +361,39 @@ export function useFinancialData(): UseFinancialDataReturn {
     [tenant]
   );
 
-  const updateTransactionStatus = React.useCallback(
-    async (
-      transaction: Transaction,
-      newStatus: Transaction["status"]
-    ): Promise<boolean> => {
+  // Delete all installments in a group
+  const deleteTransactionGroup = React.useCallback(
+    async (transaction: Transaction): Promise<boolean> => {
       try {
-        await TransactionService.updateTransaction(transaction.id, {
-          status: newStatus,
-        });
-        // Update local state
-        setTransactions((prev) =>
-          prev.map((t) =>
-            t.id === transaction.id ? { ...t, status: newStatus } : t
-          )
-        );
+        // If it's an installment, delete all in the group
+        if (transaction.isInstallment && transaction.installmentGroupId) {
+          const groupTransactions = transactions.filter(
+            (t) => t.installmentGroupId === transaction.installmentGroupId
+          );
+
+          // Delete all installments
+          await Promise.all(
+            groupTransactions.map((t) =>
+              TransactionService.deleteTransaction(t.id)
+            )
+          );
+
+          // Remove all from local state
+          const groupIds = new Set(groupTransactions.map((t) => t.id));
+          setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
+
+          toast.success(
+            `${groupTransactions.length} parcelas excluídas com sucesso!`
+          );
+        } else {
+          // Single transaction
+          await TransactionService.deleteTransaction(transaction.id);
+          setTransactions((prev) =>
+            prev.filter((t) => t.id !== transaction.id)
+          );
+          toast.success("Lançamento excluído com sucesso!");
+        }
+
         // Refresh summary and wallet balance
         if (tenant) {
           const [summaryData, wallets] = await Promise.all([
@@ -382,7 +406,50 @@ export function useFinancialData(): UseFinancialDataReturn {
             .reduce((sum, w) => sum + w.balance, 0);
           setTotalWalletBalance(totalBalance);
         }
+
+        return true;
+      } catch (error) {
+        console.error("Error deleting transaction group:", error);
+        toast.error("Erro ao excluir lançamentos");
+        return false;
+      }
+    },
+    [tenant, transactions]
+  );
+
+  // Update single transaction status
+  const updateTransactionStatus = React.useCallback(
+    async (
+      transaction: Transaction,
+      newStatus: Transaction["status"]
+    ): Promise<boolean> => {
+      try {
+        await TransactionService.updateTransaction(transaction.id, {
+          status: newStatus,
+        });
+
+        // Update local state ONLY after success
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.id === transaction.id ? { ...t, status: newStatus } : t
+          )
+        );
+
         toast.success("Status atualizado!");
+
+        // Refresh summary and wallet balance
+        if (tenant) {
+          const [summaryData, wallets] = await Promise.all([
+            TransactionService.getSummary(tenant.id),
+            WalletService.getWallets(tenant.id),
+          ]);
+          setSummary(summaryData);
+          const totalBalance = wallets
+            .filter((w) => w.status === "active")
+            .reduce((sum, w) => sum + w.balance, 0);
+          setTotalWalletBalance(totalBalance);
+        }
+
         return true;
       } catch (error) {
         console.error("Error updating transaction status:", error);
@@ -391,6 +458,78 @@ export function useFinancialData(): UseFinancialDataReturn {
       }
     },
     [tenant]
+  );
+
+  // Update status for all installments in a group OR single
+  const updateGroupStatus = React.useCallback(
+    async (
+      transaction: Transaction,
+      newStatus: Transaction["status"],
+      updateAll: boolean = true
+    ): Promise<boolean> => {
+      try {
+        // If it's an installment AND we want to update the whole group
+        if (
+          transaction.isInstallment &&
+          transaction.installmentGroupId &&
+          updateAll
+        ) {
+          const groupTransactions = transactions.filter(
+            (t) => t.installmentGroupId === transaction.installmentGroupId
+          );
+
+          // Update all installments in parallel
+          await Promise.all(
+            groupTransactions.map((t) =>
+              TransactionService.updateTransaction(t.id, {
+                status: newStatus,
+              })
+            )
+          );
+
+          // Update local state for all
+          const groupIds = new Set(groupTransactions.map((t) => t.id));
+          setTransactions((prev) =>
+            prev.map((t) =>
+              groupIds.has(t.id) ? { ...t, status: newStatus } : t
+            )
+          );
+
+          toast.success(`${groupTransactions.length} parcelas atualizadas!`);
+        } else {
+          // Single transaction (or single installment update)
+          await TransactionService.updateTransaction(transaction.id, {
+            status: newStatus,
+          });
+          setTransactions((prev) =>
+            prev.map((t) =>
+              t.id === transaction.id ? { ...t, status: newStatus } : t
+            )
+          );
+          toast.success("Status atualizado!");
+        }
+
+        // Refresh summary and wallet balance
+        if (tenant) {
+          const [summaryData, wallets] = await Promise.all([
+            TransactionService.getSummary(tenant.id),
+            WalletService.getWallets(tenant.id),
+          ]);
+          setSummary(summaryData);
+          const totalBalance = wallets
+            .filter((w) => w.status === "active")
+            .reduce((sum, w) => sum + w.balance, 0);
+          setTotalWalletBalance(totalBalance);
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error updating status:", error);
+        toast.error("Erro ao atualizar status");
+        return false;
+      }
+    },
+    [tenant, transactions]
   );
 
   return {
@@ -418,7 +557,9 @@ export function useFinancialData(): UseFinancialDataReturn {
     filteredTransactions,
     totalWalletBalance,
     deleteTransaction,
+    deleteTransactionGroup,
     updateTransactionStatus,
+    updateGroupStatus,
     refreshData: fetchData,
   };
 }

@@ -45,10 +45,11 @@ export default function FinancialPage() {
     setSortBy,
     filteredTransactions,
     totalWalletBalance,
-    deleteTransaction,
-    updateTransactionStatus,
+    deleteTransactionGroup,
+    updateGroupStatus,
     transactions,
   } = useFinancialData();
+
 
   const isLoading = tenantLoading || dataLoading || isPlanLoading;
 
@@ -82,7 +83,7 @@ export default function FinancialPage() {
     if (!transactionToDelete) return;
 
     setIsDeleting(true);
-    await deleteTransaction(transactionToDelete);
+    await deleteTransactionGroup(transactionToDelete);
     setIsDeleting(false);
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
@@ -192,14 +193,14 @@ export default function FinancialPage() {
             const relatedInstallments =
               transaction.isInstallment && transaction.installmentGroupId
                 ? transactions
-                    .filter(
-                      (t) =>
-                        t.installmentGroupId === transaction.installmentGroupId
-                    )
-                    .sort(
-                      (a, b) =>
-                        (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                    )
+                  .filter(
+                    (t) =>
+                      t.installmentGroupId === transaction.installmentGroupId
+                  )
+                  .sort(
+                    (a, b) =>
+                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  )
                 : [];
 
             return (
@@ -210,7 +211,7 @@ export default function FinancialPage() {
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onDelete={openDeleteDialog}
-                onStatusChange={updateTransactionStatus}
+                onStatusChange={updateGroupStatus}
               />
             );
           })}

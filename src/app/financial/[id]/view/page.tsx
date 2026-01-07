@@ -102,8 +102,16 @@ export default function ViewTransactionPage() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    // Extract date part if ISO format
+    const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+
     // Parse date parts manually to avoid timezone issues
-    const [year, month, day] = dateString.split("-").map(Number);
+    const parts = datePart.split("-").map(Number);
+    if (parts.length !== 3) return dateString;
+
+    const [year, month, day] = parts;
     const date = new Date(year, month - 1, day); // month is 0-indexed
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
@@ -144,8 +152,8 @@ export default function ViewTransactionPage() {
   const paidAmount =
     relatedInstallments.length > 0
       ? relatedInstallments
-          .filter((t) => t.status === "paid")
-          .reduce((sum, t) => sum + t.amount, 0)
+        .filter((t) => t.status === "paid")
+        .reduce((sum, t) => sum + t.amount, 0)
       : transaction.status === "paid"
         ? transaction.amount
         : 0;
@@ -321,7 +329,7 @@ export default function ViewTransactionPage() {
                         {installment.installmentCount}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {formatDate(installment.date)}
+                        {formatDate(installment.dueDate || installment.date)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
