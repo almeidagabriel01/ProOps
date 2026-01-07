@@ -12,6 +12,7 @@ import {
   Check,
   Crown,
   Loader2,
+  Calendar,
 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +26,9 @@ interface AddonCardProps {
   // Dynamic price from Stripe (in cents) - REQUIRED, no fallback
   dynamicPriceMonthly?: number;
   isPriceLoading?: boolean;
+  // Scheduled cancellation info
+  isScheduledCancel?: boolean;
+  cancelDate?: string;
 }
 
 // Map icon names to Lucide components
@@ -44,6 +48,8 @@ export function AddonCard({
   isLoading = false,
   dynamicPriceMonthly,
   isPriceLoading = false,
+  isScheduledCancel = false,
+  cancelDate,
 }: AddonCardProps) {
   const { tenant } = useTenant();
   const IconComponent = iconMap[addon.icon] || DollarSign;
@@ -69,20 +75,28 @@ export function AddonCard({
 
   return (
     <Card
-      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${
-        isPurchased ? "ring-2" : ""
-      }`}
+      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${isPurchased ? "ring-2" : ""
+        }`}
       style={{
         borderColor: isPurchased ? primaryColor : undefined,
       }}
     >
       {isPurchased && (
         <div
-          className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white"
-          style={{ backgroundColor: primaryColor }}
+          className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white`}
+          style={{ backgroundColor: isScheduledCancel ? '#ef4444' : primaryColor }}
         >
-          <Check className="w-3 h-3" />
-          Ativo
+          {isScheduledCancel ? (
+            <>
+              <Calendar className="w-3 h-3" />
+              Cancela {cancelDate}
+            </>
+          ) : (
+            <>
+              <Check className="w-3 h-3" />
+              Ativo
+            </>
+          )}
         </div>
       )}
 
@@ -129,16 +143,19 @@ export function AddonCard({
 
       {/* Action Button Footer */}
       <div className="p-6 pt-0 mt-auto">
-        {isPurchased ? (
+        {isPurchased && !isScheduledCancel ? (
           <Button
             variant="outline"
             size="sm"
             onClick={onCancel}
-            disabled={isLoading}
             className="w-full"
           >
             Cancelar Add-on
           </Button>
+        ) : isPurchased && isScheduledCancel ? (
+          <div className="text-center text-xs text-muted-foreground">
+            Ativo até {cancelDate}
+          </div>
         ) : (
           <Button
             size="sm"

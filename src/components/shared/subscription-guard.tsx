@@ -3,10 +3,12 @@
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { SubscriptionStatus } from "@/types";
-import { AlertTriangle, CreditCard, Clock } from "lucide-react";
+import { AlertTriangle, CreditCard, Clock, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
 import { useRouter } from "next/navigation";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { AddonService } from "@/services/addon-service";
 
 interface SubscriptionGuardProps {
   children: React.ReactNode;
@@ -18,6 +20,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = React.useState(false);
+  const { pastDueAddons } = usePlanLimits();
 
   const shouldCheckSubscription = React.useMemo(() => {
     if (!user) return false;
@@ -35,23 +38,15 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
       return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
     }
 
-    // Reference Date: When the subscription effectively ended (due date)
-    // If we don't have currentPeriodEnd, fallback to updatedAt (manual set time), or now (safeguard)
     const referenceDate = currentPeriodEnd
       ? new Date(currentPeriodEnd)
       : (subscriptionUpdatedAt ? new Date(subscriptionUpdatedAt) : new Date());
 
-    // Deadline is Grace Period AFTER the due date
     const deadline = new Date(referenceDate);
     deadline.setDate(deadline.getDate() + GRACE_PERIOD_DAYS);
 
-    // Calculate remaining days from NOW until Deadline
     const now = new Date();
-    // Reset hours to midnight for cleaner day diff? Or keep precise? 
-    // Precise is better for "just expired".
-
     const diffTime = deadline.getTime() - now.getTime();
-    // ceil so 0.1 days counts as "1 day remaining" (today)
     const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     const remaining = Math.max(0, days);
@@ -92,6 +87,11 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     subscriptionStatus === "past_due" &&
     !isGracePeriodExpired;
 
+  // Filter add-on warnings to show only non-expired ones
+  const addonWarnings = React.useMemo(() => {
+    return pastDueAddons.filter((info) => !info.isExpired);
+  }, [pastDueAddons]);
+
   const handleManageBilling = async () => {
     if (!user) return;
     setIsRedirecting(true);
@@ -114,6 +114,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
   return (
     <>
+      {/* Plan subscription warning */}
       {showWarningBanner && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md animate-in slide-in-from-top-4 fade-in duration-300">
           <div className="bg-yellow-50 dark:bg-yellow-950/90 border border-yellow-400 dark:border-yellow-600 rounded-xl shadow-lg p-4 backdrop-blur-sm">
@@ -152,7 +153,57 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
           </div>
         </div>
       )}
+
+      {/* Add-on payment warnings */}
+      {addonWarnings.map((info, index) => {
+        const addonDef = AddonService.getAddonDefinition(info.addon.addonType);
+        const addonName = addonDef?.name || info.addon.addonType;
+        const topOffset = showWarningBanner ? 44 + (index + 1) * 8 : 20 + index * 8;
+
+        return (
+          <div
+            key={info.addon.id}
+            className="fixed left-1/2 -translate-x-1/2 z-50 max-w-md animate-in slide-in-from-top-4 fade-in duration-300"
+            style={{ top: `${topOffset}rem` }}
+          >
+            <div className="bg-orange-50 dark:bg-orange-950/90 border border-orange-400 dark:border-orange-600 rounded-xl shadow-lg p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 p-2 bg-orange-100 dark:bg-orange-900/50 rounded-full">
+                  <Package className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-orange-800 dark:text-orange-200">
+                    Add-on: {addonName}
+                  </h4>
+                  <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">
+                    Pagamento pendente. Regularize para manter o benefício.
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-orange-800 dark:text-orange-200">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>
+                      {info.daysRemaining === 1
+                        ? "Último dia para regularizar"
+                        : `${info.daysRemaining} dias restantes`}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleManageBilling}
+                    disabled={isRedirecting}
+                    className="mt-3 h-8 text-xs border-orange-500 text-orange-700 hover:bg-orange-100 dark:border-orange-500 dark:text-orange-300 dark:hover:bg-orange-900/50"
+                  >
+                    <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                    {isRedirecting ? "Abrindo..." : "Atualizar Pagamento"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
       {children}
     </>
   );
 }
+

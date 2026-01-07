@@ -6,7 +6,7 @@ import {
   BillingInterval,
   getPriceIdForAddon,
 } from "../../stripe/stripeConfig";
-import { updateSubscriptionStatus, cancelAddon as cancelAddonHelper } from "../../stripe/stripeHelpers";
+import { updateSubscriptionStatus } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
 
@@ -17,21 +17,20 @@ export const cancelAddon = async (req: Request, res: Response) => {
     const { addonId, tenantId: bodyTenantId } = req.body;
     const userId = (req as any).user!.uid;
 
-
     if (!addonId) {
       return res.status(400).json({ message: "Addon ID is required" });
     }
 
     const userRef = db.collection("users").doc(userId);
     const userSnap = await userRef.get();
-    
+
     let tenantId = bodyTenantId;
     if (!tenantId && userSnap.exists) {
-        tenantId = userSnap.data()?.tenantId;
+      tenantId = userSnap.data()?.tenantId;
     }
 
     if (!tenantId) {
-         tenantId = `tenant_${userId}`;
+      tenantId = `tenant_${userId}`;
     }
 
     // Look up the addon purchase
@@ -40,25 +39,43 @@ export const cancelAddon = async (req: Request, res: Response) => {
     const addonSnap = await addonRef.get();
 
     if (!addonSnap.exists) {
-       return res.status(404).json({ message: "Addon subscription not found" });
+      return res.status(404).json({ message: "Addon subscription not found" });
     }
 
     const addonData = addonSnap.data();
     const stripeSubscriptionId = addonData?.stripeSubscriptionId;
 
     if (!stripeSubscriptionId) {
-         return res.status(400).json({ message: "No active Stripe subscription for this addon" });
+      return res
+        .status(400)
+        .json({ message: "No active Stripe subscription for this addon" });
     }
 
-    // Cancel in Stripe
+    // Schedule cancellation at period end (NOT immediate cancellation)
+    // This allows the user to keep the addon until the renewal date
     const stripe = getStripe();
-    await stripe.subscriptions.cancel(stripeSubscriptionId);
+    const subscription = await stripe.subscriptions.update(
+      stripeSubscriptionId,
+      {
+        cancel_at_period_end: true,
+      }
+    );
 
-    // Update in Firestore immediately
-    await cancelAddonHelper(tenantId, addonId);
+    // Update addon in Firestore to reflect pending cancellation
+    // The addon stays active until the period ends
+    await addonRef.update({
+      cancelAtPeriodEnd: true,
+      cancelScheduledAt: new Date().toISOString(),
+      currentPeriodEnd: new Date(
+        subscription.current_period_end * 1000
+      ).toISOString(),
+    });
 
-    return res.json({ success: true });
-
+    return res.json({
+      success: true,
+      message: "Add-on will be cancelled at the end of the billing period",
+      cancelAt: new Date(subscription.current_period_end * 1000).toISOString(),
+    });
   } catch (error: unknown) {
     console.error("Cancel Addon Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -66,7 +83,84 @@ export const cancelAddon = async (req: Request, res: Response) => {
   }
 };
 
-export const createAddonCheckoutSession = async (req: Request, res: Response) => {
+export const cancelSubscription = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user!.uid;
+    console.log(`[cancelSubscription] Starting for userId: ${userId}`);
+
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      console.log(`[cancelSubscription] User not found: ${userId}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const userData = userSnap.data();
+    // Check both possible locations for subscription ID
+    const stripeSubscriptionId =
+      userData?.stripeSubscriptionId || userData?.subscription?.id;
+
+    console.log(`[cancelSubscription] User data:`, {
+      stripeSubscriptionId,
+      subscriptionFromNested: userData?.subscription?.id,
+      hasSubscriptionObject: !!userData?.subscription,
+    });
+
+    if (!stripeSubscriptionId) {
+      console.log(
+        `[cancelSubscription] No subscription ID found for user: ${userId}`
+      );
+      return res.status(400).json({ message: "No active subscription found" });
+    }
+
+    // Schedule cancellation at period end (NOT immediate cancellation)
+    const stripe = getStripe();
+    console.log(
+      `[cancelSubscription] Updating Stripe subscription: ${stripeSubscriptionId}`
+    );
+
+    const subscription = await stripe.subscriptions.update(
+      stripeSubscriptionId,
+      {
+        cancel_at_period_end: true,
+      }
+    );
+
+    console.log(
+      `[cancelSubscription] Stripe updated successfully, cancel_at_period_end: ${subscription.cancel_at_period_end}`
+    );
+
+    // Update user document with cancellation info
+    const currentPeriodEnd = new Date(
+      subscription.current_period_end * 1000
+    ).toISOString();
+
+    await userRef.update({
+      cancelAtPeriodEnd: true,
+      cancelScheduledAt: new Date().toISOString(),
+      currentPeriodEnd: currentPeriodEnd,
+    });
+
+    console.log(`[cancelSubscription] Firestore updated for user: ${userId}`);
+
+    return res.json({
+      success: true,
+      message:
+        "Subscription will be cancelled at the end of the billing period",
+      cancelAt: currentPeriodEnd,
+    });
+  } catch (error: unknown) {
+    console.error("[cancelSubscription] Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message, success: false });
+  }
+};
+
+export const createAddonCheckoutSession = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { addonId, userEmail, tenantId: bodyTenantId } = req.body;
     const userId = (req as any).user!.uid;
@@ -78,7 +172,9 @@ export const createAddonCheckoutSession = async (req: Request, res: Response) =>
     const priceId = getPriceIdForAddon(addonId);
 
     if (!priceId) {
-      return res.status(400).json({ message: "Invalid addon or price not configured" });
+      return res
+        .status(400)
+        .json({ message: "Invalid addon or price not configured" });
     }
 
     const stripe = getStripe();
@@ -87,33 +183,33 @@ export const createAddonCheckoutSession = async (req: Request, res: Response) =>
 
     // Only fetch if missing or if we need tenantId
     let userSnap: FirebaseFirestore.DocumentSnapshot | undefined;
-    
+
     // Always fetch user data to get tenantId if not provided
     userSnap = await userRef.get();
 
     let tenantId = bodyTenantId;
     if (userSnap && userSnap.exists) {
-        customerId = userSnap.data()?.stripeId;
-        if (!tenantId) {
-            tenantId = userSnap.data()?.tenantId;
-        }
+      customerId = userSnap.data()?.stripeId;
+      if (!tenantId) {
+        tenantId = userSnap.data()?.tenantId;
+      }
     }
-    
+
     // Fallback if tenantId is still missing
     if (!tenantId) {
-        tenantId = `tenant_${userId}`;
+      tenantId = `tenant_${userId}`;
     }
 
     if (!userSnap.exists) {
       // Create basic user doc if missing
-         const newUserData = {
+      const newUserData = {
         email: userEmail || "",
         role: "free",
         createdAt: new Date().toISOString(),
         tenantId: tenantId,
       };
       await userRef.set(newUserData);
-    } 
+    }
 
     if (!customerId) {
       // Create stripe customer if not exists
@@ -430,7 +526,9 @@ export const syncSubscription = async (req: Request, res: Response) => {
       subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
     } catch (e) {
       console.error("Stripe retrieve error:", e);
-      return res.status(400).json({ message: "Subscription not found in Stripe" });
+      return res
+        .status(400)
+        .json({ message: "Subscription not found in Stripe" });
     }
 
     if (!subscription) {

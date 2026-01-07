@@ -6,6 +6,7 @@ import {
   cancelAddon,
   getPlanIdByTier,
   updateSubscriptionStatus,
+  updateAddonStatus,
   AddonType,
 } from "./stripeHelpers";
 import { db } from "../init";
@@ -69,10 +70,44 @@ async function handleSubscriptionUpdated(
   subscription: Stripe.Subscription
 ): Promise<void> {
   const metadata = subscription.metadata || {};
+
+  // Handle add-on subscription updates
   if (metadata.type === "addon") {
+    const tenantId = metadata.tenantId;
+    const addonType = metadata.addonType as AddonType;
+
+    if (!tenantId || !addonType) {
+      console.log(
+        `Add-on subscription ${subscription.id} updated but missing metadata`
+      );
+      return;
+    }
+
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+    // Map Stripe status to add-on status
+    let addonStatus: "active" | "past_due" | "cancelled";
+    switch (subscription.status) {
+      case "active":
+        addonStatus = "active";
+        break;
+      case "past_due":
+        addonStatus = "past_due";
+        break;
+      case "canceled":
+      case "unpaid":
+        addonStatus = "cancelled";
+        break;
+      default:
+        console.log(
+          `Add-on subscription ${subscription.id} has unhandled status: ${subscription.status}`
+        );
+        return;
+    }
+
+    await updateAddonStatus(tenantId, addonType, addonStatus, currentPeriodEnd);
     console.log(
-      `Add-on subscription ${subscription.id} updated ` +
-        `for tenant ${metadata.tenantId}`
+      `Add-on ${addonType} for tenant ${tenantId} updated to ${addonStatus}`
     );
     return;
   }

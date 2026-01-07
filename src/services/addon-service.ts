@@ -85,6 +85,55 @@ export const AddonService = {
       throw error;
     }
   },
+  /**
+   * Get all add-ons including past_due (for grace period handling)
+   * Uses two separate queries to avoid needing a composite index
+   */
+  async getAddonsWithPastDue(tenantId: string): Promise<PurchasedAddon[]> {
+    if (!tenantId) {
+      return [];
+    }
+
+    try {
+      // Query active addons
+      const activeQuery = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("status", "==", "active")
+      );
+
+      // Query past_due addons
+      const pastDueQuery = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("status", "==", "past_due")
+      );
+
+      // Execute both queries in parallel
+      const [activeSnapshot, pastDueSnapshot] = await Promise.all([
+        getDocs(activeQuery),
+        getDocs(pastDueQuery),
+      ]);
+
+      const addons: PurchasedAddon[] = [];
+
+      activeSnapshot.docs.forEach((doc) => {
+        addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
+      });
+
+      pastDueSnapshot.docs.forEach((doc) => {
+        addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
+      });
+
+      return addons;
+    } catch (error) {
+      console.error(
+        "[AddonService] Error querying addons with past_due:",
+        error
+      );
+      throw error;
+    }
+  },
 
   /**
    * Check if tenant has a specific add-on

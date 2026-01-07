@@ -3,7 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { PlanFeatures, AddonType, PlanTier, PurchasedAddon, User } from "@/types";
+import {
+  PlanFeatures,
+  AddonType,
+  PlanTier,
+  PurchasedAddon,
+  User,
+} from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
 import { AddonService } from "@/services/addon-service";
 import {
@@ -29,12 +35,22 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   maxStorageMB: 50, // 50MB for free users
 };
 
+// Grace period for add-ons (same as plans)
+const ADDON_GRACE_PERIOD_DAYS = 7;
+
+export interface AddonGracePeriodInfo {
+  addon: PurchasedAddon;
+  daysRemaining: number;
+  isExpired: boolean;
+}
+
 interface UsePlanLimitsReturn {
   features: PlanFeatures | null;
   isLoading: boolean;
 
   purchasedAddons: AddonType[];
   purchasedAddonsData: PurchasedAddon[];
+  pastDueAddons: AddonGracePeriodInfo[];
 
   hasFinancial: boolean;
   canCustomizeTheme: boolean;
@@ -69,6 +85,9 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   const [purchasedAddonsData, setPurchasedAddonsData] = useState<
     PurchasedAddon[]
   >([]);
+  const [pastDueAddonsData, setPastDueAddonsData] = useState<PurchasedAddon[]>(
+    []
+  );
   const [isPlanLoading, setIsPlanLoading] = useState(true);
   const [isAddonsLoading, setIsAddonsLoading] = useState(true);
 
@@ -155,8 +174,12 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadFeatures();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.planId, (user as User & { masterId?: string })?.masterId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    user?.role,
+    user?.planId,
+    (user as User & { masterId?: string })?.masterId,
+  ]);
 
   // Load addons when tenant changes or finishes loading
   useEffect(() => {
@@ -168,23 +191,45 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       }
 
       setIsAddonsLoading(true);
-      
+
       if (!tenant?.id) {
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
+        setPastDueAddonsData([]);
         setIsAddonsLoading(false);
         return;
       }
 
       try {
-        const addons = await AddonService.getAddonsForTenant(tenant.id);
-        const addonTypes = addons.map((a) => a.addonType);
+        // Get all addons including past_due for grace period handling
+        const allAddons = await AddonService.getAddonsWithPastDue(tenant.id);
+
+        // Separate active and past_due addons
+        const activeAddons = allAddons.filter((a) => a.status === "active");
+        const pastDueAddons = allAddons.filter((a) => a.status === "past_due");
+
+        // Calculate which past_due addons are still in grace period
+        const now = new Date();
+        const validPastDueAddons = pastDueAddons.filter((addon) => {
+          if (!addon.currentPeriodEnd) return true; // No date set, assume in grace
+          const periodEnd = new Date(addon.currentPeriodEnd);
+          const deadline = new Date(periodEnd);
+          deadline.setDate(deadline.getDate() + ADDON_GRACE_PERIOD_DAYS);
+          return now < deadline;
+        });
+
+        // Combine active + valid past_due for features
+        const effectiveAddons = [...activeAddons, ...validPastDueAddons];
+        const addonTypes = effectiveAddons.map((a) => a.addonType);
+
         setPurchasedAddons(addonTypes);
-        setPurchasedAddonsData(addons);
+        setPurchasedAddonsData(effectiveAddons);
+        setPastDueAddonsData(pastDueAddons);
       } catch (error) {
         console.error("Error loading add-ons:", error);
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
+        setPastDueAddonsData([]);
       } finally {
         setIsAddonsLoading(false);
       }
@@ -283,8 +328,8 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     // Members don't have permission to query other users
     // They don't need this info anyway (can't create team members)
-    if (user?.role?.toLowerCase() === 'member') {
-      return 0; 
+    if (user?.role?.toLowerCase() === "member") {
+      return 0;
     }
 
     // Only count MEMBER users (not MASTER/admin users)
@@ -347,12 +392,35 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     return value === -1 ? "Ilimitado" : value.toString();
   };
 
+  // Calculate past due addon grace period info
+  const pastDueAddons = useMemo((): AddonGracePeriodInfo[] => {
+    const now = new Date();
+    return pastDueAddonsData.map((addon) => {
+      const periodEnd = addon.currentPeriodEnd
+        ? new Date(addon.currentPeriodEnd)
+        : now;
+      const deadline = new Date(periodEnd);
+      deadline.setDate(deadline.getDate() + ADDON_GRACE_PERIOD_DAYS);
+
+      const diffTime = deadline.getTime() - now.getTime();
+      const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const daysRemaining = Math.max(0, days);
+
+      return {
+        addon,
+        daysRemaining,
+        isExpired: days <= 0,
+      };
+    });
+  }, [pastDueAddonsData]);
+
   return {
     features: mergedFeatures,
     isLoading: isPlanLoading || isAddonsLoading,
 
     purchasedAddons,
     purchasedAddonsData,
+    pastDueAddons,
 
     hasFinancial: mergedFeatures?.hasFinancial ?? false,
     canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,

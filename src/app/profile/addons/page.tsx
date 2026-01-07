@@ -14,7 +14,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
 import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
 import { AddonType, AddonDefinition } from "@/types";
-import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2 } from "lucide-react";
+import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2, Calendar } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ export default function AddonsPage() {
   const { user } = useAuth();
   const {
     purchasedAddons,
+    purchasedAddonsData,
     isLoading: isPlanLoading,
     planTier,
   } = usePlanLimits();
@@ -58,8 +59,11 @@ export default function AddonsPage() {
   const [addonToCancel, setAddonToCancel] =
     React.useState<AddonDefinition | null>(null);
 
-  // Handle success/canceled URL params
+  // Handle success/canceled URL params - only after loading is complete
   React.useEffect(() => {
+    // Wait until loading is done before showing toasts
+    if (isPlanLoading || isPriceLoading) return;
+
     const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
     const addonCancelled = searchParams.get("addon_cancelled");
@@ -82,12 +86,12 @@ export default function AddonsPage() {
     }
 
     if (addonCancelled === "true") {
-      toast.success("Add-on cancelado com sucesso!", {
+      toast.success("Cancelamento agendado! O add-on ficará ativo até o final do período pago.", {
         toastId: "addon-cancelled-success",
       });
       router.replace("/profile/addons");
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, isPlanLoading, isPriceLoading]);
 
   // Get available add-ons for user's tier (now using the correct tier from hook)
   const availableAddons = AddonService.getAvailableAddonsForTier(planTier);
@@ -144,7 +148,7 @@ export default function AddonsPage() {
     if (!addonToCancel) return;
 
     setIsProcessing(addonToCancel.id);
-    setCancelDialogOpen(false);
+    // Keep dialog open while processing
 
     try {
       const { StripeService } = await import("@/services/stripe-service");
@@ -153,10 +157,7 @@ export default function AddonsPage() {
         tenantId: tenant?.id,
       });
 
-      // Reload page with query param to show toast after reload
-      window.location.href = "/profile/addons?addon_cancelled=true";
-
-      // Reload page with query param to show toast after reload
+      // Redirect with query param - toast will show after skeleton loading completes
       window.location.href = "/profile/addons?addon_cancelled=true";
     } catch (error) {
       console.error("Error cancelling add-on:", error);
@@ -223,6 +224,12 @@ export default function AddonsPage() {
       {availableAddons.length > 0 ? (
         <div className="grid md:grid-cols-2 gap-4">
           {availableAddons.map((addon) => {
+            const addonData = purchasedAddonsData.find((a) => a.addonType === addon.id);
+            const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
+            const cancelDate = addonData?.currentPeriodEnd
+              ? new Date(addonData.currentPeriodEnd).toLocaleDateString('pt-BR')
+              : undefined;
+
             return (
               <AddonCard
                 key={addon.id}
@@ -233,6 +240,8 @@ export default function AddonsPage() {
                 isLoading={isProcessing === addon.id}
                 dynamicPriceMonthly={getAddonPrice(addon.id, "monthly")}
                 isPriceLoading={isPriceLoading}
+                isScheduledCancel={isScheduledCancel}
+                cancelDate={cancelDate}
               />
             );
           })}
@@ -264,6 +273,12 @@ export default function AddonsPage() {
                 const addon = ADDON_DEFINITIONS.find((a) => a.id === addonType);
                 if (!addon) return null;
 
+                const addonData = purchasedAddonsData.find((a) => a.addonType === addonType);
+                const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
+                const cancelDate = addonData?.currentPeriodEnd
+                  ? new Date(addonData.currentPeriodEnd).toLocaleDateString('pt-BR')
+                  : null;
+
                 const isRedundant = !availableAddons.find(
                   (a) => a.id === addonType
                 );
@@ -278,15 +293,27 @@ export default function AddonsPage() {
                         <Puzzle className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold">{addon.name}</h4>
-                          <Badge variant="secondary" className="text-xs">
-                            Ativo
-                          </Badge>
+                          {isScheduledCancel ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Cancelando em {cancelDate}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              Ativo
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
                           {addon.description}
                         </p>
+                        {isScheduledCancel && cancelDate && (
+                          <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
+                            <Calendar className="w-3 h-3" />
+                            Ativo até {cancelDate}
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground mt-1">
                           Cobrança: Mensal
                         </p>
@@ -299,19 +326,21 @@ export default function AddonsPage() {
                       </div>
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCancelClick(addonType)}
-                      className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                      disabled={isProcessing === addonType}
-                    >
-                      {isProcessing === addonType ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        "Cancelar Assinatura"
-                      )}
-                    </Button>
+                    {!isScheduledCancel && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCancelClick(addonType)}
+                        className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                        disabled={isProcessing === addonType}
+                      >
+                        {isProcessing === addonType ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Cancelar Assinatura"
+                        )}
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -333,7 +362,10 @@ export default function AddonsPage() {
       />
 
       {/* Cancel Confirmation Dialog */}
-      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+      <AlertDialog open={cancelDialogOpen} onOpenChange={(open) => {
+        // Prevent closing while processing
+        if (!isProcessing) setCancelDialogOpen(open);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Add-on?</AlertDialogTitle>
@@ -342,19 +374,24 @@ export default function AddonsPage() {
               <strong>{addonToCancel?.name}</strong>?
               <br />
               <br />
-              Você perderá acesso às funcionalidades extras imediatamente.
+              O add-on continuará ativo até o final do período já pago. Após essa data, você perderá acesso às funcionalidades extras.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isProcessing !== null}>Voltar</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleConfirmCancel();
               }}
+              disabled={isProcessing !== null}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Sim, cancelar
+              {isProcessing !== null ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Sim, cancelar"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -27,8 +27,8 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => false,
-  logout: async () => {},
-  refreshUser: async () => {},
+  logout: async () => { },
+  refreshUser: async () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -113,6 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||
             undefined,
+          cancelAtPeriodEnd: userData.cancelAtPeriodEnd || false,
+          isManualSubscription: userData.isManualSubscription || false,
         } as User;
       } else {
         console.warn(

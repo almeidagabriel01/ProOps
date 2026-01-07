@@ -115,6 +115,8 @@ export type PurchasedAddon = {
   quantity?: number; // For quantitative add-ons (e.g., extra users)
   purchasedAt: string;
   expiresAt?: string;
+  currentPeriodEnd?: string; // For grace period calculation
+  cancelAtPeriodEnd?: boolean; // Whether cancellation is scheduled
 };
 
 export type AddonDefinition = {

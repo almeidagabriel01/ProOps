@@ -71,48 +71,48 @@ const featuresList: {
   label: string;
   format: (val: number | boolean) => string;
 }[] = [
-  {
-    key: "maxProposals",
-    label: "Propostas/mês",
-    format: (v) => (v === -1 ? "Ilimitadas" : String(v)),
-  },
-  {
-    key: "maxClients",
-    label: "Clientes",
-    format: (v) => (v === -1 ? "Ilimitados" : String(v)),
-  },
-  {
-    key: "maxProducts",
-    label: "Produtos",
-    format: (v) => (v === -1 ? "Ilimitados" : String(v)),
-  },
-  {
-    key: "maxUsers",
-    label: "Usuários",
-    format: (v) => (v === -1 ? "Ilimitados" : String(v)),
-  },
-  {
-    key: "hasFinancial",
-    label: "Módulo Financeiro",
-    format: (v) => (v ? "Incluso" : "Não incluso"),
-  },
-  {
-    key: "canCustomizeTheme",
-    label: "Personalização de cores",
-    format: (v) => (v ? "Sim" : "Não"),
-  },
-  {
-    key: "maxPdfTemplates",
-    label: "Templates PDF",
-    format: (v) => (v === -1 ? "Todos" : String(v)),
-  },
+    {
+      key: "maxProposals",
+      label: "Propostas/mês",
+      format: (v) => (v === -1 ? "Ilimitadas" : String(v)),
+    },
+    {
+      key: "maxClients",
+      label: "Clientes",
+      format: (v) => (v === -1 ? "Ilimitados" : String(v)),
+    },
+    {
+      key: "maxProducts",
+      label: "Produtos",
+      format: (v) => (v === -1 ? "Ilimitados" : String(v)),
+    },
+    {
+      key: "maxUsers",
+      label: "Usuários",
+      format: (v) => (v === -1 ? "Ilimitados" : String(v)),
+    },
+    {
+      key: "hasFinancial",
+      label: "Módulo Financeiro",
+      format: (v) => (v ? "Incluso" : "Não incluso"),
+    },
+    {
+      key: "canCustomizeTheme",
+      label: "Personalização de cores",
+      format: (v) => (v ? "Sim" : "Não"),
+    },
+    {
+      key: "maxPdfTemplates",
+      label: "Templates PDF",
+      format: (v) => (v === -1 ? "Todos" : String(v)),
+    },
 
-  {
-    key: "canEditPdfSections",
-    label: "Editor PDF avançado",
-    format: (v) => (v ? "Sim" : "Não"),
-  },
-];
+    {
+      key: "canEditPdfSections",
+      label: "Editor PDF avançado",
+      format: (v) => (v ? "Sim" : "Não"),
+    },
+  ];
 
 export function MySubscriptionTab({
   user,
@@ -151,6 +151,8 @@ export function MySubscriptionTab({
   const [isSyncing, setIsSyncing] = useState(false);
   const [addonToCancel, setAddonToCancel] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState(false);
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
 
   const handleConfirmCancel = async () => {
     if (!addonToCancel) return;
@@ -191,6 +193,28 @@ export function MySubscriptionTab({
       toast.error("Erro ao sincronizar assinatura.");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleConfirmCancelSubscription = async () => {
+    setIsCancellingSubscription(true);
+    try {
+      const { StripeService } = await import("@/services/stripe-service");
+      const result = await StripeService.cancelSubscription();
+      if (result.success) {
+        toast.success(
+          "Cancelamento agendado! Seu acesso continua até o final do período pago."
+        );
+        setSubscriptionToCancel(false);
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        throw new Error("Falha no cancelamento");
+      }
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      toast.error("Erro ao cancelar assinatura. Tente novamente.");
+    } finally {
+      setIsCancellingSubscription(false);
     }
   };
 
@@ -367,16 +391,14 @@ export function MySubscriptionTab({
                   return (
                     <div
                       key={feature.key}
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${
-                        isAvailable ? "bg-card" : "bg-muted/30 opacity-60"
-                      }`}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${isAvailable ? "bg-card" : "bg-muted/30 opacity-60"
+                        }`}
                     >
                       <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          isAvailable
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-muted text-muted-foreground"
-                        }`}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center ${isAvailable
+                          ? "bg-green-500/10 text-green-500"
+                          : "bg-muted text-muted-foreground"
+                          }`}
                       >
                         {isAvailable ? (
                           <Check className="w-4 h-4" />
@@ -565,16 +587,30 @@ export function MySubscriptionTab({
                             ? "Incluso no plano"
                             : "Add-on ativo"}
                         </Badge>
-                        {module.source === "addon" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setAddonToCancel(module.id)}
-                          >
-                            Cancelar
-                          </Button>
-                        )}
+                        {module.source === "addon" && (() => {
+                          const addonInfo = addonsData.find(a => a.addonType === module.id);
+                          const isCancelled = addonInfo?.cancelAtPeriodEnd;
+                          const cancelDate = addonInfo?.currentPeriodEnd;
+
+                          if (isCancelled) {
+                            return (
+                              <Badge variant="outline" className="border-amber-500/50 text-amber-600 bg-amber-500/10">
+                                Cancelando {formatDate(cancelDate)}
+                              </Badge>
+                            );
+                          }
+
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setAddonToCancel(module.id)}
+                            >
+                              Cancelar
+                            </Button>
+                          );
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -597,7 +633,7 @@ export function MySubscriptionTab({
         </CardContent>
       </Card>
 
-      {/* Cancel Subscription Info - only for Stripe subscriptions */}
+      {/* Cancel Subscription Direct - only for Stripe subscriptions */}
       {effectivePlan && !cancelAtPeriodEnd && !isManualSubscription && (
         <Card className="border-dashed">
           <CardContent className="p-6">
@@ -610,27 +646,15 @@ export function MySubscriptionTab({
                   Precisa cancelar sua assinatura?
                 </h4>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Você pode cancelar a qualquer momento pelo portal de
-                  pagamento. Seu acesso continua até o fim do período pago.
+                  Você pode cancelar a qualquer momento. Seu acesso continua até o fim do período pago.
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleManagePayment}
-                  disabled={openingPortal}
-                  className="text-muted-foreground"
+                  onClick={() => setSubscriptionToCancel(true)}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
                 >
-                  {openingPortal ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Abrindo...
-                    </>
-                  ) : (
-                    <>
-                      Ir para Portal de Pagamento
-                      <ExternalLink className="w-3 h-3 ml-2" />
-                    </>
-                  )}
+                  Cancelar Assinatura
                 </Button>
               </div>
             </div>
@@ -675,6 +699,47 @@ export function MySubscriptionTab({
                 </>
               ) : (
                 "Sim, cancelar módulo"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Subscription Cancellation Dialog */}
+      <AlertDialog
+        open={subscriptionToCancel}
+        onOpenChange={(open) => !isCancellingSubscription && setSubscriptionToCancel(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Assinatura?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar sua assinatura do plano{" "}
+              <strong>{effectivePlan?.name}</strong>?
+              <br />
+              <br />
+              Seu acesso continuará ativo até o final do período já pago. Após essa data, você será movido para o plano gratuito.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancellingSubscription}>
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmCancelSubscription();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isCancellingSubscription}
+            >
+              {isCancellingSubscription ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Sim, cancelar assinatura"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

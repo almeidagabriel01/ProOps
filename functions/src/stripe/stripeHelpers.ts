@@ -99,3 +99,31 @@ export async function cancelAddon(
 
   console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
 }
+
+export async function updateAddonStatus(
+  tenantId: string,
+  addonType: AddonType,
+  status: "active" | "past_due" | "cancelled",
+  currentPeriodEnd?: Date
+): Promise<void> {
+  const addonId = `${tenantId}_${addonType}`;
+
+  const updateData: Record<string, unknown> = {
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (currentPeriodEnd) {
+    updateData.currentPeriodEnd = currentPeriodEnd.toISOString();
+  }
+
+  if (status === "cancelled") {
+    updateData.expiresAt = FieldValue.serverTimestamp();
+  }
+
+  await db.collection("addons").doc(addonId).update(updateData);
+
+  console.log(
+    `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`
+  );
+}
