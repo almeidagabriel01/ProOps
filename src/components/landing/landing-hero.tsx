@@ -61,8 +61,8 @@ function getProducts(folder: "dark" | "light") {
   }));
 }
 
-// Produtos padrão para SSR (evita hydration mismatch)
-const defaultProducts = getProducts("dark");
+// Produtos padrão para SSR - usar light porque usuários em tema dark veem imagens light
+const defaultProducts = getProducts("light");
 
 export function LandingHero() {
   const { resolvedTheme } = useTheme();

@@ -12,16 +12,27 @@ import {
   LandingFooter,
   LandingFAQ,
 } from "@/components/landing";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 
 export default function LandingPage() {
   const {
-    isCheckingAuth,
+    isRedirecting,
     currentUser,
     billingInterval,
     setBillingInterval,
     plans,
     handleSignOut,
   } = useLandingPage();
+
+  // Show loading when redirecting to dashboard
+  if (isRedirecting) {
+    return (
+      <FullPageLoading
+        message="Entrando..."
+        description="Verificando sua sessão"
+      />
+    );
+  }
 
   // Render page directly - navbar handles loading state for user profile
   return (
