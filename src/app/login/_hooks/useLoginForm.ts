@@ -104,28 +104,17 @@ export function useLoginForm(): UseLoginFormReturn {
   const redirectUrl = searchParams.get("redirect");
 
   const handleRedirectAfterAuth = React.useCallback(() => {
-    console.log("[LoginForm] handleRedirectAfterAuth called");
-    console.log(
-      "[LoginForm] redirectUrl:",
-      redirectUrl,
-      "user role:",
-      user?.role
-    );
-
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
-      console.log("[LoginForm] Redirecting to:", target);
       router.replace(target);
       return;
     }
 
     // Default redirects based on role
     if (user?.role === "superadmin") {
-      console.log("[LoginForm] Redirecting superadmin to /admin");
       router.replace("/admin");
     } else if (user?.role === "free") {
-      console.log("[LoginForm] Redirecting free user to /");
       router.replace("/");
     } else {
       const perms = user?.permissions || {};
@@ -135,15 +124,8 @@ export function useLoginForm(): UseLoginFormReturn {
       );
 
       const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
-      console.log(
-        "[LoginForm] canViewDashboard:",
-        canViewDashboard,
-        "isAdmin:",
-        isAdmin
-      );
 
       if (canViewDashboard) {
-        console.log("[LoginForm] Redirecting to /dashboard");
         router.replace("/dashboard");
       } else {
         const pages = [
@@ -158,10 +140,8 @@ export function useLoginForm(): UseLoginFormReturn {
         );
 
         if (firstAllowed) {
-          console.log("[LoginForm] Redirecting to:", firstAllowed);
           router.replace(`/${firstAllowed}`);
         } else {
-          console.log("[LoginForm] No permissions, redirecting to /403");
           router.replace("/403");
         }
       }
@@ -170,14 +150,7 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // If already logged in, redirect
   React.useEffect(() => {
-    console.log(
-      "[LoginForm] Redirect effect - isLoading:",
-      isLoading,
-      "user:",
-      user?.id
-    );
     if (!isLoading && user) {
-      console.log("[LoginForm] User is logged in, triggering redirect...");
       handleRedirectAfterAuth();
     }
   }, [user, isLoading, handleRedirectAfterAuth]);
