@@ -95,6 +95,8 @@ export function usePlanChange(
 
   // Handle success/canceled from Stripe redirect
   useEffect(() => {
+    // Wait for loading to complete before showing toasts
+    if (isLoading) return;
     if (toastShownRef.current) return;
 
     const savedMessage = localStorage.getItem("profile_message");
@@ -133,7 +135,7 @@ export function usePlanChange(
       toastShownRef.current = true;
       window.history.replaceState({}, "", "/profile");
     }
-  }, [searchParams]);
+  }, [searchParams, isLoading]);
 
   // Load plans based on effective user
   useEffect(() => {
@@ -166,14 +168,16 @@ export function usePlanChange(
         const livePlans = await PlanService.getLivePlans();
         if (livePlans && livePlans.length > 0) {
           setAllPlans(livePlans);
-          
+
           // Update user plan with live data if needed
           const targetPlanId = effectiveUser?.planId;
           if (targetPlanId) {
-             const liveUserPlan = livePlans.find(p => p.id === targetPlanId || p.tier === targetPlanId);
-             if (liveUserPlan) {
-               setUserPlan(liveUserPlan);
-             }
+            const liveUserPlan = livePlans.find(
+              (p) => p.id === targetPlanId || p.tier === targetPlanId
+            );
+            if (liveUserPlan) {
+              setUserPlan(liveUserPlan);
+            }
           }
         }
       } catch (error) {
