@@ -59,11 +59,11 @@ const statusOptions: {
   label: string;
   icon: typeof Clock;
 }[] = [
-  { value: "draft", label: "Rascunho", icon: Clock },
-  { value: "sent", label: "Enviada", icon: Send },
-  { value: "approved", label: "Aprovada", icon: Check },
-  { value: "rejected", label: "Rejeitada", icon: XCircle },
-];
+    { value: "draft", label: "Rascunho", icon: Clock },
+    { value: "sent", label: "Enviada", icon: Send },
+    { value: "approved", label: "Aprovada", icon: Check },
+    { value: "rejected", label: "Rejeitada", icon: XCircle },
+  ];
 
 import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -149,6 +149,7 @@ export default function ProposalsPage() {
     null
   );
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
@@ -205,6 +206,7 @@ export default function ProposalsPage() {
   };
 
   const handleDuplicate = async (id: string) => {
+    setDuplicatingId(id);
     try {
       const original = proposals.find((p) => p.id === id);
       if (!original) return;
@@ -234,6 +236,8 @@ export default function ProposalsPage() {
     } catch (error) {
       console.error("Duplicate error:", error);
       toast.error("Erro ao duplicar proposta.");
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -534,9 +538,14 @@ export default function ProposalsPage() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() => handleDuplicate(proposal.id)}
+                          disabled={duplicatingId === proposal.id}
                           title="Duplicar"
                         >
-                          <Copy className="w-4 h-4" />
+                          {duplicatingId === proposal.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
                         </Button>
                       )}
                       {canDelete && (
