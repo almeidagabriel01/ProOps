@@ -7,6 +7,7 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "react-toastify";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface UseSistemaFormProps {
   isOpen: boolean;
@@ -14,6 +15,11 @@ interface UseSistemaFormProps {
   preselectedAmbienteId?: string;
   onSave?: (sistema: Sistema) => void;
   onClose: () => void;
+  // Managed mode
+  managedSistemas?: Sistema[];
+  managedAmbientes?: Ambiente[];
+  onAction?: (action: MasterDataAction) => void;
+  onAmbienteAction?: (action: MasterDataAction) => void;
 }
 
 export function useSistemaForm({
@@ -22,6 +28,10 @@ export function useSistemaForm({
   preselectedAmbienteId,
   onSave,
   onClose,
+  managedSistemas,
+  managedAmbientes,
+  onAction,
+  onAmbienteAction,
 }: UseSistemaFormProps) {
   const { tenant } = useTenant();
 
@@ -48,6 +58,18 @@ export function useSistemaForm({
 
   // Load data
   const loadData = React.useCallback(async () => {
+    if (managedAmbientes) {
+      setAmbientes(managedAmbientes);
+      // Products still fetched directly for now as they are not managed transactionally in this scope yet?
+      // Assuming products are global standard list.
+      if (tenant?.id) {
+        const productsData = await ProductService.getProducts(tenant.id);
+        setProducts(productsData);
+      }
+      setIsLoading(false);
+      return;
+    }
+
     if (!tenant?.id) return;
     setIsLoading(true);
     try {
@@ -62,7 +84,7 @@ export function useSistemaForm({
     } finally {
       setIsLoading(false);
     }
-  }, [tenant?.id]);
+  }, [tenant?.id, managedAmbientes]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -154,25 +176,46 @@ export function useSistemaForm({
         updatedAt: new Date().toISOString(),
       };
 
-      /*
-      if (selectedProducts.length === 0) {
-        toast.error("O sistema deve ter pelo menos um produto selecionado.");
-        return;
-      }
-      */
-
-      let savedSistema: Sistema;
-      if (isEditing && editingSistema) {
-        await SistemaService.updateSistema(editingSistema.id, sistemaData);
-        savedSistema = { id: editingSistema.id, ...sistemaData };
-        toast.success("Sistema atualizado com sucesso!");
+      if (onAction) {
+        // Managed Mode
+        if (isEditing && editingSistema) {
+          onAction({
+            type: "update",
+            entity: "sistema",
+            id: editingSistema.id,
+            data: sistemaData,
+          });
+          const savedSistema = { id: editingSistema.id, ...sistemaData };
+          onSave?.(savedSistema);
+          toast.success("Sistema atualizado (Rascunho)!");
+        } else {
+          const tempId = `temp-${Date.now()}`;
+          onAction({
+            type: "create",
+            entity: "sistema",
+            id: tempId,
+            data: { id: tempId, ...sistemaData },
+          });
+          const savedSistema = { id: tempId, ...sistemaData };
+          onSave?.(savedSistema);
+          toast.success("Sistema criado (Rascunho)!");
+        }
+        onClose();
       } else {
-        savedSistema = await SistemaService.createSistema(sistemaData);
-        toast.success("Sistema criado com sucesso!");
-      }
+        // Direct Mode
+        let savedSistema: Sistema;
+        if (isEditing && editingSistema) {
+          await SistemaService.updateSistema(editingSistema.id, sistemaData);
+          savedSistema = { id: editingSistema.id, ...sistemaData };
+          toast.success("Sistema atualizado com sucesso!");
+        } else {
+          savedSistema = await SistemaService.createSistema(sistemaData);
+          toast.success("Sistema criado com sucesso!");
+        }
 
-      onSave?.(savedSistema);
-      onClose();
+        onSave?.(savedSistema);
+        onClose();
+      }
     } catch (error) {
       console.error("Error saving sistema:", error);
       toast.error("Erro ao salvar sistema");

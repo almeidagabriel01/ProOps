@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
@@ -108,7 +108,7 @@ function PdfDownloader({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, proposal]);
+  }, [isOpen, proposal, isGenerating, handleGenerate]);
 
   if (!proposal) return null;
 
@@ -138,6 +138,7 @@ function PdfDownloader({
 }
 
 export default function ProposalsPage() {
+  const router = useRouter();
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
@@ -150,6 +151,12 @@ export default function ProposalsPage() {
   );
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  const handleEdit = (id: string) => {
+    setEditingId(id);
+    router.push(`/proposals/${id}`);
+  };
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
@@ -412,11 +419,12 @@ export default function ProposalsPage() {
         ) : (
           <div className="grid gap-4">
             {/* Header */}
-            <div className="grid grid-cols-6 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+            <div className="grid grid-cols-7 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div>Título</div>
               <div className="text-center">Cliente</div>
               <div className="text-center">Status</div>
-              <div className="text-center">Criado em</div>
+              <div className="text-center">Ambiente</div>
+              <div className="text-center">Sistema</div>
               <div className="text-center">Validade</div>
               <div className="text-right">Ações</div>
             </div>
@@ -429,12 +437,25 @@ export default function ProposalsPage() {
                   (sum: number, p: { total: number }) => sum + p.total,
                   0
                 ) || 0;
+
+              // Extract unique Ambientes and Sistemas
+              const uniqueAmbientes = Array.from(
+                new Set(
+                  proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean)
+                )
+              );
+              const uniqueSistemas = Array.from(
+                new Set(
+                  proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean)
+                )
+              );
+
               return (
                 <Card
                   key={proposal.id}
                   className="hover:bg-muted/50 transition-colors"
                 >
-                  <CardContent className="grid grid-cols-6 gap-4 items-center py-4 px-4">
+                  <CardContent className="grid grid-cols-7 gap-4 items-center py-4 px-4">
                     <div>
                       <Link
                         href={`/proposals/${proposal.id}/view`}
@@ -516,9 +537,29 @@ export default function ProposalsPage() {
                         </Badge>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground text-center">
-                      {formatDate(proposal.createdAt)}
+
+                    {/* Ambientes */}
+                    <div className="text-sm text-muted-foreground text-center truncate px-2">
+                      {uniqueAmbientes.length > 0 ? (
+                        <span title={uniqueAmbientes.join(", ")}>
+                          {uniqueAmbientes.length > 2
+                            ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
+                            : uniqueAmbientes.join(", ")}
+                        </span>
+                      ) : "-"}
                     </div>
+
+                    {/* Sistemas */}
+                    <div className="text-sm text-muted-foreground text-center truncate px-2">
+                      {uniqueSistemas.length > 0 ? (
+                        <span title={uniqueSistemas.join(", ")}>
+                          {uniqueSistemas.length > 2
+                            ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
+                            : uniqueSistemas.join(", ")}
+                        </span>
+                      ) : "-"}
+                    </div>
+
                     <div className="text-sm text-muted-foreground text-center">
                       {formatDate(proposal.validUntil)}
                     </div>
@@ -548,16 +589,20 @@ export default function ProposalsPage() {
                         )}
                       </Button>
                       {canEdit && (
-                        <Link href={`/proposals/${proposal.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Editar"
-                          >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Editar"
+                          onClick={() => handleEdit(proposal.id)}
+                          disabled={editingId === proposal.id}
+                        >
+                          {editingId === proposal.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
                             <FileText className="w-4 h-4" />
-                          </Button>
-                        </Link>
+                          )}
+                        </Button>
                       )}
                       {canCreate && (
                         <Button

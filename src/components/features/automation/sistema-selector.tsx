@@ -18,17 +18,34 @@ import { useTenant } from "@/providers/tenant-provider";
 import { AmbienteManagerDialog } from "./ambiente-manager-dialog";
 import { SistemaTemplateDialog } from "./sistema-template-dialog";
 import { SistemaManagerDialog } from "./sistema-manager-dialog";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 export interface SistemaSelectorProps {
   value?: ProposalSistema | null;
   onChange: (sistema: ProposalSistema | null) => void;
   onProductsChange?: (products: SistemaProduct[]) => void;
+  onDataUpdate?: () => void;
+  // Managed mode
+  sistemas?: Sistema[];
+  ambientes?: Ambiente[];
+  onAction?: (action: MasterDataAction) => void;
+  // Separate handlers if needed, or generic. 
+  // Let's use generic onAction for now, or maybe distinct ones if distinct types?
+  // The hook provides handleAmbienteAction and handleSistemaAction.
+  // Let's accept onAmbienteAction and onSistemaAction for clarity.
+  onAmbienteAction?: (action: MasterDataAction) => void;
+  onSistemaAction?: (action: MasterDataAction) => void;
 }
 
 export function SistemaSelector({
   value,
   onChange,
   onProductsChange,
+  onDataUpdate,
+  sistemas: managedSistemas,
+  ambientes: managedAmbientes,
+  onAmbienteAction,
+  onSistemaAction,
 }: SistemaSelectorProps) {
   const { tenant } = useTenant();
 
@@ -56,6 +73,17 @@ export function SistemaSelector({
   // Load data
   const loadData = React.useCallback(
     async (silent = false) => {
+      // Managed Mode
+      if (managedSistemas && managedAmbientes) {
+        setSistemas(managedSistemas);
+        setFilteredSistemas(managedSistemas);
+        setAmbientes(managedAmbientes);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!tenant?.id) return;
+      if (!silent) setIsLoading(true);
       if (!tenant?.id) return;
       if (!silent) setIsLoading(true);
       try {
@@ -65,13 +93,14 @@ export function SistemaSelector({
         ]);
         setAmbientes(ambientesData);
         setSistemas(sistemasData);
+        setFilteredSistemas(sistemasData);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
-        if (!silent) setIsLoading(false);
+        setIsLoading(false);
       }
     },
-    [tenant?.id]
+    [tenant?.id, managedAmbientes, managedSistemas]
   );
 
   React.useEffect(() => {
@@ -97,6 +126,29 @@ export function SistemaSelector({
       setSelectedSistemaId(value.sistemaId);
     }
   }, [value]);
+
+  // Sync value names if underlying data changes (e.g. edited in dialogs)
+  React.useEffect(() => {
+    if (!value) return;
+
+    const currentAmbiente = ambientes.find((a) => a.id === value.ambienteId);
+    const currentSistema = sistemas.find((s) => s.id === value.sistemaId);
+
+    // If data is missing (maybe deleted), do nothing or handle accordingly
+    if (!currentAmbiente || !currentSistema) return;
+
+    // Check if names have changed
+    const ambienteNameChanged = currentAmbiente.name !== value.ambienteName;
+    const sistemaNameChanged = currentSistema.name !== value.sistemaName;
+
+    if (ambienteNameChanged || sistemaNameChanged) {
+      onChange({
+        ...value,
+        ambienteName: currentAmbiente.name,
+        sistemaName: currentSistema.name,
+      });
+    }
+  }, [ambientes, sistemas, value, onChange]);
 
   const handleAmbienteChange = (ambienteId: string) => {
     setSelectedAmbienteId(ambienteId);
@@ -174,6 +226,7 @@ export function SistemaSelector({
       // Fallback
       loadData();
     }
+    onDataUpdate?.();
   };
 
   const handleDeleteSistema = async () => {
@@ -195,6 +248,7 @@ export function SistemaSelector({
       setSelectedSistemaId("");
       onChange(null);
       loadData(true);
+      onDataUpdate?.();
     } catch (error) {
       console.error("Error deleting sistema:", error);
       toast.error("Erro ao excluir sistema");
@@ -330,17 +384,23 @@ export function SistemaSelector({
         isOpen={isAmbienteDialogOpen}
         onClose={() => setIsAmbienteDialogOpen(false)}
         onAmbientesChange={() => loadData(true)}
+        ambientes={managedAmbientes}
+        onAction={onAmbienteAction}
       />
 
       <SistemaTemplateDialog
         isOpen={isSistemaDialogOpen}
         onClose={() => {
           setIsSistemaDialogOpen(false);
-          setOpenedFromManager(false);
+          setEditingSistema(null);
         }}
         editingSistema={editingSistema}
         preselectedAmbienteId={selectedAmbienteId}
         onSave={handleSistemaCreated}
+        sistemas={managedSistemas}
+        ambientes={managedAmbientes}
+        onAction={onSistemaAction}
+        onAmbienteAction={onAmbienteAction}
         onBack={
           openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined
         }
@@ -350,17 +410,22 @@ export function SistemaSelector({
         isOpen={isSistemaManagerOpen}
         onClose={() => setIsSistemaManagerOpen(false)}
         onSistemasChange={() => loadData(true)}
-        filterAmbienteId={selectedAmbienteId}
         onEditSistema={(sistema) => {
           setEditingSistema(sistema);
-          setOpenedFromManager(true);
+          setIsSistemaManagerOpen(false);
           setIsSistemaDialogOpen(true);
+          setOpenedFromManager(true);
         }}
         onCreateNew={() => {
           setEditingSistema(null);
-          setOpenedFromManager(true);
+          setIsSistemaManagerOpen(false);
           setIsSistemaDialogOpen(true);
+          setOpenedFromManager(true);
         }}
+        filterAmbienteId={selectedAmbienteId}
+        sistemas={managedSistemas}
+        ambientes={managedAmbientes}
+        onAction={onSistemaAction}
       />
     </div>
   );

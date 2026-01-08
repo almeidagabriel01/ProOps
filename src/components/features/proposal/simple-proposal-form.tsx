@@ -7,16 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, User, Package, Cpu, CheckCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { User, Package, Cpu, CheckCircle } from "lucide-react";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
 import { toast } from "react-toastify";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
-import { ProposalSistema, Sistema } from "@/types/automation";
+import { Sistema, ProposalSistema } from "@/types/automation";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
-import { ProposalProduct } from "@/services/proposal-service";
-import { Product } from "@/services/product-service";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { FormContainer } from "@/components/ui/form-components";
 import {
@@ -100,8 +99,16 @@ export function SimpleProposalForm({
     setIsNewClient,
     setFormData,
     setSelectedSistemas,
-    setSystemProductIds,
     setShowLimitModal,
+    isAutomacaoNiche,
+    // Transactional
+    mergedAmbientes,
+    mergedSistemas,
+    handleAmbienteAction,
+    handleSistemaAction,
+    addSistema,
+    removeSistema,
+    addProductToSystem,
     handleChange,
     handleSubmit,
     toggleProduct,
@@ -114,7 +121,7 @@ export function SimpleProposalForm({
     router,
     features,
     primaryColor,
-    isAutomacaoNiche,
+    // isAutomacaoNiche - removed duplicate
   } = useProposalForm({ proposalId });
 
   // Key para forçar reset do SistemaSelector após adicionar um sistema
@@ -129,9 +136,6 @@ export function SimpleProposalForm({
   const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(
     null
   );
-  const [managerFilterAmbienteId, setManagerFilterAmbienteId] = React.useState<
-    string | undefined
-  >(undefined);
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
 
   // Ref to prevent duplicate additions from double-firing events
@@ -168,7 +172,7 @@ export function SimpleProposalForm({
     if (formData.title && formData.title.trim().length >= 3 && errors.title) {
       clearFieldError("title");
     }
-  }, [formData.title]);
+  }, [formData.title, errors.title]);
 
   React.useEffect(() => {
     if (
@@ -178,7 +182,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientName");
     }
-  }, [formData.clientName]);
+  }, [formData.clientName, errors.clientName]);
 
   React.useEffect(() => {
     if (
@@ -188,7 +192,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientEmail");
     }
-  }, [formData.clientEmail]);
+  }, [formData.clientEmail, errors.clientEmail]);
 
   React.useEffect(() => {
     if (
@@ -198,7 +202,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientPhone");
     }
-  }, [formData.clientPhone]);
+  }, [formData.clientPhone, errors.clientPhone]);
 
   React.useEffect(() => {
     if (formData.validUntil && errors.validUntil) {
@@ -211,7 +215,7 @@ export function SimpleProposalForm({
         clearFieldError("validUntil");
       }
     }
-  }, [formData.validUntil]);
+  }, [formData.validUntil, errors.validUntil]);
 
   React.useEffect(() => {
     if (
@@ -222,13 +226,13 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("sistemas");
     }
-  }, [selectedSistemas, formData.products]);
+  }, [selectedSistemas, formData.products, errors.sistemas]);
 
   React.useEffect(() => {
     if (selectedProducts.length > 0 && errors.products) {
       clearFieldError("products");
     }
-  }, [selectedProducts]);
+  }, [selectedProducts, errors.products]);
 
   // Validação do Step 1 (Cliente)
   const validateStep1 = (): boolean => {
@@ -369,55 +373,6 @@ export function SimpleProposalForm({
     }));
   };
 
-  // Handle adding extra product to system
-  const handleAddExtraProductToSystem = (
-    product: Product,
-    sistemaIndex: number,
-    systemInstanceId: string
-  ) => {
-    const price = parseFloat(product.price);
-    const newProduct: ProposalProduct = {
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || product.image || "",
-      productImages: product.images || [],
-      productDescription: product.description || "",
-      quantity: 1,
-      unitPrice: price,
-      total: price,
-      manufacturer: product.manufacturer,
-      category: product.category,
-      systemInstanceId: systemInstanceId,
-      isExtra: true,
-    };
-
-    setSelectedSistemas((prev) =>
-      prev.map((s, i) => {
-        if (i === sistemaIndex) {
-          return {
-            ...s,
-            products: [
-              ...s.products,
-              {
-                productId: product.id,
-                productName: product.name,
-                quantity: 1,
-              },
-            ],
-          };
-        }
-        return s;
-      })
-    );
-
-    setFormData((prev) => ({
-      ...prev,
-      products: [...(prev.products || []), newProduct],
-    }));
-
-    setSystemProductIds((prev) => new Set([...prev, product.id]));
-  };
-
   // Handle adding new system
   const handleAddNewSystem = (sistema: ProposalSistema | null) => {
     if (!sistema) return;
@@ -451,55 +406,9 @@ export function SimpleProposalForm({
       return;
     }
 
-    setSelectedSistemas((prev) => [...prev, sistema]);
-
-    const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-
-    const newProducts: ProposalProduct[] = sistema.products.map((sp) => {
-      const existingProduct = products.find((p) => p.id === sp.productId);
-      const price = existingProduct ? parseFloat(existingProduct.price) : 0;
-      return {
-        productId: sp.productId,
-        productName: sp.productName,
-        productImage:
-          existingProduct?.images?.[0] || existingProduct?.image || "",
-        productImages: existingProduct?.images || [],
-        productDescription: existingProduct?.description || "",
-        quantity: sp.quantity,
-        unitPrice: price,
-        total: price * sp.quantity,
-        manufacturer: existingProduct?.manufacturer,
-        category: existingProduct?.category,
-        systemInstanceId: systemInstanceId,
-      };
-    });
-
-    setSystemProductIds((prev) => {
-      const newSet = new Set(prev);
-      sistema.products.forEach((sp) => newSet.add(sp.productId));
-      return newSet;
-    });
-
-    setFormData((prev) => ({
-      ...prev,
-      products: [...(prev.products || []), ...newProducts],
-    }));
-
+    // Use hook handler
+    addSistema(sistema);
     setSelectorKey((prev) => prev + 1);
-  };
-
-  // Handle removing system
-  const handleRemoveSystem = (
-    sistemaIndex: number,
-    systemInstanceId: string
-  ) => {
-    setSelectedSistemas((prev) => prev.filter((_, i) => i !== sistemaIndex));
-    setFormData((prev) => ({
-      ...prev,
-      products: (prev.products || []).filter(
-        (p) => p.systemInstanceId !== systemInstanceId
-      ),
-    }));
   };
 
   // Handle editing system selection
@@ -527,6 +436,13 @@ export function SimpleProposalForm({
     const newSelectedSistemas = [...selectedSistemas];
     newSelectedSistemas[editingSelectionIndex] = newSistema;
     setSelectedSistemas(newSelectedSistemas);
+
+    // If it's the same system instance (same IDs), we stop here to preserve products.
+    // This handles cases where we just renamed the environment or system.
+    if (oldInstanceId === newInstanceId) {
+      setEditingSelectionIndex(null);
+      return;
+    }
 
     // Update products
     setFormData((prev) => {
@@ -568,16 +484,28 @@ export function SimpleProposalForm({
   };
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
+      <FormContainer>
+        <div className="flex items-center justify-between mb-8">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <div className="grid gap-6">
+          <div className="grid gap-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        </div>
+      </FormContainer>
     );
   }
 
@@ -616,7 +544,7 @@ export function SimpleProposalForm({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
                 <User className="w-6 h-6 text-blue-600" />
               </div>
               <div>
@@ -645,7 +573,7 @@ export function SimpleProposalForm({
             {isAutomacaoNiche ? (
               <>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
                     <Cpu className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
@@ -664,20 +592,28 @@ export function SimpleProposalForm({
                   products={products}
                   primaryColor={primaryColor}
                   selectorKey={selectorKey}
-                  onEditSystem={(index) => setEditingSelectionIndex(index)}
-                  onRemoveSystem={handleRemoveSystem}
+                  onEditSystem={(idx) => {
+                    setEditingSelectionIndex(idx);
+                  }}
+                  onRemoveSystem={removeSistema}
                   onUpdateProductQuantity={updateProductQuantity}
-                  onAddExtraProductToSystem={handleAddExtraProductToSystem}
+                  onAddExtraProductToSystem={addProductToSystem}
                   onAddNewSystem={handleAddNewSystem}
-                  SistemaSelectorComponent={SistemaSelector}
                   onRemoveProduct={removeProduct}
+                  SistemaSelectorComponent={SistemaSelector}
                   onToggleStatus={handleToggleProductStatus}
+                  onDataUpdate={() => setSelectorKey((prev) => prev + 1)}
+                  // Transactional
+                  ambientes={mergedAmbientes}
+                  sistemas={mergedSistemas}
+                  onAmbienteAction={handleAmbienteAction}
+                  onSistemaAction={handleSistemaAction}
                 />
               </>
             ) : (
               <>
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
                     <Package className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
@@ -714,7 +650,7 @@ export function SimpleProposalForm({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
                 <CheckCircle className="w-6 h-6 text-amber-600" />
               </div>
               <div>
@@ -761,6 +697,12 @@ export function SimpleProposalForm({
               <SistemaSelector
                 value={selectedSistemas[editingSelectionIndex]}
                 onChange={handleEditSystemSelection}
+                onDataUpdate={() => setSelectorKey((prev) => prev + 1)}
+                // Transactional
+                ambientes={mergedAmbientes}
+                sistemas={mergedSistemas}
+                onAmbienteAction={handleAmbienteAction}
+                onSistemaAction={handleSistemaAction}
               />
             )}
         </DialogContent>
@@ -770,13 +712,29 @@ export function SimpleProposalForm({
       <AmbienteManagerDialog
         isOpen={isAmbienteManagerOpen}
         onClose={() => setIsAmbienteManagerOpen(false)}
-        onAmbientesChange={() => setSelectorKey((prev) => prev + 1)}
+        ambientes={mergedAmbientes}
+        onAction={handleAmbienteAction}
+        onAmbientesChange={(updatedAmbiente) => {
+          setSelectorKey((prev) => prev + 1);
+          // If an ambiente was edited, sync its name in selectedSistemas
+          if (updatedAmbiente) {
+            setSelectedSistemas((prev) =>
+              prev.map((sistema) =>
+                sistema.ambienteId === updatedAmbiente.id
+                  ? { ...sistema, ambienteName: updatedAmbiente.name }
+                  : sistema
+              )
+            );
+          }
+        }}
       />
 
       <SistemaManagerDialog
         isOpen={isSistemaManagerOpen}
         onClose={() => setIsSistemaManagerOpen(false)}
-        filterAmbienteId={managerFilterAmbienteId}
+        sistemas={mergedSistemas}
+        ambientes={mergedAmbientes}
+        onAction={handleSistemaAction}
         onSistemasChange={() => setSelectorKey((prev) => prev + 1)}
         onEditSistema={(sistema) => {
           setEditingSistema(sistema);
@@ -797,8 +755,12 @@ export function SimpleProposalForm({
           setOpenedFromManager(false);
         }}
         editingSistema={editingSistema}
-        preselectedAmbienteId={managerFilterAmbienteId || ""}
         onSave={() => setSelectorKey((prev) => prev + 1)}
+        // Transactional
+        ambientes={mergedAmbientes}
+        sistemas={mergedSistemas}
+        onAction={handleSistemaAction}
+        onAmbienteAction={handleAmbienteAction}
         onBack={
           openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined
         }

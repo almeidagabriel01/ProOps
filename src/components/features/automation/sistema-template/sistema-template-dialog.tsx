@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Sistema } from "@/types/automation";
+import { Sistema, Ambiente } from "@/types/automation";
 import { useSistemaForm } from "./useSistemaForm";
 import { Spinner } from "@/components/ui/spinner";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import {
   SistemaInfoSection,
   AmbienteSelectorSection,
@@ -27,6 +28,11 @@ interface SistemaTemplateDialogProps {
   preselectedAmbienteId?: string;
   onSave?: (sistema: Sistema) => void;
   onBack?: () => void;
+  // Managed mode
+  sistemas?: Sistema[];
+  ambientes?: Ambiente[];
+  onAction?: (action: MasterDataAction) => void;
+  onAmbienteAction?: (action: MasterDataAction) => void;
 }
 
 export function SistemaTemplateDialog({
@@ -36,6 +42,10 @@ export function SistemaTemplateDialog({
   preselectedAmbienteId,
   onSave,
   onBack,
+  sistemas: managedSistemas,
+  ambientes: managedAmbientes,
+  onAction,
+  onAmbienteAction,
 }: SistemaTemplateDialogProps) {
   const {
     name,
@@ -65,6 +75,11 @@ export function SistemaTemplateDialog({
     preselectedAmbienteId,
     onSave,
     onClose,
+    // Pass managed props
+    managedSistemas,
+    managedAmbientes,
+    onAction,
+    onAmbienteAction,
   });
 
   return (
@@ -119,17 +134,19 @@ export function SistemaTemplateDialog({
         <DialogFooter className="gap-2 sm:gap-0">
           {onBack ? (
             <>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  onClose();
-                  onBack();
-                }}
-                className="mr-auto"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Voltar
-              </Button>
+              {!isSaving && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    onClose();
+                    onBack();
+                  }}
+                  className="mr-auto"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Voltar
+                </Button>
+              )}
               <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving
@@ -141,9 +158,11 @@ export function SistemaTemplateDialog({
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={onClose}>
-                Cancelar
-              </Button>
+              {!isSaving && (
+                <Button variant="outline" onClick={onClose}>
+                  Cancelar
+                </Button>
+              )}
               <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving

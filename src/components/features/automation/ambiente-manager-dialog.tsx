@@ -28,14 +28,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "react-toastify";
 import { Loader2 } from "lucide-react";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface AmbienteManagerDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onAmbientesChange?: () => void;
+    onAmbientesChange?: (updatedAmbiente?: { id: string; name: string }) => void;
+    ambientes?: Ambiente[]; // Managed mode: pass data
+    onAction?: (action: MasterDataAction) => void; // Managed mode: pass handler
 }
 
-export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: AmbienteManagerDialogProps) {
+export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange, ambientes: managedAmbientes, onAction }: AmbienteManagerDialogProps) {
     const { tenant } = useTenant();
     const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -50,6 +53,12 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
     const [editingName, setEditingName] = React.useState("");
 
     const loadAmbientes = React.useCallback(async () => {
+        if (managedAmbientes) {
+            setAmbientes(managedAmbientes);
+            setIsLoading(false);
+            return;
+        }
+
         if (!tenant?.id) {
             setIsLoading(false);
             return;
@@ -65,7 +74,7 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
         } finally {
             setIsLoading(false);
         }
-    }, [tenant?.id]);
+    }, [tenant?.id, managedAmbientes]);
 
     React.useEffect(() => {
         if (isOpen && tenant?.id) {
@@ -78,18 +87,41 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
 
         setIsCreating(true);
         try {
-            const nextOrder = await AmbienteService.getNextOrder(tenant.id);
-            await AmbienteService.createAmbiente({
-                tenantId: tenant.id,
-                name: newAmbienteName.trim(),
-                icon: "Home",
-                order: nextOrder,
-                createdAt: new Date().toISOString(),
-            });
-            setNewAmbienteName("");
-            await loadAmbientes();
-            onAmbientesChange?.();
-            toast.success("Ambiente criado com sucesso!");
+            if (onAction) {
+                // Managed Mode
+                const tempId = `temp-${Date.now()}`;
+                onAction({
+                    type: "create",
+                    entity: "ambiente",
+                    id: tempId,
+                    data: {
+                        id: tempId, // Important for local list
+                        tenantId: tenant.id,
+                        name: newAmbienteName.trim(),
+                        icon: "Home",
+                        order: 9999, // Temp order, fix later or ignore
+                        createdAt: new Date().toISOString(),
+                    }
+                });
+                setNewAmbienteName("");
+                // No need to loadAmbientes(), parent updates props
+                onAmbientesChange?.();
+                toast.success("Ambiente adicionado (Rascunho)!");
+            } else {
+                // Direct Mode
+                const nextOrder = await AmbienteService.getNextOrder(tenant.id);
+                await AmbienteService.createAmbiente({
+                    tenantId: tenant.id,
+                    name: newAmbienteName.trim(),
+                    icon: "Home",
+                    order: nextOrder,
+                    createdAt: new Date().toISOString(),
+                });
+                setNewAmbienteName("");
+                await loadAmbientes();
+                onAmbientesChange?.();
+                toast.success("Ambiente criado com sucesso!");
+            }
         } catch (error) {
             console.error("Error creating ambiente:", error);
             toast.error("Erro ao criar ambiente");
@@ -108,10 +140,21 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
 
         setIsDeleting(true);
         try {
-            await AmbienteService.deleteAmbiente(deletingId);
-            await loadAmbientes();
-            onAmbientesChange?.();
-            toast.success("Ambiente excluído com sucesso!");
+            if (onAction) {
+                onAction({
+                    type: "delete",
+                    entity: "ambiente",
+                    id: deletingId
+                });
+                // loadAmbientes() not needed if managed
+                onAmbientesChange?.();
+                toast.success("Ambiente removido (Rascunho)!");
+            } else {
+                await AmbienteService.deleteAmbiente(deletingId);
+                await loadAmbientes();
+                onAmbientesChange?.();
+                toast.success("Ambiente excluído com sucesso!");
+            }
         } catch (error) {
             console.error("Error deleting ambiente:", error);
             toast.error("Erro ao excluir ambiente");
@@ -127,12 +170,29 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
 
         setUpdatingId(id);
         try {
-            await AmbienteService.updateAmbiente(id, { name: editingName.trim() });
-            setEditingId(null);
-            setEditingName("");
-            await loadAmbientes();
-            onAmbientesChange?.();
-            toast.success("Ambiente atualizado com sucesso!");
+            const newName = editingName.trim();
+
+            if (onAction) {
+                onAction({
+                    type: "update",
+                    entity: "ambiente",
+                    id,
+                    data: { name: newName }
+                });
+                setEditingId(null);
+                setEditingName("");
+                // managed update
+                onAmbientesChange?.({ id, name: newName });
+                toast.success("Ambiente atualizado (Rascunho)!");
+            } else {
+                await AmbienteService.updateAmbiente(id, { name: newName });
+                setEditingId(null);
+                setEditingName("");
+                await loadAmbientes();
+                // Pass the updated ambiente info so parent can sync selectedSistemas
+                onAmbientesChange?.({ id, name: newName });
+                toast.success("Ambiente atualizado com sucesso!");
+            }
         } catch (error) {
             console.error("Error updating ambiente:", error);
             toast.error("Erro ao atualizar ambiente");
@@ -227,14 +287,16 @@ export function AmbienteManagerDialog({ isOpen, onClose, onAmbientesChange }: Am
                                                 >
                                                     {updatingId === ambiente.id ? <Spinner className="h-3 w-3" /> : "Salvar"}
                                                 </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={cancelEdit}
-                                                    disabled={updatingId === ambiente.id}
-                                                >
-                                                    Cancelar
-                                                </Button>
+                                                {updatingId !== ambiente.id && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={cancelEdit}
+                                                        disabled={updatingId === ambiente.id}
+                                                    >
+                                                        Cancelar
+                                                    </Button>
+                                                )}
                                             </>
                                         ) : (
                                             <>

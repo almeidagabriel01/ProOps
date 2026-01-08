@@ -13,9 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
-import { ProposalSistema } from "@/types/automation";
+import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
 import { getContrastTextColor } from "@/utils/color-utils";
 import { Package, Plus, Minus, Cpu, Trash2, Pencil } from "lucide-react";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +55,12 @@ interface ProposalSystemsSectionProps {
     productId: string,
     newStatus: "active" | "inactive"
   ) => Promise<void>;
+  onDataUpdate?: () => void;
+  // Transactional Data
+  ambientes?: Ambiente[];
+  sistemas?: Sistema[];
+  onAmbienteAction?: (action: MasterDataAction) => void;
+  onSistemaAction?: (action: MasterDataAction) => void;
 }
 
 export function ProposalSystemsSection({
@@ -70,6 +77,11 @@ export function ProposalSystemsSection({
   onRemoveProduct,
   SistemaSelectorComponent,
   onToggleStatus,
+  onDataUpdate,
+  ambientes,
+  sistemas,
+  onAmbienteAction,
+  onSistemaAction,
 }: ProposalSystemsSectionProps) {
   return (
     <Card>
@@ -141,6 +153,13 @@ export function ProposalSystemsSection({
             key={selectorKey}
             value={null}
             onChange={(s) => s && onAddNewSystem(s)}
+            onDataUpdate={onDataUpdate}
+            // Transactional
+            onAmbienteAction={onAmbienteAction}
+            onSistemaAction={onSistemaAction}
+            // Ensure we update invalidations if needed
+            sistemas={sistemas}
+            ambientes={ambientes}
           />
         </div>
       </CardContent>
@@ -353,13 +372,12 @@ function ProductRow({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
-        !isActive
-          ? "bg-muted/5 border-dashed border-muted-foreground/20"
-          : product.isExtra
-            ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
-            : "bg-muted/30"
-      }`}
+      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${!isActive
+        ? "bg-muted/5 border-dashed border-muted-foreground/20"
+        : product.isExtra
+          ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
+          : "bg-muted/30"
+        }`}
     >
       {/* Toggle - compact on left */}
       {onToggleStatus && (
@@ -583,9 +601,8 @@ function ExtraProductsGrid({
           return (
             <div
               key={product.id}
-              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${
-                !isActive ? "opacity-60 hover:opacity-100" : ""
-              }`}
+              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${!isActive ? "opacity-60 hover:opacity-100" : ""
+                }`}
               onClick={() => onAddProduct(product)}
             >
               {/* Toggle - subtle on left */}

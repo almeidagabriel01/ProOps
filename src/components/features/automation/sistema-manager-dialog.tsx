@@ -17,6 +17,7 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "react-toastify";
+import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface SistemaManagerDialogProps {
   isOpen: boolean;
@@ -25,6 +26,9 @@ interface SistemaManagerDialogProps {
   onEditSistema?: (sistema: Sistema) => void;
   onCreateNew?: () => void;
   filterAmbienteId?: string;
+  sistemas?: Sistema[]; // Managed mode
+  ambientes?: Ambiente[]; // Managed mode (for displaying names)
+  onAction?: (action: MasterDataAction) => void;
 }
 
 export function SistemaManagerDialog({
@@ -34,6 +38,9 @@ export function SistemaManagerDialog({
   onEditSistema,
   onCreateNew,
   filterAmbienteId,
+  sistemas: managedSistemas,
+  ambientes: managedAmbientes,
+  onAction,
 }: SistemaManagerDialogProps) {
   const { tenant } = useTenant();
   const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
@@ -42,6 +49,19 @@ export function SistemaManagerDialog({
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
+    if (managedSistemas && managedAmbientes) {
+      let filteredSistemas = managedSistemas;
+      if (filterAmbienteId) {
+        filteredSistemas = managedSistemas.filter((s) =>
+          s.ambienteIds.includes(filterAmbienteId)
+        );
+      }
+      setSistemas(filteredSistemas);
+      setAmbientes(managedAmbientes);
+      setIsLoading(false);
+      return;
+    }
+
     if (!tenant?.id) return;
     setIsLoading(true);
     try {
@@ -64,7 +84,7 @@ export function SistemaManagerDialog({
     } finally {
       setIsLoading(false);
     }
-  }, [tenant?.id, filterAmbienteId]);
+  }, [tenant?.id, filterAmbienteId, managedSistemas, managedAmbientes]);
 
   React.useEffect(() => {
     if (isOpen && tenant?.id) {
@@ -78,9 +98,19 @@ export function SistemaManagerDialog({
     ) {
       setDeletingId(sistema.id);
       try {
-        await SistemaService.deleteSistema(sistema.id);
-        await loadData();
-        onSistemasChange?.();
+        if (onAction) {
+          onAction({
+            type: "delete",
+            entity: "sistema",
+            id: sistema.id
+          });
+          onSistemasChange?.();
+          toast.success("Sistema removido (Rascunho)!");
+        } else {
+          await SistemaService.deleteSistema(sistema.id);
+          await loadData();
+          onSistemasChange?.();
+        }
       } catch (error) {
         console.error("Error deleting sistema:", error);
         toast.error("Erro ao excluir sistema");
@@ -140,7 +170,7 @@ export function SistemaManagerDialog({
                 key={sistema.id}
                 className="flex items-start gap-3 p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
               >
-                <Package className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                <Package className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium">{sistema.name}</h4>
                   {sistema.description && (
@@ -159,7 +189,7 @@ export function SistemaManagerDialog({
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
+                <div className="flex gap-1 shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
