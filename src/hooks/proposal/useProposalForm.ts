@@ -49,7 +49,9 @@ export interface UseProposalFormReturn {
 
   // Actions
   handleChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   toggleProduct: (product: Product) => void;
@@ -148,20 +150,72 @@ export function useProposalForm({
   // Load existing proposal if editing
   React.useEffect(() => {
     const fetchProposal = async () => {
-      if (proposalId) {
+      if (proposalId && products.length > 0) {
         try {
           const proposal = await ProposalService.getProposalById(proposalId);
           if (proposal) {
+            // Sync client data from source if clientId exists
+            let syncedClientName = proposal.clientName || "";
+            let syncedClientEmail = proposal.clientEmail || "";
+            let syncedClientPhone = proposal.clientPhone || "";
+            let syncedClientAddress = proposal.clientAddress || "";
+
+            if (proposal.clientId) {
+              try {
+                const { ClientService } =
+                  await import("@/services/client-service");
+                const freshClient = await ClientService.getClientById(
+                  proposal.clientId
+                );
+                if (freshClient) {
+                  syncedClientName = freshClient.name || syncedClientName;
+                  syncedClientEmail = freshClient.email || syncedClientEmail;
+                  syncedClientPhone = freshClient.phone || syncedClientPhone;
+                  syncedClientAddress =
+                    freshClient.address || syncedClientAddress;
+                }
+              } catch (clientError) {
+                console.warn("Could not fetch fresh client data:", clientError);
+              }
+              setSelectedClientId(proposal.clientId);
+              setIsNewClient(false);
+            }
+
+            // Sync product data from loaded products
+            const syncedProducts = (proposal.products || []).map((pp) => {
+              const freshProduct = products.find((p) => p.id === pp.productId);
+              if (freshProduct) {
+                const price = parseFloat(freshProduct.price) || pp.unitPrice;
+                return {
+                  ...pp,
+                  productName: freshProduct.name,
+                  productImage:
+                    freshProduct.images?.[0] ||
+                    freshProduct.image ||
+                    pp.productImage ||
+                    "",
+                  productImages: freshProduct.images || pp.productImages || [],
+                  productDescription:
+                    freshProduct.description || pp.productDescription || "",
+                  unitPrice: price,
+                  total: pp.quantity * price,
+                  manufacturer: freshProduct.manufacturer || pp.manufacturer,
+                  category: freshProduct.category || pp.category,
+                };
+              }
+              return pp;
+            });
+
             setFormData({
               title: proposal.title || "",
-              clientName: proposal.clientName || "",
-              clientEmail: proposal.clientEmail || "",
-              clientPhone: proposal.clientPhone || "",
-              clientAddress: proposal.clientAddress || "",
+              clientName: syncedClientName,
+              clientEmail: syncedClientEmail,
+              clientPhone: syncedClientPhone,
+              clientAddress: syncedClientAddress,
               validUntil: proposal.validUntil || "",
               customNotes: proposal.customNotes || "",
               discount: proposal.discount || 0,
-              products: proposal.products || [],
+              products: syncedProducts,
               status: (proposal.status as ProposalStatus) || "draft",
             });
 
@@ -173,7 +227,7 @@ export function useProposalForm({
                   ambienteId: s.ambienteId as string,
                   ambienteName: s.ambienteName as string,
                   description: (s.description as string) || "",
-                  products: (proposal.products || [])
+                  products: syncedProducts
                     .filter((p: ProposalProduct) =>
                       (s.productIds as string[] | undefined)?.includes(
                         p.productId
@@ -203,7 +257,7 @@ export function useProposalForm({
       }
     };
     fetchProposal();
-  }, [proposalId]);
+  }, [proposalId, products]);
 
   const selectedProducts = formData.products || [];
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
@@ -320,7 +374,9 @@ export function useProposalForm({
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
