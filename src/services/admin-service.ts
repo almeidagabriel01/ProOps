@@ -22,6 +22,7 @@ export interface TenantBillingInfo {
   };
   admin: {
     id: string;
+    name?: string;
     email: string;
     subscriptionStatus?: string;
     currentPeriodEnd?: string;

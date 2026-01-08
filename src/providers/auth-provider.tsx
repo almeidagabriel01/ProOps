@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: firebaseUser.uid,
           email: firebaseUser.email || "",
           name: userData.name || firebaseUser.displayName || "User",
+          photoURL: userData.photoURL || firebaseUser.photoURL || undefined,
           role: userData.role || "admin",
           tenantId: userData.tenantId || "default-tenant",
           planId: userData.planId || undefined,

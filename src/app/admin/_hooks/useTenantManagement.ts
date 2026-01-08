@@ -154,7 +154,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
             );
             const user = userCredential.user;
             await setDoc(doc(secondaryDb, "users", user.uid), {
-              name: `Admin ${data.name}`,
+              name: data.userName,
               email: data.email,
               role: "admin",
               tenantId: newTenant.id,

@@ -21,6 +21,7 @@ export type User = {
   tenantId?: string; // Optional for free users
   name: string;
   email: string;
+  photoURL?: string;
   password?: string; // Kept for types compatibility, but Firebase Auth handles passwords
   role: "admin" | "user" | "superadmin" | "free" | "member";
   planId?: string; // Reference to user's subscription plan

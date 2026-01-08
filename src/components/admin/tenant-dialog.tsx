@@ -22,6 +22,7 @@ import { toast } from "react-toastify";
 
 export interface TenantFormData {
   name: string;
+  userName: string;
   color: string;
   logoUrl?: string;
   niche: TenantNiche;
@@ -61,6 +62,7 @@ export function TenantDialog({
 }: TenantDialogProps) {
   const [formData, setFormData] = React.useState<TenantFormData>({
     name: "",
+    userName: "",
     color: "#3b82f6",
     logoUrl: "",
     niche: "automacao_residencial" as TenantNiche,
@@ -81,6 +83,7 @@ export function TenantDialog({
       if (initialData) {
         setFormData({
           name: initialData.tenant.name,
+          userName: initialData.admin?.name || "",
           color: initialData.tenant.primaryColor || "#3b82f6",
           logoUrl: initialData.tenant.logoUrl || "",
           niche: (initialData.tenant.niche as TenantNiche) || "automacao_residencial",
@@ -93,6 +96,7 @@ export function TenantDialog({
       } else {
         setFormData({
           name: "",
+          userName: "",
           color: "#3b82f6",
           logoUrl: "",
           niche: "automacao_residencial" as TenantNiche,
@@ -151,8 +155,8 @@ export function TenantDialog({
 
     const isCreating = !initialData;
     if (isCreating) {
-      if (!formData.email || !formData.password) {
-        toast.error("Email e senha são obrigatórios para criar uma empresa.");
+      if (!formData.email || !formData.password || !formData.userName) {
+        toast.error("Nome do usuário, Email e senha são obrigatórios para criar uma empresa.");
         return;
       }
     }
@@ -348,6 +352,16 @@ export function TenantDialog({
 
               {/* Tab: Acesso */}
               <TabsContent value="access" className="space-y-6 pt-4">
+                <div className="space-y-1">
+                  <Label htmlFor="userName" className="mb-3 block">Nome do Usuário Admin</Label>
+                  <Input
+                    id="userName"
+                    value={formData.userName}
+                    onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                    placeholder="Nome completo"
+                  />
+                </div>
+
                 <div className="space-y-1">
                   <Label htmlFor="email" className="mb-3 block">Email do Administrador</Label>
                   <Input
