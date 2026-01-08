@@ -224,8 +224,12 @@ service cloud.firestore {
       ));
       // CREATE: Super admin can create any tenant, users can only create their own (self-registration)
       allow create: if isSuperAdmin() || (isAuthenticated() && tenantId == 'tenant_' + request.auth.uid);
-      // UPDATE: Only super admin can update tenants
-      allow update: if isSuperAdmin();
+      // UPDATE: Super admin can update any field, tenant owner (master) can update safe fields
+      allow update: if isSuperAdmin() 
+                    || (isAuthenticated() 
+                        && getUserData().tenantId == tenantId 
+                        && getUserData().get('masterId', null) == null
+                        && onlyUpdatesFields(['name', 'niche', 'primaryColor', 'logoUrl', 'updatedAt']));
       // DELETE: Only super admin can delete tenants
       allow delete: if isSuperAdmin();
     }

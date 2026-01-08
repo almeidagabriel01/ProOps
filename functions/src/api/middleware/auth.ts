@@ -81,7 +81,6 @@ export const validateFirebaseIdToken = async (
           if (tenantId && role) {
             // Set Custom Claims for NEXT time
             await auth.setCustomUserClaims(decodedIdToken.uid, {
-              ...decodedIdToken,
               tenantId,
               role,
               masterId,

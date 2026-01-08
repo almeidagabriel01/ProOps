@@ -107,16 +107,26 @@ export const ProposalService = {
     }
   },
 
-  isClientUsedInProposal: async (clientId: string): Promise<boolean> => {
-    // Placeholder: assuming we check strictly or leniently
-    // Ideally this should be a backend check or a specific query
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      where("clientId", "==", clientId)
-      // limit(1) would be good but standard SDK query
-    );
-    const snap = await getDocs(q);
-    return !snap.empty;
+  isClientUsedInProposal: async (clientId: string, tenantId: string): Promise<boolean> => {
+    // Validate both parameters are provided
+    if (!clientId || !tenantId) {
+      console.warn("isClientUsedInProposal called without clientId or tenantId");
+      return false;
+    }
+
+    try {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("clientId", "==", clientId)
+      );
+      const snap = await getDocs(q);
+      return !snap.empty;
+    } catch (error) {
+      console.error("Error checking client usage:", error);
+      // Block deletion to be safe if we can't verify
+      return true;
+    }
   },
 
   isProductUsedInProposal: async (productId: string, tenantId?: string): Promise<boolean> => {

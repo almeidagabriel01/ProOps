@@ -74,7 +74,10 @@ export default function CustomersPage() {
     setIsDeleting(true);
     try {
       // Check if client is used in any proposal
-      const isUsed = await ProposalService.isClientUsedInProposal(deleteId);
+      const isUsed = await ProposalService.isClientUsedInProposal(
+        deleteId,
+        tenant.id
+      );
       if (isUsed) {
         toast.error(
           "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas."

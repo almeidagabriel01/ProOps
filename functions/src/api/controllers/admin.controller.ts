@@ -328,42 +328,88 @@ export const deleteMember = async (req: Request, res: Response) => {
 };
 
 export const updatePermissions = async (req: Request, res: Response) => {
+  console.log("=== [updatePermissions] START ===");
+  console.log("[updatePermissions] Full body:", JSON.stringify(req.body, null, 2));
+  
   try {
     const masterId = req.user!.uid;
-    const { memberId, permissions } = req.body;
+    // Support both memberId and targetUserId for compatibility
+    const { memberId, targetUserId, permissions, pageId, key, value, mode } = req.body;
+    
+    const actualMemberId = memberId || targetUserId;
 
-    if (!memberId || !permissions)
-      return res.status(400).json({ message: "Dados inválidos." });
+    console.log("[updatePermissions] masterId:", masterId);
+    console.log("[updatePermissions] actualMemberId:", actualMemberId);
+
+    if (!actualMemberId) {
+      return res.status(400).json({ message: "ID do membro é obrigatório." });
+    }
 
     const [masterSnap, memberSnap] = await Promise.all([
       db.collection("users").doc(masterId).get(),
-      db.collection("users").doc(memberId).get(),
+      db.collection("users").doc(actualMemberId).get(),
     ]);
 
-    if (!masterSnap.exists || !memberSnap.exists)
+    console.log("[updatePermissions] masterSnap.exists:", masterSnap.exists, "memberSnap.exists:", memberSnap.exists);
+
+    if (!masterSnap.exists) {
       return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+    if (!memberSnap.exists) {
+      console.log("[updatePermissions] Member not found with ID:", actualMemberId);
+      return res.status(404).json({ message: "Membro não encontrado." });
+    }
 
     const masterData = masterSnap.data() as UserDoc;
     const memberData = memberSnap.data();
 
-    if (!canManageTeam(masterData.role))
+    if (!canManageTeam(masterData.role)) {
       return res.status(403).json({ message: "Permissão negada." });
-    if (memberData?.masterId !== masterId)
+    }
+    if (memberData?.masterId !== masterId) {
       return res.status(403).json({ message: "Permissão negada." });
+    }
 
-    const batch = db.batch();
     const permissionsRef = db
       .collection("users")
-      .doc(memberId)
+      .doc(actualMemberId)
       .collection("permissions");
 
-    for (const [pageId, perms] of Object.entries(permissions)) {
-      // perms is untyped
-      const p = perms as Record<string, boolean>;
+    // Handle single permission update mode
+    if (mode === "single" && pageId && key) {
       const docRef = permissionsRef.doc(pageId);
-      batch.set(docRef, {
+      const existingDoc = await docRef.get();
+      const existingData = existingDoc.exists ? existingDoc.data() : {};
+
+      await docRef.set({
         pageId,
         pageSlug: `/${pageId}`,
+        canView: existingData?.canView ?? false,
+        canCreate: existingData?.canCreate ?? false,
+        canEdit: existingData?.canEdit ?? false,
+        canDelete: existingData?.canDelete ?? false,
+        [key]: value,
+        updatedAt: new Date().toISOString(),
+        updatedBy: masterId,
+      }, { merge: true });
+
+      return res.json({ success: true, message: "Permissão atualizada." });
+    }
+
+    // Handle bulk permissions update
+    if (!permissions) {
+      return res.status(400).json({ message: "Permissões são obrigatórias." });
+    }
+
+    const batch = db.batch();
+
+    for (const [pId, perms] of Object.entries(permissions)) {
+      // perms is untyped
+      const p = perms as Record<string, boolean>;
+      const docRef = permissionsRef.doc(pId);
+      batch.set(docRef, {
+        pageId: pId,
+        pageSlug: `/${pId}`,
         canView: p.canView ?? false,
         canCreate: p.canCreate ?? false,
         canEdit: p.canEdit ?? false,

@@ -48,6 +48,7 @@ export function useUpdatePermissions() {
         mode: "single", // Flag to tell backend it's a single update
       });
 
+      toast.success("Permissão atualizada!");
       return { success: true };
     } catch (error: unknown) {
       console.error("Error updating permissions:", error);

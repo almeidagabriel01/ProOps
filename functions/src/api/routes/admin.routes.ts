@@ -14,9 +14,10 @@ const router = Router();
 
 router.get("/tenants/billing", getAllTenantsBilling);
 router.post("/members", createMember);
+// IMPORTANT: Specific routes must come BEFORE parameterized routes
+router.put("/members/permissions", updatePermissions);
 router.put("/members/:id", updateMember);
 router.delete("/members/:id", deleteMember);
-router.put("/members/permissions", updatePermissions);
 
 router.post("/credentials", updateCredentials);
 

@@ -14,6 +14,7 @@ import {
   updateProposal,
   deleteProposal,
 } from "../controllers/proposals.controller";
+import { updateTenant } from "../controllers/tenants.controller";
 
 const router = Router();
 
@@ -32,4 +33,8 @@ router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
 router.delete("/proposals/:id", deleteProposal);
 
+// Tenants
+router.put("/tenants/:id", updateTenant);
+
 export const coreRoutes = router;
+
