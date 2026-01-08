@@ -177,6 +177,33 @@ export default function ProposalsPage() {
       if (tenant) {
         try {
           const data = await ProposalService.getProposals(tenant.id);
+
+          // Sync client names from clients collection
+          const clientIds = [...new Set(data.filter(p => p.clientId).map(p => p.clientId))];
+
+          if (clientIds.length > 0) {
+            try {
+              const { ClientService } = await import("@/services/client-service");
+              const allClients = await ClientService.getClients(tenant.id);
+
+              // Create a map for quick lookup
+              const clientMap = new Map(allClients.map(c => [c.id, c]));
+
+              // Update proposals with fresh client data
+              data.forEach(proposal => {
+                if (proposal.clientId && clientMap.has(proposal.clientId)) {
+                  const freshClient = clientMap.get(proposal.clientId)!;
+                  proposal.clientName = freshClient.name;
+                  proposal.clientEmail = freshClient.email;
+                  proposal.clientPhone = freshClient.phone;
+                  proposal.clientAddress = freshClient.address;
+                }
+              });
+            } catch (clientError) {
+              console.warn("Could not sync client names:", clientError);
+            }
+          }
+
           setProposals(data);
         } catch (error) {
           console.error("Failed to fetch proposals", error);

@@ -71,6 +71,51 @@ export default function ViewProposalPage() {
         try {
           const p = await ProposalService.getProposalById(proposalId);
           if (p) {
+            // Sync client data from source if clientId exists
+            if (p.clientId) {
+              try {
+                const { ClientService } = await import("@/services/client-service");
+                const freshClient = await ClientService.getClientById(p.clientId);
+                if (freshClient) {
+                  p.clientName = freshClient.name || p.clientName;
+                  p.clientEmail = freshClient.email || p.clientEmail;
+                  p.clientPhone = freshClient.phone || p.clientPhone;
+                  p.clientAddress = freshClient.address || p.clientAddress;
+                }
+              } catch (clientError) {
+                console.warn("Could not fetch fresh client data:", clientError);
+              }
+            }
+
+            // Sync product data from products collection
+            if (p.products && p.products.length > 0) {
+              try {
+                const { ProductService } = await import("@/services/product-service");
+                const allProducts = await ProductService.getProducts(tenant.id);
+
+                p.products = p.products.map((pp) => {
+                  const freshProduct = allProducts.find((prod) => prod.id === pp.productId);
+                  if (freshProduct) {
+                    const price = parseFloat(freshProduct.price) || pp.unitPrice;
+                    return {
+                      ...pp,
+                      productName: freshProduct.name,
+                      productImage: freshProduct.images?.[0] || freshProduct.image || pp.productImage || "",
+                      productImages: freshProduct.images || pp.productImages || [],
+                      productDescription: freshProduct.description || pp.productDescription || "",
+                      unitPrice: price,
+                      total: pp.quantity * price,
+                      manufacturer: freshProduct.manufacturer || pp.manufacturer,
+                      category: freshProduct.category || pp.category,
+                    };
+                  }
+                  return pp;
+                });
+              } catch (productError) {
+                console.warn("Could not fetch fresh product data:", productError);
+              }
+            }
+
             setProposal(p);
             // Synthesize template
             const t = ProposalDefaults.createDefaultTemplate(
