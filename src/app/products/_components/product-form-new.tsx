@@ -449,7 +449,7 @@ export function ProductFormNew({
                 </div>
                 <div>
                   <span className="text-muted-foreground">Imagens:</span>
-                  <p className="font-medium">{imageUrls.length} de 3</p>
+                  <p className="font-medium">{imageUrls.length} de {maxImagesPerProduct}</p>
                 </div>
               </div>
             </div>
