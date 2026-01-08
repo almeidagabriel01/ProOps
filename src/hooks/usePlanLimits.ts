@@ -146,13 +146,31 @@ export function usePlanLimits(): UsePlanLimitsReturn {
           plan = await PlanService.getPlanByTier(effectivePlanId);
         }
 
+        // Debug log for production troubleshooting
+        console.log(
+          "[usePlanLimits] effectivePlanId:",
+          effectivePlanId,
+          "plan?.tier:",
+          plan?.tier,
+          "plan found:",
+          !!plan
+        );
+
         if (plan?.features) {
           setBaseFeatures(plan.features);
           // Normalize tier to lowercase for consistency with addon definitions
-          setPlanTier(plan.tier?.toLowerCase() as PlanTier);
+          const normalizedTier = plan.tier?.toLowerCase() as PlanTier;
+          console.log("[usePlanLimits] Setting planTier to:", normalizedTier);
+          setPlanTier(normalizedTier);
         } else {
           const fallbackPlan = DEFAULT_PLANS.find(
-            (p) => p.tier === effectivePlanId
+            (p) =>
+              p.tier === effectivePlanId ||
+              p.tier === effectivePlanId?.toLowerCase()
+          );
+          console.log(
+            "[usePlanLimits] Using fallback plan:",
+            fallbackPlan?.tier
           );
           if (fallbackPlan?.features) {
             setBaseFeatures(fallbackPlan.features);
@@ -169,6 +187,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       } catch (error) {
         console.error("Error loading plan features:", error);
         setBaseFeatures(FREE_PLAN_FEATURES);
+        setPlanTier("starter"); // Ensure starter is set on error
       }
 
       setIsPlanLoading(false);
