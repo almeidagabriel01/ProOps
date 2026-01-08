@@ -1,8 +1,8 @@
 import { db } from "@/lib/firebase";
+import { callApi } from "@/lib/api-client";
 import {
   collection,
   addDoc,
-  updateDoc,
   deleteDoc,
   doc,
   getDocs,
@@ -43,8 +43,7 @@ export const TenantService = {
   },
 
   updateTenant: async (id: string, tenant: Partial<Tenant>): Promise<void> => {
-    const docRef = doc(db, COLLECTION_NAME, id);
-    await updateDoc(docRef, tenant);
+    await callApi(`/v1/tenants/${id}`, "PUT", tenant);
   },
 
   deleteTenant: async (id: string): Promise<void> => {

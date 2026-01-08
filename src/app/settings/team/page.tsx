@@ -101,6 +101,10 @@ export default function TeamPage() {
         });
       }
 
+      console.log(
+        "[DEBUG] Loaded members from Firestore:",
+        membersList.map((m) => ({ id: m.id, name: m.name, email: m.email }))
+      );
       setMembers(membersList);
     } catch (error) {
       console.error("Error fetching members:", error);
