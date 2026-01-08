@@ -148,14 +148,15 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
         if (plan?.features) {
           setBaseFeatures(plan.features);
-          setPlanTier(plan.tier as PlanTier);
+          // Normalize tier to lowercase for consistency with addon definitions
+          setPlanTier(plan.tier?.toLowerCase() as PlanTier);
         } else {
           const fallbackPlan = DEFAULT_PLANS.find(
             (p) => p.tier === effectivePlanId
           );
           if (fallbackPlan?.features) {
             setBaseFeatures(fallbackPlan.features);
-            setPlanTier(fallbackPlan.tier as PlanTier);
+            setPlanTier(fallbackPlan.tier?.toLowerCase() as PlanTier);
           } else {
             console.warn(
               "Could not load plan features for planId:",

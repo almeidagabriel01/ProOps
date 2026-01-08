@@ -163,8 +163,10 @@ export const AddonService = {
    * Get available add-ons for a specific plan tier
    */
   getAvailableAddonsForTier(tier: PlanTier): AddonDefinition[] {
+    // Normalize tier to lowercase for comparison
+    const normalizedTier = tier?.toLowerCase() as PlanTier;
     return ADDON_DEFINITIONS.filter((addon) =>
-      addon.availableForTiers.includes(tier)
+      addon.availableForTiers.includes(normalizedTier)
     );
   },
 
