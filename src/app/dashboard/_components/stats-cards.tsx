@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import {
   Card,
@@ -19,7 +20,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -179,37 +179,35 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
           <div className="w-full flex items-center gap-6">
             {/* Donut Chart com texto centralizado */}
             <div
-              className="relative flex-shrink-0"
+              className="relative shrink-0"
               style={{ width: 170, height: 170 }}
             >
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={75}
-                    paddingAngle={4}
-                    dataKey="value"
-                    stroke="none"
-                    cornerRadius={4}
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    formatter={(value: number) => [value, "Qtd"]}
-                    contentStyle={{
-                      borderRadius: "12px",
-                      border: "none",
-                      boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                    }}
-                    itemStyle={{ fontSize: "13px", fontWeight: "bold" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart width={170} height={170}>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={4}
+                  dataKey="value"
+                  stroke="none"
+                  cornerRadius={4}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  formatter={(value: number) => [value, "Qtd"]}
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "none",
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                  }}
+                  itemStyle={{ fontSize: "13px", fontWeight: "bold" }}
+                />
+              </PieChart>
               {/* Texto central - absolutamente centralizado */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center">
@@ -228,7 +226,7 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
               {data.map((item, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <div
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
                   <span className="text-xs font-medium text-muted-foreground">

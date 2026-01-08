@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { formatCurrency } from "@/utils/format";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 export interface BarChartDataItem {
   name: string;
@@ -15,15 +15,63 @@ interface SimpleBarChartProps {
 }
 
 /**
- * Lightweight CSS-based bar chart component
+ * Lightweight bar chart component
  * Shows income vs expenses comparison
  */
 export const SimpleBarChart = React.memo(({ data }: SimpleBarChartProps) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = React.useState({ width: 0, height: 0 });
+  const resizeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        // Only update if dimensions changed significantly (> 5px difference)
+        setDimensions(prev => {
+          if (Math.abs(prev.width - rect.width) > 5 || Math.abs(prev.height - rect.height) > 5) {
+            return { width: rect.width, height: rect.height };
+          }
+          return prev;
+        });
+      }
+    };
+
+    // Debounced update for resize events
+    const debouncedUpdate = () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      resizeTimeoutRef.current = setTimeout(updateDimensions, 150);
+    };
+
+    // Initial measurement after mount
+    updateDimensions();
+
+    // ResizeObserver for responsive updates with debounce
+    const resizeObserver = new ResizeObserver(debouncedUpdate);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const chartWidth = Math.max(dimensions.width, 1);
+  const chartHeight = Math.max(dimensions.height, 1);
+
   return (
-    <div className="h-full w-full">
-      <ResponsiveContainer width="100%" height="100%" debounce={200}>
+    <div ref={containerRef} className="h-full w-full min-h-[200px]">
+      {dimensions.width > 0 && dimensions.height > 0 && (
         <BarChart
           data={data}
+          width={chartWidth}
+          height={chartHeight}
           margin={{
             top: 20,
             right: 20,
@@ -95,8 +143,8 @@ export const SimpleBarChart = React.memo(({ data }: SimpleBarChartProps) => {
             maxBarSize={50}
           />
         </BarChart>
-      </ResponsiveContainer>
-    </div >
+      )}
+    </div>
   );
 });
 
