@@ -165,21 +165,35 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
       className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-[left] duration-300 ease-out will-change-[left] rounded-tl-[2rem] rounded-tr-[2rem]"
     >
       <div className="flex items-center gap-4">
-        {/* Super Admin Viewing Banner */}
-        {isViewingAsTenant && user?.role === "superadmin" && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBackToAdmin}
-            className="border-amber-500/50 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar ao Admin
-          </Button>
-        )}
-
         <CommandPalette />
       </div>
+
+      {/* Super Admin Viewing Banner - Centered & Minimalist */}
+      {isViewingAsTenant && user?.role === "superadmin" && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500"></span>
+            </span>
+            <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
+              Modo Super Admin
+            </span>
+          </div>
+
+          <div className="w-px h-3 bg-border mx-0.5" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToAdmin}
+            className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors"
+          >
+            Voltar ao painel
+            <LogOut className="w-3 h-3 ml-1.5" />
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
