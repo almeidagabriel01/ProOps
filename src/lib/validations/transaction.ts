@@ -9,13 +9,7 @@ export const transactionSchema = z
       .string()
       .min(1, "Descrição é obrigatória")
       .min(3, "Descrição deve ter pelo menos 3 caracteres"),
-    amount: z
-      .string()
-      .min(1, "Valor é obrigatório")
-      .refine((val) => {
-        const num = parseFloat(val);
-        return !isNaN(num) && num > 0;
-      }, "Valor deve ser maior que 0"),
+    amount: z.string().optional().or(z.literal("")),
     date: z
       .string()
       .min(1, "Data é obrigatória")
@@ -32,10 +26,19 @@ export const transactionSchema = z
     clientId: z.string().optional().or(z.literal("")),
     clientName: z.string().optional().or(z.literal("")),
     category: z.string().optional().or(z.literal("")),
-    wallet: z.string().min(1, "Carteira é obrigatória"),
+    wallet: z.string().optional().or(z.literal("")),
     isInstallment: z.boolean().default(false),
-    installmentCount: z.number().min(2).max(24).default(2),
+    installmentCount: z.number().min(1).max(24).default(2),
     notes: z.string().optional().or(z.literal("")),
+    // New fields for advanced payment mode
+    paymentMode: z.enum(["total", "installmentValue"]).default("total"),
+    installmentValue: z.string().optional().or(z.literal("")),
+    firstInstallmentDate: z.string().optional().or(z.literal("")),
+    installmentsWallet: z.string().optional().or(z.literal("")),
+    downPaymentEnabled: z.boolean().default(false),
+    downPaymentValue: z.string().optional().or(z.literal("")),
+    downPaymentWallet: z.string().optional().or(z.literal("")),
+    downPaymentDueDate: z.string().optional().or(z.literal("")),
   })
   .refine(
     (data) => {
