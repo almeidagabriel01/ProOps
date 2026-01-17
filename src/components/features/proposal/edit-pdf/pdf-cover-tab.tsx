@@ -6,7 +6,11 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, X, Crown } from "lucide-react";
 import { ThemeType, themeOptions } from "./pdf-theme-utils";
-import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import {
+  PdfSection,
+  CoverElement,
+} from "@/components/features/proposal/pdf-section-editor";
+import { CoverElementsEditor } from "@/components/features/proposal/pdf-editor";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 
 interface PdfCoverTabProps {
@@ -29,6 +33,12 @@ interface PdfCoverTabProps {
   premiumColor: string;
   maxPdfTemplates: number;
   setShowUpgradeModal: (val: boolean) => void;
+  // Cover elements
+  coverElements?: CoverElement[];
+  setCoverElements?: (elements: CoverElement[]) => void;
+  primaryColor?: string;
+  canEditCoverElements?: boolean;
+  clientName?: string;
 }
 
 export function PdfCoverTab({
@@ -51,13 +61,18 @@ export function PdfCoverTab({
   premiumColor,
   maxPdfTemplates,
   setShowUpgradeModal,
+  coverElements,
+  setCoverElements,
+  primaryColor = "#2563eb",
+  canEditCoverElements = true,
+  clientName = "Nome do Cliente",
 }: PdfCoverTabProps) {
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         alert(
-          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
@@ -80,7 +95,7 @@ export function PdfCoverTab({
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         alert(
-          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
@@ -239,13 +254,37 @@ export function PdfCoverTab({
           </div>
         )}
 
+        {/* Cover Elements Editor - Moved above theme */}
+        {canEditCoverElements && coverElements && setCoverElements && (
+          <div className="grid gap-2 pt-4 border-t">
+            <Label className="text-base font-semibold">Elementos da Capa</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Adicione e personalize os elementos de texto que aparecem na capa
+              da proposta.
+            </p>
+            <CoverElementsEditor
+              elements={coverElements}
+              onChange={setCoverElements}
+              primaryColor={primaryColor}
+              clientName={clientName}
+              coverTitle={coverTitle}
+              theme={theme}
+            />
+          </div>
+        )}
+
         <div className="grid gap-2">
           <Label>Tema da Capa</Label>
           <div className="grid grid-cols-2 gap-2">
             {themeOptions.map((t, index) => {
               // Check if this template is premium (beyond allowed limit)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const isEnterpriseOnly = (t as any).isEnterprise === true;
+              // maxPdfTemplates === -1 means Enterprise/unlimited plan
+              const isEnterprisePlan = maxPdfTemplates === -1;
               const isPremiumTemplate =
-                maxPdfTemplates !== -1 && index >= maxPdfTemplates;
+                (isEnterpriseOnly && !isEnterprisePlan) ||
+                (maxPdfTemplates !== -1 && index >= maxPdfTemplates);
 
               return (
                 <button
@@ -276,7 +315,7 @@ export function PdfCoverTab({
                               ? undefined
                               : s.styles.backgroundColor,
                         },
-                      }))
+                      })),
                     );
                   }}
                   className={`relative p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${

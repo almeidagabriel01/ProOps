@@ -11,7 +11,9 @@ import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 import {
   PdfSection,
+  CoverElement,
   createDefaultSections,
+  createDefaultCoverElements,
 } from "@/components/features/proposal/pdf-section-editor";
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
@@ -27,6 +29,7 @@ interface PdfSettings {
   coverImagePosition?: string;
   repeatHeader?: boolean;
   sections?: unknown[];
+  coverElements?: CoverElement[];
 }
 
 export function useEditPdfPage() {
@@ -64,6 +67,9 @@ export function useEditPdfPage() {
   // Editable sections
   const [sections, setSections] = useState<PdfSection[]>([]);
   const [repeatHeader, setRepeatHeader] = useState(false);
+
+  // Cover elements
+  const [coverElements, setCoverElements] = useState<CoverElement[]>([]);
 
   // Preview zoom
   const [previewZoom, setPreviewZoom] = useState(0.5);
@@ -150,6 +156,13 @@ export function useEditPdfPage() {
                 );
                 setSections(createDefaultSections(t, t.primaryColor));
               }
+
+              // Load cover elements
+              if (s.coverElements && s.coverElements.length > 0) {
+                setCoverElements(s.coverElements);
+              } else {
+                setCoverElements(createDefaultCoverElements());
+              }
             } else {
               // 2. No saved settings, initialize from Defaults
               const t = ProposalDefaults.createDefaultTemplate(
@@ -174,6 +187,7 @@ export function useEditPdfPage() {
                 setRepeatHeader(false);
 
                 setSections(createDefaultSections(t, t.primaryColor));
+                setCoverElements(createDefaultCoverElements());
               }
             }
           }
@@ -228,6 +242,7 @@ export function useEditPdfPage() {
         coverImagePosition,
         repeatHeader,
         sections,
+        coverElements,
       };
 
       const sanitizedSettings = cleanForFirestore(settings);
@@ -401,6 +416,10 @@ export function useEditPdfPage() {
     setRepeatHeader,
     canEditPdfSections,
     maxPdfTemplates,
+
+    // Cover Elements
+    coverElements,
+    setCoverElements,
 
     // Preview
     previewZoom,
