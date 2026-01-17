@@ -19,6 +19,8 @@ interface PdfEditorTabsProps {
   setCoverImage: (val: string) => void;
   coverLogo: string;
   setCoverLogo: (val: string) => void;
+  logoStyle?: "original" | "rounded" | "circle";
+  setLogoStyle?: (val: "original" | "rounded" | "circle") => void;
   coverImageOpacity: number;
   setCoverImageOpacity: (val: number) => void;
   coverImageFit: "cover" | "contain";
@@ -60,6 +62,8 @@ export function PdfEditorTabs({
   setCoverImage,
   coverLogo,
   setCoverLogo,
+  logoStyle,
+  setLogoStyle,
   coverImageOpacity,
   setCoverImageOpacity,
   coverImageFit,
@@ -122,6 +126,8 @@ export function PdfEditorTabs({
           setCoverImage={setCoverImage}
           coverLogo={coverLogo}
           setCoverLogo={setCoverLogo}
+          logoStyle={logoStyle}
+          setLogoStyle={setLogoStyle}
           coverImageOpacity={coverImageOpacity}
           setCoverImageOpacity={setCoverImageOpacity}
           coverImageFit={coverImageFit}

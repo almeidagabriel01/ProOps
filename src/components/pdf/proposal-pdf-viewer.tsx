@@ -37,6 +37,7 @@ interface ProposalPdfViewerProps {
     coverElements?: CoverElement[];
     repeatHeader?: boolean;
     pageNumberStart?: number;
+    logoStyle?: "original" | "rounded" | "circle";
   };
 }
 
@@ -124,6 +125,7 @@ export function ProposalPdfViewer({
           proposal={proposal}
           fontFamily={fontFamily}
           coverElements={customSettings?.coverElements}
+          logoStyle={customSettings?.logoStyle || (template as any)?.logoStyle}
         />
       )}
       <RenderPagedContent

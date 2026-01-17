@@ -20,6 +20,8 @@ interface PdfCoverTabProps {
   setCoverImage: (val: string) => void;
   coverLogo: string;
   setCoverLogo: (val: string) => void;
+  logoStyle?: "original" | "rounded" | "circle";
+  setLogoStyle?: (val: "original" | "rounded" | "circle") => void;
   coverImageOpacity: number;
   setCoverImageOpacity: (val: number) => void;
   coverImageFit: "cover" | "contain";
@@ -48,6 +50,8 @@ export function PdfCoverTab({
   setCoverImage,
   coverLogo,
   setCoverLogo,
+  logoStyle,
+  setLogoStyle,
   coverImageOpacity,
   setCoverImageOpacity,
   coverImageFit,
@@ -204,6 +208,19 @@ export function PdfCoverTab({
               />
             </label>
           </div>
+          {coverLogo && (
+            <div className="grid gap-2 mt-2">
+              <Label className="text-xs">Estilo do Logo</Label>
+              <Select
+                value={logoStyle || "original"}
+                onChange={(e) => setLogoStyle?.(e.target.value as any)}
+              >
+                <option value="original">Original (Quadrado)</option>
+                <option value="rounded">Arredondado</option>
+                <option value="circle">Circular</option>
+              </Select>
+            </div>
+          )}
         </div>
 
         {coverImage && (
