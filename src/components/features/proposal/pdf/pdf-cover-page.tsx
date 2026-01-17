@@ -21,6 +21,7 @@ interface PdfCoverPageProps {
   proposal: Proposal;
   fontFamily: string;
   coverElements?: CoverElement[];
+  logoStyle?: "original" | "rounded" | "circle";
 }
 
 // Render a single cover element with X/Y positioning
@@ -72,6 +73,9 @@ const renderSingleElement = (
           width: "auto",
           objectFit: "contain",
           opacity: element.styles.opacity ?? 1,
+          borderRadius: element.styles.borderRadius
+            ? `${element.styles.borderRadius}px`
+            : "0", // Fallback if needed, but styling usually handled via element.styles for full flexibility in "livre"
         }}
       />
     );
@@ -182,6 +186,7 @@ export function PdfCoverPage({
   proposal,
   fontFamily,
   coverElements,
+  logoStyle,
 }: PdfCoverPageProps) {
   const coverStyle: React.CSSProperties = {
     height: `${PAGE_HEIGHT_PX}px`,
@@ -226,7 +231,19 @@ export function PdfCoverPage({
           <div className="relative z-10 flex justify-between items-start text-white">
             <div className="text-2xl font-bold">{tenant?.name}</div>
             {coverLogo && (
-              <img src={coverLogo} alt="Logo" className="h-16 object-contain" />
+              <img
+                src={coverLogo}
+                alt="Logo"
+                className="h-16 object-contain"
+                style={{
+                  borderRadius:
+                    logoStyle === "circle"
+                      ? "50%"
+                      : logoStyle === "rounded"
+                        ? "8px"
+                        : "0",
+                }}
+              />
             )}
           </div>
           {/* Dynamic cover elements or default content */}
@@ -303,6 +320,14 @@ export function PdfCoverPage({
                   src={coverLogo}
                   alt="Logo"
                   className="h-10 object-contain"
+                  style={{
+                    borderRadius:
+                      logoStyle === "circle"
+                        ? "50%"
+                        : logoStyle === "rounded"
+                          ? "8px"
+                          : "0",
+                  }}
                 />
               )}
               <span className="text-xl font-bold">{tenant?.name}</span>
@@ -432,6 +457,14 @@ export function PdfCoverPage({
                   src={coverLogo}
                   alt="Logo"
                   className="h-14 object-contain"
+                  style={{
+                    borderRadius:
+                      logoStyle === "circle"
+                        ? "50%"
+                        : logoStyle === "rounded"
+                          ? "8px"
+                          : "0",
+                  }}
                 />
               )}
             </div>
@@ -484,6 +517,14 @@ export function PdfCoverPage({
                 src={coverLogo}
                 alt="Logo"
                 className="h-28 object-contain mb-10"
+                style={{
+                  borderRadius:
+                    logoStyle === "circle"
+                      ? "50%"
+                      : logoStyle === "rounded"
+                        ? "8px"
+                        : "0",
+                }}
               />
             )}
 

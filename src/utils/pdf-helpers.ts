@@ -134,3 +134,25 @@ export function calculateSistemaBlockHeight(products: Product[]): number {
   totalHeight += 80; // Footer height
   return totalHeight;
 }
+
+export function calculatePaymentTermsHeight(
+  hasDownPayment: boolean,
+  installmentsCount: number = 0
+): number {
+  let height = 60; // Title + Header
+
+  // Table header
+  height += 40;
+
+  if (hasDownPayment) {
+    height += 30; // Row height
+  }
+
+  if (installmentsCount > 0) {
+    height += installmentsCount * 30; // Row height for each installment
+  }
+
+  height += 60; // Total row + margin
+  height += 80; // Summary text section
+  return height;
+}

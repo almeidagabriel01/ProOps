@@ -30,6 +30,7 @@ interface PdfSettings {
   repeatHeader?: boolean;
   sections?: unknown[];
   coverElements?: CoverElement[];
+  logoStyle?: "original" | "rounded" | "circle";
 }
 
 export function useEditPdfPage() {
@@ -51,6 +52,7 @@ export function useEditPdfPage() {
   const [coverTitle, setCoverTitle] = useState("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [coverLogo, setCoverLogo] = useState<string>("");
+  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">("original");
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
   const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
     "cover"
@@ -137,6 +139,8 @@ export function useEditPdfPage() {
               if (s.coverImage) setCoverImage(s.coverImage);
               if (s.coverLogo) setCoverLogo(s.coverLogo);
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+              
+              if (s.logoStyle) setLogoStyle(s.logoStyle);
 
               if (s.coverImageOpacity !== undefined)
                 setCoverImageOpacity(s.coverImageOpacity);
@@ -237,6 +241,7 @@ export function useEditPdfPage() {
         coverTitle,
         coverImage,
         coverLogo,
+        logoStyle,
         coverImageOpacity,
         coverImageFit,
         coverImagePosition,
@@ -394,6 +399,8 @@ export function useEditPdfPage() {
     setCoverImage,
     coverLogo,
     setCoverLogo,
+    logoStyle,
+    setLogoStyle,
     coverImageOpacity,
     setCoverImageOpacity,
     coverImageFit,

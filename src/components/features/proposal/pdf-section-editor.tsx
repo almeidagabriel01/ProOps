@@ -26,6 +26,7 @@ export interface PdfSection {
     imageWidth?: number; // Percentage 10-100
     imageAlign?: "left" | "center" | "right";
     imageBorderRadius?: string;
+    borderRadius?: number; // Added for logo styling
     imageBorder?: boolean;
     verticalAlign?: "top" | "center" | "bottom";
   };
@@ -73,6 +74,7 @@ export interface CoverElement {
     opacity?: number;
     marginTop?: string;
     marginBottom?: string;
+    borderRadius?: number;
   };
 }
 
