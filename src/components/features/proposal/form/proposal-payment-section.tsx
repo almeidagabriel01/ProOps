@@ -218,7 +218,7 @@ export function ProposalPaymentSection({
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <div className="flex-1">
                       <Label htmlFor="downPaymentDueDate">
-                        Data de Vencimento da Entrada
+                        Data da Entrada
                       </Label>
                       <Input
                         type="date"

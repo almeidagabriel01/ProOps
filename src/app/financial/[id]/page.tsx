@@ -77,6 +77,15 @@ export default function EditTransactionPage() {
       clientId: formData.clientId || "",
       isInstallment: formData.isInstallment,
       installmentCount: formData.installmentCount,
+      // New payment mode fields (defaults for edit mode - not used in edit flow)
+      paymentMode: "total" as const,
+      installmentValue: "",
+      firstInstallmentDate: "",
+      installmentsWallet: "",
+      downPaymentEnabled: false,
+      downPaymentValue: "",
+      downPaymentWallet: "",
+      downPaymentDueDate: "",
     }),
     [formData]
   );
@@ -234,6 +243,15 @@ export default function EditTransactionPage() {
                     ...prev,
                     clientId: prev.clientId || "",
                     installmentCount: prev.installmentCount || 2,
+                    // New payment mode fields (defaults)
+                    paymentMode: "total" as const,
+                    installmentValue: "",
+                    firstInstallmentDate: "",
+                    installmentsWallet: "",
+                    downPaymentEnabled: false,
+                    downPaymentValue: "",
+                    downPaymentWallet: "",
+                    downPaymentDueDate: "",
                   });
                   return {
                     type: result.type,

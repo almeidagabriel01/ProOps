@@ -238,6 +238,7 @@ export type ProposalPdfSettings = {
   includeHeader: boolean;
   includeFooter: boolean;
   margins: "normal" | "narrow" | "wide";
+  logoStyle?: "original" | "rounded" | "circle";
 };
 
 // ============================================

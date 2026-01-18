@@ -1,9 +1,9 @@
-
 import * as React from "react";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
 import {
   PdfSection,
+  CoverElement,
   createDefaultSections,
 } from "@/components/features/proposal/pdf-section-editor";
 import { RenderPagedContent } from "@/components/pdf/render-paged-content";
@@ -34,8 +34,10 @@ interface ProposalPdfViewerProps {
     coverImageFit?: "cover" | "contain";
     coverImagePosition?: string;
     sections?: PdfSection[];
+    coverElements?: CoverElement[];
     repeatHeader?: boolean;
     pageNumberStart?: number;
+    logoStyle?: "original" | "rounded" | "circle";
   };
 }
 
@@ -49,7 +51,9 @@ export function ProposalPdfViewer({
   noMargins = false,
 }: ProposalPdfViewerProps) {
   // Use enriched products hook (filter out inactive products for PDF)
-  const { products } = useEnrichedProducts(proposal, tenant?.id, { filterInactive: true });
+  const { products } = useEnrichedProducts(proposal, tenant?.id, {
+    filterInactive: true,
+  });
 
   // Merge settings: Custom > Template > Defaults
   const theme =
@@ -72,9 +76,20 @@ export function ProposalPdfViewer({
   const coverLogo =
     customSettings?.coverLogo !== undefined
       ? customSettings.coverLogo
-      : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo || tenant?.logoUrl || "";
+      : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo ||
+        tenant?.logoUrl ||
+        "";
 
-  const templateSettings = (template as ProposalTemplate & { coverImageSettings?: { opacity?: number; fit?: "cover" | "contain"; position?: string } })?.coverImageSettings || {};
+  const templateSettings =
+    (
+      template as ProposalTemplate & {
+        coverImageSettings?: {
+          opacity?: number;
+          fit?: "cover" | "contain";
+          position?: string;
+        };
+      }
+    )?.coverImageSettings || {};
   const coverImageOpacity =
     customSettings?.coverImageOpacity ?? templateSettings.opacity ?? 30;
   const coverImageFit =
@@ -109,6 +124,8 @@ export function ProposalPdfViewer({
           coverTitle={coverTitle}
           proposal={proposal}
           fontFamily={fontFamily}
+          coverElements={customSettings?.coverElements}
+          logoStyle={customSettings?.logoStyle || (template as any)?.logoStyle}
         />
       )}
       <RenderPagedContent

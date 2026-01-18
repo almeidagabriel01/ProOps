@@ -108,6 +108,7 @@ export const createTransaction = async (req: Request, res: Response) => {
           proposalId: data.proposalId || null,
           category: data.category || null,
           wallet: data.wallet || null,
+          isDownPayment: !!data.isDownPayment,
           isInstallment: !!data.isInstallment,
           installmentCount: data.installmentCount || null,
           installmentNumber: data.installmentNumber || null,

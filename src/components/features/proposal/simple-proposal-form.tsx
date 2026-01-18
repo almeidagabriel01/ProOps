@@ -265,10 +265,12 @@ export function SimpleProposalForm({
       clearFieldError("clientName");
     }
 
-    if (!formData.clientEmail || !formData.clientEmail.trim()) {
-      setFieldError("clientEmail", "Email é obrigatório");
-      isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)) {
+    // Email is optional, only validate format if provided
+    if (
+      formData.clientEmail &&
+      formData.clientEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)
+    ) {
       setFieldError("clientEmail", "Email inválido");
       isValid = false;
     } else {

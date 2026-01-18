@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,8 @@ import {
   Loader2,
   ChevronDown,
   Edit2,
+  Banknote,
+  CreditCard,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -153,113 +156,200 @@ export function TransactionInstallmentsList({
     });
   };
 
-  return (
-    <div className="border-t bg-muted/30 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-      <h4 className="text-sm font-medium text-muted-foreground mb-2">
-        Parcelas do Lançamento
-      </h4>
-      <div className="grid gap-2">
-        {sortedInstallments.map((installment) => {
-          const statusInfo = statusConfig[installment.status];
-          const isUpdating = updatingId === installment.id;
-
-          return (
-            <div
-              key={installment.id}
-              className="flex items-center justify-between p-3 rounded-md bg-background border text-sm hover:shadow-sm transition-all"
+  const renderStatusBadge = (
+    transaction: Transaction,
+    statusInfo: (typeof statusConfig)[keyof typeof statusConfig],
+    isUpdating: boolean
+  ) => {
+    if (canEdit) {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 rounded-md text-xs font-medium border"
+              onClick={(e) => e.stopPropagation()}
+              disabled={isUpdating}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-16 font-medium text-muted-foreground">
-                  {installment.installmentNumber}ª Parcela
-                </div>
-                <div className="text-muted-foreground">
-                  {formatDate(installment.dueDate || installment.date)}
-                </div>
-
-                <div className="font-semibold w-32 text-right">
-                  {editingId === installment.id ? (
-                    <div className="relative">
-                      <CurrencyInput
-                        value={editValue}
-                        onChange={(e) => setEditValue(Number(e.target.value))}
-                        onKeyDown={(e) => handleKeyDown(e, installment)}
-                        autoFocus
-                        disabled={isSaving}
-                        className="h-8 py-1 pr-2 pl-2 w-full text-right font-semibold text-sm bg-background border-primary"
-                        onBlur={() => handleEditSave(installment)}
-                      />
-                      {isSaving && (
-                        <div className="absolute -right-6 top-1/2 -translate-y-1/2">
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="transition-colors rounded px-2 py-1 -mr-2 flex items-center justify-end">
-                      {formatCurrency(installment.amount)}
-                      {canEdit && onUpdate && (
-                        <button
-                          onClick={(e) => handleEditClick(installment, e)}
-                          className="ml-1 p-1 hover:bg-muted rounded-full transition-colors group/edit flex items-center justify-center cursor-pointer"
-                          title="Clique para editar o valor"
-                        >
-                          <Edit2 className="w-3 h-3 opacity-50 group-hover/edit:opacity-100" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                {canEdit ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="focus:outline-none cursor-pointer"
-                        disabled={isUpdating}
-                      >
-                        <Badge
-                          variant={statusInfo.variant}
-                          className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[90px] justify-center"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : null}
-                          {statusInfo.label}
-                          <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[140px]">
-                      {statusOptions.map((option) => {
-                        const Icon = option.icon;
-                        const isActive = installment.status === option.value;
-                        return (
-                          <DropdownMenuItem
-                            key={option.value}
-                            onClick={() =>
-                              handleStatusChange(installment, option.value)
-                            }
-                            className={isActive ? "bg-muted" : ""}
-                          >
-                            <Icon className="w-4 h-4 mr-2" />
-                            {option.label}
-                            {isActive && <Check className="w-4 h-4 ml-auto" />}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Badge variant={statusInfo.variant} className="text-xs">
-                    {statusInfo.label}
-                  </Badge>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Atualizando...</span>
+                </>
+              ) : (
+                <>
+                  {(() => {
+                    const option = statusOptions.find(
+                      (o) => o.value === transaction.status
+                    );
+                    const Icon = option?.icon || Check;
+                    return <Icon className="h-3 w-3" />;
+                  })()}
+                  <span>{statusConfig[transaction.status].label}</span>
+                  <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-[130px]">
+            {statusOptions.map((option) => (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() => handleStatusChange(transaction, option.value)}
+                className="gap-2 cursor-pointer text-xs"
+              >
+                <option.icon className="h-3.5 w-3.5" />
+                <span>{option.label}</span>
+                {transaction.status === option.value && (
+                  <Check className="h-3 w-3 ml-auto opacity-50" />
                 )}
-              </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
+    return (
+      <Badge variant={statusInfo.variant} className="text-xs">
+        {statusInfo.label}
+      </Badge>
+    );
+  };
+
+  return (
+    <div className="animate-in slide-in-from-top-2 duration-200">
+      <div className="flex flex-col gap-2">
+        {/* Down Payment Section */}
+        {sortedInstallments.some((i) => i.isDownPayment) && (
+          <div className="space-y-1">
+            {sortedInstallments
+              .filter((i) => i.isDownPayment)
+              .map((downPayment) => {
+                const statusInfo = statusConfig[downPayment.status];
+                const isUpdating = updatingId === downPayment.id;
+
+                return (
+                  <div
+                    key={downPayment.id}
+                    className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 rounded-full bg-blue-500/20">
+                        <Banknote className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">Entrada</div>
+                        <div className="text-xs text-muted-foreground">
+                          Venc:{" "}
+                          {formatDate(downPayment.dueDate || downPayment.date)}
+                          {downPayment.wallet && ` • ${downPayment.wallet}`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="font-bold text-blue-500">
+                        {formatCurrency(downPayment.amount)}
+                      </div>
+                      {renderStatusBadge(downPayment, statusInfo, isUpdating)}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        {/* Installments Section */}
+        {sortedInstallments.some((i) => !i.isDownPayment) && (
+          <div className="space-y-1">
+            {/* Only show header if there are installments */}
+            <div className="flex items-center gap-2 px-1">
+              <CreditCard className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">
+                Parcelas (
+                {sortedInstallments.filter((i) => !i.isDownPayment).length}x de{" "}
+                {formatCurrency(
+                  sortedInstallments.find((i) => !i.isDownPayment)?.amount || 0
+                )}
+                )
+              </span>
             </div>
-          );
-        })}
+
+            <div className="space-y-1.5">
+              {sortedInstallments
+                .filter((i) => !i.isDownPayment)
+                .map((installment) => {
+                  const statusInfo = statusConfig[installment.status];
+                  const isUpdating = updatingId === installment.id;
+
+                  return (
+                    <div
+                      key={installment.id}
+                      className="group/row flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xs font-bold text-primary">
+                            {installment.installmentNumber}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">
+                            Parcela {installment.installmentNumber}/
+                            {installment.installmentCount}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Venc:{" "}
+                            {formatDate(
+                              installment.dueDate || installment.date
+                            )}
+                            {installment.wallet && ` • ${installment.wallet}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="font-bold text-primary text-right">
+                          {editingId === installment.id ? (
+                            <div className="relative">
+                              <CurrencyInput
+                                value={editValue}
+                                onChange={(e) =>
+                                  setEditValue(Number(e.target.value))
+                                }
+                                onKeyDown={(e) => handleKeyDown(e, installment)}
+                                autoFocus
+                                disabled={isSaving}
+                                className="h-7 py-0.5 pr-2 pl-2 w-28 text-right font-medium text-sm bg-background border-primary"
+                                onBlur={() => handleEditSave(installment)}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              <span>{formatCurrency(installment.amount)}</span>
+                              {canEdit && onUpdate && (
+                                <button
+                                  onClick={(e) =>
+                                    handleEditClick(installment, e)
+                                  }
+                                  className="p-1 hover:bg-muted rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                                  title="Clique para editar o valor"
+                                >
+                                  <Edit2 className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {renderStatusBadge(installment, statusInfo, isUpdating)}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

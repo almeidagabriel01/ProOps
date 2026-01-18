@@ -2,10 +2,6 @@
 
 import { z } from "zod";
 
-// ============================================
-// CUSTOMER VALIDATION SCHEMA
-// ============================================
-
 export const customerSchema = z.object({
   name: z
     .string()
@@ -13,8 +9,9 @@ export const customerSchema = z.object({
     .min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z
     .string()
-    .min(1, "Email é obrigatório")
-    .email("Email inválido"),
+    .email("Email inválido")
+    .optional()
+    .or(z.literal("")),
   phone: z
     .string()
     .min(1, "Telefone é obrigatório"),
@@ -30,7 +27,6 @@ export const customerSchema = z.object({
 
 export type CustomerFormData = z.infer<typeof customerSchema>;
 
-// Partial schema for real-time field validation
 export const customerFieldSchemas = {
   name: customerSchema.shape.name,
   email: customerSchema.shape.email,

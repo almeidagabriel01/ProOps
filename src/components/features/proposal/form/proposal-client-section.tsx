@@ -104,7 +104,6 @@ export function ProposalClientSection({
         <FormItem
           label="Email"
           htmlFor="clientEmail"
-          required
           error={errors.clientEmail}
         >
           <Input
