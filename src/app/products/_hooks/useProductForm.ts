@@ -23,6 +23,7 @@ export interface ProductFormData {
   name: string;
   description: string;
   price: string;
+  markup: string;
   manufacturer: string;
   category: string;
   sku: string;
@@ -49,12 +50,12 @@ interface UseProductFormReturn {
   handleChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleBlur: (
     e: React.FocusEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleAddImage: (file: File | null) => void;
   handleRemoveImage: (index: number) => void;
@@ -63,7 +64,7 @@ interface UseProductFormReturn {
 
 export function useProductForm(
   initialData?: Product,
-  productId?: string
+  productId?: string,
 ): UseProductFormReturn {
   const router = useRouter();
   const { tenant } = useTenant();
@@ -87,6 +88,7 @@ export function useProductForm(
     name: initialData?.name || "",
     description: initialData?.description || "",
     price: initialData?.price || "",
+    markup: initialData?.markup || "30",
     manufacturer: initialData?.manufacturer || "",
     category: initialData?.category || "",
     sku: initialData?.sku || "",
@@ -98,7 +100,7 @@ export function useProductForm(
 
   // Existing image URLs (from Storage or legacy Base64)
   const [imageUrls, setImageUrls] = React.useState<string[]>(
-    initialData?.images || (initialData?.image ? [initialData.image] : [])
+    initialData?.images || (initialData?.image ? [initialData.image] : []),
   );
 
   // New files pending upload
@@ -120,6 +122,7 @@ export function useProductForm(
         name: initialData.name || "",
         description: initialData.description || "",
         price: initialData.price || "",
+        markup: initialData.markup || "",
         manufacturer: initialData.manufacturer || "",
         category: initialData.category || "",
         sku: initialData.sku || "",
@@ -139,7 +142,7 @@ export function useProductForm(
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -152,7 +155,7 @@ export function useProductForm(
   const handleBlur = (
     e: React.FocusEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     // Only validate fields that are in the schema
@@ -160,6 +163,7 @@ export function useProductForm(
       "name",
       "description",
       "price",
+      "markup",
       "manufacturer",
       "category",
       "sku",
@@ -170,7 +174,7 @@ export function useProductForm(
       validateField(
         name as keyof typeof errors,
         value,
-        formData as unknown as Record<string, unknown>
+        formData as unknown as Record<string, unknown>,
       );
     }
   };
@@ -191,7 +195,7 @@ export function useProductForm(
     // Validation: File type
     if (!ALLOWED_TYPES.includes(file.type)) {
       toast.error(
-        "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+        "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
       );
       return;
     }
@@ -199,7 +203,7 @@ export function useProductForm(
     // Validation: File size (5MB max per image)
     if (file.size > MAX_FILE_SIZE) {
       toast.error(
-        `A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`
+        `A imagem deve ter no máximo ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
       );
       return;
     }
@@ -262,6 +266,7 @@ export function useProductForm(
       name: formData.name,
       description: formData.description,
       price: formData.price,
+      markup: formData.markup,
       manufacturer: formData.manufacturer,
       category: formData.category,
       sku: formData.sku,
@@ -283,7 +288,7 @@ export function useProductForm(
           file,
           tenant.id,
           "products",
-          productId || undefined
+          productId || undefined,
         );
         uploadedUrls.push(result.url);
       }
@@ -305,6 +310,7 @@ export function useProductForm(
         name: formData.name,
         description: formData.description,
         price: formData.price,
+        markup: formData.markup,
         manufacturer: formData.manufacturer,
         category: formData.category,
         sku: formData.sku,
@@ -324,6 +330,7 @@ export function useProductForm(
           name: formData.name,
           description: formData.description,
           price: formData.price,
+          markup: formData.markup,
           manufacturer: formData.manufacturer,
           category: formData.category,
           sku: formData.sku,

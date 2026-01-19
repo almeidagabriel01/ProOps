@@ -53,7 +53,7 @@ export function SistemaManagerDialog({
       let filteredSistemas = managedSistemas;
       if (filterAmbienteId) {
         filteredSistemas = managedSistemas.filter((s) =>
-          s.ambienteIds.includes(filterAmbienteId)
+          s.ambienteIds.includes(filterAmbienteId),
         );
       }
       setSistemas(filteredSistemas);
@@ -73,7 +73,7 @@ export function SistemaManagerDialog({
       let filteredSistemas = sistemasData;
       if (filterAmbienteId) {
         filteredSistemas = sistemasData.filter((s) =>
-          s.ambienteIds.includes(filterAmbienteId)
+          s.ambienteIds.includes(filterAmbienteId),
         );
       }
 
@@ -102,10 +102,10 @@ export function SistemaManagerDialog({
           onAction({
             type: "delete",
             entity: "sistema",
-            id: sistema.id
+            id: sistema.id,
           });
           onSistemasChange?.();
-          toast.success("Sistema removido (Rascunho)!");
+          toast.success("Sistema removido!");
         } else {
           await SistemaService.deleteSistema(sistema.id);
           await loadData();

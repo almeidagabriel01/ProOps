@@ -1,7 +1,11 @@
 "use client";
 
 import { FormCard } from "@/components/ui/form-card";
-import { FormField, FormRow, FormDisplayField } from "@/components/ui/form-field";
+import {
+  FormField,
+  FormRow,
+  FormDisplayField,
+} from "@/components/ui/form-field";
 import { FormActions } from "@/components/ui/form-actions";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -15,7 +19,7 @@ import {
   DollarSign,
   Image as ImageIcon,
   CheckCircle,
-  X
+  X,
 } from "lucide-react";
 import { ProductFormData } from "../_hooks/useProductForm";
 
@@ -28,7 +32,7 @@ interface ProductInfoCardProps {
   onChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   isReadOnly?: boolean;
 }
@@ -121,17 +125,30 @@ export function PriceStockCard({
   isReadOnly,
 }: PriceStockCardProps) {
   if (isReadOnly) {
+    const basePrice = parseFloat(formData.price || "0");
+    const markup = parseFloat(formData.markup || "0");
+    const sellingPrice = basePrice + (basePrice * markup) / 100;
+
     return (
       <FormCard
         title="Preço e Estoque"
         description="Valores de venda e controle de estoque"
         icon={DollarSign}
       >
-        <FormRow cols={3}>
+        <FormRow cols={2}>
+          <FormDisplayField
+            label="Preço Bruto"
+            value={`R$ ${basePrice.toFixed(2)}`}
+          />
+          <FormDisplayField label="Markup" value={`${markup.toFixed(2)}%`} />
+        </FormRow>
+        {formData.markup && (
           <FormDisplayField
             label="Preço de Venda"
-            value={`R$ ${parseFloat(formData.price || "0").toFixed(2)}`}
+            value={`R$ ${sellingPrice.toFixed(2)}`}
           />
+        )}
+        <FormRow cols={2}>
           <FormDisplayField label="Estoque" value={formData.stock} />
           <FormDisplayField label="SKU" value={formData.sku} />
         </FormRow>
@@ -145,8 +162,8 @@ export function PriceStockCard({
       description="Defina os valores de venda e controle de estoque"
       icon={DollarSign}
     >
-      <FormRow cols={3}>
-        <FormField label="Preço de Venda" htmlFor="price" required>
+      <FormRow cols={2}>
+        <FormField label="Preço Bruto (Custo)" htmlFor="price" required>
           <CurrencyInput
             id="price"
             name="price"
@@ -156,6 +173,30 @@ export function PriceStockCard({
             required
           />
         </FormField>
+        <FormField label="Markup (%)" htmlFor="markup">
+          <Input
+            id="markup"
+            name="markup"
+            type="number"
+            placeholder="0"
+            value={formData.markup}
+            onChange={onChange}
+            min="0"
+            max="1000"
+            step="0.01"
+          />
+          {formData.price && formData.markup && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Preço de venda: R${" "}
+              {(
+                parseFloat(formData.price) +
+                (parseFloat(formData.price) * parseFloat(formData.markup)) / 100
+              ).toFixed(2)}
+            </p>
+          )}
+        </FormField>
+      </FormRow>
+      <FormRow cols={2}>
         <FormField label="Estoque Inicial" htmlFor="stock">
           <Input
             id="stock"

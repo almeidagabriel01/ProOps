@@ -15,6 +15,7 @@ export type Product = {
   name: string;
   description: string;
   price: string;
+  markup?: string; // Profit percentage over base price
   manufacturer: string;
   category: string;
   sku: string;
@@ -34,7 +35,7 @@ export const ProductService = {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
 
       const querySnapshot = await getDocs(q);

@@ -15,6 +15,8 @@ import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
 import { useWalletsData } from "../wallets/_hooks/useWalletsData";
 
+export type PaymentMode = "total" | "installmentValue";
+
 export interface TransactionFormData {
   type: TransactionType;
   description: string;
@@ -29,6 +31,15 @@ export interface TransactionFormData {
   isInstallment: boolean;
   installmentCount: number;
   notes: string;
+  // New fields for advanced payment mode
+  paymentMode: PaymentMode;
+  installmentValue: string;
+  firstInstallmentDate: string;
+  installmentsWallet: string;
+  downPaymentEnabled: boolean;
+  downPaymentValue: string;
+  downPaymentWallet: string;
+  downPaymentDueDate: string;
 }
 
 const initialFormData: TransactionFormData = {
@@ -45,6 +56,15 @@ const initialFormData: TransactionFormData = {
   isInstallment: false,
   installmentCount: 2,
   notes: "",
+  // New fields defaults
+  paymentMode: "total",
+  installmentValue: "",
+  firstInstallmentDate: "",
+  installmentsWallet: "",
+  downPaymentEnabled: false,
+  downPaymentValue: "",
+  downPaymentWallet: "",
+  downPaymentDueDate: "",
 };
 
 interface UseTransactionFormReturn {
@@ -188,40 +208,108 @@ export function useTransactionForm(): UseTransactionFormReturn {
       }
 
       const now = new Date().toISOString();
-      let finalAmount = parseFloat(formData.amount);
+      let finalAmount: number;
       let installmentGroupId: string | undefined = undefined;
+      let walletToUse: string;
+      let dueDateToUse: string | undefined;
 
-      // Logic for Installments
-      if (formData.isInstallment && formData.installmentCount > 1) {
-        // Calculate per-installment amount
-        const total = parseFloat(formData.amount);
-        const count = formData.installmentCount;
-        finalAmount = Math.round((total / count) * 100) / 100;
+      if (formData.paymentMode === "installmentValue") {
+        // Installment Value mode: calculate total from installments + down payment
+        const installmentValue = parseFloat(formData.installmentValue || "0");
+        const downPayment = formData.downPaymentEnabled 
+          ? parseFloat(formData.downPaymentValue || "0") 
+          : 0;
+        
+        // The final amount per transaction is the installment value
+        finalAmount = installmentValue;
+        walletToUse = formData.installmentsWallet || formData.wallet;
+        dueDateToUse = formData.firstInstallmentDate || formData.dueDate;
 
-        // Helper to identify the group (optional, backend can generate too)
-        installmentGroupId = `installment_${Date.now()}`;
+        // Always create group ID when there are installments (or installments + down payment)
+        if (formData.isInstallment && formData.installmentCount >= 1) {
+          installmentGroupId = `installment_${Date.now()}`;
+        }
+
+        // Create down payment transaction if enabled (as part of the installment group)
+        // NOTE: isInstallment is false to prevent backend from generating installments
+        // but we include installmentGroupId to group it with the installments
+        if (formData.downPaymentEnabled && downPayment > 0 && installmentGroupId) {
+          await TransactionService.createTransaction({
+            tenantId: tenant.id,
+            type: formData.type,
+            description: formData.description.trim(),
+            amount: downPayment,
+            date: formData.date,
+            dueDate: formData.downPaymentDueDate || formData.date,
+            status: formData.status,
+            clientId,
+            clientName: formData.clientName || undefined,
+            category: formData.category || undefined,
+            wallet: formData.downPaymentWallet || walletToUse,
+            isInstallment: false, // Don't generate installments for this
+            isDownPayment: true, // Mark as down payment
+            installmentNumber: 0, // 0 indicates down payment / entrada
+            installmentCount: formData.installmentCount + 1, // Total count including down payment
+            installmentGroupId,
+            notes: formData.notes || undefined,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        // Create installment transactions (backend will generate all installments)
+        await TransactionService.createTransaction({
+          tenantId: tenant.id,
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: finalAmount,
+          date: formData.date,
+          dueDate: dueDateToUse || undefined,
+          status: formData.status,
+          clientId,
+          clientName: formData.clientName || undefined,
+          category: formData.category || undefined,
+          wallet: walletToUse || undefined,
+          isInstallment: formData.isInstallment,
+          installmentCount: formData.installmentCount,
+          installmentGroupId,
+          notes: formData.notes || undefined,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else {
+        // Total mode: original logic
+        finalAmount = parseFloat(formData.amount);
+        walletToUse = formData.wallet;
+        dueDateToUse = formData.dueDate;
+
+        if (formData.isInstallment && formData.installmentCount > 1) {
+          const total = parseFloat(formData.amount);
+          const count = formData.installmentCount;
+          finalAmount = Math.round((total / count) * 100) / 100;
+          installmentGroupId = `installment_${Date.now()}`;
+        }
+
+        await TransactionService.createTransaction({
+          tenantId: tenant.id,
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: finalAmount,
+          date: formData.date,
+          dueDate: dueDateToUse || undefined,
+          status: formData.status,
+          clientId,
+          clientName: formData.clientName || undefined,
+          category: formData.category || undefined,
+          wallet: walletToUse || undefined,
+          isInstallment: formData.isInstallment,
+          installmentCount: formData.installmentCount,
+          installmentGroupId,
+          notes: formData.notes || undefined,
+          createdAt: now,
+          updatedAt: now,
+        });
       }
-
-      await TransactionService.createTransaction({
-        tenantId: tenant.id,
-        type: formData.type,
-        description: formData.description.trim(),
-        amount: finalAmount, // Send per-installment amount if installment
-        date: formData.date,
-        dueDate: formData.dueDate || undefined,
-        status: formData.status, // Backend handles strictly applying this to first installment only if batch
-        clientId,
-        clientName: formData.clientName || undefined,
-        category: formData.category || undefined,
-        wallet: formData.wallet || undefined,
-        isInstallment: formData.isInstallment,
-        installmentCount: formData.installmentCount,
-        // installmentNumber: undefined - Let backend handle generation
-        installmentGroupId,
-        notes: formData.notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      });
 
       toast.success("Lançamento criado com sucesso!");
       router.push("/financial");

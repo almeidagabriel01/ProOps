@@ -33,8 +33,8 @@ export type Sistema = {
 
 // Tipo usado em propostas - cópia do template que pode ser customizada
 export type ProposalSistema = {
-  sistemaId: string;
-  sistemaName: string;
+  sistemaId?: string; // Optional (Environment only)
+  sistemaName?: string; // Optional
   ambienteId: string;
   ambienteName: string;
   description: string;

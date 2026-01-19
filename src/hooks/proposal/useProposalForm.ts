@@ -26,6 +26,8 @@ import {
 } from "./useMasterDataTransaction";
 import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
 
+const EMPTY_ARRAY: any[] = [];
+
 export interface UseProposalFormProps {
   proposalId?: string;
 }
@@ -58,19 +60,19 @@ export interface UseProposalFormReturn {
   handleChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   toggleProduct: (product: Product) => void;
   updateProductQuantity: (
     productId: string,
     delta: number,
-    systemInstanceId?: string
+    systemInstanceId?: string,
   ) => void;
   removeProduct: (productId: string, systemInstanceId?: string) => void;
   handleToggleProductStatus: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 
   // Calculations
@@ -96,7 +98,12 @@ export interface UseProposalFormReturn {
   addProductToSystem: (
     product: Product,
     systemIndex: number,
-    systemInstanceId: string
+    systemInstanceId: string,
+  ) => void;
+  updateProductMarkup: (
+    productId: string,
+    markup: number,
+    systemInstanceId?: string,
   ) => void;
 }
 
@@ -130,8 +137,9 @@ export function useProposalForm({
     validUntil: "",
     customNotes: "",
     discount: 0,
+    extraExpense: 0,
     products: [],
-    status: "draft" as ProposalStatus,
+    status: "in_progress" as ProposalStatus,
     // Payment options
     downPaymentEnabled: false,
     downPaymentValue: 0,
@@ -148,7 +156,7 @@ export function useProposalForm({
     ProposalSistema[]
   >([]);
   const [systemProductIds, setSystemProductIds] = React.useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   const primaryColor = tenant?.primaryColor || "#2563eb";
@@ -160,7 +168,7 @@ export function useProposalForm({
   // Pre-select default wallet for payment options
   React.useEffect(() => {
     if (wallets.length === 0) return;
-    
+
     const defaultWallet = wallets.find((w) => w.isDefault);
     if (!defaultWallet) return;
 
@@ -170,6 +178,46 @@ export function useProposalForm({
       installmentsWallet: prev.installmentsWallet || defaultWallet.name,
     }));
   }, [wallets]);
+
+  // Handle ID resolution (temp -> real)
+  const handleIdResolved = React.useCallback(
+    (tempId: string, realId: string, entity: "ambiente" | "sistema") => {
+      setSelectedSistemas((prev) =>
+        prev.map((s) => {
+          let updated = { ...s };
+          let changed = false;
+
+          // Check main IDs
+          if (entity === "ambiente" && s.ambienteId === tempId) {
+            updated.ambienteId = realId;
+            changed = true;
+          }
+          if (entity === "sistema" && s.sistemaId === tempId) {
+            updated.sistemaId = realId;
+            changed = true;
+          }
+
+          if (changed) {
+            // Also need to update products that link to this system instance
+            const oldInstanceId = `${s.sistemaId}-${s.ambienteId}`;
+            const newInstanceId = `${updated.sistemaId}-${updated.ambienteId}`;
+            setFormData((prevData) => ({
+              ...prevData,
+              products: (prevData.products || []).map((p) => {
+                if (p.systemInstanceId === oldInstanceId) {
+                  return { ...p, systemInstanceId: newInstanceId };
+                }
+                return p;
+              }),
+            }));
+          }
+
+          return updated;
+        }),
+      );
+    },
+    [],
+  );
 
   // Transactional Master Data Management
   // This allows creates/updates/deletes to be buffered until proposal save
@@ -181,11 +229,125 @@ export function useProposalForm({
     commitChanges,
     setLocalAmbientes,
     setLocalSistemas,
+    pendingActionsCount,
   } = useMasterDataTransaction({
-    initialAmbientes: [],
-    initialSistemas: [],
+    initialAmbientes: EMPTY_ARRAY,
+    initialSistemas: EMPTY_ARRAY,
     tenantId: tenant?.id,
+    onIdResolved: handleIdResolved,
   });
+
+  // --- Auto-Save Draft Logic ---
+  // Refs to hold latest state for unmount cleanup
+  const latestStateRef = React.useRef({
+    formData,
+    selectedProducts: [] as ProposalProduct[],
+    selectedSistemas: [] as ProposalSistema[],
+    selectedClientId: undefined as string | undefined,
+    tenant,
+    proposalId,
+    hasSaved: false, // Track if user manually saved
+    pendingActionsCount,
+  });
+
+  // Update ref on every render
+  React.useEffect(() => {
+    latestStateRef.current = {
+      formData,
+      selectedProducts: formData.products || [],
+      selectedSistemas,
+      selectedClientId,
+      tenant,
+      proposalId,
+      hasSaved: latestStateRef.current.hasSaved,
+      pendingActionsCount,
+    };
+  });
+
+  // Auto-save on unmount
+  React.useEffect(() => {
+    return () => {
+      const state = latestStateRef.current;
+
+      // Prevent saving if there are pending master data transactions (Senior Integrity Check)
+      if (state.pendingActionsCount > 0) {
+        console.warn(
+          "Auto-save blocked due to pending master data transactions",
+        );
+        return;
+      }
+
+      // Only auto-save if:
+      // 1. User did NOT manually save (hasSaved === false)
+      // 2. There is some data (Client selected OR Title typed OR Products added)
+      // 3. If it's a new proposal OR an existing one (we now support edit auto-save)
+      if (
+        !state.hasSaved &&
+        (state.proposalId || // Always save edits to existing proposals (Fix "Cleared Environment" issue)
+          state.selectedClientId ||
+          (state.formData.title && state.formData.title.length > 0) ||
+          (state.formData.products && state.formData.products.length > 0) ||
+          (state.selectedSistemas && state.selectedSistemas.length > 0))
+      ) {
+        // ... (rest of save logic)
+        // Perform auto-save with fire-and-forget
+        (async () => {
+          // Notify global service that a save is starting (so list waits)
+          const resolveSave = ProposalService.notifySavingStarted();
+          try {
+            console.log("Auto-saving proposal (draft/edit)...");
+
+            // No commitChanges needed as Master Data is immediate
+
+            // 1. Prepare payload (IDs are already real)
+            const payload = prepareCreatePayload({
+              formData: {
+                ...state.formData,
+                status: state.formData.status || "draft",
+              },
+              selectedProducts: state.selectedProducts,
+              selectedSistemas: state.selectedSistemas,
+              clientId: state.selectedClientId,
+              tenantId: state.tenant?.id || "",
+              calculateTotal: () => {
+                const sub = state.selectedProducts.reduce(
+                  (sum, p) => sum + p.total,
+                  0,
+                );
+                const disc = (sub * (state.formData.discount || 0)) / 100;
+                return sub - disc + (state.formData.extraExpense || 0);
+              },
+            });
+
+            // 2. Create or Update Proposal
+            if (state.proposalId) {
+              await ProposalService.updateProposal(state.proposalId, payload);
+              console.log("Auto-saved existing proposal");
+            } else {
+              await ProposalService.createProposal(payload);
+              console.log("Auto-saved new draft");
+            }
+          } catch (err) {
+            console.error("Auto-save failed", err);
+          } finally {
+            if (resolveSave) resolveSave();
+          }
+        })();
+      }
+    };
+  }, []);
+
+  // ... (Load Initial Data) ...
+
+  // Load existing proposal if editing
+  React.useEffect(() => {
+    const fetchProposal = async () => {
+      // ... (fetch logic)
+    };
+    /* Removed large logic block to focus on the fallback removal target area which is way down in fetchProposal */
+  });
+
+  /* I will use a separate replace call for the fallback removal to avoid context errors with this large block */
 
   // Load Initial Data for Transactional Manager
   React.useEffect(() => {
@@ -216,7 +378,7 @@ export function useProposalForm({
           setProducts(loadedProducts);
 
           const templates = await ProposalTemplateService.getTemplates(
-            tenant.id
+            tenant.id,
           );
           const defaultTemplate =
             templates.find((t) => t.isDefault) || templates[0];
@@ -247,7 +409,7 @@ export function useProposalForm({
                 const { ClientService } =
                   await import("@/services/client-service");
                 const freshClient = await ClientService.getClientById(
-                  proposal.clientId
+                  proposal.clientId,
                 );
                 if (freshClient) {
                   syncedClientName = freshClient.name || syncedClientName;
@@ -268,6 +430,13 @@ export function useProposalForm({
               const freshProduct = products.find((p) => p.id === pp.productId);
               if (freshProduct) {
                 const price = parseFloat(freshProduct.price) || pp.unitPrice;
+                // Preserve stored markup or use fresh product markup
+                const markup =
+                  pp.markup !== undefined
+                    ? pp.markup
+                    : parseFloat(freshProduct.markup || "0");
+                const sellingPrice = price * (1 + markup / 100);
+
                 return {
                   ...pp,
                   productName: freshProduct.name,
@@ -280,7 +449,8 @@ export function useProposalForm({
                   productDescription:
                     freshProduct.description || pp.productDescription || "",
                   unitPrice: price,
-                  total: pp.quantity * price,
+                  markup: markup,
+                  total: pp.quantity * sellingPrice,
                   manufacturer: freshProduct.manufacturer || pp.manufacturer,
                   category: freshProduct.category || pp.category,
                 };
@@ -297,8 +467,9 @@ export function useProposalForm({
               validUntil: proposal.validUntil || "",
               customNotes: proposal.customNotes || "",
               discount: proposal.discount || 0,
+              extraExpense: proposal.extraExpense || 0,
               products: syncedProducts,
-              status: (proposal.status as ProposalStatus) || "draft",
+              status: (proposal.status as ProposalStatus) || "in_progress",
               // Payment options
               downPaymentEnabled: proposal.downPaymentEnabled || false,
               downPaymentValue: proposal.downPaymentValue || 0,
@@ -323,31 +494,38 @@ export function useProposalForm({
                     AmbienteService.getAmbientes(tenant.id),
                     SistemaService.getSistemas(tenant.id),
                   ]);
+                  // Sync global master data state to ensure selectors have latest options (Fix "Selecione" issue)
+                  setLocalAmbientes(freshAmbientes);
+                  setLocalSistemas(freshSistemas);
                 } catch (err) {
                   console.error("Error fetching fresh aux data", err);
                 }
               }
 
               const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => {
-                const masterAmbiente = freshAmbientes.find(
-                  (a) => a.id === s.ambienteId
-                );
-                const masterSistema = freshSistemas.find(
-                  (sys) => sys.id === s.sistemaId
-                );
+                // Try to find by ID first, then by Name (fix for Temp ID persistence race condition)
+                const masterAmbiente =
+                  freshAmbientes.find((a) => a.id === s.ambienteId) ||
+                  freshAmbientes.find((a) => a.name === s.ambienteName);
+
+                const masterSistema =
+                  freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+                  freshSistemas.find((sys) => sys.name === s.sistemaName);
 
                 return {
-                  sistemaId: s.sistemaId as string,
-                  sistemaName: masterSistema?.name || (s.sistemaName as string),
-                  ambienteId: s.ambienteId as string,
+                  sistemaId: masterSistema?.id || (s.sistemaId as string) || "",
+                  sistemaName:
+                    masterSistema?.name || (s.sistemaName as string) || "",
+                  ambienteId:
+                    masterAmbiente?.id || (s.ambienteId as string) || "",
                   ambienteName:
-                    masterAmbiente?.name || (s.ambienteName as string),
+                    masterAmbiente?.name || (s.ambienteName as string) || "",
                   description: (s.description as string) || "",
                   products: syncedProducts
                     .filter((p: ProposalProduct) =>
                       (s.productIds as string[] | undefined)?.includes(
-                        p.productId
-                      )
+                        p.productId,
+                      ),
                     )
                     .map((p: ProposalProduct) => ({
                       productId: p.productId,
@@ -360,8 +538,8 @@ export function useProposalForm({
 
               const sysProductIds = new Set(
                 proposal.sistemas.flatMap(
-                  (s) => (s.productIds as string[] | undefined) || []
-                )
+                  (s) => (s.productIds as string[] | undefined) || [],
+                ),
               );
               setSystemProductIds(sysProductIds);
             }
@@ -388,6 +566,7 @@ export function useProposalForm({
       }));
     } else {
       const price = parseFloat(product.price) || 0;
+      const markup = parseFloat(product.markup || "0");
       const newProduct: ProposalProduct = {
         productId: product.id,
         productName: product.name,
@@ -400,7 +579,8 @@ export function useProposalForm({
         productDescription: product.description || "",
         quantity: 1,
         unitPrice: price,
-        total: price,
+        markup: markup,
+        total: price * (1 + markup / 100),
         manufacturer: product.manufacturer,
         category: product.category,
       };
@@ -414,7 +594,7 @@ export function useProposalForm({
   const updateProductQuantity = (
     productId: string,
     delta: number,
-    systemInstanceId?: string
+    systemInstanceId?: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -425,14 +605,41 @@ export function useProposalForm({
           p.productId === productId
         ) {
           const newQty = Math.max(1, p.quantity + delta);
-          return { ...p, quantity: newQty, total: newQty * p.unitPrice };
+          const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
+          return { ...p, quantity: newQty, total: newQty * sellingPrice };
         } else if (
           !systemInstanceId &&
           !p.systemInstanceId &&
           p.productId === productId
         ) {
           const newQty = Math.max(1, p.quantity + delta);
-          return { ...p, quantity: newQty, total: newQty * p.unitPrice };
+          const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
+          return { ...p, quantity: newQty, total: newQty * sellingPrice };
+        }
+        return p;
+      }),
+    }));
+  };
+
+  const updateProductMarkup = (
+    productId: string,
+    markup: number,
+    systemInstanceId?: string,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).map((p) => {
+        const isTarget = systemInstanceId
+          ? p.systemInstanceId === systemInstanceId && p.productId === productId
+          : !p.systemInstanceId && p.productId === productId;
+
+        if (isTarget) {
+          const sellingPrice = p.unitPrice * (1 + markup / 100);
+          return {
+            ...p,
+            markup: markup,
+            total: p.quantity * sellingPrice,
+          };
         }
         return p;
       }),
@@ -456,12 +663,12 @@ export function useProposalForm({
   // Toggle product status (active/inactive)
   const handleToggleProductStatus = async (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => {
     try {
       // Optimistic update - update local state immediately
       setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p))
+        prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p)),
       );
 
       // Persist to Firebase
@@ -474,8 +681,8 @@ export function useProposalForm({
         prev.map((p) =>
           p.id === productId
             ? { ...p, status: newStatus === "active" ? "inactive" : "active" }
-            : p
-        )
+            : p,
+        ),
       );
 
       toast.error("Erro ao alterar status do produto");
@@ -487,37 +694,64 @@ export function useProposalForm({
     selectedProducts.reduce((sum, p) => sum + p.total, 0);
   const calculateDiscount = () =>
     (calculateSubtotal() * (formData.discount || 0)) / 100;
-  const calculateTotal = () => calculateSubtotal() - calculateDiscount();
-  
-  // Calculate installment value based on total minus down payment
+  const calculateTotal = () =>
+    calculateSubtotal() - calculateDiscount() + (formData.extraExpense || 0);
+
+  // Calculate installment value based on total (including extra expense) minus down payment
   const calculateInstallmentValue = React.useCallback(() => {
     const total = calculateTotal();
-    const downPayment = formData.downPaymentEnabled ? (formData.downPaymentValue || 0) : 0;
+    const downPayment = formData.downPaymentEnabled
+      ? formData.downPaymentValue || 0
+      : 0;
     const remaining = Math.max(0, total - downPayment);
     const count = Math.max(1, formData.installmentsCount || 1);
     return remaining / count;
-  }, [formData.downPaymentEnabled, formData.downPaymentValue, formData.installmentsCount, calculateTotal]);
+  }, [
+    formData.downPaymentEnabled,
+    formData.downPaymentValue,
+    formData.installmentsCount,
+    formData.extraExpense,
+    calculateTotal,
+  ]);
 
   // Auto-update installment value when dependencies change
   React.useEffect(() => {
     if (formData.installmentsEnabled) {
       const newInstallmentValue = calculateInstallmentValue();
       if (newInstallmentValue !== formData.installmentValue) {
-        setFormData(prev => ({ ...prev, installmentValue: newInstallmentValue }));
+        setFormData((prev) => ({
+          ...prev,
+          installmentValue: newInstallmentValue,
+        }));
       }
     }
-  }, [formData.installmentsEnabled, formData.downPaymentEnabled, formData.downPaymentValue, formData.installmentsCount, calculateInstallmentValue, formData.installmentValue]);
+  }, [
+    formData.installmentsEnabled,
+    formData.downPaymentEnabled,
+    formData.downPaymentValue,
+    formData.installmentsCount,
+    calculateInstallmentValue,
+    formData.installmentValue,
+  ]);
 
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value, type } = e.target;
-    const numericFields = ['discount', 'downPaymentValue', 'installmentsCount'];
+    const numericFields = [
+      "discount",
+      "extraExpense",
+      "downPaymentValue",
+      "installmentsCount",
+    ];
     setFormData((prev) => ({
       ...prev,
-      [name]: numericFields.includes(name) || type === 'number' ? Number(value) : value,
+      [name]:
+        numericFields.includes(name) || type === "number"
+          ? Number(value)
+          : value,
     }));
   };
 
@@ -545,7 +779,7 @@ export function useProposalForm({
       selectedProducts.length === 0
     ) {
       toast.error(
-        "Preencha o título, nome do cliente e selecione pelo menos um produto!"
+        "Preencha o título, nome do cliente e selecione pelo menos um produto!",
       );
       return;
     }
@@ -565,7 +799,7 @@ export function useProposalForm({
             source: "proposal",
             targetTenantId: tenant.id,
           },
-          { suppressSuccessToast: true }
+          { suppressSuccessToast: true },
         );
 
         if (newClientResult?.success && newClientResult.clientId) {
@@ -583,33 +817,21 @@ export function useProposalForm({
       */
 
       try {
-        // 1. Commit Pending Master Data Changes (Ambientes/Sistemas)
-        const { idMap } = await commitChanges();
-
-        // 2. Resolve Temp IDs in selectedSistemas
-        const resolvedSistemas = selectedSistemas.map((sys) => {
-          const realSistemaId = idMap[sys.sistemaId] || sys.sistemaId;
-          const realAmbienteId = idMap[sys.ambienteId] || sys.ambienteId;
-          // also fix ambientIds/sistemaIds inside?
-          // Note: s.sistemaName/ambienteName might be stale if updated,
-          // but idMap handles ID stability.
-          // Ideally we should refresh names too if convenient, but ID is critical.
-          return {
-            ...sys,
-            sistemaId: realSistemaId,
-            ambienteId: realAmbienteId,
-          };
-        });
+        // Master Data is now immediate, no need to commit or map IDs
+        // selectedSistemas already contains real IDs
 
         // 3. Prepare Payload
         const payload = prepareCreatePayload({
           formData,
           selectedProducts: formData.products || [],
-          selectedSistemas: resolvedSistemas,
+          selectedSistemas: selectedSistemas, // Direct usage
           clientId,
           tenantId: tenant.id,
           calculateTotal,
         });
+
+        // Mark as manually saved
+        latestStateRef.current.hasSaved = true;
 
         if (proposalId) {
           await ProposalService.updateProposal(proposalId, payload);
@@ -644,6 +866,7 @@ export function useProposalForm({
       const systemProducts: ProposalProduct[] = sistema.products.map((sp) => {
         const productDef = products.find((p) => p.id === sp.productId);
         const price = productDef ? parseFloat(productDef.price) : 0;
+        const markup = productDef ? parseFloat(productDef.markup || "0") : 0;
         return {
           productId: sp.productId,
           productName: productDef?.name || sp.productName || "Produto",
@@ -652,7 +875,8 @@ export function useProposalForm({
           productDescription: productDef?.description || "",
           quantity: sp.quantity,
           unitPrice: price,
-          total: sp.quantity * price,
+          markup: markup,
+          total: sp.quantity * price * (1 + markup / 100),
           manufacturer: productDef?.manufacturer,
           category: productDef?.category,
           systemInstanceId,
@@ -672,71 +896,73 @@ export function useProposalForm({
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).filter(
-        (p) => p.systemInstanceId !== systemInstanceId
+        (p) => p.systemInstanceId !== systemInstanceId,
       ),
     }));
   };
 
   const updateSistema = (index: number, updatedSistema: ProposalSistema) => {
+    // Determine old instance ID to remove its products
+    const oldSystem = selectedSistemas[index];
+    const oldInstanceId = oldSystem
+      ? `${oldSystem.sistemaId}-${oldSystem.ambienteId}`
+      : null;
+    const newInstanceId = `${updatedSistema.sistemaId}-${updatedSistema.ambienteId}`;
+
     // Update the system in the list
     setSelectedSistemas((prev) =>
-      prev.map((s, i) => (i === index ? updatedSistema : s))
+      prev.map((s, i) => (i === index ? updatedSistema : s)),
     );
 
-    // Update products?
-    // Usually updateSistema replaces the system config.
-    // We might need to remove old products and add new ones if the system definition changed completely.
-    // For simplified flow, let's assume we just update the metadata and the user manages products separately,
-    // OR we re-evaluate products.
-    // If we switch system type or environment, systemInstanceId changes?
-    // Let's assume systemInstanceId = `${updatedSistema.sistemaId}-${updatedSistema.ambienteId}`.
-    // If IDs changed, we need to migrate products or delete/re-add.
-
-    // For now, simple implementation: if IDs changed, it might break products link.
-    // But typically updateSistema here might be just updating name/description?
-    // If it changes the actual system selection, it's effectively a remove/add.
-
-    // Let's implement robust Logic:
-    // 1. Remove old products for this index (how to find them if instanceId changed?)
-    // We need to know the OLD systemInstanceId.
-    // The caller should ideally handle this or we find it via index.
-
-    // Access current state in setter
-    setSelectedSistemas((prev) => {
-      const oldSystem = prev[index];
-      if (!oldSystem) return prev; // Should not happen
-
-      const oldInstanceId = `${oldSystem.sistemaId}-${oldSystem.ambienteId}`;
-      const newInstanceId = `${updatedSistema.sistemaId}-${updatedSistema.ambienteId}`;
-
-      if (oldInstanceId !== newInstanceId) {
-        // System identity changed. Update products' instance ID?
-        // Or replace products?
-        // If the user changed the template, we should probably replace products with new template defaults.
-        // If user just renamed something, we keep products?
-        // Master Data transaction handles renaming in DB, but here we deal with references.
-
-        // Let's assume "Edit System" allows changing the underlying template/environment.
-        // So we should replace products.
-
-        // This requires async state access inside synchronous handler? No.
-        // We'll leave product update to a separate effect or require 'remove/add' flow for radical changes.
-        // But for now, let's just update the list metadata.
-        return prev.map((s, i) => (i === index ? updatedSistema : s));
-      }
-      return prev.map((s, i) => (i === index ? updatedSistema : s));
+    // Hydrate new products from the updated system definition
+    // We reuse the logic from addSistema to ensure full product details
+    const newSystemProducts: ProposalProduct[] = (
+      updatedSistema.products || []
+    ).map((sp) => {
+      const productDef = products.find((p) => p.id === sp.productId);
+      const price = productDef ? parseFloat(productDef.price) : 0;
+      const markup = productDef ? parseFloat(productDef.markup || "0") : 0;
+      return {
+        productId: sp.productId,
+        productName: productDef?.name || sp.productName || "Produto",
+        productImage: productDef?.images?.[0] || productDef?.image || "",
+        productImages: productDef?.images || [],
+        productDescription: productDef?.description || "",
+        quantity: sp.quantity,
+        unitPrice: price,
+        markup: markup,
+        total: sp.quantity * price * (1 + markup / 100),
+        manufacturer: productDef?.manufacturer,
+        category: productDef?.category,
+        systemInstanceId: newInstanceId,
+        isExtra: false,
+      };
     });
 
-    // Note: A full implementation would reconcile products.
-    // Given strictly "managing" context, maybe we just update data.
+    // Update formData products: Remove old system products -> Add new ones
+    setFormData((prev) => ({
+      ...prev,
+      products: [
+        ...(prev.products || []).filter((p) => {
+          // Remove products belonging to the old system instance
+          if (oldInstanceId && p.systemInstanceId === oldInstanceId)
+            return false;
+          // Also remove products belonging to the new instance ID (avoid duplication if ID didn't change)
+          if (p.systemInstanceId === newInstanceId) return false;
+          return true;
+        }),
+        ...newSystemProducts,
+      ],
+    }));
   };
 
   const addProductToSystem = (
     product: Product,
     systemIndex: number,
-    systemInstanceId: string
+    systemInstanceId: string,
   ) => {
     const price = parseFloat(product.price) || 0;
+    const markup = parseFloat(product.markup || "0");
     const newProduct: ProposalProduct = {
       productId: product.id,
       productName: product.name,
@@ -749,7 +975,8 @@ export function useProposalForm({
       productDescription: product.description || "",
       quantity: 1,
       unitPrice: price,
-      total: price,
+      markup: markup,
+      total: price * (1 + markup / 100),
       manufacturer: product.manufacturer,
       category: product.category,
       systemInstanceId,
@@ -805,5 +1032,6 @@ export function useProposalForm({
     removeSistema,
     updateSistema,
     addProductToSystem,
+    updateProductMarkup,
   };
 }

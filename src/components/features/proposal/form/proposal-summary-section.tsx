@@ -13,7 +13,7 @@ import { ProposalStatus } from "@/types/proposal";
 import { FileText, Percent, Tag } from "lucide-react";
 
 const statusOptions: { value: ProposalStatus; label: string }[] = [
-  { value: "draft", label: "Rascunho" },
+  { value: "in_progress", label: "Em Aberto" },
   { value: "sent", label: "Enviada" },
   { value: "approved", label: "Aprovada" },
   { value: "rejected", label: "Rejeitada" },
@@ -32,7 +32,7 @@ interface ProposalSummarySectionProps {
   onFormChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
 }
 
@@ -78,11 +78,11 @@ export function ProposalSummarySection({
                 selectedSistemas.map((sistema, sistemaIdx) => {
                   const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
                   const sistemaProducts = selectedProducts.filter(
-                    (p) => p.systemInstanceId === systemInstanceId
+                    (p) => p.systemInstanceId === systemInstanceId,
                   );
                   const sistemaTotal = sistemaProducts.reduce(
                     (sum, p) => sum + p.total,
-                    0
+                    0,
                   );
 
                   if (sistemaProducts.length === 0) return null;
@@ -123,7 +123,11 @@ export function ProposalSummarySection({
                             {product.quantity}
                           </td>
                           <td className="p-3 text-right whitespace-nowrap">
-                            R$ {product.unitPrice.toFixed(2)}
+                            R${" "}
+                            {(
+                              product.unitPrice *
+                              (1 + (product.markup || 0) / 100)
+                            ).toFixed(2)}
                           </td>
                           <td className="p-3 text-right font-medium whitespace-nowrap">
                             R$ {product.total.toFixed(2)}
@@ -169,7 +173,11 @@ export function ProposalSummarySection({
                       </td>
                       <td className="p-3 text-center">{product.quantity}</td>
                       <td className="p-3 text-right whitespace-nowrap">
-                        R$ {product.unitPrice.toFixed(2)}
+                        R${" "}
+                        {(
+                          product.unitPrice *
+                          (1 + (product.markup || 0) / 100)
+                        ).toFixed(2)}
                       </td>
                       <td className="p-3 text-right font-medium whitespace-nowrap">
                         R$ {product.total.toFixed(2)}
@@ -186,7 +194,11 @@ export function ProposalSummarySection({
                     <td className="p-3 font-medium">{product.productName}</td>
                     <td className="p-3 text-center">{product.quantity}</td>
                     <td className="p-3 text-right whitespace-nowrap">
-                      R$ {product.unitPrice.toFixed(2)}
+                      R${" "}
+                      {(
+                        product.unitPrice *
+                        (1 + (product.markup || 0) / 100)
+                      ).toFixed(2)}
                     </td>
                     <td className="p-3 text-right font-medium whitespace-nowrap">
                       R$ {product.total.toFixed(2)}
@@ -195,80 +207,135 @@ export function ProposalSummarySection({
                 ))}
             </tbody>
             <tfoot className="bg-muted/50">
-              <tr className="border-t">
-                <td colSpan={3} className="p-3 text-right whitespace-nowrap">
-                  Subtotal:
-                </td>
-                <td className="p-3 text-right font-medium whitespace-nowrap">
-                  R$ {calculateSubtotal().toFixed(2)}
-                </td>
-              </tr>
-              {(formData.discount || 0) > 0 && (
-                <tr>
-                  <td
-                    colSpan={3}
-                    className="p-3 text-right text-destructive whitespace-nowrap"
-                  >
-                    Desconto ({formData.discount}%):
-                  </td>
-                  <td className="p-3 text-right font-medium text-destructive whitespace-nowrap">
-                    - R$ {calculateDiscount().toFixed(2)}
-                  </td>
-                </tr>
-              )}
-              <tr className="border-t-2 border-primary">
-                <td
-                  colSpan={3}
-                  className="p-3 text-right text-lg font-bold whitespace-nowrap"
-                >
-                  Total:
-                </td>
-                <td className="p-3 text-right text-lg font-bold text-primary whitespace-nowrap">
-                  R$ {calculateTotal().toFixed(2)}
-                </td>
-              </tr>
+              {(() => {
+                const subtotal = calculateSubtotal();
+                const discount = calculateDiscount();
+
+                // Calculate profit from markup
+                const totalProfit = selectedProducts.reduce((sum, p) => {
+                  const basePrice = p.unitPrice * p.quantity;
+                  const profit = basePrice * ((p.markup || 0) / 100);
+                  return sum + profit;
+                }, 0);
+
+                const extraExpense = formData.extraExpense || 0;
+                const totalValue = calculateTotal();
+
+                return (
+                  <>
+                    <tr className="border-t">
+                      <td
+                        colSpan={3}
+                        className="p-3 text-right whitespace-nowrap"
+                      >
+                        Subtotal:
+                      </td>
+                      <td className="p-3 text-right font-medium whitespace-nowrap">
+                        R$ {subtotal.toFixed(2)}
+                      </td>
+                    </tr>
+
+                    {/* Profit row - only visible in UI, not PDF */}
+                    {totalProfit > 0 && (
+                      <tr className="no-pdf-export">
+                        <td
+                          colSpan={3}
+                          className="p-3 text-right text-green-600 dark:text-green-400 whitespace-nowrap text-sm"
+                        >
+                          Lucro (Markup):
+                        </td>
+                        <td className="p-3 text-right font-medium text-green-600 dark:text-green-400 whitespace-nowrap text-sm">
+                          R$ {totalProfit.toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {(formData.discount || 0) > 0 && (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="p-3 text-right text-destructive whitespace-nowrap"
+                        >
+                          Desconto ({formData.discount}%):
+                        </td>
+                        <td className="p-3 text-right font-medium text-destructive whitespace-nowrap">
+                          - R$ {discount.toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Extra Expense row - only visible in UI, not PDF */}
+                    {extraExpense > 0 && (
+                      <tr className="no-pdf-export">
+                        <td
+                          colSpan={3}
+                          className="p-3 text-right text-orange-600 whitespace-nowrap text-sm"
+                        >
+                          Custos Extras:
+                        </td>
+                        <td className="p-3 text-right font-medium text-orange-600 whitespace-nowrap text-sm">
+                          + R$ {extraExpense.toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+
+                    <tr className="border-t-2 border-primary">
+                      <td
+                        colSpan={3}
+                        className="p-3 text-right text-lg font-bold whitespace-nowrap"
+                      >
+                        Total:
+                      </td>
+                      <td className="p-3 text-right text-lg font-bold text-primary whitespace-nowrap">
+                        R$ {totalValue.toFixed(2)}
+                      </td>
+                    </tr>
+                  </>
+                );
+              })()}
             </tfoot>
           </table>
         </div>
-
-        {/* Discount */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Percent className="w-4 h-4 text-muted-foreground" />
-            <Label htmlFor="discount">Desconto:</Label>
+        <div className="flex justify-between">
+          {/* Discount */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Percent className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="discount">Desconto:</Label>
+            </div>
+            <Input
+              id="discount"
+              name="discount"
+              type="number"
+              min={0}
+              max={100}
+              value={formData.discount || 0}
+              onChange={onFormChange}
+              className="w-24"
+            />
+            <span className="text-muted-foreground">%</span>
           </div>
-          <Input
-            id="discount"
-            name="discount"
-            type="number"
-            min={0}
-            max={100}
-            value={formData.discount || 0}
-            onChange={onFormChange}
-            className="w-24"
-          />
-          <span className="text-muted-foreground">%</span>
-        </div>
 
-        {/* Status */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Tag className="w-4 h-4 text-muted-foreground" />
-            <Label htmlFor="status">Status:</Label>
+          {/* Status */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="status">Status:</Label>
+            </div>
+            <Select
+              id="status"
+              name="status"
+              value={formData.status || "in_progress"}
+              onChange={onFormChange}
+              className="w-40"
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
           </div>
-          <Select
-            id="status"
-            name="status"
-            value={formData.status || "draft"}
-            onChange={onFormChange}
-            className="w-40"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
         </div>
 
         {/* Payment Summary (read-only) */}
@@ -307,14 +374,14 @@ export function ProposalSummarySection({
                         {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        }
+                        },
                       )}
                     </span>
                     {formData.downPaymentDueDate && (
                       <span className="text-xs ml-2">
                         (venc:{" "}
                         {new Date(
-                          formData.downPaymentDueDate + "T12:00:00"
+                          formData.downPaymentDueDate + "T12:00:00",
                         ).toLocaleDateString("pt-BR")}
                         )
                       </span>
@@ -334,7 +401,7 @@ export function ProposalSummarySection({
                   <span className="text-xs ml-2">
                     (1ª venc:{" "}
                     {new Date(
-                      formData.firstInstallmentDate + "T12:00:00"
+                      formData.firstInstallmentDate + "T12:00:00",
                     ).toLocaleDateString("pt-BR")}
                     )
                   </span>

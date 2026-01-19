@@ -150,16 +150,12 @@ export default function EditCustomerPage() {
     validateField(name as keyof typeof formData, value, formData);
   };
 
-  // Step 1 validation: Name, Email and Phone are required
+  // Step 1 validation: Name and Phone are required
   const validateStep1 = (): boolean => {
     let isValid = true;
 
     if (!formData.name.trim()) {
       setFieldError("name", "Nome é obrigatório");
-      isValid = false;
-    }
-    if (!formData.email.trim()) {
-      setFieldError("email", "Email é obrigatório");
       isValid = false;
     }
     if (!formData.phone.trim()) {
@@ -389,12 +385,7 @@ export default function EditCustomerPage() {
             </FormItem>
 
             <FormGroup>
-              <FormItem
-                label="Email"
-                htmlFor="email"
-                required
-                error={errors.email}
-              >
+              <FormItem label="Email" htmlFor="email" error={errors.email}>
                 <Input
                   id="email"
                   name="email"
@@ -405,7 +396,6 @@ export default function EditCustomerPage() {
                   placeholder="email@exemplo.com"
                   icon={<Mail className="w-4 h-4" />}
                   className={errors.email ? "border-destructive" : ""}
-                  required
                 />
               </FormItem>
 

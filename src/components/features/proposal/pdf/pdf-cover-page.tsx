@@ -6,6 +6,7 @@ import {
   adjustColor,
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { PAGE_HEIGHT_PX, PAGE_WIDTH_PX, PADDING_X } from "@/utils/pdf-layout";
+import { CoverElement } from "@/components/features/proposal/pdf-section-editor";
 
 interface PdfCoverPageProps {
   theme: ThemeType;
@@ -19,7 +20,158 @@ interface PdfCoverPageProps {
   coverTitle: string;
   proposal: Proposal;
   fontFamily: string;
+  coverElements?: CoverElement[];
+  logoStyle?: "original" | "rounded" | "circle";
 }
+
+// Render a single cover element with X/Y positioning
+const renderSingleElement = (
+  element: CoverElement,
+  textColor: string = "#ffffff",
+  clientName: string = "",
+  coverTitle: string = "",
+  coverLogo?: string,
+  tenantName?: string,
+) => {
+  // Always center the element on the X position, regardless of text alignment
+  // This prevents text from being cut off when moved to edges
+  const basePositionStyle: React.CSSProperties = {
+    position: "absolute",
+    left: `${element.x ?? 50}%`,
+    top: `${element.y ?? 50}%`,
+    transform: "translate(-50%, -50%)",
+    zIndex: 10,
+    whiteSpace: "nowrap",
+  };
+
+  if (element.type === "divider") {
+    return (
+      <div
+        key={element.id}
+        style={{
+          ...basePositionStyle,
+          width: "80px",
+          height: "4px",
+          backgroundColor: element.styles.color || textColor,
+          opacity: element.styles.opacity ?? 0.6,
+        }}
+      />
+    );
+  }
+
+  // Handle logo element
+  if (element.type === "logo") {
+    if (!coverLogo) return null;
+    return (
+      <img
+        key={element.id}
+        src={coverLogo}
+        alt="Logo"
+        style={{
+          ...basePositionStyle,
+          height: element.styles.fontSize || "48px",
+          width: "auto",
+          objectFit: "contain",
+          opacity: element.styles.opacity ?? 1,
+          borderRadius: element.styles.borderRadius
+            ? `${element.styles.borderRadius}px`
+            : "0", // Fallback if needed, but styling usually handled via element.styles for full flexibility in "livre"
+        }}
+      />
+    );
+  }
+
+  // Handle company-name element
+  if (element.type === "company-name") {
+    return (
+      <div
+        key={element.id}
+        style={{
+          ...basePositionStyle,
+          fontSize: element.styles.fontSize || "24px",
+          fontWeight: element.styles.fontWeight || "bold",
+          fontStyle: element.styles.fontStyle || "normal",
+          textTransform: element.styles.textTransform || "none",
+          letterSpacing: element.styles.letterSpacing || "normal",
+          textAlign: element.styles.textAlign || "center",
+          color: element.styles.color || textColor,
+          opacity: element.styles.opacity ?? 1,
+        }}
+      >
+        {tenantName || "Nome da Empresa"}
+      </div>
+    );
+  }
+
+  // Determine display content based on flags
+  let displayContent = element.content;
+
+  // Handle usesProposalTitle flag
+  if (element.usesProposalTitle && coverTitle) {
+    displayContent = coverTitle;
+  }
+
+  // Handle client name inclusion
+  if (element.type === "client-name") {
+    displayContent = clientName;
+  } else if (element.includesClientName && clientName) {
+    displayContent = displayContent
+      ? `${displayContent} ${clientName}`
+      : clientName;
+  }
+
+  return (
+    <div
+      key={element.id}
+      style={{
+        ...basePositionStyle,
+        fontSize: element.styles.fontSize || "16px",
+        fontWeight: element.styles.fontWeight || "normal",
+        fontStyle: element.styles.fontStyle || "normal",
+        textTransform: element.styles.textTransform || "none",
+        letterSpacing: element.styles.letterSpacing || "normal",
+        textAlign: element.styles.textAlign || "center",
+        color: element.styles.color || textColor,
+        opacity: element.styles.opacity ?? 1,
+      }}
+    >
+      {displayContent}
+    </div>
+  );
+};
+
+// Render all cover elements with X/Y positioning
+const renderCoverElements = (
+  elements: CoverElement[],
+  textColor: string = "#ffffff",
+  clientName: string = "",
+  coverTitle: string = "",
+  coverLogo?: string,
+  tenantName?: string,
+) => {
+  const sortedElements = [...elements].sort((a, b) => a.order - b.order);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "visible",
+        pointerEvents: "none",
+      }}
+    >
+      {sortedElements.map((el) =>
+        renderSingleElement(
+          el,
+          textColor,
+          clientName,
+          coverTitle,
+          coverLogo,
+          tenantName,
+        ),
+      )}
+    </div>
+  );
+};
 
 export function PdfCoverPage({
   theme,
@@ -33,6 +185,8 @@ export function PdfCoverPage({
   coverTitle,
   proposal,
   fontFamily,
+  coverElements,
+  logoStyle,
 }: PdfCoverPageProps) {
   const coverStyle: React.CSSProperties = {
     height: `${PAGE_HEIGHT_PX}px`,
@@ -55,7 +209,7 @@ export function PdfCoverPage({
             ...coverStyle,
             backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${adjustColor(
               primaryColor,
-              -30
+              -30,
             )} 100%)`,
           }}
         >
@@ -73,34 +227,55 @@ export function PdfCoverPage({
               }}
             />
           )}
-          <div className="relative z-10 flex flex-col h-full text-white">
-            <div className="flex justify-between items-start">
-              <div className="text-2xl font-bold">{tenant?.name}</div>
-              {coverLogo && (
-                <img
-                  src={coverLogo}
-                  alt="Logo"
-                  className="h-16 object-contain"
-                />
-              )}
-            </div>
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="text-lg uppercase tracking-[0.2em] opacity-80 mb-4">
-                Proposta Comercial
-              </div>
-              <div className="text-5xl font-bold leading-tight mb-6">
-                {coverTitle}
-              </div>
-              <div className="w-24 h-1 bg-white/60 mb-8" />
-              <div className="text-xl opacity-90">
-                Preparada para
-                <br />
-                <span className="text-2xl font-semibold">
-                  {proposal.clientName}
-                </span>
-              </div>
-            </div>
+          {/* Header with logo */}
+          <div className="relative z-10 flex justify-between items-start text-white">
+            <div className="text-2xl font-bold">{tenant?.name}</div>
+            {coverLogo && (
+              <img
+                src={coverLogo}
+                alt="Logo"
+                className="h-16 object-contain"
+                style={{
+                  borderRadius:
+                    logoStyle === "circle"
+                      ? "50%"
+                      : logoStyle === "rounded"
+                        ? "8px"
+                        : "0",
+                }}
+              />
+            )}
           </div>
+          {/* Dynamic cover elements or default content */}
+          {coverElements && coverElements.length > 0 ? (
+            renderCoverElements(
+              coverElements,
+              "#ffffff",
+              proposal.clientName,
+              coverTitle,
+              coverLogo,
+              tenant?.name,
+            )
+          ) : (
+            <div className="relative z-10 flex flex-col h-full text-white">
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="text-lg uppercase tracking-[0.2em] opacity-80 mb-4">
+                  Proposta Comercial
+                </div>
+                <div className="text-5xl font-bold leading-tight mb-6">
+                  {coverTitle}
+                </div>
+                <div className="w-24 h-1 bg-white/60 mb-8" />
+                <div className="text-xl opacity-90">
+                  Preparada para
+                  <br />
+                  <span className="text-2xl font-semibold">
+                    {proposal.clientName}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     case "tech":
@@ -145,6 +320,14 @@ export function PdfCoverPage({
                   src={coverLogo}
                   alt="Logo"
                   className="h-10 object-contain"
+                  style={{
+                    borderRadius:
+                      logoStyle === "circle"
+                        ? "50%"
+                        : logoStyle === "rounded"
+                          ? "8px"
+                          : "0",
+                  }}
                 />
               )}
               <span className="text-xl font-bold">{tenant?.name}</span>
@@ -274,6 +457,14 @@ export function PdfCoverPage({
                   src={coverLogo}
                   alt="Logo"
                   className="h-14 object-contain"
+                  style={{
+                    borderRadius:
+                      logoStyle === "circle"
+                        ? "50%"
+                        : logoStyle === "rounded"
+                          ? "8px"
+                          : "0",
+                  }}
                 />
               )}
             </div>
@@ -326,6 +517,14 @@ export function PdfCoverPage({
                 src={coverLogo}
                 alt="Logo"
                 className="h-28 object-contain mb-10"
+                style={{
+                  borderRadius:
+                    logoStyle === "circle"
+                      ? "50%"
+                      : logoStyle === "rounded"
+                        ? "8px"
+                        : "0",
+                }}
               />
             )}
 
@@ -402,6 +601,55 @@ export function PdfCoverPage({
               </span>
             </div>
           </div>
+        </div>
+      );
+    case "livre":
+      // Tema livre: 100% personalizável, apenas renderiza os elementos da capa
+      return (
+        <div
+          id="pdf-cover-page"
+          className="pdf-page-container shadow-2xl"
+          data-page-index="0"
+          style={{
+            ...coverStyle,
+            backgroundColor: primaryColor,
+            backgroundImage: `linear-gradient(135deg, ${primaryColor} 0%, ${adjustColor(
+              primaryColor,
+              -30,
+            )} 100%)`,
+          }}
+        >
+          {coverImage && (
+            <img
+              src={coverImage}
+              alt=""
+              className="absolute inset-0 w-full h-full transition-all duration-300"
+              style={{
+                opacity: coverImageOpacity / 100,
+                objectFit: coverImageFit,
+                objectPosition: coverImagePosition,
+              }}
+            />
+          )}
+          {/* No tema livre, TODOS os elementos vêm do coverElements */}
+          {coverElements && coverElements.length > 0 ? (
+            renderCoverElements(
+              coverElements,
+              "#ffffff",
+              proposal.clientName,
+              coverTitle,
+              coverLogo,
+              tenant?.name,
+            )
+          ) : (
+            // Fallback minimalista se não houver elementos
+            <div className="relative z-10 flex flex-col h-full text-white items-center justify-center text-center">
+              <div className="text-lg opacity-60 mb-4">
+                Configure os elementos da capa no editor
+              </div>
+              <div className="text-3xl font-bold">{coverTitle}</div>
+            </div>
+          )}
         </div>
       );
   }

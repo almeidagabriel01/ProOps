@@ -74,8 +74,11 @@ export default function ViewProposalPage() {
             // Sync client data from source if clientId exists
             if (p.clientId) {
               try {
-                const { ClientService } = await import("@/services/client-service");
-                const freshClient = await ClientService.getClientById(p.clientId);
+                const { ClientService } =
+                  await import("@/services/client-service");
+                const freshClient = await ClientService.getClientById(
+                  p.clientId,
+                );
                 if (freshClient) {
                   p.clientName = freshClient.name || p.clientName;
                   p.clientEmail = freshClient.email || p.clientEmail;
@@ -90,29 +93,49 @@ export default function ViewProposalPage() {
             // Sync product data from products collection
             if (p.products && p.products.length > 0) {
               try {
-                const { ProductService } = await import("@/services/product-service");
+                const { ProductService } =
+                  await import("@/services/product-service");
                 const allProducts = await ProductService.getProducts(tenant.id);
 
                 p.products = p.products.map((pp) => {
-                  const freshProduct = allProducts.find((prod) => prod.id === pp.productId);
+                  const freshProduct = allProducts.find(
+                    (prod) => prod.id === pp.productId,
+                  );
                   if (freshProduct) {
-                    const price = parseFloat(freshProduct.price) || pp.unitPrice;
+                    const price =
+                      parseFloat(freshProduct.price) || pp.unitPrice;
+                    const markup =
+                      pp.markup !== undefined
+                        ? pp.markup
+                        : parseFloat(freshProduct.markup || "0");
+                    const sellingPrice = price * (1 + markup / 100);
                     return {
                       ...pp,
                       productName: freshProduct.name,
-                      productImage: freshProduct.images?.[0] || freshProduct.image || pp.productImage || "",
-                      productImages: freshProduct.images || pp.productImages || [],
-                      productDescription: freshProduct.description || pp.productDescription || "",
+                      productImage:
+                        freshProduct.images?.[0] ||
+                        freshProduct.image ||
+                        pp.productImage ||
+                        "",
+                      productImages:
+                        freshProduct.images || pp.productImages || [],
+                      productDescription:
+                        freshProduct.description || pp.productDescription || "",
                       unitPrice: price,
-                      total: pp.quantity * price,
-                      manufacturer: freshProduct.manufacturer || pp.manufacturer,
+                      markup: markup,
+                      total: pp.quantity * sellingPrice,
+                      manufacturer:
+                        freshProduct.manufacturer || pp.manufacturer,
                       category: freshProduct.category || pp.category,
                     };
                   }
                   return pp;
                 });
               } catch (productError) {
-                console.warn("Could not fetch fresh product data:", productError);
+                console.warn(
+                  "Could not fetch fresh product data:",
+                  productError,
+                );
               }
             }
 
@@ -121,7 +144,7 @@ export default function ViewProposalPage() {
             const t = ProposalDefaults.createDefaultTemplate(
               tenant.id,
               tenant.name,
-              tenant.primaryColor || "#2563eb"
+              tenant.primaryColor || "#2563eb",
             );
             setTemplate(t);
           }
@@ -141,7 +164,7 @@ export default function ViewProposalPage() {
       const jsPDF = (await import("jspdf")).default;
 
       const previewElement = document.getElementById(
-        "proposal-preview-content"
+        "proposal-preview-content",
       );
       if (!previewElement) {
         toast.error("Erro: Preview não encontrado");
@@ -347,7 +370,7 @@ export default function ViewProposalPage() {
             clone.style.backgroundImage = "none";
             clone.style.backgroundColor = safeColor(
               computed.backgroundColor,
-              "backgroundColor"
+              "backgroundColor",
             );
           } else {
             clone.style.backgroundImage = computed.backgroundImage;
@@ -367,14 +390,14 @@ export default function ViewProposalPage() {
             clone.style.setProperty(
               "fill",
               safeColor(fill, "fill"),
-              "important"
+              "important",
             );
           }
           if (stroke && containsModernColor(stroke)) {
             clone.style.setProperty(
               "stroke",
               safeColor(stroke, "stroke"),
-              "important"
+              "important",
             );
           }
         }
@@ -428,7 +451,7 @@ export default function ViewProposalPage() {
                   let ruleText = rule.cssText;
                   ruleText = ruleText.replace(
                     /url\((['"]?)\//g,
-                    `url($1${window.location.origin}/`
+                    `url($1${window.location.origin}/`,
                   );
                   fontFaceRules += ruleText + "\n";
                 }
@@ -482,7 +505,7 @@ export default function ViewProposalPage() {
           const uniqueUrls = new Set(
             images
               .map((img) => img.src)
-              .filter((src) => src && !src.startsWith("data:"))
+              .filter((src) => src && !src.startsWith("data:")),
           );
 
           const urlMap = new Map<string, string>();
@@ -504,7 +527,7 @@ export default function ViewProposalPage() {
               } catch {
                 console.warn("Failed to proxy image:", url);
               }
-            })
+            }),
           );
 
           images.forEach((img) => {
@@ -522,8 +545,8 @@ export default function ViewProposalPage() {
                     img.onload = () => resolve();
                     img.onerror = () => resolve();
                   }
-                })
-            )
+                }),
+            ),
           );
 
           await new Promise((resolve) => setTimeout(resolve, 500));
@@ -568,7 +591,7 @@ export default function ViewProposalPage() {
             0,
             0,
             pageWidth,
-            pageHeight
+            pageHeight,
           );
         }
 
@@ -646,7 +669,7 @@ export default function ViewProposalPage() {
                 upgradeModal.showUpgradeModal(
                   "Editor de PDF",
                   "Personalize completamente suas propostas com nosso editor avançado de seções.",
-                  "pro"
+                  "pro",
                 )
               }
               className="gap-2 hover:bg-primary/10"

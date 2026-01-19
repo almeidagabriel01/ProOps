@@ -17,16 +17,30 @@ export const createProposal = async (req: Request, res: Response) => {
     const input = req.body;
     console.log("createProposal payload:", JSON.stringify(input, null, 2));
 
-    if (!input.title || input.title.trim().length < 3) {
-      return res
-        .status(400)
-        .json({ message: "Título deve ter pelo menos 3 caracteres" });
-    }
-    if (!input.clientId || !input.clientName) {
-      return res.status(400).json({ message: "Cliente é obrigatório" });
-    }
-    if (typeof input.totalValue !== "number" || input.totalValue < 0) {
-      return res.status(400).json({ message: "Valor total inválido" });
+    // Relaxed validation for drafts
+    const isDraft = input.status === "draft";
+
+    if (!isDraft) {
+      if (!input.title || input.title.trim().length < 3) {
+        return res
+          .status(400)
+          .json({ message: "Título deve ter pelo menos 3 caracteres" });
+      }
+      if (!input.clientId || !input.clientName) {
+        return res.status(400).json({ message: "Cliente é obrigatório" });
+      }
+      if (typeof input.totalValue !== "number" || input.totalValue < 0) {
+        return res.status(400).json({ message: "Valor total inválido" });
+      }
+    } else {
+      // Draft specific defaults/validation
+      if (!input.title) {
+        input.title = `Rascunho ${new Date().toLocaleString()}`;
+      }
+      // Allow missing client for drafts (though frontend might enforce it usually)
+      if (!input.clientName) input.clientName = "";
+      if (input.totalValue === undefined || input.totalValue < 0)
+        input.totalValue = 0;
     }
 
     const {
@@ -53,19 +67,22 @@ export const createProposal = async (req: Request, res: Response) => {
     // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
     let targetMasterRef = masterRef;
     let targetMasterData = masterData;
-    
-    // We already resolved masterData for the logged user (Super Admin). 
+
+    // We already resolved masterData for the logged user (Super Admin).
     // If target is different, we must find the actual master of that tenant.
     if (isSuperAdmin && userCompanyId && userCompanyId !== tenantId) {
-      const ownerQuery = await db.collection("users")
+      const ownerQuery = await db
+        .collection("users")
         .where("tenantId", "==", userCompanyId)
         .limit(10)
         .get();
 
-      let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+      let ownerDoc = ownerQuery.docs.find((d) => !d.data().masterId);
       if (!ownerDoc && !ownerQuery.empty) {
-         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
-         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+        ownerDoc = ownerQuery.docs.find((d) =>
+          ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role),
+        );
+        if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
       }
 
       if (ownerDoc) {
@@ -120,6 +137,7 @@ export const createProposal = async (req: Request, res: Response) => {
         notes: input.notes?.trim() || null,
         customNotes: input.customNotes?.trim() || null,
         discount: input.discount || 0,
+        extraExpense: input.extraExpense || 0,
         validUntil: input.validUntil || null,
         clientId: input.clientId,
         clientName: input.clientName,
@@ -179,13 +197,16 @@ export const updateProposal = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
     const { id } = req.params;
     const updateData = req.body;
-    console.log(`updateProposal payload for ${id}:`, JSON.stringify(updateData, null, 2));
+    console.log(
+      `updateProposal payload for ${id}:`,
+      JSON.stringify(updateData, null, 2),
+    );
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
     const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
       userId,
-      req.user
+      req.user,
     );
 
     const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
@@ -220,6 +241,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       "products",
       "sistemas",
       "discount",
+      "extraExpense",
       "notes",
       "customNotes",
       "sections",
@@ -244,31 +266,35 @@ export const updateProposal = async (req: Request, res: Response) => {
     if (updateData.products) {
       const subtotal = updateData.products.reduce(
         (sum: number, p: { total: number }) => sum + (p.total || 0),
-        0
+        0,
       );
       const discountAmount =
         (subtotal * (updateData.discount || proposalData?.discount || 0)) / 100;
-      safeUpdate.totalValue = subtotal - discountAmount;
+      const extraExpense =
+        updateData.extraExpense !== undefined
+          ? updateData.extraExpense
+          : proposalData?.extraExpense || 0;
+      safeUpdate.totalValue = subtotal - discountAmount + extraExpense;
     }
 
     await proposalRef.update(safeUpdate);
 
     // Criar receita automaticamente quando a proposta for aprovada
     const isBeingApproved =
-      updateData.status === "approved" &&
-      proposalData?.status !== "approved";
+      updateData.status === "approved" && proposalData?.status !== "approved";
 
     // Remover receita se sair de aprovada (Rascunho/Enviada)
-    const isBeingReverted = 
+    const isBeingReverted =
       proposalData?.status === "approved" &&
-      updateData.status && 
+      updateData.status &&
       updateData.status !== "approved";
 
     // Update existing transaction due dates if proposal is already approved
     // and the user changed the due date fields
-    const isAlreadyApproved = proposalData?.status === "approved" && 
+    const isAlreadyApproved =
+      proposalData?.status === "approved" &&
       (!updateData.status || updateData.status === "approved");
-    
+
     if (isAlreadyApproved) {
       const proposalTenantId = proposalData?.tenantId || tenantId;
 
@@ -292,7 +318,8 @@ export const updateProposal = async (req: Request, res: Response) => {
           updateData.installmentsWallet !== proposalData?.installmentsWallet,
         instDate:
           updateData.firstInstallmentDate !== undefined &&
-          updateData.firstInstallmentDate !== proposalData?.firstInstallmentDate,
+          updateData.firstInstallmentDate !==
+            proposalData?.firstInstallmentDate,
 
         title:
           updateData.title !== undefined &&
@@ -313,9 +340,9 @@ export const updateProposal = async (req: Request, res: Response) => {
 
           // Helper for balance adjustments
           const registerAdjustment = (walletName: string, amount: number) => {
-             if (!walletName) return;
-             const current = walletAdjustments.get(walletName) || 0;
-             walletAdjustments.set(walletName, current + amount);
+            if (!walletName) return;
+            const current = walletAdjustments.get(walletName) || 0;
+            walletAdjustments.set(walletName, current + amount);
           };
 
           transactionsQuery.docs.forEach((doc) => {
@@ -325,20 +352,20 @@ export const updateProposal = async (req: Request, res: Response) => {
 
             // --- 0. Title Sync ---
             if (changes.title) {
-               // Preserve prefixes like "Entrada: ", "Parcela X/Y: "
-               let newDesc = updateData.title;
-               if (txData.description.startsWith("Entrada: ")) {
-                   newDesc = `Entrada: ${newDesc}`;
-               } else if (txData.description.includes("Parcela")) {
-                   // Regex to keep prefix? Or simpler reconstruction if we have context.
-                   // txData.description format: "Parcela 1/12: Old Title"
-                   const parts = txData.description.split(":");
-                   if (parts.length > 1) {
-                       newDesc = `${parts[0]}: ${newDesc}`;
-                   }
-               }
-               updatePayload.description = newDesc;
-               shouldUpdate = true;
+              // Preserve prefixes like "Entrada: ", "Parcela X/Y: "
+              let newDesc = updateData.title;
+              if (txData.description.startsWith("Entrada: ")) {
+                newDesc = `Entrada: ${newDesc}`;
+              } else if (txData.description.includes("Parcela")) {
+                // Regex to keep prefix? Or simpler reconstruction if we have context.
+                // txData.description format: "Parcela 1/12: Old Title"
+                const parts = txData.description.split(":");
+                if (parts.length > 1) {
+                  newDesc = `${parts[0]}: ${newDesc}`;
+                }
+              }
+              updatePayload.description = newDesc;
+              shouldUpdate = true;
             }
 
             // --- 1. Down Payment Handling ---
@@ -346,12 +373,12 @@ export const updateProposal = async (req: Request, res: Response) => {
               // Value Change
               if (changes.dpValue) {
                 const newAmount = updateData.downPaymentValue;
-                
+
                 // If paid, revert old amount from old wallet, add new amount to (potentially new) wallet later
                 if (txData.status === "paid" && txData.type === "income") {
-                   registerAdjustment(txData.wallet, -txData.amount); // Revert OLD
-                   // We will add NEW later, but wait, if wallet ALSO changes, we need to handle that.
-                   // The "Add NEW" should happen using the *final* destination wallet.
+                  registerAdjustment(txData.wallet, -txData.amount); // Revert OLD
+                  // We will add NEW later, but wait, if wallet ALSO changes, we need to handle that.
+                  // The "Add NEW" should happen using the *final* destination wallet.
                 }
 
                 updatePayload.amount = newAmount;
@@ -360,14 +387,18 @@ export const updateProposal = async (req: Request, res: Response) => {
 
               // Wallet Change
               if (changes.dpWallet) {
-                 // If paid, move money
-                 if (txData.status === "paid" && txData.type === "income" && !changes.dpValue) {
-                     // Only wallet changed, amount same
-                     registerAdjustment(txData.wallet, -txData.amount); // Remove from OLD
-                     // Add to NEW comes later
-                 }
-                 updatePayload.wallet = updateData.downPaymentWallet;
-                 shouldUpdate = true;
+                // If paid, move money
+                if (
+                  txData.status === "paid" &&
+                  txData.type === "income" &&
+                  !changes.dpValue
+                ) {
+                  // Only wallet changed, amount same
+                  registerAdjustment(txData.wallet, -txData.amount); // Remove from OLD
+                  // Add to NEW comes later
+                }
+                updatePayload.wallet = updateData.downPaymentWallet;
+                shouldUpdate = true;
               }
 
               // Date Change
@@ -378,21 +409,29 @@ export const updateProposal = async (req: Request, res: Response) => {
               }
 
               // Apply Balance Logic for Down Payment (Income only)
-              if (txData.status === "paid" && txData.type === "income" && (changes.dpValue || changes.dpWallet)) {
-                  const finalAmount = changes.dpValue ? updateData.downPaymentValue : txData.amount;
-                  const finalWallet = changes.dpWallet ? updateData.downPaymentWallet : txData.wallet;
-                  registerAdjustment(finalWallet, finalAmount); // Add to NEW/CURRENT
+              if (
+                txData.status === "paid" &&
+                txData.type === "income" &&
+                (changes.dpValue || changes.dpWallet)
+              ) {
+                const finalAmount = changes.dpValue
+                  ? updateData.downPaymentValue
+                  : txData.amount;
+                const finalWallet = changes.dpWallet
+                  ? updateData.downPaymentWallet
+                  : txData.wallet;
+                registerAdjustment(finalWallet, finalAmount); // Add to NEW/CURRENT
               }
             }
 
             // --- 2. Installment Handling ---
             else if (txData.isInstallment) {
-               // Value Change
+              // Value Change
               if (changes.instValue) {
                 const newAmount = updateData.installmentValue;
-                
+
                 if (txData.status === "paid" && txData.type === "income") {
-                   registerAdjustment(txData.wallet, -txData.amount); 
+                  registerAdjustment(txData.wallet, -txData.amount);
                 }
 
                 updatePayload.amount = newAmount;
@@ -401,76 +440,95 @@ export const updateProposal = async (req: Request, res: Response) => {
 
               // Wallet Change
               if (changes.instWallet) {
-                 if (txData.status === "paid" && txData.type === "income" && !changes.instValue) {
-                     registerAdjustment(txData.wallet, -txData.amount);
-                 }
-                 updatePayload.wallet = updateData.installmentsWallet;
-                 shouldUpdate = true;
+                if (
+                  txData.status === "paid" &&
+                  txData.type === "income" &&
+                  !changes.instValue
+                ) {
+                  registerAdjustment(txData.wallet, -txData.amount);
+                }
+                updatePayload.wallet = updateData.installmentsWallet;
+                shouldUpdate = true;
               }
 
               // Date Change (First Installment Date shift)
               if (changes.instDate) {
-                 const installmentNumber = txData.installmentNumber || 1;
-                 if (updateData.firstInstallmentDate) {
-                    const firstInstDate = new Date(updateData.firstInstallmentDate + 'T12:00:00');
-                    const installmentDate = new Date(firstInstDate);
-                    installmentDate.setMonth(firstInstDate.getMonth() + (installmentNumber - 1));
-                    const newDueDate = installmentDate.toISOString().split('T')[0];
-                    
-                    updatePayload.dueDate = newDueDate;
-                    updatePayload.date = newDueDate;
-                    shouldUpdate = true;
-                 }
+                const installmentNumber = txData.installmentNumber || 1;
+                if (updateData.firstInstallmentDate) {
+                  const firstInstDate = new Date(
+                    updateData.firstInstallmentDate + "T12:00:00",
+                  );
+                  const installmentDate = new Date(firstInstDate);
+                  installmentDate.setMonth(
+                    firstInstDate.getMonth() + (installmentNumber - 1),
+                  );
+                  const newDueDate = installmentDate
+                    .toISOString()
+                    .split("T")[0];
+
+                  updatePayload.dueDate = newDueDate;
+                  updatePayload.date = newDueDate;
+                  shouldUpdate = true;
+                }
               }
 
               // Apply Balance Logic for Installment
-              if (txData.status === "paid" && txData.type === "income" && (changes.instValue || changes.instWallet)) {
-                  const finalAmount = changes.instValue ? updateData.installmentValue : txData.amount;
-                  const finalWallet = changes.instWallet ? updateData.installmentsWallet : txData.wallet;
-                  registerAdjustment(finalWallet, finalAmount);
+              if (
+                txData.status === "paid" &&
+                txData.type === "income" &&
+                (changes.instValue || changes.instWallet)
+              ) {
+                const finalAmount = changes.instValue
+                  ? updateData.installmentValue
+                  : txData.amount;
+                const finalWallet = changes.instWallet
+                  ? updateData.installmentsWallet
+                  : txData.wallet;
+                registerAdjustment(finalWallet, finalAmount);
               }
             }
 
             if (shouldUpdate) {
-               batch.update(doc.ref, updatePayload);
+              batch.update(doc.ref, updatePayload);
             }
           });
 
           // --- 3. Consolidate Wallet Updates ---
           // Need to fetch wallet refs to update balances
           if (walletAdjustments.size > 0) {
-             const walletNames = Array.from(walletAdjustments.keys());
-             // We can't really do "where name in [...]" easily if names are many? 
-             // Assuming reasonable number of wallets.
-             
-             // Since we are inside a loop, let's just do individual lookups or assume names are unique per tenant.
-             // We will iterate and find them.
-             
-             // Optimization: fetch all tenant wallets? No, might be too many.
-             // Fetch only involved wallets.
-             
-             for (const wName of walletNames) {
-                 const adjustment = walletAdjustments.get(wName);
-                 if (!adjustment) continue;
+            const walletNames = Array.from(walletAdjustments.keys());
+            // We can't really do "where name in [...]" easily if names are many?
+            // Assuming reasonable number of wallets.
 
-                 const wQuery = await db.collection("wallets")
-                   .where("tenantId", "==", proposalTenantId)
-                   .where("name", "==", wName)
-                   .limit(1)
-                   .get();
-                 
-                 if (!wQuery.empty) {
-                    batch.update(wQuery.docs[0].ref, {
-                       balance: FieldValue.increment(adjustment),
-                       updatedAt: Timestamp.now()
-                    });
-                 }
-             }
+            // Since we are inside a loop, let's just do individual lookups or assume names are unique per tenant.
+            // We will iterate and find them.
+
+            // Optimization: fetch all tenant wallets? No, might be too many.
+            // Fetch only involved wallets.
+
+            for (const wName of walletNames) {
+              const adjustment = walletAdjustments.get(wName);
+              if (!adjustment) continue;
+
+              const wQuery = await db
+                .collection("wallets")
+                .where("tenantId", "==", proposalTenantId)
+                .where("name", "==", wName)
+                .limit(1)
+                .get();
+
+              if (!wQuery.empty) {
+                batch.update(wQuery.docs[0].ref, {
+                  balance: FieldValue.increment(adjustment),
+                  updatedAt: Timestamp.now(),
+                });
+              }
+            }
           }
 
           await batch.commit();
           console.log(
-            `Updated transactions/wallets for proposal ${id}. Changes: ${JSON.stringify(changes)}`
+            `Updated transactions/wallets for proposal ${id}. Changes: ${JSON.stringify(changes)}`,
           );
         }
       }
@@ -491,10 +549,10 @@ export const updateProposal = async (req: Request, res: Response) => {
         // Determinar carteira(s) - Prioriza o nome da carteira selecionada na proposta
         // Se não houver, busca o NOME da carteira padrão
         let defaultWalletName: string | null = null;
-        
+
         const getDefaultWalletName = async () => {
           if (defaultWalletName) return defaultWalletName;
-          
+
           const walletsQuery = await db
             .collection("wallets")
             .where("tenantId", "==", proposalTenantId)
@@ -503,10 +561,10 @@ export const updateProposal = async (req: Request, res: Response) => {
             .get();
 
           if (!walletsQuery.empty) {
-             defaultWalletName = walletsQuery.docs[0].data().name;
-             return defaultWalletName;
+            defaultWalletName = walletsQuery.docs[0].data().name;
+            return defaultWalletName;
           }
-          
+
           // Fallback: qualquer carteira ativa
           const anyWallet = await db
             .collection("wallets")
@@ -514,7 +572,7 @@ export const updateProposal = async (req: Request, res: Response) => {
             .where("status", "==", "active")
             .limit(1)
             .get();
-            
+
           if (!anyWallet.empty) {
             defaultWalletName = anyWallet.docs[0].data().name;
             return defaultWalletName;
@@ -526,28 +584,36 @@ export const updateProposal = async (req: Request, res: Response) => {
         const walletAdjustments = new Map<string, number>();
 
         // Helper to track wallet adjustments
-        const trackAdjustment = (walletName: string, amount: number, type: "income" | "expense") => {
-           if (!walletName || amount === 0) return;
-           const sign = type === "income" ? 1 : -1;
-           const current = walletAdjustments.get(walletName) || 0;
-           walletAdjustments.set(walletName, current + (amount * sign));
+        const trackAdjustment = (
+          walletName: string,
+          amount: number,
+          type: "income" | "expense",
+        ) => {
+          if (!walletName || amount === 0) return;
+          const sign = type === "income" ? 1 : -1;
+          const current = walletAdjustments.get(walletName) || 0;
+          walletAdjustments.set(walletName, current + amount * sign);
         };
 
         const initialStatus = updateData.initialPaymentStatus || "pending";
 
-        
         // ID único para agrupar entrada + parcelas da mesma proposta
         const proposalGroupId = `proposal_${id}_${now.toMillis()}`;
-        
+
         // Verificar se tem tanto entrada quanto parcelas (para decidir se usa o groupId)
-        const hasDownPayment = mergedData.downPaymentEnabled && mergedData.downPaymentValue > 0;
-        const hasInstallments = mergedData.installmentsEnabled && mergedData.installmentsCount > 0 && mergedData.installmentValue > 0;
+        const hasDownPayment =
+          mergedData.downPaymentEnabled && mergedData.downPaymentValue > 0;
+        const hasInstallments =
+          mergedData.installmentsEnabled &&
+          mergedData.installmentsCount > 0 &&
+          mergedData.installmentValue > 0;
         const useProposalGrouping = hasDownPayment && hasInstallments;
-        
+
         // 1. Entrada (Down Payment)
         if (hasDownPayment) {
-          const wName = mergedData.downPaymentWallet || (await getDefaultWalletName());
-          
+          const wName =
+            mergedData.downPaymentWallet || (await getDefaultWalletName());
+
           if (wName) {
             transactionsToCreate.push({
               tenantId: proposalTenantId,
@@ -581,112 +647,117 @@ export const updateProposal = async (req: Request, res: Response) => {
 
         // 2. Parcelamento (Installments)
         if (hasInstallments) {
-           const wName = mergedData.installmentsWallet || (await getDefaultWalletName());
-           const installmentGroupId = `inst_${id}_${now.toMillis()}`;
-           
-           if (wName) {
-             // Determinar a data base para a primeira parcela
-             let firstInstDate: Date;
-             if (mergedData.firstInstallmentDate) {
-               // Usa a data configurada pelo usuário
-               firstInstDate = new Date(mergedData.firstInstallmentDate + 'T12:00:00');
-             } else {
-               // Fallback: 30 dias a partir de hoje
-               firstInstDate = new Date(today);
-               firstInstDate.setDate(firstInstDate.getDate() + 30);
-             }
-             
-             for (let i = 0; i < mergedData.installmentsCount; i++) {
-               // Cada parcela é +1 mês a partir da primeira parcela (mantendo o dia do mês)
-               const installmentDate = new Date(firstInstDate);
-               installmentDate.setMonth(firstInstDate.getMonth() + i);
-               const dueDate = installmentDate.toISOString().split("T")[0];
+          const wName =
+            mergedData.installmentsWallet || (await getDefaultWalletName());
+          const installmentGroupId = `inst_${id}_${now.toMillis()}`;
 
-               transactionsToCreate.push({
-                  tenantId: proposalTenantId,
-                  type: "income",
-                  description: `Parcela ${i + 1}/${mergedData.installmentsCount}: ${mergedData.title || "Proposta"}`,
-                  amount: mergedData.installmentValue,
-                  date: dateStr,
-                  dueDate: dueDate,
-                  status: initialStatus,
-                  clientId: mergedData.clientId || null,
-                  clientName: mergedData.clientName || null,
-                  proposalId: id,
-                  proposalGroupId: useProposalGrouping ? proposalGroupId : null, // Agrupa se tiver entrada também
-                  category: null,
-                  wallet: wName,
-                  isDownPayment: false,
-                  isInstallment: true,
-                  installmentCount: mergedData.installmentsCount,
-                  installmentNumber: i + 1,
-                  installmentGroupId: installmentGroupId,
-                  notes: `Parcela ${i+1}/${mergedData.installmentsCount} gerada automaticamente`,
-                  createdAt: now,
-                  updatedAt: now,
-                  createdById: userId,
-               });
+          if (wName) {
+            // Determinar a data base para a primeira parcela
+            let firstInstDate: Date;
+            if (mergedData.firstInstallmentDate) {
+              // Usa a data configurada pelo usuário
+              firstInstDate = new Date(
+                mergedData.firstInstallmentDate + "T12:00:00",
+              );
+            } else {
+              // Fallback: 30 dias a partir de hoje
+              firstInstDate = new Date(today);
+              firstInstDate.setDate(firstInstDate.getDate() + 30);
+            }
 
-               if (initialStatus === "paid") {
-                 trackAdjustment(wName, mergedData.installmentValue, "income");
-               }
-             }
-           }
+            for (let i = 0; i < mergedData.installmentsCount; i++) {
+              // Cada parcela é +1 mês a partir da primeira parcela (mantendo o dia do mês)
+              const installmentDate = new Date(firstInstDate);
+              installmentDate.setMonth(firstInstDate.getMonth() + i);
+              const dueDate = installmentDate.toISOString().split("T")[0];
+
+              transactionsToCreate.push({
+                tenantId: proposalTenantId,
+                type: "income",
+                description: `Parcela ${i + 1}/${mergedData.installmentsCount}: ${mergedData.title || "Proposta"}`,
+                amount: mergedData.installmentValue,
+                date: dateStr,
+                dueDate: dueDate,
+                status: initialStatus,
+                clientId: mergedData.clientId || null,
+                clientName: mergedData.clientName || null,
+                proposalId: id,
+                proposalGroupId: useProposalGrouping ? proposalGroupId : null, // Agrupa se tiver entrada também
+                category: null,
+                wallet: wName,
+                isDownPayment: false,
+                isInstallment: true,
+                installmentCount: mergedData.installmentsCount,
+                installmentNumber: i + 1,
+                installmentGroupId: installmentGroupId,
+                notes: `Parcela ${i + 1}/${mergedData.installmentsCount} gerada automaticamente`,
+                createdAt: now,
+                updatedAt: now,
+                createdById: userId,
+              });
+
+              if (initialStatus === "paid") {
+                trackAdjustment(wName, mergedData.installmentValue, "income");
+              }
+            }
+          }
         }
 
         // 3. Fallback: Se não tem nem entrada nem parcelamento (pagamento único total)
-        const hasSpecifics = (mergedData.downPaymentEnabled && mergedData.downPaymentValue > 0) || 
-                             (mergedData.installmentsEnabled && mergedData.installmentsCount > 0);
-                             
+        const hasSpecifics =
+          (mergedData.downPaymentEnabled && mergedData.downPaymentValue > 0) ||
+          (mergedData.installmentsEnabled && mergedData.installmentsCount > 0);
+
         if (!hasSpecifics) {
-           const finalTotalValue = mergedData.totalValue || 0;
-           if (finalTotalValue > 0) {
-              const wName = (await getDefaultWalletName());
-              if (wName) {
-                let dueDate = mergedData.validUntil;
-                if (!dueDate) {
-                  const d = new Date(today);
-                  d.setDate(d.getDate() + 30);
-                  dueDate = d.toISOString().split("T")[0];
-                }
-
-                transactionsToCreate.push({
-                  tenantId: proposalTenantId,
-                  type: "income",
-                  description: `Proposta: ${mergedData.title || "Sem título"}`,
-                  amount: finalTotalValue,
-                  date: dateStr,
-                  dueDate: dueDate,
-                  status: initialStatus,
-                  clientId: mergedData.clientId || null,
-                  clientName: mergedData.clientName || null,
-                  proposalId: id,
-                  category: null,
-                  wallet: wName,
-                  isInstallment: false,
-                  installmentCount: null,
-                  installmentNumber: null,
-                  installmentGroupId: null,
-                  notes: "Receita gerada automaticamente pela aprovação da proposta",
-                  createdAt: now,
-                  updatedAt: now,
-                  createdById: userId,
-               });
-
-               if (initialStatus === "paid") {
-                 trackAdjustment(wName, finalTotalValue, "income");
-               }
+          const finalTotalValue = mergedData.totalValue || 0;
+          if (finalTotalValue > 0) {
+            const wName = await getDefaultWalletName();
+            if (wName) {
+              let dueDate = mergedData.validUntil;
+              if (!dueDate) {
+                const d = new Date(today);
+                d.setDate(d.getDate() + 30);
+                dueDate = d.toISOString().split("T")[0];
               }
-           }
+
+              transactionsToCreate.push({
+                tenantId: proposalTenantId,
+                type: "income",
+                description: `Proposta: ${mergedData.title || "Sem título"}`,
+                amount: finalTotalValue,
+                date: dateStr,
+                dueDate: dueDate,
+                status: initialStatus,
+                clientId: mergedData.clientId || null,
+                clientName: mergedData.clientName || null,
+                proposalId: id,
+                category: null,
+                wallet: wName,
+                isInstallment: false,
+                installmentCount: null,
+                installmentNumber: null,
+                installmentGroupId: null,
+                notes:
+                  "Receita gerada automaticamente pela aprovação da proposta",
+                createdAt: now,
+                updatedAt: now,
+                createdById: userId,
+              });
+
+              if (initialStatus === "paid") {
+                trackAdjustment(wName, finalTotalValue, "income");
+              }
+            }
+          }
         }
 
         // Batch save
         if (transactionsToCreate.length > 0) {
           // Batch save transactions and update wallets
           const batch = db.batch();
-          
+
           // 1. Create Transactions
-          transactionsToCreate.forEach(docData => {
+          transactionsToCreate.forEach((docData) => {
             const ref = db.collection("transactions").doc();
             batch.set(ref, docData);
           });
@@ -694,44 +765,48 @@ export const updateProposal = async (req: Request, res: Response) => {
           // 2. Update Wallets
           for (const [walletName, adjustment] of walletAdjustments.entries()) {
             if (adjustment === 0) continue;
-            
-            // Need to resolve wallet ref within the transaction logic? 
+
+            // Need to resolve wallet ref within the transaction logic?
             // Note: We are using db.batch() here, not t.update().
             // Ideally we should use the same transaction 't' if possible, or correct logic.
             // But 'proposals.controller.ts' lines 96 use `db.runTransaction` for CREATE.
-            // HERE (updateProposal), lines 254 use `await proposalRef.update(safeUpdate)`. 
+            // HERE (updateProposal), lines 254 use `await proposalRef.update(safeUpdate)`.
             // It is NOT inside a transaction! It blindly calls `update`.
-            
+
             // To ensure consistency, we should do lookups.
             // We can do lookups before the batch.
-            
-            // Resolve wallet by name
-             const walletQuery = await db.collection("wallets")
-               .where("tenantId", "==", proposalTenantId)
-               .where("name", "==", walletName)
-               .limit(1)
-               .get();
 
-             if (!walletQuery.empty) {
-               const wRef = walletQuery.docs[0].ref;
-               batch.update(wRef, {
-                 balance: FieldValue.increment(adjustment),
-                 updatedAt: now,
-               });
-             }
+            // Resolve wallet by name
+            const walletQuery = await db
+              .collection("wallets")
+              .where("tenantId", "==", proposalTenantId)
+              .where("name", "==", walletName)
+              .limit(1)
+              .get();
+
+            if (!walletQuery.empty) {
+              const wRef = walletQuery.docs[0].ref;
+              batch.update(wRef, {
+                balance: FieldValue.increment(adjustment),
+                updatedAt: now,
+              });
+            }
           }
 
           await batch.commit();
-          console.log(`${transactionsToCreate.length} transações criadas e carteiras atualizadas para proposta ${id}`);
+          console.log(
+            `${transactionsToCreate.length} transações criadas e carteiras atualizadas para proposta ${id}`,
+          );
         } else {
-           console.warn(`Nenhuma transação criada para proposta ${id} (valores zerados ou sem carteira)`);
+          console.warn(
+            `Nenhuma transação criada para proposta ${id} (valores zerados ou sem carteira)`,
+          );
         }
-
       } catch (transactionError) {
         // Não falhar a atualização da proposta se a criação da receita falhar
         console.error(
           `Erro ao criar receita automática para proposta ${id}:`,
-          transactionError
+          transactionError,
         );
       }
     }
@@ -774,22 +849,29 @@ export const deleteProposal = async (req: Request, res: Response) => {
 
     // Determine correct masterRef for usage decrement
     let targetMasterRef = masterRef;
-    
-    if (isSuperAdmin && proposalData?.tenantId && proposalData.tenantId !== tenantId) {
-       const ownerQuery = await db.collection("users")
-         .where("tenantId", "==", proposalData.tenantId)
-         .limit(10)
-         .get();
-         
-       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
-       if (!ownerDoc && !ownerQuery.empty) {
-         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
-         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
-       }
-       
-       if (ownerDoc) {
-         targetMasterRef = db.collection("users").doc(ownerDoc.id);
-       }
+
+    if (
+      isSuperAdmin &&
+      proposalData?.tenantId &&
+      proposalData.tenantId !== tenantId
+    ) {
+      const ownerQuery = await db
+        .collection("users")
+        .where("tenantId", "==", proposalData.tenantId)
+        .limit(10)
+        .get();
+
+      let ownerDoc = ownerQuery.docs.find((d) => !d.data().masterId);
+      if (!ownerDoc && !ownerQuery.empty) {
+        ownerDoc = ownerQuery.docs.find((d) =>
+          ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role),
+        );
+        if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+      }
+
+      if (ownerDoc) {
+        targetMasterRef = db.collection("users").doc(ownerDoc.id);
+      }
     }
 
     // Cleanup associated transactions (revenue) if they exist
@@ -799,11 +881,15 @@ export const deleteProposal = async (req: Request, res: Response) => {
       const pSnap = await t.get(proposalRef);
       if (!pSnap.exists) throw new Error("Proposta não encontrada.");
 
-      const companyRef = db.collection("companies").doc(proposalData?.tenantId || tenantId);
+      const companyRef = db
+        .collection("companies")
+        .doc(proposalData?.tenantId || tenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
-      t.update(targetMasterRef, { "usage.proposals": FieldValue.increment(-1) });
+      t.update(targetMasterRef, {
+        "usage.proposals": FieldValue.increment(-1),
+      });
 
       if (companySnap.exists) {
         t.update(companyRef, { "usage.proposals": FieldValue.increment(-1) });
@@ -821,7 +907,10 @@ export const deleteProposal = async (req: Request, res: Response) => {
  * Helper to remove transactions associated with a proposal.
  * Reverses balance if transaction was already paid.
  */
-async function cleanupProposalTransactions(proposalId: string, tenantId: string) {
+async function cleanupProposalTransactions(
+  proposalId: string,
+  tenantId: string,
+) {
   try {
     const txRef = db.collection("transactions");
     const snapshot = await txRef.where("proposalId", "==", proposalId).get();
@@ -837,7 +926,7 @@ async function cleanupProposalTransactions(proposalId: string, tenantId: string)
           const isIncome = data.type === "income";
           const sign = isIncome ? 1 : -1;
           const offset = data.amount * sign;
-          
+
           // To reverse, we subtract the offset: balance -= offset
           // But using increment: increment(-offset)
           const reverseAmount = -offset;
@@ -856,9 +945,13 @@ async function cleanupProposalTransactions(proposalId: string, tenantId: string)
       }
     });
 
-    console.log(`Transactions cleaned up for reverted/deleted proposal ${proposalId}`);
+    console.log(
+      `Transactions cleaned up for reverted/deleted proposal ${proposalId}`,
+    );
   } catch (error) {
-    console.error(`Error cleaning up transactions for proposal ${proposalId}:`, error);
+    console.error(
+      `Error cleaning up transactions for proposal ${proposalId}:`,
+      error,
+    );
   }
 }
-

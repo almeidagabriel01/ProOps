@@ -52,6 +52,14 @@ export const themeOptions = [
     preview: "bg-gradient-to-br from-purple-600 to-pink-600",
     defaultColor: "#9333ea",
   },
+  {
+    value: "livre",
+    label: "Livre",
+    description: "100% personalizável",
+    preview: "bg-gradient-to-br from-emerald-500 to-teal-600",
+    defaultColor: "#10b981",
+    isEnterprise: true,
+  },
 ];
 
 export type ThemeType =
@@ -60,7 +68,8 @@ export type ThemeType =
   | "minimal"
   | "tech"
   | "elegant"
-  | "bold";
+  | "bold"
+  | "livre";
 
 export function lightenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace("#", ""), 16);

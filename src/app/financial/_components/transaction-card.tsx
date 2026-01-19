@@ -26,6 +26,7 @@ import {
   X,
   CreditCard as CreditCardIcon,
   Edit2,
+  Layers,
 } from "lucide-react";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
@@ -351,6 +352,31 @@ export function TransactionCard({
                           }}
                         />
                       </div>
+                    </div>
+                  </>
+                )}
+                {/* Manual Installment Group Badges */}
+                {!isProposalGroup && relatedInstallments.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <div className="flex items-center gap-2">
+                      {/* Show Down Payment Badge if present */}
+                      {relatedInstallments.some((t) => t.isDownPayment) && (
+                        <span className="text-blue-500 font-medium flex items-center gap-1">
+                          <Banknote className="w-3 h-3" />
+                          Entrada
+                        </span>
+                      )}
+
+                      {/* Show Installment Count Badge */}
+                      <span className="text-primary font-medium flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" />
+                        {
+                          relatedInstallments.filter((t) => !t.isDownPayment)
+                            .length
+                        }
+                        x
+                      </span>
                     </div>
                   </>
                 )}
@@ -761,12 +787,14 @@ export function TransactionCard({
 
           {/* Expanded section for standalone installment groups */}
           {isExpanded && !isProposalGroup && relatedInstallments.length > 0 && (
-            <TransactionInstallmentsList
-              installments={relatedInstallments}
-              onStatusChange={onStatusChange!}
-              onUpdate={onUpdate}
-              canEdit={canEdit}
-            />
+            <div className="border-t px-4 py-3 bg-muted/30 space-y-3">
+              <TransactionInstallmentsList
+                installments={relatedInstallments}
+                onStatusChange={onStatusChange!}
+                onUpdate={onUpdate}
+                canEdit={canEdit}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

@@ -1,4 +1,9 @@
-export type ProposalStatus = "draft" | "sent" | "approved" | "rejected";
+export type ProposalStatus =
+  | "draft"
+  | "in_progress"
+  | "sent"
+  | "approved"
+  | "rejected";
 
 export interface ProposalProduct {
   productId: string;
@@ -6,7 +11,8 @@ export interface ProposalProduct {
   productName: string; // Used in components
   quantity: number;
   price?: number; // Legacy/Optional
-  unitPrice: number; // Used in components
+  unitPrice: number; // Used in components (base/cost price)
+  markup?: number; // Profit percentage
   total: number;
   productImage?: string;
   productImages?: string[];
@@ -19,9 +25,9 @@ export interface ProposalProduct {
 }
 
 export interface ProposalSystemInstance {
-  sistemaId: string;
+  sistemaId?: string; // Optional/Partial if only environment selected
   ambienteId: string;
-  sistemaName: string;
+  sistemaName?: string; // Optional if no system
   ambienteName: string;
   description?: string;
   productIds: string[];
@@ -43,6 +49,7 @@ export interface Proposal {
   sections: Record<string, unknown>[];
   discount?: number;
   totalValue?: number;
+  extraExpense?: number; // Additional expense (reduces total but not profit)
   customNotes?: string;
   notes?: string;
   createdAt: string;

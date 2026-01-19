@@ -9,7 +9,10 @@ interface ProductHandlersProps {
 }
 
 // Toggle product selection
-export function createToggleProduct({ selectedProducts, setFormData }: ProductHandlersProps) {
+export function createToggleProduct({
+  selectedProducts,
+  setFormData,
+}: ProductHandlersProps) {
   return (product: Product) => {
     const existing = selectedProducts.find((p) => p.productId === product.id);
     if (existing) {
@@ -19,15 +22,21 @@ export function createToggleProduct({ selectedProducts, setFormData }: ProductHa
       }));
     } else {
       const price = parseFloat(product.price) || 0;
+      const markup = parseFloat(product.markup || "0");
       const newProduct: ProposalProduct = {
         productId: product.id,
         productName: product.name,
         productImage: product.images?.[0] || product.image || "",
-        productImages: product.images?.length ? product.images : product.image ? [product.image] : [],
+        productImages: product.images?.length
+          ? product.images
+          : product.image
+            ? [product.image]
+            : [],
         productDescription: product.description || "",
         quantity: 1,
         unitPrice: price,
-        total: price,
+        markup: markup,
+        total: price * (1 + markup / 100),
         manufacturer: product.manufacturer,
         category: product.category,
       };
@@ -40,17 +49,30 @@ export function createToggleProduct({ selectedProducts, setFormData }: ProductHa
 }
 
 // Update product quantity
-export function createUpdateProductQuantity({ selectedProducts, setFormData }: ProductHandlersProps) {
+export function createUpdateProductQuantity({
+  selectedProducts,
+  setFormData,
+}: ProductHandlersProps) {
   return (productId: string, delta: number, systemInstanceId?: string) => {
     setFormData((prev) => ({
       ...prev,
       products: selectedProducts.map((p) => {
-        if (systemInstanceId && p.systemInstanceId === systemInstanceId && p.productId === productId) {
+        if (
+          systemInstanceId &&
+          p.systemInstanceId === systemInstanceId &&
+          p.productId === productId
+        ) {
           const newQty = Math.max(1, p.quantity + delta);
-          return { ...p, quantity: newQty, total: newQty * p.unitPrice };
-        } else if (!systemInstanceId && !p.systemInstanceId && p.productId === productId) {
+          const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
+          return { ...p, quantity: newQty, total: newQty * sellingPrice };
+        } else if (
+          !systemInstanceId &&
+          !p.systemInstanceId &&
+          p.productId === productId
+        ) {
           const newQty = Math.max(1, p.quantity + delta);
-          return { ...p, quantity: newQty, total: newQty * p.unitPrice };
+          const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
+          return { ...p, quantity: newQty, total: newQty * sellingPrice };
         }
         return p;
       }),
@@ -59,8 +81,12 @@ export function createUpdateProductQuantity({ selectedProducts, setFormData }: P
 }
 
 // Calculate proposal totals
-export function createCalculators(selectedProducts: ProposalProduct[], discount: number) {
-  const calculateSubtotal = () => selectedProducts.reduce((sum, p) => sum + p.total, 0);
+export function createCalculators(
+  selectedProducts: ProposalProduct[],
+  discount: number,
+) {
+  const calculateSubtotal = () =>
+    selectedProducts.reduce((sum, p) => sum + p.total, 0);
   const calculateDiscount = () => (calculateSubtotal() * (discount || 0)) / 100;
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
 
@@ -70,12 +96,12 @@ export function createCalculators(selectedProducts: ProposalProduct[], discount:
 // Extract extra products (not linked to systems)
 export function getExtraProducts(
   selectedProducts: ProposalProduct[],
-  selectedSistemas: ProposalSistema[]
+  selectedSistemas: ProposalSistema[],
 ) {
   const sistemaProductIds = new Set(
-    selectedSistemas.flatMap((s) => s.products.map((p) => p.productId))
+    selectedSistemas.flatMap((s) => s.products.map((p) => p.productId)),
   );
   return selectedProducts.filter(
-    (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+    (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId),
   );
 }

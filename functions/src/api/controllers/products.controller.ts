@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
+import {
+  resolveUserAndTenant,
+  checkPermission,
+  UserDoc,
+} from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
 
 // Create Product
@@ -35,15 +39,18 @@ export const createProduct = async (req: Request, res: Response) => {
     let targetMasterData = masterData;
 
     if (isSuperAdmin && targetTenantId && targetTenantId !== tenantId) {
-      const ownerQuery = await db.collection("users")
+      const ownerQuery = await db
+        .collection("users")
         .where("tenantId", "==", targetTenantId)
         .limit(10)
         .get();
 
-      let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
+      let ownerDoc = ownerQuery.docs.find((d) => !d.data().masterId);
       if (!ownerDoc && !ownerQuery.empty) {
-         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
-         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+        ownerDoc = ownerQuery.docs.find((d) =>
+          ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role),
+        );
+        if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
       }
 
       if (ownerDoc) {
@@ -78,6 +85,7 @@ export const createProduct = async (req: Request, res: Response) => {
         name: input.name.trim(),
         description: input.description || "",
         price: input.price,
+        markup: input.markup || "0",
         manufacturer: input.manufacturer || "",
         category: input.category || "",
         sku: input.sku || "",
@@ -165,6 +173,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       "name",
       "description",
       "price",
+      "markup",
       "manufacturer",
       "category",
       "sku",
@@ -236,27 +245,36 @@ export const deleteProduct = async (req: Request, res: Response) => {
 
     // Determine correct masterRef for usage decrement
     let targetMasterRef = masterRef;
-    
-    if (isSuperAdmin && productData?.tenantId && productData.tenantId !== tenantId) {
-       const ownerQuery = await db.collection("users")
-         .where("tenantId", "==", productData.tenantId)
-         .limit(10)
-         .get();
-         
-       let ownerDoc = ownerQuery.docs.find(d => !d.data().masterId);
-       if (!ownerDoc && !ownerQuery.empty) {
-         ownerDoc = ownerQuery.docs.find(d => ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role));
-         if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
-       }
-       
-       if (ownerDoc) {
-         targetMasterRef = db.collection("users").doc(ownerDoc.id);
-       }
+
+    if (
+      isSuperAdmin &&
+      productData?.tenantId &&
+      productData.tenantId !== tenantId
+    ) {
+      const ownerQuery = await db
+        .collection("users")
+        .where("tenantId", "==", productData.tenantId)
+        .limit(10)
+        .get();
+
+      let ownerDoc = ownerQuery.docs.find((d) => !d.data().masterId);
+      if (!ownerDoc && !ownerQuery.empty) {
+        ownerDoc = ownerQuery.docs.find((d) =>
+          ["MASTER", "master", "ADMIN", "admin"].includes(d.data().role),
+        );
+        if (!ownerDoc) ownerDoc = ownerQuery.docs[0];
+      }
+
+      if (ownerDoc) {
+        targetMasterRef = db.collection("users").doc(ownerDoc.id);
+      }
     }
 
     // Transaction Delete
     await db.runTransaction(async (transaction) => {
-      const companyRef = db.collection("companies").doc(productData?.tenantId || tenantId);
+      const companyRef = db
+        .collection("companies")
+        .doc(productData?.tenantId || tenantId);
       const companySnap = await transaction.get(companyRef); // Optimistic read
 
       transaction.delete(productRef);

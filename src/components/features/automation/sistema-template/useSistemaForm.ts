@@ -39,7 +39,7 @@ export function useSistemaForm({
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [selectedAmbientes, setSelectedAmbientes] = React.useState<string[]>(
-    []
+    [],
   );
   const [selectedProducts, setSelectedProducts] = React.useState<
     SistemaProduct[]
@@ -101,7 +101,7 @@ export function useSistemaForm({
         setName("");
         setDescription("");
         setSelectedAmbientes(
-          preselectedAmbienteId ? [preselectedAmbienteId] : []
+          preselectedAmbienteId ? [preselectedAmbienteId] : [],
         );
         setSelectedProducts([]);
       }
@@ -124,7 +124,7 @@ export function useSistemaForm({
 
   const toggleAmbiente = (id: string) => {
     setSelectedAmbientes((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
     );
   };
 
@@ -145,7 +145,7 @@ export function useSistemaForm({
 
   const removeProduct = (productId: string) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p.productId !== productId)
+      prev.filter((p) => p.productId !== productId),
     );
   };
 
@@ -157,7 +157,7 @@ export function useSistemaForm({
           return { ...p, quantity: newQty };
         }
         return p;
-      })
+      }),
     );
   };
 
@@ -187,7 +187,7 @@ export function useSistemaForm({
           });
           const savedSistema = { id: editingSistema.id, ...sistemaData };
           onSave?.(savedSistema);
-          toast.success("Sistema atualizado (Rascunho)!");
+          toast.success("Sistema atualizado!");
         } else {
           const tempId = `temp-${Date.now()}`;
           onAction({
@@ -198,7 +198,7 @@ export function useSistemaForm({
           });
           const savedSistema = { id: tempId, ...sistemaData };
           onSave?.(savedSistema);
-          toast.success("Sistema criado (Rascunho)!");
+          toast.success("Sistema criado!");
         }
         onClose();
       } else {

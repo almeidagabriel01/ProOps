@@ -10,14 +10,14 @@ export type MasterDataActionType = "create" | "update" | "delete";
 export interface AmbienteAction {
   type: MasterDataActionType;
   entity: "ambiente";
-  id: string; // Real ID or Temp ID
+  id: string; // Real ID
   data?: Partial<Ambiente>;
 }
 
 export interface SistemaAction {
   type: MasterDataActionType;
   entity: "sistema";
-  id: string; // Real ID or Temp ID
+  id: string; // Real ID
   data?: Partial<Sistema>;
 }
 
@@ -27,153 +27,144 @@ export interface UseMasterDataTransactionProps {
   initialAmbientes: Ambiente[];
   initialSistemas: Sistema[];
   tenantId?: string;
+  onIdResolved?: (
+    tempId: string,
+    realId: string,
+    entity: "ambiente" | "sistema",
+  ) => void;
 }
 
 export function useMasterDataTransaction({
   initialAmbientes,
   initialSistemas,
   tenantId,
+  onIdResolved,
 }: UseMasterDataTransactionProps) {
-  const [pendingActions, setPendingActions] = useState<MasterDataAction[]>([]);
-
-  // Local state to reflect pending changes + initial data
+  // Local state to reflect data immediately
   const [localAmbientes, setLocalAmbientes] =
     useState<Ambiente[]>(initialAmbientes);
   const [localSistemas, setLocalSistemas] =
     useState<Sistema[]>(initialSistemas);
 
+  // Track pending async actions to prevent premature auto-saves (Senior Fix)
+  const [pendingActionsCount, setPendingActionsCount] = useState(0);
+
   // Sync with initial data updates
   React.useEffect(() => {
-    if (initialAmbientes && initialAmbientes.length > 0) {
-      setLocalAmbientes(() => {
-        // Only update if prev is empty (first load) or if we want to overwrite?
-        // Simplest: If we have no pending actions, we can overwrite.
-        // If we have pending actions, we might lose them if we just overwrite.
-        // But usually initial load happens once.
-        // Let's just overwrite for now, assuming initial load is authoritative at start.
-        // Better: merge?
-        // For this fix: just set it.
-        return initialAmbientes;
-      });
+    if (initialAmbientes) {
+      setLocalAmbientes(initialAmbientes);
     }
   }, [initialAmbientes]);
 
   React.useEffect(() => {
-    if (initialSistemas && initialSistemas.length > 0) {
+    if (initialSistemas) {
       setLocalSistemas(initialSistemas);
     }
   }, [initialSistemas]);
 
-  const handleAmbienteAction = useCallback((action: MasterDataAction) => {
-    setPendingActions((prev) => [...prev, action]);
+  const handleAmbienteAction = useCallback(
+    async (action: MasterDataAction) => {
+      if (!tenantId) return;
 
-    setLocalAmbientes((prev) => {
-      if (action.type === "create") {
-        return [...prev, action.data as Ambiente];
-      }
-      if (action.type === "update") {
-        return prev.map((a) =>
-          a.id === action.id ? { ...a, ...action.data } : a
-        );
-      }
-      if (action.type === "delete") {
-        return prev.filter((a) => a.id !== action.id);
-      }
-      return prev;
-    });
-  }, []);
+      setPendingActionsCount((prev) => prev + 1);
+      try {
+        if (action.type === "create" && action.data) {
+          // Optimistic update
+          setLocalAmbientes((prev) => [...prev, action.data as Ambiente]);
+          const created = await AmbienteService.createAmbiente({
+            ...action.data,
+            tenantId,
+          });
 
-  const handleSistemaAction = useCallback((action: MasterDataAction) => {
-    setPendingActions((prev) => [...prev, action]);
+          // Replace temp ID with real ID
+          setLocalAmbientes((prev) =>
+            prev.map((a) => (a.id === action.id ? created : a)),
+          );
 
-    setLocalSistemas((prev) => {
-      if (action.type === "create") {
-        return [...prev, action.data as Sistema];
-      }
-      if (action.type === "update") {
-        return prev.map((s) =>
-          s.id === action.id ? { ...s, ...action.data } : s
-        );
-      }
-      if (action.type === "delete") {
-        return prev.filter((s) => s.id !== action.id);
-      }
-      return prev;
-    });
-  }, []);
-
-  const commitChanges = async () => {
-    if (!tenantId) return { idMap: {} };
-
-    const idMap: Record<string, string> = {}; // TempID -> RealID
-
-    // Process actions sequentially to maintain order and dependencies
-    // optimization: batch independent actions? For now, sequential is safer.
-
-    try {
-      for (const action of pendingActions) {
-        if (action.entity === "ambiente") {
-          if (action.type === "create") {
-            if (!action.data) continue;
-            const tempId = action.id;
-            const { id: realId } = await AmbienteService.createAmbiente({
-              ...action.data,
-              tenantId,
-            });
-            idMap[tempId] = realId;
-          } else if (action.type === "update") {
-            if (!action.data) continue;
-            const realId = idMap[action.id] || action.id;
-            await AmbienteService.updateAmbiente(realId, action.data);
-          } else if (action.type === "delete") {
-            const realId = idMap[action.id] || action.id;
-            await AmbienteService.deleteAmbiente(realId);
+          // Notify parent about ID resolution
+          if (onIdResolved) {
+            onIdResolved(action.id, created.id, "ambiente");
           }
-        } else if (action.entity === "sistema") {
-          if (action.type === "create") {
-            if (!action.data) continue;
-            const tempId = action.id;
-            const fixedAmbienteIds = (action.data.ambienteIds || []).map(
-              (aid: string) => idMap[aid] || aid
-            );
-
-            // Cast to ensure type compatibility (runtime validation assumed from UI)
-            const sistemaData = action.data as Omit<Sistema, "id">;
-
-            const { id: realId } = await SistemaService.createSistema({
-              ...sistemaData,
-              ambienteIds: fixedAmbienteIds,
-              tenantId,
-            });
-            idMap[tempId] = realId;
-          } else if (action.type === "update") {
-            if (!action.data) continue;
-            const realId = idMap[action.id] || action.id;
-            const updateData = { ...action.data };
-            if (updateData.ambienteIds) {
-              updateData.ambienteIds = updateData.ambienteIds.map(
-                (aid: string) => idMap[aid] || aid
-              );
-            }
-            // Fix strict type mismatch for update
-            await SistemaService.updateSistema(
-              realId,
-              updateData as Partial<Omit<Sistema, "id">>
-            );
-          } else if (action.type === "delete") {
-            const realId = idMap[action.id] || action.id;
-            await SistemaService.deleteSistema(realId);
-          }
+        } else if (action.type === "update" && action.data) {
+          setLocalAmbientes((prev) =>
+            prev.map((a) =>
+              a.id === action.id ? { ...a, ...action.data } : a,
+            ),
+          );
+          await AmbienteService.updateAmbiente(action.id, action.data);
+        } else if (action.type === "delete") {
+          setLocalAmbientes((prev) => prev.filter((a) => a.id !== action.id));
+          await AmbienteService.deleteAmbiente(action.id);
         }
+      } catch (error) {
+        console.error("Error executing ambiente action:", error);
+        toast.error("Erro ao salvar ambiente. Tente novamente.");
+        // Revert optimistic update
+        if (action.type === "create") {
+          setLocalAmbientes((prev) => prev.filter((a) => a.id !== action.id));
+        }
+      } finally {
+        setPendingActionsCount((prev) => Math.max(0, prev - 1));
       }
+    },
+    [tenantId, onIdResolved],
+  );
 
-      setPendingActions([]); // Clear queue
-      return { idMap };
-    } catch (error) {
-      console.error("Error committing master data changes", error);
-      toast.error("Erro ao salvar alterações de ambientes/sistemas");
-      throw error;
-    }
+  const handleSistemaAction = useCallback(
+    async (action: MasterDataAction) => {
+      if (!tenantId) return;
+
+      setPendingActionsCount((prev) => prev + 1);
+      try {
+        if (action.type === "create" && action.data) {
+          const sistemaData = action.data as Sistema;
+          setLocalSistemas((prev) => [...prev, sistemaData]);
+          const created = await SistemaService.createSistema({
+            ...sistemaData,
+            tenantId,
+          });
+
+          // Replace temp ID with real ID
+          setLocalSistemas((prev) =>
+            prev.map((s) => (s.id === action.id ? created : s)),
+          );
+
+          // Notify parent about ID resolution
+          if (onIdResolved) {
+            onIdResolved(action.id, created.id, "sistema");
+          }
+        } else if (action.type === "update" && action.data) {
+          setLocalSistemas((prev) =>
+            prev.map((s) =>
+              s.id === action.id ? { ...s, ...action.data } : s,
+            ),
+          );
+          // Fix strict type mismatch
+          await SistemaService.updateSistema(
+            action.id,
+            action.data as Partial<Omit<Sistema, "id">>,
+          );
+        } else if (action.type === "delete") {
+          setLocalSistemas((prev) => prev.filter((s) => s.id !== action.id));
+          await SistemaService.deleteSistema(action.id);
+        }
+      } catch (error) {
+        console.error("Error executing sistema action:", error);
+        toast.error("Erro ao salvar sistema. Tente novamente.");
+        // Revert optimistic update
+        if (action.type === "create") {
+          setLocalSistemas((prev) => prev.filter((s) => s.id !== action.id));
+        }
+      } finally {
+        setPendingActionsCount((prev) => Math.max(0, prev - 1));
+      }
+    },
+    [tenantId, onIdResolved],
+  );
+
+  // No-op commitChanges as data is already saved
+  const commitChanges = async () => {
+    return { idMap: {} };
   };
 
   return {
@@ -182,8 +173,8 @@ export function useMasterDataTransaction({
     handleAmbienteAction,
     handleSistemaAction,
     commitChanges,
-    pendingActionsCount: pendingActions.length,
-    setLocalAmbientes, // exposed for initial sync if needed
+    pendingActionsCount,
+    setLocalAmbientes,
     setLocalSistemas,
   };
 }

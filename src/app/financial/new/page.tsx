@@ -99,7 +99,7 @@ export default function NewTransactionPage() {
     await handleSubmit(fakeEvent);
   };
 
-  // Step 2 validation: Description, amount, date are required. dueDate required only for income.
+  // Step 2 validation: Description, date are required.
   const validateStep2 = (): boolean => {
     let isValid = true;
 
@@ -107,45 +107,88 @@ export default function NewTransactionPage() {
       setFieldError("description", "Descrição é obrigatória");
       isValid = false;
     }
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      setFieldError("amount", "Valor deve ser maior que 0");
-      isValid = false;
-    }
     if (!formData.date) {
       setFieldError("date", "Data é obrigatória");
       isValid = false;
     }
 
-    // dueDate is required only for income (receita)
-    if (formData.type === "income" && !formData.dueDate) {
-      setFieldError("dueDate", "Vencimento é obrigatório para receitas");
-      isValid = false;
-    } else if (formData.date && formData.dueDate) {
-      // Check if dueDate is not before date - parse date parts to avoid timezone issues
-      const [yearD, monthD, dayD] = formData.date.split("-").map(Number);
-      const [yearDue, monthDue, dayDue] = formData.dueDate
-        .split("-")
-        .map(Number);
-      const date = new Date(yearD, monthD - 1, dayD);
-      const dueDate = new Date(yearDue, monthDue - 1, dayDue);
-      date.setHours(0, 0, 0, 0);
-      dueDate.setHours(0, 0, 0, 0);
-      if (dueDate < date) {
-        setFieldError("dueDate", "Vencimento não pode ser anterior à data");
+    return isValid;
+  };
+
+  // Step 3 validation: Amount/Value and Wallet are required based on payment mode
+  const validateStep3 = (): boolean => {
+    let isValid = true;
+
+    if (formData.paymentMode === "total") {
+      // Total mode: amount, dueDate (for income), and wallet are required
+      if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        setFieldError("amount", "Valor deve ser maior que 0");
         isValid = false;
+      }
+
+      // dueDate is required only for income (receita)
+      if (formData.type === "income" && !formData.dueDate) {
+        setFieldError("dueDate", "Vencimento é obrigatório para receitas");
+        isValid = false;
+      } else if (formData.date && formData.dueDate) {
+        // Check if dueDate is not before date - parse date parts to avoid timezone issues
+        const [yearD, monthD, dayD] = formData.date.split("-").map(Number);
+        const [yearDue, monthDue, dayDue] = formData.dueDate
+          .split("-")
+          .map(Number);
+        const date = new Date(yearD, monthD - 1, dayD);
+        const dueDate = new Date(yearDue, monthDue - 1, dayDue);
+        date.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+        if (dueDate < date) {
+          setFieldError("dueDate", "Vencimento não pode ser anterior à data");
+          isValid = false;
+        }
+      }
+
+      if (!formData.wallet || formData.wallet.trim() === "") {
+        setFieldError("wallet", "Carteira é obrigatória");
+        isValid = false;
+      }
+    } else {
+      // Installment value mode: installmentValue and installmentsWallet are required
+      if (formData.isInstallment) {
+        if (
+          !formData.installmentValue ||
+          parseFloat(formData.installmentValue) <= 0
+        ) {
+          setFieldError(
+            "installmentValue",
+            "Valor da parcela deve ser maior que 0"
+          );
+          isValid = false;
+        }
+        if (
+          !formData.installmentsWallet ||
+          formData.installmentsWallet.trim() === ""
+        ) {
+          setFieldError(
+            "installmentsWallet",
+            "Carteira para parcelas é obrigatória"
+          );
+          isValid = false;
+        }
+        if (formData.downPaymentEnabled) {
+          if (
+            !formData.downPaymentValue ||
+            parseFloat(formData.downPaymentValue) <= 0
+          ) {
+            setFieldError(
+              "downPaymentValue",
+              "Valor da entrada deve ser maior que 0"
+            );
+            isValid = false;
+          }
+        }
       }
     }
 
     return isValid;
-  };
-
-  // Step 3 validation: Wallet is required
-  const validateStep3 = (): boolean => {
-    if (!formData.wallet || formData.wallet.trim() === "") {
-      setFieldError("wallet", "Carteira é obrigatória");
-      return false;
-    }
-    return true;
   };
 
   return (
@@ -184,6 +227,7 @@ export default function NewTransactionPage() {
             formData={formData}
             onFormDataChange={setFormData}
             onChange={handleChange}
+            onBlur={handleBlur}
             errors={errors}
           />
           <StepNavigation onBeforeNext={validateStep3} />

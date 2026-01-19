@@ -103,6 +103,7 @@ export const TransactionService = {
           proposalId: transaction.proposalId,
           category: transaction.category,
           wallet: transaction.wallet,
+          isDownPayment: transaction.isDownPayment,
           isInstallment: transaction.isInstallment,
           installmentCount: transaction.installmentCount,
           installmentNumber: transaction.installmentNumber,

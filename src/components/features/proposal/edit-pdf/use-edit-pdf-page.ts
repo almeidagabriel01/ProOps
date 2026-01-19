@@ -11,7 +11,9 @@ import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 import {
   PdfSection,
+  CoverElement,
   createDefaultSections,
+  createDefaultCoverElements,
 } from "@/components/features/proposal/pdf-section-editor";
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
@@ -27,6 +29,8 @@ interface PdfSettings {
   coverImagePosition?: string;
   repeatHeader?: boolean;
   sections?: unknown[];
+  coverElements?: CoverElement[];
+  logoStyle?: "original" | "rounded" | "circle";
 }
 
 export function useEditPdfPage() {
@@ -48,6 +52,7 @@ export function useEditPdfPage() {
   const [coverTitle, setCoverTitle] = useState("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [coverLogo, setCoverLogo] = useState<string>("");
+  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">("original");
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
   const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
     "cover"
@@ -64,6 +69,9 @@ export function useEditPdfPage() {
   // Editable sections
   const [sections, setSections] = useState<PdfSection[]>([]);
   const [repeatHeader, setRepeatHeader] = useState(false);
+
+  // Cover elements
+  const [coverElements, setCoverElements] = useState<CoverElement[]>([]);
 
   // Preview zoom
   const [previewZoom, setPreviewZoom] = useState(0.5);
@@ -131,6 +139,8 @@ export function useEditPdfPage() {
               if (s.coverImage) setCoverImage(s.coverImage);
               if (s.coverLogo) setCoverLogo(s.coverLogo);
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+              
+              if (s.logoStyle) setLogoStyle(s.logoStyle);
 
               if (s.coverImageOpacity !== undefined)
                 setCoverImageOpacity(s.coverImageOpacity);
@@ -149,6 +159,13 @@ export function useEditPdfPage() {
                   s.primaryColor || tenant.primaryColor || "#2563eb"
                 );
                 setSections(createDefaultSections(t, t.primaryColor));
+              }
+
+              // Load cover elements
+              if (s.coverElements && s.coverElements.length > 0) {
+                setCoverElements(s.coverElements);
+              } else {
+                setCoverElements(createDefaultCoverElements());
               }
             } else {
               // 2. No saved settings, initialize from Defaults
@@ -174,6 +191,7 @@ export function useEditPdfPage() {
                 setRepeatHeader(false);
 
                 setSections(createDefaultSections(t, t.primaryColor));
+                setCoverElements(createDefaultCoverElements());
               }
             }
           }
@@ -223,11 +241,13 @@ export function useEditPdfPage() {
         coverTitle,
         coverImage,
         coverLogo,
+        logoStyle,
         coverImageOpacity,
         coverImageFit,
         coverImagePosition,
         repeatHeader,
         sections,
+        coverElements,
       };
 
       const sanitizedSettings = cleanForFirestore(settings);
@@ -379,6 +399,8 @@ export function useEditPdfPage() {
     setCoverImage,
     coverLogo,
     setCoverLogo,
+    logoStyle,
+    setLogoStyle,
     coverImageOpacity,
     setCoverImageOpacity,
     coverImageFit,
@@ -401,6 +423,10 @@ export function useEditPdfPage() {
     setRepeatHeader,
     canEditPdfSections,
     maxPdfTemplates,
+
+    // Cover Elements
+    coverElements,
+    setCoverElements,
 
     // Preview
     previewZoom,

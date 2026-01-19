@@ -28,13 +28,13 @@ export interface SistemaSelectorProps {
   // Managed mode
   sistemas?: Sistema[];
   ambientes?: Ambiente[];
-  onAction?: (action: MasterDataAction) => void;
-  // Separate handlers if needed, or generic. 
+  onAction?: (action: MasterDataAction) => Promise<void> | void;
+  // Separate handlers if needed, or generic.
   // Let's use generic onAction for now, or maybe distinct ones if distinct types?
   // The hook provides handleAmbienteAction and handleSistemaAction.
   // Let's accept onAmbienteAction and onSistemaAction for clarity.
-  onAmbienteAction?: (action: MasterDataAction) => void;
-  onSistemaAction?: (action: MasterDataAction) => void;
+  onAmbienteAction?: (action: MasterDataAction) => Promise<void> | void;
+  onSistemaAction?: (action: MasterDataAction) => Promise<void> | void;
 }
 
 export function SistemaSelector({
@@ -64,7 +64,7 @@ export function SistemaSelector({
   const [isSistemaDialogOpen, setIsSistemaDialogOpen] = React.useState(false);
   const [isSistemaManagerOpen, setIsSistemaManagerOpen] = React.useState(false);
   const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(
-    null
+    null,
   );
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
 
@@ -100,7 +100,7 @@ export function SistemaSelector({
         setIsLoading(false);
       }
     },
-    [tenant?.id, managedAmbientes, managedSistemas]
+    [tenant?.id, managedAmbientes, managedSistemas],
   );
 
   React.useEffect(() => {
@@ -111,7 +111,7 @@ export function SistemaSelector({
   React.useEffect(() => {
     if (selectedAmbienteId) {
       const filtered = sistemas.filter((s) =>
-        (s.ambienteIds || []).includes(selectedAmbienteId)
+        (s.ambienteIds || []).includes(selectedAmbienteId),
       );
       setFilteredSistemas(filtered);
     } else {
@@ -123,7 +123,10 @@ export function SistemaSelector({
   React.useEffect(() => {
     if (value) {
       setSelectedAmbienteId(value.ambienteId);
-      setSelectedSistemaId(value.sistemaId);
+      setSelectedSistemaId(value.sistemaId || "");
+    } else {
+      setSelectedAmbienteId("");
+      setSelectedSistemaId("");
     }
   }, [value]);
 
@@ -153,14 +156,46 @@ export function SistemaSelector({
   const handleAmbienteChange = (ambienteId: string) => {
     setSelectedAmbienteId(ambienteId);
     setSelectedSistemaId("");
-    onChange(null);
+
+    if (!ambienteId) {
+      onChange(null);
+      return;
+    }
+
+    const ambiente = ambientes.find((a) => a.id === ambienteId);
+    if (ambiente) {
+      // Partial selection (Env only) - This ensures draft persistence
+      onChange({
+        ambienteId: ambiente.id,
+        ambienteName: ambiente.name,
+        sistemaId: "",
+        sistemaName: "",
+        description: "",
+        products: [],
+      });
+    } else {
+      onChange(null);
+    }
   };
 
   const handleSistemaChange = (sistemaId: string) => {
     setSelectedSistemaId(sistemaId);
 
     if (!sistemaId) {
-      onChange(null);
+      // Revert to partial selection (Env only)
+      const ambiente = ambientes.find((a) => a.id === selectedAmbienteId);
+      if (ambiente) {
+        onChange({
+          ambienteId: ambiente.id,
+          ambienteName: ambiente.name,
+          sistemaId: "",
+          sistemaName: "",
+          description: "",
+          products: [],
+        });
+      } else {
+        onChange(null);
+      }
       return;
     }
 
@@ -197,7 +232,7 @@ export function SistemaSelector({
   const handleSistemaCreated = (sistema: Sistema) => {
     // Auto-select the new sistema if it belongs to selected ambiente
     const shouldSelect = (sistema.ambienteIds || []).includes(
-      selectedAmbienteId
+      selectedAmbienteId,
     );
 
     if (!shouldSelect) {
@@ -237,7 +272,7 @@ export function SistemaSelector({
 
     if (
       !confirm(
-        `Tem certeza que deseja excluir o template "${sistema.name}"? Esta ação não pode ser desfeita.`
+        `Tem certeza que deseja excluir o template "${sistema.name}"? Esta ação não pode ser desfeita.`,
       )
     ) {
       return;
@@ -290,7 +325,35 @@ export function SistemaSelector({
         </Select>
       </div>
 
-      {/* Sistema Selection */}
+      {/* Selected Sistema Info or Explicit Add Button */}
+      {selectedAmbienteId && !selectedSistemaId && !value && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const ambiente = ambientes.find(
+                (a) => a.id === selectedAmbienteId,
+              );
+              if (ambiente) {
+                onChange({
+                  ambienteId: ambiente.id,
+                  ambienteName: ambiente.name,
+                  sistemaId: "",
+                  sistemaName: "",
+                  description: "",
+                  products: [],
+                });
+              }
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar (Sem Sistema)
+          </Button>
+        </div>
+      )}
+
       {selectedAmbienteId && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -358,26 +421,7 @@ export function SistemaSelector({
         </div>
       )}
 
-      {/* Selected Sistema Info */}
-      {value && (
-        <div className="p-4 rounded-lg bg-muted/30 border space-y-3">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-primary" />
-            <span className="font-medium">{value.sistemaName}</span>
-            <span className="text-xs text-muted-foreground">
-              em {value.ambienteName}
-            </span>
-          </div>
-          {value.description && (
-            <p className="text-sm text-muted-foreground">{value.description}</p>
-          )}
-          {value.products.length > 0 && (
-            <div className="text-xs text-muted-foreground">
-              {value.products.length} produto(s) incluído(s)
-            </div>
-          )}
-        </div>
-      )}
+      {/* Selected Sistema Info Removed per user request */}
 
       {/* Dialogs */}
       <AmbienteManagerDialog

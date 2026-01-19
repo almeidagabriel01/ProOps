@@ -32,6 +32,8 @@ export default function EditPdfPage() {
     setCoverImage,
     coverLogo,
     setCoverLogo,
+    logoStyle,
+    setLogoStyle,
     coverImageOpacity,
     setCoverImageOpacity,
     coverImageFit,
@@ -54,6 +56,10 @@ export default function EditPdfPage() {
     setRepeatHeader,
     canEditPdfSections,
     maxPdfTemplates,
+
+    // Cover Elements
+    coverElements,
+    setCoverElements,
 
     // Preview
     previewZoom,
@@ -145,6 +151,8 @@ export default function EditPdfPage() {
             setCoverImage={setCoverImage}
             coverLogo={coverLogo}
             setCoverLogo={setCoverLogo}
+            logoStyle={logoStyle}
+            setLogoStyle={setLogoStyle}
             coverImageOpacity={coverImageOpacity}
             setCoverImageOpacity={setCoverImageOpacity}
             coverImageFit={coverImageFit}
@@ -162,9 +170,13 @@ export default function EditPdfPage() {
             sections={sections}
             setSections={setSections}
             canEditPdfSections={canEditPdfSections}
+            coverElements={coverElements}
+            setCoverElements={setCoverElements}
             premiumColor={premiumColor}
             maxPdfTemplates={maxPdfTemplates}
             setShowUpgradeModal={setShowUpgradeModal}
+            clientName={proposal.clientName}
+            tenantColor={tenant?.primaryColor}
           />
         </div>
 
@@ -225,10 +237,12 @@ export default function EditPdfPage() {
                       coverTitle,
                       coverImage,
                       coverLogo,
+                      logoStyle,
                       coverImageOpacity,
                       coverImageFit,
                       coverImagePosition: coverImagePosition as string,
                       sections,
+                      coverElements,
                       repeatHeader,
                     }}
                   />

@@ -73,11 +73,11 @@ export default function ProductsPage() {
       // Check if product is used in any proposal
       const isUsed = await ProposalService.isProductUsedInProposal(
         deleteId,
-        tenant.id
+        tenant.id,
       );
       if (isUsed) {
         toast.error(
-          "Não é possível excluir este produto pois ele está vinculado a uma ou mais propostas."
+          "Não é possível excluir este produto pois ele está vinculado a uma ou mais propostas.",
         );
         setIsDeleting(false);
         setDeleteId(null);
@@ -101,7 +101,7 @@ export default function ProductsPage() {
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const productToDelete = products.find((p) => p.id === deleteId);
@@ -268,8 +268,23 @@ export default function ProductsPage() {
                       {product.stock}
                     </span>
                   </div>
-                  <div className="col-span-2 text-sm font-medium text-center">
-                    R$ {parseFloat(product.price).toFixed(2)}
+                  <div className="col-span-2 text-center">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-sm font-medium">
+                        R${" "}
+                        {(
+                          parseFloat(product.price) +
+                          (parseFloat(product.price) *
+                            parseFloat(product.markup || "0")) /
+                            100
+                        ).toFixed(2)}
+                      </span>
+                      {product.markup && parseFloat(product.markup) > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          (+{parseFloat(product.markup).toFixed(0)}% markup)
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     <span

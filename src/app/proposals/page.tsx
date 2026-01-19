@@ -49,6 +49,7 @@ const statusConfig: Record<
   { label: string; variant: "default" | "success" | "warning" | "destructive" }
 > = {
   draft: { label: "Rascunho", variant: "default" },
+  in_progress: { label: "Em Aberto", variant: "default" },
   sent: { label: "Enviada", variant: "warning" },
   approved: { label: "Aprovada", variant: "success" },
   rejected: { label: "Rejeitada", variant: "destructive" },
@@ -59,11 +60,12 @@ const statusOptions: {
   label: string;
   icon: typeof Clock;
 }[] = [
-    { value: "draft", label: "Rascunho", icon: Clock },
-    { value: "sent", label: "Enviada", icon: Send },
-    { value: "approved", label: "Aprovada", icon: Check },
-    { value: "rejected", label: "Rejeitada", icon: XCircle },
-  ];
+  // { value: "draft", label: "Rascunho", icon: Clock }, // Draft is auto-save only
+  { value: "in_progress", label: "Em Aberto", icon: Clock },
+  { value: "sent", label: "Enviada", icon: Send },
+  { value: "approved", label: "Aprovada", icon: Check },
+  { value: "rejected", label: "Rejeitada", icon: XCircle },
+];
 
 import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -96,7 +98,7 @@ function PdfDownloader({
     return ProposalDefaults.createDefaultTemplate(
       tenant.id,
       tenant.name,
-      tenant.primaryColor || "#2563eb"
+      tenant.primaryColor || "#2563eb",
     );
   }, [tenant]);
 
@@ -147,7 +149,7 @@ export default function ProposalsPage() {
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
-    null
+    null,
   );
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
@@ -173,53 +175,68 @@ export default function ProposalsPage() {
         proposal.clientName?.toLowerCase().includes(term) ||
         statusConfig[proposal.status as ProposalStatus]?.label
           .toLowerCase()
-          .includes(term)
+          .includes(term),
     );
   }, [proposals, searchTerm]);
 
   const isPageLoading = tenantLoading || isLoading;
 
-  React.useEffect(() => {
-    const fetchProposals = async () => {
-      if (tenant) {
-        try {
-          const data = await ProposalService.getProposals(tenant.id);
+  const fetchProposals = React.useCallback(async () => {
+    if (tenant) {
+      try {
+        await ProposalService.waitForSave(); // Wait for any pending auto-saves
+        // setIsLoading(true); // Optional: don't show full loading state on refresh to avoid flicker
+        const data = await ProposalService.getProposals(tenant.id);
 
-          // Sync client names from clients collection
-          const clientIds = [...new Set(data.filter(p => p.clientId).map(p => p.clientId))];
+        // Sync client names from clients collection
+        const clientIds = [
+          ...new Set(data.filter((p) => p.clientId).map((p) => p.clientId)),
+        ];
 
-          if (clientIds.length > 0) {
-            try {
-              const { ClientService } = await import("@/services/client-service");
-              const allClients = await ClientService.getClients(tenant.id);
+        if (clientIds.length > 0) {
+          try {
+            const { ClientService } = await import("@/services/client-service");
+            const allClients = await ClientService.getClients(tenant.id);
 
-              // Create a map for quick lookup
-              const clientMap = new Map(allClients.map(c => [c.id, c]));
+            // Create a map for quick lookup
+            const clientMap = new Map(allClients.map((c) => [c.id, c]));
 
-              // Update proposals with fresh client data
-              data.forEach(proposal => {
-                if (proposal.clientId && clientMap.has(proposal.clientId)) {
-                  const freshClient = clientMap.get(proposal.clientId)!;
-                  proposal.clientName = freshClient.name;
-                  proposal.clientEmail = freshClient.email;
-                  proposal.clientPhone = freshClient.phone;
-                  proposal.clientAddress = freshClient.address;
-                }
-              });
-            } catch (clientError) {
-              console.warn("Could not sync client names:", clientError);
-            }
+            // Update proposals with fresh client data
+            data.forEach((proposal) => {
+              if (proposal.clientId && clientMap.has(proposal.clientId)) {
+                const freshClient = clientMap.get(proposal.clientId)!;
+                proposal.clientName = freshClient.name;
+                proposal.clientEmail = freshClient.email;
+                proposal.clientPhone = freshClient.phone;
+                proposal.clientAddress = freshClient.address;
+              }
+            });
+          } catch (clientError) {
+            console.warn("Could not sync client names:", clientError);
           }
-
-          setProposals(data);
-        } catch (error) {
-          console.error("Failed to fetch proposals", error);
         }
+
+        setProposals(data);
+      } catch (error) {
+        console.error("Failed to fetch proposals", error);
       }
-      setIsLoading(false);
-    };
-    fetchProposals();
+    }
+    setIsLoading(false);
   }, [tenant]);
+
+  // Initial fetch
+  React.useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
+
+  // Subscribe to updates (e.g. from auto-save)
+  React.useEffect(() => {
+    return ProposalService.subscribe(() => {
+      console.log("Received proposal update notification, refreshing list...");
+      setIsLoading(true); // Show loading skeleton while waiting/fetching
+      fetchProposals();
+    });
+  }, [fetchProposals]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -286,7 +303,7 @@ export default function ProposalsPage() {
 
   const handleStatusChange = async (
     proposalId: string,
-    newStatus: ProposalStatus
+    newStatus: ProposalStatus,
   ) => {
     const proposal = proposals.find((p) => p.id === proposalId);
     if (!proposal || proposal.status === newStatus) return;
@@ -295,7 +312,9 @@ export default function ProposalsPage() {
     try {
       await ProposalService.updateProposal(proposalId, { status: newStatus });
       setProposals((prev) =>
-        prev.map((p) => (p.id === proposalId ? { ...p, status: newStatus } : p))
+        prev.map((p) =>
+          p.id === proposalId ? { ...p, status: newStatus } : p,
+        ),
       );
       toast.success(`Status alterado para "${statusConfig[newStatus].label}"`);
     } catch (error) {
@@ -435,19 +454,19 @@ export default function ProposalsPage() {
               const total =
                 proposal.products?.reduce(
                   (sum: number, p: { total: number }) => sum + p.total,
-                  0
+                  0,
                 ) || 0;
 
               // Extract unique Ambientes and Sistemas
               const uniqueAmbientes = Array.from(
                 new Set(
-                  proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean)
-                )
+                  proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean),
+                ),
               );
               const uniqueSistemas = Array.from(
                 new Set(
-                  proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean)
-                )
+                  proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean),
+                ),
               );
 
               return (
@@ -510,7 +529,7 @@ export default function ProposalsPage() {
                                   onClick={() =>
                                     handleStatusChange(
                                       proposal.id,
-                                      option.value
+                                      option.value,
                                     )
                                   }
                                   className={isActive ? "bg-muted" : ""}
@@ -546,7 +565,9 @@ export default function ProposalsPage() {
                             ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
                             : uniqueAmbientes.join(", ")}
                         </span>
-                      ) : "-"}
+                      ) : (
+                        "-"
+                      )}
                     </div>
 
                     {/* Sistemas */}
@@ -557,7 +578,9 @@ export default function ProposalsPage() {
                             ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
                             : uniqueSistemas.join(", ")}
                         </span>
-                      ) : "-"}
+                      ) : (
+                        "-"
+                      )}
                     </div>
 
                     <div className="text-sm text-muted-foreground text-center">

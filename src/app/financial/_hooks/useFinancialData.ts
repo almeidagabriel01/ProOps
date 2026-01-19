@@ -236,20 +236,23 @@ export function useFinancialData(): UseFinancialDataReturn {
       }
 
       // CASE 2: Transaction is part of an installment group (without proposal group)
-      if (t.isInstallment && t.installmentGroupId) {
+      // This includes both regular installments AND down payments (isDownPayment = true)
+      if ((t.isInstallment || t.isDownPayment) && t.installmentGroupId) {
         if (processedInstallmentGroups.has(t.installmentGroupId)) return;
 
-        // Find all belonging to this group
+        // Find all belonging to this group (both installments and down payments)
         const group = transactions.filter(
           (g) => g.installmentGroupId === t.installmentGroupId
         );
 
-        // Sort group by installment number
-        group.sort(
-          (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0)
-        );
+        // Sort group: down payment first (installmentNumber 0), then by installment number
+        group.sort((a, b) => {
+          if (a.isDownPayment && !b.isDownPayment) return -1;
+          if (!a.isDownPayment && b.isDownPayment) return 1;
+          return (a.installmentNumber || 0) - (b.installmentNumber || 0);
+        });
 
-        // Find the first "pending" or "overdue" installment (not paid)
+        // Find the first "pending" or "overdue" item (not paid)
         let active = group.find((g) => g.status !== "paid");
 
         // If all are paid, show the last one
@@ -422,7 +425,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         // If it's an installment, delete all in the group
-        if (transaction.isInstallment && transaction.installmentGroupId) {
+        if ((transaction.isInstallment || transaction.isDownPayment) && transaction.installmentGroupId) {
           const groupTransactions = transactions.filter(
             (t) => t.installmentGroupId === transaction.installmentGroupId
           );

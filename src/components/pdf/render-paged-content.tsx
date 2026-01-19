@@ -7,6 +7,7 @@ import {
   calculateSectionHeight,
   calculateProductHeight,
   calculateSistemaBlockHeight,
+  calculatePaymentTermsHeight,
 } from "@/utils/pdf-helpers";
 import {
   PdfSistemaBlock,
@@ -44,6 +45,7 @@ interface Sistema {
 interface Proposal {
   sistemas?: Record<string, unknown>[];
   discount?: number;
+  extraExpense?: number;
   clientName: string;
   title?: string;
   // Payment options
@@ -52,6 +54,8 @@ interface Proposal {
   installmentsEnabled?: boolean;
   installmentsCount?: number;
   installmentValue?: number;
+  downPaymentDueDate?: string;
+  firstInstallmentDate?: string;
 }
 
 interface Tenant {
@@ -88,7 +92,7 @@ interface RenderPagedContentProps {
 function buildContentItems(
   sections: PdfSection[],
   products: Product[],
-  proposal: Proposal
+  proposal: Proposal,
 ): ContentItem[] {
   const items: ContentItem[] = [];
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
@@ -107,7 +111,14 @@ function buildContentItems(
     if (hasDynamicPaymentOptions) {
       items.push({
         type: "payment-terms",
-        height: ESTIMATED_HEIGHTS.PAYMENT_TERMS,
+        height: calculatePaymentTermsHeight(
+          !!(
+            proposal.downPaymentEnabled &&
+            proposal.downPaymentValue &&
+            proposal.downPaymentValue > 0
+          ),
+          proposal.installmentsEnabled ? proposal.installmentsCount || 0 : 0,
+        ),
       });
     }
   };
@@ -133,14 +144,14 @@ function buildContentItems(
 
   const addSistemaProducts = (
     sistema: Sistema,
-    productsForSistema: Product[]
+    productsForSistema: Product[],
   ) => {
     const sortedProducts = [...productsForSistema].sort(
       (a: Product, b: Product) => {
         if (a.isExtra && !b.isExtra) return 1;
         if (!a.isExtra && b.isExtra) return -1;
         return 0;
-      }
+      },
     );
 
     const totalHeight = calculateSistemaBlockHeight(sortedProducts);
@@ -171,7 +182,7 @@ function buildContentItems(
   };
 
   const productSectionIndex = sections.findIndex(
-    (s) => s.type === "product-table"
+    (s) => s.type === "product-table",
   );
 
   if (productSectionIndex !== -1) {
@@ -182,13 +193,13 @@ function buildContentItems(
             const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
             let productsForSistema = products.filter(
-              (p: Product) => p.systemInstanceId === systemInstanceId
+              (p: Product) => p.systemInstanceId === systemInstanceId,
             );
 
             const isLegacy = !products.some((p: Product) => p.systemInstanceId);
             if (productsForSistema.length === 0 && isLegacy) {
               productsForSistema = products.filter((p: Product) =>
-                sistema.productIds?.includes(p.productId)
+                sistema.productIds?.includes(p.productId),
               );
             }
 
@@ -199,12 +210,12 @@ function buildContentItems(
 
           const sistemaProductIds = new Set(
             proposal.sistemas!.flatMap(
-              (s: Record<string, unknown>) => (s.productIds as string[]) || []
-            )
+              (s: Record<string, unknown>) => (s.productIds as string[]) || [],
+            ),
           );
           const extraProducts = products.filter(
             (p: Product) =>
-              !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+              !p.systemInstanceId && !sistemaProductIds.has(p.productId),
           );
 
           if (extraProducts.length > 0) {
@@ -275,13 +286,13 @@ function buildContentItems(
             const sistema = rawSistema as unknown as Sistema;
             const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
             let productsForSistema = products.filter(
-              (p: Product) => p.systemInstanceId === systemInstanceId
+              (p: Product) => p.systemInstanceId === systemInstanceId,
             );
 
             const isLegacy = !products.some((p: Product) => p.systemInstanceId);
             if (productsForSistema.length === 0 && isLegacy) {
               productsForSistema = products.filter((p: Product) =>
-                sistema.productIds?.includes(p.productId)
+                sistema.productIds?.includes(p.productId),
               );
             }
 
@@ -292,12 +303,12 @@ function buildContentItems(
 
           const sistemaProductIds = new Set(
             proposal.sistemas!.flatMap(
-              (s: Record<string, unknown>) => (s.productIds as string[]) || []
-            )
+              (s: Record<string, unknown>) => (s.productIds as string[]) || [],
+            ),
           );
           const extraProducts = products.filter(
             (p: Product) =>
-              !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+              !p.systemInstanceId && !sistemaProductIds.has(p.productId),
           );
 
           if (extraProducts.length > 0) {
@@ -335,7 +346,7 @@ function buildContentItems(
         proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
           const sistema = rawSistema as unknown as Sistema;
           const productsForSistema = products.filter((p: Product) =>
-            sistema.productIds?.includes(p.productId)
+            sistema.productIds?.includes(p.productId),
           );
           if (productsForSistema.length > 0) {
             addSistemaProducts(sistema, productsForSistema);
@@ -493,6 +504,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfTotals
               products={products}
               discount={proposal.discount || 0}
+              extraExpense={proposal.extraExpense || 0}
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
@@ -520,6 +532,8 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               installmentsEnabled={proposal.installmentsEnabled}
               installmentsCount={proposal.installmentsCount}
               installmentValue={proposal.installmentValue}
+              downPaymentDueDate={proposal.downPaymentDueDate}
+              firstInstallmentDate={proposal.firstInstallmentDate}
             />
           </div>
         );

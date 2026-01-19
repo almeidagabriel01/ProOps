@@ -93,7 +93,7 @@ export function ProductFormNew({
   } = useProductForm(initialData, productId);
 
   const handleFormSubmit = async () => {
-    const fakeEvent = { preventDefault: () => { } } as React.FormEvent;
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
@@ -275,9 +275,9 @@ export function ProductFormNew({
               </div>
             </div>
 
-            <FormGroup cols={3}>
+            <FormGroup cols={2}>
               <FormItem
-                label="Preço de Venda"
+                label="Preço Bruto (Custo)"
                 htmlFor="price"
                 required
                 error={errors.price}
@@ -294,6 +294,35 @@ export function ProductFormNew({
                 />
               </FormItem>
 
+              <FormItem label="Markup (%)" htmlFor="markup">
+                <Input
+                  id="markup"
+                  name="markup"
+                  type="number"
+                  placeholder="0"
+                  value={formData.markup}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  icon={<DollarSign className="w-4 h-4" />}
+                />
+                {formData.price && formData.markup && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Preço de venda: R${" "}
+                    {(
+                      parseFloat(formData.price) +
+                      (parseFloat(formData.price) *
+                        parseFloat(formData.markup)) /
+                        100
+                    ).toFixed(2)}
+                  </p>
+                )}
+              </FormItem>
+            </FormGroup>
+
+            <FormGroup cols={2}>
               <FormItem label="Estoque" htmlFor="stock">
                 <Input
                   id="stock"
@@ -320,13 +349,47 @@ export function ProductFormNew({
 
             {/* Price preview card */}
             <div className="p-5 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Preço final
-                </span>
-                <span className="text-2xl font-bold text-green-600">
-                  R$ {parseFloat(formData.price || "0").toFixed(2)}
-                </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Preço Bruto
+                  </span>
+                  <span className="text-lg font-semibold">
+                    R$ {parseFloat(formData.price || "0").toFixed(2)}
+                  </span>
+                </div>
+                {formData.markup && parseFloat(formData.markup) > 0 && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Markup ({parseFloat(formData.markup).toFixed(2)}%)
+                      </span>
+                      <span className="text-lg font-semibold text-green-600">
+                        + R${" "}
+                        {(
+                          (parseFloat(formData.price || "0") *
+                            parseFloat(formData.markup)) /
+                          100
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="h-px bg-border my-2" />
+                  </>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">
+                    Preço de Venda
+                  </span>
+                  <span className="text-2xl font-bold text-green-600">
+                    R${" "}
+                    {(
+                      parseFloat(formData.price || "0") +
+                      (parseFloat(formData.price || "0") *
+                        parseFloat(formData.markup || "0")) /
+                        100
+                    ).toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -388,10 +451,11 @@ export function ProductFormNew({
               {Array.from({ length: maxImagesPerProduct }).map((_, i) => (
                 <div
                   key={i}
-                  className={`w-16 h-2 rounded-full transition-all duration-300 ${i < imageUrls.length
-                    ? "bg-gradient-to-r from-primary to-primary/80"
-                    : "bg-border/50"
-                    }`}
+                  className={`w-16 h-2 rounded-full transition-all duration-300 ${
+                    i < imageUrls.length
+                      ? "bg-gradient-to-r from-primary to-primary/80"
+                      : "bg-border/50"
+                  }`}
                 />
               ))}
             </div>
@@ -438,18 +502,38 @@ export function ProductFormNew({
                   <p className="font-medium truncate">{formData.name || "—"}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Preço:</span>
-                  <p className="font-medium text-green-600">
-                    R$ {parseFloat(formData.price || "0").toFixed(2)}
-                  </p>
-                </div>
-                <div>
                   <span className="text-muted-foreground">Categoria:</span>
                   <p className="font-medium">{formData.category || "—"}</p>
                 </div>
                 <div>
+                  <span className="text-muted-foreground">Preço Bruto:</span>
+                  <p className="font-medium">
+                    R$ {parseFloat(formData.price || "0").toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Markup:</span>
+                  <p className="font-medium text-green-600">
+                    {parseFloat(formData.markup || "0").toFixed(2)}%
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Preço de Venda:</span>
+                  <p className="font-medium text-green-600">
+                    R${" "}
+                    {(
+                      parseFloat(formData.price || "0") +
+                      (parseFloat(formData.price || "0") *
+                        parseFloat(formData.markup || "0")) /
+                        100
+                    ).toFixed(2)}
+                  </p>
+                </div>
+                <div>
                   <span className="text-muted-foreground">Imagens:</span>
-                  <p className="font-medium">{imageUrls.length} de {maxImagesPerProduct}</p>
+                  <p className="font-medium">
+                    {imageUrls.length} de {maxImagesPerProduct}
+                  </p>
                 </div>
               </div>
             </div>
@@ -461,10 +545,10 @@ export function ProductFormNew({
             submitLabel={productId ? "Salvar Alterações" : "Criar Produto"}
           />
         </StepCard>
-      </StepWizard >
+      </StepWizard>
 
       {/* Modals */}
-      < LimitReachedModal
+      <LimitReachedModal
         open={showLimitModal}
         onOpenChange={setShowLimitModal}
         resourceType="products"

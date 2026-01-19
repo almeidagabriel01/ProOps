@@ -29,6 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SistemaSelectorProps } from "@/components/features/automation/sistema-selector";
+import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -41,19 +42,25 @@ interface ProposalSystemsSectionProps {
   onUpdateProductQuantity: (
     productId: string,
     delta: number,
-    systemInstanceId: string
+    systemInstanceId: string,
+  ) => void;
+  onUpdateProductMarkup: (
+    productId: string,
+    markup: number,
+    systemInstanceId: string,
   ) => void;
   onAddExtraProductToSystem: (
     product: Product,
     sistemaIndex: number,
-    systemInstanceId: string
+    systemInstanceId: string,
   ) => void;
   onAddNewSystem: (sistema: ProposalSistema) => void;
+  onUpdateSystem?: (index: number, sistema: ProposalSistema) => void;
   onRemoveProduct: (productId: string, systemInstanceId: string) => void;
   SistemaSelectorComponent: React.ComponentType<SistemaSelectorProps>;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
   onDataUpdate?: () => void;
   // Transactional Data
@@ -72,8 +79,10 @@ export function ProposalSystemsSection({
   onEditSystem,
   onRemoveSystem,
   onUpdateProductQuantity,
+  onUpdateProductMarkup,
   onAddExtraProductToSystem,
   onAddNewSystem,
+  onUpdateSystem,
   onRemoveProduct,
   SistemaSelectorComponent,
   onToggleStatus,
@@ -83,47 +92,99 @@ export function ProposalSystemsSection({
   onAmbienteAction,
   onSistemaAction,
 }: ProposalSystemsSectionProps) {
+  // Logic to handle "Pending" (Environment-only) selection
+  // If the last system in the list is incomplete (no sistemaId),
+  // it is treated as the "Pending Selector State" and NOT rendered as a Card.
+  const lastSystem = selectedSistemas[selectedSistemas.length - 1];
+  const isLastSystemPending = lastSystem && !lastSystem.sistemaId;
+
+  const renderedSistemas = isLastSystemPending
+    ? selectedSistemas.slice(0, -1)
+    : selectedSistemas;
+
+  const pendingSelectorValue = isLastSystemPending ? lastSystem : null;
+
+  const handleSelectorChange = (newValue: ProposalSistema | null) => {
+    if (!newValue) {
+      if (isLastSystemPending) {
+        // User cleared the pending selection -> Remove last item
+        onRemoveSystem(
+          selectedSistemas.length - 1,
+          `${lastSystem.sistemaId}-${lastSystem.ambienteId}`,
+        );
+      }
+      return;
+    }
+
+    if (isLastSystemPending) {
+      // Update pending item in place if handler exists
+      if (onUpdateSystem) {
+        onUpdateSystem(selectedSistemas.length - 1, newValue);
+      } else {
+        // Fallback: Remove Last + Add New (Legacy)
+        const lastId = `${lastSystem?.sistemaId}-${lastSystem?.ambienteId}`;
+        onRemoveSystem(selectedSistemas.length - 1, lastId);
+        onAddNewSystem(newValue);
+      }
+    } else {
+      // New add
+      onAddNewSystem(newValue);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Cpu className="w-5 h-5" />
-          Sistemas de Automação
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-5 h-5" />
+            <CardTitle>Sistemas de Automação</CardTitle>
+          </div>
+          {selectedProducts.length > 0 && (
+            <ProposalFinancialSummarySmall
+              selectedProducts={selectedProducts}
+              className="ml-auto"
+            />
+          )}
+        </div>
         <CardDescription>
           Adicione um ou mais sistemas de automação à proposta
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Lista de sistemas já adicionados */}
-        {selectedSistemas.length > 0 && (
+        {/* Lista de sistemas já adicionados (Completed only) */}
+        {renderedSistemas.length > 0 && (
           <div className="space-y-4">
-            {selectedSistemas.map((sistema, sistemaIndex) => {
+            {renderedSistemas.map((sistema, idx) => {
               const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
+              // Real index in the full list
+              const realIndex = idx;
+
               const sistemaProducts = selectedProducts.filter(
-                (p) => p.systemInstanceId === systemInstanceId
+                (p) => p.systemInstanceId === systemInstanceId,
               );
               const sistemaTotal = sistemaProducts.reduce(
                 (sum, p) => sum + p.total,
-                0
+                0,
               );
 
               return (
                 <SystemCard
                   key={systemInstanceId}
                   sistema={sistema}
-                  sistemaIndex={sistemaIndex}
+                  sistemaIndex={realIndex}
                   sistemaProducts={sistemaProducts}
                   sistemaTotal={sistemaTotal}
                   products={products}
                   primaryColor={primaryColor}
                   systemInstanceId={systemInstanceId}
-                  onEdit={() => onEditSystem(sistemaIndex)}
-                  onRemove={() =>
-                    onRemoveSystem(sistemaIndex, systemInstanceId)
-                  }
+                  onEdit={() => onEditSystem(realIndex)}
+                  onRemove={() => onRemoveSystem(realIndex, systemInstanceId)}
                   onUpdateQuantity={(productId, delta) =>
                     onUpdateProductQuantity(productId, delta, systemInstanceId)
+                  }
+                  onUpdateMarkup={(productId, markup) =>
+                    onUpdateProductMarkup(productId, markup, systemInstanceId)
                   }
                   onRemoveProduct={(productId) =>
                     onRemoveProduct(productId, systemInstanceId)
@@ -131,8 +192,8 @@ export function ProposalSystemsSection({
                   onAddExtraProduct={(product) =>
                     onAddExtraProductToSystem(
                       product,
-                      sistemaIndex,
-                      systemInstanceId
+                      realIndex,
+                      systemInstanceId,
                     )
                   }
                   onToggleStatus={onToggleStatus}
@@ -142,22 +203,21 @@ export function ProposalSystemsSection({
           </div>
         )}
 
-        {/* Adicionar novo sistema */}
-        <div className="border-2 border-dashed rounded-lg p-4">
+        {/* Adicionar novo sistema / Pending Environment */}
+        <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-3 text-center">
-            {selectedSistemas.length === 0
+            {renderedSistemas.length === 0 && !pendingSelectorValue
               ? "Selecione o primeiro sistema para esta proposta"
               : "+ Adicionar outro sistema"}
           </p>
           <SistemaSelectorComponent
             key={selectorKey}
-            value={null}
-            onChange={(s) => s && onAddNewSystem(s)}
+            value={pendingSelectorValue}
+            onChange={handleSelectorChange}
             onDataUpdate={onDataUpdate}
             // Transactional
             onAmbienteAction={onAmbienteAction}
             onSistemaAction={onSistemaAction}
-            // Ensure we update invalidations if needed
             sistemas={sistemas}
             ambientes={ambientes}
           />
@@ -179,11 +239,12 @@ interface SystemCardProps {
   onEdit: () => void;
   onRemove: () => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
+  onUpdateMarkup: (productId: string, markup: number) => void;
   onRemoveProduct: (productId: string) => void;
   onAddExtraProduct: (product: Product) => void;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 }
 
@@ -196,6 +257,7 @@ function SystemCard({
   onEdit,
   onRemove,
   onUpdateQuantity,
+  onUpdateMarkup,
   onRemoveProduct,
   onAddExtraProduct,
   onToggleStatus,
@@ -302,7 +364,7 @@ function SystemCard({
         {sistemaProducts.length > 0 ? (
           sistemaProducts.map((product, idx) => {
             const productData = products.find(
-              (p) => p.id === product.productId
+              (p) => p.id === product.productId,
             );
             const isActive =
               !productData?.status || productData.status === "active";
@@ -312,6 +374,7 @@ function SystemCard({
                 product={product}
                 isActive={isActive}
                 onUpdateQuantity={onUpdateQuantity}
+                onUpdateMarkup={onUpdateMarkup}
                 onRemoveProduct={onRemoveProduct}
                 onToggleStatus={onToggleStatus}
               />
@@ -341,10 +404,11 @@ interface ProductRowProps {
   product: ProposalProduct;
   isActive: boolean;
   onUpdateQuantity: (productId: string, delta: number) => void;
+  onUpdateMarkup: (productId: string, markup: number) => void;
   onRemoveProduct: (productId: string) => void;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 }
 
@@ -352,11 +416,18 @@ function ProductRow({
   product,
   isActive,
   onUpdateQuantity,
+  onUpdateMarkup,
   onRemoveProduct,
   onToggleStatus,
 }: ProductRowProps) {
   const isExtra = !!product.isExtra;
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [markup, setMarkup] = React.useState(product.markup || 0);
+  const [isEditingMarkup, setIsEditingMarkup] = React.useState(false);
+
+  React.useEffect(() => {
+    setMarkup(product.markup || 0);
+  }, [product.markup]);
 
   const handleStatusToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -370,14 +441,28 @@ function ProductRow({
     }
   };
 
+  const handleMarkupBlur = () => {
+    setIsEditingMarkup(false);
+    if (markup !== product.markup) {
+      onUpdateMarkup(product.productId, markup);
+    }
+  };
+
+  const handleMarkupKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleMarkupBlur();
+    }
+  };
+
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${!isActive
-        ? "bg-muted/5 border-dashed border-muted-foreground/20"
-        : product.isExtra
-          ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
-          : "bg-muted/30"
-        }`}
+      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+        !isActive
+          ? "bg-muted/5 border-dashed border-muted-foreground/20"
+          : product.isExtra
+            ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
+            : "bg-muted/30"
+      }`}
     >
       {/* Toggle - compact on left */}
       {onToggleStatus && (
@@ -451,6 +536,41 @@ function ProductRow({
         </p>
       </div>
 
+      {/* Markup Control */}
+      {isActive && (
+        <div className="flex flex-col items-center mr-2">
+          <span className="text-[10px] text-muted-foreground mb-0.5">
+            Markup
+          </span>
+          <div className="flex items-center">
+            <div className="relative flex items-center group">
+              <input
+                type="text"
+                value={
+                  isEditingMarkup
+                    ? markup
+                    : `${product.markup?.toFixed(0) || 0}`
+                }
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9.-]/g, "");
+                  setMarkup(val === "" ? 0 : parseFloat(val));
+                }}
+                onFocus={() => {
+                  setIsEditingMarkup(true);
+                  setMarkup(product.markup || 0);
+                }}
+                onBlur={handleMarkupBlur}
+                onKeyDown={handleMarkupKeyDown}
+                className="w-14 h-8 text-sm text-right border rounded-md px-2 pr-5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
+              />
+              <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none group-focus-within:text-foreground">
+                %
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quantity controls */}
       <div className="flex items-center gap-0.5 shrink-0">
         <Button
@@ -477,11 +597,20 @@ function ProductRow({
       </div>
 
       {/* Price */}
-      <span
-        className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
-      >
-        R$ {product.total.toFixed(2)}
-      </span>
+      <div className="flex flex-col items-end min-w-[80px]">
+        <span
+          className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
+        >
+          R$ {product.total.toFixed(2)}
+        </span>
+        {isActive && (
+          <span className="text-[10px] text-muted-foreground">
+            (R${" "}
+            {(product.unitPrice * (1 + (product.markup || 0) / 100)).toFixed(2)}{" "}
+            un)
+          </span>
+        )}
+      </div>
 
       {/* Remove button for extras */}
       {isExtra && (
@@ -529,7 +658,7 @@ interface ExtraProductsGridProps {
   onAddProduct: (product: Product) => void;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 }
 
@@ -543,7 +672,7 @@ function ExtraProductsGrid({
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
 
   const availableProducts = products.filter(
-    (p) => !sistemaProducts.some((sp) => sp.productId === p.id)
+    (p) => !sistemaProducts.some((sp) => sp.productId === p.id),
   );
 
   const handleStatusToggle = async (e: React.MouseEvent, product: Product) => {
@@ -601,8 +730,9 @@ function ExtraProductsGrid({
           return (
             <div
               key={product.id}
-              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${!isActive ? "opacity-60 hover:opacity-100" : ""
-                }`}
+              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${
+                !isActive ? "opacity-60 hover:opacity-100" : ""
+              }`}
               onClick={() => onAddProduct(product)}
             >
               {/* Toggle - subtle on left */}

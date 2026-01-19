@@ -17,6 +17,7 @@ export interface CreateProductData {
   name: string;
   description?: string;
   price: string;
+  markup?: string;
   manufacturer?: string;
   category?: string;
   sku?: string;
@@ -45,7 +46,7 @@ export function useProductActions() {
   const [isLoading, setIsLoading] = useState(false);
 
   const createProduct = async (
-    data: CreateProductData
+    data: CreateProductData,
   ): Promise<CreateProductResult | null> => {
     setIsLoading(true);
     try {
@@ -53,6 +54,7 @@ export function useProductActions() {
         name: data.name,
         description: data.description || "",
         price: data.price,
+        markup: data.markup || "",
         manufacturer: data.manufacturer || "",
         category: data.category || "",
         sku: data.sku || "",
@@ -65,7 +67,7 @@ export function useProductActions() {
       const result = await callApi<CreateProductResult>(
         "v1/products",
         "POST",
-        payload
+        payload,
       );
 
       toast.success("Produto criado com sucesso!");
@@ -88,7 +90,7 @@ export function useProductActions() {
     try {
       await callApi<{ success: boolean; message: string }>(
         `v1/products/${productId}`,
-        "DELETE"
+        "DELETE",
       );
 
       toast.success("Produto removido com sucesso!");

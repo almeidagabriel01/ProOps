@@ -14,7 +14,7 @@ import { ProposalPdfSettings, ProposalSection } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Download, FileDown, Loader2 } from "lucide-react";
-import { PdfCoverPage } from "./pdf-cover-page";
+import { PdfCoverPage } from "./pdf/pdf-cover-page";
 import { PdfSettingsTabs, usePdfGenerator } from "./pdf";
 import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enriched-products";
 import { ProposalPreview } from "@/components/features/proposal/proposal-preview";
@@ -42,6 +42,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
     includeHeader: true,
     includeFooter: true,
     margins: "normal",
+    logoStyle: "original",
   });
 
   const { isGenerating, handleGenerate } = usePdfGenerator({
@@ -55,14 +56,14 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
   const { products: enrichedProducts } = useEnrichedProducts(
     proposal as Proposal,
     tenant?.id,
-    { filterInactive: true }
+    { filterInactive: true },
   );
   const pdfProposal = React.useMemo(
     () => ({
       ...proposal,
       products: enrichedProducts,
     }),
-    [proposal, enrichedProducts]
+    [proposal, enrichedProducts],
   );
 
   const pdfSections: PdfSection[] = React.useMemo(() => {
@@ -72,7 +73,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
           ...section,
           type: section.type as PdfSection["type"],
           styles: {}, // Provide default styles
-        }) as PdfSection
+        }) as PdfSection,
     );
   }, [sections]);
 
@@ -82,7 +83,20 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
       {includeCover && (
         <div className="fixed -left-[9999px] top-0">
           <div id="pdf-cover-page" style={{ width: "794px", height: "1123px" }}>
-            <PdfCoverPage proposal={proposal} theme={coverTheme} />
+            <PdfCoverPage
+              proposal={proposal as Proposal}
+              theme={coverTheme}
+              primaryColor={settings.primaryColor}
+              coverImage=""
+              coverImageOpacity={30}
+              coverImageFit="cover"
+              coverImagePosition="center"
+              coverLogo=""
+              tenant={tenant}
+              coverTitle={proposal.title || ""}
+              fontFamily={settings.fontFamily}
+              logoStyle={settings.logoStyle}
+            />
           </div>
         </div>
       )}
@@ -105,6 +119,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
               fontFamily: settings.fontFamily,
               theme: coverTheme,
               pageNumberStart: includeCover ? 2 : 1,
+              logoStyle: settings.logoStyle,
             }}
             className="shadow-none mb-0"
           />

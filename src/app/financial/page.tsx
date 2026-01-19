@@ -192,8 +192,9 @@ export default function FinancialPage() {
         <div className="grid gap-3">
           {filteredTransactions.map((transaction) => {
             // Get related installments (for standalone installment groups)
+            // Include both installments AND down payments in the group
             const relatedInstallments =
-              transaction.isInstallment &&
+              (transaction.isInstallment || transaction.isDownPayment) &&
               transaction.installmentGroupId &&
               !transaction.proposalGroupId
                 ? transactions
@@ -201,10 +202,14 @@ export default function FinancialPage() {
                       (t) =>
                         t.installmentGroupId === transaction.installmentGroupId
                     )
-                    .sort(
-                      (a, b) =>
+                    .sort((a, b) => {
+                      // Sort: down payment first, then by installment number
+                      if (a.isDownPayment && !b.isDownPayment) return -1;
+                      if (!a.isDownPayment && b.isDownPayment) return 1;
+                      return (
                         (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                    )
+                      );
+                    })
                 : [];
 
             // Get all transactions from the same proposal group (down payment + installments)

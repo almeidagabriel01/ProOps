@@ -22,13 +22,11 @@ import {
   DollarSign,
   Tag,
   Check,
+  Wallet,
+  Banknote,
 } from "lucide-react";
-import { TransactionFormData } from "../_hooks/useTransactionForm";
+import { TransactionFormData, PaymentMode } from "../_hooks/useTransactionForm";
 import { TransactionType } from "@/services/transaction-service";
-
-// ============================================
-// STEP 1: TYPE SELECTOR
-// ============================================
 
 interface TypeSelectorStepProps {
   type: TransactionType;
@@ -211,30 +209,6 @@ export function DetailsStep({
       </FormItem>
 
       <FormGroup>
-        <FormItem
-          label="Valor Total"
-          htmlFor="amount"
-          required
-          error={errors.amount}
-        >
-          <CurrencyInput
-            id="amount"
-            name="amount"
-            value={formData.amount}
-            onChange={onChange}
-            onBlur={onBlur}
-            placeholder="0,00"
-            className={errors.amount ? "border-destructive" : ""}
-            required
-            disabled={isProposalTransaction}
-          />
-          {isProposalTransaction && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Valor gerenciado pela Proposta. Para alterar, edite a proposta.
-            </p>
-          )}
-        </FormItem>
-
         <FormItem label="Categoria" htmlFor="category">
           <Input
             id="category"
@@ -243,37 +217,6 @@ export function DetailsStep({
             onChange={onChange}
             placeholder="Vendas, Material, Serviço..."
             icon={<Tag className="w-4 h-4" />}
-          />
-        </FormItem>
-      </FormGroup>
-
-      <FormGroup cols={3}>
-        <FormItem label="Data" htmlFor="date" required error={errors.date}>
-          <DateInput
-            id="date"
-            name="date"
-            value={formData.date}
-            onChange={onChange}
-            onBlur={onBlur}
-            className={errors.date ? "border-destructive" : ""}
-            required
-          />
-        </FormItem>
-
-        <FormItem
-          label="Vencimento"
-          htmlFor="dueDate"
-          required={formData.type === "income"}
-          error={errors.dueDate}
-        >
-          <DateInput
-            id="dueDate"
-            name="dueDate"
-            value={formData.dueDate}
-            onChange={onChange}
-            onBlur={onBlur}
-            className={errors.dueDate ? "border-destructive" : ""}
-            required={formData.type === "income"}
           />
         </FormItem>
 
@@ -290,6 +233,18 @@ export function DetailsStep({
           </Select>
         </FormItem>
       </FormGroup>
+
+      <FormItem label="Data" htmlFor="date" required error={errors.date}>
+        <DateInput
+          id="date"
+          name="date"
+          value={formData.date}
+          onChange={onChange}
+          onBlur={onBlur}
+          className={errors.date ? "border-destructive" : ""}
+          required
+        />
+      </FormItem>
     </div>
   );
 }
@@ -304,6 +259,7 @@ interface PaymentStepProps {
   onChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors?: FormErrors<TransactionFormData>;
   isProposalTransaction?: boolean;
 }
@@ -312,9 +268,65 @@ export function PaymentStep({
   formData,
   onFormDataChange,
   onChange,
+  onBlur,
   errors = {},
   isProposalTransaction = false,
 }: PaymentStepProps) {
+  // Calculate total based on mode
+  const calculateTotal = (): number => {
+    if (formData.paymentMode === "total") {
+      return parseFloat(formData.amount || "0");
+    } else {
+      // installmentValue mode
+      const installmentValue = parseFloat(formData.installmentValue || "0");
+      const downPayment = formData.downPaymentEnabled
+        ? parseFloat(formData.downPaymentValue || "0")
+        : 0;
+      return installmentValue * formData.installmentCount + downPayment;
+    }
+  };
+
+  // Calculate installment value when in total mode
+  const getInstallmentValueFromTotal = (): string => {
+    const total = parseFloat(formData.amount || "0");
+    if (total <= 0 || formData.installmentCount <= 0) return "0,00";
+    return (total / formData.installmentCount).toFixed(2);
+  };
+
+  const handlePaymentModeChange = (mode: PaymentMode) => {
+    onFormDataChange((prev) => ({
+      ...prev,
+      paymentMode: mode,
+      // Reset relevant fields when switching modes
+      ...(mode === "total"
+        ? {
+            installmentValue: "",
+            downPaymentEnabled: false,
+            downPaymentValue: "",
+            isInstallment: false,
+          }
+        : {
+            amount: "",
+            wallet: "",
+            isInstallment: true,
+          }),
+    }));
+  };
+
+  const handlePaymentToggle = (field: string, value: boolean) => {
+    onFormDataChange((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === "downPaymentEnabled" && !value
+        ? {
+            downPaymentValue: "",
+            downPaymentWallet: "",
+            downPaymentDueDate: "",
+          }
+        : {}),
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-8">
@@ -329,99 +341,510 @@ export function PaymentStep({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <WalletSelect
-          label="Carteira / Método"
-          name="wallet"
-          value={formData.wallet}
-          onChange={onChange}
-          required
-          error={errors.wallet}
-        />
-      </div>
+      {/* Payment Mode Selector */}
+      {!isProposalTransaction && (
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => handlePaymentModeChange("total")}
+            className={`
+              relative rounded-xl border-2 p-4 transition-all duration-300 cursor-pointer text-left
+              ${
+                formData.paymentMode === "total"
+                  ? "border-primary bg-primary/5 shadow-md"
+                  : "border-border/50 bg-card hover:border-primary/30"
+              }
+            `}
+          >
+            {formData.paymentMode === "total" && (
+              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  formData.paymentMode === "total"
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold">Valor total</p>
+                <p className="text-xs text-muted-foreground">
+                  Informe o valor e parcele
+                </p>
+              </div>
+            </div>
+          </button>
 
-      {isProposalTransaction && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-blue-600">
-          As condições de pagamento são gerenciadas pela Proposta. Para alterar
-          parcelamento, edite a Proposta original.
+          <button
+            type="button"
+            onClick={() => handlePaymentModeChange("installmentValue")}
+            className={`
+              relative rounded-xl border-2 p-4 transition-all duration-300 cursor-pointer text-left
+              ${
+                formData.paymentMode === "installmentValue"
+                  ? "border-primary bg-primary/5 shadow-md"
+                  : "border-border/50 bg-card hover:border-primary/30"
+              }
+            `}
+          >
+            {formData.paymentMode === "installmentValue" && (
+              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" />
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  formData.paymentMode === "installmentValue"
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-semibold">Valor das parcelas</p>
+                <p className="text-xs text-muted-foreground">
+                  Defina parcelas e entrada
+                </p>
+              </div>
+            </div>
+          </button>
         </div>
       )}
 
-      {/* Installments Card */}
-      <div
-        className={`
-        rounded-2xl border-2 p-6 transition-all duration-300
-        ${
-          formData.isInstallment
-            ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-lg"
-            : "border-border/50 bg-card hover:border-primary/20"
-        }
-      `}
-      >
-        <div className="flex items-center gap-4">
+      {/* ================== MODE: VALOR TOTAL ================== */}
+      {formData.paymentMode === "total" && (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          {/* Amount Input */}
+          <FormItem
+            label="Valor Total"
+            htmlFor="amount"
+            required
+            error={errors.amount}
+          >
+            <CurrencyInput
+              id="amount"
+              name="amount"
+              value={formData.amount}
+              onChange={onChange}
+              onBlur={onBlur}
+              placeholder="0,00"
+              className={errors.amount ? "border-destructive" : ""}
+              required
+              disabled={isProposalTransaction}
+            />
+            {isProposalTransaction && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Valor gerenciado pela Proposta. Para alterar, edite a proposta.
+              </p>
+            )}
+          </FormItem>
+
+          {/* Due Date Input */}
+          <FormItem
+            label="Vencimento"
+            htmlFor="dueDate"
+            required={formData.type === "income"}
+            error={errors.dueDate}
+          >
+            <DateInput
+              id="dueDate"
+              name="dueDate"
+              value={formData.dueDate}
+              onChange={onChange}
+              onBlur={onBlur}
+              className={errors.dueDate ? "border-destructive" : ""}
+              required={formData.type === "income"}
+            />
+          </FormItem>
+
+          {/* Wallet Select */}
+          <div className="space-y-2">
+            <WalletSelect
+              label="Carteira / Método"
+              name="wallet"
+              value={formData.wallet}
+              onChange={onChange}
+              required
+              error={errors.wallet}
+            />
+          </div>
+
+          {isProposalTransaction && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-blue-600">
+              As condições de pagamento são gerenciadas pela Proposta. Para
+              alterar parcelamento, edite a Proposta original.
+            </div>
+          )}
+
+          {/* Installments Card */}
           <div
             className={`
-            w-12 h-12 rounded-xl flex items-center justify-center transition-all
-            ${formData.isInstallment ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}
+            rounded-2xl border-2 p-6 transition-all duration-300
+            ${
+              formData.isInstallment
+                ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-lg"
+                : "border-border/50 bg-card hover:border-primary/20"
+            }
           `}
           >
-            <Calendar className="w-6 h-6" />
-          </div>
-          <label htmlFor="isInstallment" className="flex-1 cursor-pointer">
-            <p className="font-semibold text-foreground text-lg">
-              Parcelar Lançamento
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Divida o valor em múltiplas parcelas
-            </p>
-          </label>
-          <input
-            type="checkbox"
-            id="isInstallment"
-            name="isInstallment"
-            checked={formData.isInstallment}
-            onChange={onChange}
-            disabled={isProposalTransaction}
-            className="w-7 h-7 rounded-lg border-2 border-border text-primary focus:ring-primary/20 cursor-pointer disabled:opacity-50"
-          />
-        </div>
-
-        {formData.isInstallment && (
-          <div className="grid grid-cols-2 gap-6 pt-6 mt-6 border-t border-border/30 animate-in slide-in-from-top-2 duration-300">
-            <FormItem label="Número de Parcelas" htmlFor="installmentCount">
-              <Select
-                id="installmentCount"
-                name="installmentCount"
-                value={formData.installmentCount.toString()}
-                onChange={(e) =>
-                  onFormDataChange((prev) => ({
-                    ...prev,
-                    installmentCount: parseInt(e.target.value),
-                  }))
-                }
+            <div className="flex items-center gap-4">
+              <div
+                className={`
+                w-12 h-12 rounded-xl flex items-center justify-center transition-all
+                ${formData.isInstallment ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}
+              `}
               >
-                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
-                  <option key={n} value={n}>
-                    {n}x parcelas
-                  </option>
-                ))}
-              </Select>
-            </FormItem>
+                <Calendar className="w-6 h-6" />
+              </div>
+              <label htmlFor="isInstallment" className="flex-1 cursor-pointer">
+                <p className="font-semibold text-foreground text-lg">
+                  Parcelar Lançamento
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Divida o valor em múltiplas parcelas
+                </p>
+              </label>
+              <input
+                type="checkbox"
+                id="isInstallment"
+                name="isInstallment"
+                checked={formData.isInstallment}
+                onChange={onChange}
+                disabled={isProposalTransaction}
+                className="w-7 h-7 rounded-lg border-2 border-border text-primary focus:ring-primary/20 cursor-pointer disabled:opacity-50"
+              />
+            </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Valor por Parcela</Label>
-              <div className="h-12 px-5 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-primary" />
-                <span className="font-bold text-xl text-primary">
-                  {formData.amount
-                    ? `R$ ${(parseFloat(formData.amount) / formData.installmentCount).toFixed(2)}`
-                    : "R$ 0,00"}
-                </span>
+            {formData.isInstallment && (
+              <div className="grid grid-cols-2 gap-6 pt-6 mt-6 border-t border-border/30 animate-in slide-in-from-top-2 duration-300">
+                <FormItem label="Número de Parcelas" htmlFor="installmentCount">
+                  <Select
+                    id="installmentCount"
+                    name="installmentCount"
+                    value={formData.installmentCount.toString()}
+                    onChange={(e) =>
+                      onFormDataChange((prev) => ({
+                        ...prev,
+                        installmentCount: parseInt(e.target.value),
+                      }))
+                    }
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
+                      <option key={n} value={n}>
+                        {n}x parcelas
+                      </option>
+                    ))}
+                  </Select>
+                </FormItem>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Valor por Parcela
+                  </Label>
+                  <div className="h-12 px-5 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-primary" />
+                    <span className="font-bold text-xl text-primary">
+                      R$ {getInstallmentValueFromTotal()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================== MODE: VALOR DAS PARCELAS ================== */}
+      {formData.paymentMode === "installmentValue" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Parcelamento Section */}
+          <div className="space-y-4">
+            <label
+              htmlFor="installmentsEnabledAdvanced"
+              className="flex items-center gap-3 p-4 rounded-xl border-2 border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all cursor-pointer group bg-muted/30"
+            >
+              <div
+                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                  formData.isInstallment
+                    ? "bg-primary border-primary"
+                    : "border-muted-foreground/40 group-hover:border-primary/60"
+                }`}
+              >
+                {formData.isInstallment && (
+                  <svg
+                    className="w-4 h-4 text-primary-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                )}
+              </div>
+              <input
+                type="checkbox"
+                id="installmentsEnabledAdvanced"
+                checked={formData.isInstallment}
+                onChange={(e) =>
+                  handlePaymentToggle("isInstallment", e.target.checked)
+                }
+                className="sr-only"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-base">Parcelamento</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Divida o valor em parcelas mensais
+                </p>
+              </div>
+            </label>
+
+            {formData.isInstallment && (
+              <div className="ml-4 pl-4 border-l-2 border-primary/20 space-y-5">
+                {/* Installment Configuration */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="installmentCountAdvanced">
+                      Número de Parcelas
+                    </Label>
+                    <Input
+                      id="installmentCountAdvanced"
+                      name="installmentCount"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Ex: 12"
+                      value={formData.installmentCount || ""}
+                      onChange={(e) => {
+                        const value =
+                          e.target.value === "" ? 0 : parseInt(e.target.value);
+                        onFormDataChange((prev) => ({
+                          ...prev,
+                          installmentCount: isNaN(value) ? 0 : value,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="installmentValue">Valor por Parcela</Label>
+                    <CurrencyInput
+                      id="installmentValue"
+                      name="installmentValue"
+                      value={formData.installmentValue}
+                      onChange={onChange}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+
+                {/* Installments Wallet */}
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <WalletSelect
+                      label="Carteira para parcelas (interno)"
+                      name="installmentsWallet"
+                      value={formData.installmentsWallet || ""}
+                      onChange={onChange}
+                      preSelectDefault
+                    />
+                  </div>
+                </div>
+
+                {/* First Installment Date */}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <Label htmlFor="firstInstallmentDate">
+                      Vencimento da 1ª Parcela
+                    </Label>
+                    <Input
+                      type="date"
+                      id="firstInstallmentDate"
+                      name="firstInstallmentDate"
+                      value={formData.firstInstallmentDate || ""}
+                      onChange={onChange}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Demais parcelas: +30 dias cada
+                    </p>
+                  </div>
+                </div>
+
+                {/* Down Payment Section */}
+                <div className="pt-4 border-t border-dashed border-border/50">
+                  <label
+                    htmlFor="downPaymentEnabled"
+                    className="flex items-center gap-3 p-3 rounded-lg border-2 border-transparent hover:border-blue-500/20 hover:bg-blue-500/5 transition-all cursor-pointer group"
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                        formData.downPaymentEnabled
+                          ? "bg-blue-500 border-blue-500"
+                          : "border-muted-foreground/40 group-hover:border-blue-500/60"
+                      }`}
+                    >
+                      {formData.downPaymentEnabled && (
+                        <svg
+                          className="w-3 h-3 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      id="downPaymentEnabled"
+                      checked={formData.downPaymentEnabled || false}
+                      onChange={(e) =>
+                        handlePaymentToggle(
+                          "downPaymentEnabled",
+                          e.target.checked
+                        )
+                      }
+                      className="sr-only"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-blue-500" />
+                        <span className="font-medium">Incluir Entrada</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Valor pago à vista antes das parcelas
+                      </p>
+                    </div>
+                  </label>
+
+                  {formData.downPaymentEnabled && (
+                    <div className="ml-8 mt-3 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <div className="space-y-2">
+                          <Label htmlFor="downPaymentValue">
+                            Valor da Entrada
+                          </Label>
+                          <CurrencyInput
+                            id="downPaymentValue"
+                            name="downPaymentValue"
+                            value={formData.downPaymentValue || ""}
+                            onChange={onChange}
+                            placeholder="0,00"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <WalletSelect
+                            label="Carteira para entrada (interno)"
+                            name="downPaymentWallet"
+                            value={formData.downPaymentWallet || ""}
+                            onChange={onChange}
+                            preSelectDefault
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <div className="flex-1">
+                          <Label htmlFor="downPaymentDueDate">
+                            Data da Entrada
+                          </Label>
+                          <Input
+                            type="date"
+                            id="downPaymentDueDate"
+                            name="downPaymentDueDate"
+                            value={formData.downPaymentDueDate || ""}
+                            onChange={onChange}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-semibold">Resumo do Pagamento</span>
+                  </div>
+                  <div className="text-sm space-y-2">
+                    <div className="flex justify-between items-center py-1 border-b border-border/30">
+                      <span className="text-muted-foreground">
+                        Total do Lançamento:
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(calculateTotal())}
+                      </span>
+                    </div>
+                    {formData.downPaymentEnabled &&
+                      formData.downPaymentValue &&
+                      parseFloat(formData.downPaymentValue) > 0 && (
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-blue-500">• Entrada:</span>
+                          <span className="font-semibold text-blue-500">
+                            {formatCurrency(
+                              parseFloat(formData.downPaymentValue || "0")
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-primary">• Parcelas:</span>
+                      <span className="font-semibold text-primary">
+                        {formData.installmentCount || 1}x de{" "}
+                        {formatCurrency(
+                          parseFloat(formData.installmentValue || "0")
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* No installments - Show single payment info */}
+          {!formData.isInstallment && (
+            <div className="p-4 rounded-xl bg-muted/30 border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">Pagamento à Vista</p>
+                  <p className="text-sm text-muted-foreground">
+                    Marque &quot;Parcelamento&quot; para configurar as parcelas
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -450,6 +873,40 @@ export function ReviewStep({
   totalOverride,
 }: ReviewStepProps) {
   const isIncome = formData.type === "income";
+
+  // Calculate total based on payment mode
+  const calculateDisplayTotal = () => {
+    if (totalOverride !== undefined) return totalOverride;
+
+    if (formData.paymentMode === "installmentValue") {
+      const installmentValue = parseFloat(formData.installmentValue || "0");
+      const installmentCount = formData.installmentCount || 1;
+      const downPayment = formData.downPaymentEnabled
+        ? parseFloat(formData.downPaymentValue || "0")
+        : 0;
+      return installmentValue * installmentCount + downPayment;
+    }
+
+    return parseFloat(formData.amount || "0");
+  };
+
+  const displayTotal = calculateDisplayTotal();
+
+  // Get installment value for display
+  const getInstallmentDisplayValue = () => {
+    if (formData.paymentMode === "installmentValue") {
+      return parseFloat(formData.installmentValue || "0");
+    }
+    return parseFloat(formData.amount || "0") / formData.installmentCount;
+  };
+
+  // Get wallet display
+  const getWalletDisplay = () => {
+    if (formData.paymentMode === "installmentValue") {
+      return formData.installmentsWallet || formData.wallet || "—";
+    }
+    return formData.wallet || "—";
+  };
 
   return (
     <div className="space-y-6">
@@ -502,10 +959,7 @@ export function ReviewStep({
             >
               <p className="text-sm">Valor Total</p>
               <p className="text-2xl font-bold">
-                {isIncome ? "+" : "-"}{" "}
-                {formatCurrency(
-                  totalOverride ?? parseFloat(formData.amount || "0")
-                )}
+                {isIncome ? "+" : "-"} {formatCurrency(displayTotal)}
               </p>
             </div>
           </div>
@@ -519,7 +973,7 @@ export function ReviewStep({
             </div>
             <div>
               <span className="text-muted-foreground">Carteira:</span>
-              <p className="font-medium">{formData.wallet || "—"}</p>
+              <p className="font-medium">{getWalletDisplay()}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Data:</span>
@@ -532,14 +986,21 @@ export function ReviewStep({
           </div>
 
           {formData.isInstallment && (
-            <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+            <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-2">
               <p className="text-sm text-muted-foreground">Parcelamento</p>
               <p className="font-semibold">
                 {formData.installmentCount}x de{" "}
-                {formatCurrency(
-                  parseFloat(formData.amount || "0") / formData.installmentCount
-                )}
+                {formatCurrency(getInstallmentDisplayValue())}
               </p>
+              {formData.paymentMode === "installmentValue" &&
+                formData.downPaymentEnabled && (
+                  <p className="text-sm text-muted-foreground">
+                    + Entrada de{" "}
+                    {formatCurrency(
+                      parseFloat(formData.downPaymentValue || "0")
+                    )}
+                  </p>
+                )}
             </div>
           )}
         </div>

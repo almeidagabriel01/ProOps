@@ -16,8 +16,9 @@ export const proposalSchema = z.object({
     .min(1, "Cliente é obrigatório"),
   clientEmail: z
     .string()
-    .min(1, "Email é obrigatório")
-    .email("Email inválido"),
+    .email("Email inválido")
+    .optional()
+    .or(z.literal("")),
   clientPhone: z
     .string()
     .min(1, "Telefone é obrigatório")

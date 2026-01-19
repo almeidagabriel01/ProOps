@@ -121,11 +121,13 @@ export function SimpleProposalForm({
     handleSistemaAction,
     addSistema,
     removeSistema,
+    updateSistema,
     addProductToSystem,
     handleChange,
     handleSubmit,
     toggleProduct,
     updateProductQuantity,
+    updateProductMarkup,
     removeProduct,
     handleToggleProductStatus,
     calculateSubtotal,
@@ -147,7 +149,7 @@ export function SimpleProposalForm({
   const [isSistemaTemplateOpen, setIsSistemaTemplateOpen] =
     React.useState(false);
   const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(
-    null
+    null,
   );
   const [openedFromManager, setOpenedFromManager] = React.useState(false);
 
@@ -265,10 +267,12 @@ export function SimpleProposalForm({
       clearFieldError("clientName");
     }
 
-    if (!formData.clientEmail || !formData.clientEmail.trim()) {
-      setFieldError("clientEmail", "Email é obrigatório");
-      isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)) {
+    // Email is optional, only validate format if provided
+    if (
+      formData.clientEmail &&
+      formData.clientEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)
+    ) {
       setFieldError("clientEmail", "Email inválido");
       isValid = false;
     } else {
@@ -315,7 +319,7 @@ export function SimpleProposalForm({
       if (selectedSistemas.length === 0) {
         setFieldError(
           "sistemas",
-          "Selecione pelo menos 1 sistema de automação"
+          "Selecione pelo menos 1 sistema de automação",
         );
         return false;
       }
@@ -324,7 +328,7 @@ export function SimpleProposalForm({
       if (!formData.products || formData.products.length === 0) {
         setFieldError(
           "sistemas",
-          "A proposta deve ter pelo menos 1 produto. O sistema selecionado pode estar vazio."
+          "A proposta deve ter pelo menos 1 produto. O sistema selecionado pode estar vazio.",
         );
         return false;
       }
@@ -346,14 +350,14 @@ export function SimpleProposalForm({
       // We assume if a product is not found in master list (e.g. deleted), it's not "active" for this purpose, or we could handle safely
       // Status undefined/null means active (legacy)
       hasActiveProduct = products.some(
-        (p) => selectedIds.has(p.id) && (!p.status || p.status === "active")
+        (p) => selectedIds.has(p.id) && (!p.status || p.status === "active"),
       );
 
       if (!hasActiveProduct) {
         const field = isAutomacaoNiche ? "sistemas" : "products";
         setFieldError(
           field,
-          "Selecione pelo menos um produto ativo para continuar."
+          "Selecione pelo menos um produto ativo para continuar.",
         );
         return false;
       }
@@ -402,7 +406,7 @@ export function SimpleProposalForm({
       return;
     }
     lastAddedSystemRef.current = {
-      sistemaId: sistema.sistemaId,
+      sistemaId: sistema.sistemaId || "",
       ambienteId: sistema.ambienteId,
       time: now,
     };
@@ -410,7 +414,8 @@ export function SimpleProposalForm({
     // Check for duplicates
     const exists = selectedSistemas.some(
       (s) =>
-        s.sistemaId === sistema.sistemaId && s.ambienteId === sistema.ambienteId
+        s.sistemaId === sistema.sistemaId &&
+        s.ambienteId === sistema.ambienteId,
     );
 
     if (exists) {
@@ -437,7 +442,7 @@ export function SimpleProposalForm({
       (s, idx) =>
         idx !== editingSelectionIndex &&
         s.sistemaId === newSistema.sistemaId &&
-        s.ambienteId === newSistema.ambienteId
+        s.ambienteId === newSistema.ambienteId,
     );
 
     if (exists) {
@@ -461,7 +466,7 @@ export function SimpleProposalForm({
     setFormData((prev) => {
       const currentProducts = prev.products || [];
       const otherProducts = currentProducts.filter(
-        (p) => p.systemInstanceId !== oldInstanceId
+        (p) => p.systemInstanceId !== oldInstanceId,
       );
       const migratedExtras = currentProducts
         .filter((p) => p.systemInstanceId === oldInstanceId && p.isExtra)
@@ -494,6 +499,11 @@ export function SimpleProposalForm({
     });
 
     setEditingSelectionIndex(null);
+  };
+
+  // Handle updating system (without key reset)
+  const handleUpdateSystem = (index: number, sistema: ProposalSistema) => {
+    updateSistema(index, sistema);
   };
 
   const handleFormSubmit = async () => {
@@ -610,8 +620,10 @@ export function SimpleProposalForm({
                   }}
                   onRemoveSystem={removeSistema}
                   onUpdateProductQuantity={updateProductQuantity}
+                  onUpdateProductMarkup={updateProductMarkup}
                   onAddExtraProductToSystem={addProductToSystem}
                   onAddNewSystem={handleAddNewSystem}
+                  onUpdateSystem={handleUpdateSystem}
                   onRemoveProduct={removeProduct}
                   SistemaSelectorComponent={SistemaSelector}
                   onToggleStatus={handleToggleProductStatus}
@@ -678,10 +690,14 @@ export function SimpleProposalForm({
 
             <ProposalPaymentSection
               formData={formData}
+              selectedProducts={selectedProducts}
               calculateTotal={calculateTotal}
               onFormChange={handleChange}
               onPaymentToggle={(field, value) => {
                 setFormData((prev) => ({ ...prev, [field]: value }));
+              }}
+              onExtraExpenseChange={(value) => {
+                setFormData((prev) => ({ ...prev, extraExpense: value }));
               }}
               noContainer
             />
@@ -765,8 +781,8 @@ export function SimpleProposalForm({
               prev.map((sistema) =>
                 sistema.ambienteId === updatedAmbiente.id
                   ? { ...sistema, ambienteName: updatedAmbiente.name }
-                  : sistema
-              )
+                  : sistema,
+              ),
             );
           }
         }}

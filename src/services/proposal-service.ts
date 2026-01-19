@@ -16,14 +16,49 @@ const COLLECTION_NAME = "proposals";
 
 export * from "@/types/proposal";
 
+// Simple event bus for proposal updates
+type ProposalChangeListener = () => void;
+const listeners: Set<ProposalChangeListener> = new Set();
+
+let savingPromise: Promise<void> | null = null;
+
+const notifyListeners = () => {
+  listeners.forEach((l) => l());
+};
+
 export const ProposalService = {
+  // Saving synchronization
+  notifySavingStarted: () => {
+    let resolve: () => void;
+    savingPromise = new Promise((r) => {
+      resolve = r;
+    });
+    return () => {
+      resolve();
+      savingPromise = null;
+    };
+  },
+
+  waitForSave: async () => {
+    if (savingPromise) {
+      await savingPromise;
+    }
+  },
+
+  // Subscription method
+  subscribe: (listener: ProposalChangeListener) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
   // ... existing methods
 
   getProposals: async (tenantId: string): Promise<Proposal[]> => {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
 
       const querySnapshot = await getDocs(q);
@@ -73,8 +108,10 @@ export const ProposalService = {
       const result = await callApi<{ success: boolean; proposalId: string }>(
         "/v1/proposals",
         "POST",
-        data
+        data,
       );
+
+      notifyListeners(); // Notify list to refresh
 
       return {
         id: result.proposalId,
@@ -88,10 +125,11 @@ export const ProposalService = {
 
   updateProposal: async (
     id: string,
-    data: Partial<Proposal>
+    data: Partial<Proposal>,
   ): Promise<void> => {
     try {
       await callApi(`/v1/proposals/${id}`, "PUT", data);
+      notifyListeners(); // Notify list to refresh
     } catch (error) {
       console.error("Error updating proposal:", error);
       throw error;
@@ -101,16 +139,22 @@ export const ProposalService = {
   deleteProposal: async (id: string): Promise<void> => {
     try {
       await callApi(`/v1/proposals/${id}`, "DELETE");
+      notifyListeners(); // Notify list to refresh
     } catch (error) {
       console.error("Error deleting proposal:", error);
       throw error;
     }
   },
 
-  isClientUsedInProposal: async (clientId: string, tenantId: string): Promise<boolean> => {
+  isClientUsedInProposal: async (
+    clientId: string,
+    tenantId: string,
+  ): Promise<boolean> => {
     // Validate both parameters are provided
     if (!clientId || !tenantId) {
-      console.warn("isClientUsedInProposal called without clientId or tenantId");
+      console.warn(
+        "isClientUsedInProposal called without clientId or tenantId",
+      );
       return false;
     }
 
@@ -118,7 +162,7 @@ export const ProposalService = {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
-        where("clientId", "==", clientId)
+        where("clientId", "==", clientId),
       );
       const snap = await getDocs(q);
       return !snap.empty;
@@ -129,38 +173,46 @@ export const ProposalService = {
     }
   },
 
-  isProductUsedInProposal: async (productId: string, tenantId?: string): Promise<boolean> => {
+  isProductUsedInProposal: async (
+    productId: string,
+    tenantId?: string,
+  ): Promise<boolean> => {
     // Basic validation
     if (!productId || !tenantId) {
-      console.warn("isProductUsedInProposal called without productId or tenantId");
-      return false; 
+      console.warn(
+        "isProductUsedInProposal called without productId or tenantId",
+      );
+      return false;
     }
 
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       // Client-side filtering because Firestore can't query inside array of objects easily
       // without specific structure or third-party search (like Algolia)
       for (const doc of querySnapshot.docs) {
         const data = doc.data();
         const products = data.products || [];
         // Check if any product in the array matches exactly the productId
-        if (Array.isArray(products) && products.some((p: ProposalProduct) => p.productId === productId)) {
+        if (
+          Array.isArray(products) &&
+          products.some((p: ProposalProduct) => p.productId === productId)
+        ) {
           return true;
         }
       }
-      
+
       return false;
     } catch (error) {
       console.error("Error checking product usage:", error);
       // In case of error, better NOT to block deletion unless we are sure, or block to be safe?
       // Blocking to be safe is better to prevent data integrity issues.
-      return true; 
+      return true;
     }
   },
 };

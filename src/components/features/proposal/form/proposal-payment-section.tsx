@@ -11,25 +11,122 @@ import { WalletSelect } from "@/components/features/wallet-select";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
+  selectedProducts: any[];
   calculateTotal: () => number;
   onFormChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   onPaymentToggle: (field: string, value: boolean) => void;
+  onExtraExpenseChange: (value: number) => void;
   noContainer?: boolean;
 }
 
 export function ProposalPaymentSection({
   formData,
+  selectedProducts,
   calculateTotal,
   onFormChange,
   onPaymentToggle,
+  onExtraExpenseChange,
   noContainer = false,
 }: ProposalPaymentSectionProps) {
+  // Calculate components
+  const productsValue = selectedProducts.reduce((sum, p) => sum + p.total, 0);
+  const totalProfit = selectedProducts.reduce((sum, p) => {
+    const basePrice = p.unitPrice * p.quantity;
+    const profit = basePrice * ((p.markup || 0) / 100);
+    return sum + profit;
+  }, 0);
+  const extraExpense = formData.extraExpense || 0;
+  const finalTotal = calculateTotal();
+
   const content = (
     <div className="space-y-6">
+      {/* Extra Expense Section */}
+      <div className="p-4 rounded-xl bg-orange-500/10 border-2 border-orange-500/20">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Banknote className="w-5 h-5 text-orange-600" />
+            <Label htmlFor="extraExpense" className="text-base font-semibold">
+              Valor Extra (Custos Adicionais)
+            </Label>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Custos adicionais como frete, gasolina, etc. Serão somados ao valor
+            total
+          </p>
+          <CurrencyInput
+            id="extraExpense"
+            name="extraExpense"
+            value={formData.extraExpense || 0}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value) || 0;
+              onExtraExpenseChange(Math.max(0, value));
+            }}
+            placeholder="0,00"
+          />
+        </div>
+      </div>
+
+      {/* Financial Summary Card - Always visible */}
+      {selectedProducts.length > 0 && (
+        <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            Resumo Financeiro
+          </h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Valor dos Produtos:</span>
+              <span className="font-medium">
+                R${" "}
+                {productsValue.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-green-600 dark:text-green-400">
+                Lucro Total:
+              </span>
+              <span className="font-semibold text-green-600 dark:text-green-400">
+                R${" "}
+                {totalProfit.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+            {extraExpense > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-orange-600">+ Valor Extra:</span>
+                <span className="font-medium text-orange-600">
+                  R${" "}
+                  {extraExpense.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            )}
+            <div className="h-px bg-border my-2" />
+            <div className="flex justify-between items-center text-base">
+              <span className="font-semibold">Total da Proposta:</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">
+                R${" "}
+                {finalTotal.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Installments Section - Primary toggle */}
       <div className="space-y-4">
         <label
@@ -218,7 +315,7 @@ export function ProposalPaymentSection({
                     <Calendar className="w-4 h-4 text-muted-foreground" />
                     <div className="flex-1">
                       <Label htmlFor="downPaymentDueDate">
-                        Data de Vencimento da Entrada
+                        Data da Entrada
                       </Label>
                       <Input
                         type="date"
@@ -267,7 +364,7 @@ export function ProposalPaymentSection({
                           {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
-                          }
+                          },
                         )}
                       </span>
                     </div>

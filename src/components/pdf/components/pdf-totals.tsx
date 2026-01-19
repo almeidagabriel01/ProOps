@@ -4,6 +4,7 @@ import { formatCurrency } from "@/utils/format-utils";
 interface PdfTotalsProps {
   products: ProposalProduct[];
   discount: number;
+  extraExpense?: number;
   contentStyles: Record<string, React.CSSProperties>;
   // Payment options (optional for backwards compatibility)
   downPaymentEnabled?: boolean;
@@ -19,6 +20,7 @@ interface PdfTotalsProps {
 export function PdfTotals({
   products,
   discount,
+  extraExpense,
   contentStyles,
   downPaymentEnabled,
   downPaymentValue,
@@ -28,7 +30,7 @@ export function PdfTotals({
 }: PdfTotalsProps) {
   const subtotal = products.reduce((sum, p) => sum + p.total, 0);
   const discountAmt = (subtotal * (discount || 0)) / 100;
-  const total = subtotal - discountAmt;
+  const total = subtotal - discountAmt + (extraExpense || 0);
 
   const hasPaymentOptions =
     (downPaymentEnabled && downPaymentValue && downPaymentValue > 0) ||
@@ -54,6 +56,15 @@ export function PdfTotals({
           >
             <span>Desconto:</span>
             <span>-{formatCurrency(discountAmt)}</span>
+          </div>
+        )}
+        {(extraExpense || 0) > 0 && (
+          <div
+            className="flex items-baseline justify-between"
+            style={contentStyles.subtotal}
+          >
+            <span>Custos Extras:</span>
+            <span>+{formatCurrency(extraExpense || 0)}</span>
           </div>
         )}
         <div
