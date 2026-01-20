@@ -19,6 +19,7 @@ export interface CreateClientData {
   phone?: string;
   address?: string;
   notes?: string;
+  types?: ("cliente" | "fornecedor")[]; // Array to allow both
   source?: "manual" | "proposal" | "financial"; // default manual
   targetTenantId?: string; // For super admin to create for a specific tenant
 }
@@ -49,6 +50,7 @@ export function useClientActions() {
     try {
       const result = await callApi<CreateClientResult>("v1/clients", "POST", {
         ...data,
+        types: data.types || ["cliente"],
         source: data.source || "manual",
       });
 

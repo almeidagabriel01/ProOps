@@ -114,6 +114,10 @@ export function SimpleProposalForm({
     setSelectedSistemas,
     setShowLimitModal,
     isAutomacaoNiche,
+    // Client types
+    clientTypes,
+    setClientTypes,
+    isNewClient,
     // Transactional
     mergedAmbientes,
     mergedSistemas,
@@ -585,6 +589,9 @@ export function SimpleProposalForm({
               onClientChange={handleClientChange}
               errors={errors}
               noContainer
+              isNewClient={isNewClient}
+              clientTypes={clientTypes}
+              onClientTypesChange={setClientTypes}
             />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />

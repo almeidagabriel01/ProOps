@@ -25,6 +25,7 @@ import {
   MasterDataAction,
 } from "./useMasterDataTransaction";
 import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
+import { ClientType } from "@/services/client-service";
 
 const EMPTY_ARRAY: any[] = [];
 
@@ -40,6 +41,7 @@ export interface UseProposalFormReturn {
   template: ProposalTemplate | null;
   selectedClientId: string | undefined;
   isNewClient: boolean;
+  clientTypes: ClientType[];
   formData: Partial<Proposal>;
   selectedProducts: ProposalProduct[];
   selectedSistemas: ProposalSistema[];
@@ -51,6 +53,7 @@ export interface UseProposalFormReturn {
   // Setters
   setSelectedClientId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setIsNewClient: React.Dispatch<React.SetStateAction<boolean>>;
+  setClientTypes: React.Dispatch<React.SetStateAction<ClientType[]>>;
   setFormData: React.Dispatch<React.SetStateAction<Partial<Proposal>>>;
   setSelectedSistemas: React.Dispatch<React.SetStateAction<ProposalSistema[]>>;
   setSystemProductIds: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -123,6 +126,7 @@ export function useProposalForm({
   const [isSaving, setIsSaving] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
+  const [clientTypes, setClientTypes] = React.useState<ClientType[]>(["cliente"]);
   const [selectedClientId, setSelectedClientId] = React.useState<
     string | undefined
   >(undefined);
@@ -796,6 +800,7 @@ export function useProposalForm({
             email: formData.clientEmail,
             phone: formData.clientPhone,
             address: formData.clientAddress,
+            types: clientTypes.length > 0 ? clientTypes : ["cliente"],
             source: "proposal",
             targetTenantId: tenant.id,
           },
@@ -996,6 +1001,7 @@ export function useProposalForm({
     template,
     selectedClientId,
     isNewClient,
+    clientTypes,
     formData,
     selectedProducts,
     selectedSistemas,
@@ -1005,6 +1011,7 @@ export function useProposalForm({
     currentProposalCount,
     setSelectedClientId,
     setIsNewClient,
+    setClientTypes,
     setFormData,
     setSelectedSistemas,
     setSystemProductIds,

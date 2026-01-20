@@ -31,6 +31,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Users,
+  Building2,
 } from "lucide-react";
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -104,6 +106,7 @@ export default function EditCustomerPage() {
     phone: "",
     address: "",
     notes: "",
+    types: ["cliente"] as ("cliente" | "fornecedor")[],
   });
 
   React.useEffect(() => {
@@ -118,6 +121,7 @@ export default function EditCustomerPage() {
             phone: data.phone || "",
             address: data.address || "",
             notes: data.notes || "",
+            types: data.types || ["cliente"],
           });
         }
       } catch (error) {
@@ -133,21 +137,28 @@ export default function EditCustomerPage() {
   }, [clientId]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
-    if (errors[name as keyof typeof errors]) {
-      clearFieldError(name as keyof typeof formData);
+    // Clear error when user starts typing (exclude types since it's not in schema)
+    if (name !== "types" && errors[name as keyof typeof errors]) {
+      clearFieldError(name as Exclude<keyof typeof formData, "types">);
     }
   };
 
   const handleBlur = (
-    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    validateField(name as keyof typeof formData, value, formData);
+    // Exclude types since it's not in schema
+    if (name !== "types") {
+      validateField(
+        name as Exclude<keyof typeof formData, "types">,
+        value,
+        formData,
+      );
+    }
   };
 
   // Step 1 validation: Name and Phone are required
@@ -186,6 +197,7 @@ export default function EditCustomerPage() {
         phone: formData.phone || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
+        types: formData.types,
       });
 
       toast.success("Cliente atualizado com sucesso!");
@@ -357,13 +369,115 @@ export default function EditCustomerPage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">
-                  Informações do Cliente
+                  Informações do Cadastro
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   Dados principais e formas de contato
                 </p>
               </div>
             </div>
+
+            {/* Type selector - checkboxes for multi-selection */}
+            <FormItem
+              label="Tipo de Cadastro (selecione um ou ambos)"
+              htmlFor="types"
+              required
+            >
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => {
+                      const hasType = prev.types.includes("cliente");
+                      const newTypes = hasType
+                        ? (prev.types.filter((t) => t !== "cliente") as (
+                            | "cliente"
+                            | "fornecedor"
+                          )[])
+                        : [...prev.types, "cliente" as const];
+                      // Ensure at least one type is always selected
+                      return {
+                        ...prev,
+                        types: newTypes.length > 0 ? newTypes : ["cliente"],
+                      };
+                    });
+                  }}
+                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    formData.types.includes("cliente")
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      formData.types.includes("cliente")
+                        ? "bg-primary/10"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <Users
+                      className={`w-5 h-5 ${formData.types.includes("cliente") ? "text-primary" : "text-muted-foreground"}`}
+                    />
+                  </div>
+                  <div className="text-left">
+                    <p
+                      className={`font-medium ${formData.types.includes("cliente") ? "text-primary" : ""}`}
+                    >
+                      Cliente
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Comprador de produtos/serviços
+                    </p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => {
+                      const hasType = prev.types.includes("fornecedor");
+                      const newTypes = hasType
+                        ? (prev.types.filter((t) => t !== "fornecedor") as (
+                            | "cliente"
+                            | "fornecedor"
+                          )[])
+                        : [...prev.types, "fornecedor" as const];
+                      // Ensure at least one type is always selected
+                      return {
+                        ...prev,
+                        types: newTypes.length > 0 ? newTypes : ["fornecedor"],
+                      };
+                    });
+                  }}
+                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    formData.types.includes("fornecedor")
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      formData.types.includes("fornecedor")
+                        ? "bg-primary/10"
+                        : "bg-muted"
+                    }`}
+                  >
+                    <Building2
+                      className={`w-5 h-5 ${formData.types.includes("fornecedor") ? "text-primary" : "text-muted-foreground"}`}
+                    />
+                  </div>
+                  <div className="text-left">
+                    <p
+                      className={`font-medium ${formData.types.includes("fornecedor") ? "text-primary" : ""}`}
+                    >
+                      Fornecedor
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Vendedor de produtos/serviços
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </FormItem>
 
             <FormItem
               label="Nome Completo"

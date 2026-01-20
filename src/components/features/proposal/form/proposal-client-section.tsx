@@ -6,13 +6,24 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { DateInput } from "@/components/ui/date-input";
 import { ClientSelect } from "@/components/features/client-select";
 import { Proposal } from "@/services/proposal-service";
+import { ClientType } from "@/services/client-service";
 import {
   FormSection,
   FormGroup,
   FormItem,
   FormStatic,
 } from "@/components/ui/form-components";
-import { User, FileText, Mail, Phone, MapPin, Calendar } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  User,
+  FileText,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Users,
+  Building2,
+} from "lucide-react";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -20,8 +31,12 @@ interface ProposalClientSectionProps {
   isReadOnly?: boolean;
   noContainer?: boolean; // When true, renders without FormSection wrapper
   errors?: Record<string, string>;
+  // New props for client types
+  isNewClient?: boolean;
+  clientTypes?: ClientType[];
+  onClientTypesChange?: (types: ClientType[]) => void;
   onFormChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
   onClientChange: (data: {
     clientId?: string;
@@ -39,9 +54,30 @@ export function ProposalClientSection({
   isReadOnly,
   noContainer = false,
   errors = {},
+  isNewClient = false,
+  clientTypes = ["cliente"],
+  onClientTypesChange,
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
+  // Handler for type checkbox changes
+  const handleTypeChange = (type: ClientType, checked: boolean) => {
+    if (!onClientTypesChange) return;
+
+    if (checked) {
+      // Add type if not present
+      if (!clientTypes.includes(type)) {
+        onClientTypesChange([...clientTypes, type]);
+      }
+    } else {
+      // Remove type, but ensure at least one type remains
+      const newTypes = clientTypes.filter((t) => t !== type);
+      if (newTypes.length > 0) {
+        onClientTypesChange(newTypes);
+      }
+    }
+  };
+
   if (isReadOnly) {
     return (
       <FormSection
@@ -99,6 +135,41 @@ export function ProposalClientSection({
           />
         </FormItem>
       </FormGroup>
+
+      {/* Client Type Selection - Only show when creating a new client */}
+      {isNewClient && formData.clientName && (
+        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 mt-2">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Tipo de Cadastro</span>
+            <span className="text-xs text-muted-foreground">
+              (novo cadastro será criado)
+            </span>
+          </div>
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={clientTypes.includes("cliente")}
+                onCheckedChange={(checked) =>
+                  handleTypeChange("cliente", checked === true)
+                }
+              />
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm">Cliente</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={clientTypes.includes("fornecedor")}
+                onCheckedChange={(checked) =>
+                  handleTypeChange("fornecedor", checked === true)
+                }
+              />
+              <Building2 className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm">Fornecedor</span>
+            </label>
+          </div>
+        </div>
+      )}
 
       <FormGroup cols={3}>
         <FormItem
