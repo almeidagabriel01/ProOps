@@ -69,7 +69,7 @@ export function PdfCoverTab({
   setCoverElements,
   primaryColor = "#2563eb",
   canEditCoverElements = true,
-  clientName = "Nome do Cliente",
+  clientName = "Nome do Contato",
 }: PdfCoverTabProps) {
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

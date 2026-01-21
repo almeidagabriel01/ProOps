@@ -81,8 +81,8 @@ export function ProposalClientSection({
   if (isReadOnly) {
     return (
       <FormSection
-        title="Dados do Cliente"
-        description="Informações do cliente e identificação da proposta"
+        title="Dados do Contato"
+        description="Informações do contato e identificação da proposta"
         icon={User}
       >
         <FormGroup>
@@ -126,50 +126,52 @@ export function ProposalClientSection({
             className={errors.title ? "border-destructive" : ""}
           />
         </FormItem>
-        <FormItem label="Cliente" required error={errors.clientName}>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              {isNewClient ? "Cliente/Fornecedor" : "Cliente"}
+              <span className="text-destructive ml-0.5">*</span>
+            </label>
+
+            {/* Client Type Selection - Only show when creating a new client */}
+            {isNewClient && (
+              <div className="flex items-center gap-3 ml-auto">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <Checkbox
+                    checked={clientTypes.includes("cliente")}
+                    onCheckedChange={(checked) =>
+                      handleTypeChange("cliente", checked === true)
+                    }
+                  />
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs">Cliente</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <Checkbox
+                    checked={clientTypes.includes("fornecedor")}
+                    onCheckedChange={(checked) =>
+                      handleTypeChange("fornecedor", checked === true)
+                    }
+                  />
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs">Fornecedor</span>
+                </label>
+              </div>
+            )}
+          </div>
           <ClientSelect
             value={formData.clientName || ""}
             clientId={selectedClientId}
             onChange={onClientChange}
             error={!!errors.clientName}
           />
-        </FormItem>
-      </FormGroup>
-
-      {/* Client Type Selection - Only show when creating a new client */}
-      {isNewClient && formData.clientName && (
-        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 mt-2">
-          <div className="flex items-center gap-2 mb-3">
-            <Users className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Tipo de Cadastro</span>
-            <span className="text-xs text-muted-foreground">
-              (novo cadastro será criado)
-            </span>
-          </div>
-          <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={clientTypes.includes("cliente")}
-                onCheckedChange={(checked) =>
-                  handleTypeChange("cliente", checked === true)
-                }
-              />
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Cliente</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                checked={clientTypes.includes("fornecedor")}
-                onCheckedChange={(checked) =>
-                  handleTypeChange("fornecedor", checked === true)
-                }
-              />
-              <Building2 className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Fornecedor</span>
-            </label>
-          </div>
+          {errors.clientName && (
+            <p className="text-sm font-medium text-destructive">
+              {errors.clientName}
+            </p>
+          )}
         </div>
-      )}
+      </FormGroup>
 
       <FormGroup cols={3}>
         <FormItem
@@ -239,8 +241,8 @@ export function ProposalClientSection({
 
   return (
     <FormSection
-      title="Dados do Cliente"
-      description="Informações do cliente e identificação da proposta"
+      title="Dados do Contato"
+      description="Informações do contato e identificação da proposta"
       icon={User}
     >
       {content}

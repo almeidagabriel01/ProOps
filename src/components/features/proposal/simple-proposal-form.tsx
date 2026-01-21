@@ -44,8 +44,8 @@ interface SimpleProposalFormProps {
 const stepsAutomation = [
   {
     id: "client",
-    title: "Cliente",
-    description: "Dados do cliente",
+    title: "Contato",
+    description: "Dados do contato",
     icon: User,
   },
   { id: "systems", title: "Sistemas", description: "Automação", icon: Cpu },
@@ -67,8 +67,8 @@ const stepsAutomation = [
 const stepsDefault = [
   {
     id: "client",
-    title: "Cliente",
-    description: "Dados do cliente",
+    title: "Contato",
+    description: "Dados do contato",
     icon: User,
   },
   {
@@ -265,7 +265,7 @@ export function SimpleProposalForm({
     }
 
     if (!formData.clientName || !formData.clientName.trim()) {
-      setFieldError("clientName", "Cliente é obrigatório");
+      setFieldError("clientName", "Contato é obrigatório");
       isValid = false;
     } else {
       clearFieldError("clientName");
@@ -575,9 +575,9 @@ export function SimpleProposalForm({
                 <User className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Dados do Cliente</h3>
+                <h3 className="text-lg font-semibold">Dados do Contato</h3>
                 <p className="text-sm text-muted-foreground">
-                  Informações do cliente e identificação
+                  Informações do contato e identificação
                 </p>
               </div>
             </div>

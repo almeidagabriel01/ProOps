@@ -48,8 +48,8 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: Users,
-    label: "Clientes",
-    href: "/customers",
+    label: "Contatos",
+    href: "/contacts",
     pageId: "clients",
   },
   {
@@ -108,7 +108,7 @@ export function lightenColor(hex: string, percent: number): string {
  */
 export function getVisibleChildren(
   item: MenuItem,
-  isMaster: boolean
+  isMaster: boolean,
 ): SubMenuItem[] {
   if (!item.children) return [];
   return item.children.filter((child) => {

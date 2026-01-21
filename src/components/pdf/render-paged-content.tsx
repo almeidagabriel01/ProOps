@@ -128,7 +128,7 @@ function buildContentItems(
     if (!hasDynamicPaymentOptions) return false;
     const content = (section.content || "").toLowerCase();
     return (
-      content.includes("condições de pagamento") ||
+      content.includes("condies de pagamento") ||
       content.includes("condicoes de pagamento") ||
       content.includes("formas de pagamento") ||
       content.includes("entrada:") ||
@@ -260,8 +260,8 @@ function buildContentItems(
     const footerKeywords = [
       "garantia",
       "termos",
-      "condições",
-      "considerações",
+      "condies",
+      "consideraes",
       "obrigado",
       "agradecemos",
       "validade",
@@ -478,7 +478,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             className="text-xl font-bold mb-4 pb-2 border-b-2 mt-4"
             style={{ ...contentStyles.productTitle, width: "100%" }}
           >
-            Produtos e Serviços
+            Produtos e Servios
           </h2>
         );
 

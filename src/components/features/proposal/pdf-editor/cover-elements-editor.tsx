@@ -38,7 +38,7 @@ const elementTypeLabels: Record<CoverElement["type"], string> = {
   text: "Texto",
   label: "Rótulo",
   divider: "Divisor",
-  "client-name": "Nome do Cliente",
+  "client-name": "Nome do Contato",
   logo: "Logo",
   "company-name": "Nome da Empresa",
 };
@@ -83,7 +83,7 @@ export function CoverElementsEditor({
   elements,
   onChange,
   primaryColor,
-  clientName = "Nome do Cliente",
+  clientName = "Nome do Contato",
   coverTitle = "Título da Proposta",
   theme,
 }: CoverElementsEditorProps) {
@@ -361,10 +361,10 @@ export function CoverElementsEditor({
                               htmlFor={`client-${element.id}`}
                               className="cursor-pointer font-medium"
                             >
-                              Incluir nome do cliente após o texto
+                              Incluir nome do contato após o texto
                             </Label>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              O nome do cliente será adicionado automaticamente:
+                              O nome do contato será adicionado automaticamente:
                               &quot;{getDisplayPreview(element)}&quot;
                             </p>
                           </div>
@@ -374,7 +374,7 @@ export function CoverElementsEditor({
                     {/* Client name preview for client-name type */}
                     {element.type === "client-name" && (
                       <div className="p-3 border rounded-lg bg-muted/30">
-                        <Label className="font-medium">Nome do Cliente</Label>
+                        <Label className="font-medium">Nome do Contato</Label>
                         <p className="text-sm text-muted-foreground mt-1">
                           Este elemento exibirá automaticamente o nome do
                           cliente: <strong>{clientName}</strong>

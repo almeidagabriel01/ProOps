@@ -25,7 +25,7 @@ import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleto
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
-import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleton";
+import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
 import {
@@ -73,7 +73,7 @@ function LoginContent() {
 
   // Estado para erros de validação do cadastro
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
-    {}
+    {},
   );
 
   // Validação do Step 1 do cadastro
@@ -203,7 +203,7 @@ function LoginContent() {
       if (perms.dashboard && perms.dashboard.canView === false) {
         if (perms.proposals?.canView) content = <ProposalsSkeleton />;
         else if (perms.products?.canView) content = <ProductsSkeleton />;
-        else if (perms.clients?.canView) content = <CustomersSkeleton />;
+        else if (perms.clients?.canView) content = <ContactsSkeleton />;
         else content = <ProposalsSkeleton />;
       }
     }
@@ -230,9 +230,7 @@ function LoginContent() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
       {/* Theme Toggle */}
       <div className="absolute top-4 right-4 z-50">
-        <AnimatedThemeToggler
-          className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground"
-        />
+        <AnimatedThemeToggler className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground" />
       </div>
 
       <div
@@ -263,7 +261,7 @@ function LoginContent() {
 
             <StepWizard
               steps={steps}
-              onComplete={() => { }}
+              onComplete={() => {}}
               indicatorContainerClassName="max-w-xs w-full"
             >
               {/* STEP 1: ACCOUNT INFO */}
@@ -363,7 +361,7 @@ function LoginContent() {
                                 <option key={key} value={key}>
                                   {NICHE_LABELS[key]}
                                 </option>
-                              )
+                              ),
                             )}
                           </Select>
                         </div>

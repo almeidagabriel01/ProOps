@@ -393,7 +393,7 @@ export default function ProposalsPage() {
         {proposals.length > 0 && (
           <div className="max-w-md">
             <Input
-              placeholder="Buscar por título, cliente ou status..."
+              placeholder="Buscar por título, contato ou status..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -440,7 +440,7 @@ export default function ProposalsPage() {
             {/* Header */}
             <div className="grid grid-cols-7 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div>Título</div>
-              <div className="text-center">Cliente</div>
+              <div className="text-center">Contato</div>
               <div className="text-center">Status</div>
               <div className="text-center">Ambiente</div>
               <div className="text-center">Sistema</div>
