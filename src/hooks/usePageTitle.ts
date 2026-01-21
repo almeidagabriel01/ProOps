@@ -11,28 +11,28 @@ const PAGE_TITLES: Record<string, string> = {
   // Auth pages
   "/login": "Login",
   "/403": "Acesso Negado",
-  
+
   // ERP pages
   "/dashboard": "Dashboard | ERP",
   "/products": "Produtos | ERP",
   "/proposals": "Propostas | ERP",
-  "/customers": "Clientes | ERP",
+  "/contacts": "Contatos | ERP",
   "/financial": "Financeiro | ERP",
   "/profile": "Meu Perfil | ERP",
   "/settings": "Configurações | ERP",
   "/settings/team": "Equipe | ERP",
   "/settings/billing": "Plano | ERP",
-  
+
   // Subscribe/Checkout pages
   "/subscribe": "Assinar Plano",
   "/checkout-success": "Pagamento Confirmado",
   "/addon-success": "Addon Adquirido",
-  
+
   // Admin pages
   "/admin": "Admin | ERP",
   "/admin/billing": "Cobrança | Admin",
   "/admin/tenants": "Empresas | Admin",
-  
+
   // Landing page
   "/": "Home",
 };
@@ -44,27 +44,31 @@ const PAGE_TITLES: Record<string, string> = {
 function getDynamicTitle(pathname: string): string | null {
   // Products
   if (pathname.startsWith("/products/new")) return "Novo Produto | ERP";
-  if (pathname.match(/^\/products\/[^/]+\/edit$/)) return "Editar Produto | ERP";
+  if (pathname.match(/^\/products\/[^/]+\/edit$/))
+    return "Editar Produto | ERP";
   if (pathname.match(/^\/products\/[^/]+$/)) return "Produto | ERP";
-  
+
   // Proposals
   if (pathname.startsWith("/proposals/new")) return "Nova Proposta | ERP";
-  if (pathname.match(/^\/proposals\/[^/]+\/edit$/)) return "Editar Proposta | ERP";
-  if (pathname.match(/^\/proposals\/[^/]+\/edit-pdf$/)) return "Editar PDF | ERP";
+  if (pathname.match(/^\/proposals\/[^/]+\/edit$/))
+    return "Editar Proposta | ERP";
+  if (pathname.match(/^\/proposals\/[^/]+\/edit-pdf$/))
+    return "Editar PDF | ERP";
   if (pathname.match(/^\/proposals\/[^/]+$/)) return "Proposta | ERP";
-  
-  // Customers
-  if (pathname.startsWith("/customers/new")) return "Novo Cliente | ERP";
-  if (pathname.match(/^\/customers\/[^/]+\/edit$/)) return "Editar Cliente | ERP";
-  if (pathname.match(/^\/customers\/[^/]+$/)) return "Cliente | ERP";
-  
+
+  // Contacts
+  if (pathname.startsWith("/contacts/new")) return "Novo Contato | ERP";
+  if (pathname.match(/^\/contacts\/[^/]+\/edit$/))
+    return "Editar Contato | ERP";
+  if (pathname.match(/^\/contacts\/[^/]+$/)) return "Contato | ERP";
+
   // Financial
   if (pathname.startsWith("/financial/new")) return "Novo Lançamento | ERP";
   if (pathname.match(/^\/financial\/[^/]+$/)) return "Lançamento | ERP";
-  
+
   // Profile by ID (superadmin viewing user)
   if (pathname.match(/^\/profile\/[^/]+$/)) return "Perfil do Usuário | ERP";
-  
+
   return null;
 }
 
@@ -96,7 +100,7 @@ export function usePageTitle() {
 
     // Fallback: find the closest matching prefix
     const sortedPaths = Object.keys(PAGE_TITLES)
-      .filter(path => pathname.startsWith(path) && path !== "/")
+      .filter((path) => pathname.startsWith(path) && path !== "/")
       .sort((a, b) => b.length - a.length);
 
     if (sortedPaths.length > 0) {

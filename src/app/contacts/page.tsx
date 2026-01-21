@@ -21,7 +21,7 @@ import {
   Phone,
   Building2,
 } from "lucide-react";
-import { CustomersSkeleton } from "./_components/customers-skeleton";
+import { ContactsSkeleton } from "./_components/contacts-skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
@@ -199,7 +199,7 @@ export default function CustomersPage() {
   if (isPageLoading) {
     return (
       <>
-        <CustomersSkeleton />
+        <ContactsSkeleton />
         {renderDialogs()}
       </>
     );
@@ -218,7 +218,7 @@ export default function CustomersPage() {
             </p>
           </div>
           {canCreate && (
-            <Link href="/customers/new">
+            <Link href="/contacts/new">
               <Button size="lg" className="gap-2">
                 <Plus className="w-5 h-5" />
                 Novo Cadastro
@@ -282,7 +282,7 @@ export default function CustomersPage() {
                 automaticamente ao criar propostas.
               </p>
               {canCreate && (
-                <Link href="/customers/new">
+                <Link href="/contacts/new">
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" />
                     Cadastrar Primeiro Cliente
@@ -328,7 +328,7 @@ export default function CustomersPage() {
                   <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
                     <div className="col-span-2">
                       <Link
-                        href={`/customers/${client.id}`}
+                        href={`/contacts/${client.id}`}
                         className="font-medium hover:underline"
                       >
                         {client.name}
@@ -376,7 +376,7 @@ export default function CustomersPage() {
                     </div>
                     <div className="col-span-1 flex items-center justify-end gap-1">
                       {canEdit && (
-                        <Link href={`/customers/${client.id}`}>
+                        <Link href={`/contacts/${client.id}`}>
                           <Button
                             variant="ghost"
                             size="icon"

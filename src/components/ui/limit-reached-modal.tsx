@@ -30,7 +30,7 @@ const resourceLabels = {
   clients: {
     singular: "cliente",
     plural: "clientes",
-    managePath: "/customers",
+    managePath: "/contacts",
   },
   products: {
     singular: "produto",

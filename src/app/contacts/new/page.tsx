@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useParams } from "next/navigation";
-import { ClientService, Client } from "@/services/client-service";
+import { useRouter } from "next/navigation";
+import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { toast } from "react-toastify";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
+import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +17,6 @@ import {
   FormHeader,
   FormGroup,
   FormItem,
-  FormStatic,
 } from "@/components/ui/form-components";
 import {
   StepWizard,
@@ -29,26 +30,10 @@ import {
   MapPin,
   FileText,
   Loader2,
-  AlertCircle,
   CheckCircle,
   Users,
   Building2,
 } from "lucide-react";
-
-const sourceLabels: Record<string, { label: string; color: string }> = {
-  manual: {
-    label: "Cadastro Manual",
-    color: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  },
-  proposal: {
-    label: "Via Proposta",
-    color: "bg-green-500/10 text-green-600 border-green-500/20",
-  },
-  financial: {
-    label: "Via Financeiro",
-    color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  },
-};
 
 const customerSteps = [
   {
@@ -71,15 +56,12 @@ const customerSteps = [
   },
 ];
 
-export default function EditCustomerPage() {
+export default function NewCustomerPage() {
   const router = useRouter();
-  const params = useParams();
-  const clientId = params.id as string;
-  const {
-    canEdit,
-    canView,
-    isLoading: permLoading,
-  } = usePagePermission("clients");
+  const { tenant } = useTenant();
+  const { canCreateClient, getClientCount, features } = usePlanLimits();
+  const { canCreate, isLoading: permLoading } = usePagePermission("clients");
+  const { createClient, isLoading: isCreating } = useClientActions();
   const {
     errors,
     validateField,
@@ -91,14 +73,13 @@ export default function EditCustomerPage() {
   });
 
   React.useEffect(() => {
-    if (!permLoading && !canView) {
-      router.push("/customers");
+    if (!permLoading && !canCreate) {
+      router.push("/contacts");
     }
-  }, [permLoading, canView, router]);
+  }, [permLoading, canCreate, router]);
 
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [client, setClient] = React.useState<Client | null>(null);
+  const [showLimitModal, setShowLimitModal] = React.useState(false);
+  const [currentClientCount, setCurrentClientCount] = React.useState(0);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -108,33 +89,6 @@ export default function EditCustomerPage() {
     notes: "",
     types: ["cliente"] as ("cliente" | "fornecedor")[],
   });
-
-  React.useEffect(() => {
-    const fetchClient = async () => {
-      try {
-        const data = await ClientService.getClientById(clientId);
-        if (data) {
-          setClient(data);
-          setFormData({
-            name: data.name || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            address: data.address || "",
-            notes: data.notes || "",
-            types: data.types || ["cliente"],
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching client:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (clientId) {
-      fetchClient();
-    }
-  }, [clientId]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -183,183 +137,61 @@ export default function EditCustomerPage() {
       return;
     }
 
-    if (!formData.name.trim()) {
-      setFieldError("name", "O nome do cliente é obrigatório!");
+    const canCreateNew = await canCreateClient();
+    if (!canCreateNew) {
+      const count = await getClientCount();
+      setCurrentClientCount(count);
+      setShowLimitModal(true);
       return;
     }
 
-    setIsSaving(true);
+    if (!tenant) {
+      alert("Erro: Nenhuma empresa selecionada!");
+      return;
+    }
 
     try {
-      await ClientService.updateClient(clientId, {
+      const result = await createClient({
         name: formData.name.trim(),
         email: formData.email || undefined,
         phone: formData.phone || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
         types: formData.types,
+        source: "manual",
+        targetTenantId: tenant?.id, // Ensure correct tenant for super admin
       });
 
-      toast.success("Cliente atualizado com sucesso!");
-      router.push("/customers");
-      router.refresh();
+      if (result?.success) {
+        router.push("/contacts");
+      }
     } catch (error) {
-      console.error("Error updating client:", error);
-      toast.error("Erro ao atualizar cliente. Tente novamente.");
-    } finally {
-      setIsSaving(false);
+      // Handled by hook
     }
   };
 
-  // Show loading while permissions/data loading OR while redirecting (no view permission)
-  if (isLoading || permLoading || !canView) {
+  // Show loading while checking permissions OR while redirecting (no permission)
+  if (permLoading || !canCreate) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Carregando cliente...</p>
+          <p className="text-sm text-muted-foreground">Carregando...</p>
         </div>
       </div>
-    );
-  }
-
-  if (!client) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-4 text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-destructive" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground mb-1">
-              Cliente não encontrado
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              O cliente solicitado não existe ou foi removido.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push("/customers")}
-            className="h-11 px-6 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            Voltar para Clientes
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const sourceInfo = sourceLabels[client.source] || sourceLabels.manual;
-
-  // Read-only view for users without edit permission
-  if (!canEdit) {
-    return (
-      <FormContainer className="max-w-3xl">
-        <FormHeader
-          title="Detalhes do Cliente"
-          subtitle={`Visualizando dados de "${formData.name}"`}
-          icon={User}
-          onBack={() => router.push("/customers")}
-          badge={
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-            >
-              {sourceInfo.label}
-            </span>
-          }
-        />
-
-        <StepWizard steps={customerSteps} allowClickAhead>
-          {/* Step 1: Basic Info */}
-          <StepCard>
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
-                  <User className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    Informações do Cliente
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Dados principais e formas de contato
-                  </p>
-                </div>
-              </div>
-
-              <FormStatic label="Nome Completo" value={formData.name} />
-              <FormGroup>
-                <FormStatic label="Email" value={formData.email} />
-                <FormStatic label="Telefone" value={formData.phone} />
-              </FormGroup>
-            </div>
-            <StepNavigation />
-          </StepCard>
-
-          {/* Step 2: Address */}
-          <StepCard>
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Endereço</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Localização para entregas e correspondências
-                  </p>
-                </div>
-              </div>
-
-              <FormStatic label="Endereço Completo" value={formData.address} />
-            </div>
-            <StepNavigation />
-          </StepCard>
-
-          {/* Step 3: Notes */}
-          <StepCard>
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-amber-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Observações</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Notas e informações adicionais
-                  </p>
-                </div>
-              </div>
-
-              <FormStatic label="Observações" value={formData.notes} />
-            </div>
-            <StepNavigation
-              onSubmit={() => router.push("/customers")}
-              submitLabel="Voltar"
-            />
-          </StepCard>
-        </StepWizard>
-      </FormContainer>
     );
   }
 
   return (
     <FormContainer className="max-w-3xl">
       <FormHeader
-        title="Editar Cliente"
-        subtitle={`Atualize as informações de "${formData.name}"`}
+        title="Novo Cliente"
+        subtitle="Adicione um novo cliente à sua base de contatos"
         icon={User}
-        onBack={() => router.push("/customers")}
-        badge={
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-          >
-            {sourceInfo.label}
-          </span>
-        }
+        onBack={() => router.push("/contacts")}
       />
 
-      <StepWizard steps={customerSteps} allowClickAhead>
+      <StepWizard steps={customerSteps}>
         {/* Step 1: Basic Info + Contact */}
         <StepCard>
           <div className="space-y-6">
@@ -571,7 +403,7 @@ export default function EditCustomerPage() {
                 <FileText className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Finalizar Edição</h3>
+                <h3 className="text-lg font-semibold">Finalizar Cadastro</h3>
                 <p className="text-sm text-muted-foreground">
                   Observações e confirmação
                 </p>
@@ -621,11 +453,19 @@ export default function EditCustomerPage() {
 
           <StepNavigation
             onSubmit={handleSubmit}
-            isSubmitting={isSaving}
-            submitLabel="Salvar Alterações"
+            isSubmitting={isCreating}
+            submitLabel="Cadastrar Cliente"
           />
         </StepCard>
       </StepWizard>
+
+      <LimitReachedModal
+        open={showLimitModal}
+        onOpenChange={setShowLimitModal}
+        resourceType="clients"
+        currentCount={currentClientCount}
+        maxLimit={features?.maxClients || 0}
+      />
     </FormContainer>
   );
 }
