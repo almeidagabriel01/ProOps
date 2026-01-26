@@ -17,6 +17,7 @@ import {
   TransactionCard,
   DeleteTransactionDialog,
   TransactionFilters,
+  TransactionListByDueDate,
 } from "./_components";
 
 export default function FinancialPage() {
@@ -43,6 +44,8 @@ export default function FinancialPage() {
     setFilterDateType,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     filteredTransactions,
     totalWalletBalance,
     deleteTransactionGroup,
@@ -151,6 +154,8 @@ export default function FinancialPage() {
         onDateTypeChange={setFilterDateType}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* Transactions List */}
@@ -188,6 +193,16 @@ export default function FinancialPage() {
             </p>
           </CardContent>
         </Card>
+      ) : viewMode === "byDueDate" ? (
+        // In byDueDate mode, use compact list view
+        <TransactionListByDueDate
+          transactions={filteredTransactions}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onDelete={openDeleteDialog}
+          onStatusChange={updateGroupStatus}
+          onUpdate={updateTransaction}
+        />
       ) : (
         <div className="grid gap-3">
           {filteredTransactions.map((transaction) => {
@@ -200,7 +215,7 @@ export default function FinancialPage() {
                 ? transactions
                     .filter(
                       (t) =>
-                        t.installmentGroupId === transaction.installmentGroupId
+                        t.installmentGroupId === transaction.installmentGroupId,
                     )
                     .sort((a, b) => {
                       // Sort: down payment first, then by installment number
@@ -216,7 +231,7 @@ export default function FinancialPage() {
             const proposalGroupTransactions = transaction.proposalGroupId
               ? transactions
                   .filter(
-                    (t) => t.proposalGroupId === transaction.proposalGroupId
+                    (t) => t.proposalGroupId === transaction.proposalGroupId,
                   )
                   .sort((a, b) => {
                     // Down payment first, then installments by number

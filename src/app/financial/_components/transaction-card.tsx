@@ -48,15 +48,16 @@ interface TransactionCardProps {
   onStatusChange?: (
     transaction: Transaction,
     newStatus: TransactionStatus,
-    updateAll?: boolean
+    updateAll?: boolean,
   ) => Promise<boolean>;
   onUpdate?: (
     transaction: Transaction,
-    data: Partial<Transaction>
+    data: Partial<Transaction>,
   ) => Promise<boolean>;
   onUpdateBatch?: (
-    updates: { id: string; data: Partial<Transaction> }[]
+    updates: { id: string; data: Partial<Transaction> }[],
   ) => Promise<boolean>;
+  defaultExpanded?: boolean;
 }
 
 const statusOptions: {
@@ -79,10 +80,11 @@ export function TransactionCard({
   onStatusChange,
   onUpdate,
   onUpdateBatch,
+  defaultExpanded = false,
 }: TransactionCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(defaultExpanded);
   const [showEditBlockDialog, setShowEditBlockDialog] = React.useState(false);
   const [isEditingAmount, setIsEditingAmount] = React.useState(false);
   const [editAmountValue, setEditAmountValue] = React.useState<number>(0);
@@ -100,7 +102,7 @@ export function TransactionCard({
   const installments = proposalGroupTransactions.filter((t) => t.isInstallment);
   const proposalTotalAmount = proposalGroupTransactions.reduce(
     (sum, t) => sum + t.amount,
-    0
+    0,
   );
 
   // For proposal groups, show the proposal title instead of individual transaction description
@@ -162,7 +164,7 @@ export function TransactionCard({
   // Handle status change for individual transaction with loading state
   const handleIndividualStatusChange = async (
     tx: Transaction,
-    newStatus: TransactionStatus
+    newStatus: TransactionStatus,
   ) => {
     if (!onStatusChange || newStatus === tx.status) return;
     setUpdatingIds((prev) => new Set(prev).add(tx.id));
@@ -257,7 +259,7 @@ export function TransactionCard({
       setEditAmountValue(
         isInstallmentGroup
           ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
-          : transaction.amount
+          : transaction.amount,
       );
     }
   };
@@ -456,7 +458,7 @@ export function TransactionCard({
                             <>
                               {(() => {
                                 const option = statusOptions.find(
-                                  (o) => o.value === transaction.status
+                                  (o) => o.value === transaction.status,
                                 );
                                 const Icon = option?.icon || Check;
                                 return <Icon className="h-3.5 w-3.5" />;
@@ -629,7 +631,7 @@ export function TransactionCard({
                               <>
                                 {(() => {
                                   const option = statusOptions.find(
-                                    (o) => o.value === downPayment.status
+                                    (o) => o.value === downPayment.status,
                                   );
                                   const Icon = option?.icon || Check;
                                   return <Icon className="h-3 w-3" />;
@@ -649,7 +651,7 @@ export function TransactionCard({
                               onClick={() =>
                                 handleIndividualStatusChange(
                                   downPayment,
-                                  option.value
+                                  option.value,
                                 )
                               }
                               className="gap-2 cursor-pointer text-xs"
@@ -731,7 +733,7 @@ export function TransactionCard({
                                     <>
                                       {(() => {
                                         const option = statusOptions.find(
-                                          (o) => o.value === inst.status
+                                          (o) => o.value === inst.status,
                                         );
                                         const Icon = option?.icon || Check;
                                         return <Icon className="h-3 w-3" />;
@@ -754,7 +756,7 @@ export function TransactionCard({
                                     onClick={() =>
                                       handleIndividualStatusChange(
                                         inst,
-                                        option.value
+                                        option.value,
                                       )
                                     }
                                     className="gap-2 cursor-pointer text-xs"
