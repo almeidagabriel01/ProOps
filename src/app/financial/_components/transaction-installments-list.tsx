@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,13 +32,15 @@ interface TransactionInstallmentsListProps {
   onStatusChange: (
     transaction: Transaction,
     newStatus: TransactionStatus,
-    updateAll?: boolean
+    updateAll?: boolean,
   ) => Promise<boolean>;
   onUpdate?: (
     transaction: Transaction,
-    data: Partial<Transaction>
+    data: Partial<Transaction>,
   ) => Promise<boolean>;
   canEdit: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelection?: (id: string) => void;
 }
 
 const statusOptions: {
@@ -55,6 +58,8 @@ export function TransactionInstallmentsList({
   onStatusChange,
   onUpdate,
   canEdit,
+  selectedIds,
+  onToggleSelection,
 }: TransactionInstallmentsListProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -64,13 +69,13 @@ export function TransactionInstallmentsList({
   // Sort installments by number just in case
   const sortedInstallments = React.useMemo(() => {
     return [...installments].sort(
-      (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0)
+      (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
     );
   }, [installments]);
 
   const handleStatusChange = async (
     transaction: Transaction,
-    newStatus: TransactionStatus
+    newStatus: TransactionStatus,
   ) => {
     if (transaction.status === newStatus) return;
 
@@ -80,11 +85,11 @@ export function TransactionInstallmentsList({
       const currentNumber = transaction.installmentNumber || 1;
       if (currentNumber > 1) {
         const prevInstallment = sortedInstallments.find(
-          (t) => t.installmentNumber === currentNumber - 1
+          (t) => t.installmentNumber === currentNumber - 1,
         );
         if (prevInstallment && prevInstallment.status !== "paid") {
           toast.warning(
-            `A parcela ${currentNumber - 1} precisa estar paga antes de pagar a parcela ${currentNumber}.`
+            `A parcela ${currentNumber - 1} precisa estar paga antes de pagar a parcela ${currentNumber}.`,
           );
           return;
         }
@@ -159,7 +164,7 @@ export function TransactionInstallmentsList({
   const renderStatusBadge = (
     transaction: Transaction,
     statusInfo: (typeof statusConfig)[keyof typeof statusConfig],
-    isUpdating: boolean
+    isUpdating: boolean,
   ) => {
     if (canEdit) {
       return (
@@ -181,7 +186,7 @@ export function TransactionInstallmentsList({
                 <>
                   {(() => {
                     const option = statusOptions.find(
-                      (o) => o.value === transaction.status
+                      (o) => o.value === transaction.status,
                     );
                     const Icon = option?.icon || Check;
                     return <Icon className="h-3 w-3" />;
@@ -233,9 +238,18 @@ export function TransactionInstallmentsList({
                 return (
                   <div
                     key={downPayment.id}
-                    className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20"
+                    className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
                   >
                     <div className="flex items-center gap-3">
+                      {onToggleSelection && (
+                        <Checkbox
+                          checked={selectedIds?.has(downPayment.id) || false}
+                          onCheckedChange={() =>
+                            onToggleSelection(downPayment.id)
+                          }
+                          className="cursor-pointer"
+                        />
+                      )}
                       <div className="p-1.5 rounded-full bg-blue-500/20">
                         <Banknote className="w-4 h-4 text-blue-500" />
                       </div>
@@ -270,7 +284,7 @@ export function TransactionInstallmentsList({
                 Parcelas (
                 {sortedInstallments.filter((i) => !i.isDownPayment).length}x de{" "}
                 {formatCurrency(
-                  sortedInstallments.find((i) => !i.isDownPayment)?.amount || 0
+                  sortedInstallments.find((i) => !i.isDownPayment)?.amount || 0,
                 )}
                 )
               </span>
@@ -286,9 +300,18 @@ export function TransactionInstallmentsList({
                   return (
                     <div
                       key={installment.id}
-                      className="group/row flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border"
+                      className={`group/row flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(installment.id) ? "ring-2 ring-primary" : ""}`}
                     >
                       <div className="flex items-center gap-3">
+                        {onToggleSelection && (
+                          <Checkbox
+                            checked={selectedIds?.has(installment.id) || false}
+                            onCheckedChange={() =>
+                              onToggleSelection(installment.id)
+                            }
+                            className="cursor-pointer"
+                          />
+                        )}
                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                           <span className="text-xs font-bold text-primary">
                             {installment.installmentNumber}
@@ -302,7 +325,7 @@ export function TransactionInstallmentsList({
                           <div className="text-xs text-muted-foreground">
                             Venc:{" "}
                             {formatDate(
-                              installment.dueDate || installment.date
+                              installment.dueDate || installment.date,
                             )}
                             {installment.wallet && ` • ${installment.wallet}`}
                           </div>

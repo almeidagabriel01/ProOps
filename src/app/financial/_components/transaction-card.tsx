@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,6 +59,10 @@ interface TransactionCardProps {
     updates: { id: string; data: Partial<Transaction> }[],
   ) => Promise<boolean>;
   defaultExpanded?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (id: string) => void;
+  onToggleGroupSelection?: (transaction: Transaction) => void;
+  selectedIds?: Set<string>;
 }
 
 const statusOptions: {
@@ -81,6 +86,10 @@ export function TransactionCard({
   onUpdate,
   onUpdateBatch,
   defaultExpanded = false,
+  isSelected = false,
+  onToggleSelection,
+  onToggleGroupSelection,
+  selectedIds,
 }: TransactionCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
@@ -280,6 +289,7 @@ export function TransactionCard({
               if (
                 target.closest("button") ||
                 target.closest("a") ||
+                target.closest('[role="checkbox"]') ||
                 !hasExpandableContent
               ) {
                 return;
@@ -287,6 +297,23 @@ export function TransactionCard({
               setIsExpanded(!isExpanded);
             }}
           >
+            {/* Selection Checkbox - use group selection for the main card */}
+            {(onToggleGroupSelection || onToggleSelection) && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => {
+                    if (onToggleGroupSelection) {
+                      onToggleGroupSelection(transaction);
+                    } else if (onToggleSelection) {
+                      onToggleSelection(transaction.id);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+              </div>
+            )}
+
             <div className={`p-2 rounded-full bg-muted ${typeInfo.color}`}>
               <TypeIcon className="w-5 h-5" />
             </div>
@@ -594,8 +621,21 @@ export function TransactionCard({
             <div className="border-t px-4 py-3 bg-muted/30 space-y-3">
               {/* Down Payment Section */}
               {downPayment && (
-                <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <div
+                  className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
+                >
                   <div className="flex items-center gap-3">
+                    {onToggleSelection && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds?.has(downPayment.id) || false}
+                          onCheckedChange={() =>
+                            onToggleSelection(downPayment.id)
+                          }
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
                     <div className="p-1.5 rounded-full bg-blue-500/20">
                       <Banknote className="w-4 h-4 text-blue-500" />
                     </div>
@@ -691,9 +731,20 @@ export function TransactionCard({
                     {installments.map((inst) => (
                       <div
                         key={inst.id}
-                        className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border"
+                        className={`flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(inst.id) ? "ring-2 ring-primary" : ""}`}
                       >
                         <div className="flex items-center gap-3">
+                          {onToggleSelection && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds?.has(inst.id) || false}
+                                onCheckedChange={() =>
+                                  onToggleSelection(inst.id)
+                                }
+                                className="cursor-pointer"
+                              />
+                            </div>
+                          )}
                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                             <span className="text-xs font-bold text-primary">
                               {inst.installmentNumber}
@@ -795,6 +846,8 @@ export function TransactionCard({
                 onStatusChange={onStatusChange!}
                 onUpdate={onUpdate}
                 canEdit={canEdit}
+                selectedIds={selectedIds}
+                onToggleSelection={onToggleSelection}
               />
             </div>
           )}

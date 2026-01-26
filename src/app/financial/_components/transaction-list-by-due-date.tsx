@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +22,6 @@ import {
   Loader2,
   ChevronDown,
   Eye,
-  Edit,
   Trash2,
   ArrowUpCircle,
   ArrowDownCircle,
@@ -41,6 +41,9 @@ interface TransactionListByDueDateProps {
     transaction: Transaction,
     data: Partial<Transaction>,
   ) => Promise<boolean>;
+  selectedIds: Set<string>;
+  onToggleSelection: (id: string) => void;
+  onToggleSelectAll: () => void;
 }
 
 const statusOptions: {
@@ -59,6 +62,9 @@ export function TransactionListByDueDate({
   canDelete,
   onDelete,
   onStatusChange,
+  selectedIds,
+  onToggleSelection,
+  onToggleSelectAll,
 }: TransactionListByDueDateProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
@@ -71,6 +77,11 @@ export function TransactionListByDueDate({
     await onStatusChange(transaction, newStatus, false);
     setUpdatingId(null);
   };
+
+  const isAllSelected =
+    transactions.length > 0 && selectedIds.size === transactions.length;
+  const isSomeSelected =
+    selectedIds.size > 0 && selectedIds.size < transactions.length;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
@@ -93,7 +104,20 @@ export function TransactionListByDueDate({
     <Card>
       <CardContent className="p-0">
         {/* Table Header */}
-        <div className="grid grid-cols-[1fr_100px_100px_100px_80px] gap-16 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+        <div className="grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={isAllSelected}
+              ref={(el) => {
+                if (el) {
+                  (el as unknown as HTMLInputElement).indeterminate =
+                    isSomeSelected;
+                }
+              }}
+              onCheckedChange={onToggleSelectAll}
+              className="cursor-pointer"
+            />
+          </div>
           <div>Descrição</div>
           <div className="text-center">Vencimento</div>
           <div className="text-center">Valor</div>
@@ -106,12 +130,24 @@ export function TransactionListByDueDate({
           {transactions.map((transaction) => {
             const isUpdating = updatingId === transaction.id;
             const statusInfo = statusConfig[transaction.status];
+            const isSelected = selectedIds.has(transaction.id);
 
             return (
               <div
                 key={transaction.id}
-                className="grid grid-cols-[1fr_100px_100px_100px_80px] gap-16 px-4 py-2.5 items-center hover:bg-muted/30 transition-colors text-sm"
+                className={`grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/30 transition-colors text-sm ${
+                  isSelected ? "bg-primary/5" : ""
+                }`}
               >
+                {/* Checkbox */}
+                <div className="flex items-center justify-center">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => onToggleSelection(transaction.id)}
+                    className="cursor-pointer"
+                  />
+                </div>
+
                 {/* Description */}
                 <div className="flex items-center gap-2 min-w-0">
                   {transaction.type === "income" ? (
@@ -143,7 +179,7 @@ export function TransactionListByDueDate({
 
                 {/* Amount */}
                 <div
-                  className={`text-right font-medium ${getTypeColor(transaction)}`}
+                  className={`text-center font-medium ${getTypeColor(transaction)}`}
                 >
                   {transaction.type === "expense" ? "-" : ""}
                   {formatCurrency(transaction.amount)}

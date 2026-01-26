@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Transaction } from "@/services/transaction-service";
-import { Plus, Wallet, Search, Loader2 } from "lucide-react";
+import { Plus, Wallet, Search, Loader2, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
 import { FinancialSkeleton } from "./_components/financial-skeleton";
@@ -62,6 +62,116 @@ export default function FinancialPage() {
   const [transactionToDelete, setTransactionToDelete] =
     React.useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+
+  // Toggle selection for a single transaction (used for individual installments)
+  const toggleSelection = React.useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Toggle selection for a transaction group (main card and all related installments)
+  const toggleGroupSelection = React.useCallback(
+    (transaction: Transaction) => {
+      // Find all related transactions to this one
+      const relatedIds: string[] = [transaction.id];
+
+      // Add proposal group members
+      if (transaction.proposalGroupId) {
+        transactions.forEach((t) => {
+          if (
+            t.proposalGroupId === transaction.proposalGroupId &&
+            t.id !== transaction.id
+          ) {
+            relatedIds.push(t.id);
+          }
+        });
+      }
+      // Add installment group members (for non-proposal groups)
+      else if (transaction.installmentGroupId && !transaction.proposalGroupId) {
+        transactions.forEach((t) => {
+          if (
+            t.installmentGroupId === transaction.installmentGroupId &&
+            t.id !== transaction.id
+          ) {
+            relatedIds.push(t.id);
+          }
+        });
+      }
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        // If all are already selected, deselect all
+        const allSelected = relatedIds.every((id) => next.has(id));
+
+        if (allSelected) {
+          relatedIds.forEach((id) => next.delete(id));
+        } else {
+          relatedIds.forEach((id) => next.add(id));
+        }
+        return next;
+      });
+    },
+    [transactions],
+  );
+
+  // Toggle select all for filtered transactions
+  const toggleSelectAll = React.useCallback(() => {
+    const allIds = filteredTransactions.map((t) => t.id);
+    const allSelected = allIds.every((id) => selectedIds.has(id));
+
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  }, [filteredTransactions, selectedIds]);
+
+  // Clear selection when filters or view mode changes
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [
+    viewMode,
+    filterType,
+    filterStatus,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    searchTerm,
+  ]);
+
+  // Calculate selection summary - use ALL transactions, not just filtered
+  const selectionSummary = React.useMemo(() => {
+    if (selectedIds.size === 0) return undefined;
+
+    // Use all transactions to include installments that may not be in filteredTransactions
+    const selected = transactions.filter((t) => selectedIds.has(t.id));
+
+    return {
+      count: selected.length,
+      paidIncome: selected
+        .filter((t) => t.type === "income" && t.status === "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      paidExpense: selected
+        .filter((t) => t.type === "expense" && t.status === "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      pendingIncome: selected
+        .filter((t) => t.type === "income" && t.status !== "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      pendingExpense: selected
+        .filter((t) => t.type === "expense" && t.status !== "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+    };
+  }, [selectedIds, transactions]);
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading) {
@@ -133,8 +243,31 @@ export default function FinancialPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <FinancialSummaryCards summary={summary} />
+      {/* Summary Cards - with selection indicator */}
+      <div className="space-y-2">
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Mostrando valores de <strong>{selectedIds.size}</strong> item
+              {selectedIds.size !== 1 ? "s" : ""} selecionado
+              {selectedIds.size !== 1 ? "s" : ""}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs gap-1"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              <X className="w-3 h-3" />
+              Limpar
+            </Button>
+          </div>
+        )}
+        <FinancialSummaryCards
+          summary={summary}
+          selectionSummary={selectionSummary}
+        />
+      </div>
 
       {/* Filters */}
       <TransactionFilters
@@ -202,6 +335,9 @@ export default function FinancialPage() {
           onDelete={openDeleteDialog}
           onStatusChange={updateGroupStatus}
           onUpdate={updateTransaction}
+          selectedIds={selectedIds}
+          onToggleSelection={toggleSelection}
+          onToggleSelectAll={toggleSelectAll}
         />
       ) : (
         <div className="grid gap-3">
@@ -255,6 +391,10 @@ export default function FinancialPage() {
                 onStatusChange={updateGroupStatus}
                 onUpdate={updateTransaction}
                 onUpdateBatch={updateBatchTransactions}
+                isSelected={selectedIds.has(transaction.id)}
+                onToggleSelection={toggleSelection}
+                onToggleGroupSelection={toggleGroupSelection}
+                selectedIds={selectedIds}
               />
             );
           })}
