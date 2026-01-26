@@ -35,6 +35,8 @@ import { financeRoutes } from "./routes/finance.routes";
 import { adminRoutes } from "./routes/admin.routes";
 import { stripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
+import sharedProposalsRoutes from "./routes/shared-proposals.routes";
+import notificationsRoutes from "./routes/notifications.routes";
 
 // Routes
 app.use("/v1", coreRoutes);
@@ -42,6 +44,8 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1/stripe", stripeRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
+app.use("/v1", sharedProposalsRoutes); // Rota pública para /v1/share/:token
+app.use("/v1/notifications", notificationsRoutes); // Rotas de notificações
 
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   res.json({
@@ -55,5 +59,5 @@ export const api = onRequest(
     ...CORS_OPTIONS,
     cors: false, // Disable platform-level CORS to use Express middleware
   },
-  app
+  app,
 );

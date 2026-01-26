@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,6 +64,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface HeaderProps {
   sidebarWidth?: number;
@@ -64,7 +72,13 @@ interface HeaderProps {
 
 export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
-  const { tenant, tenantOwner, refreshTenant, clearViewingTenant, isLoading: isTenantLoading } = useTenant();
+  const {
+    tenant,
+    tenantOwner,
+    refreshTenant,
+    clearViewingTenant,
+    isLoading: isTenantLoading,
+  } = useTenant();
   const router = useRouter();
   const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false);
   const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
@@ -75,7 +89,8 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
      2. Tenant is loading
      3. User exists but plan name hasn't been determined yet (prevents "Starter" flash)
   */
-  const isLoading = isAuthLoading || isTenantLoading || (!!user && userPlanName === null);
+  const isLoading =
+    isAuthLoading || isTenantLoading || (!!user && userPlanName === null);
 
   // ... inside Header component ...
 
@@ -112,7 +127,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         // 2. Fallback: Try fetching by tier (if planId is a tier name like 'starter')
         const q = query(
           collection(db, "plans"),
-          where("tier", "==", targetUser.planId)
+          where("tier", "==", targetUser.planId),
         );
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -136,7 +151,15 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
       }
     };
     fetchPlanName();
-  }, [user, user?.planId, user?.role, isViewingAsTenant, tenantOwner, tenantOwner?.planId, tenant?.id]);
+  }, [
+    user,
+    user?.planId,
+    user?.role,
+    isViewingAsTenant,
+    tenantOwner,
+    tenantOwner?.planId,
+    tenant?.id,
+  ]);
 
   React.useEffect(() => {
     // Check localStorage directly
@@ -197,6 +220,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
 
       <div className="flex items-center gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
+        <NotificationBell />
         <div className="h-8 w-px bg-border mx-2" />
         <div className="flex items-center gap-3 pl-2">
           {isLoading ? (
@@ -213,13 +237,17 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
                 <span className="text-sm font-medium">
                   {isViewingAsTenant && tenantOwner
                     ? tenantOwner.name
-                    : (user ? user.name : "Visitante")}
+                    : user
+                      ? user.name
+                      : "Visitante"}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">
                   {userPlanName ||
                     (user?.role === "superadmin" && !isViewingAsTenant
                       ? "Super Admin"
-                      : (isViewingAsTenant && tenantOwner ? (tenantOwner.role || "Membro") : (user?.role || "Guest")))}
+                      : isViewingAsTenant && tenantOwner
+                        ? tenantOwner.role || "Membro"
+                        : user?.role || "Guest")}
                 </span>
               </div>
               <DropdownMenu>
@@ -228,17 +256,33 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
                     variant="ghost"
                     className="relative h-10 w-10 rounded-full p-0"
                   >
-                    <Avatar className="h-9 w-9 border border-border" key={user?.id}>
+                    <Avatar
+                      className="h-9 w-9 border border-border"
+                      key={user?.id}
+                    >
                       {user?.photoURL ? (
-                        <AvatarImage src={user.photoURL} alt={user?.name || "User"} />
+                        <AvatarImage
+                          src={user.photoURL}
+                          alt={user?.name || "User"}
+                        />
                       ) : (
                         <AvatarFallback
                           className="text-white font-medium"
                           style={{
-                            backgroundColor: tenant?.primaryColor || getUserColor(isViewingAsTenant && tenantOwner ? tenantOwner.name : user?.name || "User")
+                            backgroundColor:
+                              tenant?.primaryColor ||
+                              getUserColor(
+                                isViewingAsTenant && tenantOwner
+                                  ? tenantOwner.name
+                                  : user?.name || "User",
+                              ),
                           }}
                         >
-                          {getInitials(isViewingAsTenant && tenantOwner ? tenantOwner.name : user?.name || "User")}
+                          {getInitials(
+                            isViewingAsTenant && tenantOwner
+                              ? tenantOwner.name
+                              : user?.name || "User",
+                          )}
                         </AvatarFallback>
                       )}
                     </Avatar>

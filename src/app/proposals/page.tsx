@@ -22,6 +22,7 @@ import {
   XCircle,
   Clock,
   FileDown,
+  Share2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -72,6 +73,14 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { ProposalPdfSettings, Tenant } from "@/types";
+import { SharedProposalService } from "@/services/shared-proposal-service";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 
@@ -154,6 +163,9 @@ export default function ProposalsPage() {
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [sharingId, setSharingId] = React.useState<string | null>(null);
+  const [shareLink, setShareLink] = React.useState<string | null>(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
 
   const handleEdit = (id: string) => {
     setEditingId(id);
@@ -162,6 +174,28 @@ export default function ProposalsPage() {
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
+  };
+
+  const handleShare = async (proposalId: string) => {
+    setSharingId(proposalId);
+    try {
+      const result = await SharedProposalService.generateShareLink(proposalId);
+      setShareLink(result.shareUrl);
+      setIsShareDialogOpen(true);
+      toast.success("Link gerado com sucesso!");
+    } catch (error) {
+      console.error("Error generating share link:", error);
+      toast.error("Erro ao gerar link de compartilhamento");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (shareLink) {
+      navigator.clipboard.writeText(shareLink);
+      toast.success("Link copiado para a área de transferência!");
+    }
   };
 
   // Filter proposals based on search term
@@ -601,6 +635,20 @@ export default function ProposalsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
+                        onClick={() => handleShare(proposal.id)}
+                        disabled={sharingId === proposal.id}
+                        title="Compartilhar"
+                      >
+                        {sharingId === proposal.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Share2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => handleDownload(proposal)}
                         disabled={downloadingId === proposal.id}
                         title="Baixar PDF"
@@ -670,6 +718,37 @@ export default function ProposalsPage() {
         isOpen={!!downloadingId}
         onClose={() => setDownloadingId(null)}
       />
+
+      {/* Share Link Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartilhar Proposta</DialogTitle>
+            <DialogDescription>
+              Copie o link abaixo para compartilhar esta proposta com seu
+              cliente. O link é válido por 30 dias.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2">
+            <div className="grid flex-1 gap-2">
+              <Input
+                id="share-link"
+                value={shareLink || ""}
+                readOnly
+                className="font-mono text-sm"
+              />
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              onClick={handleCopyLink}
+              title="Copiar link"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -47,7 +47,8 @@ export default function RootLayout({
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
     pathname === "/403" ||
-    pathname === "/subscription-blocked";
+    pathname === "/subscription-blocked" ||
+    pathname.startsWith("/share/"); // Public shared proposal pages
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
@@ -57,6 +58,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           {isLandingPage ? (
+            <main className="min-h-screen">{children}</main>
+          ) : pathname.startsWith("/share/") ? (
+            // Public shared proposal pages - no authentication required
             <main className="min-h-screen">{children}</main>
           ) : (
             <AuthProvider>

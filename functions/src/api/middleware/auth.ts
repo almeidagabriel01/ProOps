@@ -23,11 +23,16 @@ declare global {
 export const validateFirebaseIdToken = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   // console.log("Check if request is authorized with Firebase ID token");
 
   if (req.method === "OPTIONS") {
+    return next();
+  }
+
+  // Permitir acesso público às rotas de compartilhamento
+  if (req.path.startsWith("/v1/share/") || req.path.startsWith("/share/")) {
     return next();
   }
 
@@ -63,7 +68,7 @@ export const validateFirebaseIdToken = async (
     // If tenantId is not in the token (legacy user or first login), fetch and set it.
     if (!decodedIdToken.tenantId || !decodedIdToken.role) {
       console.log(
-        `[AUTH] Missing claims for ${decodedIdToken.uid}. Fetching from DB...`
+        `[AUTH] Missing claims for ${decodedIdToken.uid}. Fetching from DB...`,
       );
       try {
         const userDoc = await db
@@ -87,7 +92,7 @@ export const validateFirebaseIdToken = async (
               stripeId,
             });
             console.log(
-              `[AUTH] Claims updated for ${decodedIdToken.uid}: ${tenantId}`
+              `[AUTH] Claims updated for ${decodedIdToken.uid}: ${tenantId}`,
             );
 
             // Update current request object immediately
@@ -99,14 +104,14 @@ export const validateFirebaseIdToken = async (
             }
           } else {
             console.warn(
-              `[AUTH] User ${decodedIdToken.uid} has incomplete profile (no tenantId/role).`
+              `[AUTH] User ${decodedIdToken.uid} has incomplete profile (no tenantId/role).`,
             );
           }
         }
       } catch (dbError) {
         console.error(
           `[AUTH] Failed to fetch user profile for claims:`,
-          dbError
+          dbError,
         );
         // Continue without claims, Controller might fail or fetch again, but don't block auth if valid token
       }

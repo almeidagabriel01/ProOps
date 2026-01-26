@@ -251,6 +251,19 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if false;
     }
+    
+    // SHARED PROPOSALS - Acesso público via token
+    // Cloud Functions validam token e expiração
+    match /shared_proposals/{shareId} {
+      allow read: if true; // Público, mas endpoint valida token e expiração
+      allow write: if false; // Apenas Cloud Functions
+    }
+    
+    // NOTIFICATIONS - Acesso restrito ao tenant
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow write: if false; // Apenas Cloud Functions
+    }
 
     // ============================================
     // CATCH-ALL

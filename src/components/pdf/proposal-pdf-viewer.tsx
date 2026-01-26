@@ -55,30 +55,52 @@ export function ProposalPdfViewer({
     filterInactive: true,
   });
 
-  // Merge settings: Custom > Template > Defaults
+  // Extract settings from proposal if not provided in customSettings
+  const savedPdfSettings = proposal.pdfSettings as any;
+  const savedSections = proposal.sections as unknown as PdfSection[];
+
+  // Merge settings: Custom > Saved > Template > Defaults
   const theme =
-    customSettings?.theme || (template?.theme as ThemeType) || "modern";
+    customSettings?.theme ||
+    savedPdfSettings?.theme ||
+    (template?.theme as ThemeType) ||
+    "modern";
+
   const primaryColor =
     customSettings?.primaryColor ||
+    savedPdfSettings?.primaryColor ||
     template?.primaryColor ||
     tenant?.primaryColor ||
     "#2563eb";
+
   const fontFamily =
-    customSettings?.fontFamily || template?.fontFamily || "'Inter', sans-serif";
-  const coverTitle = customSettings?.coverTitle || proposal.title || "";
+    customSettings?.fontFamily ||
+    savedPdfSettings?.fontFamily ||
+    template?.fontFamily ||
+    "'Inter', sans-serif";
+
+  const coverTitle =
+    customSettings?.coverTitle ||
+    savedPdfSettings?.coverTitle ||
+    proposal.title ||
+    "";
 
   // Cover Image Logic
   const coverImage =
     customSettings?.coverImage !== undefined
       ? customSettings.coverImage
-      : template?.coverImage || "";
+      : savedPdfSettings?.coverImage !== undefined
+        ? savedPdfSettings.coverImage
+        : template?.coverImage || "";
 
   const coverLogo =
     customSettings?.coverLogo !== undefined
       ? customSettings.coverLogo
-      : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo ||
-        tenant?.logoUrl ||
-        "";
+      : savedPdfSettings?.coverLogo !== undefined
+        ? savedPdfSettings.coverLogo
+        : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo ||
+          tenant?.logoUrl ||
+          "";
 
   const templateSettings =
     (
@@ -90,21 +112,50 @@ export function ProposalPdfViewer({
         };
       }
     )?.coverImageSettings || {};
+
+  const savedCoverImageSettings = savedPdfSettings?.coverImageSettings || {};
+
   const coverImageOpacity =
-    customSettings?.coverImageOpacity ?? templateSettings.opacity ?? 30;
+    customSettings?.coverImageOpacity ??
+    savedCoverImageSettings.opacity ??
+    templateSettings.opacity ??
+    30;
+
   const coverImageFit =
-    customSettings?.coverImageFit ?? templateSettings.fit ?? "cover";
+    customSettings?.coverImageFit ??
+    savedCoverImageSettings.fit ??
+    templateSettings.fit ??
+    "cover";
+
   const coverImagePosition =
-    customSettings?.coverImagePosition ?? templateSettings.position ?? "center";
+    customSettings?.coverImagePosition ??
+    savedCoverImageSettings.position ??
+    templateSettings.position ??
+    "center";
 
   const repeatHeader =
-    customSettings?.repeatHeader ?? template?.repeatHeader ?? false;
+    customSettings?.repeatHeader ??
+    savedPdfSettings?.repeatHeader ??
+    template?.repeatHeader ??
+    false;
 
-  // If custom sections provided (preview mode), use them
-  // Otherwise, generate from template (view mode) - simulating what edit page does
-  const displaySections =
-    customSettings?.sections ||
-    (template ? createDefaultSections(template, primaryColor) : []);
+  // Sections logic
+  // Priority:
+  // 1. Custom settings (Preview mode)
+  // 2. Saved sections (if array with items) -> Means user customized it
+  // 3. Default sections from template -> Default behavior
+
+  let sectionsToUse: PdfSection[] = [];
+
+  if (customSettings?.sections && customSettings.sections.length > 0) {
+    sectionsToUse = customSettings.sections;
+  } else if (Array.isArray(savedSections) && savedSections.length > 0) {
+    sectionsToUse = savedSections;
+  } else if (template) {
+    sectionsToUse = createDefaultSections(template, primaryColor);
+  }
+
+  const displaySections = sectionsToUse;
 
   // Compute styles based on theme
   const contentStyles = getContentStyles(theme, primaryColor);
@@ -124,8 +175,14 @@ export function ProposalPdfViewer({
           coverTitle={coverTitle}
           proposal={proposal}
           fontFamily={fontFamily}
-          coverElements={customSettings?.coverElements}
-          logoStyle={customSettings?.logoStyle || (template as any)?.logoStyle}
+          coverElements={
+            customSettings?.coverElements || savedPdfSettings?.coverElements
+          }
+          logoStyle={
+            customSettings?.logoStyle ||
+            savedPdfSettings?.logoStyle ||
+            (template as any)?.logoStyle
+          }
         />
       )}
       <RenderPagedContent
