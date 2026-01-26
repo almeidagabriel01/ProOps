@@ -115,5 +115,5 @@ export function getPriceIdForAddon(addonType: string): string | null {
  * Get the app URL for redirects
  */
 export function getAppUrl(): string {
-  return process.env.APP_URL || "http://localhost:3000";
+  return process.env.APP_URL || "http://localhost:3000/";
 }

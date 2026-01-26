@@ -58,7 +58,7 @@ export const cancelAddon = async (req: Request, res: Response) => {
       stripeSubscriptionId,
       {
         cancel_at_period_end: true,
-      }
+      },
     );
 
     // Update addon in Firestore to reflect pending cancellation
@@ -67,7 +67,7 @@ export const cancelAddon = async (req: Request, res: Response) => {
       cancelAtPeriodEnd: true,
       cancelScheduledAt: new Date().toISOString(),
       currentPeriodEnd: new Date(
-        subscription.current_period_end * 1000
+        subscription.current_period_end * 1000,
       ).toISOString(),
     });
 
@@ -109,7 +109,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
 
     if (!stripeSubscriptionId) {
       console.log(
-        `[cancelSubscription] No subscription ID found for user: ${userId}`
+        `[cancelSubscription] No subscription ID found for user: ${userId}`,
       );
       return res.status(400).json({ message: "No active subscription found" });
     }
@@ -117,23 +117,23 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     // Schedule cancellation at period end (NOT immediate cancellation)
     const stripe = getStripe();
     console.log(
-      `[cancelSubscription] Updating Stripe subscription: ${stripeSubscriptionId}`
+      `[cancelSubscription] Updating Stripe subscription: ${stripeSubscriptionId}`,
     );
 
     const subscription = await stripe.subscriptions.update(
       stripeSubscriptionId,
       {
         cancel_at_period_end: true,
-      }
+      },
     );
 
     console.log(
-      `[cancelSubscription] Stripe updated successfully, cancel_at_period_end: ${subscription.cancel_at_period_end}`
+      `[cancelSubscription] Stripe updated successfully, cancel_at_period_end: ${subscription.cancel_at_period_end}`,
     );
 
     // Update user document with cancellation info
     const currentPeriodEnd = new Date(
-      subscription.current_period_end * 1000
+      subscription.current_period_end * 1000,
     ).toISOString();
 
     await userRef.update({
@@ -159,7 +159,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
 
 export const createAddonCheckoutSession = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { addonId, userEmail, tenantId: bodyTenantId } = req.body;
@@ -319,13 +319,35 @@ export const createPortalSession = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user!.uid;
     const userSnap = await db.collection("users").doc(userId).get();
-    const stripeId = userSnap.data()?.stripeId;
-
-    if (!stripeId) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
+    let stripeId = userSnap.data()?.stripeId;
+    const userData = userSnap.data();
 
     const stripe = getStripe();
+
+    // If Stripe ID is missing, create a new customer
+    if (!stripeId) {
+      console.log(
+        `[createPortalSession] Missing stripeId for user ${userId}. Creating new customer...`,
+      );
+      const email = userData?.email;
+
+      if (!email) {
+        return res
+          .status(400)
+          .json({ message: "User email required to create Stripe customer" });
+      }
+
+      const customer = await stripe.customers.create({
+        email: email,
+        metadata: { firebaseUID: userId },
+      });
+
+      stripeId = customer.id;
+
+      // Save for future use
+      await db.collection("users").doc(userId).update({ stripeId });
+    }
+
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeId,
       return_url: `${req.headers.origin || "https://app-url.com"}/profile`,
@@ -333,6 +355,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
 
     return res.json({ url: session.url });
   } catch (error: unknown) {
+    console.error("Portal Session Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return res.status(500).json({ message });
   }
@@ -473,7 +496,7 @@ export const getPlans = async (_req: Request, res: Response) => {
           highlighted: metadata.highlighted || false,
           features: metadata.features,
         };
-      }
+      },
     );
 
     // Build addons response
@@ -561,7 +584,7 @@ export const syncSubscription = async (req: Request, res: Response) => {
       userId,
       status,
       "Manual Sync",
-      currentPeriodEnd
+      currentPeriodEnd,
     );
 
     return res.json({

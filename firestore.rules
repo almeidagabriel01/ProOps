@@ -261,7 +261,7 @@ service cloud.firestore {
     
     // NOTIFICATIONS - Acesso restrito ao tenant
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && belongsToTenant(resource.data.tenantId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false; // Apenas Cloud Functions
     }
 
