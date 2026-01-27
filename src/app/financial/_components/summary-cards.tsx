@@ -2,7 +2,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Clock, AlertCircle } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  AlertCircle,
+  Wallet,
+} from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 
 interface FinancialSummary {
@@ -23,11 +29,13 @@ interface SelectionSummary {
 interface FinancialSummaryCardsProps {
   summary: FinancialSummary;
   selectionSummary?: SelectionSummary;
+  balance?: number;
 }
 
 export function FinancialSummaryCards({
   summary,
   selectionSummary,
+  balance,
 }: FinancialSummaryCardsProps) {
   const hasSelection = selectionSummary && selectionSummary.count > 0;
 
@@ -42,7 +50,42 @@ export function FinancialSummaryCards({
     : summary;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Balance Card - Projected */}
+      {typeof balance !== "undefined" && (
+        <Card className={hasSelection ? "ring-2 ring-primary/20" : ""}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Balanço</CardTitle>
+              {hasSelection && (
+                <Badge variant="secondary" className="text-[10px] h-5">
+                  Proj.
+                </Badge>
+              )}
+            </div>
+            <Wallet className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`text-2xl font-bold ${
+                balance +
+                  displayValues.pendingIncome -
+                  displayValues.pendingExpense >=
+                0
+                  ? "text-blue-500"
+                  : "text-red-500"
+              }`}
+            >
+              {formatCurrency(
+                balance +
+                  displayValues.pendingIncome -
+                  displayValues.pendingExpense,
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Previsto</p>
+          </CardContent>
+        </Card>
+      )}
       <Card className={hasSelection ? "ring-2 ring-primary/20" : ""}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2">

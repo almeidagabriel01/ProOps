@@ -266,6 +266,7 @@ export default function FinancialPage() {
         <FinancialSummaryCards
           summary={summary}
           selectionSummary={selectionSummary}
+          balance={balance}
         />
       </div>
 
