@@ -342,49 +342,80 @@ export default function FinancialPage() {
       ) : (
         <div className="grid gap-3">
           {filteredTransactions.map((transaction) => {
-            // Get related installments (for standalone installment groups)
-            // Include both installments AND down payments in the group
-            const relatedInstallments =
-              (transaction.isInstallment || transaction.isDownPayment) &&
-              transaction.installmentGroupId &&
-              !transaction.proposalGroupId
-                ? transactions
-                    .filter(
-                      (t) =>
-                        t.installmentGroupId === transaction.installmentGroupId,
-                    )
-                    .sort((a, b) => {
-                      // Sort: down payment first, then by installment number
-                      if (a.isDownPayment && !b.isDownPayment) return -1;
-                      if (!a.isDownPayment && b.isDownPayment) return 1;
-                      return (
-                        (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                      );
-                    })
-                : [];
+            // Check if this transaction is part of a group (installment or proposal)
+            const groupId =
+              transaction.proposalGroupId || transaction.installmentGroupId;
 
-            // Get all transactions from the same proposal group (down payment + installments)
-            const proposalGroupTransactions = transaction.proposalGroupId
-              ? transactions
-                  .filter(
-                    (t) => t.proposalGroupId === transaction.proposalGroupId,
-                  )
-                  .sort((a, b) => {
-                    // Down payment first, then installments by number
-                    if (a.isDownPayment && !b.isDownPayment) return -1;
-                    if (!a.isDownPayment && b.isDownPayment) return 1;
-                    return (
-                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                    );
-                  })
-              : [];
+            if (groupId) {
+              // Find all transactions in this group within the full dataset
+              // (Correctness: we use 'transactions' to find all members, not just filtered ones,
+              // so the group logic holds even if some members are filtered out?
+              // Actually, usually we want to show the group if ANY member is in the filter?
+              // For now, let's stick to the current logic: find "leader" in the COMPLETED list
+              // to ensure consistent leader selection)
+              const groupMembers = transactions.filter(
+                (t) =>
+                  t.proposalGroupId === groupId ||
+                  t.installmentGroupId === groupId,
+              );
 
+              // Sort members to find the "leader"
+              // Priority: Down Payment -> Installment Number (asc) -> Date (asc)
+              groupMembers.sort((a, b) => {
+                if (a.isDownPayment && !b.isDownPayment) return -1;
+                if (!a.isDownPayment && b.isDownPayment) return 1;
+                if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
+                  return (
+                    (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  );
+                }
+                return new Date(a.date).getTime() - new Date(b.date).getTime();
+              });
+
+              const leader = groupMembers[0];
+
+              // If the current transaction is NOT the leader, don't render it separately
+              // (It will be rendered inside the leader's card)
+              if (transaction.id !== leader.id) {
+                return null;
+              }
+
+              // If it IS the leader, we render it, passing the group members
+              const relatedInstallments = groupMembers.filter(
+                (t) => t.id !== leader.id,
+              );
+
+              return (
+                <TransactionCard
+                  key={transaction.id}
+                  transaction={leader}
+                  relatedInstallments={
+                    !leader.proposalGroupId ? groupMembers : []
+                  }
+                  proposalGroupTransactions={
+                    leader.proposalGroupId ? groupMembers : []
+                  }
+                  canEdit={canEdit}
+                  canDelete={canDelete}
+                  onDelete={openDeleteDialog}
+                  onStatusChange={updateGroupStatus}
+                  onUpdate={updateTransaction}
+                  onUpdateBatch={updateBatchTransactions}
+                  isSelected={selectedIds.has(leader.id)}
+                  onToggleSelection={toggleSelection}
+                  onToggleGroupSelection={toggleGroupSelection}
+                  selectedIds={selectedIds}
+                />
+              );
+            }
+
+            // Standalone transactions
             return (
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}
-                relatedInstallments={relatedInstallments}
-                proposalGroupTransactions={proposalGroupTransactions}
+                relatedInstallments={[]}
+                proposalGroupTransactions={[]}
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onDelete={openDeleteDialog}

@@ -22,6 +22,7 @@ import {
   Edit2,
   Banknote,
   CreditCard,
+  Wallet,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -313,14 +314,19 @@ export function TransactionInstallmentsList({
                           />
                         )}
                         <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xs font-bold text-primary">
-                            {installment.installmentNumber}
-                          </span>
+                          {!installment.isInstallment ? (
+                            <Wallet className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <span className="text-xs font-bold text-primary">
+                              {installment.installmentNumber}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <div className="font-medium text-sm">
-                            Parcela {installment.installmentNumber}/
-                            {installment.installmentCount}
+                            {!installment.isInstallment
+                              ? "Restante"
+                              : `Parcela ${installment.installmentNumber}/${installment.installmentCount}`}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             Venc:{" "}

@@ -25,6 +25,7 @@ import {
   Wallet,
   Banknote,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TransactionFormData, PaymentMode } from "../_hooks/useTransactionForm";
 import { TransactionType } from "@/services/transaction-service";
 
@@ -155,7 +156,7 @@ export function TypeSelectorStep({
 interface DetailsStepProps {
   formData: TransactionFormData;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors?: FormErrors<TransactionFormData>;
@@ -257,7 +258,7 @@ interface PaymentStepProps {
   formData: TransactionFormData;
   onFormDataChange: React.Dispatch<React.SetStateAction<TransactionFormData>>;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors?: FormErrors<TransactionFormData>;
@@ -286,11 +287,15 @@ export function PaymentStep({
     }
   };
 
-  // Calculate installment value when in total mode
+  // Calculate installment value when in total mode (now accounts for down payment)
   const getInstallmentValueFromTotal = (): string => {
     const total = parseFloat(formData.amount || "0");
-    if (total <= 0 || formData.installmentCount <= 0) return "0,00";
-    return (total / formData.installmentCount).toFixed(2);
+    const downPayment = formData.downPaymentEnabled
+      ? parseFloat(formData.downPaymentValue || "0")
+      : 0;
+    const remaining = total - downPayment;
+    if (remaining <= 0 || formData.installmentCount <= 0) return "0,00";
+    return (remaining / formData.installmentCount).toFixed(2);
   };
 
   const handlePaymentModeChange = (mode: PaymentMode) => {
@@ -483,48 +488,148 @@ export function PaymentStep({
             </div>
           )}
 
-          {/* Installments Card */}
+          {/* Down Payment Toggle - Compact */}
+          {!isProposalTransaction && (
+            <div
+              className={`
+              rounded-xl border p-4 transition-all duration-200
+              ${
+                formData.downPaymentEnabled
+                  ? "border-blue-500/40 bg-blue-500/5"
+                  : "border-border hover:border-blue-500/30"
+              }
+            `}
+            >
+              <label
+                htmlFor="downPaymentEnabledTotal"
+                className="flex items-center gap-3 cursor-pointer"
+              >
+                <div
+                  className={`
+                  w-8 h-8 rounded-lg flex items-center justify-center transition-all
+                  ${formData.downPaymentEnabled ? "bg-blue-500/15 text-blue-500" : "bg-muted text-muted-foreground"}
+                `}
+                >
+                  <Banknote className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Incluir Entrada</p>
+                  <p className="text-xs text-muted-foreground">
+                    Valor à vista antes das parcelas
+                  </p>
+                </div>
+                <Checkbox
+                  id="downPaymentEnabledTotal"
+                  checked={formData.downPaymentEnabled || false}
+                  onCheckedChange={(checked) =>
+                    handlePaymentToggle(
+                      "downPaymentEnabled",
+                      checked as boolean,
+                    )
+                  }
+                  className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 cursor-pointer"
+                />
+              </label>
+
+              {formData.downPaymentEnabled && (
+                <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between h-7">
+                        <Label
+                          htmlFor="downPaymentValueTotal"
+                          className="text-sm font-medium"
+                        >
+                          Valor da Entrada
+                        </Label>
+                      </div>
+                      <CurrencyInput
+                        id="downPaymentValueTotal"
+                        name="downPaymentValue"
+                        value={formData.downPaymentValue || ""}
+                        onChange={onChange}
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <WalletSelect
+                        label="Carteira"
+                        name="downPaymentWallet"
+                        value={formData.downPaymentWallet || ""}
+                        onChange={onChange}
+                        preSelectDefault
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="downPaymentDueDateTotal"
+                      className="text-sm font-medium"
+                    >
+                      Data da Entrada
+                    </Label>
+                    <Input
+                      type="date"
+                      id="downPaymentDueDateTotal"
+                      name="downPaymentDueDate"
+                      value={formData.downPaymentDueDate || ""}
+                      onChange={onChange}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Installments Toggle - Compact */}
           <div
             className={`
-            rounded-2xl border-2 p-6 transition-all duration-300
+            rounded-xl border p-4 transition-all duration-200
             ${
               formData.isInstallment
-                ? "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent shadow-lg"
-                : "border-border/50 bg-card hover:border-primary/20"
+                ? "border-primary/40 bg-primary/5"
+                : "border-border hover:border-primary/30"
             }
           `}
           >
-            <div className="flex items-center gap-4">
+            <label
+              htmlFor="isInstallment"
+              className="flex items-center gap-3 cursor-pointer"
+            >
               <div
                 className={`
-                w-12 h-12 rounded-xl flex items-center justify-center transition-all
+                w-8 h-8 rounded-lg flex items-center justify-center transition-all
                 ${formData.isInstallment ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}
               `}
               >
-                <Calendar className="w-6 h-6" />
+                <Calendar className="w-4 h-4" />
               </div>
-              <label htmlFor="isInstallment" className="flex-1 cursor-pointer">
-                <p className="font-semibold text-foreground text-lg">
-                  Parcelar Lançamento
+              <div className="flex-1">
+                <p className="font-medium text-sm">Parcelar Lançamento</p>
+                <p className="text-xs text-muted-foreground">
+                  Divida em múltiplas parcelas
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Divida o valor em múltiplas parcelas
-                </p>
-              </label>
-              <input
-                type="checkbox"
+              </div>
+              <Checkbox
                 id="isInstallment"
-                name="isInstallment"
                 checked={formData.isInstallment}
-                onChange={onChange}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    target: {
+                      name: "isInstallment",
+                      type: "checkbox",
+                      checked: checked === true,
+                    },
+                  } as any)
+                }
                 disabled={isProposalTransaction}
-                className="w-7 h-7 rounded-lg border-2 border-border text-primary focus:ring-primary/20 cursor-pointer disabled:opacity-50"
+                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary cursor-pointer"
               />
-            </div>
+            </label>
 
             {formData.isInstallment && (
-              <div className="grid grid-cols-2 gap-6 pt-6 mt-6 border-t border-border/30 animate-in slide-in-from-top-2 duration-300">
-                <FormItem label="Número de Parcelas" htmlFor="installmentCount">
+              <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
+                <FormItem label="Parcelas" htmlFor="installmentCount">
                   <Select
                     id="installmentCount"
                     name="installmentCount"
@@ -538,26 +643,61 @@ export function PaymentStep({
                   >
                     {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24].map((n) => (
                       <option key={n} value={n}>
-                        {n}x parcelas
+                        {n}x
                       </option>
                     ))}
                   </Select>
                 </FormItem>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Valor por Parcela
-                  </Label>
-                  <div className="h-12 px-5 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-primary" />
-                    <span className="font-bold text-xl text-primary">
+                <FormItem label="Valor/Parcela">
+                  <div className="h-11 px-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-primary">
                       R$ {getInstallmentValueFromTotal()}
+                    </span>
+                  </div>
+                </FormItem>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Summary - shows when both down payment and installments are configured */}
+          {formData.downPaymentEnabled &&
+            formData.downPaymentValue &&
+            parseFloat(formData.downPaymentValue) > 0 &&
+            formData.isInstallment && (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-semibold">Resumo do Pagamento</span>
+                </div>
+                <div className="text-sm space-y-2">
+                  <div className="flex justify-between items-center py-1 border-b border-border/30">
+                    <span className="text-muted-foreground">Valor Total:</span>
+                    <span className="font-semibold">
+                      {formatCurrency(parseFloat(formData.amount || "0"))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-blue-500">• Entrada:</span>
+                    <span className="font-semibold text-blue-500">
+                      {formatCurrency(
+                        parseFloat(formData.downPaymentValue || "0"),
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-primary">• Parcelas:</span>
+                    <span className="font-semibold text-primary">
+                      {formData.installmentCount || 1}x de R${" "}
+                      {getInstallmentValueFromTotal()}
                     </span>
                   </div>
                 </div>
               </div>
             )}
-          </div>
         </div>
       )}
 
@@ -686,103 +826,6 @@ export function PaymentStep({
                   </div>
                 </div>
 
-                {/* Down Payment Section */}
-                <div className="pt-4 border-t border-dashed border-border/50">
-                  <label
-                    htmlFor="downPaymentEnabled"
-                    className="flex items-center gap-3 p-3 rounded-lg border-2 border-transparent hover:border-blue-500/20 hover:bg-blue-500/5 transition-all cursor-pointer group"
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                        formData.downPaymentEnabled
-                          ? "bg-blue-500 border-blue-500"
-                          : "border-muted-foreground/40 group-hover:border-blue-500/60"
-                      }`}
-                    >
-                      {formData.downPaymentEnabled && (
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <input
-                      type="checkbox"
-                      id="downPaymentEnabled"
-                      checked={formData.downPaymentEnabled || false}
-                      onChange={(e) =>
-                        handlePaymentToggle(
-                          "downPaymentEnabled",
-                          e.target.checked
-                        )
-                      }
-                      className="sr-only"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="w-4 h-4 text-blue-500" />
-                        <span className="font-medium">Incluir Entrada</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Valor pago à vista antes das parcelas
-                      </p>
-                    </div>
-                  </label>
-
-                  {formData.downPaymentEnabled && (
-                    <div className="ml-8 mt-3 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <div className="space-y-2">
-                          <Label htmlFor="downPaymentValue">
-                            Valor da Entrada
-                          </Label>
-                          <CurrencyInput
-                            id="downPaymentValue"
-                            name="downPaymentValue"
-                            value={formData.downPaymentValue || ""}
-                            onChange={onChange}
-                            placeholder="0,00"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <WalletSelect
-                            label="Carteira para entrada (interno)"
-                            name="downPaymentWallet"
-                            value={formData.downPaymentWallet || ""}
-                            onChange={onChange}
-                            preSelectDefault
-                          />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <Label htmlFor="downPaymentDueDate">
-                            Data da Entrada
-                          </Label>
-                          <Input
-                            type="date"
-                            id="downPaymentDueDate"
-                            name="downPaymentDueDate"
-                            value={formData.downPaymentDueDate || ""}
-                            onChange={onChange}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Summary */}
                 <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
                   <div className="flex items-center gap-2 mb-3">
@@ -800,24 +843,12 @@ export function PaymentStep({
                         {formatCurrency(calculateTotal())}
                       </span>
                     </div>
-                    {formData.downPaymentEnabled &&
-                      formData.downPaymentValue &&
-                      parseFloat(formData.downPaymentValue) > 0 && (
-                        <div className="flex justify-between items-center py-1">
-                          <span className="text-blue-500">• Entrada:</span>
-                          <span className="font-semibold text-blue-500">
-                            {formatCurrency(
-                              parseFloat(formData.downPaymentValue || "0")
-                            )}
-                          </span>
-                        </div>
-                      )}
                     <div className="flex justify-between items-center py-1">
                       <span className="text-primary">• Parcelas:</span>
                       <span className="font-semibold text-primary">
                         {formData.installmentCount || 1}x de{" "}
                         {formatCurrency(
-                          parseFloat(formData.installmentValue || "0")
+                          parseFloat(formData.installmentValue || "0"),
                         )}
                       </span>
                     </div>
@@ -897,7 +928,18 @@ export function ReviewStep({
     if (formData.paymentMode === "installmentValue") {
       return parseFloat(formData.installmentValue || "0");
     }
-    return parseFloat(formData.amount || "0") / formData.installmentCount;
+
+    // Total mode
+    const total = parseFloat(formData.amount || "0");
+    const downPayment = formData.downPaymentEnabled
+      ? parseFloat(formData.downPaymentValue || "0")
+      : 0;
+    const remaining = total - downPayment;
+
+    // Avoid division by zero
+    if (formData.installmentCount === 0) return 0;
+
+    return remaining / formData.installmentCount;
   };
 
   // Get wallet display
@@ -985,22 +1027,68 @@ export function ReviewStep({
             </div>
           </div>
 
-          {formData.isInstallment && (
-            <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-2">
-              <p className="text-sm text-muted-foreground">Parcelamento</p>
-              <p className="font-semibold">
-                {formData.installmentCount}x de{" "}
-                {formatCurrency(getInstallmentDisplayValue())}
-              </p>
-              {formData.paymentMode === "installmentValue" &&
-                formData.downPaymentEnabled && (
-                  <p className="text-sm text-muted-foreground">
-                    + Entrada de{" "}
-                    {formatCurrency(
-                      parseFloat(formData.downPaymentValue || "0")
-                    )}
-                  </p>
-                )}
+          {/* Payment Structure Breakdown */}
+          {(formData.isInstallment || formData.downPaymentEnabled) && (
+            <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-3">
+              {/* Down Payment */}
+              {formData.downPaymentEnabled && (
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-sm font-medium text-blue-500">
+                      Entrada
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      Valor pago à vista
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-blue-500">
+                      {formatCurrency(
+                        parseFloat(formData.downPaymentValue || "0"),
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formData.downPaymentDueDate
+                        ? new Date(
+                            formData.downPaymentDueDate + "T12:00:00",
+                          ).toLocaleDateString("pt-BR")
+                        : "Data não definida"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Installments */}
+              {formData.isInstallment && (
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-sm font-medium text-primary">
+                      Parcelamento
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                      {formData.installmentCount} parcelas mensais
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-primary">
+                      {formData.installmentCount}x de{" "}
+                      {formatCurrency(getInstallmentDisplayValue())}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      1ª:{" "}
+                      {formData.firstInstallmentDate
+                        ? new Date(
+                            formData.firstInstallmentDate + "T12:00:00",
+                          ).toLocaleDateString("pt-BR")
+                        : formData.dueDate
+                          ? new Date(
+                              formData.dueDate + "T12:00:00",
+                            ).toLocaleDateString("pt-BR")
+                          : "Data não definida"}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
