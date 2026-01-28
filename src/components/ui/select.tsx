@@ -125,6 +125,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     };
 
     // Close on click outside (using mousedown to catch it before focus trap)
+    // Also close on scroll to prevent dropdown from "floating" away
     React.useEffect(() => {
       const handleGlobalMouseDown = (event: MouseEvent) => {
         if (!isOpen) return;
@@ -147,11 +148,27 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         setIsOpen(false);
       };
 
+      const handleScroll = (event: Event) => {
+        if (!isOpen) return;
+
+        // Ignore scroll events inside the dropdown itself
+        if (
+          portalContentRef.current &&
+          portalContentRef.current.contains(event.target as Node)
+        ) {
+          return;
+        }
+
+        setIsOpen(false);
+      };
+
       if (isOpen) {
         window.addEventListener("mousedown", handleGlobalMouseDown);
+        window.addEventListener("scroll", handleScroll, true); // Use capture to catch all scroll events
       }
       return () => {
         window.removeEventListener("mousedown", handleGlobalMouseDown);
+        window.removeEventListener("scroll", handleScroll, true);
       };
     }, [isOpen]);
 
