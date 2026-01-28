@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ProposalPdfSettings } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { toast } from "react-toastify";
-import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 
 const getApiBaseUrl = (): string => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -16,21 +14,14 @@ const getApiBaseUrl = (): string => {
 
 interface UsePdfGeneratorProps {
   proposal: Partial<Proposal>;
-  settings: ProposalPdfSettings;
-  includeCover: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
-export function usePdfGenerator({
-  proposal,
-  settings,
-  includeCover,
-  setIsOpen,
-}: UsePdfGeneratorProps) {
+export function usePdfGenerator({ proposal, setIsOpen }: UsePdfGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to lighten a hex color (same as in view page)
-  // Not strictly needed if not used, but good for consistency. 
+  // Not strictly needed if not used, but good for consistency.
   // Retaining the core logic for generation.
 
   const handleGenerate = async (rootElementId?: string) => {
@@ -257,7 +248,7 @@ export function usePdfGenerator({
             clone.style.backgroundImage = "none";
             clone.style.backgroundColor = safeColor(
               computed.backgroundColor,
-              "backgroundColor"
+              "backgroundColor",
             );
           } else {
             clone.style.backgroundImage = computed.backgroundImage;
@@ -277,14 +268,14 @@ export function usePdfGenerator({
             clone.style.setProperty(
               "fill",
               safeColor(fill, "fill"),
-              "important"
+              "important",
             );
           }
           if (stroke && containsModernColor(stroke)) {
             clone.style.setProperty(
               "stroke",
               safeColor(stroke, "stroke"),
-              "important"
+              "important",
             );
           }
         }
@@ -337,7 +328,7 @@ export function usePdfGenerator({
                 let ruleText = rule.cssText;
                 ruleText = ruleText.replace(
                   /url\((['"]?)\//g,
-                  `url($1${window.location.origin}/`
+                  `url($1${window.location.origin}/`,
                 );
                 fontFaceRules += ruleText + "\n";
               }
@@ -391,7 +382,7 @@ export function usePdfGenerator({
         const uniqueUrls = new Set(
           images
             .map((img) => img.src)
-            .filter((src) => src && !src.startsWith("data:"))
+            .filter((src) => src && !src.startsWith("data:")),
         );
 
         const urlMap = new Map<string, string>();
@@ -413,7 +404,7 @@ export function usePdfGenerator({
             } catch {
               console.warn("Failed to proxy image:", url);
             }
-          })
+          }),
         );
 
         images.forEach((img) => {
@@ -431,8 +422,8 @@ export function usePdfGenerator({
                   img.onload = () => resolve();
                   img.onerror = () => resolve();
                 }
-              })
-          )
+              }),
+          ),
         );
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -480,7 +471,7 @@ export function usePdfGenerator({
           0,
           0,
           pageWidth,
-          pageHeight
+          pageHeight,
         );
       }
 

@@ -1,6 +1,11 @@
 import * as React from "react";
 import { Proposal } from "@/services/proposal-service";
-import { ProposalTemplate, Tenant } from "@/types";
+import {
+  ProposalTemplate,
+  Tenant,
+  PdfDisplaySettings,
+  mergePdfDisplaySettings,
+} from "@/types";
 import {
   PdfSection,
   CoverElement,
@@ -46,9 +51,7 @@ export function ProposalPdfViewer({
   template,
   tenant,
   customSettings,
-  className,
   showCover = true,
-  noMargins = false,
 }: ProposalPdfViewerProps) {
   // Use enriched products hook (filter out inactive products for PDF)
   const { products } = useEnrichedProducts(proposal, tenant?.id, {
@@ -56,6 +59,7 @@ export function ProposalPdfViewer({
   });
 
   // Extract settings from proposal if not provided in customSettings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const savedPdfSettings = proposal.pdfSettings as any;
   const savedSections = proposal.sections as unknown as PdfSection[];
 
@@ -160,6 +164,10 @@ export function ProposalPdfViewer({
   // Compute styles based on theme
   const contentStyles = getContentStyles(theme, primaryColor);
 
+  // Extract PDF display settings (for showing/hiding elements in PDF)
+  const pdfDisplaySettings: PdfDisplaySettings =
+    mergePdfDisplaySettings(savedPdfSettings);
+
   return (
     <>
       {showCover && (
@@ -181,6 +189,7 @@ export function ProposalPdfViewer({
           logoStyle={
             customSettings?.logoStyle ||
             savedPdfSettings?.logoStyle ||
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (template as any)?.logoStyle
           }
         />
@@ -199,6 +208,7 @@ export function ProposalPdfViewer({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         proposal={proposal as any}
         repeatHeader={repeatHeader}
+        pdfDisplaySettings={pdfDisplaySettings}
       />
     </>
   );

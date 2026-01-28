@@ -26,12 +26,12 @@ export const SharedProposalService = {
    */
   getSharedProposal: async (
     token: string,
-  ): Promise<{ proposal: Proposal; tenant: any }> => {
+  ): Promise<{ proposal: Proposal; tenant: unknown }> => {
     try {
       const response = await callPublicApi<{
         success: boolean;
         proposal: Proposal;
-        tenant: any;
+        tenant: unknown;
       }>(`/v1/share/${token}`, "GET");
       return {
         proposal: response.proposal,

@@ -97,6 +97,8 @@ export async function updateProposal(
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    // PDF display settings (persisted for correct PDF rendering)
+    pdfSettings: formData.pdfSettings || undefined,
   });
 
   toast.success("Proposta atualizada com sucesso!");
@@ -146,5 +148,7 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    // PDF display settings (persisted for correct PDF rendering)
+    pdfSettings: formData.pdfSettings || undefined,
   };
 }

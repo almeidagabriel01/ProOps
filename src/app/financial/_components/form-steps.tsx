@@ -173,8 +173,6 @@ export function DetailsStep({
   onChange,
   onBlur,
   errors = {},
-  isProposalTransaction = false,
-  groupInfo,
 }: DetailsStepProps) {
   return (
     <div className="space-y-6">
@@ -620,6 +618,7 @@ export function PaymentStep({
                       type: "checkbox",
                       checked: checked === true,
                     },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   } as any)
                 }
                 disabled={isProposalTransaction}

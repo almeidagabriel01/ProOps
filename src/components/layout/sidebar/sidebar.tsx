@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/providers/tenant-provider";
@@ -64,9 +66,11 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
           {/* Header / Logo area */}
           <div className="px-4 py-4 flex items-center gap-3 border-b border-border h-16 min-h-16">
             {tenant?.logoUrl ? (
-              <img
+              <Image
                 src={tenant.logoUrl}
                 alt="Brand"
+                width={40}
+                height={40}
                 className="w-10 h-10 object-contain shrink-0 rounded-lg"
               />
             ) : (
@@ -80,7 +84,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
             <div
               className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300",
-                isExpanded ? "opacity-100 w-auto" : "opacity-0 w-0"
+                isExpanded ? "opacity-100 w-auto" : "opacity-0 w-0",
               )}
             >
               <span className="text-sm font-bold tracking-tight whitespace-nowrap">
@@ -114,7 +118,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
                       upgradeModal.showUpgradeModal(
                         item.label,
                         "Controle suas finanças com nosso módulo completo.",
-                        "pro"
+                        "pro",
                       )
                     }
                   />
@@ -160,7 +164,7 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
                   "whitespace-nowrap transition-all duration-300",
                   isExpanded
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-2 w-0"
+                    : "opacity-0 -translate-x-2 w-0",
                 )}
               >
                 Sair

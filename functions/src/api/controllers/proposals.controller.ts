@@ -157,6 +157,8 @@ export const createProposal = async (req: Request, res: Response) => {
         installmentValue: input.installmentValue || 0,
         installmentsWallet: input.installmentsWallet || null,
         firstInstallmentDate: input.firstInstallmentDate || null,
+        // PDF display settings (which elements to show/hide in PDF)
+        pdfSettings: input.pdfSettings || null,
         createdById: userId,
         createdByName: userData?.name || "Usuário",
         companyId: userCompanyId,

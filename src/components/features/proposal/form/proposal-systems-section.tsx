@@ -601,12 +601,15 @@ function ProductRow({
         <span
           className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
         >
-          R$ {product.total.toFixed(2)}
+          R$ {(product.total || 0).toFixed(2)}
         </span>
         {isActive && (
           <span className="text-[10px] text-muted-foreground">
             (R${" "}
-            {(product.unitPrice * (1 + (product.markup || 0) / 100)).toFixed(2)}{" "}
+            {(
+              (product.unitPrice || 0) *
+              (1 + (product.markup || 0) / 100)
+            ).toFixed(2)}{" "}
             un)
           </span>
         )}

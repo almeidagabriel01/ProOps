@@ -14,7 +14,6 @@ import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import {
   getPageConfig,
   pageRequiresAuth,
@@ -148,7 +147,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         const cached = localStorage.getItem("erp_user_cache");
         if (cached) {
           const data = JSON.parse(cached);
-          const { role, permissions, isAdmin } = data;
+          const { permissions, isAdmin } = data;
 
           if (isAdmin || permissions?.dashboard?.canView) {
             skeletonType = "dashboard";
@@ -186,7 +185,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             }
           }
         }
-      } catch (e) {}
+      } catch {}
     } else if (pathname?.startsWith("/dashboard")) {
       skeletonType = "dashboard";
     }
@@ -247,7 +246,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             skeletonType = "list"; // default to list if no dashboard
           }
         }
-      } catch (e) {}
+      } catch {}
     }
 
     return (

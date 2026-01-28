@@ -30,11 +30,6 @@ interface CreateClientResult {
   message: string;
 }
 
-interface DeleteClientResult {
-  success: boolean;
-  message: string;
-}
-
 // ============================================
 // HOOK
 // ============================================
@@ -44,7 +39,7 @@ export function useClientActions() {
 
   const createClient = async (
     data: CreateClientData,
-    options?: { suppressSuccessToast?: boolean }
+    options?: { suppressSuccessToast?: boolean },
   ): Promise<CreateClientResult | null> => {
     setIsLoading(true);
     try {
@@ -76,7 +71,7 @@ export function useClientActions() {
     try {
       await callApi<{ success: boolean; message: string }>(
         `v1/clients/${clientId}`,
-        "DELETE"
+        "DELETE",
       );
 
       toast.success("Cliente removido com sucesso!");

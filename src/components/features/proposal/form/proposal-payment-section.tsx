@@ -4,14 +4,14 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Proposal } from "@/services/proposal-service";
+import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { CreditCard, Wallet, Calendar, Banknote } from "lucide-react";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { WalletSelect } from "@/components/features/wallet-select";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
-  selectedProducts: any[];
+  selectedProducts: ProposalProduct[];
   calculateTotal: () => number;
   onFormChange: (
     e: React.ChangeEvent<

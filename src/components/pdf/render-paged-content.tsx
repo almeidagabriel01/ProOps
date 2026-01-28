@@ -11,6 +11,9 @@ import {
 } from "@/utils/pdf-helpers";
 import {
   PdfSistemaBlock,
+  PdfSistemaHeader,
+  PdfSistemaProduct,
+  PdfSistemaFooter,
   PdfExtraProductsBlock,
   PdfProductRow,
   PdfTotals,
@@ -18,6 +21,10 @@ import {
   PdfPageHeader,
   PdfPaymentTerms,
 } from "./components";
+import {
+  PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+} from "@/types/pdf-display-settings";
 
 // Type definitions
 interface Product {
@@ -84,6 +91,7 @@ interface RenderPagedContentProps {
   coverTitle: string;
   proposal: Proposal;
   repeatHeader?: boolean;
+  pdfDisplaySettings?: PdfDisplaySettings;
 }
 
 /**
@@ -93,7 +101,9 @@ function buildContentItems(
   sections: PdfSection[],
   products: Product[],
   proposal: Proposal,
+  pdfDisplaySettings?: PdfDisplaySettings,
 ): ContentItem[] {
+  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
   const items: ContentItem[] = [];
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
 
@@ -154,13 +164,58 @@ function buildContentItems(
       },
     );
 
-    const totalHeight = calculateSistemaBlockHeight(sortedProducts);
+    const totalHeight = calculateSistemaBlockHeight(sortedProducts, settings);
 
-    items.push({
-      type: "sistema-block",
-      data: { sistema, products: sortedProducts },
-      height: totalHeight,
-    });
+    // If the block is too large, split it into granular items for page flow
+    // Threshold: if block would take more than 70% of page, split it
+    const SPLIT_THRESHOLD = SAFE_HEIGHT * 0.7;
+
+    if (totalHeight > SPLIT_THRESHOLD) {
+      // Add sistema header
+      items.push({
+        type: "sistema-header",
+        data: { sistema },
+        height: 100, // Header height (reduced)
+      });
+
+      // Add each product as a separate item
+      sortedProducts.forEach((product, idx) => {
+        const productHeight = calculateProductHeight(product, 80, settings); // Reduced base
+        items.push({
+          type: "sistema-product",
+          data: {
+            product,
+            sistema,
+            isFirst: idx === 0,
+            isLast: idx === sortedProducts.length - 1,
+            pdfDisplaySettings: settings,
+          },
+          height: productHeight,
+        });
+      });
+
+      // Add sistema footer with subtotal
+      const sistemaSubtotal = sortedProducts.reduce(
+        (sum: number, p: Product) => sum + p.total,
+        0,
+      );
+      items.push({
+        type: "sistema-footer",
+        data: { sistema, sistemaSubtotal, pdfDisplaySettings: settings },
+        height: 60, // Footer height (reduced)
+      });
+    } else {
+      // Small block - render as single unit
+      items.push({
+        type: "sistema-block",
+        data: {
+          sistema,
+          products: sortedProducts,
+          pdfDisplaySettings: settings,
+        },
+        height: totalHeight,
+      });
+    }
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
@@ -170,7 +225,7 @@ function buildContentItems(
         height: ESTIMATED_HEIGHTS.PRODUCT_HEADER,
       });
       productsToAdd.forEach((product, i) => {
-        const h = calculateProductHeight(product);
+        const h = calculateProductHeight(product, 80, settings);
         items.push({
           type: "product-row",
           data: { ...product, index: i },
@@ -314,7 +369,7 @@ function buildContentItems(
           if (extraProducts.length > 0) {
             items.push({ type: "extra-products-header", height: 60 });
             extraProducts.forEach((product, idx) => {
-              const h = calculateProductHeight(product);
+              const h = calculateProductHeight(product, 80, settings);
               items.push({
                 type: "product-row",
                 data: { ...product, index: idx },
@@ -322,7 +377,10 @@ function buildContentItems(
               });
             });
           }
-          items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+          items.push({
+            type: "totals",
+            height: ESTIMATED_HEIGHTS.TOTALS,
+          });
         } else if (products.length > 0) {
           addRegularProducts(products);
         }
@@ -429,8 +487,12 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
   coverTitle,
   proposal,
   repeatHeader,
+  pdfDisplaySettings = defaultPdfDisplaySettings,
 }) => {
-  const items = buildContentItems(sections, products, proposal);
+  // Merge with defaults to ensure all settings have values
+  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
+
+  const items = buildContentItems(sections, products, proposal, settings);
   const pages = distributeIntoPages(items);
 
   const renderItem = (item: ContentItem) => {
@@ -457,6 +519,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               sistema={item.data.sistema}
               products={item.data.products}
               primaryColor={primaryColor}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -467,6 +530,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfExtraProductsBlock
               products={item.data.products}
               primaryColor={primaryColor}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -494,6 +558,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -508,11 +573,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
-              downPaymentEnabled={proposal.downPaymentEnabled}
-              downPaymentValue={proposal.downPaymentValue}
-              installmentsEnabled={proposal.installmentsEnabled}
-              installmentsCount={proposal.installmentsCount}
-              installmentValue={proposal.installmentValue}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -534,6 +595,54 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               installmentValue={proposal.installmentValue}
               downPaymentDueDate={proposal.downPaymentDueDate}
               firstInstallmentDate={proposal.firstInstallmentDate}
+            />
+          </div>
+        );
+
+      case "sistema-header":
+        return (
+          <div
+            key={`sistema-header-${item.data.sistema.sistemaId}-${item.data.sistema.ambienteId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaHeader
+              sistema={item.data.sistema}
+              primaryColor={primaryColor}
+            />
+          </div>
+        );
+
+      case "sistema-product":
+        const sistemaProductData = item.data as {
+          product: Product;
+          sistema: Sistema;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+        return (
+          <div
+            key={`sistema-product-${sistemaProductData.sistema.sistemaId}-${sistemaProductData.product.productId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaProduct
+              product={sistemaProductData.product}
+              primaryColor={primaryColor}
+              isFirst={sistemaProductData.isFirst}
+              isLast={sistemaProductData.isLast}
+              pdfDisplaySettings={settings}
+            />
+          </div>
+        );
+
+      case "sistema-footer":
+        return (
+          <div
+            key={`sistema-footer-${item.data.sistema.sistemaId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaFooter
+              sistemaSubtotal={item.data.sistemaSubtotal}
+              primaryColor={primaryColor}
             />
           </div>
         );

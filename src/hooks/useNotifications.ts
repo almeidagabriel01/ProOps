@@ -15,11 +15,13 @@ export function useNotifications() {
   // Subscribe em tempo real às notificações
   useEffect(() => {
     if (!tenant) {
-      setIsLoading(false);
+      if (isLoading) {
+        setTimeout(() => setIsLoading(false), 0);
+      }
       return;
     }
 
-    setIsLoading(true);
+    // setIsLoading(true); // Removing to avoid sync state update
 
     // Keep track of initial load to avoid toast spam
     let isInitialLoad = true;
@@ -60,7 +62,7 @@ export function useNotifications() {
     return () => {
       unsubscribe();
     };
-  }, [tenant]);
+  }, [tenant, isLoading]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {

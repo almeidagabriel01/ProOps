@@ -183,7 +183,7 @@ export function CoverElementsEditor({
     if (element.type === "divider") return "—";
     if (element.type === "client-name") return clientName;
 
-    let content = element.usesProposalTitle ? coverTitle : element.content;
+    const content = element.usesProposalTitle ? coverTitle : element.content;
 
     if (element.includesClientName) {
       return content ? `${content} ${clientName}` : clientName;

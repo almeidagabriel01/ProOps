@@ -4,9 +4,6 @@ import { db } from "@/lib/firebase";
 import { callApi } from "@/lib/api-client";
 import {
   collection,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   doc,
   getDocs,
   query,
@@ -53,7 +50,7 @@ export const TransactionService = {
       // Sorting is done client-side instead
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
       const transactions = querySnapshot.docs.map((doc) => ({
@@ -63,7 +60,7 @@ export const TransactionService = {
 
       // Sort by date descending (client-side)
       return transactions.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -87,7 +84,7 @@ export const TransactionService = {
   },
 
   createTransaction: async (
-    transaction: Omit<Transaction, "id">
+    transaction: Omit<Transaction, "id">,
   ): Promise<Transaction> => {
     try {
       const result = await callApi<{ success: boolean; transactionId: string }>(
@@ -112,7 +109,7 @@ export const TransactionService = {
           installmentGroupId: transaction.installmentGroupId,
           notes: transaction.notes,
           targetTenantId: transaction.tenantId, // Pass tenantId to backend (for super admin)
-        }
+        },
       );
 
       return {
@@ -127,7 +124,7 @@ export const TransactionService = {
 
   updateTransaction: async (
     id: string,
-    updates: Partial<Omit<Transaction, "id">>
+    updates: Partial<Omit<Transaction, "id">>,
   ) => {
     try {
       await callApi(`v1/transactions/${id}`, "PUT", updates);
@@ -150,7 +147,7 @@ export const TransactionService = {
 
   // Get summary for dashboard
   getSummary: async (
-    tenantId: string
+    tenantId: string,
   ): Promise<{
     totalIncome: number;
     totalExpense: number;

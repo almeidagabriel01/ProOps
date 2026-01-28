@@ -21,7 +21,6 @@ export default function EditPdfPage() {
     isPlanLoading,
     canAccessPage,
     isSaving,
-    isGenerating,
     showUpgradeModal,
     setShowUpgradeModal,
 
@@ -67,7 +66,6 @@ export default function EditPdfPage() {
 
     // Actions
     handleSave,
-    handleGeneratePdf,
   } = useEditPdfPage();
 
   const router = useRouter();

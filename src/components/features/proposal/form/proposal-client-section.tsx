@@ -14,16 +14,7 @@ import {
   FormStatic,
 } from "@/components/ui/form-components";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  User,
-  FileText,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Users,
-  Building2,
-} from "lucide-react";
+import { User, FileText, Mail, MapPin, Users, Building2 } from "lucide-react";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;

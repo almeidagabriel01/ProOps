@@ -8,7 +8,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Package, Cpu, CheckCircle, CreditCard } from "lucide-react";
+import {
+  User,
+  Package,
+  Cpu,
+  CheckCircle,
+  CreditCard,
+  Settings2,
+} from "lucide-react";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
@@ -16,6 +23,7 @@ import { toast } from "react-toastify";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { Sistema, ProposalSistema } from "@/types/automation";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
+import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { FormContainer } from "@/components/ui/form-components";
 import {
@@ -33,6 +41,7 @@ import {
   ProposalSummarySection,
   ProposalPaymentSection,
   ProposalReadOnlyView,
+  PdfDisplayOptionsSection,
 } from "./form";
 
 interface SimpleProposalFormProps {
@@ -54,6 +63,12 @@ const stepsAutomation = [
     title: "Pagamento",
     description: "Condições",
     icon: CreditCard,
+  },
+  {
+    id: "settings",
+    title: "PDF",
+    description: "Configurações",
+    icon: Settings2,
   },
   {
     id: "summary",
@@ -84,6 +99,12 @@ const stepsDefault = [
     icon: CreditCard,
   },
   {
+    id: "settings",
+    title: "PDF",
+    description: "Configurações",
+    icon: Settings2,
+  },
+  {
     id: "summary",
     title: "Resumo",
     description: "Finalizar",
@@ -99,6 +120,7 @@ export function SimpleProposalForm({
   const {
     isLoading,
     isSaving,
+    isDirty,
     products,
     selectedClientId,
     formData,
@@ -140,8 +162,13 @@ export function SimpleProposalForm({
     router,
     features,
     primaryColor,
+    resetToInitial,
+    markAsDiscarded,
     // isAutomacaoNiche - removed duplicate
   } = useProposalForm({ proposalId });
+
+  // State for unsaved changes modal
+  const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
 
   // Key para forçar reset do SistemaSelector após adicionar um sistema
   const [selectorKey, setSelectorKey] = React.useState(0);
@@ -515,6 +542,34 @@ export function SimpleProposalForm({
     await handleSubmit(fakeEvent);
   };
 
+  // Handle back navigation - show modal if editing existing proposal with unsaved changes
+  const handleBack = () => {
+    if (proposalId && isDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      router.push("/proposals");
+    }
+  };
+
+  // Handle save from modal then navigate
+  const handleSaveAndBack = async () => {
+    await handleFormSubmit();
+    router.push("/proposals");
+  };
+
+  // Handle discard changes - navigate without saving
+  // For existing proposals: original data remains in database (not auto-saved)
+  // For new drafts: auto-save is prevented by markAsDiscarded flag
+  const handleDiscard = () => {
+    setShowUnsavedModal(false);
+    
+    // Prevent any auto-save on unmount
+    markAsDiscarded();
+    
+    // Navigate away - original proposal data remains untouched in database
+    router.push("/proposals");
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -561,10 +616,7 @@ export function SimpleProposalForm({
   // Editable form with StepWizard
   return (
     <FormContainer>
-      <ProposalFormHeader
-        proposalId={proposalId}
-        onBack={() => router.push("/proposals")}
-      />
+      <ProposalFormHeader proposalId={proposalId} onBack={handleBack} />
 
       <StepWizard steps={steps} allowClickAhead={!!proposalId}>
         {/* Step 1: Client Info */}
@@ -712,7 +764,16 @@ export function SimpleProposalForm({
           <StepNavigation />
         </StepCard>
 
-        {/* Step 4: Summary */}
+        {/* Step 4: PDF Settings */}
+        <StepCard>
+          <PdfDisplayOptionsSection
+            formData={formData}
+            setFormData={setFormData}
+          />
+          <StepNavigation />
+        </StepCard>
+
+        {/* Step 5: Summary */}
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -830,6 +891,15 @@ export function SimpleProposalForm({
         onBack={
           openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined
         }
+      />
+
+      {/* Unsaved Changes Modal */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onClose={() => setShowUnsavedModal(false)}
+        onDiscard={handleDiscard}
+        onSave={handleSaveAndBack}
+        isSaving={isSaving}
       />
 
       {/* Limit Reached Modal */}

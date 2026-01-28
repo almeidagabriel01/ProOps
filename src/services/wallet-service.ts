@@ -9,7 +9,6 @@ import {
   where,
   doc,
   getDoc,
-  orderBy,
 } from "firebase/firestore";
 import { Wallet, WalletTransaction } from "@/types";
 
@@ -71,7 +70,7 @@ export const WalletService = {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
       const wallets = querySnapshot.docs.map((doc) => ({
@@ -123,7 +122,7 @@ export const WalletService = {
    * Create a new wallet via Cloud Function
    */
   createWallet: async (
-    data: CreateWalletInput
+    data: CreateWalletInput,
   ): Promise<{ walletId: string }> => {
     try {
       const result = await callApi<{
@@ -143,7 +142,7 @@ export const WalletService = {
    */
   updateWallet: async (
     walletId: string,
-    data: UpdateWalletInput
+    data: UpdateWalletInput,
   ): Promise<void> => {
     try {
       await callApi(`v1/wallets/${walletId}`, "PUT", data);
@@ -182,7 +181,7 @@ export const WalletService = {
    */
   adjustBalance: async (
     walletId: string,
-    data: AdjustBalanceInput
+    data: AdjustBalanceInput,
   ): Promise<{ newBalance: number }> => {
     try {
       const result = await callApi<{
@@ -202,13 +201,13 @@ export const WalletService = {
    */
   getWalletTransactions: async (
     walletId: string,
-    tenantId: string
+    tenantId: string,
   ): Promise<WalletTransaction[]> => {
     try {
       const q = query(
         collection(db, TRANSACTIONS_COLLECTION),
         where("tenantId", "==", tenantId),
-        where("walletId", "==", walletId)
+        where("walletId", "==", walletId),
       );
       const querySnapshot = await getDocs(q);
       const transactions = querySnapshot.docs.map((doc) => ({
@@ -222,7 +221,7 @@ export const WalletService = {
       // Sort by date descending
       return transactions.sort(
         (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
     } catch (error) {
       console.error("Error fetching wallet transactions:", error);
@@ -265,7 +264,7 @@ export const WalletService = {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
-        where("isDefault", "==", true)
+        where("isDefault", "==", true),
       );
       const querySnapshot = await getDocs(q);
 

@@ -37,7 +37,7 @@ export function PdfPaymentTerms({
         return `${day}/${month}/${year}`;
       }
       return dateString;
-    } catch (e) {
+    } catch {
       return dateString;
     }
   };
@@ -72,7 +72,7 @@ export function PdfPaymentTerms({
       const outY = date.getFullYear();
 
       return `${outD}/${outM}/${outY}`;
-    } catch (e) {
+    } catch {
       return "-";
     }
   };
@@ -95,12 +95,13 @@ export function PdfPaymentTerms({
       : "0";
 
   // Extract primary color from contentStyles or default to black
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const headerColor = (contentStyles.headerTitle as any)?.color || "#000";
 
   return (
-    <div className="mt-8 mb-6 break-inside-avoid">
+    <div className="mt-4 mb-2 break-inside-avoid">
       <div
-        className="text-lg font-bold mb-4 pb-2 border-b-2"
+        className="text-xs font-semibold mb-2 pb-1 border-b"
         style={{
           color: headerColor,
           borderColor: headerColor,
@@ -109,29 +110,28 @@ export function PdfPaymentTerms({
         Formas de Pagamento
       </div>
 
-      <div className="w-full text-sm">
-        {/* Table Header - Minimalist */}
-        <div className="flex border-b border-gray-200 pb-2 mb-2 font-bold text-gray-700">
-          <div className="flex-1">Forma de Pag.</div>
-          <div className="w-32">Parcela</div>
-          <div className="w-32">Vencimento</div>
-          <div className="w-32 text-right">Valor</div>
+      <div className="w-full text-xs">
+        {/* Table Header - Compact */}
+        <div className="flex border-b border-gray-200 pb-1 mb-1 font-semibold text-gray-600">
+          <div className="flex-1">Forma</div>
+          <div className="w-20">Parcela</div>
+          <div className="w-24">Vencimento</div>
+          <div className="w-20 text-right">Valor</div>
         </div>
 
         {/* Rows */}
-        <div className="space-y-2">
+        <div className="space-y-0.5">
           {/* Down Payment Row */}
           {hasDownPayment && (
-            <div className="flex items-center py-1">
-              <div className="flex-1 text-gray-800">Pix ou Boleto</div>
-              <div className="w-32 text-gray-600">
-                {hasInstallments ? `1 / ${installmentsCount! + 1}` : "1 / 1"} -
-                Entrada
+            <div className="flex items-center py-0.5">
+              <div className="flex-1 text-gray-700">Pix/Boleto</div>
+              <div className="w-20 text-gray-500">
+                {hasInstallments ? `1/${installmentsCount! + 1}` : "1/1"} Ent.
               </div>
-              <div className="w-32 text-gray-600">
+              <div className="w-24 text-gray-500">
                 {formatDate(downPaymentDueDate)}
               </div>
-              <div className="w-32 text-right font-medium text-gray-900">
+              <div className="w-20 text-right font-medium text-gray-800">
                 {formatCurrency(downPaymentValue)}
               </div>
             </div>
@@ -149,18 +149,15 @@ export function PdfPaymentTerms({
                 : installmentsCount!;
 
               return (
-                <div
-                  key={index}
-                  className="flex items-center py-1 border-t border-gray-50"
-                >
-                  <div className="flex-1 text-gray-800">Pix ou Boleto</div>
-                  <div className="w-32 text-gray-600">
-                    {displayNum} / {totalNum}
+                <div key={index} className="flex items-center py-0.5">
+                  <div className="flex-1 text-gray-700">Pix/Boleto</div>
+                  <div className="w-20 text-gray-500">
+                    {displayNum}/{totalNum}
                   </div>
-                  <div className="w-32 text-gray-600">
+                  <div className="w-24 text-gray-500">
                     {calculateDate(firstInstallmentDate, index)}
                   </div>
-                  <div className="w-32 text-right font-medium text-gray-900">
+                  <div className="w-20 text-right font-medium text-gray-800">
                     {formatCurrency(installmentValue || 0)}
                   </div>
                 </div>
@@ -169,34 +166,35 @@ export function PdfPaymentTerms({
         </div>
 
         {/* Total Row */}
-        <div className="mt-4 pt-3 border-t-2 border-gray-100 flex justify-end">
-          <div className="flex gap-4 items-baseline">
-            <span className="text-gray-500 font-medium text-sm">TOTAL:</span>
-            <span className="text-lg font-bold" style={{ color: headerColor }}>
+        <div className="mt-2 pt-1 border-t border-gray-200 flex justify-end">
+          <div className="flex gap-2 items-baseline">
+            <span className="text-gray-500 font-medium text-xs">TOTAL:</span>
+            <span className="text-sm font-bold" style={{ color: headerColor }}>
               {formatCurrency(totalValue)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Summary Text */}
-      <div className="mt-8">
-        <div className="font-bold mb-2" style={{ color: headerColor }}>
+      {/* Summary Text - Compact */}
+      <div className="mt-3">
+        <div
+          className="font-semibold text-xs mb-1"
+          style={{ color: headerColor }}
+        >
           Forma de pagamento:
         </div>
-        <div className="text-sm text-gray-700">
+        <div className="text-xs text-gray-600 leading-tight">
           {hasDownPayment ? (
             <>
               Entrada de <strong>{downPaymentPercentage}%</strong> e
               parcelamento do restante (
               <strong>{100 - parseFloat(downPaymentPercentage)}%</strong>) em{" "}
-              <strong>{installmentsCount} vezes</strong>. Tabela com sugestão de
-              pagamento apresentada acima.
+              <strong>{installmentsCount} vezes</strong>.
             </>
           ) : (
             <>
-              Parcelamento em <strong>{installmentsCount} vezes</strong>. Tabela
-              com sugestão de pagamento apresentada acima.
+              Parcelamento em <strong>{installmentsCount} vezes</strong>.
             </>
           )}
         </div>

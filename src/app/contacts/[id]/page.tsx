@@ -25,7 +25,6 @@ import {
 import {
   User,
   Mail,
-  Phone,
   MapPin,
   FileText,
   Loader2,

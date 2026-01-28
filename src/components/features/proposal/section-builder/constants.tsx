@@ -3,7 +3,7 @@ import { ProposalSectionType } from "@/types";
 import {
   Type,
   Table,
-  Image,
+  Image as ImageIcon,
   List,
   Minus,
   Layers,
@@ -39,7 +39,7 @@ export const sectionTypes: SectionTypeConfig[] = [
   {
     type: "image",
     label: "Imagem",
-    icon: <Image className="w-4 h-4" />,
+    icon: <ImageIcon className="w-4 h-4" />,
     description: "Upload de imagem",
   },
   {

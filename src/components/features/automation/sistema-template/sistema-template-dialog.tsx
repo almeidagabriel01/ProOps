@@ -42,10 +42,9 @@ export function SistemaTemplateDialog({
   preselectedAmbienteId,
   onSave,
   onBack,
-  sistemas: managedSistemas,
+
   ambientes: managedAmbientes,
   onAction,
-  onAmbienteAction,
 }: SistemaTemplateDialogProps) {
   const {
     name,
@@ -76,10 +75,9 @@ export function SistemaTemplateDialog({
     onSave,
     onClose,
     // Pass managed props
-    managedSistemas,
+    // Pass managed props
     managedAmbientes,
     onAction,
-    onAmbienteAction,
   });
 
   return (
@@ -147,7 +145,11 @@ export function SistemaTemplateDialog({
                   Voltar
                 </Button>
               )}
-              <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={!name.trim() || isSaving}
+                className="gap-2"
+              >
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving
                   ? "Salvando..."
@@ -163,7 +165,11 @@ export function SistemaTemplateDialog({
                   Cancelar
                 </Button>
               )}
-              <Button onClick={handleSave} disabled={!name.trim() || isSaving} className="gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={!name.trim() || isSaving}
+                className="gap-2"
+              >
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}
                 {isSaving
                   ? "Salvando..."

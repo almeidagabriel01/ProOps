@@ -10,14 +10,14 @@ export const SAFE_HEIGHT = PAGE_HEIGHT_PX - CONTENT_MARGIN_Y;
 
 // Estimated heights for different content types
 export const ESTIMATED_HEIGHTS = {
-  HEADER: 150,
-  SECTION_PADDING: 24,
-  LINE_HEIGHT: 28, // Increased line height estimation
-  IMAGE_DEFAULT: 300,
-  PRODUCT_HEADER: 60,
-  PRODUCT_ROW: 250,
-  TOTALS: 180,
-  PAYMENT_TERMS: 120,
+  HEADER: 100,
+  SECTION_PADDING: 20,
+  LINE_HEIGHT: 24,
+  IMAGE_DEFAULT: 200,
+  PRODUCT_HEADER: 50,
+  PRODUCT_ROW: 150,
+  TOTALS: 120,
+  PAYMENT_TERMS: 100,
 };
 
 /**
@@ -31,6 +31,8 @@ export type ContentItemType =
   | "product-row"
   | "totals"
   | "sistema-header"
+  | "sistema-product"
+  | "sistema-footer"
   | "extra-products-header"
   | "sistema-container-header"
   | "sistema-container-product"
@@ -59,6 +61,11 @@ interface Product {
   productImages?: string[];
   productImage?: string;
   productDescription?: string;
+}
+
+interface PdfDisplaySettings {
+  showProductImages?: boolean;
+  showProductDescriptions?: boolean;
 }
 
 /**
@@ -97,18 +104,28 @@ export function calculateSectionHeight(section: PdfSection): number {
  */
 export function calculateProductHeight(
   product: Product,
-  baseHeight: number = 150
+  baseHeight: number = 80,
+  settings?: PdfDisplaySettings,
 ): number {
   let height = baseHeight;
 
+  // Check settings (default to true if undefined)
+  const showImages = settings?.showProductImages !== false;
+  const showDescriptions = settings?.showProductDescriptions !== false;
+
   if (
-    (product.productImages && product.productImages.length > 0) ||
-    product.productImage
+    showImages &&
+    ((product.productImages && product.productImages.length > 0) ||
+      product.productImage)
   ) {
-    height += 200;
+    height += 100; // Image row height
   }
 
-  if (product.productDescription && product.productDescription.length > 50) {
+  if (
+    showDescriptions &&
+    product.productDescription &&
+    product.productDescription.length > 100
+  ) {
     height += 20;
   }
 
@@ -118,26 +135,42 @@ export function calculateProductHeight(
 /**
  * Calculate sistema block height
  */
-export function calculateSistemaBlockHeight(products: Product[]): number {
-  let totalHeight = 120; // Header height
+export function calculateSistemaBlockHeight(
+  products: Product[],
+  settings?: PdfDisplaySettings,
+): number {
+  let totalHeight = 100; // Header height
+
+  const showImages = settings?.showProductImages !== false;
+  const showDescriptions = settings?.showProductDescriptions !== false;
 
   products.forEach((product) => {
-    let h = 100;
+    let h = 80; // Base product height
     const imageCount =
       product.productImages?.length || (product.productImage ? 1 : 0);
-    if (imageCount > 0) {
-      h += 80;
+
+    if (showImages && imageCount > 0) {
+      h += 100; // Adjusted to match actual render (80px img + 12px margin + padding)
     }
+
+    if (
+      showDescriptions &&
+      product.productDescription &&
+      product.productDescription.length > 100
+    ) {
+      h += 20;
+    }
+
     totalHeight += h;
   });
 
-  totalHeight += 80; // Footer height
+  totalHeight += 60; // Footer height
   return totalHeight;
 }
 
 export function calculatePaymentTermsHeight(
   hasDownPayment: boolean,
-  installmentsCount: number = 0
+  installmentsCount: number = 0,
 ): number {
   let height = 60; // Title + Header
 

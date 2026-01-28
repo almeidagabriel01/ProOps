@@ -26,7 +26,6 @@ import {
 import {
   User,
   Mail,
-  Phone,
   MapPin,
   FileText,
   Loader2,
@@ -165,7 +164,7 @@ export default function NewCustomerPage() {
       if (result?.success) {
         router.push("/contacts");
       }
-    } catch (error) {
+    } catch {
       // Handled by hook
     }
   };

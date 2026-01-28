@@ -72,7 +72,7 @@ import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { ProposalPdfSettings, Tenant } from "@/types";
+import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
 import {
   Dialog,
@@ -97,8 +97,7 @@ function PdfDownloader({
 }) {
   const { handleGenerate, isGenerating } = usePdfGenerator({
     proposal: proposal || {},
-    settings: (proposal?.pdfSettings as ProposalPdfSettings) || {},
-    includeCover: true,
+
     setIsOpen: (v) => !v && onClose(),
   });
 
@@ -140,7 +139,6 @@ function PdfDownloader({
         proposal={proposal}
         template={template}
         tenant={tenant}
-        customSettings={proposal.pdfSettings as ProposalPdfSettings}
         showCover={true}
         noMargins={true}
       />
@@ -250,6 +248,12 @@ export default function ProposalsPage() {
           }
         }
 
+        // Sort by createdAt descending (most recent first)
+        data.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        );
         setProposals(data);
       } catch (error) {
         console.error("Failed to fetch proposals", error);

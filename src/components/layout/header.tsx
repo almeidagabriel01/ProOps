@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { User as UserIcon, LogOut, ArrowLeft } from "lucide-react";
+import { User as UserIcon, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
@@ -75,7 +75,6 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   const {
     tenant,
     tenantOwner,
-    refreshTenant,
     clearViewingTenant,
     isLoading: isTenantLoading,
   } = useTenant();

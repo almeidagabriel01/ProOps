@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SharedProposalService } from "@/services/shared-proposal-service";
 import { Proposal } from "@/types/proposal";
+import { Tenant, ProposalTemplate } from "@/types";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { toast } from "react-toastify";
+import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 
@@ -17,8 +18,8 @@ export default function SharedProposalPage() {
   const token = params.token as string;
 
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
-  const [template, setTemplate] = React.useState<any>(null); // Usar tipo correto se possível
-  const [tenant, setTenant] = React.useState<any>(null);
+  const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
+  const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -34,14 +35,15 @@ export default function SharedProposalPage() {
         setIsLoading(true);
         const data = await SharedProposalService.getSharedProposal(token);
         setProposal(data.proposal);
-        setTenant(data.tenant);
+        const tenantData = data.tenant as Tenant;
+        setTenant(tenantData);
 
         // Synthesize template for fallback
-        if (data.tenant) {
+        if (tenantData) {
           const t = ProposalDefaults.createDefaultTemplate(
-            data.tenant.id,
-            data.tenant.name,
-            data.tenant.primaryColor || "#2563eb",
+            tenantData.id,
+            tenantData.name,
+            tenantData.primaryColor || "#2563eb",
           );
           setTemplate(t);
         }
@@ -51,15 +53,17 @@ export default function SharedProposalPage() {
         //   position: "bottom-center",
         //   autoClose: 3000,
         // });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error loading shared proposal:", err);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const errorAny = err as any;
 
         if (
-          err?.message?.includes("410") ||
-          err?.response?.data?.code === "EXPIRED_LINK"
+          errorAny?.message?.includes("410") ||
+          errorAny?.response?.data?.code === "EXPIRED_LINK"
         ) {
           setError("Este link expirou. Solicite um novo link ao responsável.");
-        } else if (err?.message?.includes("404")) {
+        } else if (errorAny?.message?.includes("404")) {
           setError("Link inválido ou proposta não encontrada.");
         } else {
           setError("Erro ao carregar proposta. Tente novamente mais tarde.");
@@ -124,9 +128,11 @@ export default function SharedProposalPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {tenant?.logoUrl && (
-              <img
+              <Image
                 src={tenant.logoUrl}
                 alt={tenant.name}
+                width={40}
+                height={40}
                 className="h-10 w-auto object-contain"
               />
             )}

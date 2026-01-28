@@ -19,7 +19,6 @@ interface UseSistemaFormProps {
   managedSistemas?: Sistema[];
   managedAmbientes?: Ambiente[];
   onAction?: (action: MasterDataAction) => void;
-  onAmbienteAction?: (action: MasterDataAction) => void;
 }
 
 export function useSistemaForm({
@@ -28,10 +27,9 @@ export function useSistemaForm({
   preselectedAmbienteId,
   onSave,
   onClose,
-  managedSistemas,
+
   managedAmbientes,
   onAction,
-  onAmbienteAction,
 }: UseSistemaFormProps) {
   const { tenant } = useTenant();
 

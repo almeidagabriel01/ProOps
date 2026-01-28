@@ -19,7 +19,6 @@ import { PdfGenerator } from "@/components/features/proposal/pdf-generator";
 import { ProposalSection, ProposalStatus } from "@/types"; // Keep types that are only in MockDB
 import { ProposalService, Proposal } from "@/services/proposal-service"; // Use Service for logic
 import { useTenant } from "@/providers/tenant-provider";
-import { useCreateProposal } from "@/hooks/useCreateProposal";
 import { Save, ArrowLeft, Eye, Edit, Loader2 } from "lucide-react";
 
 interface ProposalFormProps {

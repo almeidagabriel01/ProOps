@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Transaction } from "@/services/transaction-service";
-import { Plus, Wallet, Search, Loader2, X } from "lucide-react";
+import { Plus, Wallet, Search, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
 import { FinancialSkeleton } from "./_components/financial-skeleton";
@@ -382,9 +382,7 @@ export default function FinancialPage() {
               }
 
               // If it IS the leader, we render it, passing the group members
-              const relatedInstallments = groupMembers.filter(
-                (t) => t.id !== leader.id,
-              );
+              // If it IS the leader, we render it, passing the group members
 
               return (
                 <TransactionCard

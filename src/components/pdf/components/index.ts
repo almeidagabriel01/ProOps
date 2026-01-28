@@ -1,4 +1,9 @@
-export { PdfSistemaBlock } from "./pdf-sistema-block";
+export {
+  PdfSistemaBlock,
+  PdfSistemaHeader,
+  PdfSistemaProduct,
+  PdfSistemaFooter,
+} from "./pdf-sistema-block";
 export { PdfExtraProductsBlock } from "./pdf-extra-products-block";
 export { PdfProductRow } from "./pdf-product-row";
 export { PdfTotals } from "./pdf-totals";

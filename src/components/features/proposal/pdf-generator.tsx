@@ -17,7 +17,6 @@ import { Download, FileDown, Loader2 } from "lucide-react";
 import { PdfCoverPage } from "./pdf/pdf-cover-page";
 import { PdfSettingsTabs, usePdfGenerator } from "./pdf";
 import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enriched-products";
-import { ProposalPreview } from "@/components/features/proposal/proposal-preview";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 
@@ -47,8 +46,6 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
 
   const { isGenerating, handleGenerate } = usePdfGenerator({
     proposal,
-    settings,
-    includeCover,
     setIsOpen,
   });
 

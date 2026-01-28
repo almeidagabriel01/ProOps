@@ -29,7 +29,7 @@ export const AmbienteService = {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(
@@ -40,7 +40,7 @@ export const AmbienteService = {
             createdAt:
               doc.data().createdAt?.toDate?.()?.toISOString() ||
               doc.data().createdAt,
-          }) as Ambiente
+          }) as Ambiente,
       );
     } catch (error) {
       console.error("Error fetching ambientes:", error);
@@ -67,7 +67,7 @@ export const AmbienteService = {
     const result = await callApi<{ success: boolean; id: string }>(
       "/v1/aux/ambientes",
       "POST",
-      data
+      data,
     );
     return {
       id: result.id,
@@ -79,7 +79,7 @@ export const AmbienteService = {
 
   updateAmbiente: async (
     id: string,
-    data: Partial<Ambiente>
+    data: Partial<Ambiente>,
   ): Promise<void> => {
     await callApi(`/v1/aux/ambientes/${id}`, "PUT", data);
   },
@@ -93,13 +93,13 @@ export const AmbienteService = {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
       const snap = await getDocs(q);
       if (snap.empty) return 1;
       const maxOrder = Math.max(...snap.docs.map((d) => d.data().order || 0));
       return maxOrder + 1;
-    } catch (e) {
+    } catch {
       return 1;
     }
   },

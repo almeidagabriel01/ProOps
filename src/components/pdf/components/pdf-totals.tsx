@@ -1,5 +1,9 @@
 import { ProposalProduct } from "@/types/proposal";
 import { formatCurrency } from "@/utils/format-utils";
+import {
+  PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+} from "@/types/pdf-display-settings";
 
 interface PdfTotalsProps {
   products: ProposalProduct[];
@@ -7,11 +11,7 @@ interface PdfTotalsProps {
   extraExpense?: number;
   contentStyles: Record<string, React.CSSProperties>;
   // Payment options (optional for backwards compatibility)
-  downPaymentEnabled?: boolean;
-  downPaymentValue?: number;
-  installmentsEnabled?: boolean;
-  installmentsCount?: number;
-  installmentValue?: number;
+  pdfDisplaySettings?: PdfDisplaySettings;
 }
 
 /**
@@ -22,19 +22,12 @@ export function PdfTotals({
   discount,
   extraExpense,
   contentStyles,
-  downPaymentEnabled,
-  downPaymentValue,
-  installmentsEnabled,
-  installmentsCount,
-  installmentValue,
+  pdfDisplaySettings,
 }: PdfTotalsProps) {
+  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
   const subtotal = products.reduce((sum, p) => sum + p.total, 0);
   const discountAmt = (subtotal * (discount || 0)) / 100;
   const total = subtotal - discountAmt + (extraExpense || 0);
-
-  const hasPaymentOptions =
-    (downPaymentEnabled && downPaymentValue && downPaymentValue > 0) ||
-    (installmentsEnabled && installmentsCount && installmentsCount >= 1);
 
   return (
     <div
@@ -42,13 +35,15 @@ export function PdfTotals({
       style={contentStyles.headerBorder}
     >
       <div className="w-72 grid gap-2 text-right">
-        <div
-          className="flex items-baseline justify-between"
-          style={contentStyles.subtotal}
-        >
-          <span>Subtotal:</span>
-          <span className="font-medium">{formatCurrency(subtotal)}</span>
-        </div>
+        {settings.showSubtotals && (
+          <div
+            className="flex items-baseline justify-between"
+            style={contentStyles.subtotal}
+          >
+            <span>Subtotal:</span>
+            <span className="font-medium">{formatCurrency(subtotal)}</span>
+          </div>
+        )}
         {discount > 0 && (
           <div
             className="flex items-baseline justify-between"

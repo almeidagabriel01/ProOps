@@ -125,12 +125,12 @@ export function ProposalSummarySection({
                           <td className="p-3 text-right whitespace-nowrap">
                             R${" "}
                             {(
-                              product.unitPrice *
+                              (product.unitPrice || 0) *
                               (1 + (product.markup || 0) / 100)
                             ).toFixed(2)}
                           </td>
                           <td className="p-3 text-right font-medium whitespace-nowrap">
-                            R$ {product.total.toFixed(2)}
+                            R$ {(product.total || 0).toFixed(2)}
                           </td>
                         </tr>
                       ))}
@@ -145,7 +145,7 @@ export function ProposalSummarySection({
                           className="p-2 text-right font-medium text-sm whitespace-nowrap"
                           style={{ color: primaryColor }}
                         >
-                          R$ {sistemaTotal.toFixed(2)}
+                          R$ {(sistemaTotal || 0).toFixed(2)}
                         </td>
                       </tr>
                     </React.Fragment>

@@ -32,7 +32,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const sourceConfig: Record<
@@ -80,6 +79,12 @@ export default function CustomersPage() {
       if (tenant) {
         try {
           const data = await ClientService.getClients(tenant.id);
+          // Sort by createdAt descending (most recent first)
+          data.sort(
+            (a, b) =>
+              new Date(b.createdAt || 0).getTime() -
+              new Date(a.createdAt || 0).getTime(),
+          );
           setClients(data);
         } catch (error) {
           console.error("Failed to fetch clients", error);

@@ -1,5 +1,32 @@
 "use client";
 
+/**
+ * Proposal Form Hook - Enterprise Architecture
+ * 
+ * AUTO-SAVE STRATEGY (Senior Engineer Design):
+ * ============================================
+ * 
+ * NEW PROPOSALS (Creating):
+ * - Auto-save enabled on unmount (draft preservation)
+ * - Helps prevent data loss during accidental navigation
+ * 
+ * EXISTING PROPOSALS (Editing):
+ * - Auto-save DISABLED completely
+ * - User MUST explicitly click "Save" to commit changes
+ * - "Discard" simply navigates away without saving
+ * - Original data remains untouched in database
+ * 
+ * This prevents:
+ * - Accidental overwrites during Fast Refresh
+ * - Lost data when user clicks "Discard"
+ * - Confusion about when changes are persisted
+ * 
+ * Dirty Detection:
+ * - Tracks changes by comparing current state vs. initial snapshot
+ * - Only compares essential fields (not derived/calculated values)
+ * - Triggers "Unsaved Changes" modal on navigation attempt
+ */
+
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +42,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
+import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { getExtraProducts } from "./product-handlers";
 import { toast } from "react-toastify";
 import { AmbienteService, Ambiente } from "@/services/ambiente-service";
@@ -27,6 +55,7 @@ import {
 import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
 import { ClientType } from "@/services/client-service";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const EMPTY_ARRAY: any[] = [];
 
 export interface UseProposalFormProps {
@@ -37,6 +66,7 @@ export interface UseProposalFormReturn {
   // State
   isLoading: boolean;
   isSaving: boolean;
+  isDirty: boolean;
   products: Product[];
   template: ProposalTemplate | null;
   selectedClientId: string | undefined;
@@ -108,6 +138,8 @@ export interface UseProposalFormReturn {
     markup: number,
     systemInstanceId?: string,
   ) => void;
+  resetToInitial: () => void;
+  markAsDiscarded: () => void;
 }
 
 export function useProposalForm({
@@ -124,9 +156,21 @@ export function useProposalForm({
 
   const [isLoading, setIsLoading] = React.useState(!!proposalId);
   const [isSaving, setIsSaving] = React.useState(false);
+
+  // Track initial form data for dirty detection (only for existing proposals)
+  const initialFormDataRef = React.useRef<string | null>(null);
+  const initialSistemasRef = React.useRef<string | null>(null);
+  const initialClientIdRef = React.useRef<string | undefined>(undefined);
+  const initialIsNewClientRef = React.useRef<boolean>(true);
+  
+  // Flag to prevent auto-save when user explicitly discards changes
+  const userDiscardedRef = React.useRef(false);
+
   const [products, setProducts] = React.useState<Product[]>([]);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
-  const [clientTypes, setClientTypes] = React.useState<ClientType[]>(["cliente"]);
+  const [clientTypes, setClientTypes] = React.useState<ClientType[]>([
+    "cliente",
+  ]);
   const [selectedClientId, setSelectedClientId] = React.useState<
     string | undefined
   >(undefined);
@@ -154,6 +198,17 @@ export function useProposalForm({
     installmentValue: 0,
     installmentsWallet: "",
     firstInstallmentDate: "",
+    // PDF display settings (defaults)
+    pdfSettings: {
+      showProductImages: true,
+      showProductDescriptions: true,
+      showProductPrices: false,
+      showSubtotals: true,
+      showPaymentTerms: true,
+      showLogo: true,
+      showValidUntil: true,
+      showNotes: true,
+    },
   });
 
   const [selectedSistemas, setSelectedSistemas] = React.useState<
@@ -188,7 +243,7 @@ export function useProposalForm({
     (tempId: string, realId: string, entity: "ambiente" | "sistema") => {
       setSelectedSistemas((prev) =>
         prev.map((s) => {
-          let updated = { ...s };
+          const updated = { ...s };
           let changed = false;
 
           // Check main IDs
@@ -230,7 +285,6 @@ export function useProposalForm({
     mergedSistemas,
     handleAmbienteAction,
     handleSistemaAction,
-    commitChanges,
     setLocalAmbientes,
     setLocalSistemas,
     pendingActionsCount,
@@ -268,12 +322,19 @@ export function useProposalForm({
     };
   });
 
-  // Auto-save on unmount
+  // Auto-save on unmount (ONLY for new drafts, NEVER for existing proposals)
   React.useEffect(() => {
     return () => {
       const state = latestStateRef.current;
 
-      // Prevent saving if there are pending master data transactions (Senior Integrity Check)
+      // CRITICAL: Never auto-save existing proposals being edited
+      // User must explicitly click Save to preserve changes
+      if (state.proposalId) {
+        console.log("Auto-save skipped - editing existing proposal (user must click Save)");
+        return;
+      }
+
+      // Prevent saving if there are pending master data transactions
       if (state.pendingActionsCount > 0) {
         console.warn(
           "Auto-save blocked due to pending master data transactions",
@@ -281,25 +342,27 @@ export function useProposalForm({
         return;
       }
 
-      // Only auto-save if:
+      // Prevent auto-save if user explicitly discarded changes
+      if (userDiscardedRef.current) {
+        console.log("Auto-save blocked - user discarded changes");
+        return;
+      }
+
+      // Only auto-save NEW drafts if:
       // 1. User did NOT manually save (hasSaved === false)
       // 2. There is some data (Client selected OR Title typed OR Products added)
-      // 3. If it's a new proposal OR an existing one (we now support edit auto-save)
       if (
         !state.hasSaved &&
-        (state.proposalId || // Always save edits to existing proposals (Fix "Cleared Environment" issue)
-          state.selectedClientId ||
+        (state.selectedClientId ||
           (state.formData.title && state.formData.title.length > 0) ||
           (state.formData.products && state.formData.products.length > 0) ||
           (state.selectedSistemas && state.selectedSistemas.length > 0))
       ) {
-        // ... (rest of save logic)
-        // Perform auto-save with fire-and-forget
         (async () => {
           // Notify global service that a save is starting (so list waits)
           const resolveSave = ProposalService.notifySavingStarted();
           try {
-            console.log("Auto-saving proposal (draft/edit)...");
+            console.log("Auto-saving new draft proposal...");
 
             // No commitChanges needed as Master Data is immediate
 
@@ -323,14 +386,9 @@ export function useProposalForm({
               },
             });
 
-            // 2. Create or Update Proposal
-            if (state.proposalId) {
-              await ProposalService.updateProposal(state.proposalId, payload);
-              console.log("Auto-saved existing proposal");
-            } else {
-              await ProposalService.createProposal(payload);
-              console.log("Auto-saved new draft");
-            }
+            // 2. Create new draft (never update existing)
+            await ProposalService.createProposal(payload);
+            console.log("Auto-saved new draft successfully");
           } catch (err) {
             console.error("Auto-save failed", err);
           } finally {
@@ -344,12 +402,6 @@ export function useProposalForm({
   // ... (Load Initial Data) ...
 
   // Load existing proposal if editing
-  React.useEffect(() => {
-    const fetchProposal = async () => {
-      // ... (fetch logic)
-    };
-    /* Removed large logic block to focus on the fallback removal target area which is way down in fetchProposal */
-  });
 
   /* I will use a separate replace call for the fallback removal to avoid context errors with this large block */
 
@@ -395,6 +447,48 @@ export function useProposalForm({
     fetchInitialData();
   }, [tenant]);
 
+  // Helper to get a consistent snapshot of form data for comparison
+  const getFormSnapshot = React.useCallback((data: Partial<Proposal>) => {
+    return JSON.stringify({
+      title: data.title || "",
+      clientName: data.clientName || "",
+      clientEmail: data.clientEmail || "",
+      clientPhone: data.clientPhone || "",
+      clientAddress: data.clientAddress || "",
+      validUntil: data.validUntil || "",
+      customNotes: data.customNotes || "",
+      discount: data.discount || 0,
+      extraExpense: data.extraExpense || 0,
+      status: data.status || "in_progress",
+      // Store complete product objects for proper restoration
+      products: (data.products || []).map((p) => ({
+        productId: p.productId,
+        productName: p.productName,
+        productImage: p.productImage,
+        productImages: p.productImages,
+        productDescription: p.productDescription,
+        quantity: p.quantity,
+        unitPrice: p.unitPrice,
+        markup: p.markup,
+        total: p.total,
+        manufacturer: p.manufacturer,
+        category: p.category,
+        systemInstanceId: p.systemInstanceId,
+        isExtra: p.isExtra,
+      })),
+      downPaymentEnabled: data.downPaymentEnabled || false,
+      downPaymentValue: data.downPaymentValue || 0,
+      downPaymentWallet: data.downPaymentWallet || "",
+      downPaymentDueDate: data.downPaymentDueDate || "",
+      installmentsEnabled: data.installmentsEnabled || false,
+      installmentsCount: data.installmentsCount || 1,
+      installmentValue: data.installmentValue || 0,
+      installmentsWallet: data.installmentsWallet || "",
+      firstInstallmentDate: data.firstInstallmentDate || "",
+      pdfSettings: mergePdfDisplaySettings(data.pdfSettings),
+    });
+  }, []);
+
   // Load existing proposal if editing
   React.useEffect(() => {
     const fetchProposal = async () => {
@@ -427,6 +521,14 @@ export function useProposalForm({
               }
               setSelectedClientId(proposal.clientId);
               setIsNewClient(false);
+              
+              // Store initial client state for reset
+              initialClientIdRef.current = proposal.clientId;
+              initialIsNewClientRef.current = false;
+            } else {
+              // No client selected in proposal
+              initialClientIdRef.current = undefined;
+              initialIsNewClientRef.current = true;
             }
 
             // Sync product data from loaded products
@@ -462,7 +564,7 @@ export function useProposalForm({
               return pp;
             });
 
-            setFormData({
+            const loadedFormData = {
               title: proposal.title || "",
               clientName: syncedClientName,
               clientEmail: syncedClientEmail,
@@ -484,7 +586,10 @@ export function useProposalForm({
               installmentValue: proposal.installmentValue || 0,
               installmentsWallet: proposal.installmentsWallet || "",
               firstInstallmentDate: proposal.firstInstallmentDate || "",
-            });
+              pdfSettings: mergePdfDisplaySettings(proposal.pdfSettings),
+            };
+
+            setFormData(loadedFormData);
 
             if (proposal.sistemas && proposal.sistemas.length > 0) {
               // Fetch latest master data to reconcile names
@@ -546,18 +651,40 @@ export function useProposalForm({
                 ),
               );
               setSystemProductIds(sysProductIds);
+
+              // Save initial sistemas state for dirty detection
+              initialSistemasRef.current = JSON.stringify(sistemas);
+            }
+
+            // Save initial form state for dirty detection using loaded proposal data
+            initialFormDataRef.current = getFormSnapshot(loadedFormData);
+
+            // Set empty array if no sistemas were loaded
+            if (!initialSistemasRef.current) {
+              initialSistemasRef.current = JSON.stringify([]);
             }
           }
         } catch (error) {
           console.error("Error loading proposal", error);
         }
+
         setIsLoading(false);
       }
     };
     fetchProposal();
-  }, [proposalId, products, tenant]);
+  }, [
+    proposalId,
+    products,
+    tenant,
+    getFormSnapshot,
+    setLocalAmbientes,
+    setLocalSistemas,
+  ]);
 
-  const selectedProducts = formData.products || [];
+  const selectedProducts = React.useMemo(
+    () => formData.products || [],
+    [formData.products],
+  );
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
 
   // Product handlers
@@ -694,12 +821,22 @@ export function useProposalForm({
   };
 
   // Calculations
-  const calculateSubtotal = () =>
-    selectedProducts.reduce((sum, p) => sum + p.total, 0);
-  const calculateDiscount = () =>
-    (calculateSubtotal() * (formData.discount || 0)) / 100;
-  const calculateTotal = () =>
-    calculateSubtotal() - calculateDiscount() + (formData.extraExpense || 0);
+  // Calculations
+  const calculateSubtotal = React.useCallback(
+    () => selectedProducts.reduce((sum, p) => sum + p.total, 0),
+    [selectedProducts],
+  );
+
+  const calculateDiscount = React.useCallback(
+    () => (calculateSubtotal() * (formData.discount || 0)) / 100,
+    [calculateSubtotal, formData.discount],
+  );
+
+  const calculateTotal = React.useCallback(
+    () =>
+      calculateSubtotal() - calculateDiscount() + (formData.extraExpense || 0),
+    [calculateSubtotal, calculateDiscount, formData.extraExpense],
+  );
 
   // Calculate installment value based on total (including extra expense) minus down payment
   const calculateInstallmentValue = React.useCallback(() => {
@@ -714,7 +851,6 @@ export function useProposalForm({
     formData.downPaymentEnabled,
     formData.downPaymentValue,
     formData.installmentsCount,
-    formData.extraExpense,
     calculateTotal,
   ]);
 
@@ -994,9 +1130,155 @@ export function useProposalForm({
     }));
   };
 
+  // Compute isDirty by comparing current state to initial
+  const isDirty = React.useMemo(() => {
+    // Only track dirty for existing proposals
+    if (!proposalId) return false;
+    if (!initialFormDataRef.current) return false;
+
+    // Compare essential fields only (excluding derived fields like total)
+    const currentSnapshot = JSON.stringify({
+      title: formData.title || "",
+      clientName: formData.clientName || "",
+      clientEmail: formData.clientEmail || "",
+      clientPhone: formData.clientPhone || "",
+      clientAddress: formData.clientAddress || "",
+      validUntil: formData.validUntil || "",
+      customNotes: formData.customNotes || "",
+      discount: formData.discount || 0,
+      extraExpense: formData.extraExpense || 0,
+      status: formData.status || "in_progress",
+      products: (formData.products || []).map((p) => ({
+        productId: p.productId,
+        quantity: p.quantity,
+        unitPrice: p.unitPrice,
+        markup: p.markup,
+        systemInstanceId: p.systemInstanceId,
+        isExtra: p.isExtra,
+      })),
+      downPaymentEnabled: formData.downPaymentEnabled || false,
+      downPaymentValue: formData.downPaymentValue || 0,
+      downPaymentWallet: formData.downPaymentWallet || "",
+      downPaymentDueDate: formData.downPaymentDueDate || "",
+      installmentsEnabled: formData.installmentsEnabled || false,
+      installmentsCount: formData.installmentsCount || 1,
+      installmentValue: formData.installmentValue || 0,
+      installmentsWallet: formData.installmentsWallet || "",
+      firstInstallmentDate: formData.firstInstallmentDate || "",
+      pdfSettings: mergePdfDisplaySettings(formData.pdfSettings),
+    });
+
+    // Parse the initial snapshot to compare only essential fields
+    let initialEssentialSnapshot = "";
+    try {
+      const initialData = JSON.parse(initialFormDataRef.current);
+      initialEssentialSnapshot = JSON.stringify({
+        title: initialData.title || "",
+        clientName: initialData.clientName || "",
+        clientEmail: initialData.clientEmail || "",
+        clientPhone: initialData.clientPhone || "",
+        clientAddress: initialData.clientAddress || "",
+        validUntil: initialData.validUntil || "",
+        customNotes: initialData.customNotes || "",
+        discount: initialData.discount || 0,
+        extraExpense: initialData.extraExpense || 0,
+        status: initialData.status || "in_progress",
+        products: (initialData.products || []).map((p: ProposalProduct) => ({
+          productId: p.productId,
+          quantity: p.quantity,
+          unitPrice: p.unitPrice,
+          markup: p.markup,
+          systemInstanceId: p.systemInstanceId,
+          isExtra: p.isExtra,
+        })),
+        downPaymentEnabled: initialData.downPaymentEnabled || false,
+        downPaymentValue: initialData.downPaymentValue || 0,
+        downPaymentWallet: initialData.downPaymentWallet || "",
+        downPaymentDueDate: initialData.downPaymentDueDate || "",
+        installmentsEnabled: initialData.installmentsEnabled || false,
+        installmentsCount: initialData.installmentsCount || 1,
+        installmentValue: initialData.installmentValue || 0,
+        installmentsWallet: initialData.installmentsWallet || "",
+        firstInstallmentDate: initialData.firstInstallmentDate || "",
+        pdfSettings: mergePdfDisplaySettings(initialData.pdfSettings),
+      });
+    } catch (e) {
+      console.error("Error parsing initial snapshot for dirty detection:", e);
+      return false;
+    }
+
+    const currentSistemas = JSON.stringify(selectedSistemas);
+
+    return (
+      currentSnapshot !== initialEssentialSnapshot ||
+      currentSistemas !== initialSistemasRef.current
+    );
+  }, [proposalId, formData, selectedSistemas]);
+
+  // Reset form to initial state (for discard functionality)
+  const resetToInitial = React.useCallback(() => {
+    if (!initialFormDataRef.current) return;
+
+    try {
+      const initialForm = JSON.parse(initialFormDataRef.current);
+
+      // Restore client selection state
+      setSelectedClientId(initialClientIdRef.current);
+      setIsNewClient(initialIsNewClientRef.current);
+
+      // Restore complete form data with all product fields
+      setFormData((prev) => ({
+        ...prev,
+        title: initialForm.title || "",
+        clientName: initialForm.clientName || "",
+        clientEmail: initialForm.clientEmail || "",
+        clientPhone: initialForm.clientPhone || "",
+        clientAddress: initialForm.clientAddress || "",
+        validUntil: initialForm.validUntil || "",
+        customNotes: initialForm.customNotes || "",
+        discount: initialForm.discount || 0,
+        extraExpense: initialForm.extraExpense || 0,
+        products: initialForm.products || [], // Full product objects preserved in snapshot
+        status: initialForm.status || "in_progress",
+        downPaymentEnabled: initialForm.downPaymentEnabled || false,
+        downPaymentValue: initialForm.downPaymentValue || 0,
+        downPaymentWallet: initialForm.downPaymentWallet || "",
+        downPaymentDueDate: initialForm.downPaymentDueDate || "",
+        installmentsEnabled: initialForm.installmentsEnabled || false,
+        installmentsCount: initialForm.installmentsCount || 1,
+        installmentValue: initialForm.installmentValue || 0,
+        installmentsWallet: initialForm.installmentsWallet || "",
+        firstInstallmentDate: initialForm.firstInstallmentDate || "",
+        pdfSettings: initialForm.pdfSettings,
+      }));
+
+      // Restore sistemas if available
+      if (initialSistemasRef.current) {
+        const initialSistemas = JSON.parse(initialSistemasRef.current);
+        setSelectedSistemas(initialSistemas);
+        
+        // Restore system product IDs
+        const sysProductIds = new Set(
+          initialSistemas.flatMap((s: ProposalSistema) => 
+            (s.products || []).map((p) => p.productId)
+          )
+        );
+        setSystemProductIds(sysProductIds);
+      }
+    } catch (e) {
+      console.error("Error resetting form to initial state:", e);
+    }
+  }, []);
+
+  // Mark that user discarded changes (prevents auto-save)
+  const markAsDiscarded = React.useCallback(() => {
+    userDiscardedRef.current = true;
+  }, []);
+
   return {
     isLoading,
     isSaving,
+    isDirty,
     products,
     template,
     selectedClientId,
@@ -1040,5 +1322,7 @@ export function useProposalForm({
     updateSistema,
     addProductToSystem,
     updateProductMarkup,
+    resetToInitial,
+    markAsDiscarded,
   };
 }

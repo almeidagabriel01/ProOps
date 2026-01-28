@@ -1,3 +1,5 @@
+import { PdfDisplaySettings } from "./pdf-display-settings";
+
 export type ProposalStatus =
   | "draft"
   | "in_progress"
@@ -10,7 +12,6 @@ export interface ProposalProduct {
   name?: string; // Legacy/Optional
   productName: string; // Used in components
   quantity: number;
-  price?: number; // Legacy/Optional
   unitPrice: number; // Used in components (base/cost price)
   markup?: number; // Profit percentage
   total: number;
@@ -54,7 +55,7 @@ export interface Proposal {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  pdfSettings?: Record<string, unknown>;
+  pdfSettings?: PdfDisplaySettings;
   // Payment options
   downPaymentEnabled?: boolean;
   downPaymentValue?: number;

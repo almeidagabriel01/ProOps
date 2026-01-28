@@ -24,10 +24,7 @@ import {
   Banknote,
   CreditCard,
   FileText,
-  X,
-  CreditCard as CreditCardIcon,
   Edit2,
-  Layers,
   Split,
 } from "lucide-react";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
@@ -35,7 +32,6 @@ import { typeConfig, statusConfig } from "../_constants/config";
 import { formatCurrency } from "@/utils/format";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "react-toastify";
-import { cn } from "@/lib/utils";
 
 import { TransactionInstallmentsList } from "./transaction-installments-list";
 import { EditBlockDialog } from "./edit-block-dialog";
@@ -921,7 +917,6 @@ export function TransactionCard({
       <EditBlockDialog
         open={showEditBlockDialog}
         onOpenChange={setShowEditBlockDialog}
-        transaction={transaction}
       />
       {partialPaymentTransaction && (
         <PartialPaymentDialog

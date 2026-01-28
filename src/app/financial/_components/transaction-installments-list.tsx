@@ -176,7 +176,7 @@ export function TransactionInstallmentsList({
     // Convert map to array and sort by installment number
     return Array.from(groups.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([_, group]) => {
+      .map(([, group]) => {
         // Sort subs by date desc
         group.subs.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -563,7 +563,6 @@ export function TransactionInstallmentsList({
                           <div className="absolute left-[34px] top-0 bottom-4 w-px bg-border border-l border-dashed" />
 
                           {group.subs.map((subItem) => {
-                            const isUpdatingSub = updatingId === subItem.id;
                             return (
                               <div
                                 key={subItem.id}
