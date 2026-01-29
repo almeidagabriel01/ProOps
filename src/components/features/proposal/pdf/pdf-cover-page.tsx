@@ -104,6 +104,32 @@ const renderSingleElement = (
     );
   }
 
+  // Handle image element
+  if (element.type === "image") {
+    if (!element.imageUrl) return null;
+    return (
+      <img
+        key={element.id}
+        src={element.imageUrl}
+        alt=""
+        style={{
+          ...basePositionStyle,
+          width: element.styles.imageWidth
+            ? `${element.styles.imageWidth}%`
+            : "30%",
+          height: element.styles.imageHeight
+            ? `${element.styles.imageHeight}px`
+            : "auto",
+          objectFit: "contain",
+          opacity: element.styles.opacity ?? 1,
+          borderRadius: element.styles.borderRadius
+            ? `${element.styles.borderRadius}px`
+            : "0",
+        }}
+      />
+    );
+  }
+
   // Determine display content based on flags
   let displayContent = element.content;
 
