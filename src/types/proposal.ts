@@ -34,6 +34,15 @@ export interface ProposalSystemInstance {
   productIds: string[];
 }
 
+export interface ProposalAttachment {
+  id: string;
+  name: string;
+  url: string;
+  type: 'image' | 'pdf';
+  size: number;
+  uploadedAt: string;
+}
+
 export interface Proposal {
   id: string;
   tenantId: string;
@@ -56,6 +65,7 @@ export interface Proposal {
   createdAt: string;
   updatedAt: string;
   pdfSettings?: PdfDisplaySettings;
+  attachments?: ProposalAttachment[];
   // Payment options
   downPaymentEnabled?: boolean;
   downPaymentValue?: number;
