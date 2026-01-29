@@ -979,9 +979,9 @@ export function useProposalForm({
           toast.success("Proposta atualizada com sucesso!");
           router.push("/proposals");
         } else {
-          await ProposalService.createProposal(payload);
+          const createdProposal = await ProposalService.createProposal(payload);
           toast.success("Proposta criada com sucesso!");
-          router.push("/proposals");
+          router.push(`/proposals/${createdProposal.id}/edit-pdf`);
         }
       } catch (error) {
         console.error("Error saving proposal:", error);
