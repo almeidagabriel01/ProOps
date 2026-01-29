@@ -21,7 +21,7 @@ interface StepWizardContextType {
 }
 
 const StepWizardContext = React.createContext<StepWizardContextType | null>(
-  null
+  null,
 );
 
 export function useStepWizard() {
@@ -64,9 +64,22 @@ export function StepWizard({
   const [maxVisitedStep, setMaxVisitedStep] = React.useState(0);
   const totalSteps = steps.length;
 
+  // Utility to scroll the main content container to top
+  const scrollToTop = React.useCallback(() => {
+    // Try to find the main scrollable container first
+    const mainContent = document.getElementById("main-content");
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      // Fallback to window scroll
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
   const goToStep = (step: number) => {
     if (step >= 0 && step < totalSteps) {
       setCurrentStep(step);
+      scrollToTop();
     }
   };
 
@@ -75,6 +88,7 @@ export function StepWizard({
       const nextStepIndex = currentStep + 1;
       setCurrentStep(nextStepIndex);
       setMaxVisitedStep((prev) => Math.max(prev, nextStepIndex));
+      scrollToTop();
     } else {
       onComplete?.();
     }
@@ -83,6 +97,7 @@ export function StepWizard({
   const prevStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+      scrollToTop();
     }
   };
 
@@ -174,7 +189,7 @@ function StepIndicator({
               disabled={!canClick}
               className={cn(
                 "flex flex-col items-center group transition-all duration-300",
-                canClick ? "cursor-pointer" : "cursor-not-allowed"
+                canClick ? "cursor-pointer" : "cursor-not-allowed",
               )}
             >
               {/* Step circle */}
@@ -191,7 +206,7 @@ function StepIndicator({
                     "bg-primary/5 border-primary/30 text-primary/50",
                   isPending &&
                     allowClickAhead &&
-                    "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10"
+                    "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10",
                 )}
               >
                 {isCompleted ? (
@@ -216,7 +231,7 @@ function StepIndicator({
                     isCurrent && "text-primary",
                     isCompleted && "text-foreground",
                     isPending && "text-primary/50",
-                    isPending && allowClickAhead && "group-hover:text-primary"
+                    isPending && allowClickAhead && "group-hover:text-primary",
                   )}
                 >
                   {step.title}
@@ -257,7 +272,7 @@ function StepContent({ index, currentStep, children }: StepContentProps) {
           ? "opacity-100 translate-x-0 pointer-events-auto"
           : "opacity-0 absolute inset-0 pointer-events-none",
         !isActive && direction > 0 && "translate-x-8",
-        !isActive && direction < 0 && "-translate-x-8"
+        !isActive && direction < 0 && "-translate-x-8",
       )}
       aria-hidden={!isActive}
     >
@@ -356,7 +371,7 @@ export function StepNavigation({
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2"
+            "flex items-center gap-2",
           )}
         >
           {isSubmitting || isValidating ? (
@@ -382,7 +397,7 @@ export function StepNavigation({
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2"
+            "flex items-center gap-2",
           )}
         >
           {isValidating ? (
@@ -416,7 +431,7 @@ export function StepCard({ className, children, ...props }: StepCardProps) {
       className={cn(
         "rounded-2xl border border-border/50 bg-card p-6 sm:p-8",
         "shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500",
-        className
+        className,
       )}
       {...props}
     >

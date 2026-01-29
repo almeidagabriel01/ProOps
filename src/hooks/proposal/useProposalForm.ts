@@ -2,25 +2,25 @@
 
 /**
  * Proposal Form Hook - Enterprise Architecture
- * 
+ *
  * AUTO-SAVE STRATEGY (Senior Engineer Design):
  * ============================================
- * 
+ *
  * NEW PROPOSALS (Creating):
  * - Auto-save enabled on unmount (draft preservation)
  * - Helps prevent data loss during accidental navigation
- * 
+ *
  * EXISTING PROPOSALS (Editing):
  * - Auto-save DISABLED completely
  * - User MUST explicitly click "Save" to commit changes
  * - "Discard" simply navigates away without saving
  * - Original data remains untouched in database
- * 
+ *
  * This prevents:
  * - Accidental overwrites during Fast Refresh
  * - Lost data when user clicks "Discard"
  * - Confusion about when changes are persisted
- * 
+ *
  * Dirty Detection:
  * - Tracks changes by comparing current state vs. initial snapshot
  * - Only compares essential fields (not derived/calculated values)
@@ -95,7 +95,7 @@ export interface UseProposalFormReturn {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
+  handleSubmit: (e: React.FormEvent) => Promise<boolean>;
   toggleProduct: (product: Product) => void;
   updateProductQuantity: (
     productId: string,
@@ -162,7 +162,7 @@ export function useProposalForm({
   const initialSistemasRef = React.useRef<string | null>(null);
   const initialClientIdRef = React.useRef<string | undefined>(undefined);
   const initialIsNewClientRef = React.useRef<boolean>(true);
-  
+
   // Flag to prevent auto-save when user explicitly discards changes
   const userDiscardedRef = React.useRef(false);
 
@@ -330,7 +330,9 @@ export function useProposalForm({
       // CRITICAL: Never auto-save existing proposals being edited
       // User must explicitly click Save to preserve changes
       if (state.proposalId) {
-        console.log("Auto-save skipped - editing existing proposal (user must click Save)");
+        console.log(
+          "Auto-save skipped - editing existing proposal (user must click Save)",
+        );
         return;
       }
 
@@ -350,14 +352,16 @@ export function useProposalForm({
 
       // Only auto-save NEW drafts if:
       // 1. User did NOT manually save (hasSaved === false)
-      // 2. There is some data (Client selected OR Title typed OR Products added)
-      if (
-        !state.hasSaved &&
-        (state.selectedClientId ||
-          (state.formData.title && state.formData.title.length > 0) ||
-          (state.formData.products && state.formData.products.length > 0) ||
-          (state.selectedSistemas && state.selectedSistemas.length > 0))
-      ) {
+      // 2. There is some data (Title typed OR Client selected OR Products added)
+      const hasAnyData =
+        state.selectedClientId ||
+        (state.formData.clientName &&
+          state.formData.clientName.trim().length > 0) ||
+        (state.formData.title && state.formData.title.trim().length > 0) ||
+        (state.formData.products && state.formData.products.length > 0) ||
+        (state.selectedSistemas && state.selectedSistemas.length > 0);
+
+      if (!state.hasSaved && hasAnyData) {
         (async () => {
           // Notify global service that a save is starting (so list waits)
           const resolveSave = ProposalService.notifySavingStarted();
@@ -366,12 +370,17 @@ export function useProposalForm({
 
             // No commitChanges needed as Master Data is immediate
 
+            // For auto-save, always use "draft" status and provide placeholder values
+            const draftFormData = {
+              ...state.formData,
+              status: "draft" as const, // Auto-save is always draft
+              title: state.formData.title?.trim() || "(Rascunho)",
+              clientName: state.formData.clientName?.trim() || "(Rascunho)",
+            };
+
             // 1. Prepare payload (IDs are already real)
             const payload = prepareCreatePayload({
-              formData: {
-                ...state.formData,
-                status: state.formData.status || "draft",
-              },
+              formData: draftFormData,
               selectedProducts: state.selectedProducts,
               selectedSistemas: state.selectedSistemas,
               clientId: state.selectedClientId,
@@ -447,6 +456,19 @@ export function useProposalForm({
     fetchInitialData();
   }, [tenant]);
 
+  // Load tenant defaults for new proposals
+  React.useEffect(() => {
+    if (!proposalId && tenant?.proposalDefaults) {
+      setFormData((prev) => ({
+        ...prev,
+        pdfSettings: mergePdfDisplaySettings({
+          ...prev.pdfSettings,
+          ...tenant.proposalDefaults,
+        }),
+      }));
+    }
+  }, [tenant, proposalId]);
+
   // Helper to get a consistent snapshot of form data for comparison
   const getFormSnapshot = React.useCallback((data: Partial<Proposal>) => {
     return JSON.stringify({
@@ -521,7 +543,7 @@ export function useProposalForm({
               }
               setSelectedClientId(proposal.clientId);
               setIsNewClient(false);
-              
+
               // Store initial client state for reset
               initialClientIdRef.current = proposal.clientId;
               initialIsNewClientRef.current = false;
@@ -895,7 +917,7 @@ export function useProposalForm({
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
 
     if (!proposalId) {
@@ -904,24 +926,13 @@ export function useProposalForm({
         const count = await getProposalCount();
         setCurrentProposalCount(count);
         setShowLimitModal(true);
-        return;
+        return false;
       }
     }
 
     if (!tenant) {
       toast.error("Erro: Nenhuma empresa selecionada!");
-      return;
-    }
-
-    if (
-      !formData.title ||
-      !formData.clientName ||
-      selectedProducts.length === 0
-    ) {
-      toast.error(
-        "Preencha o título, nome do cliente e selecione pelo menos um produto!",
-      );
-      return;
+      return false;
     }
 
     setIsSaving(true);
@@ -946,24 +957,34 @@ export function useProposalForm({
         if (newClientResult?.success && newClientResult.clientId) {
           clientId = newClientResult.clientId;
         } else {
-          return;
+          return false;
         }
       }
-
-      /*
-      if (!validateForm()) {
-        toast.error("Por favor, corrija os erros no formulário antes de salvar.");
-        return;
-      }
-      */
 
       try {
         // Master Data is now immediate, no need to commit or map IDs
         // selectedSistemas already contains real IDs
 
+        // Check if required fields are missing - if so, force draft status
+        const hasValidTitle =
+          formData.title && formData.title.trim().length > 0;
+        const hasValidClient =
+          formData.clientName && formData.clientName.trim().length > 0;
+        const hasProducts = (formData.products?.length || 0) > 0;
+        const isComplete = hasValidTitle && hasValidClient && hasProducts;
+
+        // For drafts or incomplete proposals, use placeholder values and force draft status
+        const draftFormData = {
+          ...formData,
+          title: formData.title?.trim() || "(Rascunho)",
+          clientName: formData.clientName?.trim() || "(Rascunho)",
+          // Force "draft" status if required fields are missing, otherwise use the selected status
+          status: isComplete ? formData.status || "in_progress" : "draft",
+        };
+
         // 3. Prepare Payload
         const payload = prepareCreatePayload({
-          formData,
+          formData: draftFormData,
           selectedProducts: formData.products || [],
           selectedSistemas: selectedSistemas, // Direct usage
           clientId,
@@ -981,11 +1002,19 @@ export function useProposalForm({
         } else {
           const createdProposal = await ProposalService.createProposal(payload);
           toast.success("Proposta criada com sucesso!");
-          router.push(`/proposals/${createdProposal.id}/edit-pdf`);
+          // Only redirect to edit-pdf if proposal is complete
+          // Drafts (incomplete proposals) go to the proposals list
+          if (isComplete) {
+            router.push(`/proposals/${createdProposal.id}/edit-pdf`);
+          } else {
+            router.push("/proposals");
+          }
         }
+        return true;
       } catch (error) {
         console.error("Error saving proposal:", error);
         toast.error("Erro ao salvar proposta");
+        return false;
       }
     } finally {
       setIsSaving(false);
@@ -1256,12 +1285,12 @@ export function useProposalForm({
       if (initialSistemasRef.current) {
         const initialSistemas = JSON.parse(initialSistemasRef.current);
         setSelectedSistemas(initialSistemas);
-        
+
         // Restore system product IDs
         const sysProductIds = new Set(
-          initialSistemas.flatMap((s: ProposalSistema) => 
-            (s.products || []).map((p) => p.productId)
-          )
+          initialSistemas.flatMap((s: ProposalSistema) =>
+            (s.products || []).map((p) => p.productId),
+          ),
         );
         setSystemProductIds(sysProductIds as Set<string>);
       }

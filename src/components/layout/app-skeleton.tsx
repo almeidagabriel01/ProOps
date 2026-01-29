@@ -57,7 +57,7 @@ export function AppSkeleton({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 mt-0 p-8 overflow-y-auto">
+        <main id="main-content" className="flex-1 mt-0 p-8 overflow-y-auto">
           {children || (
             <div className="space-y-4">
               <Skeleton className="h-8 w-1/3" />

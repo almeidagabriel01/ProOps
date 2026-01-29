@@ -10,6 +10,7 @@ export interface PdfDisplaySettings {
   showLogo: boolean;
   showValidUntil: boolean;
   showNotes: boolean;
+  [key: string]: unknown;
 }
 
 // Default settings

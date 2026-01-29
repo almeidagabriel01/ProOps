@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Proposal, ProposalAttachment } from "@/types/proposal";
 import {
   Upload,
-  X,
   FileImage,
   FileText,
   Loader2,

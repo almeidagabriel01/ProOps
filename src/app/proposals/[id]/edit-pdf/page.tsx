@@ -66,6 +66,8 @@ export default function EditPdfPage() {
 
     // Actions
     handleSave,
+    handleSaveDefault,
+    isSavingDefault,
   } = useEditPdfPage();
 
   const router = useRouter();
@@ -125,6 +127,19 @@ export default function EditPdfPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={handleSaveDefault}
+            disabled={isSavingDefault}
+            className="gap-2"
+          >
+            {isSavingDefault ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Salvar Configurações
+          </Button>
+          <Button
+            variant="default" // Changed to default (filled) for primary action
             onClick={handleSave}
             disabled={isSaving}
             className="gap-2"
