@@ -1,42 +1,25 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import {
-  MoreVertical,
-  Eye,
-  Share2,
-  FileDown,
-  FileText,
-  Copy,
-  Paperclip,
-  Trash2,
-  Loader2,
-} from "lucide-react";
+import { MoreVertical, Share2, Copy, Paperclip, Loader2 } from "lucide-react";
 import { Proposal } from "@/types/proposal";
 
-interface ProposalActionsDropdownProps {
+export interface ProposalActionsDropdownProps {
   proposal: Proposal;
   canEdit: boolean;
   canCreate: boolean;
-  canDelete: boolean;
+  canGeneratePdf?: boolean;
   isSharing?: boolean;
-  isDownloading?: boolean;
-  isEditing?: boolean;
   isDuplicating?: boolean;
   onShare: () => void;
-  onDownload: () => void;
-  onEdit: () => void;
   onDuplicate: () => void;
-  onDelete: () => void;
   onAttachments: () => void;
 }
 
@@ -44,16 +27,11 @@ export function ProposalActionsDropdown({
   proposal,
   canEdit,
   canCreate,
-  canDelete,
+  canGeneratePdf = true,
   isSharing,
-  isDownloading,
-  isEditing,
   isDuplicating,
   onShare,
-  onDownload,
-  onEdit,
   onDuplicate,
-  onDelete,
   onAttachments,
 }: ProposalActionsDropdownProps) {
   const attachmentsCount = proposal.attachments?.length || 0;
@@ -61,21 +39,21 @@ export function ProposalActionsDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8" title="Ações">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          title="Mais ações"
+        >
           <MoreVertical className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        {/* Ver PDF */}
-        <Link href={`/proposals/${proposal.id}/view`}>
-          <DropdownMenuItem>
-            <Eye className="w-4 h-4 mr-2" />
-            Ver PDF
-          </DropdownMenuItem>
-        </Link>
-
         {/* Compartilhar */}
-        <DropdownMenuItem onClick={onShare} disabled={isSharing}>
+        <DropdownMenuItem
+          onClick={canGeneratePdf ? onShare : undefined}
+          disabled={isSharing || !canGeneratePdf}
+        >
           {isSharing ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (
@@ -83,30 +61,6 @@ export function ProposalActionsDropdown({
           )}
           Compartilhar
         </DropdownMenuItem>
-
-        {/* Baixar PDF */}
-        <DropdownMenuItem onClick={onDownload} disabled={isDownloading}>
-          {isDownloading ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <FileDown className="w-4 h-4 mr-2" />
-          )}
-          Baixar PDF
-        </DropdownMenuItem>
-
-        <DropdownMenuSeparator />
-
-        {/* Editar */}
-        {canEdit && (
-          <DropdownMenuItem onClick={onEdit} disabled={isEditing}>
-            {isEditing ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <FileText className="w-4 h-4 mr-2" />
-            )}
-            Editar
-          </DropdownMenuItem>
-        )}
 
         {/* Duplicar */}
         {canCreate && (
@@ -131,20 +85,6 @@ export function ProposalActionsDropdown({
               </span>
             )}
           </DropdownMenuItem>
-        )}
-
-        {canDelete && (
-          <>
-            <DropdownMenuSeparator />
-            {/* Excluir */}
-            <DropdownMenuItem
-              onClick={onDelete}
-              className="text-destructive focus:text-destructive focus:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Excluir
-            </DropdownMenuItem>
-          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

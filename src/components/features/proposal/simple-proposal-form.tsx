@@ -536,9 +536,9 @@ export function SimpleProposalForm({
     updateSistema(index, sistema);
   };
 
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = async (): Promise<boolean> => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    await handleSubmit(fakeEvent);
+    return await handleSubmit(fakeEvent);
   };
 
   // Handle back navigation - show modal if editing existing proposal with unsaved changes
@@ -552,8 +552,13 @@ export function SimpleProposalForm({
 
   // Handle save from modal then navigate
   const handleSaveAndBack = async () => {
-    await handleFormSubmit();
-    router.push("/proposals");
+    const success = await handleFormSubmit();
+    if (success) {
+      router.push("/proposals");
+    } else {
+      // Validation failed - close modal and keep user on current page to fix errors
+      setShowUnsavedModal(false);
+    }
   };
 
   // Handle discard changes - navigate without saving
@@ -561,10 +566,10 @@ export function SimpleProposalForm({
   // For new drafts: auto-save is prevented by markAsDiscarded flag
   const handleDiscard = () => {
     setShowUnsavedModal(false);
-    
+
     // Prevent any auto-save on unmount
     markAsDiscarded();
-    
+
     // Navigate away - original proposal data remains untouched in database
     router.push("/proposals");
   };

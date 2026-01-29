@@ -43,6 +43,7 @@ export function useEditPdfPage() {
   const [template, setTemplate] = useState<ProposalTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDefault, setIsSavingDefault] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Upgrade modal state
@@ -52,17 +53,19 @@ export function useEditPdfPage() {
   const [coverTitle, setCoverTitle] = useState("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [coverLogo, setCoverLogo] = useState<string>("");
-  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">("original");
+  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">(
+    "original",
+  );
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
   const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
-    "cover"
+    "cover",
   );
   const [coverImagePosition, setCoverImagePosition] = useState("center");
   const [theme, setTheme] = useState<ThemeType>("modern");
 
   // Style settings
   const [primaryColor, setPrimaryColor] = useState(
-    tenant?.primaryColor || "#2563eb"
+    tenant?.primaryColor || "#2563eb",
   );
   const [fontFamily, setFontFamily] = useState("'Inter', sans-serif");
 
@@ -122,7 +125,7 @@ export function useEditPdfPage() {
               const baseTemplate = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                s.primaryColor || tenant.primaryColor || "#2563eb"
+                s.primaryColor || tenant.primaryColor || "#2563eb",
               );
               setTemplate(baseTemplate);
 
@@ -139,7 +142,7 @@ export function useEditPdfPage() {
               if (s.coverImage) setCoverImage(s.coverImage);
               if (s.coverLogo) setCoverLogo(s.coverLogo);
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
-              
+
               if (s.logoStyle) setLogoStyle(s.logoStyle);
 
               if (s.coverImageOpacity !== undefined)
@@ -156,7 +159,7 @@ export function useEditPdfPage() {
                 const t = ProposalDefaults.createDefaultTemplate(
                   tenant.id,
                   tenant.name,
-                  s.primaryColor || tenant.primaryColor || "#2563eb"
+                  s.primaryColor || tenant.primaryColor || "#2563eb",
                 );
                 setSections(createDefaultSections(t, t.primaryColor));
               }
@@ -167,12 +170,64 @@ export function useEditPdfPage() {
               } else {
                 setCoverElements(createDefaultCoverElements());
               }
+            } else if (tenant.proposalDefaults) {
+              // 2. No proposal-specific settings, but tenant has saved defaults
+              const s = tenant.proposalDefaults as PdfSettings;
+
+              const baseTemplate = ProposalDefaults.createDefaultTemplate(
+                tenant.id,
+                tenant.name,
+                s.primaryColor || tenant.primaryColor || "#2563eb",
+              );
+              setTemplate(baseTemplate);
+
+              // Load tenant default settings
+              setCoverTitle(p.title || "");
+              if (s.primaryColor) {
+                setPrimaryColor(s.primaryColor);
+              } else {
+                setPrimaryColor(tenant.primaryColor || "#2563eb");
+              }
+              if (s.fontFamily) setFontFamily(s.fontFamily);
+              if (s.theme) setTheme(s.theme as ThemeType);
+
+              if (s.coverImage) setCoverImage(s.coverImage);
+              if (s.coverLogo) setCoverLogo(s.coverLogo);
+              else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+
+              if (s.logoStyle) setLogoStyle(s.logoStyle);
+
+              if (s.coverImageOpacity !== undefined)
+                setCoverImageOpacity(s.coverImageOpacity);
+              if (s.coverImageFit) setCoverImageFit(s.coverImageFit);
+              if (s.coverImagePosition)
+                setCoverImagePosition(s.coverImagePosition);
+              if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+
+              // Load sections from tenant defaults
+              if (s.sections && s.sections.length > 0) {
+                setSections(s.sections as PdfSection[]);
+              } else {
+                setSections(
+                  createDefaultSections(
+                    baseTemplate,
+                    baseTemplate.primaryColor,
+                  ),
+                );
+              }
+
+              // Load cover elements from tenant defaults
+              if (s.coverElements && s.coverElements.length > 0) {
+                setCoverElements(s.coverElements);
+              } else {
+                setCoverElements(createDefaultCoverElements());
+              }
             } else {
-              // 2. No saved settings, initialize from Defaults
+              // 3. No saved settings at all, initialize from generic Defaults
               const t = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                tenant.primaryColor || "#2563eb"
+                tenant.primaryColor || "#2563eb",
               );
 
               if (t) {
@@ -254,7 +309,7 @@ export function useEditPdfPage() {
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
         alert(
-          `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`
+          `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`,
         );
         setIsSaving(false);
         return;
@@ -370,7 +425,7 @@ export function useEditPdfPage() {
       }
 
       pdf.save(
-        `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`
+        `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`,
       );
     } catch (error) {
       console.error(error);
@@ -435,5 +490,78 @@ export function useEditPdfPage() {
     // Actions
     handleSave,
     handleGeneratePdf,
+    handleSaveDefault: async () => {
+      if (!tenant || !proposal) return;
+      setIsSavingDefault(true);
+      try {
+        const cleanForFirestore = (obj: unknown): unknown => {
+          if (obj === undefined) return null;
+          if (obj === null) return null;
+          if (obj instanceof Blob || obj instanceof File) return null;
+          if (obj instanceof Element) return null;
+          if (typeof obj !== "object") return obj;
+
+          // Check for nativeEvent (React SyntheticEvent)
+          const objRecord = obj as Record<string, unknown>;
+          if ("nativeEvent" in objRecord) return null;
+
+          if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
+          if (obj instanceof Date) return obj.toISOString();
+
+          const newObj: Record<string, unknown> = {};
+          for (const key in objRecord) {
+            if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
+              const val = objRecord[key];
+              if (typeof val === "function" || typeof val === "symbol")
+                continue;
+              newObj[key] = cleanForFirestore(val);
+            }
+          }
+          return newObj;
+        };
+
+        const settings = {
+          theme,
+          primaryColor,
+          fontFamily,
+          // Exclude coverTitle as it is proposal specific
+          // coverTitle,
+          coverImage,
+          coverLogo,
+          logoStyle,
+          coverImageOpacity,
+          coverImageFit,
+          coverImagePosition,
+          repeatHeader,
+          sections,
+          coverElements,
+        };
+
+        const sanitizedSettings = cleanForFirestore(settings);
+
+        // Dynamically import TenantService to avoid circular dependencies if any
+        const { TenantService } = await import("@/services/tenant-service");
+        await TenantService.updateTenant(tenant.id, {
+          proposalDefaults: sanitizedSettings as Record<string, unknown>,
+        });
+
+        // Also save the current settings to this proposal
+        await handleSave();
+
+        // NOTE: We don't call refreshTenant() here because it would trigger
+        // the useEffect that reloads all settings from the database,
+        // potentially overwriting what the user just configured.
+        // The defaults are saved for new proposals; the current proposal has
+        // its own settings saved via handleSave().
+
+        toast.success("Configurações salvas como padrão para novas propostas!");
+      } catch (error) {
+        console.error("Error saving defaults:", error);
+        toast.error("Erro ao salvar configurações padrão");
+      } finally {
+        setIsSavingDefault(false);
+      }
+    },
+    isSavingDefault,
   };
 }

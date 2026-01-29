@@ -88,7 +88,10 @@ export default function RootLayout({
                             }
                           />
                           <SubscriptionGuard>
-                            <main className="flex-1 mt-16 p-8 overflow-y-auto">
+                            <main
+                              id="main-content"
+                              className="flex-1 mt-16 p-8 overflow-y-auto"
+                            >
                               {children}
                             </main>
                           </SubscriptionGuard>

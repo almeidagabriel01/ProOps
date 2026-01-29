@@ -14,6 +14,7 @@ export type Tenant = {
   logoUrl?: string;
   niche: TenantNiche;
   createdAt?: string;
+  proposalDefaults?: Record<string, unknown>;
 };
 
 export type User = {

@@ -21,6 +21,10 @@ import {
   XCircle,
   Clock,
   Copy,
+  Eye,
+  FileDown,
+  Trash2,
+  FilePen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -177,6 +181,20 @@ export default function ProposalsPage() {
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
+  };
+
+  // Check if a proposal has all required fields for PDF generation
+  const canGeneratePdf = (proposal: Proposal): boolean => {
+    const hasValidTitle =
+      proposal.title &&
+      proposal.title.trim() !== "" &&
+      proposal.title !== "(Rascunho)";
+    const hasValidClient =
+      proposal.clientName &&
+      proposal.clientName.trim() !== "" &&
+      proposal.clientName !== "(Rascunho)";
+    const hasProducts = proposal.products && proposal.products.length > 0;
+    return Boolean(hasValidTitle && hasValidClient && hasProducts);
   };
 
   const handleShare = async (proposalId: string) => {
@@ -629,21 +647,103 @@ export default function ProposalsPage() {
                     <div className="text-sm text-muted-foreground text-center">
                       {formatDate(proposal.validUntil)}
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Ver PDF */}
+                      <Link href={`/proposals/${proposal.id}/view`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Ver PDF"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </Link>
+
+                      {/* Baixar PDF */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        title={
+                          canGeneratePdf(proposal)
+                            ? "Baixar PDF"
+                            : "Preencha título, cliente e produtos para baixar o PDF"
+                        }
+                        onClick={() => handleDownload(proposal)}
+                        disabled={
+                          downloadingId === proposal.id ||
+                          !canGeneratePdf(proposal)
+                        }
+                      >
+                        {downloadingId === proposal.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FileDown className="w-4 h-4" />
+                        )}
+                      </Button>
+
+                      {/* Editar PDF */}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          title={
+                            canGeneratePdf(proposal)
+                              ? "Editar PDF"
+                              : "Preencha título, cliente e produtos para editar o PDF"
+                          }
+                          disabled={!canGeneratePdf(proposal)}
+                          onClick={() =>
+                            canGeneratePdf(proposal) &&
+                            router.push(`/proposals/${proposal.id}/edit-pdf`)
+                          }
+                        >
+                          <FilePen className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {/* Editar */}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Editar"
+                          onClick={() => handleEdit(proposal.id)}
+                          disabled={editingId === proposal.id}
+                        >
+                          {editingId === proposal.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                        </Button>
+                      )}
+
+                      {/* Excluir */}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                          title="Excluir"
+                          onClick={() => setDeleteId(proposal.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+
                       <ProposalActionsDropdown
                         proposal={proposal}
                         canEdit={canEdit}
                         canCreate={canCreate}
-                        canDelete={canDelete}
+                        canGeneratePdf={canGeneratePdf(proposal)}
                         isSharing={sharingId === proposal.id}
-                        isDownloading={downloadingId === proposal.id}
-                        isEditing={editingId === proposal.id}
                         isDuplicating={duplicatingId === proposal.id}
                         onShare={() => handleShare(proposal.id)}
-                        onDownload={() => handleDownload(proposal)}
-                        onEdit={() => handleEdit(proposal.id)}
                         onDuplicate={() => handleDuplicate(proposal.id)}
-                        onDelete={() => setDeleteId(proposal.id)}
                         onAttachments={() =>
                           setAttachmentsProposalId(proposal.id)
                         }

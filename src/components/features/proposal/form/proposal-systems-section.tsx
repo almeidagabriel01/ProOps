@@ -116,6 +116,31 @@ export function ProposalSystemsSection({
       return;
     }
 
+    // Check for duplicate system+ambiente combination
+    const newInstanceId = `${newValue.sistemaId}-${newValue.ambienteId}`;
+    const existingIndex = renderedSistemas.findIndex(
+      (s) => `${s.sistemaId}-${s.ambienteId}` === newInstanceId,
+    );
+
+    if (existingIndex !== -1) {
+      // Duplicate detected - show toast and reset only this selection
+      import("react-toastify").then(({ toast }) => {
+        toast.warning(
+          `O sistema "${newValue.sistemaName}" já foi adicionado ao ambiente "${newValue.ambienteName}". Escolha outro sistema ou ambiente.`,
+          { toastId: "duplicate-system-warning" },
+        );
+      });
+
+      // If there's a pending item, remove it to reset the selector
+      if (isLastSystemPending && lastSystem) {
+        onRemoveSystem(
+          selectedSistemas.length - 1,
+          `${lastSystem.sistemaId}-${lastSystem.ambienteId}`,
+        );
+      }
+      return;
+    }
+
     if (isLastSystemPending) {
       // Update pending item in place if handler exists
       if (onUpdateSystem) {
