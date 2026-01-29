@@ -54,8 +54,10 @@ export interface CoverElement {
     | "divider"
     | "client-name"
     | "logo"
-    | "company-name";
+    | "company-name"
+    | "image";
   content: string;
+  imageUrl?: string; // For image elements
   // X/Y positioning as percentages (0-100)
   x: number; // Percentage from left
   y: number; // Percentage from top
@@ -75,6 +77,8 @@ export interface CoverElement {
     marginTop?: string;
     marginBottom?: string;
     borderRadius?: number;
+    imageWidth?: number; // Percentage 10-100 for image elements
+    imageHeight?: number; // Height in px for image elements
   };
 }
 
