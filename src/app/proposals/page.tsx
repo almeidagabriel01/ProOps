@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Proposal, ProposalStatus } from "@/types/proposal";
+import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
+import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
+import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Plus,
   FileText,
-  Copy,
-  Trash2,
-  Eye,
   Search,
   ChevronDown,
   Loader2,
@@ -21,8 +20,7 @@ import {
   Send,
   XCircle,
   Clock,
-  FileDown,
-  Share2,
+  Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -164,6 +162,13 @@ export default function ProposalsPage() {
   const [sharingId, setSharingId] = React.useState<string | null>(null);
   const [shareLink, setShareLink] = React.useState<string | null>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
+  const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
+    string | null
+  >(null);
+  // Cache for attachments to prevent fetchProposals from overwriting local updates
+  const attachmentsCacheRef = React.useRef<Map<string, ProposalAttachment[]>>(
+    new Map(),
+  );
 
   const handleEdit = (id: string) => {
     setEditingId(id);
@@ -624,88 +629,25 @@ export default function ProposalsPage() {
                     <div className="text-sm text-muted-foreground text-center">
                       {formatDate(proposal.validUntil)}
                     </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <Link href={`/proposals/${proposal.id}/view`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Ver PDF"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleShare(proposal.id)}
-                        disabled={sharingId === proposal.id}
-                        title="Compartilhar"
-                      >
-                        {sharingId === proposal.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Share2 className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDownload(proposal)}
-                        disabled={downloadingId === proposal.id}
-                        title="Baixar PDF"
-                      >
-                        {downloadingId === proposal.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <FileDown className="w-4 h-4" />
-                        )}
-                      </Button>
-                      {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Editar"
-                          onClick={() => handleEdit(proposal.id)}
-                          disabled={editingId === proposal.id}
-                        >
-                          {editingId === proposal.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <FileText className="w-4 h-4" />
-                          )}
-                        </Button>
-                      )}
-                      {canCreate && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDuplicate(proposal.id)}
-                          disabled={duplicatingId === proposal.id}
-                          title="Duplicar"
-                        >
-                          {duplicatingId === proposal.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteId(proposal.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
+                    <div className="flex items-center justify-end">
+                      <ProposalActionsDropdown
+                        proposal={proposal}
+                        canEdit={canEdit}
+                        canCreate={canCreate}
+                        canDelete={canDelete}
+                        isSharing={sharingId === proposal.id}
+                        isDownloading={downloadingId === proposal.id}
+                        isEditing={editingId === proposal.id}
+                        isDuplicating={duplicatingId === proposal.id}
+                        onShare={() => handleShare(proposal.id)}
+                        onDownload={() => handleDownload(proposal)}
+                        onEdit={() => handleEdit(proposal.id)}
+                        onDuplicate={() => handleDuplicate(proposal.id)}
+                        onDelete={() => setDeleteId(proposal.id)}
+                        onAttachments={() =>
+                          setAttachmentsProposalId(proposal.id)
+                        }
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -753,6 +695,44 @@ export default function ProposalsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Attachments Dialog */}
+      {attachmentsProposalId &&
+        (() => {
+          const baseProposal = proposals.find(
+            (p) => p.id === attachmentsProposalId,
+          );
+          if (!baseProposal) return null;
+          const cachedAttachments = attachmentsCacheRef.current.get(
+            attachmentsProposalId,
+          );
+          const proposalWithCachedAttachments = {
+            ...baseProposal,
+            attachments: cachedAttachments ?? baseProposal.attachments ?? [],
+          };
+          return (
+            <ProposalAttachmentsDialog
+              proposal={proposalWithCachedAttachments}
+              isOpen={!!attachmentsProposalId}
+              onClose={() => setAttachmentsProposalId(null)}
+              onUpdate={(newAttachments) => {
+                // Update cache to persist across fetchProposals
+                attachmentsCacheRef.current.set(
+                  attachmentsProposalId,
+                  newAttachments,
+                );
+                // Update state
+                setProposals((prev) =>
+                  prev.map((p) =>
+                    p.id === attachmentsProposalId
+                      ? { ...p, attachments: newAttachments }
+                      : p,
+                  ),
+                );
+              }}
+            />
+          );
+        })()}
     </>
   );
 }
