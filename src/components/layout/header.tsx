@@ -179,13 +179,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   };
 
   return (
-    <header
-      style={{
-        left: sidebarWidth,
-        transform: "translateZ(0)",
-      }}
-      className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-[left] duration-300 ease-out will-change-[left] rounded-tl-[2rem] rounded-tr-[2rem]"
-    >
+    <header className="bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-tl-[2rem]" style={{ height: '64px', minHeight: '64px' }}>
       <div className="flex items-center gap-4">
         <CommandPalette />
       </div>

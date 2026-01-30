@@ -134,7 +134,7 @@ export function CoverElementsEditor({
         textTransform: type === "label" ? "uppercase" : "none",
         letterSpacing: type === "label" ? "0.1em" : undefined,
         imageWidth: type === "image" ? 30 : undefined, // Default 30% width for images
-        imageHeight: type === "image" ? 100 : undefined, // Default 100px height for images
+        imageHeight: type === "image" ? 0 : undefined, // Default Auto height for images
       },
     };
     onChange([...elements, newElement]);
@@ -175,7 +175,7 @@ export function CoverElementsEditor({
   const updateStyle = (
     id: string,
     styleKey: keyof CoverElement["styles"],
-    value: string | number,
+    value: string | number | boolean,
   ) => {
     onChange(
       elements.map((e) => {
@@ -457,14 +457,18 @@ export function CoverElementsEditor({
                             <div className="grid gap-2">
                               <div className="flex justify-between items-center">
                                 <Label className="text-xs">
-                                  Altura: {element.styles.imageHeight || 100}px
+                                  Altura:{" "}
+                                  {!element.styles.imageHeight
+                                    ? "Auto"
+                                    : `${element.styles.imageHeight}px`}
                                 </Label>
                               </div>
                               <input
                                 type="range"
-                                min="50"
+                                min="0"
                                 max="400"
-                                value={element.styles.imageHeight || 100}
+                                step="10"
+                                value={element.styles.imageHeight || 0}
                                 onChange={(e) =>
                                   updateStyle(
                                     element.id,
@@ -474,28 +478,60 @@ export function CoverElementsEditor({
                                 }
                                 className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                               />
+                              {element.styles.imageHeight ? (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Defina como 0 para altura automática
+                                  (proporcional à largura)
+                                </p>
+                              ) : (
+                                <p className="text-[10px] text-green-600 font-medium">
+                                  Altura automática ativa
+                                </p>
+                              )}
                             </div>
                             <div className="grid gap-2">
                               <div className="flex justify-between items-center">
                                 <Label className="text-xs">
-                                  Arredondamento:{" "}
-                                  {element.styles.borderRadius || 0}px
+                                  Arredondamento
                                 </Label>
                               </div>
-                              <input
-                                type="range"
-                                min="0"
-                                max="50"
-                                value={element.styles.borderRadius || 0}
+                              <Select
+                                value={
+                                  String(element.styles.borderRadius) || "0px"
+                                }
                                 onChange={(e) =>
                                   updateStyle(
                                     element.id,
                                     "borderRadius",
-                                    parseInt(e.target.value),
+                                    e.target.value,
                                   )
                                 }
-                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                              >
+                                <option value="0px">Sem bordas</option>
+                                <option value="4px">Leve</option>
+                                <option value="8px">Médio</option>
+                                <option value="16px">Arredondado</option>
+                                <option value="9999px">Circular</option>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-2 pt-2">
+                              <Checkbox
+                                id={`border-${element.id}`}
+                                checked={element.styles.imageBorder || false}
+                                onCheckedChange={(checked) =>
+                                  updateStyle(
+                                    element.id,
+                                    "imageBorder",
+                                    checked === true,
+                                  )
+                                }
                               />
+                              <Label
+                                htmlFor={`border-${element.id}`}
+                                className="text-xs cursor-pointer"
+                              >
+                                Adicionar borda
+                              </Label>
                             </div>
                             <div className="grid gap-2">
                               <div className="flex justify-between items-center">

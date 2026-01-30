@@ -107,25 +107,68 @@ const renderSingleElement = (
   // Handle image element
   if (element.type === "image") {
     if (!element.imageUrl) return null;
+
+    const imageWidth = element.styles.imageWidth || 30;
+    const imageHeight = element.styles.imageHeight || 0;
+    
+    // Calcular dimensões absolutas em pixels
+    const absoluteWidth = (PAGE_WIDTH_PX * imageWidth) / 100;
+
+    // Se altura é automática (0), usar object-fit conforme escolha do usuário
+    if (imageHeight === 0) {
+      const imageStyle: React.CSSProperties = {
+        position: "absolute",
+        left: `${element.x ?? 50}%`,
+        top: `${element.y ?? 50}%`,
+        transform: "translate(-50%, -50%)",
+        zIndex: 10,
+        width: `${absoluteWidth}px`,
+        height: "auto",
+        objectFit: element.styles.imageFit || "contain",
+        opacity: element.styles.opacity ?? 1,
+        borderRadius:
+          typeof element.styles.borderRadius === "number"
+            ? `${element.styles.borderRadius}px`
+            : element.styles.borderRadius || "0",
+        border: element.styles.imageBorder ? "3px solid #9ca3af" : "none",
+        display: "block",
+      };
+
+      return (
+        <img
+          key={element.id}
+          src={element.imageUrl}
+          alt=""
+          style={imageStyle}
+        />
+      );
+    }
+
+    // Se altura é definida, aplicar dimensões fixas sem object-fit (permite distorção)
+    const imageStyle: React.CSSProperties = {
+      position: "absolute",
+      left: `${element.x ?? 50}%`,
+      top: `${element.y ?? 50}%`,
+      transform: "translate(-50%, -50%)",
+      zIndex: 10,
+      width: `${absoluteWidth}px`,
+      height: `${imageHeight}px`,
+      objectFit: "fill", // Fill para ocupar exatamente o espaço definido
+      opacity: element.styles.opacity ?? 1,
+      borderRadius:
+        typeof element.styles.borderRadius === "number"
+          ? `${element.styles.borderRadius}px`
+          : element.styles.borderRadius || "0",
+      border: element.styles.imageBorder ? "3px solid #9ca3af" : "none",
+      display: "block",
+    };
+
     return (
       <img
         key={element.id}
         src={element.imageUrl}
         alt=""
-        style={{
-          ...basePositionStyle,
-          width: element.styles.imageWidth
-            ? `${element.styles.imageWidth}%`
-            : "30%",
-          height: element.styles.imageHeight
-            ? `${element.styles.imageHeight}px`
-            : "auto",
-          objectFit: "contain",
-          opacity: element.styles.opacity ?? 1,
-          borderRadius: element.styles.borderRadius
-            ? `${element.styles.borderRadius}px`
-            : "0",
-        }}
+        style={imageStyle}
       />
     );
   }

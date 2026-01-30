@@ -60,11 +60,11 @@ export function Sidebar({ onExpandChange }: SidebarProps) {
           width: isExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
           transform: "translateZ(0)",
         }}
-        className="fixed mt-1 left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-[width] duration-300 ease-out will-change-[width]"
+        className="fixed left-0 top-0 h-screen bg-sidebar flex flex-col z-50 transition-[width] duration-300 ease-out"
       >
         <div className="absolute inset-0 bg-sidebar overflow-hidden flex flex-col">
           {/* Header / Logo area */}
-          <div className="px-4 py-4 flex items-center gap-3 border-b border-border h-16 min-h-16">
+          <div className="px-4 flex items-center gap-3 border-b border-border" style={{ height: '64px', minHeight: '64px' }}>
             {tenant?.logoUrl ? (
               <Image
                 src={tenant.logoUrl}

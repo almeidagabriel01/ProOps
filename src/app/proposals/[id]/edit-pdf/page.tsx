@@ -220,7 +220,7 @@ export default function EditPdfPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setPreviewZoom((z) => Math.min(1, z + 0.1))}
+                    onClick={() => setPreviewZoom((z) => Math.min(2, z + 0.1))}
                     title="Aumentar zoom"
                   >
                     <ZoomIn className="w-4 h-4" />

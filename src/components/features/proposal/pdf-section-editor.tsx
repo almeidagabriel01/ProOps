@@ -76,9 +76,11 @@ export interface CoverElement {
     opacity?: number;
     marginTop?: string;
     marginBottom?: string;
-    borderRadius?: number;
+    borderRadius?: string | number;
     imageWidth?: number; // Percentage 10-100 for image elements
     imageHeight?: number; // Height in px for image elements
+    imageFit?: "cover" | "contain";
+    imageBorder?: boolean;
   };
 }
 

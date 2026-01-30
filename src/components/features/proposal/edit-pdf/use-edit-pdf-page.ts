@@ -571,21 +571,23 @@ export function useEditPdfPage() {
 
         const sanitizedSettings = cleanForFirestore(settings);
 
-        // Dynamically import TenantService to avoid circular dependencies if any
+        // Salva as configurações como padrão no tenant (afeta apenas NOVAS propostas)
         const { TenantService } = await import("@/services/tenant-service");
         await TenantService.updateTenant(tenant.id, {
           proposalDefaults: sanitizedSettings as Record<string, unknown>,
         });
 
-        // Also save the current settings to this proposal - SILENT Manual Save
+        // Também salva as configurações na proposta ATUAL (sem toast/loading)
+        // Isso garante que a proposta atual mantenha essas configurações específicas
         await handleSave({ suppressToast: true, suppressLoading: true });
 
-        // NOTE: We don't call refreshTenant() here because it would trigger
-        // the useEffect that reloads all settings from the database...
-        // ...UNLESS we fixed the dependency array to depend on tenant.id!
-        // Now that we fixed the dependency array, we CAN and SHOULD call refreshTenant
-        // so that NEW proposals get the updated defaults.
-        refreshTenant(); // Global update for future proposals
+        // Atualiza o contexto do tenant para que novas propostas usem as configurações salvas
+        // IMPORTANTE: Isso NÃO afeta propostas existentes que já têm pdfSettings próprios
+        // O carregamento segue esta ordem de prioridade:
+        // 1. pdfSettings da proposta (se existir) - SEMPRE tem prioridade
+        // 2. proposalDefaults do tenant (para novas propostas sem configurações)
+        // 3. Configurações genéricas padrão
+        refreshTenant();
 
         toast.success("Configurações salvas como padrão para novas propostas!");
       } catch (error) {

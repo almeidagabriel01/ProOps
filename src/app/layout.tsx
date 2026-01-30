@@ -75,22 +75,18 @@ export default function RootLayout({
                       <div className="flex h-screen overflow-hidden bg-sidebar">
                         <Sidebar onExpandChange={setSidebarExpanded} />
                         <div
-                          className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
+                          className="flex-1 flex flex-col bg-background rounded-l-[2rem] mr-1 ml-1 overflow-hidden transition-[margin-left] duration-300 ease-out"
                           style={{
                             marginLeft: sidebarExpanded
                               ? EXPANDED_WIDTH
                               : COLLAPSED_WIDTH,
                           }}
                         >
-                          <Header
-                            sidebarWidth={
-                              sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-                            }
-                          />
+                          <Header sidebarWidth={0} />
                           <SubscriptionGuard>
                             <main
                               id="main-content"
-                              className="flex-1 mt-16 p-8 overflow-y-auto"
+                              className="flex-1 p-8 overflow-y-auto"
                             >
                               {children}
                             </main>
