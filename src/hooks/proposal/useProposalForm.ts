@@ -370,12 +370,12 @@ export function useProposalForm({
 
             // No commitChanges needed as Master Data is immediate
 
-            // For auto-save, always use "draft" status and provide placeholder values
+            // For auto-save, always use "draft" status
             const draftFormData = {
               ...state.formData,
               status: "draft" as const, // Auto-save is always draft
-              title: state.formData.title?.trim() || "(Rascunho)",
-              clientName: state.formData.clientName?.trim() || "(Rascunho)",
+              title: state.formData.title?.trim() || "",
+              clientName: state.formData.clientName?.trim() || "",
             };
 
             // 1. Prepare payload (IDs are already real)
@@ -973,11 +973,11 @@ export function useProposalForm({
         const hasProducts = (formData.products?.length || 0) > 0;
         const isComplete = hasValidTitle && hasValidClient && hasProducts;
 
-        // For drafts or incomplete proposals, use placeholder values and force draft status
+        // For drafts or incomplete proposals, force draft status if incomplete
         const draftFormData = {
           ...formData,
-          title: formData.title?.trim() || "(Rascunho)",
-          clientName: formData.clientName?.trim() || "(Rascunho)",
+          title: formData.title?.trim() || "",
+          clientName: formData.clientName?.trim() || "",
           // Force "draft" status if required fields are missing, otherwise use the selected status
           status: isComplete ? formData.status || "in_progress" : "draft",
         };
