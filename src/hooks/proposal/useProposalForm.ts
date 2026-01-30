@@ -968,7 +968,7 @@ export function useProposalForm({
         // When user clicks "Save Proposal" (manual save), it's a finalization action
         // Only auto-save should use draft status
         // If incomplete, force draft; if complete and no status set, default to in_progress
-        const finalStatus = isComplete 
+        const finalStatus: ProposalStatus = isComplete 
           ? (formData.status && formData.status !== "draft" ? formData.status : "in_progress")
           : "draft";
 

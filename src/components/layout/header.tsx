@@ -70,7 +70,7 @@ interface HeaderProps {
   sidebarWidth?: number;
 }
 
-export function Header({ sidebarWidth = 72 }: HeaderProps) {
+export function Header({}: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const {
     tenant,
@@ -218,7 +218,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         <div className="flex items-center gap-3 pl-2">
           {isLoading ? (
             <div className="flex items-center gap-3">
-              <div className="flex flex-col items-end hidden md:flex gap-1">
+              <div className="hidden md:flex flex-col items-end gap-1">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-16" />
               </div>
@@ -226,7 +226,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
             </div>
           ) : (
             <>
-              <div className="flex flex-col items-end hidden md:flex">
+              <div className="hidden md:flex flex-col items-end">
                 <span className="text-sm font-medium">
                   {isViewingAsTenant && tenantOwner
                     ? tenantOwner.name

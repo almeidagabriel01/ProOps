@@ -120,7 +120,13 @@ export function useEditPdfPage() {
 
             setProposal(p);
 
+            // ORDEM DE PRIORIDADE NO CARREGAMENTO DAS CONFIGURAÇÕES:
+            // 1. pdfSettings da proposta (se existir) - Configurações específicas desta proposta
+            // 2. proposalDefaults do tenant - Configurações padrão para novas propostas
+            // 3. Configurações genéricas padrão do sistema
+
             if (p.pdfSettings) {
+              // 1. Proposta tem configurações próprias (prioridade máxima)
               const s = p.pdfSettings as PdfSettings;
 
               // We MUST set a template object because the render guard requires it
@@ -345,6 +351,8 @@ export function useEditPdfPage() {
         return;
       }
 
+      // SALVA APENAS ESTA PROPOSTA ESPECÍFICA
+      // Não altera configurações padrão do tenant ou de outras propostas
       await ProposalService.updateProposal(proposal.id, {
         title: coverTitle,
         pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
@@ -556,8 +564,7 @@ export function useEditPdfPage() {
           theme,
           primaryColor,
           fontFamily,
-          // Exclude coverTitle as it is proposal specific
-          // coverTitle,
+          // IMPORTANTE: coverTitle NÃO é salvo como padrão pois é específico de cada proposta
           coverImage,
           coverLogo,
           logoStyle,
@@ -571,22 +578,19 @@ export function useEditPdfPage() {
 
         const sanitizedSettings = cleanForFirestore(settings);
 
-        // Salva as configurações como padrão no tenant (afeta apenas NOVAS propostas)
+        // PASSO 1: Salva as configurações como padrão no tenant
+        // Essas configurações serão aplicadas automaticamente em NOVAS propostas criadas no futuro
         const { TenantService } = await import("@/services/tenant-service");
         await TenantService.updateTenant(tenant.id, {
           proposalDefaults: sanitizedSettings as Record<string, unknown>,
         });
 
-        // Também salva as configurações na proposta ATUAL (sem toast/loading)
+        // PASSO 2: Salva as configurações na proposta ATUAL também (silenciosamente)
         // Isso garante que a proposta atual mantenha essas configurações específicas
         await handleSave({ suppressToast: true, suppressLoading: true });
 
-        // Atualiza o contexto do tenant para que novas propostas usem as configurações salvas
-        // IMPORTANTE: Isso NÃO afeta propostas existentes que já têm pdfSettings próprios
-        // O carregamento segue esta ordem de prioridade:
-        // 1. pdfSettings da proposta (se existir) - SEMPRE tem prioridade
-        // 2. proposalDefaults do tenant (para novas propostas sem configurações)
-        // 3. Configurações genéricas padrão
+        // PASSO 3: Atualiza o contexto do tenant no frontend
+        // Isso faz com que novas propostas criadas nesta sessão já usem as novas configurações
         refreshTenant();
 
         toast.success("Configurações salvas como padrão para novas propostas!");

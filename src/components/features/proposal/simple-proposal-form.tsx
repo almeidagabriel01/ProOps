@@ -205,25 +205,25 @@ export function SimpleProposalForm({
   }, [formData]);
 
   // Função para setar erro de um campo
-  const setFieldError = (field: string, message: string) => {
+  const setFieldError = React.useCallback((field: string, message: string) => {
     setErrors((prev) => ({ ...prev, [field]: message }));
-  };
+  }, []);
 
   // Função para limpar erro de um campo
-  const clearFieldError = (field: string) => {
+  const clearFieldError = React.useCallback((field: string) => {
     setErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[field];
       return newErrors;
     });
-  };
+  }, []);
 
   // Limpar erros automaticamente quando os campos mudam
   React.useEffect(() => {
     if (formData.title && formData.title.trim().length >= 3 && errors.title) {
       clearFieldError("title");
     }
-  }, [formData.title, errors.title]);
+  }, [formData.title, errors.title, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -233,7 +233,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientName");
     }
-  }, [formData.clientName, errors.clientName]);
+  }, [formData.clientName, errors.clientName, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -243,7 +243,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientEmail");
     }
-  }, [formData.clientEmail, errors.clientEmail]);
+  }, [formData.clientEmail, errors.clientEmail, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -253,7 +253,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientPhone");
     }
-  }, [formData.clientPhone, errors.clientPhone]);
+  }, [formData.clientPhone, errors.clientPhone, clearFieldError]);
 
   React.useEffect(() => {
     if (formData.validUntil && errors.validUntil) {
@@ -266,7 +266,7 @@ export function SimpleProposalForm({
         clearFieldError("validUntil");
       }
     }
-  }, [formData.validUntil, errors.validUntil]);
+  }, [formData.validUntil, errors.validUntil, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -277,13 +277,13 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("sistemas");
     }
-  }, [selectedSistemas, formData.products, errors.sistemas]);
+  }, [selectedSistemas, formData.products, errors.sistemas, clearFieldError]);
 
   React.useEffect(() => {
     if (selectedProducts.length > 0 && errors.products) {
       clearFieldError("products");
     }
-  }, [selectedProducts, errors.products]);
+  }, [selectedProducts, errors.products, clearFieldError]);
 
   // Validação do Step 1 (Cliente)
   const validateStep1 = React.useCallback((): boolean => {
@@ -587,7 +587,7 @@ export function SimpleProposalForm({
     // Step 5 (Summary) is the last step
     
     return validators;
-  }, [isAutomacaoNiche]);
+  }, [isAutomacaoNiche, validateStep1, validateStep2]);
 
   // Loading state
   if (isLoading) {

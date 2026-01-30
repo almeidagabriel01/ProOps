@@ -75,7 +75,7 @@ export function FormHeader({
         )}
 
         {Icon && (
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
             <Icon className="w-7 h-7 text-primary-foreground" />
           </div>
         )}
@@ -135,7 +135,7 @@ export function FormSection({
       {/* Header */}
       <div
         className={cn(
-          "px-6 py-5 border-b border-border/30 bg-gradient-to-r from-muted/50 to-transparent",
+          "px-6 py-5 border-b border-border/30 bg-linear-to-r from-muted/50 to-transparent",
           collapsible &&
           "cursor-pointer select-none hover:from-muted/70 transition-colors"
         )}
@@ -144,7 +144,7 @@ export function FormSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {Icon && (
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center border border-primary/10">
+              <div className="w-11 h-11 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center border border-primary/10">
                 <Icon className="w-5 h-5 text-primary" />
               </div>
             )}
@@ -258,11 +258,11 @@ export function FormItem({
       {children}
 
       {/* Error row - fixed min height to prevent layout shift */}
-      <div className="min-h-[20px]">
+      <div className="min-h-5">
         {error && (
           <p className="text-sm text-destructive flex items-center gap-1.5 animate-in slide-in-from-top-1 duration-200">
             <svg
-              className="w-4 h-4 flex-shrink-0"
+              className="w-4 h-4 shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -382,7 +382,7 @@ export function FormActions({
         disabled={isSubmitting}
         className={cn(
           "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300",
-          "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+          "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
           "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
           "hover:scale-[1.02] active:scale-[0.98]",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-md",

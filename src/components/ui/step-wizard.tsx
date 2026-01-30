@@ -192,7 +192,7 @@ function StepIndicator({
 
         {/* Progress bar fill - grows from first step center to current step center */}
         <div
-          className="absolute top-6 h-0.5 bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+          className="absolute top-6 h-0.5 bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
           style={{
             left: 'calc(24px)',
             width: currentStep === 0 ? '0%' : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
@@ -223,9 +223,9 @@ function StepIndicator({
                   "relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ease-out",
                   "border-2 shadow-sm",
                   isCompleted &&
-                    "bg-gradient-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
+                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
                   isCurrent &&
-                    "bg-gradient-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
+                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
                   isPending &&
                     !allowClickAhead &&
                     "bg-primary/5 border-primary/30 text-primary/50",
@@ -392,7 +392,7 @@ export function StepNavigation({
           disabled={isSubmitting || isValidating}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
-            "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+            "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
@@ -418,7 +418,7 @@ export function StepNavigation({
           disabled={isValidating}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
-            "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+            "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
