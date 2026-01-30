@@ -198,6 +198,12 @@ export function SimpleProposalForm({
   // Estado para erros de validação
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
+  // Ref to always get current formData in validators (avoid stale closure)
+  const formDataRef = React.useRef(formData);
+  React.useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
   // Função para setar erro de um campo
   const setFieldError = (field: string, message: string) => {
     setErrors((prev) => ({ ...prev, [field]: message }));
@@ -280,124 +286,91 @@ export function SimpleProposalForm({
   }, [selectedProducts, errors.products]);
 
   // Validação do Step 1 (Cliente)
-  const validateStep1 = (): boolean => {
-    let isValid = true;
+  const validateStep1 = React.useCallback((): boolean => {
+    // Use ref to get current formData (avoid stale closure)
+    const currentFormData = formDataRef.current;
 
-    if (!formData.title || formData.title.trim().length < 3) {
-      setFieldError("title", "Título deve ter pelo menos 3 caracteres");
-      isValid = false;
-    } else {
-      clearFieldError("title");
+    const errors: Record<string, string> = {};
+
+    // Validate all fields first without setting errors
+    if (!currentFormData.title || currentFormData.title.trim().length < 3) {
+      errors.title = "Título deve ter pelo menos 3 caracteres";
     }
 
-    if (!formData.clientName || !formData.clientName.trim()) {
-      setFieldError("clientName", "Contato é obrigatório");
-      isValid = false;
-    } else {
-      clearFieldError("clientName");
+    if (!currentFormData.clientName || !currentFormData.clientName.trim()) {
+      errors.clientName = "Contato é obrigatório";
     }
 
     // Email is optional, only validate format if provided
     if (
-      formData.clientEmail &&
-      formData.clientEmail.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)
+      currentFormData.clientEmail &&
+      currentFormData.clientEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentFormData.clientEmail)
     ) {
-      setFieldError("clientEmail", "Email inválido");
-      isValid = false;
-    } else {
-      clearFieldError("clientEmail");
+      errors.clientEmail = "Email inválido";
     }
 
     if (
-      !formData.clientPhone ||
-      formData.clientPhone.replace(/\D/g, "").length < 10
+      !currentFormData.clientPhone ||
+      currentFormData.clientPhone.replace(/\D/g, "").length < 10
     ) {
-      setFieldError("clientPhone", "Telefone deve ter pelo menos 10 dígitos");
-      isValid = false;
-    } else {
-      clearFieldError("clientPhone");
+      errors.clientPhone = "Telefone deve ter pelo menos 10 dígitos";
     }
 
-    if (!formData.validUntil) {
-      setFieldError("validUntil", "Validade é obrigatória");
-      isValid = false;
+    if (!currentFormData.validUntil) {
+      errors.validUntil = "Validade é obrigatória";
     } else {
-      // Validate date > today
-      const [year, month, day] = formData.validUntil.split("-").map(Number);
+      // Validate date >= today (allow today as valid)
+      const [year, month, day] = currentFormData.validUntil.split("-").map(Number);
       const selectedDate = new Date(year, month - 1, day);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
-      if (selectedDate <= today) {
-        setFieldError("validUntil", "Validade deve ser maior que hoje");
-        isValid = false;
-      } else {
-        clearFieldError("validUntil");
+      if (selectedDate < today) {
+        errors.validUntil = "Validade não pode ser anterior a hoje";
       }
     }
 
-    return isValid;
-  };
+    // Only update errors state if there are actual errors
+    if (Object.keys(errors).length > 0) {
+      // Set all errors at once
+      Object.entries(errors).forEach(([field, message]) => {
+        setFieldError(field, message);
+      });
+      return false;
+    }
+
+    // Clear all errors if validation passed
+    clearFieldError("title");
+    clearFieldError("clientName");
+    clearFieldError("clientEmail");
+    clearFieldError("clientPhone");
+    clearFieldError("validUntil");
+    
+    return true;
+  }, [setFieldError, clearFieldError]);
 
   // Validação do Step 2 (Sistemas ou Produtos)
-  const validateStep2 = (): boolean => {
-    let hasItems = false;
-    let hasActiveProduct = false;
-
-    if (isAutomacaoNiche) {
-      if (selectedSistemas.length === 0) {
-        setFieldError(
-          "sistemas",
-          "Selecione pelo menos 1 sistema de automação",
-        );
-        return false;
-      }
-
-      // Check if there are actual products (from systems or extras)
-      if (!formData.products || formData.products.length === 0) {
-        setFieldError(
-          "sistemas",
-          "A proposta deve ter pelo menos 1 produto. O sistema selecionado pode estar vazio.",
-        );
-        return false;
-      }
-      hasItems = true;
-    } else {
-      if (selectedProducts.length === 0) {
-        setFieldError("products", "Selecione pelo menos 1 produto");
-        return false;
-      }
-      hasItems = true;
+  const validateStep2 = React.useCallback((): boolean => {
+    // Use ref to get current formData (avoid stale closure)
+    const currentFormData = formDataRef.current;
+    
+    // Check if there are products in formData
+    if (!currentFormData.products || currentFormData.products.length === 0) {
+      const field = isAutomacaoNiche ? "sistemas" : "products";
+      const message = isAutomacaoNiche 
+        ? "Selecione pelo menos 1 sistema de automação com produtos"
+        : "Selecione pelo menos 1 produto";
+      setFieldError(field, message);
+      return false;
     }
 
-    // Validate if at least one selected product is active
-    if (hasItems) {
-      // Get all selected product IDs
-      const selectedIds = new Set(selectedProducts.map((sp) => sp.productId));
-
-      // Check if ANY of the selected products in the master list are active
-      // We assume if a product is not found in master list (e.g. deleted), it's not "active" for this purpose, or we could handle safely
-      // Status undefined/null means active (legacy)
-      hasActiveProduct = products.some(
-        (p) => selectedIds.has(p.id) && (!p.status || p.status === "active"),
-      );
-
-      if (!hasActiveProduct) {
-        const field = isAutomacaoNiche ? "sistemas" : "products";
-        setFieldError(
-          field,
-          "Selecione pelo menos um produto ativo para continuar.",
-        );
-        return false;
-      }
-    }
-
+    // Clear errors
     if (isAutomacaoNiche) clearFieldError("sistemas");
     else clearFieldError("products");
 
     return true;
-  };
+  }, [isAutomacaoNiche, setFieldError, clearFieldError]);
 
   // Handle client change
   const handleClientChange = (data: {
@@ -408,16 +381,35 @@ export function SimpleProposalForm({
     clientAddress?: string;
     isNew: boolean;
   }) => {
+    // Detect if this is a different client being selected
+    // If it's the same client, preserve existing proposal data (don't overwrite with fresh client data)
+    const isChangeToNewClient = 
+      data.isNew || // Creating a new client
+      !selectedClientId || // No client was selected before
+      data.clientId !== selectedClientId; // Different client selected
+
     setSelectedClientId(data.clientId);
     setIsNewClient(data.isNew);
-    setFormData((prev) => ({
-      ...prev,
-      clientId: data.clientId,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail || prev.clientEmail,
-      clientPhone: data.clientPhone || prev.clientPhone,
-      clientAddress: data.clientAddress || prev.clientAddress,
-    }));
+    
+    if (isChangeToNewClient) {
+      // Client actually changed - update all fields with new client data
+      setFormData((prev) => ({
+        ...prev,
+        clientId: data.clientId,
+        clientName: data.clientName,
+        clientEmail: data.clientEmail || "",
+        clientPhone: data.clientPhone || "",
+        clientAddress: data.clientAddress || "",
+      }));
+    } else {
+      // Same client re-selected - preserve edited proposal data, only update name
+      // This prevents overwriting user edits when clicking the same client in dropdown
+      setFormData((prev) => ({
+        ...prev,
+        clientId: data.clientId,
+        clientName: data.clientName,
+      }));
+    }
   };
 
   // Handle adding new system
@@ -574,6 +566,29 @@ export function SimpleProposalForm({
     router.push("/proposals");
   };
 
+  // Steps configuration based on niche
+  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
+
+  // Map step validators for StepWizard
+  // MUST be before any conditional returns to maintain hook order
+  const stepValidators = React.useMemo(() => {
+    const validators: Record<number, () => boolean> = {
+      0: validateStep1, // Client step
+    };
+    
+    // Add step 2 validator (systems or products)
+    if (isAutomacaoNiche) {
+      validators[1] = validateStep2; // Systems step (for automation niche)
+    } else {
+      validators[1] = validateStep2; // Products step (for non-automation)
+    }
+    
+    // Steps 3 and 4 (Payment and PDF settings) don't need validation
+    // Step 5 (Summary) is the last step
+    
+    return validators;
+  }, [isAutomacaoNiche]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -615,14 +630,16 @@ export function SimpleProposalForm({
     );
   }
 
-  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
-
   // Editable form with StepWizard
   return (
     <FormContainer>
       <ProposalFormHeader proposalId={proposalId} onBack={handleBack} />
 
-      <StepWizard steps={steps} allowClickAhead={!!proposalId}>
+      <StepWizard 
+        steps={steps} 
+        allowClickAhead={!!proposalId}
+        stepValidators={stepValidators}
+      >
         {/* Step 1: Client Info */}
         <StepCard>
           <div className="space-y-6">

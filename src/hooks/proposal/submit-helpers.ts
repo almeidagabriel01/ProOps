@@ -73,15 +73,22 @@ export async function updateProposal(
 
   const productsForUpdate = sanitizeProducts(selectedProducts);
 
+  // Ensure empty fields are explicitly saved as empty strings, not null/undefined
+  // This prevents Firestore from skipping the field or keeping old values
+  const sanitizeStringField = (value: string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    return String(value);
+  };
+
   await ProposalService.updateProposal(proposalId, {
     title: formData.title,
     clientId: selectedClientId,
     clientName: formData.clientName,
-    clientEmail: formData.clientEmail || undefined,
-    clientPhone: formData.clientPhone || undefined,
-    clientAddress: formData.clientAddress || undefined,
-    validUntil: formData.validUntil || undefined,
-    customNotes: formData.customNotes || undefined,
+    clientEmail: sanitizeStringField(formData.clientEmail),
+    clientPhone: sanitizeStringField(formData.clientPhone),
+    clientAddress: sanitizeStringField(formData.clientAddress),
+    validUntil: sanitizeStringField(formData.validUntil),
+    customNotes: sanitizeStringField(formData.customNotes),
     discount: formData.discount || 0,
     extraExpense: formData.extraExpense || 0,
     products: productsForUpdate,
@@ -120,14 +127,21 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
   const totalValue =
     typeof safeTotal === "number" && !isNaN(safeTotal) ? safeTotal : 0;
 
+  // Ensure empty fields are explicitly saved as empty strings, not null/undefined
+  // This prevents Firestore from skipping the field or keeping old values
+  const sanitizeStringField = (value: string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    return String(value);
+  };
+
   return {
     title: formData.title || "", // Allow empty title for drafts (backend handles default)
     clientId: clientId || "", // Allow empty client for drafts
     clientName: formData.clientName || "",
-    clientEmail: formData.clientEmail || undefined,
-    clientPhone: formData.clientPhone || undefined,
-    clientAddress: formData.clientAddress || undefined,
-    validUntil: formData.validUntil || undefined,
+    clientEmail: sanitizeStringField(formData.clientEmail),
+    clientPhone: sanitizeStringField(formData.clientPhone),
+    clientAddress: sanitizeStringField(formData.clientAddress),
+    validUntil: sanitizeStringField(formData.validUntil),
     totalValue: totalValue,
     discount: formData.discount || 0,
     extraExpense: formData.extraExpense || 0,

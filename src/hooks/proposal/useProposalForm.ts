@@ -400,6 +400,7 @@ export function useProposalForm({
             console.log("Auto-saved new draft successfully");
           } catch (err) {
             console.error("Auto-save failed", err);
+            toast.error("Falha ao salvar rascunho automaticamente");
           } finally {
             if (resolveSave) resolveSave();
           }
@@ -427,6 +428,7 @@ export function useProposalForm({
           setLocalSistemas(siss);
         } catch (e) {
           console.error("Error loading initial master data", e);
+          toast.error("Erro ao carregar dados de ambientes e sistemas");
         }
       }
     };
@@ -450,6 +452,7 @@ export function useProposalForm({
           setTemplate(defaultTemplate || null);
         } catch (error) {
           console.error("Error loading products", error);
+          toast.error("Erro ao carregar produtos e templates");
         }
       }
     };
@@ -518,29 +521,14 @@ export function useProposalForm({
         try {
           const proposal = await ProposalService.getProposalById(proposalId);
           if (proposal) {
-            // Sync client data from source if clientId exists
-            let syncedClientName = proposal.clientName || "";
-            let syncedClientEmail = proposal.clientEmail || "";
-            let syncedClientPhone = proposal.clientPhone || "";
-            let syncedClientAddress = proposal.clientAddress || "";
+            // Use proposal data as-is - do NOT sync with client
+            // The proposal may have custom/edited data that differs from the client
+            const syncedClientName = proposal.clientName || "";
+            const syncedClientEmail = proposal.clientEmail || "";
+            const syncedClientPhone = proposal.clientPhone || "";
+            const syncedClientAddress = proposal.clientAddress || "";
 
             if (proposal.clientId) {
-              try {
-                const { ClientService } =
-                  await import("@/services/client-service");
-                const freshClient = await ClientService.getClientById(
-                  proposal.clientId,
-                );
-                if (freshClient) {
-                  syncedClientName = freshClient.name || syncedClientName;
-                  syncedClientEmail = freshClient.email || syncedClientEmail;
-                  syncedClientPhone = freshClient.phone || syncedClientPhone;
-                  syncedClientAddress =
-                    freshClient.address || syncedClientAddress;
-                }
-              } catch (clientError) {
-                console.warn("Could not fetch fresh client data:", clientError);
-              }
               setSelectedClientId(proposal.clientId);
               setIsNewClient(false);
 
@@ -630,6 +618,7 @@ export function useProposalForm({
                   setLocalSistemas(freshSistemas);
                 } catch (err) {
                   console.error("Error fetching fresh aux data", err);
+                  toast.error("Erro ao atualizar dados de ambientes e sistemas");
                 }
               }
 
@@ -688,6 +677,7 @@ export function useProposalForm({
           }
         } catch (error) {
           console.error("Error loading proposal", error);
+          toast.error("Erro ao carregar proposta");
         }
 
         setIsLoading(false);
@@ -838,7 +828,8 @@ export function useProposalForm({
         ),
       );
 
-      toast.error("Erro ao alterar status do produto");
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      toast.error(`Erro ao alterar status do produto: ${errorMessage}`);
     }
   };
 
@@ -940,7 +931,8 @@ export function useProposalForm({
     try {
       let clientId: string | undefined = selectedClientId;
 
-      if (!proposalId && isNewClient && formData.clientName) {
+      // Create new client if needed (for both new and existing proposals)
+      if (isNewClient && formData.clientName) {
         const newClientResult = await createClient(
           {
             name: formData.clientName,
@@ -973,13 +965,18 @@ export function useProposalForm({
         const hasProducts = (formData.products?.length || 0) > 0;
         const isComplete = hasValidTitle && hasValidClient && hasProducts;
 
-        // For drafts or incomplete proposals, force draft status if incomplete
+        // When user clicks "Save Proposal" (manual save), it's a finalization action
+        // Only auto-save should use draft status
+        // If incomplete, force draft; if complete and no status set, default to in_progress
+        const finalStatus = isComplete 
+          ? (formData.status && formData.status !== "draft" ? formData.status : "in_progress")
+          : "draft";
+
         const draftFormData = {
           ...formData,
           title: formData.title?.trim() || "",
           clientName: formData.clientName?.trim() || "",
-          // Force "draft" status if required fields are missing, otherwise use the selected status
-          status: isComplete ? formData.status || "in_progress" : "draft",
+          status: finalStatus,
         };
 
         // 3. Prepare Payload
@@ -994,6 +991,27 @@ export function useProposalForm({
 
         // Mark as manually saved
         latestStateRef.current.hasSaved = true;
+
+        // Update client data if proposal is being finalized (not draft) and client exists
+        // This syncs any changes made to client data within the proposal back to the client record
+        const isFinalizing = draftFormData.status !== "draft";
+        
+        if (isFinalizing && clientId) {
+          const clientUpdateData = {
+            name: formData.clientName?.trim() || "",
+            email: formData.clientEmail || "",
+            phone: formData.clientPhone || "",
+            address: formData.clientAddress || "",
+          };
+          
+          try {
+            const { ClientService } = await import("@/services/client-service");
+            await ClientService.updateClient(clientId, clientUpdateData);
+          } catch (clientUpdateError) {
+            console.error("Failed to update client:", clientUpdateError);
+            toast.error("Proposta salva, mas houve um erro ao atualizar os dados do cliente");
+          }
+        }
 
         if (proposalId) {
           await ProposalService.updateProposal(proposalId, payload);
@@ -1233,6 +1251,7 @@ export function useProposalForm({
       });
     } catch (e) {
       console.error("Error parsing initial snapshot for dirty detection:", e);
+      toast.error("Erro ao verificar alterações no formulário");
       return false;
     }
 
@@ -1296,6 +1315,7 @@ export function useProposalForm({
       }
     } catch (e) {
       console.error("Error resetting form to initial state:", e);
+      toast.error("Erro ao descartar alterações");
     }
   }, []);
 

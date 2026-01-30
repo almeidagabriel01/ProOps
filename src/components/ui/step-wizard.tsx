@@ -50,6 +50,7 @@ interface StepWizardProps {
   className?: string;
   indicatorContainerClassName?: string;
   allowClickAhead?: boolean; // When true, allows clicking on any step (useful for edit mode)
+  stepValidators?: Record<number, () => boolean | Promise<boolean>>; // Validators for each step index
 }
 
 export function StepWizard({
@@ -59,6 +60,7 @@ export function StepWizard({
   className,
   indicatorContainerClassName,
   allowClickAhead = false,
+  stepValidators,
 }: StepWizardProps) {
   const [currentStep, setCurrentStep] = React.useState(0);
   const [maxVisitedStep, setMaxVisitedStep] = React.useState(0);
@@ -76,8 +78,25 @@ export function StepWizard({
     }
   }, []);
 
-  const goToStep = (step: number) => {
+  const goToStep = async (step: number) => {
     if (step >= 0 && step < totalSteps) {
+      // If moving forward and validators exist, validate current step
+      if (step > currentStep && stepValidators) {
+        const validator = stepValidators[currentStep];
+
+        if (validator) {
+          try {
+            const isValid = await validator();
+            if (!isValid) {
+              return; // Validation failed, don't proceed
+            }
+          } catch (error) {
+            console.error("Step validation error:", error);
+            return; // Validation error, don't proceed
+          }
+        }
+      }
+      
       setCurrentStep(step);
       scrollToTop();
     }
@@ -160,19 +179,25 @@ function StepIndicator({
 }: StepIndicatorProps) {
   return (
     <div className={cn("relative mx-auto", containerClassName)}>
-      {/* Progress bar background */}
-      <div className="absolute top-6 left-0 right-0 h-0.5 bg-primary/20" />
-
-      {/* Progress bar fill */}
-      <div
-        className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
-        style={{
-          width: `${(currentStep / (steps.length - 1)) * 100}%`,
-        }}
-      />
-
       {/* Steps */}
       <div className="relative flex justify-between">
+        {/* Progress bar background - positioned between step centers */}
+        <div 
+          className="absolute top-6 h-0.5 bg-primary/20"
+          style={{
+            left: 'calc(24px)',
+            right: 'calc(24px)',
+          }}
+        />
+
+        {/* Progress bar fill - grows from first step center to current step center */}
+        <div
+          className="absolute top-6 h-0.5 bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+          style={{
+            left: 'calc(24px)',
+            width: currentStep === 0 ? '0%' : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
+          }}
+        />
         {steps.map((step, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;

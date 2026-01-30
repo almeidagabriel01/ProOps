@@ -80,6 +80,8 @@ export function ClientSelect({
 
   const handleSelectClient = (client: Client) => {
     setInputValue(client.name);
+    // Always call onChange to ensure the selection is registered
+    // The parent component will decide whether to update fields based on whether it's the same client
     onChange({
       clientId: client.id,
       clientName: client.name,

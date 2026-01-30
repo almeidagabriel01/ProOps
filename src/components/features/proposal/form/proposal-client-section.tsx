@@ -117,51 +117,46 @@ export function ProposalClientSection({
             className={errors.title ? "border-destructive" : ""}
           />
         </FormItem>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              {isNewClient ? "Cliente/Fornecedor" : "Cliente"}
-              <span className="text-destructive ml-0.5">*</span>
-            </label>
-
-            {/* Client Type Selection - Only show when creating a new client */}
-            {isNewClient && (
-              <div className="flex items-center gap-3 ml-auto">
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <Checkbox
-                    checked={clientTypes.includes("cliente")}
-                    onCheckedChange={(checked) =>
-                      handleTypeChange("cliente", checked === true)
-                    }
-                  />
-                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs">Cliente</span>
-                </label>
-                <label className="flex items-center gap-1.5 cursor-pointer">
-                  <Checkbox
-                    checked={clientTypes.includes("fornecedor")}
-                    onCheckedChange={(checked) =>
-                      handleTypeChange("fornecedor", checked === true)
-                    }
-                  />
-                  <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs">Fornecedor</span>
-                </label>
-              </div>
-            )}
-          </div>
+        <FormItem
+          label="Contato"
+          htmlFor="clientName"
+          required
+          error={errors.clientName}
+        >
           <ClientSelect
             value={formData.clientName || ""}
             clientId={selectedClientId}
             onChange={onClientChange}
             error={!!errors.clientName}
           />
-          {errors.clientName && (
-            <p className="text-sm font-medium text-destructive">
-              {errors.clientName}
-            </p>
+
+          {/* Client Type Selection - Only show when creating a new client */}
+          {isNewClient && formData.clientName && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground pl-1 mt-2">
+              <span>Cadastrar como:</span>
+              <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={clientTypes.includes("cliente")}
+                  onCheckedChange={(checked) =>
+                    handleTypeChange("cliente", checked === true)
+                  }
+                />
+                <Users className="w-3.5 h-3.5" />
+                <span>Contato</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={clientTypes.includes("fornecedor")}
+                  onCheckedChange={(checked) =>
+                    handleTypeChange("fornecedor", checked === true)
+                  }
+                />
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Fornecedor</span>
+              </label>
+            </div>
           )}
-        </div>
+        </FormItem>
       </FormGroup>
 
       <FormGroup cols={3}>
