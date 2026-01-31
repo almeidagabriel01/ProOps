@@ -38,7 +38,7 @@ export function PdfExtraProductsBlock({
   );
 
   return (
-    <div className="mt-6 mb-4">
+    <div className="mt-12 mb-4">
       <div
         className="rounded-xl border-2 overflow-hidden"
         style={{ borderColor: primaryColor }}

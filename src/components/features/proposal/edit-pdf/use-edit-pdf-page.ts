@@ -420,6 +420,8 @@ export function useEditPdfPage() {
             windowWidth: PAGE_WIDTH_PX,
             windowHeight: PAGE_HEIGHT_PX,
             onclone: (clonedDoc) => {
+              console.log('🔧 [PDF DEBUG] Starting onclone fixes...');
+              
               const allElements = clonedDoc.querySelectorAll("*");
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
@@ -449,6 +451,64 @@ export function useEditPdfPage() {
                   element.style.boxShadow = "none";
                 }
               });
+
+              // FIX 1: EXTRA TAG ALIGNMENT - Find by searching for the exact image
+              console.log('🔧 [PDF DEBUG] Looking for EXTRA tag images...');
+              const extraImages = clonedDoc.querySelectorAll('img[alt="EXTRA"]');
+              console.log(`🔧 [PDF DEBUG] Found ${extraImages.length} EXTRA tag images`);
+              
+              extraImages.forEach((img, index) => {
+                console.log(`🔧 [PDF DEBUG] Processing EXTRA image ${index + 1}`);
+                const imgEl = img as HTMLElement;
+                const tdParent = imgEl.closest('td');
+                const trParent = imgEl.closest('tr');
+                
+                if (tdParent && trParent) {
+                  console.log(`🔧 [PDF DEBUG] Found TD and TR parents for EXTRA ${index + 1}`);
+                  // Force the entire row to have middle alignment
+                  trParent.style.verticalAlign = 'middle';
+                  
+                  // Find all TDs in this row and force middle alignment
+                  const allTdsInRow = trParent.querySelectorAll('td');
+                  allTdsInRow.forEach((td) => {
+                    const tdEl = td as HTMLElement;
+                    tdEl.style.verticalAlign = 'middle';
+                    tdEl.style.lineHeight = 'normal';
+                  });
+                  
+                  // Force the image itself
+                  imgEl.style.verticalAlign = 'middle';
+                  imgEl.style.display = 'block';
+                  console.log(`🔧 [PDF DEBUG] Applied middle alignment to EXTRA ${index + 1}`);
+                } else {
+                  console.log(`🔧 [PDF DEBUG] WARNING: Could not find TD/TR parent for EXTRA ${index + 1}`);
+                }
+              });
+
+              // FIX 2: SISTEMA TITLE SPACING - Find by looking for the spacer div
+              console.log('🔧 [PDF DEBUG] Looking for sistema title spacers...');
+              const spacerDivs = clonedDoc.querySelectorAll('div[style*="height: 12px"]');
+              console.log(`🔧 [PDF DEBUG] Found ${spacerDivs.length} spacer divs`);
+              
+              spacerDivs.forEach((div, index) => {
+                const divEl = div as HTMLElement;
+                console.log(`🔧 [PDF DEBUG] Processing spacer ${index + 1}`);
+                // Force the spacer to be visible
+                divEl.style.height = '12px';
+                divEl.style.minHeight = '12px';
+                divEl.style.display = 'block';
+                divEl.style.width = '100%';
+                divEl.style.clear = 'both';
+                divEl.style.fontSize = '0';
+                divEl.style.lineHeight = '0';
+                // Add a non-breaking space to force it to occupy space
+                if (!divEl.innerHTML || divEl.innerHTML.trim() === '') {
+                  divEl.innerHTML = '&nbsp;';
+                }
+                console.log(`🔧 [PDF DEBUG] Applied spacing to spacer ${index + 1}`);
+              });
+              
+              console.log('🔧 [PDF DEBUG] Onclone fixes completed');
             },
           });
 

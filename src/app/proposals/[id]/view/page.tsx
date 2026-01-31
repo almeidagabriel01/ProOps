@@ -577,6 +577,169 @@ export default function ViewProposalPage() {
             backgroundColor: "#ffffff",
             width: 794, // Fixed A4 width
             height: 1123, // Fixed A4 height
+            onclone: (clonedDoc) => {
+              console.log(`🔧 [PDF DEBUG PAGE ${i + 1}] Starting onclone fixes...`);
+              
+              // DEBUG: Check what's in the cloned document
+              const allImgs = clonedDoc.querySelectorAll('img');
+              const allDivs = clonedDoc.querySelectorAll('div');
+              const allH3s = clonedDoc.querySelectorAll('h3');
+              const allTables = clonedDoc.querySelectorAll('table');
+              console.log(`🔧 [DEBUG] Total images: ${allImgs.length}`);
+              console.log(`🔧 [DEBUG] Total divs: ${allDivs.length}`);
+              console.log(`🔧 [DEBUG] Total h3s: ${allH3s.length}`);
+              console.log(`🔧 [DEBUG] Total tables: ${allTables.length}`);
+              
+              // Check for EXTRA images by looking at all images
+              allImgs.forEach((img, idx) => {
+                const imgEl = img as HTMLElement;
+                if (imgEl.alt === 'EXTRA' || imgEl.src.includes('EXTRA')) {
+                  console.log(`🔧 [DEBUG] Found EXTRA at image index ${idx}`);
+                }
+              });
+              
+              // FIX 1: EXTRA TAG ALIGNMENT - Now targeting flexbox divs
+              let extraCount = 0;
+              allImgs.forEach((img) => {
+                const imgEl = img as HTMLElement;
+                if (imgEl.alt === 'EXTRA' || (imgEl.src && imgEl.src.includes('EXTRA'))) {
+                  extraCount++;
+                  console.log(`🔧 [FIX] Fixing EXTRA image ${extraCount}`);
+                  
+                  // Find the parent flex container
+                  const flexParent = imgEl.closest('div[style*="display: flex"]') || imgEl.closest('div[style*="display:flex"]');
+                  
+                  if (flexParent) {
+                    const flexEl = flexParent as HTMLElement;
+                    console.log(`🔧 [FIX] Found flex parent for EXTRA ${extraCount}`);
+                    
+                    // Force flex alignment
+                    flexEl.style.display = 'flex';
+                    flexEl.style.alignItems = 'center';
+                    flexEl.style.gap = '6px';
+                    flexEl.style.minHeight = '20px';
+                    
+                    // Find H4 in the flex container
+                    const h4 = flexEl.querySelector('h4');
+                    if (h4) {
+                      const h4El = h4 as HTMLElement;
+                      h4El.style.lineHeight = '20px';
+                      h4El.style.display = 'flex';
+                      h4El.style.alignItems = 'center';
+                      h4El.style.margin = '0';
+                      h4El.style.padding = '0';
+                      console.log(`🔧 [FIX] Fixed H4 for EXTRA ${extraCount}`);
+                    }
+                    
+                    // Fix the image wrapper div
+                    const imgWrapper = imgEl.parentElement as HTMLElement;
+                    if (imgWrapper) {
+                      imgWrapper.style.display = 'flex';
+                      imgWrapper.style.alignItems = 'center';
+                      imgWrapper.style.height = '20px';
+                    }
+                    
+                    // Fix the image itself
+                    imgEl.style.display = 'block';
+                    imgEl.style.margin = '0';
+                    imgEl.style.padding = '0';
+                  }
+                }
+              });
+              console.log(`🔧 [PDF DEBUG PAGE ${i + 1}] Fixed ${extraCount} EXTRA tags`);
+
+              // FIX 2: SISTEMA TITLE SPACING - Enhanced debugging
+              let spacerCount = 0;
+              console.log(`🔧 [DEBUG] Checking ${allH3s.length} h3 elements...`);
+              
+              allH3s.forEach((h3, h3Index) => {
+                const h3El = h3 as HTMLElement;
+                const nextEl = h3El.nextElementSibling;
+                
+                const computedStyle = window.getComputedStyle(h3El);
+                const nextComputed = nextEl ? window.getComputedStyle(nextEl) : null;
+                
+                console.log(`🔧 [DEBUG] H3 ${h3Index + 1}:`, {
+                  text: h3El.textContent?.substring(0, 30),
+                  fontSize: computedStyle.fontSize,
+                  nextTag: nextEl?.tagName,
+                  nextInlineHeight: (nextEl as HTMLElement)?.style?.height,
+                  nextComputedHeight: nextComputed?.height,
+                  nextWidth: nextComputed?.width
+                });
+                
+                // Check if this is a large h3 (sistema title)
+                const fontSize = computedStyle.fontSize;
+                const isLargeTitle = fontSize === '24px' || fontSize === '20px' || h3El.className.includes('text-xl');
+                
+                if (isLargeTitle) {
+                  console.log(`🔧 [FIX] Found large sistema title h3 ${h3Index + 1}`);
+                  console.log('📍 H3 details:', {
+                    text: h3El.textContent,
+                    marginBottom: computedStyle.marginBottom,
+                    paddingBottom: computedStyle.paddingBottom,
+                  });
+                  
+                  // Check the next 3 elements to understand the structure
+                  let currentEl = nextEl;
+                  for (let j = 0; j < 3 && currentEl; j++) {
+                    const el = currentEl as HTMLElement;
+                    const elStyles = window.getComputedStyle(el);
+                    console.log(`📍 Next element ${j + 1}:`, {
+                      tag: el.tagName,
+                      text: el.textContent?.substring(0, 50),
+                      height: elStyles.height,
+                      display: elStyles.display,
+                      inlineHeight: el.style.height,
+                      className: el.className,
+                    });
+                    currentEl = currentEl.nextElementSibling;
+                  }
+                  
+                  // Force margin-bottom on h3
+                  h3El.style.marginBottom = '12px';
+                  h3El.style.paddingBottom = '0';
+                  h3El.style.display = 'block';
+                  
+                  // Check if the NEXT element is the spacer div
+                  if (nextEl && nextEl.tagName === 'DIV') {
+                    const divEl = nextEl as HTMLElement;
+                    
+                    // Check if it's a spacer by inline style OR if it's a small empty div
+                    const inlineHeight = divEl.style.height;
+                    const textContent = divEl.textContent || '';
+                    const trimmedText = textContent.trim();
+                    
+                    // IGNORE divs with visible text (like ambiente tags "SALA", "QUARTO")
+                    // Only process truly empty spacers
+                    const isEmpty = !trimmedText || trimmedText === '\u00A0';
+                    const computedHeight = window.getComputedStyle(divEl).height;
+                    
+                    // Spacer detection: MUST be empty AND have small height
+                    if (isEmpty && (inlineHeight === '12px' || inlineHeight === '20px' || computedHeight === '12px' || computedHeight === '20px')) {
+                      console.log(`🔧 [FIX] Enhancing spacer div after h3 ${h3Index + 1}`);
+                      divEl.style.height = '12px';
+                      divEl.style.minHeight = '12px';
+                      divEl.style.maxHeight = '12px';
+                      divEl.style.display = 'block';
+                      divEl.style.width = '100%';
+                      divEl.style.fontSize = '0';
+                      divEl.style.lineHeight = '0';
+                      divEl.style.margin = '0';
+                      divEl.style.padding = '0';
+                      divEl.style.overflow = 'hidden';
+                      divEl.textContent = ' ';
+                      spacerCount++;
+                    } else {
+                      console.log(`⏭️ [SKIP] Not a spacer (has text: "${trimmedText.substring(0, 20)}")`);
+                    }
+                  }
+                }
+              });
+              console.log(`🔧 [PDF DEBUG PAGE ${i + 1}] Fixed ${spacerCount} spacers`);
+              
+              console.log(`🔧 [PDF DEBUG PAGE ${i + 1}] Onclone fixes completed`);
+            },
           });
 
           // Add page to PDF (add new page for all except first)

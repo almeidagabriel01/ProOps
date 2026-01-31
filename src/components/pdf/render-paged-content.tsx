@@ -1,4 +1,4 @@
-﻿import React from "react";
+﻿import React, { useLayoutEffect, useRef, useState } from "react";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 import {
   SAFE_HEIGHT,
@@ -8,6 +8,7 @@ import {
   calculateProductHeight,
   calculateSistemaBlockHeight,
   calculatePaymentTermsHeight,
+  pdfDebugLog,
 } from "@/utils/pdf-helpers";
 import {
   PdfSistemaBlock,
@@ -118,6 +119,9 @@ function buildContentItems(
     primaryColor,
   };
   const items: ContentItem[] = [];
+  let idCounter = 0;
+  const generateId = (prefix: string) => `${prefix}-${idCounter++}`;
+
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
   let hasAddedPaymentTerms = false;
 
@@ -135,6 +139,7 @@ function buildContentItems(
     if (hasDynamicPaymentOptions && !hasAddedPaymentTerms) {
       items.push({
         type: "payment-terms",
+        id: generateId("payment-terms"),
         height: calculatePaymentTermsHeight(
           !!(
             proposal.downPaymentEnabled &&
@@ -216,17 +221,26 @@ function buildContentItems(
       // We should unify. Let's use extra-products-block if possible, or header if split.
       // Actually, let's use the granular approach (header + rows) to align with page breaking.
 
-      items.push({ type: "extra-products-header", height: 60 });
+      items.push({
+        type: "extra-products-header",
+        id: generateId("extra-products-header"),
+        height: 60,
+      });
       extraProducts.forEach((product, idx) => {
         const h = calculateProductHeight(product, 80, settings);
         items.push({
           type: "product-row",
+          id: generateId("product-row"),
           data: { ...product, index: idx },
           height: h,
         });
       });
     }
-    items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+    items.push({
+      type: "totals",
+      id: generateId("totals"),
+      height: ESTIMATED_HEIGHTS.TOTALS,
+    });
     addPaymentTermsBlock();
   };
 
@@ -298,13 +312,15 @@ function buildContentItems(
 
     totalHeight += envsWithProducts.reduce((sum, grp) => sum + grp.height, 0);
 
-    // Threshold: if block would take more than 70% of page, split it
-    const SPLIT_THRESHOLD = SAFE_HEIGHT * 0.7;
+    // Threshold: if block would take more than 40% of page, split it
+    // Reduced from 0.7 to 0.4 to prevent large gaps when a medium block follows a title
+    const SPLIT_THRESHOLD = SAFE_HEIGHT * 0.4;
 
     if (totalHeight > SPLIT_THRESHOLD) {
       // Add sistema header
       items.push({
         type: "sistema-header",
+        id: generateId("sistema-header"),
         data: { sistema },
         height: 100,
       });
@@ -314,6 +330,7 @@ function buildContentItems(
         // Add ambiente header
         items.push({
           type: "ambiente-header",
+          id: generateId("ambiente-header"),
           data: {
             ambienteName: group.env.ambienteName,
             ambienteId: group.env.ambienteId,
@@ -328,6 +345,7 @@ function buildContentItems(
           const productHeight = calculateProductHeight(product, 80, settings);
           items.push({
             type: "sistema-product",
+            id: generateId("sistema-product"),
             data: {
               product,
               sistema, // Parent sistema reference
@@ -347,6 +365,7 @@ function buildContentItems(
       );
       items.push({
         type: "sistema-footer",
+        id: generateId("sistema-footer"),
         data: { sistema, sistemaSubtotal, pdfDisplaySettings: settings },
         height: 60,
       });
@@ -355,6 +374,7 @@ function buildContentItems(
       // We pass ALL products; the component handles environment filtering internally
       items.push({
         type: "sistema-block",
+        id: generateId("sistema-block"),
         data: {
           sistema,
           products: productsForSistema,
@@ -369,17 +389,23 @@ function buildContentItems(
     if (productsToAdd.length > 0) {
       items.push({
         type: "product-header",
+        id: generateId("product-header"),
         height: ESTIMATED_HEIGHTS.PRODUCT_HEADER,
       });
       productsToAdd.forEach((product, i) => {
         const h = calculateProductHeight(product, 80, settings);
         items.push({
           type: "product-row",
+          id: generateId("product-row"),
           data: { ...product, index: i },
           height: h,
         });
       });
-      items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+      items.push({
+        type: "totals",
+        id: generateId("totals"),
+        height: ESTIMATED_HEIGHTS.TOTALS,
+      });
       addPaymentTermsBlock();
     }
   };
@@ -408,7 +434,12 @@ function buildContentItems(
         }
 
         const height = calculateSectionHeight(section);
-        items.push({ type: "section", data: section, height });
+        items.push({
+          type: "section",
+          id: generateId("section"),
+          data: section,
+          height,
+        });
       }
     });
   } else {
@@ -461,7 +492,12 @@ function buildContentItems(
       }
 
       const height = calculateSectionHeight(section);
-      items.push({ type: "section", data: section, height });
+      items.push({
+        type: "section",
+        id: generateId("section"),
+        data: section,
+        height,
+      });
     }
 
     if (insertIndex >= sections.length) {
@@ -478,58 +514,129 @@ function buildContentItems(
 }
 
 /**
- * Distributes content items across pages
+ * Distributes content items across pages with optimized space utilization.
+ *
+ * Algorithm:
+ * 1. Try to fit each item on the current page
+ * 2. If it doesn't fit, start a new page
+ * 3. Special handling for headers: ensure at least one content item follows
+ * 4. Allow slight overflow for better space utilization
  */
-function distributeIntoPages(items: ContentItem[]): ContentItem[][] {
+// Distributes content into pages using either estimated or measured heights
+function distributeIntoPages(
+  items: ContentItem[],
+  measuredHeights: Record<string, number> = {},
+): ContentItem[][] {
   const pages: ContentItem[][] = [];
   let currentPage: ContentItem[] = [];
   let currentHeight = ESTIMATED_HEIGHTS.HEADER;
 
+  // Types that are considered "headers" and should have at least one item following
+  const headerTypes = new Set([
+    "product-header",
+    "sistema-header",
+    "ambiente-header",
+    "extra-products-header",
+  ]);
+
+  // Minimum space threshold - only break if we've used at least 20% of the page
+  const MIN_PAGE_USAGE = SAFE_HEIGHT * 0.2;
+
+  const hasMeasurements = Object.keys(measuredHeights).length > 0;
+
+  // No overflow allowed - content must stay within SAFE_HEIGHT to prevent cutoff
+  // When using measurements, we use 98% of SAFE_HEIGHT to account for rendering discrepancies
+  const MAX_HEIGHT = hasMeasurements ? SAFE_HEIGHT * 0.98 : SAFE_HEIGHT;
+
+  // Buffer to add to measured heights to account for sub-pixel rendering differences
+  const MEASUREMENT_BUFFER = 2;
+
+  pdfDebugLog(
+    `Page distribution started. Mode=${hasMeasurements ? "MEASURED" : "ESTIMATED"}, SAFE_HEIGHT=${SAFE_HEIGHT}, MAX_HEIGHT=${MAX_HEIGHT.toFixed(0)}`,
+  );
+
   items.forEach((item, index) => {
-    let forceBreak = false;
+    const isHeader = headerTypes.has(item.type);
+    const nextItem = items[index + 1];
 
-    if (
-      item.type === "product-header" ||
-      (item.type === "section" && item.data?.type === "title")
-    ) {
-      const nextItem = items[index + 1];
-      if (
-        nextItem &&
-        currentHeight + item.height + nextItem.height > SAFE_HEIGHT
-      ) {
-        forceBreak = true;
+    // Determine height: use measured if available, otherwise fallback to estimate
+    // Add buffer to measured heights to be safe
+    const itemHeight =
+      item.id && measuredHeights[item.id]
+        ? measuredHeights[item.id] + MEASUREMENT_BUFFER
+        : item.height;
+
+    // Calculate the effective height needed for this item
+    // If it's a header, include the next item's height to keep them together
+    let effectiveHeight = itemHeight;
+    let nextItemHeight = 0;
+
+    if (isHeader && nextItem) {
+      nextItemHeight =
+        nextItem.id && measuredHeights[nextItem.id]
+          ? measuredHeights[nextItem.id] + MEASUREMENT_BUFFER
+          : nextItem.height;
+      effectiveHeight += nextItemHeight;
+    }
+
+    // Would this item fit on the current page?
+    const wouldFitNormally = currentHeight + itemHeight <= MAX_HEIGHT;
+    const wouldFitWithNext = currentHeight + effectiveHeight <= MAX_HEIGHT;
+
+    // Check if we need to start a new page
+    let shouldBreak = false;
+
+    if (isHeader) {
+      // For headers: break only if header + next item don't fit AND page has content
+      // CRITICAL CHANGE: Only force break if we are near the bottom (e.g. > 85% used)
+      // If we are at 30% usage, we should NOT break just because the next block is huge.
+      // We should print the header here, and let the next block split itself if needed.
+      const isNearBottom = currentHeight > SAFE_HEIGHT * 0.85;
+
+      if (!wouldFitWithNext && isNearBottom) {
+        shouldBreak = true;
+        pdfDebugLog(
+          `Page break before header "${item.type}" - header+next (${effectiveHeight}px) won't fit, current=${currentHeight.toFixed(0)}px`,
+        );
+      }
+    } else if (!wouldFitNormally) {
+      // For regular items: break if item doesn't fit AND page has some content
+      if (currentHeight > MIN_PAGE_USAGE) {
+        shouldBreak = true;
+        pdfDebugLog(
+          `Page break before "${item.type}" (${itemHeight}px) - current=${currentHeight.toFixed(0)}px, would exceed ${MAX_HEIGHT.toFixed(0)}px`,
+        );
       }
     }
 
-    if (item.type === "sistema-block" || item.type === "extra-products-block") {
-      if (
-        currentHeight + item.height > SAFE_HEIGHT &&
-        currentHeight > ESTIMATED_HEIGHTS.HEADER
-      ) {
-        forceBreak = true;
-      }
-    }
-
-    if (item.type === "payment-terms") {
-      if (currentHeight + item.height > SAFE_HEIGHT) {
-        forceBreak = true;
-      }
-    }
-
-    if (forceBreak || currentHeight + item.height > SAFE_HEIGHT) {
+    // Execute page break if needed
+    if (shouldBreak && currentPage.length > 0) {
+      pdfDebugLog(
+        `Finishing page ${pages.length + 1} with ${currentPage.length} items, height=${currentHeight.toFixed(0)}px (${((currentHeight / SAFE_HEIGHT) * 100).toFixed(1)}%)`,
+      );
       pages.push(currentPage);
       currentPage = [];
-      currentHeight = 60;
+      currentHeight = 40; // Header space for continuation pages
     }
 
+    // Add item to current page
     currentPage.push(item);
-    currentHeight += item.height;
+    currentHeight += itemHeight;
+
+    pdfDebugLog(
+      `Added "${item.type}" (${itemHeight}px) -> cumulative=${currentHeight.toFixed(0)}px`,
+    );
   });
 
+  // Push the last page if it has content
   if (currentPage.length > 0) {
+    pdfDebugLog(
+      `Finishing final page ${pages.length + 1} with ${currentPage.length} items, height=${currentHeight.toFixed(0)}px (${((currentHeight / SAFE_HEIGHT) * 100).toFixed(1)}%)`,
+    );
     pages.push(currentPage);
   }
 
+  pdfDebugLog(`Distribution complete: ${pages.length} pages created`);
   return pages;
 }
 
@@ -549,6 +656,11 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
   // Merge with defaults to ensure all settings have values
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
 
+  const [measuredHeights, setMeasuredHeights] = useState<
+    Record<string, number>
+  >({});
+  const measureRef = useRef<HTMLDivElement>(null);
+
   const items = buildContentItems(
     sections,
     products,
@@ -556,7 +668,43 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
     primaryColor,
     settings,
   );
-  const pages = distributeIntoPages(items);
+
+  // Measurement effect: capture real DOM heights
+  useLayoutEffect(() => {
+    if (!measureRef.current) return;
+
+    const newHeights: Record<string, number> = {};
+    let hasChanges = false;
+    let count = 0;
+
+    items.forEach((item) => {
+      if (item.id) {
+        const el = measureRef.current?.querySelector(
+          `[data-measure-id="${item.id}"]`,
+        );
+        if (el) {
+          const height = el.getBoundingClientRect().height;
+          const currentHeight = measuredHeights[item.id] || 0;
+
+          // Only update if difference > 0.5px to avoid infinite loops from micro-adjustments
+          if (Math.abs(height - currentHeight) > 0.5) {
+            newHeights[item.id] = height;
+            hasChanges = true;
+          } else {
+            newHeights[item.id] = currentHeight;
+          }
+          count++;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      pdfDebugLog(`Measurement updated for ${count} items`);
+      setMeasuredHeights(newHeights);
+    }
+  }, [items, measuredHeights]); // Re-run when items change or measurements update (to converge)
+
+  const pages = distributeIntoPages(items, measuredHeights);
 
   const renderItem = (item: ContentItem) => {
     switch (item.type) {
@@ -731,6 +879,36 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
 
   return (
     <>
+      {/* Hidden Measurement Container - Renders all items to measure measuring their real DOM height */}
+      <div
+        ref={measureRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "210mm", // Must match page width
+          padding: "48px", // Match page padding
+          fontFamily, // Match font
+          opacity: 0,
+          zIndex: -1000,
+          pointerEvents: "none",
+          visibility: "hidden",
+          height: 0, // Prevent adding scroll height
+          overflow: "hidden", // Clip content so it doesn't expand scroll
+        }}
+        aria-hidden="true"
+      >
+        {items.map((item, idx) => (
+          <div
+            key={item.id || `measure-${idx}`}
+            data-measure-id={item.id}
+            style={{ width: "100%", display: "flow-root" }}
+          >
+            {renderItem(item)}
+          </div>
+        ))}
+      </div>
+
       {pages.map((pageItems, pageIndex) => (
         <div
           key={pageIndex}

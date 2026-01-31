@@ -15,6 +15,30 @@ export function PdfSectionRenderer({
   primaryColor,
   contentStyles,
 }: PdfSectionRendererProps) {
+  // Add extra margin for title sections to create better visual separation
+  const getMarginTop = () => {
+    if (section.type === "title") {
+      const baseMargin = section.styles.marginTop || "32px";
+      // Ensure minimum 32px margin for titles (reduced from 64px to fix excessive gap)
+      const marginValue = parseInt(baseMargin);
+      return marginValue < 32 ? "32px" : baseMargin;
+    }
+    return section.styles.marginTop;
+  };
+
+  const getMarginBottom = () => {
+    // For text sections (like scope description), add large bottom margin
+    // to separate from systems that follow
+    if (section.type === "text") {
+      const baseMargin = section.styles.marginBottom || "16px";
+      const marginValue = parseInt(baseMargin);
+      // Large margin after text sections that precede systems
+      // Reduced from 48px to 24px as requested
+      return marginValue < 24 ? "24px" : baseMargin;
+    }
+    return section.styles.marginBottom;
+  };
+
   return (
     <div
       style={{
@@ -24,8 +48,8 @@ export function PdfSectionRenderer({
             ? "0 8px"
             : undefined,
         boxSizing: "border-box",
-        marginTop: section.styles.marginTop,
-        marginBottom: section.styles.marginBottom,
+        marginTop: getMarginTop(),
+        marginBottom: getMarginBottom(),
       }}
     >
       <div

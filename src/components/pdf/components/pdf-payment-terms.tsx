@@ -99,7 +99,7 @@ export function PdfPaymentTerms({
   const headerColor = (contentStyles.headerTitle as any)?.color || "#000";
 
   return (
-    <div className="mt-4 mb-2 break-inside-avoid">
+    <div className="mt-12 mb-2 break-inside-avoid">
       <div
         className="mb-4 text-xl font-bold"
         style={{
