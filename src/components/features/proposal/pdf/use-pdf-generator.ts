@@ -367,6 +367,85 @@ export function usePdfGenerator({ proposal, setIsOpen }: UsePdfGeneratorProps) {
       iframeDoc.body.style.padding = "0";
       iframeDoc.body.appendChild(container);
 
+      // --- 2.5 APPLY PDF SPECIFIC STYLES OVERRIDES ---
+      // This allows us to have different spacing for PDF vs Screen (fixing alignment issues)
+      const applyPdfOverrides = (root: HTMLElement) => {
+        const marginBottomElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-margin-bottom]",
+        );
+        marginBottomElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-margin-bottom");
+          if (val) {
+            el.style.setProperty("margin-bottom", val, "important");
+          }
+        });
+
+        const marginTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-margin-top]",
+        );
+        marginTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-margin-top");
+          if (val) {
+            el.style.setProperty("margin-top", val, "important");
+          }
+        });
+
+        // Padding support (More robust for html2canvas)
+        const paddingBottomElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-padding-bottom]",
+        );
+        paddingBottomElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-padding-bottom");
+          if (val) {
+            el.style.setProperty("padding-bottom", val, "important");
+          }
+        });
+
+        const paddingTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-padding-top]",
+        );
+        paddingTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-padding-top");
+          if (val) {
+            el.style.setProperty("padding-top", val, "important");
+          }
+        });
+
+        // Height support (For Spacer Divs)
+        const heightElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-height]",
+        );
+        heightElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-height");
+          if (val) {
+            el.style.setProperty("height", val, "important");
+            el.style.setProperty("min-height", val, "important");
+            el.style.setProperty("line-height", val, "important"); // Ensure content expands
+          }
+        });
+
+        // Border Support (The "Nuclear Option" for spacing)
+        const borderTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-border-top]",
+        );
+        borderTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-border-top");
+          if (val) {
+            el.style.setProperty("border-top-width", val, "important");
+            el.style.setProperty("border-top-style", "solid", "important");
+            el.style.setProperty("border-top-color", "transparent", "important");
+            // Ensure height doesn't conflict
+            el.style.setProperty("height", "0px", "important");
+          }
+        });
+      };
+
+      try {
+        applyPdfOverrides(container);
+      } catch (e) {
+        console.warn("Error applying PDF overrides", e);
+      }
+
       // --- 3. WAIT ---
       try {
         await iframeDoc.fonts.ready;
