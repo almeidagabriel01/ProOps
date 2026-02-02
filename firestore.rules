@@ -258,6 +258,14 @@ service cloud.firestore {
       allow read: if true; // Público, mas endpoint valida token e expiração
       allow write: if false; // Apenas Cloud Functions
     }
+
+    // SPREADSHEETS
+    match /spreadsheets/{spreadsheetId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow create: if isSuperAdmin() || (isAuthenticated() && request.resource.data.tenantId == getUserTenantId());
+      allow update: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow delete: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+    }
     
     // NOTIFICATIONS - Acesso restrito ao tenant
     match /notifications/{notificationId} {

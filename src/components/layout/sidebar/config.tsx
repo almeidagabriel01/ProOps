@@ -5,6 +5,7 @@ import {
   FileText,
   Wallet,
   Shield,
+  FileSpreadsheet,
 } from "lucide-react";
 
 // ============================================
@@ -51,6 +52,11 @@ export const menuItems: MenuItem[] = [
     label: "Contatos",
     href: "/contacts",
     pageId: "clients",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "Planilhas",
+    href: "/spreadsheets",
   },
   {
     icon: Wallet,
