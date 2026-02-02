@@ -545,8 +545,8 @@ function distributeIntoPages(
   const hasMeasurements = Object.keys(measuredHeights).length > 0;
 
   // No overflow allowed - content must stay within SAFE_HEIGHT to prevent cutoff
-  // When using measurements, we use 98% of SAFE_HEIGHT to account for rendering discrepancies
-  const MAX_HEIGHT = hasMeasurements ? SAFE_HEIGHT * 0.98 : SAFE_HEIGHT;
+  // When using measurements, we use 96% of SAFE_HEIGHT to provide a robust buffer for footer/margin
+  const MAX_HEIGHT = hasMeasurements ? SAFE_HEIGHT * 0.96 : SAFE_HEIGHT;
 
   // Buffer to add to measured heights to account for sub-pixel rendering differences
   const MEASUREMENT_BUFFER = 2;
@@ -588,10 +588,9 @@ function distributeIntoPages(
 
     if (isHeader) {
       // For headers: break only if header + next item don't fit AND page has content
-      // CRITICAL CHANGE: Only force break if we are near the bottom (e.g. > 85% used)
-      // If we are at 30% usage, we should NOT break just because the next block is huge.
-      // We should print the header here, and let the next block split itself if needed.
-      const isNearBottom = currentHeight > SAFE_HEIGHT * 0.85;
+      // CRITICAL CHANGE: Only force break if we are near the bottom (e.g. > 75% used)
+      // Checks earlier to prevent headers right at the edge
+      const isNearBottom = currentHeight > SAFE_HEIGHT * 0.75;
 
       if (!wouldFitWithNext && isNearBottom) {
         shouldBreak = true;

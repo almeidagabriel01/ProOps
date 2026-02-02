@@ -512,11 +512,14 @@ function PdfAmbienteTag({
 
   // --- Dynamic Centering Logic ---
   const fontSize = 10 * scale;
-  const charWidth = 6.5 * scale; // Approx width
+  // Increased charWidth from 6.5 to 8.5 to accommodate wider fonts/characters in PDF
+  const charWidth = 8.5 * scale;
   const textWidth = Math.ceil(text.length * charWidth);
   const iconSize = 10 * scale;
   const gap = 4 * scale;
-  const paddingX = 8 * scale;
+
+  // Increased padding slightly
+  const paddingX = 10 * scale;
   const height = 20 * scale;
   const radius = 9.5 * scale;
 
@@ -525,7 +528,7 @@ function PdfAmbienteTag({
   const iconX = paddingX;
   const textX = paddingX + iconSize + gap;
 
-  // Y position for text middle
+  // Y position for text middle - slight adjustment for alignment
   const textY = height / 2 + fontSize * 0.35;
 
   return (
@@ -619,43 +622,90 @@ export function PdfSistemaProduct({
             {/* Header Row: Title + Price */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                {/* Flexbox Layout - Better for html2canvas */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    minHeight: "20px",
-                  }}
-                >
+                {product.isExtra ? (
+                  /* Uses canvas measurement to ensure consistent gap between Text and Badge */
+                  (() => {
+                    const text = product.productName;
+                    // Use the exact font stack used in CSS: font-semibold (600) text-base (16px)
+                    const font =
+                      "600 14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+                    const measure = (t: string, f: string) => {
+                      if (typeof document === "undefined") return t.length * 8;
+                      const c = document.createElement("canvas");
+                      const ctx = c.getContext("2d");
+                      if (!ctx) return t.length * 8;
+                      ctx.font = f;
+                      return ctx.measureText(t).width;
+                    };
+
+                    const textWidth = measure(text, font);
+                    const badgeWidth = 60;
+                    const gap = 16;
+                    const totalWidth = textWidth + badgeWidth + gap + 4; // +4 buffer
+
+                    return (
+                      <svg
+                        width={totalWidth}
+                        height="20"
+                        style={{ display: "block", overflow: "visible" }}
+                      >
+                        <text
+                          x="0"
+                          y="50%" // Centered vertically in 20px height
+                          dominantBaseline="central"
+                          fill="#111827"
+                          style={{
+                            fontSize: "14px", // Matched visual size
+                            fontWeight: 600,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {text}
+                        </text>
+
+                        <g transform={`translate(${textWidth + gap}, 0)`}>
+                          <rect
+                            x="0"
+                            y="0"
+                            rx="4"
+                            ry="4"
+                            width={badgeWidth}
+                            height="18" // Badge height
+                            fill="#dbeafe"
+                            stroke="#bfdbfe"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={badgeWidth / 2}
+                            y="10" // Strict pixel center (Height 18 / 2 + 1px)
+                            dominantBaseline="middle"
+                            textAnchor="middle"
+                            fill="#1d4ed8"
+                            style={{
+                              fontSize: "9px",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                              fontFamily: "system-ui, sans-serif",
+                            }}
+                          >
+                            Extra
+                          </text>
+                        </g>
+                      </svg>
+                    );
+                  })()
+                ) : (
                   <h4
                     className="font-semibold text-gray-900 text-sm m-0 p-0"
                     style={{
                       lineHeight: "20px",
-                      display: "flex",
-                      alignItems: "center",
                     }}
                   >
                     {product.productName}
                   </h4>
-                  {product.isExtra && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        height: "20px",
-                      }}
-                    >
-                      <img
-                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='18'%3E%3Crect width='50' height='18' rx='4' fill='%23dbeafe' stroke='%23bfdbfe' stroke-width='1'/%3E%3Ctext x='25' y='13' font-family='system-ui,sans-serif' font-size='9' font-weight='bold' fill='%231d4ed8' text-anchor='middle' letter-spacing='0.5'%3EEXTRA%3C/text%3E%3C/svg%3E"
-                        alt="EXTRA"
-                        width="50"
-                        height="18"
-                        style={{ display: "block" }}
-                      />
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
 
               <div className="text-right shrink-0">
