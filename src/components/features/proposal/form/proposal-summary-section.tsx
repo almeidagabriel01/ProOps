@@ -93,20 +93,15 @@ export function ProposalSummarySection({
                         className="border-t"
                         style={{ backgroundColor: `${primaryColor}15` }}
                       >
-                        <td
-                          colSpan={4}
-                          className="p-2 font-semibold text-sm"
-                          style={{ color: primaryColor }}
-                        >
-                          \r\n{" "}
-                          <span className="font-bold">
-                            {sistema.sistemaName}
-                          </span>
-                          \r\n{" "}
-                          <span className="font-normal text-xs ml-2 opacity-75">
-                            📍 {sistema.ambienteName}
-                          </span>
-                          \r\n{" "}
+                        <td colSpan={4} className="p-2 font-semibold text-sm">
+                          <div className="flex flex-row items-center gap-3">
+                            <span className="font-bold text-base text-gray-700 dark:text-gray-300">
+                              {sistema.sistemaName}
+                            </span>
+                            <span className="font-medium text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border shadow-xs flex items-center gap-1 text-foreground">
+                              📍 {sistema.ambienteName}
+                            </span>
+                          </div>
                         </td>
                       </tr>
                       {sistemaProducts.map((product, idx) => (
@@ -149,10 +144,7 @@ export function ProposalSummarySection({
                         >
                           Subtotal do Sistema:
                         </td>
-                        <td
-                          className="p-2 text-right font-medium text-sm whitespace-nowrap"
-                          style={{ color: primaryColor }}
-                        >
+                        <td className="p-2 text-right font-medium text-sm whitespace-nowrap text-foreground">
                           R$ {(sistemaTotal || 0).toFixed(2)}
                         </td>
                       </tr>
@@ -166,7 +158,7 @@ export function ProposalSummarySection({
                   <tr className="border-t bg-gray-100">
                     <td
                       colSpan={4}
-                      className="p-2 font-semibold text-sm text-gray-600"
+                      className="p-2 font-semibold text-sm text-gray-600 dark:text-gray-300"
                     >
                       📦 Produtos Extras (não vinculados a sistemas)
                     </td>
@@ -277,11 +269,11 @@ export function ProposalSummarySection({
                       <tr className="no-pdf-export">
                         <td
                           colSpan={3}
-                          className="p-3 text-right text-orange-600 whitespace-nowrap text-sm"
+                          className="p-3 text-right text-orange-600 dark:text-orange-400 whitespace-nowrap text-sm"
                         >
                           Custos Extras:
                         </td>
-                        <td className="p-3 text-right font-medium text-orange-600 whitespace-nowrap text-sm">
+                        <td className="p-3 text-right font-medium text-orange-600 dark:text-orange-400 whitespace-nowrap text-sm">
                           + R$ {extraExpense.toFixed(2)}
                         </td>
                       </tr>
@@ -294,7 +286,7 @@ export function ProposalSummarySection({
                       >
                         Total:
                       </td>
-                      <td className="p-3 text-right text-lg font-bold text-primary whitespace-nowrap">
+                      <td className="p-3 text-right text-lg font-bold text-primary dark:text-white whitespace-nowrap">
                         R$ {totalValue.toFixed(2)}
                       </td>
                     </tr>

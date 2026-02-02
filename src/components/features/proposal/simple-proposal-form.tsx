@@ -258,16 +258,23 @@ export function SimpleProposalForm({
 
   React.useEffect(() => {
     if (formData.validUntil && errors.validUntil) {
+      // If editing existing proposal, allow any date (fix for legacy validity)
+      if (proposalId) {
+        clearFieldError("validUntil");
+        return;
+      }
+
       const [year, month, day] = formData.validUntil.split("-").map(Number);
       const selectedDate = new Date(year, month - 1, day);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
-      if (selectedDate > today) {
+      // Logic must match validateStep1 (allow today)
+      if (selectedDate >= today) {
         clearFieldError("validUntil");
       }
     }
-  }, [formData.validUntil, errors.validUntil, clearFieldError]);
+  }, [formData.validUntil, errors.validUntil, clearFieldError, proposalId]);
 
   React.useEffect(() => {
     if (
@@ -320,8 +327,9 @@ export function SimpleProposalForm({
 
     if (!currentFormData.validUntil) {
       errors.validUntil = "Validade é obrigatória";
-    } else {
-      // Validate date >= today (allow today as valid)
+    } else if (!proposalId) {
+      // Only validate future date for new proposals
+      // Allow legacy proposals to keep their past validity dates when editing
       const [year, month, day] = currentFormData.validUntil
         .split("-")
         .map(Number);
