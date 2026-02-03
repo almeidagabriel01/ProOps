@@ -13,6 +13,8 @@ import {
 
 export type ClientSource = "manual" | "proposal" | "financial";
 
+export type ClientType = "cliente" | "fornecedor";
+
 export type Client = {
   id: string;
   tenantId: string;
@@ -21,6 +23,7 @@ export type Client = {
   phone?: string;
   address?: string;
   notes?: string;
+  types: ClientType[]; // Array to allow both client and supplier
   source: ClientSource;
   sourceId?: string; // ID of the proposal or financial transaction that created this client
   createdAt: string;

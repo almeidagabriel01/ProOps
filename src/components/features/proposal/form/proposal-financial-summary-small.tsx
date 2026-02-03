@@ -1,9 +1,7 @@
-"use client";
-
-import * as React from "react";
+import { ProposalProduct } from "@/services/proposal-service";
 
 interface ProposalFinancialSummarySmallProps {
-  selectedProducts: any[];
+  selectedProducts: ProposalProduct[];
   className?: string;
 }
 

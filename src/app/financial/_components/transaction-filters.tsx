@@ -4,8 +4,20 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Search, ArrowUpCircle, ArrowDownCircle, CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { TransactionType, TransactionStatus } from "@/services/transaction-service";
+import {
+  Search,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Layers,
+  Calendar,
+} from "lucide-react";
+import {
+  TransactionType,
+  TransactionStatus,
+} from "@/services/transaction-service";
 import { Wallet } from "@/types";
 import { WalletService } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
@@ -27,6 +39,8 @@ interface TransactionFiltersProps {
   onDateTypeChange?: (type: "date" | "dueDate") => void;
   sortBy?: "date" | "created";
   onSortChange?: (sort: "date" | "created") => void;
+  viewMode?: "grouped" | "byDueDate";
+  onViewModeChange?: (mode: "grouped" | "byDueDate") => void;
 }
 
 export function TransactionFilters({
@@ -46,6 +60,8 @@ export function TransactionFilters({
   onDateTypeChange,
   sortBy,
   onSortChange,
+  viewMode,
+  onViewModeChange,
 }: TransactionFiltersProps) {
   const { tenant } = useTenant();
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
@@ -199,13 +215,45 @@ export function TransactionFilters({
           </span>
           <Select
             value={sortBy || "date"}
-            onChange={(e) => onSortChange?.(e.target.value as "date" | "created")}
+            onChange={(e) =>
+              onSortChange?.(e.target.value as "date" | "created")
+            }
             className="w-44"
             inputSize="sm"
+            disabled={viewMode === "byDueDate"}
           >
             <option value="date">Data Lançamento</option>
             <option value="created">Data Criação</option>
           </Select>
+        </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 ml-2">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            Visualização:
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant={viewMode === "grouped" ? "default" : "outline"}
+              size="sm"
+              onClick={() => onViewModeChange?.("grouped")}
+              className="gap-1"
+              title="Lançamentos agrupados por parcelas e propostas"
+            >
+              <Layers className="w-4 h-4" />
+              Agrupados
+            </Button>
+            <Button
+              variant={viewMode === "byDueDate" ? "default" : "outline"}
+              size="sm"
+              onClick={() => onViewModeChange?.("byDueDate")}
+              className="gap-1"
+              title="Todos os lançamentos ordenados por vencimento"
+            >
+              <Calendar className="w-4 h-4" />
+              Por Vencimento
+            </Button>
+          </div>
         </div>
       </div>
     </div>

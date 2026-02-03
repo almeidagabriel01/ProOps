@@ -2,11 +2,8 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Crown, ChevronRight } from "lucide-react";
-import {
-  MenuItem,
-  getVisibleChildren,
-} from "./config";
+import { Crown, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { MenuItem, getVisibleChildren } from "./config";
 import { usePermissions } from "@/providers/permissions-provider";
 
 interface MenuItemLinkProps {
@@ -27,13 +24,13 @@ export function MenuItemLink({
         "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
         isActive
           ? "bg-primary/10 text-primary shadow-sm"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       <item.icon
         className={cn(
           "w-5 h-5 shrink-0 transition-transform duration-200",
-          !isActive && "group-hover:scale-110"
+          !isActive && "group-hover:scale-110",
         )}
       />
       <span
@@ -42,7 +39,7 @@ export function MenuItemLink({
           isExpanded
             ? "opacity-100 translate-x-0"
             : "opacity-0 -translate-x-2 w-0",
-          !isActive && "group-hover:translate-x-1"
+          !isActive && "group-hover:translate-x-1",
         )}
       >
         {item.label}
@@ -51,7 +48,7 @@ export function MenuItemLink({
         <div
           className={cn(
             "ml-auto h-2 w-2 rounded-full bg-primary transition-all duration-300",
-            isExpanded ? "opacity-100" : "opacity-0"
+            isExpanded ? "opacity-100" : "opacity-0",
           )}
         />
       )}
@@ -83,7 +80,7 @@ export function RestrictedMenuItem({
         <Crown
           className={cn(
             "absolute -top-1.5 -right-1.5 w-3 h-3 transition-all duration-300",
-            isExpanded ? "opacity-0 scale-75" : "opacity-100 scale-100"
+            isExpanded ? "opacity-0 scale-75" : "opacity-100 scale-100",
           )}
           style={{ color: premiumColor }}
         />
@@ -93,7 +90,7 @@ export function RestrictedMenuItem({
           "whitespace-nowrap transition-all duration-300 flex-1 text-left",
           isExpanded
             ? "opacity-100 translate-x-0"
-            : "opacity-0 -translate-x-2 w-0"
+            : "opacity-0 -translate-x-2 w-0",
         )}
       >
         {item.label}
@@ -101,7 +98,7 @@ export function RestrictedMenuItem({
       <Crown
         className={cn(
           "w-4 h-4 shrink-0 transition-all duration-300",
-          isExpanded ? "opacity-100" : "opacity-0"
+          isExpanded ? "opacity-100" : "opacity-0",
         )}
         style={{ color: premiumColor }}
       />
@@ -138,13 +135,13 @@ export function SubmenuItem({
           "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
           isParentActive || isSubmenuOpen
             ? "text-primary"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
         <item.icon
           className={cn(
             "w-5 h-5 shrink-0 transition-transform duration-200",
-            !isParentActive && "group-hover:scale-110"
+            !isParentActive && "group-hover:scale-110",
           )}
         />
         <span
@@ -152,7 +149,7 @@ export function SubmenuItem({
             "whitespace-nowrap transition-all duration-300 flex-1 text-left",
             isExpanded
               ? "opacity-100 translate-x-0"
-              : "opacity-0 -translate-x-2 w-0"
+              : "opacity-0 -translate-x-2 w-0",
           )}
         >
           {item.label}
@@ -161,7 +158,7 @@ export function SubmenuItem({
           className={cn(
             "w-4 h-4 shrink-0 transition-all duration-300",
             isExpanded ? "opacity-100" : "opacity-0",
-            isSubmenuOpen && "rotate-90"
+            isSubmenuOpen && "rotate-90",
           )}
         />
       </button>
@@ -172,7 +169,8 @@ export function SubmenuItem({
           {visibleChildren.map((child) => {
             const isChildActive =
               pathname === child.href ||
-              (child.href !== "/financial" && pathname.startsWith(child.href + "/"));
+              (child.href !== "/financial" &&
+                pathname.startsWith(child.href + "/"));
 
             return (
               <Link
@@ -182,12 +180,11 @@ export function SubmenuItem({
                   "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer",
                   isChildActive
                     ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <child.icon className="w-4 h-4 shrink-0" />
                 <span>{child.label}</span>
-
               </Link>
             );
           })}

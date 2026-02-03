@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -25,7 +32,7 @@ interface UseSidebarReturn {
 }
 
 export function useSidebar(
-  onExpandChange?: (expanded: boolean) => void
+  onExpandChange?: (expanded: boolean) => void,
 ): UseSidebarReturn {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -51,7 +58,7 @@ export function useSidebar(
         // For Settings, check if there are any visible children
         if (item.children) {
           const visibleChildren = item.children.filter(
-            (child) => !child.masterOnly
+            (child) => !child.masterOnly,
           );
           return visibleChildren.length > 0;
         }
@@ -81,7 +88,7 @@ export function useSidebar(
       if (item.children) {
         const isChildActive = item.children.some(
           (child) =>
-            pathname === child.href || pathname.startsWith(child.href + "/")
+            pathname === child.href || pathname.startsWith(child.href + "/"),
         );
         if (isChildActive) {
           setExpandedMenus((prev) => new Set([...prev, item.href]));
@@ -104,10 +111,7 @@ export function useSidebar(
             return data.name || data.tier;
           }
           // 2. Fallback: Try fetching by tier
-          const q = query(
-            collection(db, "plans"),
-            where("tier", "==", planId)
-          );
+          const q = query(collection(db, "plans"), where("tier", "==", planId));
           const qSnap = await getDocs(q);
           if (!qSnap.empty) {
             const data = qSnap.docs[0].data();
@@ -129,9 +133,10 @@ export function useSidebar(
 
       // Determine which user plan to use
       // If superadmin is viewing a tenant, use the tenant owner's plan
-      const targetUser = (user?.role === "superadmin" && tenant?.id && tenantOwner)
-        ? tenantOwner
-        : user;
+      const targetUser =
+        user?.role === "superadmin" && tenant?.id && tenantOwner
+          ? tenantOwner
+          : user;
 
       if (!targetUser?.planId) {
         setUserPlanName(targetUser?.role === "free" ? "Gratuito" : null);
@@ -145,7 +150,7 @@ export function useSidebar(
     };
 
     fetchPlanName();
-  }, [user?.planId, user?.role, tenant?.id, tenantOwner]);
+  }, [user?.planId, user?.role, tenant?.id, tenantOwner, user]);
 
   const handleMouseEnter = useCallback(() => {
     setIsExpanded(true);
@@ -166,12 +171,12 @@ export function useSidebar(
         (other) =>
           other !== item &&
           other.href.length > item.href.length &&
-          pathname.startsWith(other.href)
+          pathname.startsWith(other.href),
       );
       const hasChildren = item.children && item.children.length > 0;
       return isMatch && !hasBetterMatch && !hasChildren;
     },
-    [pathname, visibleMenuItems]
+    [pathname, visibleMenuItems],
   );
 
   const isParentActive = useCallback(
@@ -179,18 +184,18 @@ export function useSidebar(
       return (
         item.children?.some(
           (child) =>
-            pathname === child.href || pathname.startsWith(child.href + "/")
+            pathname === child.href || pathname.startsWith(child.href + "/"),
         ) ?? false
       );
     },
-    [pathname]
+    [pathname],
   );
 
   const isChildActive = useCallback(
     (href: string): boolean => {
       return pathname === href || pathname.startsWith(href + "/");
     },
-    [pathname]
+    [pathname],
   );
 
   return {

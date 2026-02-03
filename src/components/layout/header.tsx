@@ -1,12 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { User as UserIcon, LogOut, ArrowLeft } from "lucide-react";
+import { User as UserIcon, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,14 +64,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface HeaderProps {
   sidebarWidth?: number;
 }
 
-export function Header({ sidebarWidth = 72 }: HeaderProps) {
+export function Header({}: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
-  const { tenant, tenantOwner, refreshTenant, clearViewingTenant, isLoading: isTenantLoading } = useTenant();
+  const {
+    tenant,
+    tenantOwner,
+    clearViewingTenant,
+    isLoading: isTenantLoading,
+  } = useTenant();
   const router = useRouter();
   const [isViewingAsTenant, setIsViewingAsTenant] = React.useState(false);
   const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
@@ -75,7 +88,8 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
      2. Tenant is loading
      3. User exists but plan name hasn't been determined yet (prevents "Starter" flash)
   */
-  const isLoading = isAuthLoading || isTenantLoading || (!!user && userPlanName === null);
+  const isLoading =
+    isAuthLoading || isTenantLoading || (!!user && userPlanName === null);
 
   // ... inside Header component ...
 
@@ -112,7 +126,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
         // 2. Fallback: Try fetching by tier (if planId is a tier name like 'starter')
         const q = query(
           collection(db, "plans"),
-          where("tier", "==", targetUser.planId)
+          where("tier", "==", targetUser.planId),
         );
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
@@ -136,7 +150,15 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
       }
     };
     fetchPlanName();
-  }, [user, user?.planId, user?.role, isViewingAsTenant, tenantOwner, tenantOwner?.planId, tenant?.id]);
+  }, [
+    user,
+    user?.planId,
+    user?.role,
+    isViewingAsTenant,
+    tenantOwner,
+    tenantOwner?.planId,
+    tenant?.id,
+  ]);
 
   React.useEffect(() => {
     // Check localStorage directly
@@ -157,13 +179,7 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
   };
 
   return (
-    <header
-      style={{
-        left: sidebarWidth,
-        transform: "translateZ(0)",
-      }}
-      className="fixed top-1 right-1 h-16 bg-background/80 backdrop-blur-md border-b border-border z-40 px-6 flex items-center justify-between transition-[left] duration-300 ease-out will-change-[left] rounded-tl-[2rem] rounded-tr-[2rem]"
-    >
+    <header className="bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-tl-[2rem]" style={{ height: '64px', minHeight: '64px' }}>
       <div className="flex items-center gap-4">
         <CommandPalette />
       </div>
@@ -197,11 +213,12 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
 
       <div className="flex items-center gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
+        <NotificationBell />
         <div className="h-8 w-px bg-border mx-2" />
         <div className="flex items-center gap-3 pl-2">
           {isLoading ? (
             <div className="flex items-center gap-3">
-              <div className="flex flex-col items-end hidden md:flex gap-1">
+              <div className="hidden md:flex flex-col items-end gap-1">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-16" />
               </div>
@@ -209,17 +226,21 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
             </div>
           ) : (
             <>
-              <div className="flex flex-col items-end hidden md:flex">
+              <div className="hidden md:flex flex-col items-end">
                 <span className="text-sm font-medium">
                   {isViewingAsTenant && tenantOwner
                     ? tenantOwner.name
-                    : (user ? user.name : "Visitante")}
+                    : user
+                      ? user.name
+                      : "Visitante"}
                 </span>
                 <span className="text-xs text-muted-foreground capitalize">
                   {userPlanName ||
                     (user?.role === "superadmin" && !isViewingAsTenant
                       ? "Super Admin"
-                      : (isViewingAsTenant && tenantOwner ? (tenantOwner.role || "Membro") : (user?.role || "Guest")))}
+                      : isViewingAsTenant && tenantOwner
+                        ? tenantOwner.role || "Membro"
+                        : user?.role || "Guest")}
                 </span>
               </div>
               <DropdownMenu>
@@ -228,17 +249,33 @@ export function Header({ sidebarWidth = 72 }: HeaderProps) {
                     variant="ghost"
                     className="relative h-10 w-10 rounded-full p-0"
                   >
-                    <Avatar className="h-9 w-9 border border-border" key={user?.id}>
+                    <Avatar
+                      className="h-9 w-9 border border-border"
+                      key={user?.id}
+                    >
                       {user?.photoURL ? (
-                        <AvatarImage src={user.photoURL} alt={user?.name || "User"} />
+                        <AvatarImage
+                          src={user.photoURL}
+                          alt={user?.name || "User"}
+                        />
                       ) : (
                         <AvatarFallback
                           className="text-white font-medium"
                           style={{
-                            backgroundColor: tenant?.primaryColor || getUserColor(isViewingAsTenant && tenantOwner ? tenantOwner.name : user?.name || "User")
+                            backgroundColor:
+                              tenant?.primaryColor ||
+                              getUserColor(
+                                isViewingAsTenant && tenantOwner
+                                  ? tenantOwner.name
+                                  : user?.name || "User",
+                              ),
                           }}
                         >
-                          {getInitials(isViewingAsTenant && tenantOwner ? tenantOwner.name : user?.name || "User")}
+                          {getInitials(
+                            isViewingAsTenant && tenantOwner
+                              ? tenantOwner.name
+                              : user?.name || "User",
+                          )}
                         </AvatarFallback>
                       )}
                     </Avatar>

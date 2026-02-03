@@ -1,4 +1,4 @@
-﻿import React from "react";
+﻿import React, { useLayoutEffect, useRef, useState } from "react";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 import {
   SAFE_HEIGHT,
@@ -8,9 +8,14 @@ import {
   calculateProductHeight,
   calculateSistemaBlockHeight,
   calculatePaymentTermsHeight,
+  pdfDebugLog,
 } from "@/utils/pdf-helpers";
 import {
   PdfSistemaBlock,
+  PdfSistemaHeader,
+  PdfAmbienteHeader,
+  PdfSistemaProduct,
+  PdfSistemaFooter,
   PdfExtraProductsBlock,
   PdfProductRow,
   PdfTotals,
@@ -18,6 +23,10 @@ import {
   PdfPageHeader,
   PdfPaymentTerms,
 } from "./components";
+import {
+  PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+} from "@/types/pdf-display-settings";
 
 // Type definitions
 interface Product {
@@ -36,10 +45,17 @@ interface Product {
 interface Sistema {
   sistemaId: string;
   sistemaName: string;
-  ambienteId: string;
-  ambienteName: string;
+  // Legacy fields (optional for backward compat)
+  ambienteId?: string;
+  ambienteName?: string;
   description?: string;
   productIds?: string[];
+  // New multi-ambiente format
+  ambientes?: {
+    ambienteId: string;
+    ambienteName: string;
+    productIds?: string[];
+  }[];
 }
 
 interface Proposal {
@@ -84,6 +100,7 @@ interface RenderPagedContentProps {
   coverTitle: string;
   proposal: Proposal;
   repeatHeader?: boolean;
+  pdfDisplaySettings?: PdfDisplaySettings;
 }
 
 /**
@@ -93,9 +110,20 @@ function buildContentItems(
   sections: PdfSection[],
   products: Product[],
   proposal: Proposal,
+  primaryColor: string,
+  pdfDisplaySettings?: PdfDisplaySettings,
 ): ContentItem[] {
+  const settings = {
+    ...defaultPdfDisplaySettings,
+    ...pdfDisplaySettings,
+    primaryColor,
+  };
   const items: ContentItem[] = [];
+  let idCounter = 0;
+  const generateId = (prefix: string) => `${prefix}-${idCounter++}`;
+
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
+  let hasAddedPaymentTerms = false;
 
   // Check if proposal has dynamic payment options configured
   const hasDynamicPaymentOptions =
@@ -108,9 +136,10 @@ function buildContentItems(
 
   // Helper to add payment terms block
   const addPaymentTermsBlock = () => {
-    if (hasDynamicPaymentOptions) {
+    if (hasDynamicPaymentOptions && !hasAddedPaymentTerms) {
       items.push({
         type: "payment-terms",
+        id: generateId("payment-terms"),
         height: calculatePaymentTermsHeight(
           !!(
             proposal.downPaymentEnabled &&
@@ -120,20 +149,99 @@ function buildContentItems(
           proposal.installmentsEnabled ? proposal.installmentsCount || 0 : 0,
         ),
       });
+      hasAddedPaymentTerms = true;
     }
   };
 
   // Helper to check if a section is about payment terms and should be skipped
   const shouldSkipPaymentSection = (section: PdfSection): boolean => {
     if (!hasDynamicPaymentOptions) return false;
-    const content = (section.content || "").toLowerCase();
+    const content = (section.content || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
     return (
-      content.includes("condições de pagamento") ||
+      content.includes("condies de pagamento") ||
       content.includes("condicoes de pagamento") ||
       content.includes("formas de pagamento") ||
       content.includes("entrada:") ||
       content.includes("saldo:")
     );
+  };
+
+  const renderAllSistemas = () => {
+    proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
+      const sistema = rawSistema as unknown as Sistema;
+
+      // Gather all products for this system across all environments
+      let productsForSistema: Product[] = [];
+
+      // Modern format: products have systemInstanceId
+      productsForSistema = products.filter((p) =>
+        p.systemInstanceId?.startsWith(`${sistema.sistemaId}-`),
+      );
+
+      // Fallback for legacy (no instanceId)
+      if (productsForSistema.length === 0) {
+        const legacyProductIds = sistema.productIds || [];
+        const ambientProductIds =
+          sistema.ambientes?.flatMap((a) => a.productIds || []) || [];
+        const allIds = [
+          ...new Set([...legacyProductIds, ...ambientProductIds]),
+        ];
+
+        productsForSistema = products.filter((p) =>
+          allIds.includes(p.productId),
+        );
+      }
+
+      if (productsForSistema.length > 0) {
+        addSistemaProducts(sistema, productsForSistema);
+      }
+    });
+
+    const sistemaProductIds = new Set(
+      proposal.sistemas!.flatMap((s: Record<string, unknown>) => {
+        const sistema = s as unknown as Sistema;
+        if (sistema.ambientes && sistema.ambientes.length > 0) {
+          return sistema.ambientes.flatMap((a) => a.productIds || []);
+        }
+        return (sistema.productIds as string[]) || [];
+      }),
+    );
+    const extraProducts = products.filter(
+      (p: Product) =>
+        !p.systemInstanceId && !sistemaProductIds.has(p.productId),
+    );
+
+    if (extraProducts.length > 0) {
+      // Logic for extra products block or header
+      // For now, mirroring previous logic which used extra-products-block or flat list
+      // The previous logic used extra-products-block in Loop 1 and extra-products-header in Loop 2.
+      // We should unify. Let's use extra-products-block if possible, or header if split.
+      // Actually, let's use the granular approach (header + rows) to align with page breaking.
+
+      items.push({
+        type: "extra-products-header",
+        id: generateId("extra-products-header"),
+        height: 60,
+      });
+      extraProducts.forEach((product, idx) => {
+        const h = calculateProductHeight(product, 80, settings);
+        items.push({
+          type: "product-row",
+          id: generateId("product-row"),
+          data: { ...product, index: idx },
+          height: h,
+        });
+      });
+    }
+    items.push({
+      type: "totals",
+      id: generateId("totals"),
+      height: ESTIMATED_HEIGHTS.TOTALS,
+    });
+    addPaymentTermsBlock();
   };
 
   // Helper to check if section is "Garantia"
@@ -146,38 +254,159 @@ function buildContentItems(
     sistema: Sistema,
     productsForSistema: Product[],
   ) => {
-    const sortedProducts = [...productsForSistema].sort(
-      (a: Product, b: Product) => {
-        if (a.isExtra && !b.isExtra) return 1;
-        if (!a.isExtra && b.isExtra) return -1;
-        return 0;
-      },
-    );
+    // We need to organize products by environment for granular rendering
+    const environments =
+      sistema.ambientes && sistema.ambientes.length > 0
+        ? sistema.ambientes
+        : [
+            {
+              ambienteId: sistema.ambienteId || "",
+              ambienteName: sistema.ambienteName || "",
+            },
+          ];
 
-    const totalHeight = calculateSistemaBlockHeight(sortedProducts);
+    // Calculate total height including all environments
+    let totalHeight = 100; // Header
+    totalHeight += 60; // Footer
 
-    items.push({
-      type: "sistema-block",
-      data: { sistema, products: sortedProducts },
-      height: totalHeight,
-    });
+    const envsWithProducts = environments
+      .map((env) => {
+        const currentInstanceId = `${sistema.sistemaId}-${env.ambienteId}`;
+        let envProducts = productsForSistema.filter(
+          (p) => p.systemInstanceId === currentInstanceId,
+        );
+
+        // Legacy fallback
+        if (
+          envProducts.length === 0 &&
+          (!sistema.ambientes || sistema.ambientes.length === 0)
+        ) {
+          envProducts = productsForSistema;
+        }
+
+        const sortedProducts = [...envProducts].sort(
+          (a: Product, b: Product) => {
+            if (a.isExtra && !b.isExtra) return 1;
+            if (!a.isExtra && b.isExtra) return -1;
+            return 0;
+          },
+        );
+
+        // Calculate height for this environment
+        let envHeight = 0;
+        if (sortedProducts.length > 0) {
+          // Ambiente header height (approx 40px)
+          envHeight += 40;
+          // Products height
+          envHeight +=
+            calculateSistemaBlockHeight(sortedProducts, settings) - 60 - 100; // Subtract footer/header base from helper
+        }
+
+        return {
+          env,
+          products: sortedProducts,
+          height: envHeight,
+        };
+      })
+      .filter((group) => group.products.length > 0);
+
+    totalHeight += envsWithProducts.reduce((sum, grp) => sum + grp.height, 0);
+
+    // Threshold: if block would take more than 40% of page, split it
+    // Reduced from 0.7 to 0.4 to prevent large gaps when a medium block follows a title
+    const SPLIT_THRESHOLD = SAFE_HEIGHT * 0.4;
+
+    if (totalHeight > SPLIT_THRESHOLD) {
+      // Add sistema header
+      items.push({
+        type: "sistema-header",
+        id: generateId("sistema-header"),
+        data: { sistema },
+        height: 100,
+      });
+
+      // Add environments and their products
+      envsWithProducts.forEach((group, index) => {
+        // Add ambiente header
+        items.push({
+          type: "ambiente-header",
+          id: generateId("ambiente-header"),
+          data: {
+            ambienteName: group.env.ambienteName,
+            ambienteId: group.env.ambienteId,
+            primaryColor: primaryColor,
+            isFirst: index === 0,
+          },
+          height: 40,
+        });
+
+        // Add products
+        group.products.forEach((product, idx) => {
+          const productHeight = calculateProductHeight(product, 80, settings);
+          items.push({
+            type: "sistema-product",
+            id: generateId("sistema-product"),
+            data: {
+              product,
+              sistema, // Parent sistema reference
+              isFirst: idx === 0, // Visual separation if needed
+              isLast: idx === group.products.length - 1,
+              pdfDisplaySettings: settings,
+            },
+            height: productHeight,
+          });
+        });
+      });
+
+      // Add sistema footer
+      const sistemaSubtotal = productsForSistema.reduce(
+        (sum: number, p: Product) => sum + p.total,
+        0,
+      );
+      items.push({
+        type: "sistema-footer",
+        id: generateId("sistema-footer"),
+        data: { sistema, sistemaSubtotal, pdfDisplaySettings: settings },
+        height: 60,
+      });
+    } else {
+      // Small block - render as single nested unit
+      // We pass ALL products; the component handles environment filtering internally
+      items.push({
+        type: "sistema-block",
+        id: generateId("sistema-block"),
+        data: {
+          sistema,
+          products: productsForSistema,
+          pdfDisplaySettings: settings,
+        },
+        height: totalHeight,
+      });
+    } // close else
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
     if (productsToAdd.length > 0) {
       items.push({
         type: "product-header",
+        id: generateId("product-header"),
         height: ESTIMATED_HEIGHTS.PRODUCT_HEADER,
       });
       productsToAdd.forEach((product, i) => {
-        const h = calculateProductHeight(product);
+        const h = calculateProductHeight(product, 80, settings);
         items.push({
           type: "product-row",
+          id: generateId("product-row"),
           data: { ...product, index: i },
           height: h,
         });
       });
-      items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+      items.push({
+        type: "totals",
+        id: generateId("totals"),
+        height: ESTIMATED_HEIGHTS.TOTALS,
+      });
+      addPaymentTermsBlock();
     }
   };
 
@@ -189,56 +418,7 @@ function buildContentItems(
     sections.forEach((section) => {
       if (section.type === "product-table") {
         if (hasSistemas) {
-          proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
-            const sistema = rawSistema as unknown as Sistema;
-            const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-            let productsForSistema = products.filter(
-              (p: Product) => p.systemInstanceId === systemInstanceId,
-            );
-
-            const isLegacy = !products.some((p: Product) => p.systemInstanceId);
-            if (productsForSistema.length === 0 && isLegacy) {
-              productsForSistema = products.filter((p: Product) =>
-                sistema.productIds?.includes(p.productId),
-              );
-            }
-
-            if (productsForSistema.length > 0) {
-              addSistemaProducts(sistema, productsForSistema);
-            }
-          });
-
-          const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap(
-              (s: Record<string, unknown>) => (s.productIds as string[]) || [],
-            ),
-          );
-          const extraProducts = products.filter(
-            (p: Product) =>
-              !p.systemInstanceId && !sistemaProductIds.has(p.productId),
-          );
-
-          if (extraProducts.length > 0) {
-            let blockHeight = 140;
-            extraProducts.forEach((product) => {
-              let h = 80;
-              if (
-                (product.productImages && product.productImages.length > 0) ||
-                product.productImage
-              ) {
-                h += 100;
-              }
-              blockHeight += h;
-            });
-            blockHeight += 60;
-
-            items.push({
-              type: "extra-products-block",
-              data: { products: extraProducts },
-              height: blockHeight,
-            });
-          }
-          items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+          renderAllSistemas();
         } else {
           addRegularProducts(products);
         }
@@ -246,13 +426,20 @@ function buildContentItems(
         // Skip static payment sections if dynamic payment options are configured
         if (shouldSkipPaymentSection(section)) return;
 
-        // Insert payment terms before "Garantia"
+        // Insert payment terms before "Garantia" if not already added
         if (isGarantiaSection(section)) {
-          addPaymentTermsBlock();
+          if (!hasAddedPaymentTerms) {
+            addPaymentTermsBlock();
+          }
         }
 
         const height = calculateSectionHeight(section);
-        items.push({ type: "section", data: section, height });
+        items.push({
+          type: "section",
+          id: generateId("section"),
+          data: section,
+          height,
+        });
       }
     });
   } else {
@@ -260,8 +447,8 @@ function buildContentItems(
     const footerKeywords = [
       "garantia",
       "termos",
-      "condições",
-      "considerações",
+      "condies",
+      "consideraes",
       "obrigado",
       "agradecemos",
       "validade",
@@ -282,77 +469,41 @@ function buildContentItems(
     for (let i = 0; i < sections.length; i++) {
       if (i === insertIndex) {
         if (hasSistemas) {
-          proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
-            const sistema = rawSistema as unknown as Sistema;
-            const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-            let productsForSistema = products.filter(
-              (p: Product) => p.systemInstanceId === systemInstanceId,
-            );
-
-            const isLegacy = !products.some((p: Product) => p.systemInstanceId);
-            if (productsForSistema.length === 0 && isLegacy) {
-              productsForSistema = products.filter((p: Product) =>
-                sistema.productIds?.includes(p.productId),
-              );
-            }
-
-            if (productsForSistema.length > 0) {
-              addSistemaProducts(sistema, productsForSistema);
-            }
-          });
-
-          const sistemaProductIds = new Set(
-            proposal.sistemas!.flatMap(
-              (s: Record<string, unknown>) => (s.productIds as string[]) || [],
-            ),
-          );
-          const extraProducts = products.filter(
-            (p: Product) =>
-              !p.systemInstanceId && !sistemaProductIds.has(p.productId),
-          );
-
-          if (extraProducts.length > 0) {
-            items.push({ type: "extra-products-header", height: 60 });
-            extraProducts.forEach((product, idx) => {
-              const h = calculateProductHeight(product);
-              items.push({
-                type: "product-row",
-                data: { ...product, index: idx },
-                height: h,
-              });
-            });
-          }
-          items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+          renderAllSistemas();
         } else if (products.length > 0) {
           addRegularProducts(products);
         }
       }
 
       const section = sections[i];
-      // Skip static payment sections if dynamic payment options are configured
-      if (shouldSkipPaymentSection(section)) continue;
 
-      // Insert payment terms before "Garantia"
+      // Skip static payment sections if dynamic payment options are configured
+      // If this section is the payment terms placeholder, just skip it (since we added it after systems)
+      if (shouldSkipPaymentSection(section)) {
+        continue;
+      }
+
+      // Insert payment terms before "Garantia" ONLY if not already added
+      // This is a safety fallback
       if (isGarantiaSection(section)) {
-        addPaymentTermsBlock();
+        if (!hasAddedPaymentTerms) {
+          addPaymentTermsBlock();
+        }
       }
 
       const height = calculateSectionHeight(section);
-      items.push({ type: "section", data: section, height });
+      items.push({
+        type: "section",
+        id: generateId("section"),
+        data: section,
+        height,
+      });
     }
 
     if (insertIndex >= sections.length) {
       if (hasSistemas) {
-        proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
-          const sistema = rawSistema as unknown as Sistema;
-          const productsForSistema = products.filter((p: Product) =>
-            sistema.productIds?.includes(p.productId),
-          );
-          if (productsForSistema.length > 0) {
-            addSistemaProducts(sistema, productsForSistema);
-          }
-        });
-        items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS });
+        renderAllSistemas();
+        // items.push({ type: "totals", height: ESTIMATED_HEIGHTS.TOTALS }); // handled in renderAllSistemas
       } else if (products.length > 0) {
         addRegularProducts(products);
       }
@@ -363,58 +514,128 @@ function buildContentItems(
 }
 
 /**
- * Distributes content items across pages
+ * Distributes content items across pages with optimized space utilization.
+ *
+ * Algorithm:
+ * 1. Try to fit each item on the current page
+ * 2. If it doesn't fit, start a new page
+ * 3. Special handling for headers: ensure at least one content item follows
+ * 4. Allow slight overflow for better space utilization
  */
-function distributeIntoPages(items: ContentItem[]): ContentItem[][] {
+// Distributes content into pages using either estimated or measured heights
+function distributeIntoPages(
+  items: ContentItem[],
+  measuredHeights: Record<string, number> = {},
+): ContentItem[][] {
   const pages: ContentItem[][] = [];
   let currentPage: ContentItem[] = [];
   let currentHeight = ESTIMATED_HEIGHTS.HEADER;
 
+  // Types that are considered "headers" and should have at least one item following
+  const headerTypes = new Set([
+    "product-header",
+    "sistema-header",
+    "ambiente-header",
+    "extra-products-header",
+  ]);
+
+  // Minimum space threshold - only break if we've used at least 20% of the page
+  const MIN_PAGE_USAGE = SAFE_HEIGHT * 0.2;
+
+  const hasMeasurements = Object.keys(measuredHeights).length > 0;
+
+  // No overflow allowed - content must stay within SAFE_HEIGHT to prevent cutoff
+  // When using measurements, we use 96% of SAFE_HEIGHT to provide a robust buffer for footer/margin
+  const MAX_HEIGHT = hasMeasurements ? SAFE_HEIGHT * 0.96 : SAFE_HEIGHT;
+
+  // Buffer to add to measured heights to account for sub-pixel rendering differences
+  const MEASUREMENT_BUFFER = 2;
+
+  pdfDebugLog(
+    `Page distribution started. Mode=${hasMeasurements ? "MEASURED" : "ESTIMATED"}, SAFE_HEIGHT=${SAFE_HEIGHT}, MAX_HEIGHT=${MAX_HEIGHT.toFixed(0)}`,
+  );
+
   items.forEach((item, index) => {
-    let forceBreak = false;
+    const isHeader = headerTypes.has(item.type);
+    const nextItem = items[index + 1];
 
-    if (
-      item.type === "product-header" ||
-      (item.type === "section" && item.data?.type === "title")
-    ) {
-      const nextItem = items[index + 1];
-      if (
-        nextItem &&
-        currentHeight + item.height + nextItem.height > SAFE_HEIGHT
-      ) {
-        forceBreak = true;
+    // Determine height: use measured if available, otherwise fallback to estimate
+    // Add buffer to measured heights to be safe
+    const itemHeight =
+      item.id && measuredHeights[item.id]
+        ? measuredHeights[item.id] + MEASUREMENT_BUFFER
+        : item.height;
+
+    // Calculate the effective height needed for this item
+    // If it's a header, include the next item's height to keep them together
+    let effectiveHeight = itemHeight;
+    let nextItemHeight = 0;
+
+    if (isHeader && nextItem) {
+      nextItemHeight =
+        nextItem.id && measuredHeights[nextItem.id]
+          ? measuredHeights[nextItem.id] + MEASUREMENT_BUFFER
+          : nextItem.height;
+      effectiveHeight += nextItemHeight;
+    }
+
+    // Would this item fit on the current page?
+    const wouldFitNormally = currentHeight + itemHeight <= MAX_HEIGHT;
+    const wouldFitWithNext = currentHeight + effectiveHeight <= MAX_HEIGHT;
+
+    // Check if we need to start a new page
+    let shouldBreak = false;
+
+    if (isHeader) {
+      // For headers: break only if header + next item don't fit AND page has content
+      // CRITICAL CHANGE: Only force break if we are near the bottom (e.g. > 75% used)
+      // Checks earlier to prevent headers right at the edge
+      const isNearBottom = currentHeight > SAFE_HEIGHT * 0.75;
+
+      if (!wouldFitWithNext && isNearBottom) {
+        shouldBreak = true;
+        pdfDebugLog(
+          `Page break before header "${item.type}" - header+next (${effectiveHeight}px) won't fit, current=${currentHeight.toFixed(0)}px`,
+        );
+      }
+    } else if (!wouldFitNormally) {
+      // For regular items: break if item doesn't fit AND page has some content
+      if (currentHeight > MIN_PAGE_USAGE) {
+        shouldBreak = true;
+        pdfDebugLog(
+          `Page break before "${item.type}" (${itemHeight}px) - current=${currentHeight.toFixed(0)}px, would exceed ${MAX_HEIGHT.toFixed(0)}px`,
+        );
       }
     }
 
-    if (item.type === "sistema-block" || item.type === "extra-products-block") {
-      if (
-        currentHeight + item.height > SAFE_HEIGHT &&
-        currentHeight > ESTIMATED_HEIGHTS.HEADER
-      ) {
-        forceBreak = true;
-      }
-    }
-
-    if (item.type === "payment-terms") {
-      if (currentHeight + item.height > SAFE_HEIGHT) {
-        forceBreak = true;
-      }
-    }
-
-    if (forceBreak || currentHeight + item.height > SAFE_HEIGHT) {
+    // Execute page break if needed
+    if (shouldBreak && currentPage.length > 0) {
+      pdfDebugLog(
+        `Finishing page ${pages.length + 1} with ${currentPage.length} items, height=${currentHeight.toFixed(0)}px (${((currentHeight / SAFE_HEIGHT) * 100).toFixed(1)}%)`,
+      );
       pages.push(currentPage);
       currentPage = [];
-      currentHeight = 60;
+      currentHeight = 40; // Header space for continuation pages
     }
 
+    // Add item to current page
     currentPage.push(item);
-    currentHeight += item.height;
+    currentHeight += itemHeight;
+
+    pdfDebugLog(
+      `Added "${item.type}" (${itemHeight}px) -> cumulative=${currentHeight.toFixed(0)}px`,
+    );
   });
 
+  // Push the last page if it has content
   if (currentPage.length > 0) {
+    pdfDebugLog(
+      `Finishing final page ${pages.length + 1} with ${currentPage.length} items, height=${currentHeight.toFixed(0)}px (${((currentHeight / SAFE_HEIGHT) * 100).toFixed(1)}%)`,
+    );
     pages.push(currentPage);
   }
 
+  pdfDebugLog(`Distribution complete: ${pages.length} pages created`);
   return pages;
 }
 
@@ -429,9 +650,60 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
   coverTitle,
   proposal,
   repeatHeader,
+  pdfDisplaySettings = defaultPdfDisplaySettings,
 }) => {
-  const items = buildContentItems(sections, products, proposal);
-  const pages = distributeIntoPages(items);
+  // Merge with defaults to ensure all settings have values
+  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
+
+  const [measuredHeights, setMeasuredHeights] = useState<
+    Record<string, number>
+  >({});
+  const measureRef = useRef<HTMLDivElement>(null);
+
+  const items = buildContentItems(
+    sections,
+    products,
+    proposal,
+    primaryColor,
+    settings,
+  );
+
+  // Measurement effect: capture real DOM heights
+  useLayoutEffect(() => {
+    if (!measureRef.current) return;
+
+    const newHeights: Record<string, number> = {};
+    let hasChanges = false;
+    let count = 0;
+
+    items.forEach((item) => {
+      if (item.id) {
+        const el = measureRef.current?.querySelector(
+          `[data-measure-id="${item.id}"]`,
+        );
+        if (el) {
+          const height = el.getBoundingClientRect().height;
+          const currentHeight = measuredHeights[item.id] || 0;
+
+          // Only update if difference > 0.5px to avoid infinite loops from micro-adjustments
+          if (Math.abs(height - currentHeight) > 0.5) {
+            newHeights[item.id] = height;
+            hasChanges = true;
+          } else {
+            newHeights[item.id] = currentHeight;
+          }
+          count++;
+        }
+      }
+    });
+
+    if (hasChanges) {
+      pdfDebugLog(`Measurement updated for ${count} items`);
+      setMeasuredHeights(newHeights);
+    }
+  }, [items, measuredHeights]); // Re-run when items change or measurements update (to converge)
+
+  const pages = distributeIntoPages(items, measuredHeights);
 
   const renderItem = (item: ContentItem) => {
     switch (item.type) {
@@ -457,6 +729,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               sistema={item.data.sistema}
               products={item.data.products}
               primaryColor={primaryColor}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -467,6 +740,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfExtraProductsBlock
               products={item.data.products}
               primaryColor={primaryColor}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -478,7 +752,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             className="text-xl font-bold mb-4 pb-2 border-b-2 mt-4"
             style={{ ...contentStyles.productTitle, width: "100%" }}
           >
-            Produtos e Serviços
+            Produtos e Servios
           </h2>
         );
 
@@ -494,6 +768,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -508,11 +783,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
-              downPaymentEnabled={proposal.downPaymentEnabled}
-              downPaymentValue={proposal.downPaymentValue}
-              installmentsEnabled={proposal.installmentsEnabled}
-              installmentsCount={proposal.installmentsCount}
-              installmentValue={proposal.installmentValue}
+              pdfDisplaySettings={settings}
             />
           </div>
         );
@@ -538,6 +809,68 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
           </div>
         );
 
+      case "sistema-header":
+        return (
+          <div
+            key={`sistema-header-${item.data.sistema.sistemaId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaHeader
+              sistema={item.data.sistema}
+              primaryColor={primaryColor}
+            />
+          </div>
+        );
+
+      case "ambiente-header":
+        return (
+          <div
+            key={`ambiente-header-${item.data.ambienteId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfAmbienteHeader
+              ambienteName={item.data.ambienteName}
+              primaryColor={primaryColor}
+              standalone={true}
+            />
+          </div>
+        );
+
+      case "sistema-product":
+        const sistemaProductData = item.data as {
+          product: Product;
+          sistema: Sistema;
+          isFirst: boolean;
+          isLast: boolean;
+        };
+        return (
+          <div
+            key={`sistema-product-${sistemaProductData.sistema.sistemaId}-${sistemaProductData.product.productId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaProduct
+              product={sistemaProductData.product}
+              primaryColor={primaryColor}
+              isFirst={sistemaProductData.isFirst}
+              isLast={sistemaProductData.isLast}
+              pdfDisplaySettings={settings}
+            />
+          </div>
+        );
+
+      case "sistema-footer":
+        return (
+          <div
+            key={`sistema-footer-${item.data.sistema.sistemaId}`}
+            style={{ width: "100%" }}
+          >
+            <PdfSistemaFooter
+              sistemaSubtotal={item.data.sistemaSubtotal}
+              primaryColor={primaryColor}
+            />
+          </div>
+        );
+
       default:
         return null;
     }
@@ -545,6 +878,36 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
 
   return (
     <>
+      {/* Hidden Measurement Container - Renders all items to measure measuring their real DOM height */}
+      <div
+        ref={measureRef}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "210mm", // Must match page width
+          padding: "48px", // Match page padding
+          fontFamily, // Match font
+          opacity: 0,
+          zIndex: -1000,
+          pointerEvents: "none",
+          visibility: "hidden",
+          height: 0, // Prevent adding scroll height
+          overflow: "hidden", // Clip content so it doesn't expand scroll
+        }}
+        aria-hidden="true"
+      >
+        {items.map((item, idx) => (
+          <div
+            key={item.id || `measure-${idx}`}
+            data-measure-id={item.id}
+            style={{ width: "100%", display: "flow-root" }}
+          >
+            {renderItem(item)}
+          </div>
+        ))}
+      </div>
+
       {pages.map((pageItems, pageIndex) => (
         <div
           key={pageIndex}

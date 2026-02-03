@@ -87,7 +87,7 @@ export function QuickActionsCard() {
       )}
 
       {canCreateClient && (
-        <Link href="/customers/new" className="group">
+        <Link href="/contacts/new" className="group">
           <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-blue-50/30 dark:to-blue-950/10 border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 group-hover:-translate-y-1 h-28">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-8 -mt-8 group-hover:bg-blue-500/10 transition-colors" />
             <div className="p-5 h-full flex flex-col justify-between relative z-10">

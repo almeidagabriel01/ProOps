@@ -12,7 +12,7 @@ const getBaseUrl = (): string => {
   if (!apiUrl) {
     throw new Error(
       "NEXT_PUBLIC_API_URL is not defined. " +
-        "Set it in .env.local or Vercel Environment Variables."
+        "Set it in .env.local or Vercel Environment Variables.",
     );
   }
 
@@ -23,7 +23,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public message: string,
-    public data?: unknown
+    public data?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -33,7 +33,7 @@ export class ApiError extends Error {
 export const callApi = async <T = unknown>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
-  body?: unknown
+  body?: unknown,
 ): Promise<T> => {
   const user = auth.currentUser;
   if (!user) {
@@ -78,7 +78,7 @@ export const callApi = async <T = unknown>(
           (typeof errorData.raw === "string"
             ? errorData.raw
             : "API Request Failed"),
-        errorData
+        errorData,
       );
     }
 
@@ -90,6 +90,66 @@ export const callApi = async <T = unknown>(
     return await response.json();
   } catch (error) {
     console.error(`API Call Failed [${method} ${url}]:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Call API without authentication (public endpoints)
+ */
+export const callPublicApi = async <T = unknown>(
+  endpoint: string,
+  method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
+  body?: unknown,
+): Promise<T> => {
+  const baseUrl = getBaseUrl();
+
+  // Ensure endpoint starts with /
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = `${baseUrl}${path}`;
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  const config: RequestInit = {
+    method,
+    headers,
+  };
+
+  if (body) {
+    config.body = JSON.stringify(body);
+  }
+
+  try {
+    const response = await fetch(url, config);
+
+    if (!response.ok) {
+      let errorData;
+      const text = await response.text();
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = { raw: text };
+      }
+      throw new ApiError(
+        response.status,
+        errorData.message ||
+          (typeof errorData.raw === "string"
+            ? errorData.raw
+            : "API Request Failed"),
+        errorData,
+      );
+    }
+
+    // Handle empty responses (e.g. 204 No Content)
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Public API Call Failed [${method} ${url}]:`, error);
     throw error;
   }
 };

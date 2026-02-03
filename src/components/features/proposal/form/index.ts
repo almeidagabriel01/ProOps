@@ -7,3 +7,4 @@ export { ProposalSummarySection } from "./proposal-summary-section";
 export { ProposalPaymentSection } from "./proposal-payment-section";
 export { ProposalFormActions } from "./proposal-form-actions";
 export { ProposalReadOnlyView } from "./proposal-readonly-view";
+export { PdfDisplayOptionsSection } from "./pdf-display-options-section";

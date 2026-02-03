@@ -279,15 +279,56 @@ export function useTransactionForm(): UseTransactionFormReturn {
         });
       } else {
         // Total mode: original logic
-        finalAmount = parseFloat(formData.amount);
+        const totalAmount = parseFloat(formData.amount);
+        const downPayment = formData.downPaymentEnabled 
+          ? parseFloat(formData.downPaymentValue || "0") 
+          : 0;
+        
+        let remainingAmount = totalAmount;
+        
+        // If down payment is enabled, subtract from total
+        if (formData.downPaymentEnabled && downPayment > 0) {
+          remainingAmount = totalAmount - downPayment;
+        }
+
+        finalAmount = remainingAmount;
         walletToUse = formData.wallet;
         dueDateToUse = formData.dueDate;
 
-        if (formData.isInstallment && formData.installmentCount > 1) {
-          const total = parseFloat(formData.amount);
-          const count = formData.installmentCount;
-          finalAmount = Math.round((total / count) * 100) / 100;
+        // Create installment group ID if needed
+        if ((formData.isInstallment && formData.installmentCount > 1) || (formData.downPaymentEnabled && downPayment > 0)) {
           installmentGroupId = `installment_${Date.now()}`;
+        }
+        
+        // Create down payment transaction if enabled
+        if (formData.downPaymentEnabled && downPayment > 0 && installmentGroupId) {
+          await TransactionService.createTransaction({
+            tenantId: tenant.id,
+            type: formData.type,
+            description: formData.description.trim(),
+            amount: downPayment,
+            date: formData.date,
+            dueDate: formData.downPaymentDueDate || formData.date,
+            status: formData.status,
+            clientId,
+            clientName: formData.clientName || undefined,
+            category: formData.category || undefined,
+            wallet: formData.downPaymentWallet || walletToUse,
+            isInstallment: false, // Don't generate installments for this
+            isDownPayment: true, // Mark as down payment
+            installmentNumber: 0,
+            installmentCount: formData.installmentCount + 1,
+            installmentGroupId,
+            notes: formData.notes || undefined,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        if (formData.isInstallment && formData.installmentCount > 1) {
+          const count = formData.installmentCount;
+          // Calculate installment value based on REMAINING amount
+          finalAmount = Math.round((remainingAmount / count) * 100) / 100;
         }
 
         await TransactionService.createTransaction({
@@ -296,6 +337,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
           description: formData.description.trim(),
           amount: finalAmount,
           date: formData.date,
+          // If there is a down payment but NO installments (edge case, or just 1 installment), 
+          // we should probably stick to the original due date. 
+          // If installments are enabled, due date logic might need to be checked, 
+          // but usually the backend generates subsequent dates.
           dueDate: dueDateToUse || undefined,
           status: formData.status,
           clientId,

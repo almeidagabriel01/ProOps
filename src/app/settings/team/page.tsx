@@ -51,12 +51,14 @@ export default function TeamPage() {
   const { updateSinglePermission, isLoading: savingPermissions } =
     useUpdatePermissions();
 
+  const isFirstLoad = React.useRef(true);
+
   // Fetch team members
   const fetchMembers = React.useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      if (members.length === 0) setIsLoading(true);
+      if (isFirstLoad.current) setIsLoading(true);
 
       // Check if super admin is viewing another tenant
       const viewingAsTenant =
@@ -73,7 +75,7 @@ export default function TeamPage() {
 
       const membersQuery = query(
         collection(db, "users"),
-        where("masterId", "==", masterId)
+        where("masterId", "==", masterId),
       );
 
       const snapshot = await getDocs(membersQuery);
@@ -83,7 +85,7 @@ export default function TeamPage() {
         const data = memberDoc.data();
 
         const permissionsSnapshot = await getDocs(
-          collection(db, "users", memberDoc.id, "permissions")
+          collection(db, "users", memberDoc.id, "permissions"),
         );
 
         const permissions: Record<string, Permission> = {};
@@ -103,7 +105,7 @@ export default function TeamPage() {
 
       console.log(
         "[DEBUG] Loaded members from Firestore:",
-        membersList.map((m) => ({ id: m.id, name: m.name, email: m.email }))
+        membersList.map((m) => ({ id: m.id, name: m.name, email: m.email })),
       );
       setMembers(membersList);
     } catch (error) {
@@ -111,8 +113,9 @@ export default function TeamPage() {
       toast.error("Erro ao carregar membros");
     } finally {
       setIsLoading(false);
+      isFirstLoad.current = false;
     }
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   React.useEffect(() => {
     fetchMembers();
@@ -123,7 +126,7 @@ export default function TeamPage() {
     memberId: string,
     pageId: string,
     key: string,
-    value: boolean
+    value: boolean,
   ) => {
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
@@ -148,7 +151,6 @@ export default function TeamPage() {
         pageId,
         key as "canView" | "canEdit" | "canCreate" | "canDelete",
         value,
-        member.permissions
       );
 
       // Update local state only on success
@@ -165,7 +167,7 @@ export default function TeamPage() {
               };
             }
             return m;
-          })
+          }),
         );
       }
     } finally {

@@ -13,11 +13,6 @@ interface UpdateMemberData {
   password?: string;
 }
 
-interface ActionResult {
-  success: boolean;
-  message: string;
-}
-
 // ============================================
 // HOOK
 // ============================================
@@ -36,7 +31,8 @@ export function useMemberActions() {
       return true;
     } catch (error: unknown) {
       console.error("Error deleting member:", error);
-      const message = error instanceof Error ? error.message : "Erro ao remover membro.";
+      const message =
+        error instanceof Error ? error.message : "Erro ao remover membro.";
       toast.error(message);
       return false;
     } finally {
@@ -56,7 +52,8 @@ export function useMemberActions() {
       return true;
     } catch (error: unknown) {
       console.error("Error updating member:", error);
-      const message = error instanceof Error ? error.message : "Erro ao atualizar membro.";
+      const message =
+        error instanceof Error ? error.message : "Erro ao atualizar membro.";
       toast.error(message);
       return false;
     } finally {

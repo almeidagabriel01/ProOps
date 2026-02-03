@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ProposalPdfSettings } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { toast } from "react-toastify";
-import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 
 const getApiBaseUrl = (): string => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -16,21 +14,14 @@ const getApiBaseUrl = (): string => {
 
 interface UsePdfGeneratorProps {
   proposal: Partial<Proposal>;
-  settings: ProposalPdfSettings;
-  includeCover: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
-export function usePdfGenerator({
-  proposal,
-  settings,
-  includeCover,
-  setIsOpen,
-}: UsePdfGeneratorProps) {
+export function usePdfGenerator({ proposal, setIsOpen }: UsePdfGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Helper function to lighten a hex color (same as in view page)
-  // Not strictly needed if not used, but good for consistency. 
+  // Not strictly needed if not used, but good for consistency.
   // Retaining the core logic for generation.
 
   const handleGenerate = async (rootElementId?: string) => {
@@ -257,7 +248,7 @@ export function usePdfGenerator({
             clone.style.backgroundImage = "none";
             clone.style.backgroundColor = safeColor(
               computed.backgroundColor,
-              "backgroundColor"
+              "backgroundColor",
             );
           } else {
             clone.style.backgroundImage = computed.backgroundImage;
@@ -277,14 +268,14 @@ export function usePdfGenerator({
             clone.style.setProperty(
               "fill",
               safeColor(fill, "fill"),
-              "important"
+              "important",
             );
           }
           if (stroke && containsModernColor(stroke)) {
             clone.style.setProperty(
               "stroke",
               safeColor(stroke, "stroke"),
-              "important"
+              "important",
             );
           }
         }
@@ -337,7 +328,7 @@ export function usePdfGenerator({
                 let ruleText = rule.cssText;
                 ruleText = ruleText.replace(
                   /url\((['"]?)\//g,
-                  `url($1${window.location.origin}/`
+                  `url($1${window.location.origin}/`,
                 );
                 fontFaceRules += ruleText + "\n";
               }
@@ -376,6 +367,85 @@ export function usePdfGenerator({
       iframeDoc.body.style.padding = "0";
       iframeDoc.body.appendChild(container);
 
+      // --- 2.5 APPLY PDF SPECIFIC STYLES OVERRIDES ---
+      // This allows us to have different spacing for PDF vs Screen (fixing alignment issues)
+      const applyPdfOverrides = (root: HTMLElement) => {
+        const marginBottomElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-margin-bottom]",
+        );
+        marginBottomElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-margin-bottom");
+          if (val) {
+            el.style.setProperty("margin-bottom", val, "important");
+          }
+        });
+
+        const marginTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-margin-top]",
+        );
+        marginTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-margin-top");
+          if (val) {
+            el.style.setProperty("margin-top", val, "important");
+          }
+        });
+
+        // Padding support (More robust for html2canvas)
+        const paddingBottomElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-padding-bottom]",
+        );
+        paddingBottomElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-padding-bottom");
+          if (val) {
+            el.style.setProperty("padding-bottom", val, "important");
+          }
+        });
+
+        const paddingTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-padding-top]",
+        );
+        paddingTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-padding-top");
+          if (val) {
+            el.style.setProperty("padding-top", val, "important");
+          }
+        });
+
+        // Height support (For Spacer Divs)
+        const heightElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-height]",
+        );
+        heightElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-height");
+          if (val) {
+            el.style.setProperty("height", val, "important");
+            el.style.setProperty("min-height", val, "important");
+            el.style.setProperty("line-height", val, "important"); // Ensure content expands
+          }
+        });
+
+        // Border Support (The "Nuclear Option" for spacing)
+        const borderTopElements = root.querySelectorAll<HTMLElement>(
+          "[data-pdf-border-top]",
+        );
+        borderTopElements.forEach((el) => {
+          const val = el.getAttribute("data-pdf-border-top");
+          if (val) {
+            el.style.setProperty("border-top-width", val, "important");
+            el.style.setProperty("border-top-style", "solid", "important");
+            el.style.setProperty("border-top-color", "transparent", "important");
+            // Ensure height doesn't conflict
+            el.style.setProperty("height", "0px", "important");
+          }
+        });
+      };
+
+      try {
+        applyPdfOverrides(container);
+      } catch (e) {
+        console.warn("Error applying PDF overrides", e);
+      }
+
       // --- 3. WAIT ---
       try {
         await iframeDoc.fonts.ready;
@@ -391,7 +461,7 @@ export function usePdfGenerator({
         const uniqueUrls = new Set(
           images
             .map((img) => img.src)
-            .filter((src) => src && !src.startsWith("data:"))
+            .filter((src) => src && !src.startsWith("data:")),
         );
 
         const urlMap = new Map<string, string>();
@@ -413,7 +483,7 @@ export function usePdfGenerator({
             } catch {
               console.warn("Failed to proxy image:", url);
             }
-          })
+          }),
         );
 
         images.forEach((img) => {
@@ -431,8 +501,8 @@ export function usePdfGenerator({
                   img.onload = () => resolve();
                   img.onerror = () => resolve();
                 }
-              })
-          )
+              }),
+          ),
         );
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -480,7 +550,7 @@ export function usePdfGenerator({
           0,
           0,
           pageWidth,
-          pageHeight
+          pageHeight,
         );
       }
 

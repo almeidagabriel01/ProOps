@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -217,7 +217,7 @@ export function CredentialFields({
         delete newErrors.password;
         return newErrors;
       });
-    };
+    }
   };
 
   const emailError = errors.email || localErrors.email;
@@ -243,7 +243,10 @@ export function CredentialFields({
             name="email"
             autoComplete="email"
             readOnly={emailReadOnly}
-            onFocus={() => { setEmailReadOnly(false); setPasswordReadOnly(false); }}
+            onFocus={() => {
+              setEmailReadOnly(false);
+              setPasswordReadOnly(false);
+            }}
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
@@ -275,7 +278,9 @@ export function CredentialFields({
             autoComplete="current-password"
             readOnly={passwordReadOnly}
             onFocus={() => setPasswordReadOnly(false)}
-            placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"}
+            placeholder={
+              mode === "register" ? "Mínimo 6 caracteres" : "Sua senha"
+            }
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
             onBlur={validatePassword}

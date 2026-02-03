@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -157,12 +158,14 @@ export function ProductFormNew({
               {imageUrls.map((img, i) => (
                 <div
                   key={i}
-                  className="aspect-square rounded-xl overflow-hidden border border-border/50"
+                  className="aspect-square rounded-xl overflow-hidden border border-border/50 relative"
                 >
-                  <img
+                  <Image
                     src={img}
                     alt={`Produto ${i + 1}`}
-                    className="w-full h-full object-contain"
+                    fill
+                    className="object-contain"
+                    sizes="(max-width: 768px) 33vw, 100px"
                   />
                 </div>
               ))}
@@ -419,19 +422,21 @@ export function ProductFormNew({
                     key={index}
                     className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 border-2 border-border/30 group hover:border-primary/30 transition-colors"
                   >
-                    <img
+                    <Image
                       src={img}
                       alt={`Produto ${index + 1}`}
-                      className="w-full h-full object-contain p-2"
+                      fill
+                      className="object-contain p-2"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(index)}
-                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-lg"
+                      className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-destructive/90 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive shadow-lg z-10"
                     >
                       <X className="w-4 h-4" />
                     </button>
-                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium">
+                    <div className="absolute bottom-2 left-2 px-2 py-1 rounded-md bg-black/60 text-white text-xs font-medium z-10">
                       {index + 1}/{maxImagesPerProduct}
                     </div>
                   </div>

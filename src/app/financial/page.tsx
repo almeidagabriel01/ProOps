@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Transaction } from "@/services/transaction-service";
-import { Plus, Wallet, Search, Loader2 } from "lucide-react";
+import { Plus, Wallet, Search, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
 import { FinancialSkeleton } from "./_components/financial-skeleton";
@@ -17,6 +17,7 @@ import {
   TransactionCard,
   DeleteTransactionDialog,
   TransactionFilters,
+  TransactionListByDueDate,
 } from "./_components";
 
 export default function FinancialPage() {
@@ -43,6 +44,8 @@ export default function FinancialPage() {
     setFilterDateType,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     filteredTransactions,
     totalWalletBalance,
     deleteTransactionGroup,
@@ -59,6 +62,116 @@ export default function FinancialPage() {
   const [transactionToDelete, setTransactionToDelete] =
     React.useState<Transaction | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+
+  // Toggle selection for a single transaction (used for individual installments)
+  const toggleSelection = React.useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // Toggle selection for a transaction group (main card and all related installments)
+  const toggleGroupSelection = React.useCallback(
+    (transaction: Transaction) => {
+      // Find all related transactions to this one
+      const relatedIds: string[] = [transaction.id];
+
+      // Add proposal group members
+      if (transaction.proposalGroupId) {
+        transactions.forEach((t) => {
+          if (
+            t.proposalGroupId === transaction.proposalGroupId &&
+            t.id !== transaction.id
+          ) {
+            relatedIds.push(t.id);
+          }
+        });
+      }
+      // Add installment group members (for non-proposal groups)
+      else if (transaction.installmentGroupId && !transaction.proposalGroupId) {
+        transactions.forEach((t) => {
+          if (
+            t.installmentGroupId === transaction.installmentGroupId &&
+            t.id !== transaction.id
+          ) {
+            relatedIds.push(t.id);
+          }
+        });
+      }
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        // If all are already selected, deselect all
+        const allSelected = relatedIds.every((id) => next.has(id));
+
+        if (allSelected) {
+          relatedIds.forEach((id) => next.delete(id));
+        } else {
+          relatedIds.forEach((id) => next.add(id));
+        }
+        return next;
+      });
+    },
+    [transactions],
+  );
+
+  // Toggle select all for filtered transactions
+  const toggleSelectAll = React.useCallback(() => {
+    const allIds = filteredTransactions.map((t) => t.id);
+    const allSelected = allIds.every((id) => selectedIds.has(id));
+
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  }, [filteredTransactions, selectedIds]);
+
+  // Clear selection when filters or view mode changes
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [
+    viewMode,
+    filterType,
+    filterStatus,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    searchTerm,
+  ]);
+
+  // Calculate selection summary - use ALL transactions, not just filtered
+  const selectionSummary = React.useMemo(() => {
+    if (selectedIds.size === 0) return undefined;
+
+    // Use all transactions to include installments that may not be in filteredTransactions
+    const selected = transactions.filter((t) => selectedIds.has(t.id));
+
+    return {
+      count: selected.length,
+      paidIncome: selected
+        .filter((t) => t.type === "income" && t.status === "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      paidExpense: selected
+        .filter((t) => t.type === "expense" && t.status === "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      pendingIncome: selected
+        .filter((t) => t.type === "income" && t.status !== "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+      pendingExpense: selected
+        .filter((t) => t.type === "expense" && t.status !== "paid")
+        .reduce((sum, t) => sum + t.amount, 0),
+    };
+  }, [selectedIds, transactions]);
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading) {
@@ -130,8 +243,32 @@ export default function FinancialPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <FinancialSummaryCards summary={summary} />
+      {/* Summary Cards - with selection indicator */}
+      <div className="space-y-2">
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Mostrando valores de <strong>{selectedIds.size}</strong> item
+              {selectedIds.size !== 1 ? "s" : ""} selecionado
+              {selectedIds.size !== 1 ? "s" : ""}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs gap-1"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              <X className="w-3 h-3" />
+              Limpar
+            </Button>
+          </div>
+        )}
+        <FinancialSummaryCards
+          summary={summary}
+          selectionSummary={selectionSummary}
+          balance={balance}
+        />
+      </div>
 
       {/* Filters */}
       <TransactionFilters
@@ -151,6 +288,8 @@ export default function FinancialPage() {
         onDateTypeChange={setFilterDateType}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* Transactions List */}
@@ -188,58 +327,104 @@ export default function FinancialPage() {
             </p>
           </CardContent>
         </Card>
+      ) : viewMode === "byDueDate" ? (
+        // In byDueDate mode, use compact list view
+        <TransactionListByDueDate
+          transactions={filteredTransactions}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onDelete={openDeleteDialog}
+          onStatusChange={updateGroupStatus}
+          onUpdate={updateTransaction}
+          selectedIds={selectedIds}
+          onToggleSelection={toggleSelection}
+          onToggleSelectAll={toggleSelectAll}
+        />
       ) : (
         <div className="grid gap-3">
           {filteredTransactions.map((transaction) => {
-            // Get related installments (for standalone installment groups)
-            // Include both installments AND down payments in the group
-            const relatedInstallments =
-              (transaction.isInstallment || transaction.isDownPayment) &&
-              transaction.installmentGroupId &&
-              !transaction.proposalGroupId
-                ? transactions
-                    .filter(
-                      (t) =>
-                        t.installmentGroupId === transaction.installmentGroupId
-                    )
-                    .sort((a, b) => {
-                      // Sort: down payment first, then by installment number
-                      if (a.isDownPayment && !b.isDownPayment) return -1;
-                      if (!a.isDownPayment && b.isDownPayment) return 1;
-                      return (
-                        (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                      );
-                    })
-                : [];
+            // Check if this transaction is part of a group (installment or proposal)
+            const groupId =
+              transaction.proposalGroupId || transaction.installmentGroupId;
 
-            // Get all transactions from the same proposal group (down payment + installments)
-            const proposalGroupTransactions = transaction.proposalGroupId
-              ? transactions
-                  .filter(
-                    (t) => t.proposalGroupId === transaction.proposalGroupId
-                  )
-                  .sort((a, b) => {
-                    // Down payment first, then installments by number
-                    if (a.isDownPayment && !b.isDownPayment) return -1;
-                    if (!a.isDownPayment && b.isDownPayment) return 1;
-                    return (
-                      (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                    );
-                  })
-              : [];
+            if (groupId) {
+              // Find all transactions in this group within the full dataset
+              // (Correctness: we use 'transactions' to find all members, not just filtered ones,
+              // so the group logic holds even if some members are filtered out?
+              // Actually, usually we want to show the group if ANY member is in the filter?
+              // For now, let's stick to the current logic: find "leader" in the COMPLETED list
+              // to ensure consistent leader selection)
+              const groupMembers = transactions.filter(
+                (t) =>
+                  t.proposalGroupId === groupId ||
+                  t.installmentGroupId === groupId,
+              );
 
+              // Sort members to find the "leader"
+              // Priority: Down Payment -> Installment Number (asc) -> Date (asc)
+              groupMembers.sort((a, b) => {
+                if (a.isDownPayment && !b.isDownPayment) return -1;
+                if (!a.isDownPayment && b.isDownPayment) return 1;
+                if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
+                  return (
+                    (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  );
+                }
+                return new Date(a.date).getTime() - new Date(b.date).getTime();
+              });
+
+              const leader = groupMembers[0];
+
+              // If the current transaction is NOT the leader, don't render it separately
+              // (It will be rendered inside the leader's card)
+              if (transaction.id !== leader.id) {
+                return null;
+              }
+
+              // If it IS the leader, we render it, passing the group members
+              // If it IS the leader, we render it, passing the group members
+
+              return (
+                <TransactionCard
+                  key={transaction.id}
+                  transaction={leader}
+                  relatedInstallments={
+                    !leader.proposalGroupId ? groupMembers : []
+                  }
+                  proposalGroupTransactions={
+                    leader.proposalGroupId ? groupMembers : []
+                  }
+                  canEdit={canEdit}
+                  canDelete={canDelete}
+                  onDelete={openDeleteDialog}
+                  onStatusChange={updateGroupStatus}
+                  onUpdate={updateTransaction}
+                  onUpdateBatch={updateBatchTransactions}
+                  isSelected={selectedIds.has(leader.id)}
+                  onToggleSelection={toggleSelection}
+                  onToggleGroupSelection={toggleGroupSelection}
+                  selectedIds={selectedIds}
+                />
+              );
+            }
+
+            // Standalone transactions
             return (
               <TransactionCard
                 key={transaction.id}
                 transaction={transaction}
-                relatedInstallments={relatedInstallments}
-                proposalGroupTransactions={proposalGroupTransactions}
+                relatedInstallments={[]}
+                proposalGroupTransactions={[]}
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onDelete={openDeleteDialog}
                 onStatusChange={updateGroupStatus}
                 onUpdate={updateTransaction}
                 onUpdateBatch={updateBatchTransactions}
+                isSelected={selectedIds.has(transaction.id)}
+                onToggleSelection={toggleSelection}
+                onToggleGroupSelection={toggleGroupSelection}
+                selectedIds={selectedIds}
               />
             );
           })}

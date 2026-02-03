@@ -11,8 +11,12 @@ import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useEditPdfPage } from "@/components/features/proposal/edit-pdf/use-edit-pdf-page";
 import { PdfEditorTabs } from "@/components/features/proposal/edit-pdf/pdf-editor-tabs";
 import { lightenColor } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
+import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/save-confirmation-modal";
 
 export default function EditPdfPage() {
+  // Modal states
+  const [showSaveModal, setShowSaveModal] = React.useState(false);
+  const [showSaveDefaultModal, setShowSaveDefaultModal] = React.useState(false);
   const {
     proposal,
     template,
@@ -21,7 +25,6 @@ export default function EditPdfPage() {
     isPlanLoading,
     canAccessPage,
     isSaving,
-    isGenerating,
     showUpgradeModal,
     setShowUpgradeModal,
 
@@ -67,7 +70,8 @@ export default function EditPdfPage() {
 
     // Actions
     handleSave,
-    handleGeneratePdf,
+    handleSaveDefault,
+    isSavingDefault,
   } = useEditPdfPage();
 
   const router = useRouter();
@@ -127,8 +131,21 @@ export default function EditPdfPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={handleSave}
-            disabled={isSaving}
+            onClick={() => setShowSaveDefaultModal(true)}
+            disabled={isSavingDefault || isSaving}
+            className="gap-2"
+          >
+            {isSavingDefault ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Salvar Configurações
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => setShowSaveModal(true)}
+            disabled={isSaving || isSavingDefault}
             className="gap-2"
           >
             {isSaving ? (
@@ -207,7 +224,7 @@ export default function EditPdfPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setPreviewZoom((z) => Math.min(1, z + 0.1))}
+                    onClick={() => setPreviewZoom((z) => Math.min(2, z + 0.1))}
                     title="Aumentar zoom"
                   >
                     <ZoomIn className="w-4 h-4" />
@@ -260,6 +277,30 @@ export default function EditPdfPage() {
         feature="Templates Premium"
         description="Desbloqueie templates adicionais e personalize completamente suas propostas em PDF. Faça upgrade para o plano Enterprise para ter acesso a todos os recursos."
         requiredPlan="enterprise"
+      />
+
+      {/* Save Confirmation Modal */}
+      <SaveConfirmationModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onConfirm={async () => {
+          await handleSave();
+          setShowSaveModal(false);
+        }}
+        type="save"
+        isLoading={isSaving}
+      />
+
+      {/* Save Default Configuration Modal */}
+      <SaveConfirmationModal
+        isOpen={showSaveDefaultModal}
+        onClose={() => setShowSaveDefaultModal(false)}
+        onConfirm={async () => {
+          await handleSaveDefault();
+          setShowSaveDefaultModal(false);
+        }}
+        type="saveDefault"
+        isLoading={isSavingDefault}
       />
     </div>
   );

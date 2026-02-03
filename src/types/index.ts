@@ -14,6 +14,7 @@ export type Tenant = {
   logoUrl?: string;
   niche: TenantNiche;
   createdAt?: string;
+  proposalDefaults?: Record<string, unknown>;
 };
 
 export type User = {
@@ -303,3 +304,10 @@ export const WALLET_TYPE_ICONS: Record<WalletType, string> = {
   credit_card: "CreditCard",
   other: "Wallet",
 };
+
+// Re-export PDF display settings
+export {
+  type PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+  mergePdfDisplaySettings,
+} from "./pdf-display-settings";

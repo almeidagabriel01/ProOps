@@ -99,9 +99,15 @@ export function getExtraProducts(
   selectedSistemas: ProposalSistema[],
 ) {
   const sistemaProductIds = new Set(
-    selectedSistemas.flatMap((s) => s.products.map((p) => p.productId)),
+    selectedSistemas.flatMap((s) => {
+      // Handle both new and legacy formats
+      if (s.ambientes && s.ambientes.length > 0) {
+        return s.ambientes.flatMap(a => a.products.map(p => p.productId));
+      }
+      return (s.products || []).map((p) => p.productId);
+    }),
   );
   return selectedProducts.filter(
-    (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId),
+    (p) => !p.systemInstanceId && !p.ambienteInstanceId && !sistemaProductIds.has(p.productId),
   );
 }

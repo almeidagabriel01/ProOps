@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,20 +24,20 @@ import {
   Banknote,
   CreditCard,
   FileText,
-  X,
-  CreditCard as CreditCardIcon,
   Edit2,
-  Layers,
+  Split,
 } from "lucide-react";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
 import { formatCurrency } from "@/utils/format";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { toast } from "react-toastify";
-import { cn } from "@/lib/utils";
 
 import { TransactionInstallmentsList } from "./transaction-installments-list";
 import { EditBlockDialog } from "./edit-block-dialog";
+import { PartialPaymentDialog } from "./partial-payment-dialog";
+import { TransactionService } from "@/services/transaction-service";
+import { useRouter } from "next/navigation";
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -48,15 +49,20 @@ interface TransactionCardProps {
   onStatusChange?: (
     transaction: Transaction,
     newStatus: TransactionStatus,
-    updateAll?: boolean
+    updateAll?: boolean,
   ) => Promise<boolean>;
   onUpdate?: (
     transaction: Transaction,
-    data: Partial<Transaction>
+    data: Partial<Transaction>,
   ) => Promise<boolean>;
   onUpdateBatch?: (
-    updates: { id: string; data: Partial<Transaction> }[]
+    updates: { id: string; data: Partial<Transaction> }[],
   ) => Promise<boolean>;
+  defaultExpanded?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (id: string) => void;
+  onToggleGroupSelection?: (transaction: Transaction) => void;
+  selectedIds?: Set<string>;
 }
 
 const statusOptions: {
@@ -79,14 +85,25 @@ export function TransactionCard({
   onStatusChange,
   onUpdate,
   onUpdateBatch,
+  defaultExpanded = false,
+  isSelected = false,
+  onToggleSelection,
+  onToggleGroupSelection,
+  selectedIds,
 }: TransactionCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(defaultExpanded);
   const [showEditBlockDialog, setShowEditBlockDialog] = React.useState(false);
   const [isEditingAmount, setIsEditingAmount] = React.useState(false);
   const [editAmountValue, setEditAmountValue] = React.useState<number>(0);
   const [isSavingAmount, setIsSavingAmount] = React.useState(false);
+
+  const [showPartialPaymentDialog, setShowPartialPaymentDialog] =
+    React.useState(false);
+  const [partialPaymentTransaction, setPartialPaymentTransaction] =
+    React.useState<Transaction | null>(null);
+  const router = useRouter();
 
   // ... rest of implementation until Edit button
 
@@ -100,7 +117,7 @@ export function TransactionCard({
   const installments = proposalGroupTransactions.filter((t) => t.isInstallment);
   const proposalTotalAmount = proposalGroupTransactions.reduce(
     (sum, t) => sum + t.amount,
-    0
+    0,
   );
 
   // For proposal groups, show the proposal title instead of individual transaction description
@@ -162,7 +179,7 @@ export function TransactionCard({
   // Handle status change for individual transaction with loading state
   const handleIndividualStatusChange = async (
     tx: Transaction,
-    newStatus: TransactionStatus
+    newStatus: TransactionStatus,
   ) => {
     if (!onStatusChange || newStatus === tx.status) return;
     setUpdatingIds((prev) => new Set(prev).add(tx.id));
@@ -257,8 +274,53 @@ export function TransactionCard({
       setEditAmountValue(
         isInstallmentGroup
           ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
-          : transaction.amount
+          : transaction.amount,
       );
+    }
+  };
+
+  const handlePartialPayment = (tx: Transaction) => {
+    setPartialPaymentTransaction(tx);
+    setShowPartialPaymentDialog(true);
+  };
+
+  const processPartialPayment = async (amount: number, date: string) => {
+    if (!partialPaymentTransaction) return;
+
+    try {
+      const original = partialPaymentTransaction;
+      const remainingAmount = original.amount - amount;
+
+      // 1. Update original to be the remaining part (keeping same ID)
+      await TransactionService.updateTransaction(original.id, {
+        amount: remainingAmount,
+      });
+
+      // 2. Create new transaction for the paid part
+      await TransactionService.createTransaction({
+        ...original,
+        amount: amount,
+        status: "paid",
+        date: date,
+        description: original.description, // Keep description
+        isPartialPayment: true,
+        parentTransactionId: original.id,
+        // IDs managed by backend or omitted for new creation:
+        // installmentGroupId and proposalGroupId should be kept to link them
+      });
+
+      toast.success("Pagamento parcial registrado com sucesso!");
+
+      // Refresh the page/view with a small delay to ensure propagation
+      setTimeout(() => {
+        router.refresh();
+      }, 500);
+
+      // If we have an onStatusChange with updateAll, we might call it to trigger parent refresh
+      // But router.refresh() is safer for now.
+    } catch (error) {
+      console.error(error);
+      throw error; // Dialog handles error toast
     }
   };
 
@@ -278,6 +340,7 @@ export function TransactionCard({
               if (
                 target.closest("button") ||
                 target.closest("a") ||
+                target.closest('[role="checkbox"]') ||
                 !hasExpandableContent
               ) {
                 return;
@@ -285,6 +348,23 @@ export function TransactionCard({
               setIsExpanded(!isExpanded);
             }}
           >
+            {/* Selection Checkbox - use group selection for the main card */}
+            {(onToggleGroupSelection || onToggleSelection) && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={() => {
+                    if (onToggleGroupSelection) {
+                      onToggleGroupSelection(transaction);
+                    } else if (onToggleSelection) {
+                      onToggleSelection(transaction.id);
+                    }
+                  }}
+                  className="cursor-pointer"
+                />
+              </div>
+            )}
+
             <div className={`p-2 rounded-full bg-muted ${typeInfo.color}`}>
               <TypeIcon className="w-5 h-5" />
             </div>
@@ -456,7 +536,7 @@ export function TransactionCard({
                             <>
                               {(() => {
                                 const option = statusOptions.find(
-                                  (o) => o.value === transaction.status
+                                  (o) => o.value === transaction.status,
                                 );
                                 const Icon = option?.icon || Check;
                                 return <Icon className="h-3.5 w-3.5" />;
@@ -592,8 +672,21 @@ export function TransactionCard({
             <div className="border-t px-4 py-3 bg-muted/30 space-y-3">
               {/* Down Payment Section */}
               {downPayment && (
-                <div className="flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <div
+                  className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
+                >
                   <div className="flex items-center gap-3">
+                    {onToggleSelection && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds?.has(downPayment.id) || false}
+                          onCheckedChange={() =>
+                            onToggleSelection(downPayment.id)
+                          }
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
                     <div className="p-1.5 rounded-full bg-blue-500/20">
                       <Banknote className="w-4 h-4 text-blue-500" />
                     </div>
@@ -629,7 +722,7 @@ export function TransactionCard({
                               <>
                                 {(() => {
                                   const option = statusOptions.find(
-                                    (o) => o.value === downPayment.status
+                                    (o) => o.value === downPayment.status,
                                   );
                                   const Icon = option?.icon || Check;
                                   return <Icon className="h-3 w-3" />;
@@ -649,7 +742,7 @@ export function TransactionCard({
                               onClick={() =>
                                 handleIndividualStatusChange(
                                   downPayment,
-                                  option.value
+                                  option.value,
                                 )
                               }
                               className="gap-2 cursor-pointer text-xs"
@@ -689,9 +782,20 @@ export function TransactionCard({
                     {installments.map((inst) => (
                       <div
                         key={inst.id}
-                        className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border"
+                        className={`flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(inst.id) ? "ring-2 ring-primary" : ""}`}
                       >
                         <div className="flex items-center gap-3">
+                          {onToggleSelection && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedIds?.has(inst.id) || false}
+                                onCheckedChange={() =>
+                                  onToggleSelection(inst.id)
+                                }
+                                className="cursor-pointer"
+                              />
+                            </div>
+                          )}
                           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                             <span className="text-xs font-bold text-primary">
                               {inst.installmentNumber}
@@ -731,7 +835,7 @@ export function TransactionCard({
                                     <>
                                       {(() => {
                                         const option = statusOptions.find(
-                                          (o) => o.value === inst.status
+                                          (o) => o.value === inst.status,
                                         );
                                         const Icon = option?.icon || Check;
                                         return <Icon className="h-3 w-3" />;
@@ -754,7 +858,7 @@ export function TransactionCard({
                                     onClick={() =>
                                       handleIndividualStatusChange(
                                         inst,
-                                        option.value
+                                        option.value,
                                       )
                                     }
                                     className="gap-2 cursor-pointer text-xs"
@@ -766,6 +870,15 @@ export function TransactionCard({
                                     )}
                                   </DropdownMenuItem>
                                 ))}
+                                {inst.status === "pending" && (
+                                  <DropdownMenuItem
+                                    onClick={() => handlePartialPayment(inst)}
+                                    className="gap-2 cursor-pointer text-xs border-t mt-1 pt-2"
+                                  >
+                                    <Split className="h-3.5 w-3.5" />
+                                    <span>Parcial</span>
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           ) : (
@@ -793,6 +906,9 @@ export function TransactionCard({
                 onStatusChange={onStatusChange!}
                 onUpdate={onUpdate}
                 canEdit={canEdit}
+                selectedIds={selectedIds}
+                onToggleSelection={onToggleSelection}
+                onPartialPayment={handlePartialPayment}
               />
             </div>
           )}
@@ -801,8 +917,15 @@ export function TransactionCard({
       <EditBlockDialog
         open={showEditBlockDialog}
         onOpenChange={setShowEditBlockDialog}
-        transaction={transaction}
       />
+      {partialPaymentTransaction && (
+        <PartialPaymentDialog
+          open={showPartialPaymentDialog}
+          onOpenChange={setShowPartialPaymentDialog}
+          transaction={partialPaymentTransaction}
+          onConfirm={processPartialPayment}
+        />
+      )}
     </div>
   );
 }

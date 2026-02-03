@@ -4,13 +4,14 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Plus, Settings, Package, Trash2, Pencil } from "lucide-react";
+import { Plus, Settings, Trash2, Pencil } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   Sistema,
   Ambiente,
   ProposalSistema,
   SistemaProduct,
+  AmbienteProduct,
 } from "@/types/automation";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
@@ -19,6 +20,10 @@ import { AmbienteManagerDialog } from "./ambiente-manager-dialog";
 import { SistemaTemplateDialog } from "./sistema-template-dialog";
 import { SistemaManagerDialog } from "./sistema-manager-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import {
+  createProposalSistema,
+  getPrimaryAmbiente,
+} from "@/lib/sistema-migration-utils";
 
 export interface SistemaSelectorProps {
   value?: ProposalSistema | null;
@@ -29,12 +34,9 @@ export interface SistemaSelectorProps {
   sistemas?: Sistema[];
   ambientes?: Ambiente[];
   onAction?: (action: MasterDataAction) => Promise<void> | void;
-  // Separate handlers if needed, or generic.
-  // Let's use generic onAction for now, or maybe distinct ones if distinct types?
-  // The hook provides handleAmbienteAction and handleSistemaAction.
-  // Let's accept onAmbienteAction and onSistemaAction for clarity.
   onAmbienteAction?: (action: MasterDataAction) => Promise<void> | void;
   onSistemaAction?: (action: MasterDataAction) => Promise<void> | void;
+  resetAmbienteAfterSelect?: boolean;
 }
 
 export function SistemaSelector({
@@ -46,13 +48,16 @@ export function SistemaSelector({
   ambientes: managedAmbientes,
   onAmbienteAction,
   onSistemaAction,
+  resetAmbienteAfterSelect,
 }: SistemaSelectorProps) {
   const { tenant } = useTenant();
 
   // Data
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
   const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
-  const [filteredSistemas, setFilteredSistemas] = React.useState<Sistema[]>([]);
+  const [filteredAmbientes, setFilteredAmbientes] = React.useState<Ambiente[]>(
+    [],
+  );
 
   // Selection state
   const [selectedAmbienteId, setSelectedAmbienteId] =
@@ -76,14 +81,12 @@ export function SistemaSelector({
       // Managed Mode
       if (managedSistemas && managedAmbientes) {
         setSistemas(managedSistemas);
-        setFilteredSistemas(managedSistemas);
         setAmbientes(managedAmbientes);
+        // Initial filtering will be handled by useEffect
         setIsLoading(false);
         return;
       }
 
-      if (!tenant?.id) return;
-      if (!silent) setIsLoading(true);
       if (!tenant?.id) return;
       if (!silent) setIsLoading(true);
       try {
@@ -93,7 +96,6 @@ export function SistemaSelector({
         ]);
         setAmbientes(ambientesData);
         setSistemas(sistemasData);
-        setFilteredSistemas(sistemasData);
       } catch (error) {
         console.error("Error loading data:", error);
       } finally {
@@ -107,187 +109,105 @@ export function SistemaSelector({
     loadData();
   }, [loadData]);
 
-  // Filter sistemas when ambiente changes
+  // Filter ambientes when sistema changes
   React.useEffect(() => {
-    if (selectedAmbienteId) {
-      const filtered = sistemas.filter((s) =>
-        (s.ambienteIds || []).includes(selectedAmbienteId),
-      );
-      setFilteredSistemas(filtered);
-    } else {
-      setFilteredSistemas([]);
-    }
-  }, [selectedAmbienteId, sistemas]);
+    if (selectedSistemaId) {
+      const sistema = sistemas.find((s) => s.id === selectedSistemaId);
+      if (sistema) {
+        const availableIds =
+          sistema.availableAmbienteIds || sistema.ambienteIds || [];
 
-  // Initialize from value
+        if (availableIds.length > 0) {
+          const filtered = ambientes.filter((a) => availableIds.includes(a.id));
+          setFilteredAmbientes(filtered);
+        } else {
+          // If no restrictions defined (legacy or new unbounded), show all
+          setFilteredAmbientes(ambientes);
+        }
+      } else {
+        setFilteredAmbientes([]);
+      }
+    } else {
+      setFilteredAmbientes([]);
+    }
+  }, [selectedSistemaId, sistemas, ambientes]);
+
+  // Initialize from value (Legacy handling + New Format)
   React.useEffect(() => {
     if (value) {
-      setSelectedAmbienteId(value.ambienteId);
+      const primaryAmbiente = getPrimaryAmbiente(value);
       setSelectedSistemaId(value.sistemaId || "");
+      setSelectedAmbienteId(
+        primaryAmbiente?.ambienteId || value.ambienteId || "",
+      );
     } else {
-      setSelectedAmbienteId("");
-      setSelectedSistemaId("");
+      // Only reset if external value is strictly null (e.g. form reset)
+      // When user interacts internally, we manage state via handlers
+      if (value === null) {
+        setSelectedSistemaId("");
+        setSelectedAmbienteId("");
+      }
     }
   }, [value]);
 
-  // Sync value names if underlying data changes (e.g. edited in dialogs)
-  React.useEffect(() => {
-    if (!value) return;
+  const handleSistemaChange = (sistemaId: string) => {
+    setSelectedSistemaId(sistemaId);
+    setSelectedAmbienteId(""); // Reset environment when system changes
+    onChange(null); // Clear value until complete
 
-    const currentAmbiente = ambientes.find((a) => a.id === value.ambienteId);
-    const currentSistema = sistemas.find((s) => s.id === value.sistemaId);
-
-    // If data is missing (maybe deleted), do nothing or handle accordingly
-    if (!currentAmbiente || !currentSistema) return;
-
-    // Check if names have changed
-    const ambienteNameChanged = currentAmbiente.name !== value.ambienteName;
-    const sistemaNameChanged = currentSistema.name !== value.sistemaName;
-
-    if (ambienteNameChanged || sistemaNameChanged) {
-      onChange({
-        ...value,
-        ambienteName: currentAmbiente.name,
-        sistemaName: currentSistema.name,
-      });
-    }
-  }, [ambientes, sistemas, value, onChange]);
+    if (!sistemaId) return;
+  };
 
   const handleAmbienteChange = (ambienteId: string) => {
     setSelectedAmbienteId(ambienteId);
-    setSelectedSistemaId("");
 
-    if (!ambienteId) {
+    if (!ambienteId || !selectedSistemaId) {
       onChange(null);
       return;
     }
 
+    const sistema = sistemas.find((s) => s.id === selectedSistemaId);
     const ambiente = ambientes.find((a) => a.id === ambienteId);
-    if (ambiente) {
-      // Partial selection (Env only) - This ensures draft persistence
-      onChange({
-        ambienteId: ambiente.id,
-        ambienteName: ambiente.name,
-        sistemaId: "",
-        sistemaName: "",
-        description: "",
-        products: [],
-      });
-    } else {
-      onChange(null);
-    }
-  };
-
-  const handleSistemaChange = (sistemaId: string) => {
-    setSelectedSistemaId(sistemaId);
-
-    if (!sistemaId) {
-      // Revert to partial selection (Env only)
-      const ambiente = ambientes.find((a) => a.id === selectedAmbienteId);
-      if (ambiente) {
-        onChange({
-          ambienteId: ambiente.id,
-          ambienteName: ambiente.name,
-          sistemaId: "",
-          sistemaName: "",
-          description: "",
-          products: [],
-        });
-      } else {
-        onChange(null);
-      }
-      return;
-    }
-
-    const sistema = sistemas.find((s) => s.id === sistemaId);
-    const ambiente = ambientes.find((a) => a.id === selectedAmbienteId);
 
     if (sistema && ambiente) {
-      const proposalSistema: ProposalSistema = {
-        sistemaId: sistema.id,
-        sistemaName: sistema.name,
-        ambienteId: ambiente.id,
-        ambienteName: ambiente.name,
-        description: sistema.description,
-        products: [...sistema.defaultProducts],
-      };
+      // Get products from ambiente or fall back to sistema's legacy defaultProducts
+      const products: AmbienteProduct[] = ambiente.defaultProducts?.length
+        ? [...ambiente.defaultProducts]
+        : (sistema.defaultProducts || []).map((p) => ({
+            productId: p.productId,
+            productName: p.productName,
+            quantity: p.quantity,
+            notes: p.notes,
+          }));
+
+      const proposalSistema = createProposalSistema(
+        sistema.id,
+        sistema.name,
+        ambiente.id,
+        ambiente.name,
+        sistema.description,
+        products,
+      );
+
       onChange(proposalSistema);
-      onProductsChange?.(proposalSistema.products);
-    }
-  };
+      onProductsChange?.(products as SistemaProduct[]);
 
-  const handleNewSistema = () => {
-    setEditingSistema(null);
-    setIsSistemaDialogOpen(true);
-  };
-
-  const handleEditSistema = () => {
-    const sistema = sistemas.find((s) => s.id === selectedSistemaId);
-    if (sistema) {
-      setEditingSistema(sistema);
-      setIsSistemaDialogOpen(true);
+      if (resetAmbienteAfterSelect) {
+        // Clear environment selection immediately to allow selecting another one
+        // The system selection stays active
+        setTimeout(() => setSelectedAmbienteId(""), 0);
+      }
+    } else {
+      onChange(null);
     }
   };
 
   const handleSistemaCreated = (sistema: Sistema) => {
-    // Auto-select the new sistema if it belongs to selected ambiente
-    const shouldSelect = (sistema.ambienteIds || []).includes(
-      selectedAmbienteId,
-    );
-
-    if (!shouldSelect) {
-      loadData();
-      return;
-    }
-
-    const ambiente = ambientes.find((a) => a.id === selectedAmbienteId);
-    if (ambiente) {
-      const proposalSistema: ProposalSistema = {
-        sistemaId: sistema.id,
-        sistemaName: sistema.name,
-        ambienteId: ambiente.id,
-        ambienteName: ambiente.name,
-        description: sistema.description,
-        products: [...sistema.defaultProducts],
-      };
-
-      // Directly trigger change, avoiding stale state lookup in handleSistemaChange
-      onChange(proposalSistema);
-      onProductsChange?.(proposalSistema.products);
-
-      // Update local state purely for visual feedback before unmount
-      setSelectedSistemaId(sistema.id);
-    } else {
-      // Fallback
-      loadData();
-    }
+    // If the newly created system is compatible with current flow, auto-select it
+    setSelectedSistemaId(sistema.id);
+    setSelectedAmbienteId(""); // User needs to select an environment next
+    loadData(true);
     onDataUpdate?.();
-  };
-
-  const handleDeleteSistema = async () => {
-    if (!selectedSistemaId) return;
-
-    const sistema = sistemas.find((s) => s.id === selectedSistemaId);
-    if (!sistema) return;
-
-    if (
-      !confirm(
-        `Tem certeza que deseja excluir o template "${sistema.name}"? Esta ação não pode ser desfeita.`,
-      )
-    ) {
-      return;
-    }
-
-    try {
-      await SistemaService.deleteSistema(selectedSistemaId);
-      setSelectedSistemaId("");
-      onChange(null);
-      loadData(true);
-      onDataUpdate?.();
-    } catch (error) {
-      console.error("Error deleting sistema:", error);
-      toast.error("Erro ao excluir sistema");
-    }
   };
 
   if (isLoading) {
@@ -296,132 +216,102 @@ export function SistemaSelector({
 
   return (
     <div className="space-y-4">
-      {/* Ambiente Selection */}
+      {/* 1. Sistema Selection (First) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Ambiente</Label>
+          <Label>Sistema</Label>
           <Button
-            type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setIsAmbienteDialogOpen(true)}
-            className="h-7 text-xs"
+            className="h-6 text-xs"
+            onClick={() => {
+              setEditingSistema(null);
+              setIsSistemaManagerOpen(true);
+            }}
+            title="Gerenciar Templates de Sistema"
           >
-            <Settings className="h-3 w-3 mr-1" />
+            <Settings className="w-3 h-3 mr-1" />
             Gerenciar
           </Button>
         </div>
-        <Select
-          value={selectedAmbienteId}
-          onChange={(e) => handleAmbienteChange(e.target.value)}
-          className="w-full"
-        >
-          <option value="">Selecione um ambiente...</option>
-          {ambientes.map((ambiente) => (
-            <option key={ambiente.id} value={ambiente.id}>
-              {ambiente.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {/* Selected Sistema Info or Explicit Add Button */}
-      {selectedAmbienteId && !selectedSistemaId && !value && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              const ambiente = ambientes.find(
-                (a) => a.id === selectedAmbienteId,
-              );
-              if (ambiente) {
-                onChange({
-                  ambienteId: ambiente.id,
-                  ambienteName: ambiente.name,
-                  sistemaId: "",
-                  sistemaName: "",
-                  description: "",
-                  products: [],
-                });
-              }
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar (Sem Sistema)
-          </Button>
-        </div>
-      )}
-
-      {selectedAmbienteId && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Sistema</Label>
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsSistemaManagerOpen(true)}
-                className="h-7 text-xs"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                Gerenciar
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleNewSistema}
-                className="h-7 text-xs"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Novo
-              </Button>
-            </div>
-          </div>
-          <div className="flex gap-2 items-center">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
             <Select
               value={selectedSistemaId}
               onChange={(e) => handleSistemaChange(e.target.value)}
-              className="flex-1"
+              disabled={isLoading}
+              placeholder="Selecione um sistema..."
             >
-              <option value="">Selecione um sistema...</option>
-              {filteredSistemas.map((sistema) => (
+              <option value="" disabled>
+                Selecione um sistema...
+              </option>
+              {sistemas.map((sistema) => (
                 <option key={sistema.id} value={sistema.id}>
                   {sistema.name}
                 </option>
               ))}
             </Select>
-            {selectedSistemaId && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleEditSistema}
-                  title="Editar template"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={handleDeleteSistema}
-                  title="Excluir template"
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
           </div>
-        </div>
-      )}
 
-      {/* Selected Sistema Info Removed per user request */}
+          {selectedSistemaId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                const sys = sistemas.find((s) => s.id === selectedSistemaId);
+                if (sys) {
+                  setEditingSistema(sys);
+                  setIsSistemaDialogOpen(true);
+                }
+              }}
+              title="Editar Sistema"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Ambiente Selection (Second, Filtered) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Ambiente</Label>
+          <Button
+            key="new-ambiente-btn"
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs"
+            onClick={() => setIsAmbienteDialogOpen(true)}
+            title="Gerenciar Ambientes"
+          >
+            <Settings className="w-3 h-3 mr-1" />
+            Gerenciar
+          </Button>
+        </div>
+        <div className="relative">
+          <Select
+            value={selectedAmbienteId}
+            onChange={(e) => handleAmbienteChange(e.target.value)}
+            disabled={!selectedSistemaId}
+            placeholder={
+              selectedSistemaId
+                ? "Selecione um ambiente..."
+                : "Selecione um sistema primeiro"
+            }
+          >
+            <option value="" disabled>
+              {selectedSistemaId
+                ? "Selecione um ambiente..."
+                : "Selecione um sistema primeiro"}
+            </option>
+            {filteredAmbientes.map((ambiente) => (
+              <option key={ambiente.id} value={ambiente.id}>
+                {ambiente.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
 
       {/* Dialogs */}
       <AmbienteManagerDialog
@@ -439,7 +329,7 @@ export function SistemaSelector({
           setEditingSistema(null);
         }}
         editingSistema={editingSistema}
-        preselectedAmbienteId={selectedAmbienteId}
+        preselectedAmbienteId={selectedAmbienteId} // Pass selected env to auto-check
         onSave={handleSistemaCreated}
         sistemas={managedSistemas}
         ambientes={managedAmbientes}
@@ -466,7 +356,7 @@ export function SistemaSelector({
           setIsSistemaDialogOpen(true);
           setOpenedFromManager(true);
         }}
-        filterAmbienteId={selectedAmbienteId}
+        // filterAmbienteId removed as we are systems-focused now
         sistemas={managedSistemas}
         ambientes={managedAmbientes}
         onAction={onSistemaAction}

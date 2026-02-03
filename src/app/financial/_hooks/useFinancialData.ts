@@ -98,6 +98,8 @@ interface UseFinancialDataReturn {
   setFilterDateType: (type: "date" | "dueDate") => void;
   sortBy: "date" | "created";
   setSortBy: (sort: "date" | "created") => void;
+  viewMode: "grouped" | "byDueDate";
+  setViewMode: (mode: "grouped" | "byDueDate") => void;
   filteredTransactions: Transaction[];
   totalWalletBalance: number;
   deleteTransaction: (transaction: Transaction) => Promise<boolean>;
@@ -139,6 +141,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     "date" | "dueDate"
   >("date");
   const [sortBy, setSortBy] = React.useState<"date" | "created">("created");
+  const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">("grouped");
   const [totalWalletBalance, setTotalWalletBalance] = React.useState<number>(0);
   const [summary, setSummary] = React.useState<FinancialSummary>({
     totalIncome: 0,
@@ -177,100 +180,109 @@ export function useFinancialData(): UseFinancialDataReturn {
   }, [fetchData]);
 
   const filteredTransactions = React.useMemo(() => {
-    // 1. Group by proposalGroupId first, then by installmentGroupId
-    const processedProposalGroups = new Set<string>();
-    const processedInstallmentGroups = new Set<string>();
-    const effectiveTransactions: Transaction[] = [];
+    let effectiveTransactions: Transaction[] = [];
 
-    // Pre-sort transactions by date to ensure order (though we sort again later)
-    // We need to look at all transactions to find the representatives
-    const sortedRaw = [...transactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    // In "byDueDate" mode, show all individual transactions (ungrouped)
+    // In "grouped" mode, show grouped as before
+    if (viewMode === "byDueDate") {
+      // Show all transactions individually, sorted by due date
+      effectiveTransactions = [...transactions];
+    } else {
+      // Original grouped logic
+      // 1. Group by proposalGroupId first, then by installmentGroupId
+      const processedProposalGroups = new Set<string>();
+      const processedInstallmentGroups = new Set<string>();
 
-    sortedRaw.forEach((t) => {
-      // CASE 1: Transaction is part of a proposal group (has both down payment and installments)
-      if (t.proposalGroupId) {
-        if (processedProposalGroups.has(t.proposalGroupId)) return;
+      // Pre-sort transactions by date to ensure order (though we sort again later)
+      // We need to look at all transactions to find the representatives
+      const sortedRaw = [...transactions].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
 
-        // Find all transactions belonging to this proposal group
-        const proposalGroup = transactions.filter(
-          (g) => g.proposalGroupId === t.proposalGroupId
-        );
+      sortedRaw.forEach((t) => {
+        // CASE 1: Transaction is part of a proposal group (has both down payment and installments)
+        if (t.proposalGroupId) {
+          if (processedProposalGroups.has(t.proposalGroupId)) return;
 
-        // Find the down payment transaction as the base for the representative
-        let base = proposalGroup.find((g) => g.isDownPayment);
-        if (!base && proposalGroup.length > 0) base = proposalGroup[0];
+          // Find all transactions belonging to this proposal group
+          const proposalGroup = transactions.filter(
+            (g) => g.proposalGroupId === t.proposalGroupId
+          );
 
-        if (base) {
-          // Calculate aggregate status
-          // Priority: Overdue > Pending > Paid
-          let aggregateStatus: Transaction["status"] = "paid";
-          
-          const hasOverdue = proposalGroup.some(g => g.status === "overdue");
-          const hasPending = proposalGroup.some(g => g.status === "pending");
-          
-          if (hasOverdue) {
-            aggregateStatus = "overdue";
-          } else if (hasPending) {
-            aggregateStatus = "pending";
+          // Find the down payment transaction as the base for the representative
+          let base = proposalGroup.find((g) => g.isDownPayment);
+          if (!base && proposalGroup.length > 0) base = proposalGroup[0];
+
+          if (base) {
+            // Calculate aggregate status
+            // Priority: Overdue > Pending > Paid
+            let aggregateStatus: Transaction["status"] = "paid";
+            
+            const hasOverdue = proposalGroup.some(g => g.status === "overdue");
+            const hasPending = proposalGroup.some(g => g.status === "pending");
+            
+            if (hasOverdue) {
+              aggregateStatus = "overdue";
+            } else if (hasPending) {
+              aggregateStatus = "pending";
+            }
+            
+            // Create a synthetic representative with the aggregate status
+            // This ensures the main card reflects the group state
+            const representative = {
+              ...base,
+              status: aggregateStatus
+            };
+
+            effectiveTransactions.push(representative);
+            processedProposalGroups.add(t.proposalGroupId);
+            
+            // Also mark the installmentGroupId as processed to avoid duplicates
+            const installmentGroupIds = proposalGroup
+              .filter(g => g.installmentGroupId)
+              .map(g => g.installmentGroupId!);
+            installmentGroupIds.forEach(id => processedInstallmentGroups.add(id));
           }
-          
-          // Create a synthetic representative with the aggregate status
-          // This ensures the main card reflects the group state
-          const representative = {
-            ...base,
-            status: aggregateStatus
-          };
-
-          effectiveTransactions.push(representative);
-          processedProposalGroups.add(t.proposalGroupId);
-          
-          // Also mark the installmentGroupId as processed to avoid duplicates
-          const installmentGroupIds = proposalGroup
-            .filter(g => g.installmentGroupId)
-            .map(g => g.installmentGroupId!);
-          installmentGroupIds.forEach(id => processedInstallmentGroups.add(id));
-        }
-        return;
-      }
-
-      // CASE 2: Transaction is part of an installment group (without proposal group)
-      // This includes both regular installments AND down payments (isDownPayment = true)
-      if ((t.isInstallment || t.isDownPayment) && t.installmentGroupId) {
-        if (processedInstallmentGroups.has(t.installmentGroupId)) return;
-
-        // Find all belonging to this group (both installments and down payments)
-        const group = transactions.filter(
-          (g) => g.installmentGroupId === t.installmentGroupId
-        );
-
-        // Sort group: down payment first (installmentNumber 0), then by installment number
-        group.sort((a, b) => {
-          if (a.isDownPayment && !b.isDownPayment) return -1;
-          if (!a.isDownPayment && b.isDownPayment) return 1;
-          return (a.installmentNumber || 0) - (b.installmentNumber || 0);
-        });
-
-        // Find the first "pending" or "overdue" item (not paid)
-        let active = group.find((g) => g.status !== "paid");
-
-        // If all are paid, show the last one
-        if (!active && group.length > 0) {
-          active = group[group.length - 1];
+          return;
         }
 
-        // If for some reason we didn't find one (empty group?), skip
-        if (active) {
-          effectiveTransactions.push(active);
-          processedInstallmentGroups.add(t.installmentGroupId);
-        }
-        return;
-      }
+        // CASE 2: Transaction is part of an installment group (without proposal group)
+        // This includes both regular installments AND down payments (isDownPayment = true)
+        if ((t.isInstallment || t.isDownPayment) && t.installmentGroupId) {
+          if (processedInstallmentGroups.has(t.installmentGroupId)) return;
 
-      // CASE 3: Regular transaction (not part of any group)
-      effectiveTransactions.push(t);
-    });
+          // Find all belonging to this group (both installments and down payments)
+          const group = transactions.filter(
+            (g) => g.installmentGroupId === t.installmentGroupId
+          );
+
+          // Sort group: down payment first (installmentNumber 0), then by installment number
+          group.sort((a, b) => {
+            if (a.isDownPayment && !b.isDownPayment) return -1;
+            if (!a.isDownPayment && b.isDownPayment) return 1;
+            return (a.installmentNumber || 0) - (b.installmentNumber || 0);
+          });
+
+          // Find the first "pending" or "overdue" item (not paid)
+          let active = group.find((g) => g.status !== "paid");
+
+          // If all are paid, show the last one
+          if (!active && group.length > 0) {
+            active = group[group.length - 1];
+          }
+
+          // If for some reason we didn't find one (empty group?), skip
+          if (active) {
+            effectiveTransactions.push(active);
+            processedInstallmentGroups.add(t.installmentGroupId);
+          }
+          return;
+        }
+
+        // CASE 3: Regular transaction (not part of any group)
+        effectiveTransactions.push(t);
+      });
+    }
 
     let filtered = effectiveTransactions;
 
@@ -292,8 +304,9 @@ export function useFinancialData(): UseFinancialDataReturn {
     // Filter by date range
     if (filterStartDate || filterEndDate) {
       filtered = filtered.filter((t) => {
-        // For installment transactions, check if ANY installment in the group matches the date range
+        // For installment transactions in GROUPED mode, check if ANY installment in the group matches the date range
         if (
+          viewMode === "grouped" &&
           filterDateType === "dueDate" &&
           t.isInstallment &&
           t.installmentGroupId
@@ -324,7 +337,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           return hasMatchingInstallment;
         }
 
-        // For non-installment transactions, use the transaction's own date
+        // For non-installment transactions or byDueDate mode, use the transaction's own date
         let dateVal: string | undefined = t.date;
 
         if (filterDateType === "dueDate") {
@@ -363,22 +376,36 @@ export function useFinancialData(): UseFinancialDataReturn {
     }
 
     // Sort
-    return filtered.sort((a, b) => {
-      if (sortBy === "date") {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      } else {
-        // Handle Firestore Timestamp or string for createdAt
-        const getMillis = (val: DateLike) => {
-          if (!val) return 0;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const v = val as any;
-          if (typeof v?.toMillis === "function") return v.toMillis(); // Firestore SDK
-          if (v?.seconds) return v.seconds * 1000; // Serialized
-          return new Date(v).getTime(); // String/Date
+    if (viewMode === "byDueDate") {
+      // In byDueDate mode, always sort by due date (closest first)
+      return filtered.sort((a, b) => {
+        const getDueDateMs = (t: Transaction) => {
+          if (!t.dueDate) return Infinity; // Items without due date go to the end
+          const dateStr = getDateString(t.dueDate);
+          if (!dateStr) return Infinity;
+          return new Date(dateStr).getTime();
         };
-        return getMillis(b.createdAt) - getMillis(a.createdAt);
-      }
-    });
+        return getDueDateMs(a) - getDueDateMs(b);
+      });
+    } else {
+      // Original sorting logic for grouped mode
+      return filtered.sort((a, b) => {
+        if (sortBy === "date") {
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        } else {
+          // Handle Firestore Timestamp or string for createdAt
+          const getMillis = (val: DateLike) => {
+            if (!val) return 0;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const v = val as any;
+            if (typeof v?.toMillis === "function") return v.toMillis(); // Firestore SDK
+            if (v?.seconds) return v.seconds * 1000; // Serialized
+            return new Date(v).getTime(); // String/Date
+          };
+          return getMillis(b.createdAt) - getMillis(a.createdAt);
+        }
+      });
+    }
   }, [
     transactions,
     searchTerm,
@@ -389,6 +416,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     filterEndDate,
     filterDateType,
     sortBy,
+    viewMode,
   ]);
 
   // Delete a single transaction (individual installment)
@@ -728,6 +756,8 @@ export function useFinancialData(): UseFinancialDataReturn {
     setFilterDateType,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     filteredTransactions,
     totalWalletBalance,
     deleteTransaction,

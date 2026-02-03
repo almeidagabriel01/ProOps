@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Pencil, Home } from "lucide-react";
+import { Plus, Trash2, Pencil, Home, Package } from "lucide-react";
 import { Ambiente } from "@/types/automation";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Spinner } from "@/components/ui/spinner";
+import { AmbienteProductsDialog } from "./ambiente-products-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +58,11 @@ export function AmbienteManagerDialog({
   const [newAmbienteName, setNewAmbienteName] = React.useState("");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState("");
+
+  // Products dialog state
+  const [productsDialogOpen, setProductsDialogOpen] = React.useState(false);
+  const [selectedAmbienteForProducts, setSelectedAmbienteForProducts] =
+    React.useState<Ambiente | null>(null);
 
   const loadAmbientes = React.useCallback(async () => {
     if (managedAmbientes) {
@@ -218,6 +224,16 @@ export function AmbienteManagerDialog({
     setEditingName("");
   };
 
+  const openProductsDialog = (ambiente: Ambiente) => {
+    setSelectedAmbienteForProducts(ambiente);
+    setProductsDialogOpen(true);
+  };
+
+  const handleProductsSave = () => {
+    loadAmbientes();
+    onAmbientesChange?.();
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -325,6 +341,16 @@ export function AmbienteManagerDialog({
                             <Button
                               size="icon"
                               variant="ghost"
+                              className="h-8 w-8 text-primary hover:text-primary"
+                              onClick={() => openProductsDialog(ambiente)}
+                              disabled={deletingId !== null}
+                              title="Configurar produtos padrão"
+                            >
+                              <Package className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8"
                               onClick={() => startEdit(ambiente)}
                               disabled={deletingId !== null}
@@ -395,6 +421,15 @@ export function AmbienteManagerDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Products Dialog */}
+      <AmbienteProductsDialog
+        isOpen={productsDialogOpen}
+        onClose={() => setProductsDialogOpen(false)}
+        ambiente={selectedAmbienteForProducts}
+        onSave={handleProductsSave}
+        onAction={onAction}
+      />
     </>
   );
 }

@@ -20,10 +20,7 @@ import {
   User,
 } from "lucide-react";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
-import {
-  TransactionType,
-  TransactionStatus,
-} from "@/services/transaction-service";
+import { TransactionType } from "@/services/transaction-service";
 
 // ============================================
 // TYPE SELECTOR
@@ -93,7 +90,7 @@ export function TypeSelectorCard({
 interface DetailsCardProps {
   formData: TransactionFormData;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
 }
 
@@ -180,7 +177,7 @@ interface PaymentCardProps {
   formData: TransactionFormData;
   onFormDataChange: React.Dispatch<React.SetStateAction<TransactionFormData>>;
   onChange: (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => void;
 }
 

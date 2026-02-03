@@ -5,6 +5,7 @@ import {
   FileText,
   Wallet,
   Shield,
+  FileSpreadsheet,
 } from "lucide-react";
 
 // ============================================
@@ -48,9 +49,14 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: Users,
-    label: "Clientes",
-    href: "/customers",
+    label: "Contatos",
+    href: "/contacts",
     pageId: "clients",
+  },
+  {
+    icon: FileSpreadsheet,
+    label: "Planilhas",
+    href: "/spreadsheets",
   },
   {
     icon: Wallet,
@@ -108,7 +114,7 @@ export function lightenColor(hex: string, percent: number): string {
  */
 export function getVisibleChildren(
   item: MenuItem,
-  isMaster: boolean
+  isMaster: boolean,
 ): SubMenuItem[] {
   if (!item.children) return [];
   return item.children.filter((child) => {

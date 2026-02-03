@@ -15,16 +15,35 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, children, onChange, value, placeholder, disabled, error, options: propsOptions, inputSize = "md", ...props }, ref) => {
+  (
+    {
+      className,
+      children,
+      onChange,
+      value,
+      placeholder,
+      disabled,
+      error,
+      inputSize = "md",
+      ...props
+    },
+    ref,
+  ) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
     const portalContentRef = React.useRef<HTMLDivElement>(null);
     const [isMounted, setIsMounted] = React.useState(false);
-    const [fixedCoords, setFixedCoords] = React.useState({ top: 0, left: 0, width: 0 });
+    const [fixedCoords, setFixedCoords] = React.useState({
+      top: 0,
+      left: 0,
+      width: 0,
+      maxHeight: 250,
+    });
 
     // Inner ref for the native select
     const innerRef = React.useRef<HTMLSelectElement>(null);
-    const resolvedRef = (ref || innerRef) as React.RefObject<HTMLSelectElement | null>;
+    const resolvedRef = (ref ||
+      innerRef) as React.RefObject<HTMLSelectElement | null>;
 
     React.useEffect(() => {
       setIsMounted(true);
@@ -35,10 +54,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       const opts: { value: string; label: React.ReactNode }[] = [];
       React.Children.forEach(children, (child) => {
         if (React.isValidElement(child) && child.type === "option") {
-          const element = child as React.ReactElement<{ value: string; children: React.ReactNode }>;
+          const element = child as React.ReactElement<{
+            value: string;
+            children: React.ReactNode;
+          }>;
           opts.push({
             value: element.props.value,
-            label: element.props.children
+            label: element.props.children,
           });
         }
       });
@@ -56,10 +78,17 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom - 16; // 16px margin from bottom
+
+        // Use available space, but cap at 250px max and minimum 100px
+        const calculatedMaxHeight = Math.min(Math.max(spaceBelow, 100), 250);
+
         setFixedCoords({
           top: rect.bottom + 4,
           left: rect.left,
-          width: rect.width
+          width: rect.width,
+          maxHeight: calculatedMaxHeight,
         });
         setIsOpen(true);
       }
@@ -70,7 +99,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         resolvedRef.current.value = newValue;
 
         // Dispatch synthetic change event for React Hook Form / Standard handlers
-        const event = new Event('change', { bubbles: true });
+        const event = new Event("change", { bubbles: true });
         resolvedRef.current.dispatchEvent(event);
 
         const syntheticEvent = {
@@ -82,12 +111,12 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           eventPhase: 3,
           isTrusted: true,
           nativeEvent: event as Event,
-          preventDefault: () => { },
+          preventDefault: () => {},
           isDefaultPrevented: () => false,
-          stopPropagation: () => { },
+          stopPropagation: () => {},
           isPropagationStopped: () => false,
-          persist: () => { },
-          type: 'change'
+          persist: () => {},
+          type: "change",
         } as unknown as React.ChangeEvent<HTMLSelectElement>;
 
         onChange?.(syntheticEvent);
@@ -96,16 +125,37 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     };
 
     // Close on click outside (using mousedown to catch it before focus trap)
+    // Also close on scroll to prevent dropdown from "floating" away
     React.useEffect(() => {
       const handleGlobalMouseDown = (event: MouseEvent) => {
         if (!isOpen) return;
 
         // Ignore if clicking inside the trigger
-        if (containerRef.current && containerRef.current.contains(event.target as Node)) {
+        if (
+          containerRef.current &&
+          containerRef.current.contains(event.target as Node)
+        ) {
           return;
         }
         // Ignore if clicking inside the portal
-        if (portalContentRef.current && portalContentRef.current.contains(event.target as Node)) {
+        if (
+          portalContentRef.current &&
+          portalContentRef.current.contains(event.target as Node)
+        ) {
+          return;
+        }
+
+        setIsOpen(false);
+      };
+
+      const handleScroll = (event: Event) => {
+        if (!isOpen) return;
+
+        // Ignore scroll events inside the dropdown itself
+        if (
+          portalContentRef.current &&
+          portalContentRef.current.contains(event.target as Node)
+        ) {
           return;
         }
 
@@ -114,31 +164,38 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
 
       if (isOpen) {
         window.addEventListener("mousedown", handleGlobalMouseDown);
+        window.addEventListener("scroll", handleScroll, true); // Use capture to catch all scroll events
       }
       return () => {
         window.removeEventListener("mousedown", handleGlobalMouseDown);
+        window.removeEventListener("scroll", handleScroll, true);
       };
     }, [isOpen]);
 
-    const selectedOption = options.find(opt => String(opt.value) === String(value));
+    const selectedOption = options.find(
+      (opt) => String(opt.value) === String(value),
+    );
 
     const renderPortal = () => {
-      if (!isOpen || !isMounted || typeof document === 'undefined') return null;
+      if (!isOpen || !isMounted || typeof document === "undefined") return null;
 
       return createPortal(
         <div
           ref={portalContentRef}
           style={{
-            position: 'fixed',
+            position: "fixed",
             top: fixedCoords.top,
             left: fixedCoords.left,
             width: fixedCoords.width,
             zIndex: 99999,
-            pointerEvents: 'auto' // Explicitly allow events
+            pointerEvents: "auto", // Explicitly allow events
           }}
           className="overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in duration-100"
         >
-          <div className="max-h-[250px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <div
+            style={{ maxHeight: fixedCoords.maxHeight }}
+            className="overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+          >
             {options.length > 0 ? (
               options.map((option) => (
                 <div
@@ -152,7 +209,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                   className={cn(
                     "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2.5 pl-3 pr-2 text-sm outline-none transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
-                    String(value) === String(option.value) && "bg-accent/50 font-medium"
+                    String(value) === String(option.value) &&
+                      "bg-accent/50 font-medium",
                   )}
                 >
                   <span className="flex-1 truncate">{option.label}</span>
@@ -168,7 +226,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             )}
           </div>
         </div>,
-        document.body
+        document.body,
       );
     };
 
@@ -197,19 +255,31 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             "hover:border-primary/50 hover:bg-accent/5",
             isOpen && "border-primary ring-2 ring-primary/20",
             error && "border-destructive ring-1 ring-destructive/20",
-            disabled && "cursor-not-allowed opacity-50 bg-muted"
+            disabled && "cursor-not-allowed opacity-50 bg-muted",
           )}
         >
-          <span className={cn("truncate", !selectedOption && "text-muted-foreground")}>
-            {selectedOption ? selectedOption.label : (placeholder || "Selecione...")}
+          <span
+            className={cn(
+              "truncate",
+              !selectedOption && "text-muted-foreground",
+            )}
+          >
+            {selectedOption
+              ? selectedOption.label
+              : placeholder || "Selecione..."}
           </span>
-          <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform duration-200", isOpen && "rotate-180")} />
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 opacity-50 transition-transform duration-200",
+              isOpen && "rotate-180",
+            )}
+          />
         </div>
 
         {/* Portal Options */}
         {renderPortal()}
       </div>
     );
-  }
+  },
 );
 Select.displayName = "Select";

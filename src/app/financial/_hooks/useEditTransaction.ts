@@ -41,7 +41,7 @@ export function useEditTransaction() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [transaction, setTransaction] = React.useState<Transaction | null>(
-    null
+    null,
   );
   const [relatedInstallments, setRelatedInstallments] = React.useState<
     Transaction[]
@@ -96,32 +96,31 @@ export function useEditTransaction() {
               .filter((t) => t.installmentGroupId === data.installmentGroupId)
               .sort(
                 (a, b) =>
-                  (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  (a.installmentNumber || 0) - (b.installmentNumber || 0),
               );
             setRelatedInstallments(related);
 
-             // If it's an installment group (but NOT a proposal group), set amount to TOTAL
-             if (!data.proposalGroupId) {
-                const total = related.reduce((sum, t) => sum + t.amount, 0);
-                setFormData(prev => ({ ...prev, amount: total.toString() }));
-             }
+            // If it's an installment group (but NOT a proposal group), set amount to TOTAL
+            if (!data.proposalGroupId) {
+              const total = related.reduce((sum, t) => sum + t.amount, 0);
+              setFormData((prev) => ({ ...prev, amount: total.toString() }));
+            }
           } else if (data.proposalGroupId) {
-             // If part of a proposal group, fetch siblings (Entrada + Parcelas)
-             const all = await TransactionService.getTransactions(data.tenantId);
-             const related = all
-               .filter((t) => t.proposalGroupId === data.proposalGroupId)
-               // Sort: Allocating Down Payment first, then by date/created
-               .sort((a, b) => {
-                  if (a.isDownPayment) return -1;
-                  if (b.isDownPayment) return 1;
-                  return new Date(a.date).getTime() - new Date(b.date).getTime();
-               });
-             setRelatedInstallments(related);
-             
-             // If it's an installment group (but NOT a proposal group), set amount to TOTAL
-             setRelatedInstallments(related);
-             // Proposal group logic ends here
+            // If part of a proposal group, fetch siblings (Entrada + Parcelas)
+            const all = await TransactionService.getTransactions(data.tenantId);
+            const related = all
+              .filter((t) => t.proposalGroupId === data.proposalGroupId)
+              // Sort: Allocating Down Payment first, then by date/created
+              .sort((a, b) => {
+                if (a.isDownPayment) return -1;
+                if (b.isDownPayment) return 1;
+                return new Date(a.date).getTime() - new Date(b.date).getTime();
+              });
+            setRelatedInstallments(related);
 
+            // If it's an installment group (but NOT a proposal group), set amount to TOTAL
+            setRelatedInstallments(related);
+            // Proposal group logic ends here
           }
         }
       } catch (error) {
@@ -167,9 +166,10 @@ export function useEditTransaction() {
           ...inst,
           date: formData.date,
           dueDate: formData.dueDate || undefined,
-          amount: formData.isInstallment && formData.installmentCount > 0 
-            ? parseFloat(formData.amount) / formData.installmentCount 
-            : parseFloat(formData.amount),
+          amount:
+            formData.isInstallment && formData.installmentCount > 0
+              ? parseFloat(formData.amount) / formData.installmentCount
+              : parseFloat(formData.amount),
         };
       }
 
@@ -189,7 +189,7 @@ export function useEditTransaction() {
         newDate = shiftDateByTransform(
           inst.date,
           transaction.date,
-          formData.date
+          formData.date,
         );
       }
 
@@ -198,7 +198,7 @@ export function useEditTransaction() {
         newDueDate = shiftDateByTransform(
           inst.dueDate,
           transaction.dueDate,
-          formData.dueDate
+          formData.dueDate,
         );
       } else if (
         formData.dueDate &&
@@ -209,7 +209,7 @@ export function useEditTransaction() {
         newDueDate = shiftDateByTransform(
           inst.dueDate,
           transaction.dueDate,
-          formData.dueDate
+          formData.dueDate,
         );
       }
 
@@ -222,7 +222,7 @@ export function useEditTransaction() {
 
     // 2. Sort by installment number
     shifted.sort(
-      (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0)
+      (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
     );
 
     // If it's a proposal transaction, do NOT allow adding/removing items via count match.
@@ -280,12 +280,13 @@ export function useEditTransaction() {
     formData.amount,
     formData.installmentCount,
     relatedInstallments,
+    formData.isInstallment,
   ]);
 
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -319,7 +320,7 @@ export function useEditTransaction() {
       const previewRealIds = new Set(
         previewInstallments
           .filter((t) => !t.id.startsWith("temp-"))
-          .map((t) => t.id)
+          .map((t) => t.id),
       );
       const deletedIds = relatedInstallments
         .filter((t) => !previewRealIds.has(t.id) && t.id !== transaction.id) // Don't delete the current one if it's the only one left
@@ -328,7 +329,7 @@ export function useEditTransaction() {
       // 1. Delete removed installments
       if (deletedIds.length > 0) {
         operations.push(
-          ...deletedIds.map((id) => TransactionService.deleteTransaction(id))
+          ...deletedIds.map((id) => TransactionService.deleteTransaction(id)),
         );
       }
 
@@ -348,7 +349,7 @@ export function useEditTransaction() {
               clientId: inst.clientId,
               tenantId: transaction.tenantId, // Must include tenantId for creation
               installmentGroupId: transaction.installmentGroupId, // Must include group ID
-            } as unknown as Omit<Transaction, "id">)
+            } as unknown as Omit<Transaction, "id">),
           );
         } else {
           // Update Existing
@@ -366,23 +367,27 @@ export function useEditTransaction() {
             updatePayload.type = formData.type;
             updatePayload.description = formData.description.trim();
             // If it's an installment group (non-proposal), distribute the amount
-            if (transaction.isInstallment && transaction.installmentGroupId && !transaction.proposalGroupId) {
-                 // The amount in formData is the TOTAL. we need to divide it.
-                 // HOWEVER, check if installmentCount changed? 
-                 // If count changed, the preview logic handles the split. 
-                 // If count didn't change, we just need to use the value from preview logic.
-                 
-                 // Actually, the previewInstallments logic ALREADY calculates the individual amounts based on the formData.amount?
-                 // Let's check previewInstallments logic.
-                 // "amount: parseFloat(formData.amount)" in previewInstallments map. 
-                 // We need to change that logic too.
-                 
-                 // For the main transaction update here, we should probably set the individual amount.
-                 const total = parseFloat(formData.amount);
-                 const count = parseInt(formData.installmentCount.toString());
-                 updatePayload.amount = total / count;
+            if (
+              transaction.isInstallment &&
+              transaction.installmentGroupId &&
+              !transaction.proposalGroupId
+            ) {
+              // The amount in formData is the TOTAL. we need to divide it.
+              // HOWEVER, check if installmentCount changed?
+              // If count changed, the preview logic handles the split.
+              // If count didn't change, we just need to use the value from preview logic.
+
+              // Actually, the previewInstallments logic ALREADY calculates the individual amounts based on the formData.amount?
+              // Let's check previewInstallments logic.
+              // "amount: parseFloat(formData.amount)" in previewInstallments map.
+              // We need to change that logic too.
+
+              // For the main transaction update here, we should probably set the individual amount.
+              const total = parseFloat(formData.amount);
+              const count = parseInt(formData.installmentCount.toString());
+              updatePayload.amount = total / count;
             } else {
-                 updatePayload.amount = parseFloat(formData.amount);
+              updatePayload.amount = parseFloat(formData.amount);
             }
             updatePayload.status = formData.status;
             updatePayload.clientId = formData.clientId;
@@ -392,7 +397,7 @@ export function useEditTransaction() {
             updatePayload.notes = formData.notes;
           }
           operations.push(
-            TransactionService.updateTransaction(inst.id, updatePayload)
+            TransactionService.updateTransaction(inst.id, updatePayload),
           );
         }
       });

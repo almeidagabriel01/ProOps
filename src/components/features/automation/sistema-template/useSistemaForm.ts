@@ -19,7 +19,6 @@ interface UseSistemaFormProps {
   managedSistemas?: Sistema[];
   managedAmbientes?: Ambiente[];
   onAction?: (action: MasterDataAction) => void;
-  onAmbienteAction?: (action: MasterDataAction) => void;
 }
 
 export function useSistemaForm({
@@ -28,10 +27,9 @@ export function useSistemaForm({
   preselectedAmbienteId,
   onSave,
   onClose,
-  managedSistemas,
+
   managedAmbientes,
   onAction,
-  onAmbienteAction,
 }: UseSistemaFormProps) {
   const { tenant } = useTenant();
 
@@ -95,8 +93,8 @@ export function useSistemaForm({
       if (editingSistema) {
         setName(editingSistema.name);
         setDescription(editingSistema.description);
-        setSelectedAmbientes(editingSistema.ambienteIds);
-        setSelectedProducts(editingSistema.defaultProducts);
+        setSelectedAmbientes(editingSistema.availableAmbienteIds || editingSistema.ambienteIds || []);
+        setSelectedProducts(editingSistema.defaultProducts || []);
       } else {
         setName("");
         setDescription("");
@@ -170,8 +168,9 @@ export function useSistemaForm({
         tenantId: tenant.id,
         name: name.trim(),
         description: description.trim(),
-        ambienteIds: selectedAmbientes,
-        defaultProducts: selectedProducts,
+        availableAmbienteIds: selectedAmbientes,
+        ambienteIds: selectedAmbientes, // Legacy field for backward compat
+        defaultProducts: selectedProducts, // Legacy - will be migrated to Ambiente level
         createdAt: editingSistema?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

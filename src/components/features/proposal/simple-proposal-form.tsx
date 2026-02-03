@@ -8,14 +8,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Package, Cpu, CheckCircle, CreditCard } from "lucide-react";
+import {
+  User,
+  Package,
+  Cpu,
+  CheckCircle,
+  CreditCard,
+  Settings2,
+} from "lucide-react";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
 import { toast } from "react-toastify";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { Sistema, ProposalSistema } from "@/types/automation";
+import { ProposalProduct } from "@/types/proposal";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
+import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { FormContainer } from "@/components/ui/form-components";
 import {
@@ -33,6 +42,7 @@ import {
   ProposalSummarySection,
   ProposalPaymentSection,
   ProposalReadOnlyView,
+  PdfDisplayOptionsSection,
 } from "./form";
 
 interface SimpleProposalFormProps {
@@ -44,8 +54,8 @@ interface SimpleProposalFormProps {
 const stepsAutomation = [
   {
     id: "client",
-    title: "Cliente",
-    description: "Dados do cliente",
+    title: "Contato",
+    description: "Dados do contato",
     icon: User,
   },
   { id: "systems", title: "Sistemas", description: "Automação", icon: Cpu },
@@ -54,6 +64,12 @@ const stepsAutomation = [
     title: "Pagamento",
     description: "Condições",
     icon: CreditCard,
+  },
+  {
+    id: "settings",
+    title: "PDF",
+    description: "Configurações",
+    icon: Settings2,
   },
   {
     id: "summary",
@@ -67,8 +83,8 @@ const stepsAutomation = [
 const stepsDefault = [
   {
     id: "client",
-    title: "Cliente",
-    description: "Dados do cliente",
+    title: "Contato",
+    description: "Dados do contato",
     icon: User,
   },
   {
@@ -82,6 +98,12 @@ const stepsDefault = [
     title: "Pagamento",
     description: "Condições",
     icon: CreditCard,
+  },
+  {
+    id: "settings",
+    title: "PDF",
+    description: "Configurações",
+    icon: Settings2,
   },
   {
     id: "summary",
@@ -99,6 +121,7 @@ export function SimpleProposalForm({
   const {
     isLoading,
     isSaving,
+    isDirty,
     products,
     selectedClientId,
     formData,
@@ -114,6 +137,10 @@ export function SimpleProposalForm({
     setSelectedSistemas,
     setShowLimitModal,
     isAutomacaoNiche,
+    // Client types
+    clientTypes,
+    setClientTypes,
+    isNewClient,
     // Transactional
     mergedAmbientes,
     mergedSistemas,
@@ -136,8 +163,12 @@ export function SimpleProposalForm({
     router,
     features,
     primaryColor,
+    markAsDiscarded,
     // isAutomacaoNiche - removed duplicate
   } = useProposalForm({ proposalId });
+
+  // State for unsaved changes modal
+  const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
 
   // Key para forçar reset do SistemaSelector após adicionar um sistema
   const [selectorKey, setSelectorKey] = React.useState(0);
@@ -168,26 +199,32 @@ export function SimpleProposalForm({
   // Estado para erros de validação
   const [errors, setErrors] = React.useState<Record<string, string>>({});
 
+  // Ref to always get current formData in validators (avoid stale closure)
+  const formDataRef = React.useRef(formData);
+  React.useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+
   // Função para setar erro de um campo
-  const setFieldError = (field: string, message: string) => {
+  const setFieldError = React.useCallback((field: string, message: string) => {
     setErrors((prev) => ({ ...prev, [field]: message }));
-  };
+  }, []);
 
   // Função para limpar erro de um campo
-  const clearFieldError = (field: string) => {
+  const clearFieldError = React.useCallback((field: string) => {
     setErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[field];
       return newErrors;
     });
-  };
+  }, []);
 
   // Limpar erros automaticamente quando os campos mudam
   React.useEffect(() => {
     if (formData.title && formData.title.trim().length >= 3 && errors.title) {
       clearFieldError("title");
     }
-  }, [formData.title, errors.title]);
+  }, [formData.title, errors.title, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -197,7 +234,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientName");
     }
-  }, [formData.clientName, errors.clientName]);
+  }, [formData.clientName, errors.clientName, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -207,7 +244,7 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientEmail");
     }
-  }, [formData.clientEmail, errors.clientEmail]);
+  }, [formData.clientEmail, errors.clientEmail, clearFieldError]);
 
   React.useEffect(() => {
     if (
@@ -217,20 +254,27 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("clientPhone");
     }
-  }, [formData.clientPhone, errors.clientPhone]);
+  }, [formData.clientPhone, errors.clientPhone, clearFieldError]);
 
   React.useEffect(() => {
     if (formData.validUntil && errors.validUntil) {
+      // If editing existing proposal, allow any date (fix for legacy validity)
+      if (proposalId) {
+        clearFieldError("validUntil");
+        return;
+      }
+
       const [year, month, day] = formData.validUntil.split("-").map(Number);
       const selectedDate = new Date(year, month - 1, day);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
-      if (selectedDate > today) {
+      // Logic must match validateStep1 (allow today)
+      if (selectedDate >= today) {
         clearFieldError("validUntil");
       }
     }
-  }, [formData.validUntil, errors.validUntil]);
+  }, [formData.validUntil, errors.validUntil, clearFieldError, proposalId]);
 
   React.useEffect(() => {
     if (
@@ -241,133 +285,103 @@ export function SimpleProposalForm({
     ) {
       clearFieldError("sistemas");
     }
-  }, [selectedSistemas, formData.products, errors.sistemas]);
+  }, [selectedSistemas, formData.products, errors.sistemas, clearFieldError]);
 
   React.useEffect(() => {
     if (selectedProducts.length > 0 && errors.products) {
       clearFieldError("products");
     }
-  }, [selectedProducts, errors.products]);
+  }, [selectedProducts, errors.products, clearFieldError]);
 
   // Validação do Step 1 (Cliente)
-  const validateStep1 = (): boolean => {
-    let isValid = true;
+  const validateStep1 = React.useCallback((): boolean => {
+    // Use ref to get current formData (avoid stale closure)
+    const currentFormData = formDataRef.current;
 
-    if (!formData.title || formData.title.trim().length < 3) {
-      setFieldError("title", "Título deve ter pelo menos 3 caracteres");
-      isValid = false;
-    } else {
-      clearFieldError("title");
+    const errors: Record<string, string> = {};
+
+    // Validate all fields first without setting errors
+    if (!currentFormData.title || currentFormData.title.trim().length < 3) {
+      errors.title = "Título deve ter pelo menos 3 caracteres";
     }
 
-    if (!formData.clientName || !formData.clientName.trim()) {
-      setFieldError("clientName", "Cliente é obrigatório");
-      isValid = false;
-    } else {
-      clearFieldError("clientName");
+    if (!currentFormData.clientName || !currentFormData.clientName.trim()) {
+      errors.clientName = "Contato é obrigatório";
     }
 
     // Email is optional, only validate format if provided
     if (
-      formData.clientEmail &&
-      formData.clientEmail.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.clientEmail)
+      currentFormData.clientEmail &&
+      currentFormData.clientEmail.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(currentFormData.clientEmail)
     ) {
-      setFieldError("clientEmail", "Email inválido");
-      isValid = false;
-    } else {
-      clearFieldError("clientEmail");
+      errors.clientEmail = "Email inválido";
     }
 
     if (
-      !formData.clientPhone ||
-      formData.clientPhone.replace(/\D/g, "").length < 10
+      !currentFormData.clientPhone ||
+      currentFormData.clientPhone.replace(/\D/g, "").length < 10
     ) {
-      setFieldError("clientPhone", "Telefone deve ter pelo menos 10 dígitos");
-      isValid = false;
-    } else {
-      clearFieldError("clientPhone");
+      errors.clientPhone = "Telefone deve ter pelo menos 10 dígitos";
     }
 
-    if (!formData.validUntil) {
-      setFieldError("validUntil", "Validade é obrigatória");
-      isValid = false;
-    } else {
-      // Validate date > today
-      const [year, month, day] = formData.validUntil.split("-").map(Number);
+    if (!currentFormData.validUntil) {
+      errors.validUntil = "Validade é obrigatória";
+    } else if (!proposalId) {
+      // Only validate future date for new proposals
+      // Allow legacy proposals to keep their past validity dates when editing
+      const [year, month, day] = currentFormData.validUntil
+        .split("-")
+        .map(Number);
       const selectedDate = new Date(year, month - 1, day);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
-      if (selectedDate <= today) {
-        setFieldError("validUntil", "Validade deve ser maior que hoje");
-        isValid = false;
-      } else {
-        clearFieldError("validUntil");
+      if (selectedDate < today) {
+        errors.validUntil = "Validade não pode ser anterior a hoje";
       }
     }
 
-    return isValid;
-  };
+    // Only update errors state if there are actual errors
+    if (Object.keys(errors).length > 0) {
+      // Set all errors at once
+      Object.entries(errors).forEach(([field, message]) => {
+        setFieldError(field, message);
+      });
+      return false;
+    }
+
+    // Clear all errors if validation passed
+    clearFieldError("title");
+    clearFieldError("clientName");
+    clearFieldError("clientEmail");
+    clearFieldError("clientPhone");
+    clearFieldError("validUntil");
+
+    return true;
+  }, [setFieldError, clearFieldError]);
 
   // Validação do Step 2 (Sistemas ou Produtos)
-  const validateStep2 = (): boolean => {
-    let hasItems = false;
-    let hasActiveProduct = false;
+  const validateStep2 = React.useCallback((): boolean => {
+    // Use ref to get current formData (avoid stale closure)
+    const currentFormData = formDataRef.current;
 
-    if (isAutomacaoNiche) {
-      if (selectedSistemas.length === 0) {
-        setFieldError(
-          "sistemas",
-          "Selecione pelo menos 1 sistema de automação",
-        );
-        return false;
-      }
-
-      // Check if there are actual products (from systems or extras)
-      if (!formData.products || formData.products.length === 0) {
-        setFieldError(
-          "sistemas",
-          "A proposta deve ter pelo menos 1 produto. O sistema selecionado pode estar vazio.",
-        );
-        return false;
-      }
-      hasItems = true;
-    } else {
-      if (selectedProducts.length === 0) {
-        setFieldError("products", "Selecione pelo menos 1 produto");
-        return false;
-      }
-      hasItems = true;
+    // Check if there are products in formData
+    if (!currentFormData.products || currentFormData.products.length === 0) {
+      const field = isAutomacaoNiche ? "sistemas" : "products";
+      const message = isAutomacaoNiche
+        ? "Selecione pelo menos 1 sistema de automação com produtos"
+        : "Selecione pelo menos 1 produto";
+      setFieldError(field, message);
+      return false;
     }
 
-    // Validate if at least one selected product is active
-    if (hasItems) {
-      // Get all selected product IDs
-      const selectedIds = new Set(selectedProducts.map((sp) => sp.productId));
-
-      // Check if ANY of the selected products in the master list are active
-      // We assume if a product is not found in master list (e.g. deleted), it's not "active" for this purpose, or we could handle safely
-      // Status undefined/null means active (legacy)
-      hasActiveProduct = products.some(
-        (p) => selectedIds.has(p.id) && (!p.status || p.status === "active"),
-      );
-
-      if (!hasActiveProduct) {
-        const field = isAutomacaoNiche ? "sistemas" : "products";
-        setFieldError(
-          field,
-          "Selecione pelo menos um produto ativo para continuar.",
-        );
-        return false;
-      }
-    }
-
+    // Clear errors
     if (isAutomacaoNiche) clearFieldError("sistemas");
     else clearFieldError("products");
 
     return true;
-  };
+  }, [isAutomacaoNiche, setFieldError, clearFieldError]);
 
   // Handle client change
   const handleClientChange = (data: {
@@ -378,16 +392,35 @@ export function SimpleProposalForm({
     clientAddress?: string;
     isNew: boolean;
   }) => {
+    // Detect if this is a different client being selected
+    // If it's the same client, preserve existing proposal data (don't overwrite with fresh client data)
+    const isChangeToNewClient =
+      data.isNew || // Creating a new client
+      !selectedClientId || // No client was selected before
+      data.clientId !== selectedClientId; // Different client selected
+
     setSelectedClientId(data.clientId);
     setIsNewClient(data.isNew);
-    setFormData((prev) => ({
-      ...prev,
-      clientId: data.clientId,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail || prev.clientEmail,
-      clientPhone: data.clientPhone || prev.clientPhone,
-      clientAddress: data.clientAddress || prev.clientAddress,
-    }));
+
+    if (isChangeToNewClient) {
+      // Client actually changed - update all fields with new client data
+      setFormData((prev) => ({
+        ...prev,
+        clientId: data.clientId,
+        clientName: data.clientName,
+        clientEmail: data.clientEmail || "",
+        clientPhone: data.clientPhone || "",
+        clientAddress: data.clientAddress || "",
+      }));
+    } else {
+      // Same client re-selected - preserve edited proposal data, only update name
+      // This prevents overwriting user edits when clicking the same client in dropdown
+      setFormData((prev) => ({
+        ...prev,
+        clientId: data.clientId,
+        clientName: data.clientName,
+      }));
+    }
   };
 
   // Handle adding new system
@@ -407,26 +440,103 @@ export function SimpleProposalForm({
     }
     lastAddedSystemRef.current = {
       sistemaId: sistema.sistemaId || "",
-      ambienteId: sistema.ambienteId,
+      ambienteId:
+        sistema.ambientes?.[0]?.ambienteId || sistema.ambienteId || "",
       time: now,
     };
 
     // Check for duplicates
-    const exists = selectedSistemas.some(
-      (s) =>
-        s.sistemaId === sistema.sistemaId &&
-        s.ambienteId === sistema.ambienteId,
+    // Check if system (by ID) already exists in the list
+    const existingSystemIndex = selectedSistemas.findIndex(
+      (s) => s.sistemaId === sistema.sistemaId,
     );
 
-    if (exists) {
-      toast.error("Este sistema já foi adicionado a esta proposta");
-      setSelectorKey((prev) => prev + 1);
-      return;
-    }
+    if (existingSystemIndex >= 0) {
+      // Merge logic: Add environment to existing system
+      const existingSystem = selectedSistemas[existingSystemIndex];
+      const newAmbiente = sistema.ambientes?.[0]; // Assuming prompt creates one env at a time
 
-    // Use hook handler
-    addSistema(sistema);
-    setSelectorKey((prev) => prev + 1);
+      if (!newAmbiente) {
+        addSistema(sistema); // Fallback if malformed
+        setSelectorKey((prev) => prev + 1);
+        return;
+      }
+
+      // Check if environment already exists in this system
+      const ambienteExists = existingSystem.ambientes?.some(
+        (a) => a.ambienteId === newAmbiente.ambienteId,
+      );
+
+      // Also check legacy
+      if (
+        ambienteExists ||
+        existingSystem.ambienteId === newAmbiente.ambienteId
+      ) {
+        toast.error(
+          `O ambiente "${newAmbiente.ambienteName}" já foi adicionado ao sistema "${existingSystem.sistemaName}".`,
+        );
+        setSelectorKey((prev) => prev + 1);
+        return;
+      }
+
+      // 1. Update existing system with new environment
+      const updatedSystem = {
+        ...existingSystem,
+        ambientes: [...(existingSystem.ambientes || []), newAmbiente],
+      };
+
+      const newSistemas = [...selectedSistemas];
+      newSistemas[existingSystemIndex] = updatedSystem;
+      setSelectedSistemas(newSistemas);
+
+      // 2. Add products for the new environment
+      if (newAmbiente.products && newAmbiente.products.length > 0) {
+        // Create unique instance ID for this environment in this system
+        // Note: Use same convention as existing products logic if possible.
+        // But here we are adding a NEW environment to a system.
+        // Convention: "SystemID-AmbienteID"
+        const newInstanceId = `${existingSystem.sistemaId}-${newAmbiente.ambienteId}`;
+
+        const newProposalProducts: ProposalProduct[] = newAmbiente.products.map(
+          (sp) => {
+            const productDef = products.find((p) => p.id === sp.productId);
+            const price = productDef ? parseFloat(productDef.price) : 0;
+            const markup = productDef
+              ? parseFloat(productDef.markup || "0")
+              : 0;
+            return {
+              productId: sp.productId,
+              productName: productDef?.name || sp.productName || "Produto",
+              productImage: productDef?.images?.[0] || productDef?.image || "",
+              productImages: productDef?.images || [],
+              productDescription: productDef?.description || "",
+              quantity: sp.quantity,
+              unitPrice: price,
+              markup: markup,
+              total: sp.quantity * price * (1 + markup / 100),
+              manufacturer: productDef?.manufacturer,
+              category: productDef?.category,
+              systemInstanceId: newInstanceId,
+              isExtra: false,
+              // Link to the environment for grouping
+              ambienteInstanceId: newInstanceId,
+            };
+          },
+        );
+
+        setFormData((prev) => ({
+          ...prev,
+          products: [...(prev.products || []), ...newProposalProducts],
+        }));
+      }
+
+      toast.success(
+        `Ambiente "${newAmbiente.ambienteName}" adicionado ao sistema "${existingSystem.sistemaName}".`,
+      );
+    } else {
+      // Create new system entry
+      addSistema(sistema);
+    }
   };
 
   // Handle editing system selection
@@ -434,16 +544,22 @@ export function SimpleProposalForm({
     if (!newSistema || editingSelectionIndex === null) return;
 
     const oldSistema = selectedSistemas[editingSelectionIndex];
-    const oldInstanceId = `${oldSistema.sistemaId}-${oldSistema.ambienteId}`;
-    const newInstanceId = `${newSistema.sistemaId}-${newSistema.ambienteId}`;
+    const oldAmbienteId =
+      oldSistema.ambientes?.[0]?.ambienteId || oldSistema.ambienteId || "";
+    const newAmbienteId =
+      newSistema.ambientes?.[0]?.ambienteId || newSistema.ambienteId || "";
+    const oldInstanceId = `${oldSistema.sistemaId}-${oldAmbienteId}`;
+    const newInstanceId = `${newSistema.sistemaId}-${newAmbienteId}`;
 
     // Check for duplicates
-    const exists = selectedSistemas.some(
-      (s, idx) =>
+    const exists = selectedSistemas.some((s, idx) => {
+      const sAmbienteId = s.ambientes?.[0]?.ambienteId || s.ambienteId;
+      return (
         idx !== editingSelectionIndex &&
         s.sistemaId === newSistema.sistemaId &&
-        s.ambienteId === newSistema.ambienteId,
-    );
+        sAmbienteId === newAmbienteId
+      );
+    });
 
     if (exists) {
       alert("Este sistema já existe na proposta.");
@@ -472,7 +588,10 @@ export function SimpleProposalForm({
         .filter((p) => p.systemInstanceId === oldInstanceId && p.isExtra)
         .map((p) => ({ ...p, systemInstanceId: newInstanceId }));
 
-      const newStandardProducts = newSistema.products.map((sp) => {
+      // Get products from ambientes array or legacy products field
+      const sistemaProducts =
+        newSistema.ambientes?.[0]?.products || newSistema.products || [];
+      const newStandardProducts = sistemaProducts.map((sp) => {
         const existingProduct = products.find((p) => p.id === sp.productId);
         const price = existingProduct ? parseFloat(existingProduct.price) : 0;
         return {
@@ -487,7 +606,8 @@ export function SimpleProposalForm({
           total: price * sp.quantity,
           manufacturer: existingProduct?.manufacturer,
           category: existingProduct?.category,
-          systemInstanceId: newInstanceId,
+          ambienteInstanceId: newInstanceId,
+          systemInstanceId: newInstanceId, // Legacy field
           isExtra: false,
         };
       });
@@ -506,10 +626,66 @@ export function SimpleProposalForm({
     updateSistema(index, sistema);
   };
 
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = async (): Promise<boolean> => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    await handleSubmit(fakeEvent);
+    return await handleSubmit(fakeEvent);
   };
+
+  // Handle back navigation - show modal if editing existing proposal with unsaved changes
+  const handleBack = () => {
+    if (proposalId && isDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      router.push("/proposals");
+    }
+  };
+
+  // Handle save from modal then navigate
+  const handleSaveAndBack = async () => {
+    const success = await handleFormSubmit();
+    if (success) {
+      router.push("/proposals");
+    } else {
+      // Validation failed - close modal and keep user on current page to fix errors
+      setShowUnsavedModal(false);
+    }
+  };
+
+  // Handle discard changes - navigate without saving
+  // For existing proposals: original data remains in database (not auto-saved)
+  // For new drafts: auto-save is prevented by markAsDiscarded flag
+  const handleDiscard = () => {
+    setShowUnsavedModal(false);
+
+    // Prevent any auto-save on unmount
+    markAsDiscarded();
+
+    // Navigate away - original proposal data remains untouched in database
+    router.push("/proposals");
+  };
+
+  // Steps configuration based on niche
+  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
+
+  // Map step validators for StepWizard
+  // MUST be before any conditional returns to maintain hook order
+  const stepValidators = React.useMemo(() => {
+    const validators: Record<number, () => boolean> = {
+      0: validateStep1, // Client step
+    };
+
+    // Add step 2 validator (systems or products)
+    if (isAutomacaoNiche) {
+      validators[1] = validateStep2; // Systems step (for automation niche)
+    } else {
+      validators[1] = validateStep2; // Products step (for non-automation)
+    }
+
+    // Steps 3 and 4 (Payment and PDF settings) don't need validation
+    // Step 5 (Summary) is the last step
+
+    return validators;
+  }, [isAutomacaoNiche, validateStep1, validateStep2]);
 
   // Loading state
   if (isLoading) {
@@ -552,17 +728,16 @@ export function SimpleProposalForm({
     );
   }
 
-  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
-
   // Editable form with StepWizard
   return (
     <FormContainer>
-      <ProposalFormHeader
-        proposalId={proposalId}
-        onBack={() => router.push("/proposals")}
-      />
+      <ProposalFormHeader proposalId={proposalId} onBack={handleBack} />
 
-      <StepWizard steps={steps} allowClickAhead={!!proposalId}>
+      <StepWizard
+        steps={steps}
+        allowClickAhead={!!proposalId}
+        stepValidators={stepValidators}
+      >
         {/* Step 1: Client Info */}
         <StepCard>
           <div className="space-y-6">
@@ -571,9 +746,9 @@ export function SimpleProposalForm({
                 <User className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Dados do Cliente</h3>
+                <h3 className="text-lg font-semibold">Dados do Contato</h3>
                 <p className="text-sm text-muted-foreground">
-                  Informações do cliente e identificação
+                  Informações do contato e identificação
                 </p>
               </div>
             </div>
@@ -585,6 +760,9 @@ export function SimpleProposalForm({
               onClientChange={handleClientChange}
               errors={errors}
               noContainer
+              isNewClient={isNewClient}
+              clientTypes={clientTypes}
+              onClientTypesChange={setClientTypes}
             />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
@@ -705,7 +883,16 @@ export function SimpleProposalForm({
           <StepNavigation />
         </StepCard>
 
-        {/* Step 4: Summary */}
+        {/* Step 4: PDF Settings */}
+        <StepCard>
+          <PdfDisplayOptionsSection
+            formData={formData}
+            setFormData={setFormData}
+          />
+          <StepNavigation />
+        </StepCard>
+
+        {/* Step 5: Summary */}
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -823,6 +1010,15 @@ export function SimpleProposalForm({
         onBack={
           openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined
         }
+      />
+
+      {/* Unsaved Changes Modal */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onClose={() => setShowUnsavedModal(false)}
+        onDiscard={handleDiscard}
+        onSave={handleSaveAndBack}
+        isSaving={isSaving}
       />
 
       {/* Limit Reached Modal */}

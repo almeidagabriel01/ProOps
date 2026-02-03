@@ -5,20 +5,36 @@
 // A4 dimensions: 210mm x 297mm at 96 DPI
 // 297mm = 1123px, 210mm = 794px
 export const PAGE_HEIGHT_PX = 1123;
-export const CONTENT_MARGIN_Y = 180; // Top padding (48px) + Bottom padding (48px) + Footer space (84px)
+export const CONTENT_MARGIN_Y = 100; // Reduced from 150 to maximize page space
 export const SAFE_HEIGHT = PAGE_HEIGHT_PX - CONTENT_MARGIN_Y;
+
+// Debug mode flag - set to true to enable console logging
+export const PDF_DEBUG = false;
 
 // Estimated heights for different content types
 export const ESTIMATED_HEIGHTS = {
-  HEADER: 150,
-  SECTION_PADDING: 24,
-  LINE_HEIGHT: 28, // Increased line height estimation
-  IMAGE_DEFAULT: 300,
-  PRODUCT_HEADER: 60,
-  PRODUCT_ROW: 250,
-  TOTALS: 180,
-  PAYMENT_TERMS: 120,
+  HEADER: 100,
+  SECTION_PADDING: 20,
+  LINE_HEIGHT: 24,
+  IMAGE_DEFAULT: 200,
+  PRODUCT_HEADER: 50,
+  PRODUCT_ROW: 150,
+  TOTALS: 80, // Reduced from 120
+  PAYMENT_TERMS: 100,
 };
+
+/**
+ * Debug logging helper
+ */
+export function pdfDebugLog(message: string, data?: unknown): void {
+  if (PDF_DEBUG) {
+    if (data !== undefined) {
+      console.log(`[PDF-DEBUG] ${message}`, data);
+    } else {
+      console.log(`[PDF-DEBUG] ${message}`);
+    }
+  }
+}
 
 /**
  * Content item types for rendering
@@ -31,7 +47,10 @@ export type ContentItemType =
   | "product-row"
   | "totals"
   | "sistema-header"
+  | "sistema-product"
+  | "sistema-footer"
   | "extra-products-header"
+  | "ambiente-header"
   | "sistema-container-header"
   | "sistema-container-product"
   | "sistema-container-footer"
@@ -43,6 +62,7 @@ export interface ContentItem {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any;
   height: number;
+  id?: string; // Unique identifier for DOM measurement
 }
 
 // Type definitions for helper functions
@@ -59,6 +79,11 @@ interface Product {
   productImages?: string[];
   productImage?: string;
   productDescription?: string;
+}
+
+interface PdfDisplaySettings {
+  showProductImages?: boolean;
+  showProductDescriptions?: boolean;
 }
 
 /**
@@ -93,24 +118,55 @@ export function calculateSectionHeight(section: PdfSection): number {
 }
 
 /**
- * Calculate product row height based on images and description
+ * Calculate product height - balanced for cutoff prevention
+ *
+ * Uses CSS break-inside-avoid + conservative height estimates
+ * to prevent products from being cut across pages.
+ *
+ * Layout (vertical):
+ * - Header row: ~42px (title + price + quantity)
+ * - Container padding (p-3): 12px top + 12px bottom = 24px
+ * - Spacing buffer: 9px
+ * Total base: 75px
+ *
+ * Images (w-16 h-16 = 64px, gap-1.5 = 6px, pt-1 = 4px):
+ * - Per row: ~70px (includes gaps and buffers)
+ * - First row adds 4px top padding
+ *
+ * Description (text-[10px] leading-relaxed, pt-1 = 4px):
+ * - Line height: ~15px (includes spacing)
+ * - ~50 chars per line
  */
 export function calculateProductHeight(
   product: Product,
-  baseHeight: number = 150
+  baseHeight: number = 70, // Balanced: not too conservative, not too aggressive
+  settings?: PdfDisplaySettings,
 ): number {
   let height = baseHeight;
 
-  if (
-    (product.productImages && product.productImages.length > 0) ||
-    product.productImage
-  ) {
-    height += 200;
+  const showImages = settings?.showProductImages !== false;
+  const showDescriptions = settings?.showProductDescriptions !== false;
+
+  // Image gallery height
+  if (showImages) {
+    const imageCount =
+      product.productImages?.length || (product.productImage ? 1 : 0);
+
+    if (imageCount > 0) {
+      const rows = Math.ceil(imageCount / 4);
+      height += rows * 60 + 4; // 60px per row
+    }
   }
 
-  if (product.productDescription && product.productDescription.length > 50) {
-    height += 20;
+  // Description height
+  if (showDescriptions && product.productDescription) {
+    const descLength = product.productDescription.length;
+    const estimatedLines = Math.ceil(descLength / 50); // ~50 chars per line
+    height += estimatedLines * 14 + 2; // 14px per line
   }
+
+  // Small safety buffer to prevent cutoff
+  height += 10;
 
   return height;
 }
@@ -118,41 +174,44 @@ export function calculateProductHeight(
 /**
  * Calculate sistema block height
  */
-export function calculateSistemaBlockHeight(products: Product[]): number {
-  let totalHeight = 120; // Header height
+export function calculateSistemaBlockHeight(
+  products: Product[],
+  settings?: PdfDisplaySettings,
+): number {
+  let totalHeight = 80; // Header height (balanced)
 
+  // Use the updated product height calculation for each product
   products.forEach((product) => {
-    let h = 100;
-    const imageCount =
-      product.productImages?.length || (product.productImage ? 1 : 0);
-    if (imageCount > 0) {
-      h += 80;
-    }
-    totalHeight += h;
+    const productHeight = calculateProductHeight(product, 70, settings); // Use same base as default
+    totalHeight += productHeight + 8; // +8 for gap between products
   });
 
-  totalHeight += 80; // Footer height
+  totalHeight += 50; // Footer height
   return totalHeight;
 }
 
 export function calculatePaymentTermsHeight(
   hasDownPayment: boolean,
-  installmentsCount: number = 0
+  installmentsCount: number = 0,
 ): number {
-  let height = 60; // Title + Header
+  let height = 50; // Title
 
   // Table header
-  height += 40;
+  height += 30;
 
   if (hasDownPayment) {
-    height += 30; // Row height
+    height += 25; // Row height
   }
 
   if (installmentsCount > 0) {
-    height += installmentsCount * 30; // Row height for each installment
+    height += installmentsCount * 28; // Row height for each installment
   }
 
-  height += 60; // Total row + margin
-  height += 80; // Summary text section
+  height += 50; // Total row + margin
+  height += 60; // Summary text section
+
+  // Safety buffer
+  height += 20;
+
   return height;
 }

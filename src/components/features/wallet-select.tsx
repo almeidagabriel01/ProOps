@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Wallet, Settings, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -35,24 +35,27 @@ export function WalletSelect({
   preSelectDefault = false,
   ...props
 }: WalletSelectProps) {
-  const { wallets, createWallet, isLoading, refreshData } = useWalletsData();
+  const { wallets, createWallet, isLoading } = useWalletsData();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const hasAutoSelected = React.useRef(false);
 
   // Helper to trigger onChange with a synthetic event
-  const triggerChange = (newValue: string) => {
-    const event = {
-      target: {
-        name: props.name,
-        value: newValue,
-      },
-      currentTarget: {
-        name: props.name,
-        value: newValue,
-      },
-    } as React.ChangeEvent<HTMLSelectElement>;
-    onChange(event);
-  };
+  const triggerChange = React.useCallback(
+    (newValue: string) => {
+      const event = {
+        target: {
+          name: props.name,
+          value: newValue,
+        },
+        currentTarget: {
+          name: props.name,
+          value: newValue,
+        },
+      } as React.ChangeEvent<HTMLSelectElement>;
+      onChange(event);
+    },
+    [props.name, onChange],
+  );
 
   // Auto-select default wallet when wallets load and value is empty
   React.useEffect(() => {
@@ -72,7 +75,7 @@ export function WalletSelect({
   }, [preSelectDefault, value, wallets, triggerChange]);
 
   const handleCreateWallet = async (
-    data: CreateWalletInput | UpdateWalletInput
+    data: CreateWalletInput | UpdateWalletInput,
   ): Promise<boolean> => {
     // We know it's CreateWalletInput because we only use it for creation here
     const newId = await createWallet(data as CreateWalletInput);

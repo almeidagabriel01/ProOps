@@ -29,6 +29,7 @@ const PUBLIC_ROUTES = [
   "/checkout-success",
   "/pricing",
   "/api/webhooks", // Webhooks need to be public
+  "/share", // Public shared proposal pages
 ];
 
 // Static assets and API routes to skip
@@ -51,7 +52,7 @@ const SUPER_ADMIN_ROUTES = ["/admin"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
+    (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 }
 
@@ -61,13 +62,13 @@ function shouldSkip(pathname: string): boolean {
 
 function isMasterOnlyRoute(pathname: string): boolean {
   return MASTER_ONLY_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
+    (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 }
 
 function isSuperAdminRoute(pathname: string): boolean {
   return SUPER_ADMIN_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
+    (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 }
 
