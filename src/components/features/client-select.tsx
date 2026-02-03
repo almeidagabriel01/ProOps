@@ -80,6 +80,8 @@ export function ClientSelect({
 
   const handleSelectClient = (client: Client) => {
     setInputValue(client.name);
+    // Always call onChange to ensure the selection is registered
+    // The parent component will decide whether to update fields based on whether it's the same client
     onChange({
       clientId: client.id,
       clientName: client.name,
@@ -126,12 +128,12 @@ export function ClientSelect({
     return clients.filter(
       (client) =>
         client.name.toLowerCase().includes(term) ||
-        client.email?.toLowerCase().includes(term)
+        client.email?.toLowerCase().includes(term),
     );
   }, [clients, inputValue]);
 
   const exactMatch = clients.find(
-    (c) => c.name.toLowerCase() === inputValue.trim().toLowerCase()
+    (c) => c.name.toLowerCase() === inputValue.trim().toLowerCase(),
   );
 
   const showCreateOption = inputValue.trim() && !exactMatch;
@@ -169,7 +171,7 @@ export function ClientSelect({
               <ChevronDown
                 className={cn(
                   "h-4 w-4 transition-transform",
-                  open && "rotate-180"
+                  open && "rotate-180",
                 )}
               />
             </Button>
@@ -226,7 +228,7 @@ export function ClientSelect({
                       key={client.id}
                       className={cn(
                         "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted",
-                        clientId === client.id && "bg-muted"
+                        clientId === client.id && "bg-muted",
                       )}
                       onClick={() => handleSelectClient(client)}
                     >
@@ -235,7 +237,7 @@ export function ClientSelect({
                           "h-4 w-4 shrink-0",
                           clientId === client.id
                             ? "text-primary"
-                            : "text-transparent"
+                            : "text-transparent",
                         )}
                       />
                       <div className="flex flex-col flex-1 min-w-0">

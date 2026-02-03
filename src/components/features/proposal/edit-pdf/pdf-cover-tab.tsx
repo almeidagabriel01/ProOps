@@ -69,7 +69,7 @@ export function PdfCoverTab({
   setCoverElements,
   primaryColor = "#2563eb",
   canEditCoverElements = true,
-  clientName = "Nome do Cliente",
+  clientName = "Nome do Contato",
 }: PdfCoverTabProps) {
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,7 +213,11 @@ export function PdfCoverTab({
               <Label className="text-xs">Estilo do Logo</Label>
               <Select
                 value={logoStyle || "original"}
-                onChange={(e) => setLogoStyle?.(e.target.value as any)}
+                onChange={(e) =>
+                  setLogoStyle?.(
+                    e.target.value as "original" | "rounded" | "circle",
+                  )
+                }
               >
                 <option value="original">Original (Quadrado)</option>
                 <option value="rounded">Arredondado</option>
@@ -296,7 +300,8 @@ export function PdfCoverTab({
             {themeOptions.map((t, index) => {
               // Check if this template is premium (beyond allowed limit)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const isEnterpriseOnly = (t as any).isEnterprise === true;
+              const themeOption = t as any;
+              const isEnterpriseOnly = themeOption.isEnterprise === true;
               // maxPdfTemplates === -1 means Enterprise/unlimited plan
               const isEnterprisePlan = maxPdfTemplates === -1;
               const isPremiumTemplate =
@@ -314,10 +319,8 @@ export function PdfCoverTab({
                     }
                     setTheme(t.value as ThemeType);
                     // Set default color if available
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    if ((t as any).defaultColor) {
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      setPrimaryColor((t as any).defaultColor);
+                    if (themeOption.defaultColor) {
+                      setPrimaryColor(themeOption.defaultColor);
                     }
                     // Reset section colors to ensure theme application
                     setSections((prev) =>

@@ -86,10 +86,12 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     PurchasedAddon[]
   >([]);
   const [pastDueAddonsData, setPastDueAddonsData] = useState<PurchasedAddon[]>(
-    []
+    [],
   );
   const [isPlanLoading, setIsPlanLoading] = useState(true);
   const [isAddonsLoading, setIsAddonsLoading] = useState(true);
+
+  const masterId = (user as User & { masterId?: string })?.masterId;
 
   useEffect(() => {
     const loadFeatures = async () => {
@@ -157,7 +159,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
           const fallbackPlan = DEFAULT_PLANS.find(
             (p) =>
               p.tier === effectivePlanId ||
-              p.tier === effectivePlanId?.toLowerCase()
+              p.tier === effectivePlanId?.toLowerCase(),
           );
           if (fallbackPlan?.features) {
             setBaseFeatures(fallbackPlan.features);
@@ -165,7 +167,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
           } else {
             console.warn(
               "Could not load plan features for planId:",
-              effectivePlanId
+              effectivePlanId,
             );
             setBaseFeatures(FREE_PLAN_FEATURES);
             setPlanTier("starter");
@@ -182,11 +184,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     loadFeatures();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    user?.role,
-    user?.planId,
-    (user as User & { masterId?: string })?.masterId,
-  ]);
+  }, [user?.role, user?.planId, masterId]);
 
   // Load addons when tenant changes or finishes loading
   useEffect(() => {
@@ -275,7 +273,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
         canCustomizeTheme: baseFeatures.canCustomizeTheme,
         maxUsers: baseFeatures.maxUsers,
       },
-      purchasedAddons
+      purchasedAddons,
     ) as unknown as PlanFeatures;
   }, [baseFeatures, purchasedAddons]);
 
@@ -299,7 +297,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     const q = query(
       collection(db, "proposals"),
-      where("tenantId", "==", tenant.id)
+      where("tenantId", "==", tenant.id),
     );
 
     const snapshot = await getDocs(q);
@@ -311,7 +309,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     const q = query(
       collection(db, "clients"),
-      where("tenantId", "==", tenant.id)
+      where("tenantId", "==", tenant.id),
     );
 
     const snapshot = await getDocs(q);
@@ -323,7 +321,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     const q = query(
       collection(db, "products"),
-      where("tenantId", "==", tenant.id)
+      where("tenantId", "==", tenant.id),
     );
 
     const snapshot = await getDocs(q);
@@ -344,7 +342,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     const q = query(
       collection(db, "users"),
       where("tenantId", "==", tenant.id),
-      where("role", "==", "MEMBER")
+      where("role", "==", "MEMBER"),
     );
 
     const snapshot = await getDocs(q);

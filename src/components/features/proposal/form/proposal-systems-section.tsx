@@ -17,6 +17,7 @@ import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
 import { getContrastTextColor } from "@/utils/color-utils";
 import { Package, Plus, Minus, Cpu, Trash2, Pencil } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,9 +109,40 @@ export function ProposalSystemsSection({
     if (!newValue) {
       if (isLastSystemPending) {
         // User cleared the pending selection -> Remove last item
+        const primaryAmbiente = getPrimaryAmbiente(lastSystem);
         onRemoveSystem(
           selectedSistemas.length - 1,
-          `${lastSystem.sistemaId}-${lastSystem.ambienteId}`,
+          `${lastSystem.sistemaId}-${primaryAmbiente?.ambienteId || ""}`,
+        );
+      }
+      return;
+    }
+
+    // Check for duplicate system+ambiente combination
+    const newPrimaryAmbiente = getPrimaryAmbiente(newValue);
+    const newInstanceId = `${newValue.sistemaId}-${newPrimaryAmbiente?.ambienteId || ""}`;
+    const existingIndex = renderedSistemas.findIndex((s) => {
+      const sPrimaryAmbiente = getPrimaryAmbiente(s);
+      return (
+        `${s.sistemaId}-${sPrimaryAmbiente?.ambienteId || ""}` === newInstanceId
+      );
+    });
+
+    if (existingIndex !== -1) {
+      // Duplicate detected - show toast and reset only this selection
+      import("react-toastify").then(({ toast }) => {
+        toast.warning(
+          `O sistema "${newValue.sistemaName}" já foi adicionado ao ambiente "${newValue.ambienteName}". Escolha outro sistema ou ambiente.`,
+          { toastId: "duplicate-system-warning" },
+        );
+      });
+
+      // If there's a pending item, remove it to reset the selector
+      if (isLastSystemPending && lastSystem) {
+        const primaryAmbiente = getPrimaryAmbiente(lastSystem);
+        onRemoveSystem(
+          selectedSistemas.length - 1,
+          `${lastSystem.sistemaId}-${primaryAmbiente?.ambienteId || ""}`,
         );
       }
       return;
@@ -122,7 +154,8 @@ export function ProposalSystemsSection({
         onUpdateSystem(selectedSistemas.length - 1, newValue);
       } else {
         // Fallback: Remove Last + Add New (Legacy)
-        const lastId = `${lastSystem?.sistemaId}-${lastSystem?.ambienteId}`;
+        const primaryAmbiente = getPrimaryAmbiente(lastSystem);
+        const lastId = `${lastSystem?.sistemaId}-${primaryAmbiente?.ambienteId || ""}`;
         onRemoveSystem(selectedSistemas.length - 1, lastId);
         onAddNewSystem(newValue);
       }
@@ -156,13 +189,21 @@ export function ProposalSystemsSection({
         {renderedSistemas.length > 0 && (
           <div className="space-y-4">
             {renderedSistemas.map((sistema, idx) => {
-              const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-              // Real index in the full list
+              const primaryAmbiente = getPrimaryAmbiente(sistema);
+              const systemInstanceId = `${
+                sistema.sistemaId
+              }-${primaryAmbiente?.ambienteId || ""}`;
               const realIndex = idx;
 
-              const sistemaProducts = selectedProducts.filter(
-                (p) => p.systemInstanceId === systemInstanceId,
+              const instanceIds = sistema.ambientes?.map(
+                (a) => `${sistema.sistemaId}-${a.ambienteId}`,
+              ) || [systemInstanceId];
+
+              // Filter products matching ANY of the environment instances in this system
+              const sistemaProducts = selectedProducts.filter((p) =>
+                instanceIds.includes(p.systemInstanceId || ""),
               );
+
               const sistemaTotal = sistemaProducts.reduce(
                 (sum, p) => sum + p.total,
                 0,
@@ -180,20 +221,28 @@ export function ProposalSystemsSection({
                   systemInstanceId={systemInstanceId}
                   onEdit={() => onEditSystem(realIndex)}
                   onRemove={() => onRemoveSystem(realIndex, systemInstanceId)}
-                  onUpdateQuantity={(productId, delta) =>
-                    onUpdateProductQuantity(productId, delta, systemInstanceId)
+                  onUpdateQuantity={(productId, delta, instanceId) =>
+                    onUpdateProductQuantity(
+                      productId,
+                      delta,
+                      instanceId || systemInstanceId,
+                    )
                   }
-                  onUpdateMarkup={(productId, markup) =>
-                    onUpdateProductMarkup(productId, markup, systemInstanceId)
+                  onUpdateMarkup={(productId, markup, instanceId) =>
+                    onUpdateProductMarkup(
+                      productId,
+                      markup,
+                      instanceId || systemInstanceId,
+                    )
                   }
-                  onRemoveProduct={(productId) =>
-                    onRemoveProduct(productId, systemInstanceId)
+                  onRemoveProduct={(productId, instanceId) =>
+                    onRemoveProduct(productId, instanceId || systemInstanceId)
                   }
-                  onAddExtraProduct={(product) =>
+                  onAddExtraProduct={(product, instanceId) =>
                     onAddExtraProductToSystem(
                       product,
                       realIndex,
-                      systemInstanceId,
+                      instanceId || systemInstanceId,
                     )
                   }
                   onToggleStatus={onToggleStatus}
@@ -214,6 +263,7 @@ export function ProposalSystemsSection({
             key={selectorKey}
             value={pendingSelectorValue}
             onChange={handleSelectorChange}
+            resetAmbienteAfterSelect={true}
             onDataUpdate={onDataUpdate}
             // Transactional
             onAmbienteAction={onAmbienteAction}
@@ -238,10 +288,18 @@ interface SystemCardProps {
   systemInstanceId: string;
   onEdit: () => void;
   onRemove: () => void;
-  onUpdateQuantity: (productId: string, delta: number) => void;
-  onUpdateMarkup: (productId: string, markup: number) => void;
-  onRemoveProduct: (productId: string) => void;
-  onAddExtraProduct: (product: Product) => void;
+  onUpdateQuantity: (
+    productId: string,
+    delta: number,
+    instanceId?: string,
+  ) => void;
+  onUpdateMarkup: (
+    productId: string,
+    markup: number,
+    instanceId?: string,
+  ) => void;
+  onRemoveProduct: (productId: string, instanceId?: string) => void;
+  onAddExtraProduct: (product: Product, instanceId?: string) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
@@ -283,24 +341,39 @@ function SystemCard({
             <Cpu className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded shrink-0"
-                style={{
-                  backgroundColor: primaryColor,
-                  color: getContrastTextColor(primaryColor),
-                }}
-              >
-                📍 {sistema.ambienteName}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <h4 className="font-semibold text-lg text-foreground truncate">
-                {sistema.sistemaName}
-              </h4>
+            {/* Sistema Name - Primary Title */}
+            <h4
+              className="font-bold text-xl text-foreground truncate"
+              style={{ color: primaryColor }}
+            >
+              {sistema.sistemaName}
+            </h4>
+            {/* Ambiente Tags - Render all linked environments */}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {(sistema.ambientes && sistema.ambientes.length > 0
+                ? sistema.ambientes
+                : [
+                    {
+                      ambienteName: sistema.ambienteName || "Ambiente",
+                      ambienteId: sistema.ambienteId,
+                    },
+                  ]
+              ).map((amb, i) => (
+                <span
+                  key={`${amb.ambienteId}-${i}`}
+                  className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: `${primaryColor}20`,
+                    color: primaryColor,
+                    border: `1px solid ${primaryColor}40`,
+                  }}
+                >
+                  📍 {amb.ambienteName}
+                </span>
+              ))}
             </div>
             {sistema.description && (
-              <p className="mt-1 text-sm text-foreground leading-relaxed wrap-break-word">
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed wrap-break-word">
                 {sistema.description}
               </p>
             )}
@@ -359,41 +432,88 @@ function SystemCard({
         </div>
       </div>
 
-      {/* Produtos do Sistema */}
-      <div className="p-4 space-y-2 bg-background">
-        {sistemaProducts.length > 0 ? (
-          sistemaProducts.map((product, idx) => {
-            const productData = products.find(
-              (p) => p.id === product.productId,
-            );
-            const isActive =
-              !productData?.status || productData.status === "active";
-            return (
-              <ProductRow
-                key={`${product.productId}-${idx}`}
-                product={product}
-                isActive={isActive}
-                onUpdateQuantity={onUpdateQuantity}
-                onUpdateMarkup={onUpdateMarkup}
-                onRemoveProduct={onRemoveProduct}
-                onToggleStatus={onToggleStatus}
-              />
-            );
-          })
-        ) : (
-          <p className="text-sm text-muted-foreground text-center py-2">
-            Nenhum produto neste sistema
-          </p>
-        )}
+      {/* Body: Ambientes Sub-containers */}
+      <div className="p-4 space-y-6 bg-background">
+        {(sistema.ambientes && sistema.ambientes.length > 0
+          ? sistema.ambientes
+          : [
+              {
+                ambienteName: sistema.ambienteName || "Ambiente",
+                ambienteId: sistema.ambienteId,
+              },
+            ]
+        ).map((amb, index) => {
+          const currentInstanceId = `${sistema.sistemaId}-${amb.ambienteId}`;
+          // Filter products for this specific environment instance
+          const scopeProducts = sistemaProducts.filter(
+            (p) => p.systemInstanceId === currentInstanceId,
+          );
 
-        {/* Adicionar Produto Extra */}
-        <ExtraProductsGrid
-          products={products}
-          sistemaProducts={sistemaProducts}
-          primaryColor={primaryColor}
-          onAddProduct={onAddExtraProduct}
-          onToggleStatus={onToggleStatus}
-        />
+          return (
+            <div
+              key={currentInstanceId}
+              className="rounded-lg border bg-card/50 overflow-hidden"
+            >
+              {/* Sub-Header Ambiente */}
+              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: `${primaryColor}20`,
+                      color: primaryColor,
+                    }}
+                  >
+                    📍 {amb.ambienteName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lista de Produtos do Ambiente */}
+              <div className="p-3 space-y-2">
+                {scopeProducts.length > 0 ? (
+                  scopeProducts.map((product, idx) => {
+                    const productData = products.find(
+                      (p) => p.id === product.productId,
+                    );
+                    const isActive =
+                      !productData?.status || productData.status === "active";
+                    return (
+                      <ProductRow
+                        key={`${product.productId}-${idx}`}
+                        product={product}
+                        isActive={isActive}
+                        onUpdateQuantity={(pid, delta) =>
+                          onUpdateQuantity(pid, delta, currentInstanceId)
+                        }
+                        onUpdateMarkup={(pid, markup) =>
+                          onUpdateMarkup(pid, markup, currentInstanceId)
+                        }
+                        onRemoveProduct={(pid) =>
+                          onRemoveProduct(pid, currentInstanceId)
+                        }
+                        onToggleStatus={onToggleStatus}
+                      />
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Nenhum produto neste ambiente
+                  </p>
+                )}
+
+                {/* Adicionar Produto Extra ESPECÍFICO para este ambiente */}
+                <ExtraProductsGrid
+                  products={products}
+                  sistemaProducts={scopeProducts}
+                  primaryColor={primaryColor}
+                  onAddProduct={(p) => onAddExtraProduct(p, currentInstanceId)}
+                  onToggleStatus={onToggleStatus}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -403,9 +523,17 @@ function SystemCard({
 interface ProductRowProps {
   product: ProposalProduct;
   isActive: boolean;
-  onUpdateQuantity: (productId: string, delta: number) => void;
-  onUpdateMarkup: (productId: string, markup: number) => void;
-  onRemoveProduct: (productId: string) => void;
+  onUpdateQuantity: (
+    productId: string,
+    delta: number,
+    instanceId?: string,
+  ) => void;
+  onUpdateMarkup: (
+    productId: string,
+    markup: number,
+    instanceId?: string,
+  ) => void;
+  onRemoveProduct: (productId: string, instanceId?: string) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
@@ -444,7 +572,7 @@ function ProductRow({
   const handleMarkupBlur = () => {
     setIsEditingMarkup(false);
     if (markup !== product.markup) {
-      onUpdateMarkup(product.productId, markup);
+      onUpdateMarkup(product.productId, markup, product.systemInstanceId);
     }
   };
 
@@ -578,7 +706,9 @@ function ProductRow({
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={() => onUpdateQuantity(product.productId, -1)}
+          onClick={() =>
+            onUpdateQuantity(product.productId, -1, product.systemInstanceId)
+          }
         >
           <Minus className="w-3 h-3" />
         </Button>
@@ -590,7 +720,9 @@ function ProductRow({
           variant="ghost"
           size="icon"
           className="h-7 w-7"
-          onClick={() => onUpdateQuantity(product.productId, 1)}
+          onClick={() =>
+            onUpdateQuantity(product.productId, 1, product.systemInstanceId)
+          }
         >
           <Plus className="w-3 h-3" />
         </Button>
@@ -601,12 +733,15 @@ function ProductRow({
         <span
           className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
         >
-          R$ {product.total.toFixed(2)}
+          R$ {(product.total || 0).toFixed(2)}
         </span>
         {isActive && (
           <span className="text-[10px] text-muted-foreground">
             (R${" "}
-            {(product.unitPrice * (1 + (product.markup || 0) / 100)).toFixed(2)}{" "}
+            {(
+              (product.unitPrice || 0) *
+              (1 + (product.markup || 0) / 100)
+            ).toFixed(2)}{" "}
             un)
           </span>
         )}
@@ -638,7 +773,9 @@ function ProductRow({
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive hover:bg-destructive/90"
-                onClick={() => onRemoveProduct(product.productId)}
+                onClick={() =>
+                  onRemoveProduct(product.productId, product.systemInstanceId)
+                }
               >
                 Remover
               </AlertDialogAction>

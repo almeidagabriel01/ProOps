@@ -33,11 +33,6 @@ interface CreateProductResult {
   message: string;
 }
 
-interface DeleteProductResult {
-  success: boolean;
-  message: string;
-}
-
 // ============================================
 // HOOK
 // ============================================

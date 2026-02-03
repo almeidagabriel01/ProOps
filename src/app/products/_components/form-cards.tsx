@@ -253,6 +253,7 @@ export function ImagesCard({
               key={index}
               className="relative aspect-square rounded-lg overflow-hidden bg-muted/50 border border-border group"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img}
                 alt={`Product ${index + 1}`}

@@ -55,13 +55,19 @@ export function TransferDialog({
 
     if (!fromWalletId || !toWalletId || amount <= 0) return;
 
-    onOpenChange(false);
-
-    await onSubmit({
-      fromWalletId,
-      toWalletId,
-      amount,
-    });
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        fromWalletId,
+        toWalletId,
+        amount,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isValid =

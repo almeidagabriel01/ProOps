@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,12 +9,10 @@ import {
   FileText,
   ArrowUpCircle,
   ArrowDownCircle,
-  MoreHorizontal,
 } from "lucide-react";
 import { Transaction } from "@/services/transaction-service";
 import { Proposal } from "@/services/proposal-service";
 import { formatCurrency, formatDateShort } from "@/utils/format";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface RecentTransactionsListProps {
   transactions: Transaction[];
@@ -33,10 +25,16 @@ export function RecentTransactionsList({
     <Card className="h-full shadow-md bg-gradient-to-br from-background to-emerald-50/20 dark:to-emerald-950/10 border border-border/50">
       <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border/40">
         <div>
-          <CardTitle className="text-lg font-bold">Últimas Transações</CardTitle>
+          <CardTitle className="text-lg font-bold">
+            Últimas Transações
+          </CardTitle>
         </div>
         <Link href="/financial">
-          <Button variant="outline" size="sm" className="gap-1 rounded-full text-xs h-8">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 rounded-full text-xs h-8"
+          >
             Ver todas <ArrowRight className="w-3 h-3" />
           </Button>
         </Link>
@@ -52,13 +50,17 @@ export function RecentTransactionsList({
         ) : (
           <div className="space-y-3">
             {transactions.map((t) => (
-              <div key={t.id} className="flex items-center justify-between group p-3 hover:bg-muted/30 rounded-xl transition-all border border-transparent hover:border-border/40">
+              <div
+                key={t.id}
+                className="flex items-center justify-between group p-3 hover:bg-muted/30 rounded-xl transition-all border border-transparent hover:border-border/40"
+              >
                 <div className="flex items-center gap-4">
                   <div
-                    className={`p-2.5 rounded-xl shadow-sm ${t.type === "income"
-                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                      : "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400"
-                      }`}
+                    className={`p-2.5 rounded-xl shadow-sm ${
+                      t.type === "income"
+                        ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400"
+                    }`}
                   >
                     {t.type === "income" ? (
                       <ArrowUpCircle className="w-5 h-5" />
@@ -77,10 +79,11 @@ export function RecentTransactionsList({
                 </div>
                 <div className="text-right">
                   <span
-                    className={`text-sm font-bold block ${t.type === "income"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-rose-600 dark:text-rose-400"
-                      }`}
+                    className={`text-sm font-bold block ${
+                      t.type === "income"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }`}
                   >
                     {t.type === "income" ? "+" : "-"} {formatCurrency(t.amount)}
                   </span>
@@ -106,7 +109,11 @@ export function RecentProposalsList({ proposals }: RecentProposalsListProps) {
           <CardTitle className="text-lg font-bold">Últimas Propostas</CardTitle>
         </div>
         <Link href="/proposals">
-          <Button variant="outline" size="sm" className="gap-1 rounded-full text-xs h-8">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1 rounded-full text-xs h-8"
+          >
             Ver todas <ArrowRight className="w-3 h-3" />
           </Button>
         </Link>
@@ -123,19 +130,28 @@ export function RecentProposalsList({ proposals }: RecentProposalsListProps) {
           <div className="space-y-3">
             {proposals.map((p) => {
               const statusVariant =
-                p.status === "approved" ? "success"
-                  : p.status === "rejected" ? "destructive"
+                p.status === "approved"
+                  ? "success"
+                  : p.status === "rejected"
+                    ? "destructive"
                     : "warning";
 
               const statusLabel =
-                p.status === "approved" ? "Aprovada"
-                  : p.status === "rejected" ? "Recusada"
+                p.status === "approved"
+                  ? "Aprovada"
+                  : p.status === "rejected"
+                    ? "Recusada"
                     : "Pendente";
 
-              const totalAmount = p.products?.reduce((acc, curr) => acc + (curr.total || 0), 0) || 0;
+              const totalAmount =
+                p.products?.reduce((acc, curr) => acc + (curr.total || 0), 0) ||
+                0;
 
               return (
-                <div key={p.id} className="flex items-center justify-between group p-3 hover:bg-muted/30 rounded-xl transition-all border border-transparent hover:border-border/40">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between group p-3 hover:bg-muted/30 rounded-xl transition-all border border-transparent hover:border-border/40"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase shadow-sm">
                       {p.clientName.substring(0, 2)}
@@ -162,7 +178,7 @@ export function RecentProposalsList({ proposals }: RecentProposalsListProps) {
                     {statusLabel}
                   </Badge>
                 </div>
-              )
+              );
             })}
           </div>
         )}

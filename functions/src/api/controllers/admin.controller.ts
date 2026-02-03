@@ -29,9 +29,10 @@ export const createMember = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     // Super admin can specify a target master, otherwise use logged user
-    const masterId = isSuperAdmin && input.targetMasterId 
-      ? input.targetMasterId 
-      : loggedUserId;
+    const masterId =
+      isSuperAdmin && input.targetMasterId
+        ? input.targetMasterId
+        : loggedUserId;
 
     const masterRef = db.collection("users").doc(masterId);
     const masterSnap = await masterRef.get();
@@ -288,7 +289,8 @@ export const deleteMember = async (req: Request, res: Response) => {
     const masterSnap = await masterRef.get();
     const masterData = masterSnap.data() as UserDoc | undefined;
 
-    const tenantId = memberData?.tenantId || masterData?.tenantId || masterData?.companyId;
+    const tenantId =
+      memberData?.tenantId || masterData?.tenantId || masterData?.companyId;
 
     try {
       await auth.deleteUser(id);
@@ -329,13 +331,17 @@ export const deleteMember = async (req: Request, res: Response) => {
 
 export const updatePermissions = async (req: Request, res: Response) => {
   console.log("=== [updatePermissions] START ===");
-  console.log("[updatePermissions] Full body:", JSON.stringify(req.body, null, 2));
-  
+  console.log(
+    "[updatePermissions] Full body:",
+    JSON.stringify(req.body, null, 2),
+  );
+
   try {
     const masterId = req.user!.uid;
     // Support both memberId and targetUserId for compatibility
-    const { memberId, targetUserId, permissions, pageId, key, value, mode } = req.body;
-    
+    const { memberId, targetUserId, permissions, pageId, key, value, mode } =
+      req.body;
+
     const actualMemberId = memberId || targetUserId;
 
     console.log("[updatePermissions] masterId:", masterId);
@@ -350,13 +356,21 @@ export const updatePermissions = async (req: Request, res: Response) => {
       db.collection("users").doc(actualMemberId).get(),
     ]);
 
-    console.log("[updatePermissions] masterSnap.exists:", masterSnap.exists, "memberSnap.exists:", memberSnap.exists);
+    console.log(
+      "[updatePermissions] masterSnap.exists:",
+      masterSnap.exists,
+      "memberSnap.exists:",
+      memberSnap.exists,
+    );
 
     if (!masterSnap.exists) {
       return res.status(404).json({ message: "Usuário não encontrado." });
     }
     if (!memberSnap.exists) {
-      console.log("[updatePermissions] Member not found with ID:", actualMemberId);
+      console.log(
+        "[updatePermissions] Member not found with ID:",
+        actualMemberId,
+      );
       return res.status(404).json({ message: "Membro não encontrado." });
     }
 
@@ -381,17 +395,20 @@ export const updatePermissions = async (req: Request, res: Response) => {
       const existingDoc = await docRef.get();
       const existingData = existingDoc.exists ? existingDoc.data() : {};
 
-      await docRef.set({
-        pageId,
-        pageSlug: `/${pageId}`,
-        canView: existingData?.canView ?? false,
-        canCreate: existingData?.canCreate ?? false,
-        canEdit: existingData?.canEdit ?? false,
-        canDelete: existingData?.canDelete ?? false,
-        [key]: value,
-        updatedAt: new Date().toISOString(),
-        updatedBy: masterId,
-      }, { merge: true });
+      await docRef.set(
+        {
+          pageId,
+          pageSlug: `/${pageId}`,
+          canView: existingData?.canView ?? false,
+          canCreate: existingData?.canCreate ?? false,
+          canEdit: existingData?.canEdit ?? false,
+          canDelete: existingData?.canDelete ?? false,
+          [key]: value,
+          updatedAt: new Date().toISOString(),
+          updatedBy: masterId,
+        },
+        { merge: true },
+      );
 
       return res.json({ success: true, message: "Permissão atualizada." });
     }
@@ -503,6 +520,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           },
           admin: {
             id: userDoc.id,
+            name: userData.name || userData.displayName || "",
             email: userData.email,
             subscriptionStatus: userData.subscriptionStatus,
             currentPeriodEnd: userData.currentPeriodEnd,
@@ -518,7 +536,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             products: userData.usage?.products || 0,
           },
         };
-      })
+      }),
     );
 
     return res.json(tenantsData);
@@ -543,7 +561,12 @@ export const updateCredentials = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res.status(403).json({ message: "Permissão negada. Apenas super admins podem alterar credenciais." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Permissão negada. Apenas super admins podem alterar credenciais.",
+        });
     }
 
     // Update Auth
@@ -560,9 +583,13 @@ export const updateCredentials = async (req: Request, res: Response) => {
       await db.collection("users").doc(userId).update({ email });
     }
 
-    return res.json({ success: true, message: "Credenciais atualizadas com sucesso." });
+    return res.json({
+      success: true,
+      message: "Credenciais atualizadas com sucesso.",
+    });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erro ao atualizar credenciais";
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar credenciais";
     return res.status(500).json({ message });
   }
 };
@@ -574,7 +601,9 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     const { planId } = req.body;
 
     if (!userId || !planId) {
-      return res.status(400).json({ message: "ID do usuário e Plan ID são obrigatórios" });
+      return res
+        .status(400)
+        .json({ message: "ID do usuário e Plan ID são obrigatórios" });
     }
 
     // Verify Super Admin
@@ -583,18 +612,27 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res.status(403).json({ message: "Permissão negada. Apenas super admins podem alterar planos." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Permissão negada. Apenas super admins podem alterar planos.",
+        });
     }
 
     // Update Plan
-    await db.collection("users").doc(userId).update({ 
+    await db.collection("users").doc(userId).update({
       planId,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return res.json({ success: true, message: "Plano atualizado com sucesso." });
+    return res.json({
+      success: true,
+      message: "Plano atualizado com sucesso.",
+    });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erro ao atualizar plano";
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar plano";
     return res.status(500).json({ message });
   }
 };
@@ -615,11 +653,20 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res.status(403).json({ message: "Permissão negada. Apenas super admins podem alterar assinaturas." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Permissão negada. Apenas super admins podem alterar assinaturas.",
+        });
     }
 
     // Allowed fields to update
-    const allowedFields = ['subscriptionStatus', 'currentPeriodEnd', 'isManualSubscription'];
+    const allowedFields = [
+      "subscriptionStatus",
+      "currentPeriodEnd",
+      "isManualSubscription",
+    ];
     const safeUpdates: Record<string, any> = {};
 
     for (const field of allowedFields) {
@@ -629,7 +676,9 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     }
 
     if (Object.keys(safeUpdates).length === 0) {
-      return res.status(400).json({ message: "Nenhum campo válido para atualização" });
+      return res
+        .status(400)
+        .json({ message: "Nenhum campo válido para atualização" });
     }
 
     safeUpdates.updatedAt = FieldValue.serverTimestamp();
@@ -637,9 +686,13 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     // Update Subscription
     await db.collection("users").doc(userId).update(safeUpdates);
 
-    return res.json({ success: true, message: "Assinatura atualizada com sucesso." });
+    return res.json({
+      success: true,
+      message: "Assinatura atualizada com sucesso.",
+    });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erro ao atualizar assinatura";
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar assinatura";
     return res.status(500).json({ message });
   }
 };

@@ -53,7 +53,9 @@ export function SistemaManagerDialog({
       let filteredSistemas = managedSistemas;
       if (filterAmbienteId) {
         filteredSistemas = managedSistemas.filter((s) =>
-          s.ambienteIds.includes(filterAmbienteId),
+          (s.availableAmbienteIds || s.ambienteIds || []).includes(
+            filterAmbienteId,
+          ),
         );
       }
       setSistemas(filteredSistemas);
@@ -73,7 +75,9 @@ export function SistemaManagerDialog({
       let filteredSistemas = sistemasData;
       if (filterAmbienteId) {
         filteredSistemas = sistemasData.filter((s) =>
-          s.ambienteIds.includes(filterAmbienteId),
+          (s.availableAmbienteIds || s.ambienteIds || []).includes(
+            filterAmbienteId,
+          ),
         );
       }
 
@@ -180,11 +184,16 @@ export function SistemaManagerDialog({
                   )}
                   <div className="flex flex-wrap gap-2 mt-2">
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                      {sistema.defaultProducts.length} produto(s)
+                      {(sistema.defaultProducts || []).length} produto(s)
                     </span>
-                    {sistema.ambienteIds.length > 0 && (
+                    {(sistema.availableAmbienteIds || sistema.ambienteIds || [])
+                      .length > 0 && (
                       <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                        {getAmbienteNames(sistema.ambienteIds)}
+                        {getAmbienteNames(
+                          sistema.availableAmbienteIds ||
+                            sistema.ambienteIds ||
+                            [],
+                        )}
                       </span>
                     )}
                   </div>

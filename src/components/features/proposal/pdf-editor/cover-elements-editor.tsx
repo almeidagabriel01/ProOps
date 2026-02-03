@@ -20,8 +20,12 @@ import {
   ChevronRight,
   User,
   Move,
+  ImageIcon,
+  Upload,
+  X,
 } from "lucide-react";
 import { CoverElement } from "../pdf-section-editor";
+import { ALLOWED_TYPES } from "@/services/storage-service";
 
 interface CoverElementsEditorProps {
   elements: CoverElement[];
@@ -38,9 +42,10 @@ const elementTypeLabels: Record<CoverElement["type"], string> = {
   text: "Texto",
   label: "Rótulo",
   divider: "Divisor",
-  "client-name": "Nome do Cliente",
+  "client-name": "Nome do Contato",
   logo: "Logo",
   "company-name": "Nome da Empresa",
+  image: "Imagem",
 };
 
 const getElementIcon = (type: CoverElement["type"]) => {
@@ -61,6 +66,8 @@ const getElementIcon = (type: CoverElement["type"]) => {
       return <FileText className="w-4 h-4" />;
     case "company-name":
       return <Type className="w-4 h-4" />;
+    case "image":
+      return <ImageIcon className="w-4 h-4" />;
   }
 };
 
@@ -83,7 +90,7 @@ export function CoverElementsEditor({
   elements,
   onChange,
   primaryColor,
-  clientName = "Nome do Cliente",
+  clientName = "Nome do Contato",
   coverTitle = "Título da Proposta",
   theme,
 }: CoverElementsEditorProps) {
@@ -95,7 +102,13 @@ export function CoverElementsEditor({
       id: crypto.randomUUID(),
       type,
       content:
-        type === "divider" ? "" : type === "client-name" ? "" : "Novo texto",
+        type === "divider"
+          ? ""
+          : type === "client-name"
+            ? ""
+            : type === "image"
+              ? ""
+              : "Novo texto",
       x: 50, // Center by default
       y: 50 + elements.length * 8, // Stack new elements below
       order: maxOrder + 1,
@@ -120,6 +133,8 @@ export function CoverElementsEditor({
         textAlign: "center",
         textTransform: type === "label" ? "uppercase" : "none",
         letterSpacing: type === "label" ? "0.1em" : undefined,
+        imageWidth: type === "image" ? 30 : undefined, // Default 30% width for images
+        imageHeight: type === "image" ? 0 : undefined, // Default Auto height for images
       },
     };
     onChange([...elements, newElement]);
@@ -160,7 +175,7 @@ export function CoverElementsEditor({
   const updateStyle = (
     id: string,
     styleKey: keyof CoverElement["styles"],
-    value: string | number,
+    value: string | number | boolean,
   ) => {
     onChange(
       elements.map((e) => {
@@ -183,7 +198,7 @@ export function CoverElementsEditor({
     if (element.type === "divider") return "—";
     if (element.type === "client-name") return clientName;
 
-    let content = element.usesProposalTitle ? coverTitle : element.content;
+    const content = element.usesProposalTitle ? coverTitle : element.content;
 
     if (element.includesClientName) {
       return content ? `${content} ${clientName}` : clientName;
@@ -310,9 +325,10 @@ export function CoverElementsEditor({
                       </div>
                     )}
 
-                    {/* Content (not for divider, client-name, or when using proposal title) */}
+                    {/* Content (not for divider, client-name, image, or when using proposal title) */}
                     {element.type !== "divider" &&
                       element.type !== "client-name" &&
+                      element.type !== "image" &&
                       !element.usesProposalTitle && (
                         <div className="grid gap-2">
                           <Label>Conteúdo</Label>
@@ -342,9 +358,217 @@ export function CoverElementsEditor({
                         </div>
                       )}
 
+                    {/* Image upload for image type */}
+                    {element.type === "image" && (
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label>Imagem</Label>
+                          <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                            {element.imageUrl ? (
+                              <div className="space-y-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={element.imageUrl}
+                                  alt="Imagem da capa"
+                                  className="max-h-40 mx-auto rounded shadow-sm object-contain"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    updateElement(element.id, { imageUrl: "" })
+                                  }
+                                  className="gap-2"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Remover
+                                </Button>
+                              </div>
+                            ) : (
+                              <label className="cursor-pointer block py-4">
+                                <Upload className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">
+                                  Clique para upload
+                                </p>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      if (!ALLOWED_TYPES.includes(file.type)) {
+                                        alert(
+                                          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
+                                        );
+                                        e.target.value = "";
+                                        return;
+                                      }
+                                      if (file.size > 2 * 1024 * 1024) {
+                                        alert(
+                                          "A imagem deve ter no máximo 2MB.",
+                                        );
+                                        e.target.value = "";
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        updateElement(element.id, {
+                                          imageUrl: event.target
+                                            ?.result as string,
+                                        });
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Image size controls */}
+                        {element.imageUrl && (
+                          <div className="grid gap-3 p-3 border rounded-lg bg-muted/20">
+                            <Label className="font-semibold">
+                              Tamanho da Imagem
+                            </Label>
+                            <div className="grid gap-2">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-xs">
+                                  Largura: {element.styles.imageWidth || 30}%
+                                </Label>
+                              </div>
+                              <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                value={element.styles.imageWidth || 30}
+                                onChange={(e) =>
+                                  updateStyle(
+                                    element.id,
+                                    "imageWidth",
+                                    parseInt(e.target.value),
+                                  )
+                                }
+                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-xs">
+                                  Altura:{" "}
+                                  {!element.styles.imageHeight
+                                    ? "Auto"
+                                    : `${element.styles.imageHeight}px`}
+                                </Label>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="400"
+                                step="10"
+                                value={element.styles.imageHeight || 0}
+                                onChange={(e) =>
+                                  updateStyle(
+                                    element.id,
+                                    "imageHeight",
+                                    parseInt(e.target.value),
+                                  )
+                                }
+                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                              />
+                              {element.styles.imageHeight ? (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Defina como 0 para altura automática
+                                  (proporcional à largura)
+                                </p>
+                              ) : (
+                                <p className="text-[10px] text-green-600 font-medium">
+                                  Altura automática ativa
+                                </p>
+                              )}
+                            </div>
+                            <div className="grid gap-2">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-xs">
+                                  Arredondamento
+                                </Label>
+                              </div>
+                              <Select
+                                value={
+                                  String(element.styles.borderRadius) || "0px"
+                                }
+                                onChange={(e) =>
+                                  updateStyle(
+                                    element.id,
+                                    "borderRadius",
+                                    e.target.value,
+                                  )
+                                }
+                              >
+                                <option value="0px">Sem bordas</option>
+                                <option value="4px">Leve</option>
+                                <option value="8px">Médio</option>
+                                <option value="16px">Arredondado</option>
+                                <option value="9999px">Circular</option>
+                              </Select>
+                            </div>
+                            <div className="flex items-center gap-2 pt-2">
+                              <Checkbox
+                                id={`border-${element.id}`}
+                                checked={element.styles.imageBorder || false}
+                                onCheckedChange={(checked) =>
+                                  updateStyle(
+                                    element.id,
+                                    "imageBorder",
+                                    checked === true,
+                                  )
+                                }
+                              />
+                              <Label
+                                htmlFor={`border-${element.id}`}
+                                className="text-xs cursor-pointer"
+                              >
+                                Adicionar borda
+                              </Label>
+                            </div>
+                            <div className="grid gap-2">
+                              <div className="flex justify-between items-center">
+                                <Label className="text-xs">
+                                  Opacidade:{" "}
+                                  {Math.round(
+                                    (element.styles.opacity ?? 1) * 100,
+                                  )}
+                                  %
+                                </Label>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={Math.round(
+                                  (element.styles.opacity ?? 1) * 100,
+                                )}
+                                onChange={(e) =>
+                                  updateStyle(
+                                    element.id,
+                                    "opacity",
+                                    parseInt(e.target.value) / 100,
+                                  )
+                                }
+                                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Include Client Name option */}
                     {element.type !== "divider" &&
-                      element.type !== "client-name" && (
+                      element.type !== "client-name" &&
+                      element.type !== "image" && (
                         <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
                           <Checkbox
                             id={`client-${element.id}`}
@@ -361,10 +585,10 @@ export function CoverElementsEditor({
                               htmlFor={`client-${element.id}`}
                               className="cursor-pointer font-medium"
                             >
-                              Incluir nome do cliente após o texto
+                              Incluir nome do contato após o texto
                             </Label>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              O nome do cliente será adicionado automaticamente:
+                              O nome do contato será adicionado automaticamente:
                               &quot;{getDisplayPreview(element)}&quot;
                             </p>
                           </div>
@@ -374,7 +598,7 @@ export function CoverElementsEditor({
                     {/* Client name preview for client-name type */}
                     {element.type === "client-name" && (
                       <div className="p-3 border rounded-lg bg-muted/30">
-                        <Label className="font-medium">Nome do Cliente</Label>
+                        <Label className="font-medium">Nome do Contato</Label>
                         <p className="text-sm text-muted-foreground mt-1">
                           Este elemento exibirá automaticamente o nome do
                           cliente: <strong>{clientName}</strong>
@@ -448,8 +672,8 @@ export function CoverElementsEditor({
                       </div>
                     </div>
 
-                    {/* Style controls (not for divider) */}
-                    {element.type !== "divider" && (
+                    {/* Style controls (not for divider or image) */}
+                    {element.type !== "divider" && element.type !== "image" && (
                       <>
                         <div className="grid grid-cols-2 gap-4">
                           {/* Font Size */}
@@ -619,7 +843,7 @@ export function CoverElementsEditor({
                     )}
 
                     {/* Use Primary Color Button */}
-                    {element.type !== "divider" && (
+                    {element.type !== "divider" && element.type !== "image" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -711,6 +935,15 @@ export function CoverElementsEditor({
             </Button>
           </>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addElement("image")}
+          className="gap-2"
+        >
+          <ImageIcon className="w-4 h-4" />
+          Imagem
+        </Button>
       </div>
     </div>
   );

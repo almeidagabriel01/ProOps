@@ -7,7 +7,7 @@ export function useUpdatePermissions() {
 
   const updatePermissions = async (
     targetUserId: string,
-    permissions: string[]
+    permissions: string[],
   ): Promise<boolean> => {
     setLoading(true);
     try {
@@ -20,7 +20,10 @@ export function useUpdatePermissions() {
       return true;
     } catch (error: unknown) {
       console.error("Error updating permissions:", error);
-      const message = error instanceof Error ? error.message : "Erro ao atualizar permissões.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro ao atualizar permissões.";
       toast.error(message);
       return false;
     } finally {
@@ -33,7 +36,6 @@ export function useUpdatePermissions() {
     pageId: string,
     key: string,
     value: boolean,
-    _currentPermissions: unknown
   ) => {
     setLoading(true);
     try {
@@ -52,7 +54,10 @@ export function useUpdatePermissions() {
       return { success: true };
     } catch (error: unknown) {
       console.error("Error updating permissions:", error);
-      const message = error instanceof Error ? error.message : "Erro ao atualizar permissões.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro ao atualizar permissões.";
       toast.error(message);
       return { success: false };
     } finally {

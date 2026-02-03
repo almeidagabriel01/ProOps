@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, CheckCircle, AlertCircle, Puzzle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 function AddonSuccessContent() {
@@ -11,7 +11,7 @@ function AddonSuccessContent() {
   const { refreshAddons } = usePlanLimits();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
+    "loading",
   );
   const [addonName, setAddonName] = useState<string>("");
   const hasProcessed = useRef(false);

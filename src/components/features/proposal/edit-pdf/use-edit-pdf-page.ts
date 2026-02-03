@@ -17,6 +17,7 @@ import {
 } from "@/components/features/proposal/pdf-section-editor";
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
+import { generatePaymentTerms, hydrateSections } from "./pdf-hydration-utils";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -35,7 +36,7 @@ interface PdfSettings {
 
 export function useEditPdfPage() {
   const params = useParams();
-  const { tenant } = useTenant();
+  const { tenant, refreshTenant } = useTenant();
   const { features, isLoading: isPlanLoading } = usePlanLimits();
   const proposalId = params.id as string;
 
@@ -43,6 +44,9 @@ export function useEditPdfPage() {
   const [template, setTemplate] = useState<ProposalTemplate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [isSavingDefault, setIsSavingDefault] = useState(false);
+
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Upgrade modal state
@@ -52,17 +56,19 @@ export function useEditPdfPage() {
   const [coverTitle, setCoverTitle] = useState("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [coverLogo, setCoverLogo] = useState<string>("");
-  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">("original");
+  const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">(
+    "original",
+  );
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
   const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
-    "cover"
+    "cover",
   );
   const [coverImagePosition, setCoverImagePosition] = useState("center");
   const [theme, setTheme] = useState<ThemeType>("modern");
 
   // Style settings
   const [primaryColor, setPrimaryColor] = useState(
-    tenant?.primaryColor || "#2563eb"
+    tenant?.primaryColor || "#2563eb",
   );
   const [fontFamily, setFontFamily] = useState("'Inter', sans-serif");
 
@@ -114,15 +120,20 @@ export function useEditPdfPage() {
 
             setProposal(p);
 
-            // 1. Check if we have saved PDF settings in the proposal
+            // ORDEM DE PRIORIDADE NO CARREGAMENTO DAS CONFIGURAÇÕES:
+            // 1. pdfSettings da proposta (se existir) - Configurações específicas desta proposta
+            // 2. proposalDefaults do tenant - Configurações padrão para novas propostas
+            // 3. Configurações genéricas padrão do sistema
+
             if (p.pdfSettings) {
+              // 1. Proposta tem configurações próprias (prioridade máxima)
               const s = p.pdfSettings as PdfSettings;
 
               // We MUST set a template object because the render guard requires it
               const baseTemplate = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                s.primaryColor || tenant.primaryColor || "#2563eb"
+                s.primaryColor || tenant.primaryColor || "#2563eb",
               );
               setTemplate(baseTemplate);
 
@@ -139,7 +150,7 @@ export function useEditPdfPage() {
               if (s.coverImage) setCoverImage(s.coverImage);
               if (s.coverLogo) setCoverLogo(s.coverLogo);
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
-              
+
               if (s.logoStyle) setLogoStyle(s.logoStyle);
 
               if (s.coverImageOpacity !== undefined)
@@ -151,13 +162,16 @@ export function useEditPdfPage() {
 
               // Load sections
               if (s.sections && s.sections.length > 0) {
-                setSections(s.sections as PdfSection[]);
+                // Hydrate saved sections to ensure dynamic text is up to date
+                setSections(hydrateSections(s.sections as PdfSection[], p));
               } else {
                 const t = ProposalDefaults.createDefaultTemplate(
                   tenant.id,
                   tenant.name,
-                  s.primaryColor || tenant.primaryColor || "#2563eb"
+                  s.primaryColor || tenant.primaryColor || "#2563eb",
                 );
+                // Override payment terms with dynamic ones
+                t.paymentTerms = generatePaymentTerms(p);
                 setSections(createDefaultSections(t, t.primaryColor));
               }
 
@@ -167,12 +181,70 @@ export function useEditPdfPage() {
               } else {
                 setCoverElements(createDefaultCoverElements());
               }
+            } else if (tenant.proposalDefaults) {
+              // 2. No proposal-specific settings, but tenant has saved defaults
+              const s = tenant.proposalDefaults as PdfSettings;
+
+              const baseTemplate = ProposalDefaults.createDefaultTemplate(
+                tenant.id,
+                tenant.name,
+                s.primaryColor || tenant.primaryColor || "#2563eb",
+              );
+              setTemplate(baseTemplate);
+
+              // Load tenant default settings
+              setCoverTitle(p.title || "");
+              if (s.primaryColor) {
+                setPrimaryColor(s.primaryColor);
+              } else {
+                setPrimaryColor(tenant.primaryColor || "#2563eb");
+              }
+              if (s.fontFamily) setFontFamily(s.fontFamily);
+              if (s.theme) setTheme(s.theme as ThemeType);
+
+              if (s.coverImage) setCoverImage(s.coverImage);
+              if (s.coverLogo) setCoverLogo(s.coverLogo);
+              else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
+
+              if (s.logoStyle) setLogoStyle(s.logoStyle);
+
+              if (s.coverImageOpacity !== undefined)
+                setCoverImageOpacity(s.coverImageOpacity);
+              if (s.coverImageFit) setCoverImageFit(s.coverImageFit);
+              if (s.coverImagePosition)
+                setCoverImagePosition(s.coverImagePosition);
+              if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+
+              // Load sections from tenant defaults
+              if (s.sections && s.sections.length > 0) {
+                // Hydrate tenant default sections
+                setSections(hydrateSections(s.sections as PdfSection[], p));
+              } else {
+                // Inject dynamic payment terms into baseTemplate before creating sections
+                const dynamicTemplate = {
+                  ...baseTemplate,
+                  paymentTerms: generatePaymentTerms(p),
+                };
+                setSections(
+                  createDefaultSections(
+                    dynamicTemplate,
+                    dynamicTemplate.primaryColor,
+                  ),
+                );
+              }
+
+              // Load cover elements from tenant defaults
+              if (s.coverElements && s.coverElements.length > 0) {
+                setCoverElements(s.coverElements);
+              } else {
+                setCoverElements(createDefaultCoverElements());
+              }
             } else {
-              // 2. No saved settings, initialize from Defaults
+              // 3. No saved settings at all, initialize from generic Defaults
               const t = ProposalDefaults.createDefaultTemplate(
                 tenant.id,
                 tenant.name,
-                tenant.primaryColor || "#2563eb"
+                tenant.primaryColor || "#2563eb",
               );
 
               if (t) {
@@ -190,6 +262,10 @@ export function useEditPdfPage() {
                 setCoverImagePosition("center");
                 setRepeatHeader(false);
 
+                setRepeatHeader(false);
+
+                // Dynamic terms
+                t.paymentTerms = generatePaymentTerms(p);
                 setSections(createDefaultSections(t, t.primaryColor));
                 setCoverElements(createDefaultCoverElements());
               }
@@ -202,11 +278,26 @@ export function useEditPdfPage() {
       };
       fetchProposal();
     }
-  }, [proposalId, tenant, canAccessPage, isPlanLoading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalId, tenant?.id, canAccessPage, isPlanLoading]);
 
-  const handleSave = async () => {
+  const handleSave = async (optionsOrEvent?: unknown) => {
+    const suppressToast =
+      typeof optionsOrEvent === "object" &&
+      optionsOrEvent !== null &&
+      "suppressToast" in optionsOrEvent
+        ? (optionsOrEvent as { suppressToast?: boolean }).suppressToast
+        : false;
+
+    const suppressLoading =
+      typeof optionsOrEvent === "object" &&
+      optionsOrEvent !== null &&
+      "suppressLoading" in optionsOrEvent
+        ? (optionsOrEvent as { suppressLoading?: boolean }).suppressLoading
+        : false;
+
     if (!proposal || !template) return;
-    setIsSaving(true);
+    if (!suppressLoading) setIsSaving(true);
 
     try {
       const cleanForFirestore = (obj: unknown): unknown => {
@@ -254,23 +345,27 @@ export function useEditPdfPage() {
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
         alert(
-          `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`
+          `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`,
         );
         setIsSaving(false);
         return;
       }
 
+      // SALVA APENAS ESTA PROPOSTA ESPECÍFICA
+      // Não altera configurações padrão do tenant ou de outras propostas
       await ProposalService.updateProposal(proposal.id, {
         title: coverTitle,
         pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
       });
 
-      toast.success("Proposta e personalizações salvas com sucesso!");
+      if (!suppressToast) {
+        toast.success("Proposta e personalizações salvas com sucesso!");
+      }
     } catch (error) {
       console.error(error);
       alert("Erro ao salvar");
     } finally {
-      setIsSaving(false);
+      if (!suppressLoading) setIsSaving(false);
     }
   };
 
@@ -325,6 +420,8 @@ export function useEditPdfPage() {
             windowWidth: PAGE_WIDTH_PX,
             windowHeight: PAGE_HEIGHT_PX,
             onclone: (clonedDoc) => {
+              console.log('🔧 [PDF DEBUG] Starting onclone fixes...');
+              
               const allElements = clonedDoc.querySelectorAll("*");
               allElements.forEach((el) => {
                 const element = el as HTMLElement;
@@ -354,6 +451,64 @@ export function useEditPdfPage() {
                   element.style.boxShadow = "none";
                 }
               });
+
+              // FIX 1: EXTRA TAG ALIGNMENT - Find by searching for the exact image
+              console.log('🔧 [PDF DEBUG] Looking for EXTRA tag images...');
+              const extraImages = clonedDoc.querySelectorAll('img[alt="EXTRA"]');
+              console.log(`🔧 [PDF DEBUG] Found ${extraImages.length} EXTRA tag images`);
+              
+              extraImages.forEach((img, index) => {
+                console.log(`🔧 [PDF DEBUG] Processing EXTRA image ${index + 1}`);
+                const imgEl = img as HTMLElement;
+                const tdParent = imgEl.closest('td');
+                const trParent = imgEl.closest('tr');
+                
+                if (tdParent && trParent) {
+                  console.log(`🔧 [PDF DEBUG] Found TD and TR parents for EXTRA ${index + 1}`);
+                  // Force the entire row to have middle alignment
+                  trParent.style.verticalAlign = 'middle';
+                  
+                  // Find all TDs in this row and force middle alignment
+                  const allTdsInRow = trParent.querySelectorAll('td');
+                  allTdsInRow.forEach((td) => {
+                    const tdEl = td as HTMLElement;
+                    tdEl.style.verticalAlign = 'middle';
+                    tdEl.style.lineHeight = 'normal';
+                  });
+                  
+                  // Force the image itself
+                  imgEl.style.verticalAlign = 'middle';
+                  imgEl.style.display = 'block';
+                  console.log(`🔧 [PDF DEBUG] Applied middle alignment to EXTRA ${index + 1}`);
+                } else {
+                  console.log(`🔧 [PDF DEBUG] WARNING: Could not find TD/TR parent for EXTRA ${index + 1}`);
+                }
+              });
+
+              // FIX 2: SISTEMA TITLE SPACING - Find by looking for the spacer div
+              console.log('🔧 [PDF DEBUG] Looking for sistema title spacers...');
+              const spacerDivs = clonedDoc.querySelectorAll('div[style*="height: 12px"]');
+              console.log(`🔧 [PDF DEBUG] Found ${spacerDivs.length} spacer divs`);
+              
+              spacerDivs.forEach((div, index) => {
+                const divEl = div as HTMLElement;
+                console.log(`🔧 [PDF DEBUG] Processing spacer ${index + 1}`);
+                // Force the spacer to be visible
+                divEl.style.height = '12px';
+                divEl.style.minHeight = '12px';
+                divEl.style.display = 'block';
+                divEl.style.width = '100%';
+                divEl.style.clear = 'both';
+                divEl.style.fontSize = '0';
+                divEl.style.lineHeight = '0';
+                // Add a non-breaking space to force it to occupy space
+                if (!divEl.innerHTML || divEl.innerHTML.trim() === '') {
+                  divEl.innerHTML = '&nbsp;';
+                }
+                console.log(`🔧 [PDF DEBUG] Applied spacing to spacer ${index + 1}`);
+              });
+              
+              console.log('🔧 [PDF DEBUG] Onclone fixes completed');
             },
           });
 
@@ -370,7 +525,7 @@ export function useEditPdfPage() {
       }
 
       pdf.save(
-        `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`
+        `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`,
       );
     } catch (error) {
       console.error(error);
@@ -435,5 +590,77 @@ export function useEditPdfPage() {
     // Actions
     handleSave,
     handleGeneratePdf,
+    handleSaveDefault: async () => {
+      if (!tenant || !proposal) return;
+      setIsSavingDefault(true);
+      try {
+        const cleanForFirestore = (obj: unknown): unknown => {
+          if (obj === undefined) return null;
+          if (obj === null) return null;
+          if (obj instanceof Blob || obj instanceof File) return null;
+          if (obj instanceof Element) return null;
+          if (typeof obj !== "object") return obj;
+
+          // Check for nativeEvent (React SyntheticEvent)
+          const objRecord = obj as Record<string, unknown>;
+          if ("nativeEvent" in objRecord) return null;
+
+          if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
+          if (obj instanceof Date) return obj.toISOString();
+
+          const newObj: Record<string, unknown> = {};
+          for (const key in objRecord) {
+            if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
+              const val = objRecord[key];
+              if (typeof val === "function" || typeof val === "symbol")
+                continue;
+              newObj[key] = cleanForFirestore(val);
+            }
+          }
+          return newObj;
+        };
+
+        const settings = {
+          theme,
+          primaryColor,
+          fontFamily,
+          // IMPORTANTE: coverTitle NÃO é salvo como padrão pois é específico de cada proposta
+          coverImage,
+          coverLogo,
+          logoStyle,
+          coverImageOpacity,
+          coverImageFit,
+          coverImagePosition,
+          repeatHeader,
+          sections,
+          coverElements,
+        };
+
+        const sanitizedSettings = cleanForFirestore(settings);
+
+        // PASSO 1: Salva as configurações como padrão no tenant
+        // Essas configurações serão aplicadas automaticamente em NOVAS propostas criadas no futuro
+        const { TenantService } = await import("@/services/tenant-service");
+        await TenantService.updateTenant(tenant.id, {
+          proposalDefaults: sanitizedSettings as Record<string, unknown>,
+        });
+
+        // PASSO 2: Salva as configurações na proposta ATUAL também (silenciosamente)
+        // Isso garante que a proposta atual mantenha essas configurações específicas
+        await handleSave({ suppressToast: true, suppressLoading: true });
+
+        // PASSO 3: Atualiza o contexto do tenant no frontend
+        // Isso faz com que novas propostas criadas nesta sessão já usem as novas configurações
+        refreshTenant();
+
+        toast.success("Configurações salvas como padrão para novas propostas!");
+      } catch (error) {
+        console.error("Error saving defaults:", error);
+        toast.error("Erro ao salvar configurações padrão");
+      } finally {
+        setIsSavingDefault(false);
+      }
+    },
+    isSavingDefault,
   };
 }

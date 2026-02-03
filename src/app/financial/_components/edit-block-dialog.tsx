@@ -10,19 +10,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Transaction } from "@/services/transaction-service";
 
 interface EditBlockDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  transaction: Transaction | null;
 }
 
-export function EditBlockDialog({
-  open,
-  onOpenChange,
-  transaction,
-}: EditBlockDialogProps) {
+export function EditBlockDialog({ open, onOpenChange }: EditBlockDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>

@@ -47,7 +47,8 @@ export default function RootLayout({
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
     pathname === "/403" ||
-    pathname === "/subscription-blocked";
+    pathname === "/subscription-blocked" ||
+    pathname.startsWith("/share/"); // Public shared proposal pages
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   return (
@@ -57,6 +58,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           {isLandingPage ? (
+            <main className="min-h-screen">{children}</main>
+          ) : pathname.startsWith("/share/") ? (
+            // Public shared proposal pages - no authentication required
             <main className="min-h-screen">{children}</main>
           ) : (
             <AuthProvider>
@@ -71,20 +75,19 @@ export default function RootLayout({
                       <div className="flex h-screen overflow-hidden bg-sidebar">
                         <Sidebar onExpandChange={setSidebarExpanded} />
                         <div
-                          className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background rounded-l-[2rem] my-1 mr-1"
+                          className="flex-1 flex flex-col bg-background rounded-l-[2rem] mr-1 ml-1 overflow-hidden transition-[margin-left] duration-300 ease-out"
                           style={{
                             marginLeft: sidebarExpanded
                               ? EXPANDED_WIDTH
                               : COLLAPSED_WIDTH,
                           }}
                         >
-                          <Header
-                            sidebarWidth={
-                              sidebarExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH
-                            }
-                          />
+                          <Header sidebarWidth={0} />
                           <SubscriptionGuard>
-                            <main className="flex-1 mt-16 p-8 overflow-y-auto">
+                            <main
+                              id="main-content"
+                              className="flex-1 p-8 overflow-y-auto"
+                            >
                               {children}
                             </main>
                           </SubscriptionGuard>

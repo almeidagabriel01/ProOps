@@ -21,7 +21,7 @@ interface StepWizardContextType {
 }
 
 const StepWizardContext = React.createContext<StepWizardContextType | null>(
-  null
+  null,
 );
 
 export function useStepWizard() {
@@ -50,6 +50,7 @@ interface StepWizardProps {
   className?: string;
   indicatorContainerClassName?: string;
   allowClickAhead?: boolean; // When true, allows clicking on any step (useful for edit mode)
+  stepValidators?: Record<number, () => boolean | Promise<boolean>>; // Validators for each step index
 }
 
 export function StepWizard({
@@ -59,14 +60,45 @@ export function StepWizard({
   className,
   indicatorContainerClassName,
   allowClickAhead = false,
+  stepValidators,
 }: StepWizardProps) {
   const [currentStep, setCurrentStep] = React.useState(0);
   const [maxVisitedStep, setMaxVisitedStep] = React.useState(0);
   const totalSteps = steps.length;
 
-  const goToStep = (step: number) => {
+  // Utility to scroll the main content container to top
+  const scrollToTop = React.useCallback(() => {
+    // Try to find the main scrollable container first
+    const mainContent = document.getElementById("main-content");
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      // Fallback to window scroll
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
+  const goToStep = async (step: number) => {
     if (step >= 0 && step < totalSteps) {
+      // If moving forward and validators exist, validate current step
+      if (step > currentStep && stepValidators) {
+        const validator = stepValidators[currentStep];
+
+        if (validator) {
+          try {
+            const isValid = await validator();
+            if (!isValid) {
+              return; // Validation failed, don't proceed
+            }
+          } catch (error) {
+            console.error("Step validation error:", error);
+            return; // Validation error, don't proceed
+          }
+        }
+      }
+      
       setCurrentStep(step);
+      scrollToTop();
     }
   };
 
@@ -75,6 +107,7 @@ export function StepWizard({
       const nextStepIndex = currentStep + 1;
       setCurrentStep(nextStepIndex);
       setMaxVisitedStep((prev) => Math.max(prev, nextStepIndex));
+      scrollToTop();
     } else {
       onComplete?.();
     }
@@ -83,6 +116,7 @@ export function StepWizard({
   const prevStep = () => {
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
+      scrollToTop();
     }
   };
 
@@ -145,19 +179,25 @@ function StepIndicator({
 }: StepIndicatorProps) {
   return (
     <div className={cn("relative mx-auto", containerClassName)}>
-      {/* Progress bar background */}
-      <div className="absolute top-6 left-0 right-0 h-0.5 bg-primary/20" />
-
-      {/* Progress bar fill */}
-      <div
-        className="absolute top-6 left-0 h-0.5 bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
-        style={{
-          width: `${(currentStep / (steps.length - 1)) * 100}%`,
-        }}
-      />
-
       {/* Steps */}
       <div className="relative flex justify-between">
+        {/* Progress bar background - positioned between step centers */}
+        <div 
+          className="absolute top-6 h-0.5 bg-primary/20"
+          style={{
+            left: 'calc(24px)',
+            right: 'calc(24px)',
+          }}
+        />
+
+        {/* Progress bar fill - grows from first step center to current step center */}
+        <div
+          className="absolute top-6 h-0.5 bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+          style={{
+            left: 'calc(24px)',
+            width: currentStep === 0 ? '0%' : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
+          }}
+        />
         {steps.map((step, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;
@@ -174,7 +214,7 @@ function StepIndicator({
               disabled={!canClick}
               className={cn(
                 "flex flex-col items-center group transition-all duration-300",
-                canClick ? "cursor-pointer" : "cursor-not-allowed"
+                canClick ? "cursor-pointer" : "cursor-not-allowed",
               )}
             >
               {/* Step circle */}
@@ -183,15 +223,15 @@ function StepIndicator({
                   "relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ease-out",
                   "border-2 shadow-sm",
                   isCompleted &&
-                    "bg-gradient-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
+                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
                   isCurrent &&
-                    "bg-gradient-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
+                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
                   isPending &&
                     !allowClickAhead &&
                     "bg-primary/5 border-primary/30 text-primary/50",
                   isPending &&
                     allowClickAhead &&
-                    "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10"
+                    "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10",
                 )}
               >
                 {isCompleted ? (
@@ -216,7 +256,7 @@ function StepIndicator({
                     isCurrent && "text-primary",
                     isCompleted && "text-foreground",
                     isPending && "text-primary/50",
-                    isPending && allowClickAhead && "group-hover:text-primary"
+                    isPending && allowClickAhead && "group-hover:text-primary",
                   )}
                 >
                   {step.title}
@@ -257,7 +297,7 @@ function StepContent({ index, currentStep, children }: StepContentProps) {
           ? "opacity-100 translate-x-0 pointer-events-auto"
           : "opacity-0 absolute inset-0 pointer-events-none",
         !isActive && direction > 0 && "translate-x-8",
-        !isActive && direction < 0 && "-translate-x-8"
+        !isActive && direction < 0 && "-translate-x-8",
       )}
       aria-hidden={!isActive}
     >
@@ -352,11 +392,11 @@ export function StepNavigation({
           disabled={isSubmitting || isValidating}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
-            "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+            "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2"
+            "flex items-center gap-2",
           )}
         >
           {isSubmitting || isValidating ? (
@@ -378,11 +418,11 @@ export function StepNavigation({
           disabled={isValidating}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
-            "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground",
+            "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2"
+            "flex items-center gap-2",
           )}
         >
           {isValidating ? (
@@ -416,7 +456,7 @@ export function StepCard({ className, children, ...props }: StepCardProps) {
       className={cn(
         "rounded-2xl border border-border/50 bg-card p-6 sm:p-8",
         "shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500",
-        className
+        className,
       )}
       {...props}
     >

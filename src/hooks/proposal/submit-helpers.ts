@@ -4,8 +4,9 @@ import {
   ProposalService,
 } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
-import { ProposalStatus } from "@/types/proposal";
+import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
 import { toast } from "react-toastify";
+import { getPrimaryAmbiente, getAllProductsFromSistema } from "@/lib/sistema-migration-utils";
 
 interface CreateProposalPayload {
   formData: Partial<Proposal>;
@@ -39,21 +40,45 @@ export function sanitizeProducts(products: ProposalProduct[]) {
     total: typeof p.total === "number" && !isNaN(p.total) ? p.total : 0,
     manufacturer: p.manufacturer,
     category: p.category,
-    systemInstanceId: p.systemInstanceId,
+    // Support both new and legacy format
+    ambienteInstanceId: p.ambienteInstanceId || p.systemInstanceId,
+    systemInstanceId: p.systemInstanceId || p.ambienteInstanceId,
     isExtra: p.isExtra,
   }));
 }
 
-// Transform sistemas for API
-export function transformSistemas(sistemas: ProposalSistema[]) {
-  return sistemas.map((s) => ({
-    sistemaId: s.sistemaId,
-    sistemaName: s.sistemaName,
-    ambienteId: s.ambienteId,
-    ambienteName: s.ambienteName,
-    description: s.description,
-    productIds: s.products.map((p) => p.productId),
-  }));
+// Transform sistemas for API - outputs new format with ambientes array
+export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemInstance[] {
+  return sistemas.map((s) => {
+    const primaryAmbiente = getPrimaryAmbiente(s);
+    const allProducts = getAllProductsFromSistema(s);
+    
+    // Build ambientes array from new or legacy format
+    const ambientes = s.ambientes && s.ambientes.length > 0
+      ? s.ambientes.map(a => ({
+          ambienteId: a.ambienteId,
+          ambienteName: a.ambienteName,
+          productIds: a.products.map(p => p.productId),
+        }))
+      : primaryAmbiente
+        ? [{
+            ambienteId: primaryAmbiente.ambienteId,
+            ambienteName: primaryAmbiente.ambienteName,
+            productIds: primaryAmbiente.products.map(p => p.productId),
+          }]
+        : [];
+
+    return {
+      sistemaId: s.sistemaId,
+      sistemaName: s.sistemaName,
+      description: s.description,
+      ambientes,
+      // Legacy fields for backward compat
+      ambienteId: primaryAmbiente?.ambienteId,
+      ambienteName: primaryAmbiente?.ambienteName,
+      productIds: allProducts.map(p => p.productId),
+    };
+  });
 }
 
 // Update existing proposal
@@ -73,15 +98,22 @@ export async function updateProposal(
 
   const productsForUpdate = sanitizeProducts(selectedProducts);
 
+  // Ensure empty fields are explicitly saved as empty strings, not null/undefined
+  // This prevents Firestore from skipping the field or keeping old values
+  const sanitizeStringField = (value: string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    return String(value);
+  };
+
   await ProposalService.updateProposal(proposalId, {
     title: formData.title,
     clientId: selectedClientId,
     clientName: formData.clientName,
-    clientEmail: formData.clientEmail || undefined,
-    clientPhone: formData.clientPhone || undefined,
-    clientAddress: formData.clientAddress || undefined,
-    validUntil: formData.validUntil || undefined,
-    customNotes: formData.customNotes || undefined,
+    clientEmail: sanitizeStringField(formData.clientEmail),
+    clientPhone: sanitizeStringField(formData.clientPhone),
+    clientAddress: sanitizeStringField(formData.clientAddress),
+    validUntil: sanitizeStringField(formData.validUntil),
+    customNotes: sanitizeStringField(formData.customNotes),
     discount: formData.discount || 0,
     extraExpense: formData.extraExpense || 0,
     products: productsForUpdate,
@@ -97,6 +129,8 @@ export async function updateProposal(
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    // PDF display settings (persisted for correct PDF rendering)
+    pdfSettings: formData.pdfSettings || undefined,
   });
 
   toast.success("Proposta atualizada com sucesso!");
@@ -118,14 +152,21 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
   const totalValue =
     typeof safeTotal === "number" && !isNaN(safeTotal) ? safeTotal : 0;
 
+  // Ensure empty fields are explicitly saved as empty strings, not null/undefined
+  // This prevents Firestore from skipping the field or keeping old values
+  const sanitizeStringField = (value: string | null | undefined): string => {
+    if (value === null || value === undefined) return "";
+    return String(value);
+  };
+
   return {
     title: formData.title || "", // Allow empty title for drafts (backend handles default)
     clientId: clientId || "", // Allow empty client for drafts
     clientName: formData.clientName || "",
-    clientEmail: formData.clientEmail || undefined,
-    clientPhone: formData.clientPhone || undefined,
-    clientAddress: formData.clientAddress || undefined,
-    validUntil: formData.validUntil || undefined,
+    clientEmail: sanitizeStringField(formData.clientEmail),
+    clientPhone: sanitizeStringField(formData.clientPhone),
+    clientAddress: sanitizeStringField(formData.clientAddress),
+    validUntil: sanitizeStringField(formData.validUntil),
     totalValue: totalValue,
     discount: formData.discount || 0,
     extraExpense: formData.extraExpense || 0,
@@ -146,5 +187,7 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    // PDF display settings (persisted for correct PDF rendering)
+    pdfSettings: formData.pdfSettings || undefined,
   };
 }

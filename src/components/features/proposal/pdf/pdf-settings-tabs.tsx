@@ -110,7 +110,10 @@ export function PdfSettingsTabs({
                 onChange={(e) =>
                   setSettings((s) => ({
                     ...s,
-                    logoStyle: e.target.value as any,
+                    logoStyle: e.target.value as
+                      | "original"
+                      | "rounded"
+                      | "circle",
                   }))
                 }
               >

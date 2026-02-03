@@ -6,14 +6,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Proposal, ProposalStatus } from "@/types/proposal";
+import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
+import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
+import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Plus,
   FileText,
-  Copy,
-  Trash2,
-  Eye,
   Search,
   ChevronDown,
   Loader2,
@@ -21,7 +20,11 @@ import {
   Send,
   XCircle,
   Clock,
+  Copy,
+  Eye,
   FileDown,
+  Trash2,
+  FilePen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -71,7 +74,15 @@ import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { ProposalPdfSettings, Tenant } from "@/types";
+import { Tenant } from "@/types";
+import { SharedProposalService } from "@/services/shared-proposal-service";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 
@@ -88,8 +99,7 @@ function PdfDownloader({
 }) {
   const { handleGenerate, isGenerating } = usePdfGenerator({
     proposal: proposal || {},
-    settings: (proposal?.pdfSettings as ProposalPdfSettings) || {},
-    includeCover: true,
+
     setIsOpen: (v) => !v && onClose(),
   });
 
@@ -131,7 +141,6 @@ function PdfDownloader({
         proposal={proposal}
         template={template}
         tenant={tenant}
-        customSettings={proposal.pdfSettings as ProposalPdfSettings}
         showCover={true}
         noMargins={true}
       />
@@ -154,6 +163,16 @@ export default function ProposalsPage() {
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [sharingId, setSharingId] = React.useState<string | null>(null);
+  const [shareLink, setShareLink] = React.useState<string | null>(null);
+  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
+  const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
+    string | null
+  >(null);
+  // Cache for attachments to prevent fetchProposals from overwriting local updates
+  const attachmentsCacheRef = React.useRef<Map<string, ProposalAttachment[]>>(
+    new Map(),
+  );
 
   const handleEdit = (id: string) => {
     setEditingId(id);
@@ -162,6 +181,42 @@ export default function ProposalsPage() {
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
+  };
+
+  // Check if a proposal has all required fields for PDF generation
+  const canGeneratePdf = (proposal: Proposal): boolean => {
+    const hasValidTitle =
+      proposal.title &&
+      proposal.title.trim() !== "" &&
+      proposal.title !== "(Rascunho)";
+    const hasValidClient =
+      proposal.clientName &&
+      proposal.clientName.trim() !== "" &&
+      proposal.clientName !== "(Rascunho)";
+    const hasProducts = proposal.products && proposal.products.length > 0;
+    return Boolean(hasValidTitle && hasValidClient && hasProducts);
+  };
+
+  const handleShare = async (proposalId: string) => {
+    setSharingId(proposalId);
+    try {
+      const result = await SharedProposalService.generateShareLink(proposalId);
+      setShareLink(result.shareUrl);
+      setIsShareDialogOpen(true);
+      toast.success("Link gerado com sucesso!");
+    } catch (error) {
+      console.error("Error generating share link:", error);
+      toast.error("Erro ao gerar link de compartilhamento");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (shareLink) {
+      navigator.clipboard.writeText(shareLink);
+      toast.success("Link copiado para a área de transferência!");
+    }
   };
 
   // Filter proposals based on search term
@@ -216,6 +271,12 @@ export default function ProposalsPage() {
           }
         }
 
+        // Sort by createdAt descending (most recent first)
+        data.sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime(),
+        );
         setProposals(data);
       } catch (error) {
         console.error("Failed to fetch proposals", error);
@@ -272,13 +333,14 @@ export default function ProposalsPage() {
         clientPhone: original.clientPhone,
         clientAddress: original.clientAddress,
         validUntil: original.validUntil,
-        status: "draft",
+        status: "in_progress",
         products: original.products || [],
         sistemas: original.sistemas || [],
         customNotes: original.customNotes,
         discount: original.discount || 0,
         totalValue: original.totalValue || 0,
         sections: original.sections || [],
+        pdfSettings: original.pdfSettings,
       });
 
       const data = await ProposalService.getProposals(tenant.id);
@@ -393,7 +455,7 @@ export default function ProposalsPage() {
         {proposals.length > 0 && (
           <div className="max-w-md">
             <Input
-              placeholder="Buscar por título, cliente ou status..."
+              placeholder="Buscar por título, contato ou status..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={<Search className="w-4 h-4" />}
@@ -440,7 +502,7 @@ export default function ProposalsPage() {
             {/* Header */}
             <div className="grid grid-cols-7 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div>Título</div>
-              <div className="text-center">Cliente</div>
+              <div className="text-center">Contato</div>
               <div className="text-center">Status</div>
               <div className="text-center">Ambiente</div>
               <div className="text-center">Sistema</div>
@@ -587,23 +649,33 @@ export default function ProposalsPage() {
                       {formatDate(proposal.validUntil)}
                     </div>
                     <div className="flex items-center justify-end gap-1">
+                      {/* Ver PDF */}
                       <Link href={`/proposals/${proposal.id}/view`}>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
                           title="Ver PDF"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
                       </Link>
+
+                      {/* Baixar PDF */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        title={
+                          canGeneratePdf(proposal)
+                            ? "Baixar PDF"
+                            : "Preencha título, cliente e produtos para baixar o PDF"
+                        }
                         onClick={() => handleDownload(proposal)}
-                        disabled={downloadingId === proposal.id}
-                        title="Baixar PDF"
+                        disabled={
+                          downloadingId === proposal.id ||
+                          !canGeneratePdf(proposal)
+                        }
                       >
                         {downloadingId === proposal.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -611,11 +683,34 @@ export default function ProposalsPage() {
                           <FileDown className="w-4 h-4" />
                         )}
                       </Button>
+
+                      {/* Editar PDF */}
                       {canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          title={
+                            canGeneratePdf(proposal)
+                              ? "Editar PDF"
+                              : "Preencha título, cliente e produtos para editar o PDF"
+                          }
+                          disabled={!canGeneratePdf(proposal)}
+                          onClick={() =>
+                            canGeneratePdf(proposal) &&
+                            router.push(`/proposals/${proposal.id}/edit-pdf`)
+                          }
+                        >
+                          <FilePen className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {/* Editar */}
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
                           title="Editar"
                           onClick={() => handleEdit(proposal.id)}
                           disabled={editingId === proposal.id}
@@ -627,33 +722,33 @@ export default function ProposalsPage() {
                           )}
                         </Button>
                       )}
-                      {canCreate && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleDuplicate(proposal.id)}
-                          disabled={duplicatingId === proposal.id}
-                          title="Duplicar"
-                        >
-                          {duplicatingId === proposal.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </Button>
-                      )}
+
+                      {/* Excluir */}
                       {canDelete && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteId(proposal.id)}
+                          className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                           title="Excluir"
+                          onClick={() => setDeleteId(proposal.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
+
+                      <ProposalActionsDropdown
+                        proposal={proposal}
+                        canEdit={canEdit}
+                        canCreate={canCreate}
+                        canGeneratePdf={canGeneratePdf(proposal)}
+                        isSharing={sharingId === proposal.id}
+                        isDuplicating={duplicatingId === proposal.id}
+                        onShare={() => handleShare(proposal.id)}
+                        onDuplicate={() => handleDuplicate(proposal.id)}
+                        onAttachments={() =>
+                          setAttachmentsProposalId(proposal.id)
+                        }
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -670,6 +765,75 @@ export default function ProposalsPage() {
         isOpen={!!downloadingId}
         onClose={() => setDownloadingId(null)}
       />
+
+      {/* Share Link Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Compartilhar Proposta</DialogTitle>
+            <DialogDescription>
+              Copie o link abaixo para compartilhar esta proposta com seu
+              cliente. O link é válido por 30 dias.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2">
+            <div className="grid flex-1 gap-2">
+              <Input
+                id="share-link"
+                value={shareLink || ""}
+                readOnly
+                className="font-mono text-sm"
+              />
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              onClick={handleCopyLink}
+              title="Copiar link"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attachments Dialog */}
+      {attachmentsProposalId &&
+        (() => {
+          const baseProposal = proposals.find(
+            (p) => p.id === attachmentsProposalId,
+          );
+          if (!baseProposal) return null;
+          const cachedAttachments = attachmentsCacheRef.current.get(
+            attachmentsProposalId,
+          );
+          const proposalWithCachedAttachments = {
+            ...baseProposal,
+            attachments: cachedAttachments ?? baseProposal.attachments ?? [],
+          };
+          return (
+            <ProposalAttachmentsDialog
+              proposal={proposalWithCachedAttachments}
+              isOpen={!!attachmentsProposalId}
+              onClose={() => setAttachmentsProposalId(null)}
+              onUpdate={(newAttachments) => {
+                // Update cache to persist across fetchProposals
+                attachmentsCacheRef.current.set(
+                  attachmentsProposalId,
+                  newAttachments,
+                );
+                // Update state
+                setProposals((prev) =>
+                  prev.map((p) =>
+                    p.id === attachmentsProposalId
+                      ? { ...p, attachments: newAttachments }
+                      : p,
+                  ),
+                );
+              }}
+            />
+          );
+        })()}
     </>
   );
 }

@@ -16,20 +16,20 @@ export const updateTenant = async (req: Request, res: Response) => {
 
     const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
       userId,
-      req.user
+      req.user,
     );
 
     // Check authorization: only master of the tenant or super admin can update
     if (!isSuperAdmin && !isMaster) {
-      return res.status(403).json({ 
-        message: "Apenas administradores podem editar dados da organização." 
+      return res.status(403).json({
+        message: "Apenas administradores podem editar dados da organização.",
       });
     }
 
     // For masters, ensure they can only edit their own tenant
     if (!isSuperAdmin && tenantId !== id) {
-      return res.status(403).json({ 
-        message: "Você só pode editar sua própria organização." 
+      return res.status(403).json({
+        message: "Você só pode editar sua própria organização.",
       });
     }
 
@@ -41,7 +41,13 @@ export const updateTenant = async (req: Request, res: Response) => {
     }
 
     // Only allow safe fields to be updated
-    const allowedFields = ["name", "niche", "primaryColor", "logoUrl"];
+    const allowedFields = [
+      "name",
+      "niche",
+      "primaryColor",
+      "logoUrl",
+      "proposalDefaults",
+    ];
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),
     };

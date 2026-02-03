@@ -2,10 +2,10 @@
 
 /**
  * Enhanced Protected Route
- * 
+ *
  * Client-side route protection with permission checks.
  * Works alongside middleware for double-layer security.
- * 
+ *
  * IMPORTANT: This is a fallback. The middleware.ts provides
  * server-side protection. This handles client navigation.
  */
@@ -14,8 +14,11 @@ import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { getPageConfig, pageRequiresAuth, pageIsMasterOnly } from "@/lib/page-config";
+import {
+  getPageConfig,
+  pageRequiresAuth,
+  pageIsMasterOnly,
+} from "@/lib/page-config";
 import { AppSkeleton } from "@/components/layout/app-skeleton";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 import { TableSkeleton } from "@/components/ui/table-skeleton";
@@ -26,7 +29,7 @@ import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
-import { CustomersSkeleton } from "@/app/customers/_components/customers-skeleton";
+import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 
 // Routes that handle their own auth logic
@@ -37,13 +40,21 @@ const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing", "/auth"];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { permissions, isLoading: isPermLoading, hasPermission } = usePermissions();
+  const {
+    permissions,
+    isLoading: isPermLoading,
+    hasPermission,
+  } = usePermissions();
   const router = useRouter();
   const pathname = usePathname();
 
   // Check route type
-  const isSelfHandled = SELF_HANDLED_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"));
-  const isPublic = PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"));
+  const isSelfHandled = SELF_HANDLED_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(r + "/"),
+  );
+  const isPublic = PUBLIC_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(r + "/"),
+  );
   const pageConfig = getPageConfig(pathname);
 
   // Combine loading states
@@ -69,7 +80,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!permissions) return;
 
     // MASTER-only page check
-    if (pageIsMasterOnly(pathname) && permissions.role !== 'MASTER') {
+    if (pageIsMasterOnly(pathname) && permissions.role !== "MASTER") {
       router.push("/403");
       return;
     }
@@ -84,8 +95,18 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         return;
       }
     }
-
-  }, [user, isAuthLoading, permissions, isPermLoading, pathname, router, isSelfHandled, isPublic, pageConfig, hasPermission]);
+  }, [
+    user,
+    isAuthLoading,
+    permissions,
+    isPermLoading,
+    pathname,
+    router,
+    isSelfHandled,
+    isPublic,
+    pageConfig,
+    hasPermission,
+  ]);
 
   // Self-handled routes render immediately
   if (isSelfHandled) {
@@ -112,7 +133,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "products";
     } else if (pathname?.startsWith("/proposals")) {
       skeletonType = "proposals";
-    } else if (pathname?.startsWith("/customers")) {
+    } else if (pathname?.startsWith("/contacts")) {
       skeletonType = "clients";
     } else if (pathname?.startsWith("/settings/team")) {
       skeletonType = "team";
@@ -120,46 +141,77 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "adminOverview";
     } else if (pathname?.startsWith("/admin")) {
       skeletonType = "admin";
-    } else if (pathname === "/" && typeof window !== 'undefined') {
+    } else if (pathname === "/" && typeof window !== "undefined") {
       // Only use cache guessing for root redirect
       try {
         const cached = localStorage.getItem("erp_user_cache");
         if (cached) {
           const data = JSON.parse(cached);
-          const { role, permissions, isAdmin } = data;
+          const { permissions, isAdmin } = data;
 
           if (isAdmin || permissions?.dashboard?.canView) {
             skeletonType = "dashboard";
           } else {
-            const pages = ["proposals", "clients", "products", "financial", "profile"];
-            const firstAllowed = pages.find(page => permissions[page]?.canView === true || page === "profile");
+            const pages = [
+              "proposals",
+              "clients",
+              "products",
+              "financial",
+              "profile",
+            ];
+            const firstAllowed = pages.find(
+              (page) =>
+                permissions[page]?.canView === true || page === "profile",
+            );
             switch (firstAllowed) {
-              case "financial": skeletonType = "financial"; break;
-              case "profile": skeletonType = "profile"; break;
-              case "products": skeletonType = "products"; break;
-              case "clients": skeletonType = "clients"; break;
-              case "proposals": skeletonType = "proposals"; break;
-              default: skeletonType = "list"; break;
+              case "financial":
+                skeletonType = "financial";
+                break;
+              case "profile":
+                skeletonType = "profile";
+                break;
+              case "products":
+                skeletonType = "products";
+                break;
+              case "clients":
+                skeletonType = "clients";
+                break;
+              case "proposals":
+                skeletonType = "proposals";
+                break;
+              default:
+                skeletonType = "list";
+                break;
             }
           }
         }
-      } catch (e) { }
+      } catch {}
     } else if (pathname?.startsWith("/dashboard")) {
       skeletonType = "dashboard";
     }
 
     const renderSkeleton = () => {
       switch (skeletonType) {
-        case "dashboard": return <DashboardSkeleton />;
-        case "profile": return <ProfileSkeleton />;
-        case "addons": return <AddonsSkeleton />;
-        case "financial": return <FinancialSkeleton />;
-        case "team": return <TeamSkeleton />;
-        case "admin": return <AdminSkeleton />;
-        case "adminOverview": return <AdminOverviewSkeleton />;
-        case "products": return <ProductsSkeleton />;
-        case "proposals": return <ProposalsSkeleton />;
-        case "clients": return <CustomersSkeleton />;
+        case "dashboard":
+          return <DashboardSkeleton />;
+        case "profile":
+          return <ProfileSkeleton />;
+        case "addons":
+          return <AddonsSkeleton />;
+        case "financial":
+          return <FinancialSkeleton />;
+        case "team":
+          return <TeamSkeleton />;
+        case "admin":
+          return <AdminSkeleton />;
+        case "adminOverview":
+          return <AdminOverviewSkeleton />;
+        case "products":
+          return <ProductsSkeleton />;
+        case "proposals":
+          return <ProposalsSkeleton />;
+        case "clients":
+          return <ContactsSkeleton />;
         case "list":
         default:
           return (
@@ -177,11 +229,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       }
     };
 
-    return (
-      <AppSkeleton>
-        {renderSkeleton()}
-      </AppSkeleton>
-    );
+    return <AppSkeleton>{renderSkeleton()}</AppSkeleton>;
   }
 
   // No user after loading (redirect happening)
@@ -189,7 +237,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     // Transient state before redirect happens
     let skeletonType = "dashboard";
     // ... (same cache reading logic could be extracted but duplicating for safety in this ephemeral block)
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("erp_user_cache");
         if (cached) {
@@ -198,12 +246,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             skeletonType = "list"; // default to list if no dashboard
           }
         }
-      } catch (e) { }
+      } catch {}
     }
 
     return (
       <AppSkeleton>
-        {skeletonType === 'dashboard' ? <DashboardSkeleton /> :
+        {skeletonType === "dashboard" ? (
+          <DashboardSkeleton />
+        ) : (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -214,7 +264,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             </div>
             <TableSkeleton rowCount={8} columnCount={5} />
           </div>
-        }
+        )}
       </AppSkeleton>
     );
   }

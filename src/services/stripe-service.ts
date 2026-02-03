@@ -126,13 +126,13 @@ interface SyncResponse {
 
 export const StripeService = {
   createCheckoutSession: async (
-    data: CheckoutRequest
+    data: CheckoutRequest,
   ): Promise<CheckoutResponse> => {
     try {
       const response = await callApi<CheckoutResponse>(
         "/v1/stripe/checkout",
         "POST",
-        data
+        data,
       );
       return response;
     } catch (error) {
@@ -141,25 +141,28 @@ export const StripeService = {
     }
   },
 
-  confirmCheckout: async (_data: ConfirmRequest): Promise<ConfirmResponse> => {
+  confirmCheckout: async (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _data: ConfirmRequest,
+  ): Promise<ConfirmResponse> => {
     // NOTE: Checkout confirmation usually happens via Webhook or just on success page.
     return { success: true };
   },
 
   createAddonCheckout: async (
-    data: AddonCheckoutRequest
+    data: AddonCheckoutRequest,
   ): Promise<AddonCheckoutResponse> => {
     return StripeService.createAddonCheckoutSession(data);
   },
 
   createAddonCheckoutSession: async (
-    data: AddonCheckoutRequest
+    data: AddonCheckoutRequest,
   ): Promise<AddonCheckoutResponse> => {
     try {
       const response = await callApi<AddonCheckoutResponse>(
         "/v1/stripe/checkout-addon",
         "POST",
-        data
+        data,
       );
       return response;
     } catch (error) {
@@ -169,7 +172,8 @@ export const StripeService = {
   },
 
   confirmAddonCheckout: async (
-    _data: AddonConfirmRequest
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _data: AddonConfirmRequest,
   ): Promise<AddonConfirmResponse> => {
     return { success: true };
   },
@@ -194,7 +198,7 @@ export const StripeService = {
       const response = await callApi<PortalResponse>(
         "/v1/stripe/portal",
         "POST",
-        data
+        data,
       );
       return response;
     } catch (error) {
@@ -208,7 +212,7 @@ export const StripeService = {
       const response = await callApi<SyncResponse>(
         "/v1/stripe/sync",
         "POST",
-        {}
+        {},
       );
       return response;
     } catch (error) {
@@ -217,18 +221,24 @@ export const StripeService = {
     }
   },
 
-  updateSubscription: async (_data: UpdateRequest): Promise<UpdateResponse> => {
+  updateSubscription: async (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _data: UpdateRequest,
+  ): Promise<UpdateResponse> => {
     return { success: true, message: "Use portal" };
   },
 
-  previewProration: async (_data: PreviewRequest): Promise<PreviewResponse> => {
+  previewProration: async (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _data: PreviewRequest,
+  ): Promise<PreviewResponse> => {
     return { amountDue: 0, currency: "brl" };
   },
 
   getPrices: async (): Promise<PricesResponse> => {
     const result = await callApi<{ data: PricesResponse }>(
       "/v1/stripe/plans",
-      "GET"
+      "GET",
     );
     const data = result.data || result;
     return {

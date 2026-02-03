@@ -120,6 +120,7 @@ export const createClient = async (req: Request, res: Response) => {
       const clientData: Record<string, unknown> = {
         tenantId: targetTenantId,
         name: input.name.trim(),
+        types: input.types || ["cliente"],
         source: input.source || "manual",
         sourceId: input.sourceId || null,
         createdAt: now,
@@ -215,6 +216,7 @@ export const updateClient = async (req: Request, res: Response) => {
     if (updateData.address !== undefined)
       safeUpdate.address = updateData.address;
     if (updateData.notes !== undefined) safeUpdate.notes = updateData.notes;
+    if (updateData.types !== undefined) safeUpdate.types = updateData.types;
 
     await clientRef.update(safeUpdate);
 

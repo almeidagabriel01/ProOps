@@ -10,9 +10,34 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { Sistema } from "@/types/automation";
+import { Sistema, SistemaProduct } from "@/types/automation";
 
 const COLLECTION_NAME = "sistemas";
+
+/**
+ * Normaliza um Sistema para garantir compatibilidade entre formato novo e legado
+ */
+function normalizeSistema(id: string, data: Record<string, unknown>): Sistema {
+  // Handle migration: availableAmbienteIds (new) vs ambienteIds (legacy)
+  const availableAmbienteIds = 
+    (data.availableAmbienteIds as string[]) || 
+    (data.ambienteIds as string[]) || 
+    [];
+
+  return {
+    id,
+    tenantId: data.tenantId as string,
+    name: data.name as string,
+    description: (data.description as string) || "",
+    icon: data.icon as string | undefined,
+    availableAmbienteIds,
+    createdAt: data.createdAt as string,
+    updatedAt: data.updatedAt as string,
+    // Deprecated fields kept for backward compatibility
+    defaultProducts: (data.defaultProducts as SistemaProduct[]) || [],
+    ambienteIds: availableAmbienteIds,
+  };
+}
 
 export const SistemaService = {
   getSistemas: async (tenantId: string): Promise<Sistema[]> => {
@@ -22,12 +47,8 @@ export const SistemaService = {
         where("tenantId", "==", tenantId)
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          }) as Sistema
+      return querySnapshot.docs.map((doc) =>
+        normalizeSistema(doc.id, doc.data())
       );
     } catch (error) {
       console.error("Error fetching sistemas:", error);
@@ -35,15 +56,38 @@ export const SistemaService = {
     }
   },
 
+  /**
+   * Get sistemas that have a specific ambiente in their available list
+   */
   getSistemasByAmbiente: async (
     tenantId: string,
     ambienteId: string
   ): Promise<Sistema[]> => {
     try {
       const sistemas = await SistemaService.getSistemas(tenantId);
-      return sistemas.filter((s) => s.ambienteIds.includes(ambienteId));
+      return sistemas.filter((s) => 
+        s.availableAmbienteIds.includes(ambienteId) ||
+        // Fallback for legacy data
+        s.ambienteIds?.includes(ambienteId)
+      );
     } catch (error) {
       console.error("Error fetching sistemas by ambiente:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get ambientes available for a specific sistema
+   */
+  getAmbientesBySistema: async (
+    sistemaId: string
+  ): Promise<string[]> => {
+    try {
+      const sistema = await SistemaService.getSistemaById(sistemaId);
+      if (!sistema) return [];
+      return sistema.availableAmbienteIds || sistema.ambienteIds || [];
+    } catch (error) {
+      console.error("Error fetching ambientes by sistema:", error);
       throw error;
     }
   },
@@ -54,7 +98,7 @@ export const SistemaService = {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Sistema;
+        return normalizeSistema(docSnap.id, docSnap.data());
       }
       return null;
     } catch (error) {
@@ -65,21 +109,15 @@ export const SistemaService = {
 
   createSistema: async (data: Omit<Sistema, "id">): Promise<Sistema> => {
     try {
-      const sanitizedProducts = (data.defaultProducts || []).map((p) => ({
-        ...p,
-        quantity:
-          typeof p.quantity === "number" && !isNaN(p.quantity)
-            ? Math.max(1, p.quantity)
-            : 1,
-      }));
-
+      // For new sistemas, use availableAmbienteIds
       const payload = {
         name: data.name,
         description: data.description,
         icon: data.icon,
-        ambienteIds: data.ambienteIds || [],
-        defaultProducts: sanitizedProducts,
-        tenantId: data.tenantId, // Ensure tenantId is passed
+        availableAmbienteIds: data.availableAmbienteIds || data.ambienteIds || [],
+        tenantId: data.tenantId,
+        // Legacy: still send defaultProducts if present (for backward compat)
+        ...(data.defaultProducts?.length ? { defaultProducts: data.defaultProducts } : {}),
       };
 
       const result = await callApi<{ success: boolean; id: string; message: string }>(
@@ -91,7 +129,7 @@ export const SistemaService = {
       return {
         id: result.id,
         ...data,
-        defaultProducts: sanitizedProducts,
+        availableAmbienteIds: payload.availableAmbienteIds,
       };
     } catch (error) {
       console.error("Error creating sistema:", error);
@@ -104,7 +142,13 @@ export const SistemaService = {
     data: Partial<Omit<Sistema, "id">>
   ): Promise<void> => {
     try {
-      await callApi(`/v1/aux/sistemas/${id}`, "PUT", data);
+      // Normalize field names before sending
+      const payload = { ...data };
+      if (data.availableAmbienteIds) {
+        // Also set ambienteIds for backward compat
+        payload.ambienteIds = data.availableAmbienteIds;
+      }
+      await callApi(`/v1/aux/sistemas/${id}`, "PUT", payload);
     } catch (error) {
       console.error("Error updating sistema:", error);
       throw error;

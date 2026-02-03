@@ -22,7 +22,6 @@ import {
   Trash2,
   ArrowRightLeft,
   Plus,
-  Minus,
   Star,
   Archive,
   ArchiveRestore,

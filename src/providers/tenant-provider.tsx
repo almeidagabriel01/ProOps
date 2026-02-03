@@ -42,6 +42,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   // Use ref to track current tenant ID without causing re-renders
   const currentTenantIdRef = React.useRef<string | null>(null);
+  // Track the last refreshTrigger value to detect when explicit refresh was requested
+  const lastRefreshTriggerRef = React.useRef(0);
 
   const loadTenant = React.useCallback(async () => {
     // Check for "Viewing As" override (Super Admin feature)
@@ -62,8 +64,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Skip if we already have the correct tenant loaded
-    if (currentTenantIdRef.current === tenantIdToLoad && !isLoading) {
+    // Check if this is a forced refresh (refreshTrigger changed)
+    const isForceRefresh = refreshTrigger !== lastRefreshTriggerRef.current;
+    lastRefreshTriggerRef.current = refreshTrigger;
+
+    // Skip if we already have the correct tenant loaded AND this is not a forced refresh
+    if (
+      currentTenantIdRef.current === tenantIdToLoad &&
+      !isLoading &&
+      !isForceRefresh
+    ) {
       return;
     }
 
@@ -100,7 +110,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               const q = query(
                 collection(db, "users"),
                 where("tenantId", "==", fetchedTenant.id),
-                limit(20)
+                limit(20),
               );
 
               const usersSnap = await getDocs(q);
@@ -117,11 +127,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                   // Fallback: pick the first one or one with admin role?
                   setTenantOwner(
                     usersSnap.docs.map(
-                      (d) => ({ id: d.id, ...d.data() }) as User
-                    )[0]
+                      (d) => ({ id: d.id, ...d.data() }) as User,
+                    )[0],
                   );
                   console.warn(
-                    `Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`
+                    `Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`,
                   );
                 }
               } else {
@@ -165,7 +175,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (tenant) {
       document.documentElement.style.setProperty(
         "--primary",
-        tenant.primaryColor || "#3b82f6"
+        tenant.primaryColor || "#3b82f6",
       );
       // We could add more advanced theming here later
       const styleId = "tenant-styles";

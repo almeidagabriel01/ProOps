@@ -33,7 +33,7 @@ export function parseContent(content: string): Record<string, unknown> {
 }
 
 export function getTextStyleObj(
-  textStyle: Record<string, string | number> | undefined
+  textStyle: Record<string, string | number> | undefined,
 ) {
   if (!textStyle) return {};
   return {
@@ -80,11 +80,11 @@ export function ProductTableSection({
   const renderProductTable = (
     items: ProposalProduct[],
     title?: string,
-    sistemaInfo?: ProposalSystemInstance
+    sistemaInfo?: ProposalSystemInstance,
   ) => {
     const total = items.reduce(
       (sum, item) => sum + (item.total || item.quantity * item.unitPrice),
-      0
+      0,
     );
     return (
       <div className="mb-6">
@@ -100,10 +100,15 @@ export function ProductTableSection({
               {sistemaInfo.sistemaName}
             </div>
             <span
-              className="text-xs px-2 py-0.5 rounded-full bg-card border"
-              style={{ borderColor: primaryColor, color: primaryColor }}
+              className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-transparent"
+              style={{
+                borderColor: `${primaryColor}40`,
+                color: primaryColor,
+                border: `1px solid ${primaryColor}40`,
+                backgroundColor: `${primaryColor}10`,
+              }}
             >
-              {sistemaInfo.ambienteName}
+              📍 {sistemaInfo.ambienteName}
             </span>
           </div>
         ) : title ? (
@@ -175,10 +180,10 @@ export function ProductTableSection({
 
   if (hasSistemas) {
     const sistemaProductIds = new Set(
-      sistemas.flatMap((s) => s.productIds || [])
+      sistemas.flatMap((s) => s.productIds || []),
     );
     const extraProducts = products.filter(
-      (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId)
+      (p) => !p.systemInstanceId && !sistemaProductIds.has(p.productId),
     );
 
     return (
@@ -195,14 +200,14 @@ export function ProductTableSection({
         {sistemas.map((sistema) => {
           const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
           let sistemaProducts = products.filter(
-            (p) => p.systemInstanceId === systemInstanceId
+            (p) => p.systemInstanceId === systemInstanceId,
           );
 
           // Fallback for legacy proposals
           const isLegacy = !products.some((p) => p.systemInstanceId);
           if (sistemaProducts.length === 0 && isLegacy) {
             sistemaProducts = products.filter((p) =>
-              sistema.productIds?.includes(p.productId)
+              sistema.productIds?.includes(p.productId),
             );
           }
 
@@ -256,7 +261,7 @@ export function CustomTableSection({
 
   const total = tableItems.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,
-    0
+    0,
   );
 
   return (
@@ -326,7 +331,7 @@ interface CustomFieldBlockProps {
 
 export function CustomFieldBlock({ section }: CustomFieldBlockProps) {
   const [fieldType, setFieldType] = React.useState<CustomFieldType | null>(
-    null
+    null,
   );
   const content = parseContent(section.content);
 
@@ -334,7 +339,7 @@ export function CustomFieldBlock({ section }: CustomFieldBlockProps) {
     const load = async () => {
       if (typeof content.fieldTypeId === "string") {
         const type = await CustomFieldService.getCustomFieldTypeById(
-          content.fieldTypeId
+          content.fieldTypeId,
         );
         setFieldType(type);
       }
@@ -346,7 +351,7 @@ export function CustomFieldBlock({ section }: CustomFieldBlockProps) {
 
   const selectedItemIds = (content.selectedItems as string[]) || [];
   const selectedItems = fieldType.items.filter((i) =>
-    selectedItemIds.includes(i.id)
+    selectedItemIds.includes(i.id),
   );
   if (selectedItems.length === 0) return null;
 
@@ -397,13 +402,13 @@ export function HierarchicalFieldBlock({
     const load = async () => {
       if (typeof content.environmentTypeId === "string") {
         const e = await CustomFieldService.getCustomFieldTypeById(
-          content.environmentTypeId
+          content.environmentTypeId,
         );
         setEnvType(e);
       }
       if (typeof content.systemTypeId === "string") {
         const s = await CustomFieldService.getCustomFieldTypeById(
-          content.systemTypeId
+          content.systemTypeId,
         );
         setSysType(s);
       }
@@ -428,12 +433,12 @@ export function HierarchicalFieldBlock({
       )}
       {entries.map((entry) => {
         const envItem = envType.items.find(
-          (i) => i.id === entry.environmentItemId
+          (i) => i.id === entry.environmentItemId,
         );
         if (!envItem) return null;
 
         const systemItems = sysType.items.filter((i) =>
-          entry.systemItems.includes(i.id)
+          entry.systemItems.includes(i.id),
         );
         if (systemItems.length === 0) return null;
 

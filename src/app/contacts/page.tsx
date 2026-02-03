@@ -11,8 +11,17 @@ import { Client, ClientService } from "@/services/client-service";
 import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
-import { Plus, Users, Trash2, Edit, Search, Mail, Phone } from "lucide-react";
-import { CustomersSkeleton } from "./_components/customers-skeleton";
+import {
+  Plus,
+  Users,
+  Trash2,
+  Edit,
+  Search,
+  Mail,
+  Phone,
+  Building2,
+} from "lucide-react";
+import { ContactsSkeleton } from "./_components/contacts-skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
@@ -23,7 +32,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const sourceConfig: Record<
@@ -38,6 +46,17 @@ const sourceConfig: Record<
   financial: { label: "Financeiro", variant: "warning" },
 };
 
+const typeConfig: Record<
+  string,
+  {
+    label: string;
+    variant: "default" | "destructive" | "outline" | "success" | "warning";
+  }
+> = {
+  cliente: { label: "Cliente", variant: "default" },
+  fornecedor: { label: "Fornecedor", variant: "outline" },
+};
+
 import { usePagePermission } from "@/hooks/usePagePermission";
 
 export default function CustomersPage() {
@@ -49,6 +68,9 @@ export default function CustomersPage() {
   const isPageLoading = tenantLoading || isLoading;
   const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [typeFilter, setTypeFilter] = React.useState<
+    "todos" | "cliente" | "fornecedor"
+  >("todos");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
@@ -57,6 +79,12 @@ export default function CustomersPage() {
       if (tenant) {
         try {
           const data = await ClientService.getClients(tenant.id);
+          // Sort by createdAt descending (most recent first)
+          data.sort(
+            (a, b) =>
+              new Date(b.createdAt || 0).getTime() -
+              new Date(a.createdAt || 0).getTime(),
+          );
           setClients(data);
         } catch (error) {
           console.error("Failed to fetch clients", error);
@@ -76,11 +104,11 @@ export default function CustomersPage() {
       // Check if client is used in any proposal
       const isUsed = await ProposalService.isClientUsedInProposal(
         deleteId,
-        tenant.id
+        tenant.id,
       );
       if (isUsed) {
         toast.error(
-          "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas."
+          "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas.",
         );
         setIsDeleting(false);
         setDeleteId(null);
@@ -100,16 +128,29 @@ export default function CustomersPage() {
   };
 
   const filteredClients = React.useMemo(() => {
-    if (!searchTerm.trim()) return clients;
+    let result = clients;
 
-    const term = searchTerm.toLowerCase();
-    return clients.filter(
-      (client) =>
-        client.name.toLowerCase().includes(term) ||
-        client.email?.toLowerCase().includes(term) ||
-        client.phone?.includes(term)
-    );
-  }, [clients, searchTerm]);
+    // Filter by type
+    if (typeFilter !== "todos") {
+      result = result.filter((client) => {
+        const types = client.types || ["cliente"];
+        return types.includes(typeFilter);
+      });
+    }
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(
+        (client) =>
+          client.name.toLowerCase().includes(term) ||
+          client.email?.toLowerCase().includes(term) ||
+          client.phone?.includes(term),
+      );
+    }
+
+    return result;
+  }, [clients, searchTerm, typeFilter]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -163,7 +204,7 @@ export default function CustomersPage() {
   if (isPageLoading) {
     return (
       <>
-        <CustomersSkeleton />
+        <ContactsSkeleton />
         {renderDialogs()}
       </>
     );
@@ -174,30 +215,61 @@ export default function CustomersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Clientes e Fornecedores
+            </h1>
             <p className="text-muted-foreground mt-1">
-              Gerencie sua base de clientes
+              Gerencie sua base de clientes e fornecedores
             </p>
           </div>
           {canCreate && (
-            <Link href="/customers/new">
+            <Link href="/contacts/new">
               <Button size="lg" className="gap-2">
                 <Plus className="w-5 h-5" />
-                Novo Cliente
+                Novo Cadastro
               </Button>
             </Link>
           )}
         </div>
 
-        {/* Search */}
+        {/* Filters */}
         {clients.length > 0 && (
-          <div className="max-w-md">
-            <Input
-              placeholder="Buscar por nome, email ou telefone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="max-w-md flex-1">
+              <Input
+                placeholder="Buscar por nome, email ou telefone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                icon={<Search className="w-4 h-4" />}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={typeFilter === "todos" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTypeFilter("todos")}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={typeFilter === "cliente" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTypeFilter("cliente")}
+                className="gap-1.5"
+              >
+                <Users className="w-4 h-4" />
+                Clientes
+              </Button>
+              <Button
+                variant={typeFilter === "fornecedor" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTypeFilter("fornecedor")}
+                className="gap-1.5"
+              >
+                <Building2 className="w-4 h-4" />
+                Fornecedores
+              </Button>
+            </div>
           </div>
         )}
 
@@ -215,7 +287,7 @@ export default function CustomersPage() {
                 automaticamente ao criar propostas.
               </p>
               {canCreate && (
-                <Link href="/customers/new">
+                <Link href="/contacts/new">
                   <Button className="gap-2">
                     <Plus className="w-4 h-4" />
                     Cadastrar Primeiro Cliente
@@ -241,16 +313,18 @@ export default function CustomersPage() {
             {/* Header */}
             <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div className="col-span-2">Nome</div>
+              <div className="col-span-1">Tipo</div>
               <div className="col-span-2">Endereço</div>
               <div className="col-span-2">Contato</div>
               <div className="col-span-2">Origem</div>
               <div className="col-span-2">Cadastrado em</div>
-              <div className="col-span-2 text-right">Ações</div>
+              <div className="col-span-1 text-right">Ações</div>
             </div>
 
             {/* Rows */}
             {filteredClients.map((client) => {
               const source = sourceConfig[client.source] || sourceConfig.manual;
+              const clientTypes = client.types || ["cliente"];
               return (
                 <Card
                   key={client.id}
@@ -259,11 +333,25 @@ export default function CustomersPage() {
                   <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
                     <div className="col-span-2">
                       <Link
-                        href={`/customers/${client.id}`}
+                        href={`/contacts/${client.id}`}
                         className="font-medium hover:underline"
                       >
                         {client.name}
                       </Link>
+                    </div>
+                    <div className="col-span-1 flex flex-wrap gap-1 justify-start -ml-4">
+                      {clientTypes.map((t) => {
+                        const cfg = typeConfig[t] || typeConfig.cliente;
+                        return (
+                          <Badge
+                            key={t}
+                            variant={cfg.variant}
+                            className="text-xs"
+                          >
+                            {cfg.label}
+                          </Badge>
+                        );
+                      })}
                     </div>
                     <div className="col-span-2 text-sm text-muted-foreground truncate">
                       {client.address || "-"}
@@ -291,9 +379,9 @@ export default function CustomersPage() {
                     <div className="col-span-2 text-sm text-muted-foreground">
                       {formatDate(client.createdAt)}
                     </div>
-                    <div className="col-span-2 flex items-center justify-end gap-1">
+                    <div className="col-span-1 flex items-center justify-end gap-1">
                       {canEdit && (
-                        <Link href={`/customers/${client.id}`}>
+                        <Link href={`/contacts/${client.id}`}>
                           <Button
                             variant="ghost"
                             size="icon"

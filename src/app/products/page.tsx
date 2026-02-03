@@ -22,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -44,18 +43,17 @@ export default function ProductsPage() {
 
   // Update the return check to use isPageLoading
 
-  useEffect(() => {
-    if (tenant) {
-      loadProducts();
-    }
-    // If no tenant yet, we are still loading (handled by initial state true)
-  }, [tenant]);
-
   const loadProducts = useCallback(async () => {
     if (!tenant) return;
     setLoading(true);
     try {
       const data = await ProductService.getProducts(tenant.id);
+      // Sort by createdAt descending (most recent first)
+      data.sort(
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime(),
+      );
       setProducts(data);
     } catch (error) {
       console.error("Error loading products:", error);
@@ -63,6 +61,13 @@ export default function ProductsPage() {
       setLoading(false);
     }
   }, [tenant]);
+
+  useEffect(() => {
+    if (tenant) {
+      loadProducts();
+    }
+    // If no tenant yet, we are still loading (handled by initial state true)
+  }, [tenant, loadProducts]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -235,6 +240,7 @@ export default function ProductsPage() {
                 <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
                   <div className="col-span-1">
                     {product.images?.[0] || product.image ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={product.images?.[0] || product.image || ""}
                         alt={product.name}

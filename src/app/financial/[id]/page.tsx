@@ -21,7 +21,6 @@ import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { Transaction } from "@/services/transaction-service";
 
 const transactionSteps = [
   {
@@ -87,7 +86,7 @@ export default function EditTransactionPage() {
       downPaymentWallet: "",
       downPaymentDueDate: "",
     }),
-    [formData]
+    [formData],
   );
 
   // Calculate total amount (sum of all installments) for display
@@ -102,7 +101,13 @@ export default function EditTransactionPage() {
 
     // For standard installment groups (or new ones), formData.amount IS now the total
     return parseFloat(formData.amount || "0");
-  }, [transaction, isProposalTransaction, groupTotalValue, formData.amount]);
+  }, [
+    transaction,
+    isProposalTransaction,
+    groupTotalValue,
+    formData.amount,
+    relatedInstallments.length,
+  ]);
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading) {
