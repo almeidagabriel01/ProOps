@@ -44,20 +44,7 @@ export function useLandingPage() {
   // Fetch plans on mount
   useEffect(() => {
     const fetchPlans = async () => {
-      let loadedPlans: LandingPlan[] = [];
-
-      // 1. Fetch from Firestore (fast)
-      try {
-        const fetchedPlans = await PlanService.getPlans();
-        if (fetchedPlans && fetchedPlans.length > 0) {
-          loadedPlans = mapPlans(fetchedPlans);
-          setPlans(loadedPlans);
-          // Show content as soon as we have Firestore data
-          setIsLoadingPlans(false);
-        }
-      } catch (error) {
-        console.error("Failed to fetch plans:", error);
-      }
+      // Fetch live data from Stripe (only source of truth)
 
       // 2. Fetch live data from Stripe (slower but accurate)
       try {
