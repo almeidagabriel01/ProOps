@@ -136,9 +136,15 @@ export default function FinancialPage() {
     }
   }, [filteredTransactions, selectedIds]);
 
-  // Clear selection when filters or view mode changes
+  // Handle selection when filters or view mode changes
   React.useEffect(() => {
-    setSelectedIds(new Set());
+    if (viewMode === "byDueDate") {
+      // Auto-select all filtered transactions in byDueDate mode
+      const allIds = filteredTransactions.map((t) => t.id);
+      setSelectedIds(new Set(allIds));
+    } else {
+      setSelectedIds(new Set());
+    }
   }, [
     viewMode,
     filterType,
@@ -147,6 +153,8 @@ export default function FinancialPage() {
     filterStartDate,
     filterEndDate,
     searchTerm,
+    // Checkboxes should update when the list changes
+    filteredTransactions,
   ]);
 
   // Calculate selection summary - use ALL transactions, not just filtered
@@ -203,8 +211,13 @@ export default function FinancialPage() {
     setTransactionToDelete(null);
   };
 
-  // Use total wallet balance instead of transaction-based calculation
-  const balance = totalWalletBalance;
+  // Use total wallet balance OR calculation from selected items
+  const balance = React.useMemo(() => {
+    if (selectedIds.size > 0 && selectionSummary) {
+      return selectionSummary.paidIncome - selectionSummary.paidExpense;
+    }
+    return totalWalletBalance;
+  }, [selectedIds.size, selectionSummary, totalWalletBalance]);
 
   return (
     <div className="space-y-6">
@@ -375,24 +388,19 @@ export default function FinancialPage() {
 
               const leader = groupMembers[0];
 
-              // If the current transaction is NOT the leader, don't render it separately
-              // (It will be rendered inside the leader's card)
-              if (transaction.id !== leader.id) {
-                return null;
-              }
-
               // If it IS the leader, we render it, passing the group members
-              // If it IS the leader, we render it, passing the group members
+              // We render the representative transaction (which might be the leader or the active installment)
+              // The hook useFinancialData ensures only one representative per group exists in filtereTransactions
 
               return (
                 <TransactionCard
                   key={transaction.id}
-                  transaction={leader}
+                  transaction={transaction}
                   relatedInstallments={
-                    !leader.proposalGroupId ? groupMembers : []
+                    !transaction.proposalGroupId ? groupMembers : []
                   }
                   proposalGroupTransactions={
-                    leader.proposalGroupId ? groupMembers : []
+                    transaction.proposalGroupId ? groupMembers : []
                   }
                   canEdit={canEdit}
                   canDelete={canDelete}
@@ -400,7 +408,7 @@ export default function FinancialPage() {
                   onStatusChange={updateGroupStatus}
                   onUpdate={updateTransaction}
                   onUpdateBatch={updateBatchTransactions}
-                  isSelected={selectedIds.has(leader.id)}
+                  isSelected={selectedIds.has(transaction.id)}
                   onToggleSelection={toggleSelection}
                   onToggleGroupSelection={toggleGroupSelection}
                   selectedIds={selectedIds}

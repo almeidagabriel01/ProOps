@@ -135,8 +135,12 @@ export function TransactionListByDueDate({
             return (
               <div
                 key={transaction.id}
-                className={`grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/30 transition-colors text-sm ${
-                  isSelected ? "bg-primary/5" : ""
+                className={`grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm ${
+                  isSelected
+                    ? transaction.type === "income"
+                      ? "bg-green-500/15"
+                      : "bg-red-500/20"
+                    : ""
                 }`}
               >
                 {/* Checkbox */}
