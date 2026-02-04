@@ -143,10 +143,43 @@ export const PlanService = {
   getLivePlans: async (): Promise<UserPlan[] | null> => {
     try {
       const { StripeService } = await import("./stripe-service");
-      const plans = await StripeService.getPlans();
-      if (plans && plans.length > 0) {
-        return plans as UserPlan[];
+      // Load base plans first to get features/descriptions
+      const basePlans = await PlanService.getPlans();
+      // Load live prices
+      const priceData = await StripeService.getPrices();
+
+      if (priceData && priceData.plans) {
+        console.log("[PlanService] Merging live prices with base plans");
+
+        return basePlans.map((plan) => {
+          const stripePrices = priceData.plans[plan.tier];
+
+          if (stripePrices) {
+            // Convert cents to units (BRL)
+            const monthlyPrice = stripePrices.monthly?.amount
+              ? stripePrices.monthly.amount / 100
+              : plan.price;
+            // For yearly, if we have a yearly price, use it. Otherwise calculate from monthly (fallback).
+            const yearlyPrice = stripePrices.yearly?.amount
+              ? stripePrices.yearly.amount / 100
+              : monthlyPrice * 12;
+
+            return {
+              ...plan,
+              price: monthlyPrice,
+              pricing: {
+                monthly: monthlyPrice,
+                yearly: yearlyPrice,
+              },
+            };
+          }
+          return plan;
+        });
       }
+
+      console.warn(
+        "[PlanService] StripeService.getPrices() returned empty data, falling back.",
+      );
       return null;
     } catch (error) {
       console.warn("Failed to fetch live plans:", error);

@@ -5,7 +5,7 @@
  * Refactored to use REST API instead of httpsCallable.
  */
 
-import { callApi } from "@/lib/api-client";
+import { callApi, callPublicApi } from "@/lib/api-client";
 
 // ============================================
 // TYPES
@@ -94,9 +94,23 @@ interface PreviewResponse {
   isNewSubscription?: boolean;
 }
 
-interface PricesResponse {
-  plans: unknown;
-  addons: unknown;
+export interface PriceInfo {
+  id: string;
+  amount: number; // in cents
+  currency: string;
+  interval: "monthly" | "yearly";
+  productId: string;
+  productName?: string;
+}
+
+export interface PriceSet {
+  monthly: PriceInfo | null;
+  yearly: PriceInfo | null;
+}
+
+export interface PricesResponse {
+  plans: Record<string, PriceSet>;
+  addons: Record<string, PriceSet>;
 }
 
 interface Plan {
@@ -236,7 +250,7 @@ export const StripeService = {
   },
 
   getPrices: async (): Promise<PricesResponse> => {
-    const result = await callApi<{ data: PricesResponse }>(
+    const result = await callPublicApi<{ data: PricesResponse }>(
       "/v1/stripe/plans",
       "GET",
     );
@@ -248,7 +262,10 @@ export const StripeService = {
   },
 
   getPlans: async (): Promise<Plan[]> => {
-    const result = await callApi<{ plans: Plan[] }>("/v1/stripe/plans", "GET");
+    const result = await callPublicApi<{ plans: Plan[] }>(
+      "/v1/stripe/plans",
+      "GET",
+    );
     return result.plans || [];
   },
 

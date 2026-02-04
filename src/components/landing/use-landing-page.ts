@@ -92,7 +92,7 @@ export function useLandingPage() {
       try {
         const fetchedPlans = await PlanService.getPlans();
         if (fetchedPlans && fetchedPlans.length > 0) {
-          mapAndSetPlans(fetchedPlans);
+          mapAndSetPlans(fetchedPlans, "Firestore");
         }
       } catch (error) {
         console.error("Failed to fetch plans:", error);
@@ -102,14 +102,20 @@ export function useLandingPage() {
       try {
         const livePlans = await PlanService.getLivePlans();
         if (livePlans && livePlans.length > 0) {
-          mapAndSetPlans(livePlans);
+          mapAndSetPlans(livePlans, "Stripe (Live)");
+        } else {
+          console.warn("[useLandingPage] No live plans returned from Stripe.");
         }
       } catch (error) {
         console.warn("Failed to fetch live plans:", error);
       }
     };
 
-    const mapAndSetPlans = (sourcePlans: UserPlan[]) => {
+    const mapAndSetPlans = (sourcePlans: UserPlan[], source: string) => {
+      console.log(
+        `[useLandingPage] Mapping plans from ${source}:`,
+        sourcePlans,
+      );
       const mappedPlans = sourcePlans.map((p) => ({
         name: p.name,
         tier: p.tier,
