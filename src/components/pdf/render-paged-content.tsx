@@ -680,9 +680,16 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
       if (item.id) {
         const el = measureRef.current?.querySelector(
           `[data-measure-id="${item.id}"]`,
-        );
+        ) as HTMLElement;
         if (el) {
-          const height = el.getBoundingClientRect().height;
+          const rect = el.getBoundingClientRect();
+          // Calculate scale factor by comparing rendered width vs layout width
+          // This handles the case where the parent container is scaled (e.g. in Edit PDF zoom)
+          // Default to 1 if offsetWidth is 0 to avoid division by zero
+          const scale = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+
+          // Use unscaled height for pagination logic
+          const height = rect.height / scale;
           const currentHeight = measuredHeights[item.id] || 0;
 
           // Only update if difference > 0.5px to avoid infinite loops from micro-adjustments
