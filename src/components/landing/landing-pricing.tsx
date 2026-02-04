@@ -140,7 +140,7 @@ export function LandingPricing({
 
                 <div className="mb-6">
                   <h3 className="text-xl font-bold mb-2 text-foreground">
-                    {plan.name}
+                    {plan.name.charAt(0).toUpperCase() + plan.name.slice(1)}
                   </h3>
                   <p className="text-muted-foreground text-sm">
                     {plan.description}
