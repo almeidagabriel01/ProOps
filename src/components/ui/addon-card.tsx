@@ -29,6 +29,7 @@ interface AddonCardProps {
   // Scheduled cancellation info
   isScheduledCancel?: boolean;
   cancelDate?: string;
+  isIncluded?: boolean; // New prop
 }
 
 // Map icon names to Lucide components
@@ -50,6 +51,7 @@ export function AddonCard({
   isPriceLoading = false,
   isScheduledCancel = false,
   cancelDate,
+  isIncluded = false,
 }: AddonCardProps) {
   const { tenant } = useTenant();
   const IconComponent = iconMap[addon.icon] || DollarSign;
@@ -75,21 +77,29 @@ export function AddonCard({
 
   return (
     <Card
-      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${isPurchased ? "ring-2" : ""
-        }`}
+      className={`relative overflow-hidden transition-all hover:shadow-lg h-full flex flex-col ${
+        isPurchased || isIncluded ? "ring-2" : ""
+      }`}
       style={{
-        borderColor: isPurchased ? primaryColor : undefined,
+        borderColor: isPurchased || isIncluded ? primaryColor : undefined,
       }}
     >
-      {isPurchased && (
+      {(isPurchased || isIncluded) && (
         <div
           className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white`}
-          style={{ backgroundColor: isScheduledCancel ? '#ef4444' : primaryColor }}
+          style={{
+            backgroundColor: isScheduledCancel ? "#ef4444" : primaryColor,
+          }}
         >
           {isScheduledCancel ? (
             <>
               <Calendar className="w-3 h-3" />
               Cancela {cancelDate}
+            </>
+          ) : isIncluded && !isPurchased ? (
+            <>
+              <Check className="w-3 h-3" />
+              Incluso
             </>
           ) : (
             <>
@@ -156,6 +166,16 @@ export function AddonCard({
           <div className="text-center text-xs text-muted-foreground">
             Ativo até {cancelDate}
           </div>
+        ) : isIncluded ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled
+            className="w-full gap-2 opacity-80"
+          >
+            <Check className="w-4 h-4" />
+            Incluso no seu plano
+          </Button>
         ) : (
           <Button
             size="sm"

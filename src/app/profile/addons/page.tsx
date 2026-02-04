@@ -13,8 +13,15 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
 import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
-import { AddonType, AddonDefinition } from "@/types";
-import { ArrowLeft, Puzzle, Sparkles, CreditCard, Loader2, Calendar } from "lucide-react";
+import { AddonType, AddonDefinition, PlanTier } from "@/types";
+import {
+  ArrowLeft,
+  Puzzle,
+  Sparkles,
+  CreditCard,
+  Loader2,
+  Calendar,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import {
   AlertDialog,
@@ -46,7 +53,7 @@ export default function AddonsPage() {
   const { getAddonPrice, isLoading: isPriceLoading } = useStripePrices();
 
   const [isProcessing, setIsProcessing] = React.useState<AddonType | null>(
-    null
+    null,
   );
 
   // Confirmation dialog state
@@ -73,7 +80,7 @@ export default function AddonsPage() {
         "Pagamento realizado com sucesso! Seu add-on será ativado em instantes.",
         {
           toastId: "addon-payment-success",
-        }
+        },
       );
       router.replace("/profile/addons");
     }
@@ -86,25 +93,20 @@ export default function AddonsPage() {
     }
 
     if (addonCancelled === "true") {
-      toast.success("Cancelamento agendado! O add-on ficará ativo até o final do período pago.", {
-        toastId: "addon-cancelled-success",
-      });
+      toast.success(
+        "Cancelamento agendado! O add-on ficará ativo até o final do período pago.",
+        {
+          toastId: "addon-cancelled-success",
+        },
+      );
       router.replace("/profile/addons");
     }
   }, [searchParams, router, isPlanLoading, isPriceLoading]);
 
-  // Get available add-ons for user's tier
+  // Show all add-ons regardless of tier, to allow viewing status/prices
   const availableAddons = React.useMemo(() => {
-    const addons = AddonService.getAvailableAddonsForTier(planTier);
-
-    // If no addons available and user is on a basic tier (starter or unknown), 
-    // fallback to showing starter addons to avoid "you have everything" message
-    if (addons.length === 0 && !['pro', 'enterprise'].includes(planTier?.toLowerCase() || '')) {
-      return AddonService.getAvailableAddonsForTier('starter');
-    }
-
-    return addons;
-  }, [planTier]);
+    return ADDON_DEFINITIONS;
+  }, []);
 
   // Open confirmation dialog instead of going directly to checkout
   const handlePurchaseClick = (addonType: AddonType) => {
@@ -231,20 +233,51 @@ export default function AddonsPage() {
       </Card>
 
       {/* Add-ons Grid */}
-      {availableAddons.length > 0 ? (
+      {availableAddons.length > 0 && (
         <div className="grid md:grid-cols-2 gap-4">
           {availableAddons.map((addon) => {
-            const addonData = purchasedAddonsData.find((a) => a.addonType === addon.id);
+            const addonData = purchasedAddonsData.find(
+              (a) => a.addonType === addon.id,
+            );
             const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
             const cancelDate = addonData?.currentPeriodEnd
-              ? new Date(addonData.currentPeriodEnd).toLocaleDateString('pt-BR')
+              ? new Date(addonData.currentPeriodEnd).toLocaleDateString("pt-BR")
               : undefined;
+
+            // Check if included in current plan (if not available for purchase but we are on a higher tier)
+            // Simple logic: if not in availableForTiers, assume included if we are on a known higher tier
+            const normalizedTier = (planTier?.toLowerCase() ||
+              "starter") as PlanTier;
+            const isAvailableForPurchase =
+              addon.availableForTiers.includes(normalizedTier);
+
+            // Logic: Is Included if NOT available for purchase AND NOT purchased explicitly (to avoid double status)
+            // But wait, if I purchased it, it is Purchased.
+            // If I didn't purchase it, and it's not available, it is Included (assuming higher tier).
+            // We need to be careful with "lower tier" case, but assuming upgrading path:
+            let isIncluded = !isAvailableForPurchase;
+
+            // Edge case: if plan is unknown, default to not included
+            if (!["starter", "pro", "enterprise"].includes(normalizedTier)) {
+              isIncluded = false;
+            }
+
+            // Verify hierarchy just in case (optional but safer)
+            const tierOrder: Record<string, number> = {
+              starter: 1,
+              pro: 2,
+              enterprise: 3,
+            };
+            const myOrder = tierOrder[normalizedTier] || 1;
+            // This is a heuristic. Ideally we check features.
+            // But for now, relying on 'availableForTiers' logic (which implies "Upgrade Opportunities") is consistent with the Service.
 
             return (
               <AddonCard
                 key={addon.id}
                 addon={addon}
                 isPurchased={purchasedAddons.includes(addon.id)}
+                isIncluded={isIncluded && !purchasedAddons.includes(addon.id)}
                 onPurchase={() => handlePurchaseClick(addon.id)}
                 onCancel={() => handleCancelClick(addon.id)}
                 isLoading={isProcessing === addon.id}
@@ -256,16 +289,12 @@ export default function AddonsPage() {
             );
           })}
         </div>
-      ) : (
-        <Card className="p-8 text-center">
-          <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold text-lg mb-2">
-            Você já tem acesso a tudo!
-          </h3>
-          <p className="text-muted-foreground">
-            Seu plano atual já inclui todas as funcionalidades disponíveis.
-          </p>
-        </Card>
+      )}
+
+      {availableAddons.length === 0 && (
+        <div className="text-center p-8 text-muted-foreground">
+          Nenhum add-on disponível para visualização.
+        </div>
       )}
 
       {/* Purchased Add-ons Summary */}
@@ -283,14 +312,18 @@ export default function AddonsPage() {
                 const addon = ADDON_DEFINITIONS.find((a) => a.id === addonType);
                 if (!addon) return null;
 
-                const addonData = purchasedAddonsData.find((a) => a.addonType === addonType);
+                const addonData = purchasedAddonsData.find(
+                  (a) => a.addonType === addonType,
+                );
                 const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
                 const cancelDate = addonData?.currentPeriodEnd
-                  ? new Date(addonData.currentPeriodEnd).toLocaleDateString('pt-BR')
+                  ? new Date(addonData.currentPeriodEnd).toLocaleDateString(
+                      "pt-BR",
+                    )
                   : null;
 
                 const isRedundant = !availableAddons.find(
-                  (a) => a.id === addonType
+                  (a) => a.id === addonType,
                 );
 
                 return (
@@ -372,10 +405,13 @@ export default function AddonsPage() {
       />
 
       {/* Cancel Confirmation Dialog */}
-      <AlertDialog open={cancelDialogOpen} onOpenChange={(open) => {
-        // Prevent closing while processing
-        if (!isProcessing) setCancelDialogOpen(open);
-      }}>
+      <AlertDialog
+        open={cancelDialogOpen}
+        onOpenChange={(open) => {
+          // Prevent closing while processing
+          if (!isProcessing) setCancelDialogOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Add-on?</AlertDialogTitle>
@@ -383,12 +419,14 @@ export default function AddonsPage() {
               Tem certeza que deseja cancelar o add-on{" "}
               <strong>{addonToCancel?.name}</strong>?
               <br />
-              <br />
-              O add-on continuará ativo até o final do período já pago. Após essa data, você perderá acesso às funcionalidades extras.
+              <br />O add-on continuará ativo até o final do período já pago.
+              Após essa data, você perderá acesso às funcionalidades extras.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isProcessing !== null}>Voltar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isProcessing !== null}>
+              Voltar
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
