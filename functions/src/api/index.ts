@@ -5,6 +5,14 @@ import { validateFirebaseIdToken } from "./middleware/auth";
 import { CORS_OPTIONS } from "../deploymentConfig";
 import { proxyImage } from "./controllers/proxy.controller";
 
+import { coreRoutes } from "./routes/core.routes";
+import { financeRoutes } from "./routes/finance.routes";
+import { adminRoutes } from "./routes/admin.routes";
+import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
+import { auxiliaryRoutes } from "./routes/auxiliary.routes";
+import sharedProposalsRoutes from "./routes/shared-proposals.routes";
+import notificationsRoutes from "./routes/notifications.routes";
+
 const app = express();
 
 // Logging middleware
@@ -24,19 +32,14 @@ app.get("/health", (req: express.Request, res: express.Response) => {
 // Proxy image - must be public for PDF generation
 app.get("/v1/aux/proxy-image", proxyImage);
 
+// Public Stripe Routes (Plans)
+app.use("/v1/stripe", publicStripeRoutes);
+
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
 
 // Placeholder for routes - will be imported dynamically or added here
 // app.use("/products", productRoutes);
-
-import { coreRoutes } from "./routes/core.routes";
-import { financeRoutes } from "./routes/finance.routes";
-import { adminRoutes } from "./routes/admin.routes";
-import { stripeRoutes } from "./routes/stripe.routes";
-import { auxiliaryRoutes } from "./routes/auxiliary.routes";
-import sharedProposalsRoutes from "./routes/shared-proposals.routes";
-import notificationsRoutes from "./routes/notifications.routes";
 
 // Routes
 app.use("/v1", coreRoutes);

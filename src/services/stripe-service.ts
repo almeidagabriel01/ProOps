@@ -250,14 +250,73 @@ export const StripeService = {
   },
 
   getPrices: async (): Promise<PricesResponse> => {
-    const result = await callPublicApi<{ data: PricesResponse }>(
-      "/v1/stripe/plans",
-      "GET",
-    );
-    const data = result.data || result;
+    // Define internal types matching the actual Backend Response
+    type BackendPlan = {
+      tier: string;
+      pricing: { monthly: number; yearly: number };
+    };
+
+    type BackendResponse = {
+      plans: BackendPlan[];
+      addons: Record<string, { monthly: { amount: number } }>;
+    };
+
+    const result = await callPublicApi<
+      BackendResponse | { data: BackendResponse }
+    >("/v1/stripe/plans", "GET");
+
+    // Handle both direct response and { data: ... } wrapper
+    const data = "data" in result ? result.data : result;
+
+    // Transform Plans Array -> Record<string, PriceSet>
+    const plansRecord: Record<string, PriceSet> = {};
+
+    if (Array.isArray(data.plans)) {
+      data.plans.forEach((plan) => {
+        plansRecord[plan.tier] = {
+          monthly: {
+            id: `price_${plan.tier}_monthly`, // Dummy ID, we only need amount for display
+            amount: plan.pricing.monthly * 100, // Convert Unit -> Cents
+            currency: "brl",
+            interval: "monthly",
+            productId: `prod_${plan.tier}`,
+          },
+          yearly: {
+            id: `price_${plan.tier}_yearly`,
+            amount: plan.pricing.yearly * 100, // Convert Unit -> Cents
+            currency: "brl",
+            interval: "yearly",
+            productId: `prod_${plan.tier}`,
+          },
+        };
+      });
+    }
+
+    // Transform Addons (if needed, or pass through if structure matches enough)
+    // Backend addons: Record<string, { monthly: { amount: number } }>
+    // Frontend addons: Record<string, PriceSet>
+    const addonsRecord: Record<string, PriceSet> = {};
+    if (data.addons) {
+      Object.entries(data.addons).forEach(([key, value]) => {
+        addonsRecord[key] = {
+          monthly: {
+            id: `price_addon_${key}`,
+            amount: value.monthly.amount * 100, // Backend sends unit or cents?
+            // Controller line 508: addons[addonType] = { monthly: { amount } };
+            // amount comes from priceMap which is units (line 462).
+            // So we multiply by 100.
+            currency: "brl",
+            interval: "monthly",
+            productId: `prod_addon_${key}`,
+          },
+          yearly: null,
+        };
+      });
+    }
+
     return {
-      plans: (data as PricesResponse).plans,
-      addons: (data as PricesResponse).addons,
+      plans: plansRecord,
+      addons: addonsRecord,
     };
   },
 
