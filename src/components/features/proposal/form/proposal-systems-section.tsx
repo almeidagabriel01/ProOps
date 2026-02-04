@@ -14,7 +14,6 @@ import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { getContrastTextColor } from "@/utils/color-utils";
 import { Package, Plus, Minus, Cpu, Trash2, Pencil } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
@@ -442,7 +441,7 @@ function SystemCard({
                 ambienteId: sistema.ambienteId,
               },
             ]
-        ).map((amb, index) => {
+        ).map((amb) => {
           const currentInstanceId = `${sistema.sistemaId}-${amb.ambienteId}`;
           // Filter products for this specific environment instance
           const scopeProducts = sistemaProducts.filter(

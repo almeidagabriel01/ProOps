@@ -26,8 +26,10 @@ export default function SpreadsheetEditorPage() {
   const [name, setName] = useState("");
 
   // Ref for the Workbook to access data
-  const workbookRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const workbookRef = useRef<any>(null); // External library type not available
   // Ref to store current data directly from onChange to ensure we don't miss updates
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dataRef = useRef<any[]>([]);
 
   // Memoize data to prevent re-renders of the heavy Workbook component
@@ -113,11 +115,13 @@ export default function SpreadsheetEditorPage() {
       console.log("Debug Save: workbookRefData (raw):", workbookRefData);
 
       // Helper to count populated cells
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const countCells = (sheets: any[]) => {
         if (!sheets || !Array.isArray(sheets)) return 0;
         let count = 0;
         sheets.forEach((sheet) => {
           if (sheet.data && Array.isArray(sheet.data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sheet.data.forEach((row: any[]) => {
               if (Array.isArray(row)) {
                 row.forEach((cell) => {
@@ -224,6 +228,7 @@ export default function SpreadsheetEditorPage() {
           key={spreadsheet.id}
           ref={workbookRef}
           data={workbookData}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onChange={(d: any) => {
             // Capture every change
             dataRef.current = d;

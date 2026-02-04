@@ -17,6 +17,7 @@ export type Spreadsheet = {
   id: string;
   tenantId: string;
   name: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any[]; // FortuneSheet data structure (runtime)
   dataJson?: string; // Stored as JSON string in Firestore
   createdAt?: string;
@@ -133,7 +134,7 @@ export const SpreadsheetService = {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
       
-      const updateData: any = { ...data };
+      const updateData: Record<string, unknown> = { ...data };
       
       // If we are updating contents, serialize them
       if (data.data) {
@@ -179,7 +180,7 @@ export const SpreadsheetService = {
       const verifyData = verifySnap.data();
       if (verifySnap.exists() && verifyData?.dataJson) {
           console.log("SpreadsheetService: VERIFICATION READ - dataJson length in DB:", verifyData.dataJson.length);
-          if (verifyData.dataJson.length !== updateData.dataJson.length) {
+          if (verifyData.dataJson.length !== (updateData.dataJson as string).length) {
               console.error("SpreadsheetService: CRITICAL - Write verification failed! Length mismatch.");
           } else {
               console.log("SpreadsheetService: Write verification PASSED.");

@@ -161,7 +161,7 @@ export const SistemaService = {
   ): Promise<void> => {
     try {
       // Normalize field names before sending
-      const payload: Record<string, any> = { ...data };
+      const payload: Record<string, unknown> = { ...data };
       
       // If updating configured environments, sync legacy fields
       if (data.ambientes) {

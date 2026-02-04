@@ -181,6 +181,14 @@ export default function FinancialPage() {
     };
   }, [selectedIds, transactions]);
 
+  // Use total wallet balance OR calculation from selected items
+  const balance = React.useMemo(() => {
+    if (selectedIds.size > 0 && selectionSummary) {
+      return selectionSummary.paidIncome - selectionSummary.paidExpense;
+    }
+    return totalWalletBalance;
+  }, [selectedIds.size, selectionSummary, totalWalletBalance]);
+
   // Show loading first - before checking plan access to avoid flash
   if (isLoading) {
     return <FinancialSkeleton />;
@@ -210,14 +218,6 @@ export default function FinancialPage() {
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
   };
-
-  // Use total wallet balance OR calculation from selected items
-  const balance = React.useMemo(() => {
-    if (selectedIds.size > 0 && selectionSummary) {
-      return selectionSummary.paidIncome - selectionSummary.paidExpense;
-    }
-    return totalWalletBalance;
-  }, [selectedIds.size, selectionSummary, totalWalletBalance]);
 
   return (
     <div className="space-y-6">
@@ -385,8 +385,6 @@ export default function FinancialPage() {
                 }
                 return new Date(a.date).getTime() - new Date(b.date).getTime();
               });
-
-              const leader = groupMembers[0];
 
               // If it IS the leader, we render it, passing the group members
               // We render the representative transaction (which might be the leader or the active installment)

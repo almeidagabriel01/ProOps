@@ -1,6 +1,6 @@
 import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
-import { getContrastTextColor } from "@/utils/color-utils";
+
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -274,6 +274,7 @@ export function PdfSistemaBlock({
                                       height: "20px",
                                     }}
                                   >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='18'%3E%3Crect width='50' height='18' rx='4' fill='%23dbeafe' stroke='%23bfdbfe' stroke-width='1'/%3E%3Ctext x='25' y='13' font-family='system-ui,sans-serif' font-size='9' font-weight='bold' fill='%231d4ed8' text-anchor='middle' letter-spacing='0.5'%3EEXTRA%3C/text%3E%3C/svg%3E"
                                       alt="EXTRA"
@@ -379,7 +380,6 @@ export function PdfSistemaBlock({
 export function PdfSistemaHeader({
   sistema,
   primaryColor,
-  isFirstOnPage = false,
 }: {
   sistema: PdfSistema;
   primaryColor: string;

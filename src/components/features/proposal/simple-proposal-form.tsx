@@ -368,7 +368,7 @@ export function SimpleProposalForm({
     clearFieldError("validUntil");
 
     return true;
-  }, [setFieldError, clearFieldError]);
+  }, [setFieldError, clearFieldError, proposalId]);
 
   // Validação do Step 2 (Sistemas ou Produtos)
   const validateStep2 = React.useCallback((): boolean => {

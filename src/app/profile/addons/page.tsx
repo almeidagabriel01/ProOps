@@ -12,7 +12,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
-import { AddonService, ADDON_DEFINITIONS } from "@/services/addon-service";
+import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { AddonType, AddonDefinition, PlanTier } from "@/types";
 import {
   ArrowLeft,
@@ -263,12 +263,8 @@ export default function AddonsPage() {
             }
 
             // Verify hierarchy just in case (optional but safer)
-            const tierOrder: Record<string, number> = {
-              starter: 1,
-              pro: 2,
-              enterprise: 3,
-            };
-            const myOrder = tierOrder[normalizedTier] || 1;
+            // Verify hierarchy just in case (optional but safer)
+
             // This is a heuristic. Ideally we check features.
             // But for now, relying on 'availableForTiers' logic (which implies "Upgrade Opportunities") is consistent with the Service.
 

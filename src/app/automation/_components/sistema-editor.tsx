@@ -24,14 +24,12 @@ import {
 } from "@/components/ui/card";
 import {
   ArrowLeft,
-  Plus,
-  Trash2,
   Package,
-  Search,
-  Minus,
   Check,
   Home,
   Save,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -136,7 +134,9 @@ export function SistemaEditor({
         await SistemaService.updateSistema(sistema.id, payload);
         toast.success("Sistema atualizado!");
       } else {
-        await SistemaService.createSistema(payload as any); // create expects Omit<Sistema, 'id'>
+        await SistemaService.createSistema(
+          payload as unknown as Omit<Sistema, "id">,
+        );
         toast.success("Sistema criado!");
       }
       onSave();
@@ -385,8 +385,8 @@ export function SistemaEditor({
                 <div className="mt-4 bg-muted/30 p-3 rounded text-sm text-muted-foreground">
                   <p>
                     💡 Tip: These products will be automatically added when you
-                    select the "{name}" system and "{activeAmbienteDef?.name}"
-                    room in a proposal.
+                    select the &quot;{name}&quot; system and &quot;
+                    {activeAmbienteDef?.name}&quot; room in a proposal.
                   </p>
                 </div>
               </CardContent>

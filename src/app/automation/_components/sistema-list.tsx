@@ -23,7 +23,8 @@ export function SistemaList({ sistemas, onEdit, onDelete }: SistemaListProps) {
   if (sistemas.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        Nenhum sistema cadastrado. Clique em "Novo Sistema" para começar.
+        Nenhum sistema cadastrado. Clique em &quot;Novo Sistema&quot; para
+        começar.
       </div>
     );
   }

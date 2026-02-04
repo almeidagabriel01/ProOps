@@ -173,6 +173,7 @@ export function useSistemaForm({
         defaultProducts: selectedProducts, // Legacy - will be migrated to Ambiente level
         createdAt: editingSistema?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        ambientes: editingSistema?.ambientes || [],
       };
 
       if (onAction) {

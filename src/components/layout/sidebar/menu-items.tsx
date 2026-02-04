@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Crown, ChevronRight, FileSpreadsheet } from "lucide-react";
+import { Crown, ChevronRight } from "lucide-react";
 import { MenuItem, getVisibleChildren } from "./config";
 import { usePermissions } from "@/providers/permissions-provider";
 

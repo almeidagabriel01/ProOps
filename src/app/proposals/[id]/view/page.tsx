@@ -593,7 +593,7 @@ export default function ViewProposalPage() {
               console.log(`🔧 [DEBUG] Total tables: ${allTables.length}`);
 
               // Check for EXTRA images by looking at all images
-              allImgs.forEach((img, idx) => {
+              allImgs.forEach((img) => {
                 const imgEl = img as HTMLImageElement;
                 if (
                   imgEl.alt === "EXTRA" ||
