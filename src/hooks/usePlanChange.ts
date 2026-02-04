@@ -47,7 +47,7 @@ interface UsePlanChangeReturn {
 
 export function usePlanChange(
   user: User | null,
-  tenant?: Tenant | null
+  tenant?: Tenant | null,
 ): UsePlanChangeReturn {
   const searchParams = useSearchParams();
 
@@ -124,7 +124,7 @@ export function usePlanChange(
     if (success === "true") {
       toast.success(
         "Pagamento realizado com sucesso! Seu plano foi atualizado.",
-        { toastId: "stripe-success" }
+        { toastId: "stripe-success" },
       );
       toastShownRef.current = true;
       window.history.replaceState({}, "", "/profile");
@@ -159,11 +159,9 @@ export function usePlanChange(
         }
       } catch (error) {
         console.error("Error loading plans:", error);
-      } finally {
-        setIsLoading(false);
       }
 
-      // Fetch live prices in background
+      // Fetch live prices immediately to avoid stale data
       try {
         const livePlans = await PlanService.getLivePlans();
         if (livePlans && livePlans.length > 0) {
@@ -173,7 +171,7 @@ export function usePlanChange(
           const targetPlanId = effectiveUser?.planId;
           if (targetPlanId) {
             const liveUserPlan = livePlans.find(
-              (p) => p.id === targetPlanId || p.tier === targetPlanId
+              (p) => p.id === targetPlanId || p.tier === targetPlanId,
             );
             if (liveUserPlan) {
               setUserPlan(liveUserPlan);
@@ -181,7 +179,9 @@ export function usePlanChange(
           }
         }
       } catch (error) {
-        console.warn("Background price update failed:", error);
+        console.warn("Live price update failed:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -211,7 +211,7 @@ export function usePlanChange(
 
       return false;
     },
-    [userPlan, effectiveUser, billingInterval]
+    [userPlan, effectiveUser, billingInterval],
   );
 
   const showPlanChangeConfirmation = async (plan: UserPlan) => {
@@ -297,7 +297,7 @@ export function usePlanChange(
           JSON.stringify({
             type: "success",
             text: "Plano atualizado com sucesso!",
-          })
+          }),
         );
         window.location.reload();
       } else {
