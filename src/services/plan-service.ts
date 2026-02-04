@@ -12,10 +12,10 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     name: "Starter",
     tier: "starter",
     description: "Ideal para freelancers e pequenos negócios",
-    price: 79,
+    price: 0,
     pricing: {
-      monthly: 79,
-      yearly: 804, // ~15% desconto (R$ 67/mês)
+      monthly: 0,
+      yearly: 0,
     },
     order: 1,
     features: {
@@ -36,10 +36,10 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     name: "Profissional",
     tier: "pro",
     description: "Para empresas em crescimento",
-    price: 149,
+    price: 0,
     pricing: {
-      monthly: 149,
-      yearly: 1524, // ~15% desconto (R$ 127/mês)
+      monthly: 0,
+      yearly: 0,
     },
     order: 2,
     highlighted: true,
@@ -61,10 +61,10 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     name: "Enterprise",
     tier: "enterprise",
     description: "Acesso total para grandes operações",
-    price: 299,
+    price: 0,
     pricing: {
-      monthly: 299,
-      yearly: 3048, // ~15% desconto (R$ 254/mês)
+      monthly: 0,
+      yearly: 0,
     },
     order: 3,
     features: {

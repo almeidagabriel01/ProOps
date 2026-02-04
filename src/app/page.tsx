@@ -21,6 +21,7 @@ export default function LandingPage() {
     billingInterval,
     setBillingInterval,
     plans,
+    isLoadingPlans,
     handleSignOut,
   } = useLandingPage();
 
@@ -47,6 +48,7 @@ export default function LandingPage() {
         plans={plans}
         billingInterval={billingInterval}
         setBillingInterval={setBillingInterval}
+        isLoading={isLoadingPlans}
       />
 
       <LandingFAQ />

@@ -8,66 +8,19 @@ import { auth, db } from "@/lib/firebase";
 import { PlanService } from "@/services/plan-service";
 import { User, UserPlan } from "@/types";
 
-const INITIAL_PLANS = [
-  {
-    name: "Starter",
-    tier: "starter",
-    prices: {
-      monthly: 0,
-      yearly: 0,
-    },
-    description: "Ideal para freelancers e pequenos negócios",
-    features: [
-      "Crie até 80 propostas por mês",
-      "Cadastre até 2 membros na equipe",
-      "Cadastre até 120 clientes",
-      "Cadastre até 220 produtos para venda",
-      "1 layout de proposta em PDF",
-      "200 MB para armazenar arquivos",
-    ],
-    cta: "Assinar Agora",
-    popular: false,
-  },
-  {
-    name: "Profissional",
-    tier: "pro",
-    prices: {
-      monthly: 0,
-      yearly: 0,
-    },
-    description: "Para empresas em crescimento",
-    features: [
-      "Propostas ilimitadas",
-      "Até 10 membros na equipe",
-      "Clientes ilimitados",
-      "Produtos ilimitados",
-      "Controle financeiro completo",
-      "Cores personalizadas",
-      "3 layouts de proposta em PDF",
-      "2.5 GB de armazenamento",
-    ],
-    cta: "Assinar Agora",
-    popular: true,
-  },
-  {
-    name: "Enterprise",
-    tier: "enterprise",
-    prices: {
-      monthly: 0,
-      yearly: 0,
-    },
-    description: "Acesso total para grandes operações",
-    features: [
-      "Tudo do Profissional",
-      "Membros ilimitados",
-      "Todos os layouts de PDF",
-      "Editor de PDF avançado",
-      "Armazenamento ilimitado",
-    ],
-    cta: "Assinar Agora",
-    popular: false,
-  },
-];
+// Define the UI Plan type used by the landing page
+interface LandingPlan {
+  name: string;
+  tier: string;
+  prices: {
+    monthly: number;
+    yearly: number;
+  };
+  description: string;
+  features: string[];
+  cta: string;
+  popular: boolean;
+}
 
 export function useLandingPage() {
   const router = useRouter();
@@ -80,7 +33,10 @@ export function useLandingPage() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly",
   );
-  const [plans, setPlans] = useState(INITIAL_PLANS);
+
+  // Start with empty plans to show skeleton
+  const [plans, setPlans] = useState<LandingPlan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
   // Fixed initial skeleton value
   const initialSkeleton = "list";
@@ -88,11 +44,16 @@ export function useLandingPage() {
   // Fetch plans on mount
   useEffect(() => {
     const fetchPlans = async () => {
+      let loadedPlans: LandingPlan[] = [];
+
       // 1. Fetch from Firestore (fast)
       try {
         const fetchedPlans = await PlanService.getPlans();
         if (fetchedPlans && fetchedPlans.length > 0) {
-          mapAndSetPlans(fetchedPlans, "Firestore");
+          loadedPlans = mapPlans(fetchedPlans);
+          setPlans(loadedPlans);
+          // Show content as soon as we have Firestore data
+          setIsLoadingPlans(false);
         }
       } catch (error) {
         console.error("Failed to fetch plans:", error);
@@ -102,21 +63,20 @@ export function useLandingPage() {
       try {
         const livePlans = await PlanService.getLivePlans();
         if (livePlans && livePlans.length > 0) {
-          mapAndSetPlans(livePlans, "Stripe (Live)");
+          const mappedLive = mapPlans(livePlans);
+          setPlans(mappedLive);
         } else {
           console.warn("[useLandingPage] No live plans returned from Stripe.");
         }
       } catch (error) {
         console.warn("Failed to fetch live plans:", error);
+      } finally {
+        setIsLoadingPlans(false);
       }
     };
 
-    const mapAndSetPlans = (sourcePlans: UserPlan[], source: string) => {
-      console.log(
-        `[useLandingPage] Mapping plans from ${source}:`,
-        sourcePlans,
-      );
-      const mappedPlans = sourcePlans.map((p) => ({
+    const mapPlans = (sourcePlans: UserPlan[]) => {
+      return sourcePlans.map((p) => ({
         name: p.name,
         tier: p.tier,
         prices: p.pricing || { monthly: p.price, yearly: p.price * 12 },
@@ -151,7 +111,6 @@ export function useLandingPage() {
         cta: "Assinar Agora",
         popular: p.highlighted ?? false,
       }));
-      setPlans(mappedPlans);
     };
 
     fetchPlans();
@@ -267,6 +226,7 @@ export function useLandingPage() {
     billingInterval,
     setBillingInterval,
     plans,
+    isLoadingPlans,
     initialSkeleton,
     handleSignOut,
   };
