@@ -51,6 +51,7 @@ interface StepWizardProps {
   indicatorContainerClassName?: string;
   allowClickAhead?: boolean; // When true, allows clicking on any step (useful for edit mode)
   stepValidators?: Record<number, () => boolean | Promise<boolean>>; // Validators for each step index
+  initialStep?: number;
 }
 
 export function StepWizard({
@@ -61,8 +62,9 @@ export function StepWizard({
   indicatorContainerClassName,
   allowClickAhead = false,
   stepValidators,
+  initialStep = 0,
 }: StepWizardProps) {
-  const [currentStep, setCurrentStep] = React.useState(0);
+  const [currentStep, setCurrentStep] = React.useState(initialStep);
   const [maxVisitedStep, setMaxVisitedStep] = React.useState(0);
   const totalSteps = steps.length;
 
@@ -96,7 +98,7 @@ export function StepWizard({
           }
         }
       }
-      
+
       setCurrentStep(step);
       scrollToTop();
     }
@@ -182,11 +184,11 @@ function StepIndicator({
       {/* Steps */}
       <div className="relative flex justify-between">
         {/* Progress bar background - positioned between step centers */}
-        <div 
+        <div
           className="absolute top-6 h-0.5 bg-primary/20"
           style={{
-            left: 'calc(24px)',
-            right: 'calc(24px)',
+            left: "calc(24px)",
+            right: "calc(24px)",
           }}
         />
 
@@ -194,8 +196,11 @@ function StepIndicator({
         <div
           className="absolute top-6 h-0.5 bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
           style={{
-            left: 'calc(24px)',
-            width: currentStep === 0 ? '0%' : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
+            left: "calc(24px)",
+            width:
+              currentStep === 0
+                ? "0%"
+                : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
           }}
         />
         {steps.map((step, index) => {

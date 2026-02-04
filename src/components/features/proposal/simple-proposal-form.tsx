@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -169,6 +170,14 @@ export function SimpleProposalForm({
 
   // State for unsaved changes modal
   const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
+
+  const searchParams = useSearchParams();
+  const initialStepParam = searchParams.get("initialStep");
+
+  const initialStep = React.useMemo(() => {
+    if (initialStepParam === "automation") return 1;
+    return 0;
+  }, [initialStepParam]);
 
   // Key para forçar reset do SistemaSelector após adicionar um sistema
   const [selectorKey, setSelectorKey] = React.useState(0);
@@ -737,6 +746,7 @@ export function SimpleProposalForm({
         steps={steps}
         allowClickAhead={!!proposalId}
         stepValidators={stepValidators}
+        initialStep={initialStep}
       >
         {/* Step 1: Client Info */}
         <StepCard>

@@ -539,7 +539,7 @@ export default function ProposalsPage() {
                   <CardContent className="grid grid-cols-7 gap-4 items-center py-4 px-4">
                     <div>
                       <Link
-                        href={`/proposals/${proposal.id}/view`}
+                        href={`/proposals/${proposal.id}?initialStep=automation`}
                         className="font-medium hover:underline"
                       >
                         {proposal.title}
