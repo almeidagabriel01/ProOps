@@ -263,7 +263,7 @@ export const StripeService = {
 
     const result = await callPublicApi<
       BackendResponse | { data: BackendResponse }
-    >("/v1/stripe/plans", "GET");
+    >("/v1/stripe/plans", "GET", undefined, { cache: "no-store" });
 
     // Handle both direct response and { data: ... } wrapper
     const data = "data" in result ? result.data : result;
