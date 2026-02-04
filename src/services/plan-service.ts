@@ -152,7 +152,10 @@ export const PlanService = {
         console.log("[PlanService] Merging live prices with base plans");
 
         return basePlans.map((plan) => {
-          const stripePrices = priceData.plans[plan.tier];
+          // Normalize tier to lowercase for matching to avoid case sensitivity issues
+          const tierKey = plan.tier.toLowerCase();
+          const stripePrices =
+            priceData.plans[tierKey] || priceData.plans[plan.tier];
 
           if (stripePrices) {
             // Convert cents to units (BRL)
