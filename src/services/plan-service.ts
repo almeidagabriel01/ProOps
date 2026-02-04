@@ -88,52 +88,9 @@ export const PlanService = {
    * Get all available plans, ordered by hierarchy
    */
   getPlans: async (): Promise<UserPlan[]> => {
-    // We rely on Firestore for speed. Live prices are fetched separately if needed.
-    // try {
-    //   // Try to fetch from Cloud Function first (which syncs with Stripe)
-    //   const { StripeService } = await import("./stripe-service");
-    //   const plans = await StripeService.getPlans();
-    //   if (plans && plans.length > 0) {
-    //     return plans as UserPlan[];
-    //   }
-    // } catch (error) {
-    //   console.warn(
-    //     "Failed to fetch plans from Cloud Function, falling back to Firestore/Defaults",
-    //     error
-    //   );
-    // }
-
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
-
-    // If no plans exist, seed with defaults
-    if (querySnapshot.empty) {
-      await PlanService.seedDefaultPlans();
-      // Return defaults directly to avoid recursion loop if API fails
-      return DEFAULT_PLANS.map((p) => ({ ...p, id: p.tier }) as UserPlan);
-    }
-
-    const plans = querySnapshot.docs.map((doc) => {
-      const data = doc.data() as UserPlan;
-      const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === data.tier);
-
-      return {
-        ...data,
-        id: doc.id,
-        name: data.name || defaultPlan?.name || "Plano Desconhecido",
-        description: data.description || defaultPlan?.description,
-        price: data.price || defaultPlan?.price || 0,
-        // Fallback to default pricing if missing (handles old data)
-        pricing: data.pricing || defaultPlan?.pricing,
-        // Merge features: defaults provide new fields, Firestore data takes priority
-        features: {
-          ...defaultPlan?.features,
-          ...data.features,
-        },
-      };
-    }) as UserPlan[];
-
-    // Sort by order
-    return plans.sort((a, b) => a.order - b.order);
+    // STRICT REQUIREMENT: Always fetch from Stripe. Never use generic/database fallbacks.
+    const plans = await PlanService.getLivePlans();
+    return plans || [];
   },
 
   /**
@@ -143,49 +100,24 @@ export const PlanService = {
   getLivePlans: async (): Promise<UserPlan[] | null> => {
     try {
       const { StripeService } = await import("./stripe-service");
-      // Load base plans first to get features/descriptions
-      const basePlans = await PlanService.getPlans();
-      // Load live prices
-      const priceData = await StripeService.getPrices();
 
-      if (priceData && priceData.plans) {
-        console.log("[PlanService] Merging live prices with base plans");
+      // Fetch directly from Stripe API
+      const stripePlans = await StripeService.getPlans();
 
-        return basePlans.map((plan) => {
-          // Normalize tier to lowercase for matching to avoid case sensitivity issues
-          const tierKey = plan.tier.toLowerCase();
-          const stripePrices =
-            priceData.plans[tierKey] || priceData.plans[plan.tier];
-
-          if (stripePrices) {
-            // Convert cents to units (BRL)
-            const monthlyPrice = stripePrices.monthly?.amount
-              ? stripePrices.monthly.amount / 100
-              : plan.price;
-            // For yearly, if we have a yearly price, use it. Otherwise calculate from monthly (fallback).
-            const yearlyPrice = stripePrices.yearly?.amount
-              ? stripePrices.yearly.amount / 100
-              : monthlyPrice * 12;
-
-            return {
-              ...plan,
-              price: monthlyPrice,
-              pricing: {
-                monthly: monthlyPrice,
-                yearly: yearlyPrice,
-              },
-            };
-          }
-          return plan;
-        });
+      if (stripePlans && stripePlans.length > 0) {
+        console.log("[PlanService] Returning strict Stripe API data");
+        // The API returns the exact structure we need, just force the type
+        return stripePlans as any as UserPlan[];
       }
 
       console.warn(
-        "[PlanService] StripeService.getPrices() returned empty data, falling back.",
+        "[PlanService] StripeService.getPlans() returned empty data.",
       );
+      // NEVER fallback to Firestore
       return null;
     } catch (error) {
-      console.warn("Failed to fetch live plans:", error);
+      console.error("Failed to fetch live plans:", error);
+      // NEVER fallback to Firestore
       return null;
     }
   },

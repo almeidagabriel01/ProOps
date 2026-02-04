@@ -321,9 +321,11 @@ export const StripeService = {
   },
 
   getPlans: async (): Promise<Plan[]> => {
-    const result = await callPublicApi<{ plans: Plan[] }>(
+    const result = await callPublicApi<{ plans: any[] }>(
       "/v1/stripe/plans",
       "GET",
+      undefined,
+      { cache: "no-store" }, // Ensure no cache here as well
     );
     return result.plans || [];
   },
