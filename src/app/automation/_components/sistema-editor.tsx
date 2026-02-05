@@ -15,13 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
   Package,
@@ -150,7 +144,9 @@ export function SistemaEditor({
 
   // Click Outside Handler
   React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (
+      event: MouseEvent | PointerEvent | TouchEvent,
+    ) => {
       if (
         productListRef.current &&
         !productListRef.current.contains(event.target as Node)
@@ -158,8 +154,16 @@ export function SistemaEditor({
         setShowProductList(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Use capture phase to ensure we catch the event before other handlers might stop propagation
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("pointerdown", handleClickOutside, true);
+    document.addEventListener("touchstart", handleClickOutside, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("pointerdown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
+    };
   }, []);
 
   // Handle Save
@@ -470,37 +474,34 @@ export function SistemaEditor({
         {/* Main Content: Product Editor */}
         <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
           {activeAmbienteId && activeConfig ? (
-            <Card className="h-full flex flex-col border-none shadow-md bg-card/50 backdrop-blur-sm">
-              <CardHeader className="py-4 border-b bg-muted/20">
-                <div className="flex items-center justify-between">
+            <Card className="h-full flex flex-col border-none shadow-md bg-card overflow-hidden">
+              {/* Premium Header with Integrated Search */}
+              <div className="flex flex-col gap-4 p-6 border-b bg-background/50">
+                <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                    <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                       <Package className="w-5 h-5 text-primary" />
                       Produtos:{" "}
-                      <span className="text-primary">
+                      <span className="text-muted-foreground font-normal">
                         {activeAmbienteDef?.name}
                       </span>
-                    </CardTitle>
-                    <CardDescription>
-                      Configurar quais produtos são adicionados automaticamente
-                      neste ambiente.
-                    </CardDescription>
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Gerencie os itens automáticos para este ambiente.
+                    </p>
                   </div>
-                  <Badge variant="secondary" className="px-3 py-1 text-base">
+                  <Badge variant="outline" className="px-3 py-1 h-7">
                     {activeConfig.products.length}{" "}
                     {activeConfig.products.length === 1 ? "item" : "itens"}
                   </Badge>
                 </div>
-              </CardHeader>
 
-              {/* Toolbar / Search */}
-              <div className="p-4 bg-background/50 border-b">
-                <div className="relative z-20" ref={productListRef}>
-                  <div className="relative flex items-center">
-                    <Search className="absolute left-4 w-5 h-5 text-muted-foreground" />
+                <div className="relative z-20 w-full" ref={productListRef}>
+                  <div className="relative w-full group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
                     <Input
                       placeholder="Buscar produto para adicionar..."
-                      className="pl-12 h-12 text-base bg-background shadow-sm focus-visible:ring-primary rounded-xl"
+                      className="pl-11 h-12 bg-muted/30 border-muted-foreground/10 focus:bg-background transition-all shadow-sm rounded-xl w-full"
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
                       onFocus={() => setShowProductList(true)}

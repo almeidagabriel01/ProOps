@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -84,7 +83,9 @@ export function AmbienteProductsDialog({
 
   // Close product list when clicking outside
   React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (
+      event: MouseEvent | PointerEvent | TouchEvent,
+    ) => {
       if (
         productListRef.current &&
         !productListRef.current.contains(event.target as Node)
@@ -94,7 +95,14 @@ export function AmbienteProductsDialog({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const addProduct = (product: Product) => {
@@ -169,98 +177,45 @@ export function AmbienteProductsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Produtos Padrão - {ambiente?.name || "Ambiente"}
-          </DialogTitle>
-          <DialogDescription>
-            Configure os produtos que serão adicionados automaticamente quando
-            este ambiente for selecionado em uma proposta.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+        <div className="p-6 border-b shrink-0">
+          <DialogHeader>
+            <DialogTitle>
+              Produtos Padrão - {ambiente?.name || "Ambiente"}
+            </DialogTitle>
+            <DialogDescription>
+              Configure os produtos que serão adicionados automaticamente quando
+              este ambiente for selecionado em uma proposta.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         {isLoading ? (
-          <div className="py-12 text-center text-muted-foreground">
-            <div className="mb-3 flex justify-center">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-3">
               <Spinner className="h-8 w-8 text-primary" />
+              <p>Carregando produtos...</p>
             </div>
-            Carregando...
           </div>
         ) : (
-          <div className="space-y-4 py-2">
-            {/* Selected Products */}
-            {selectedProducts.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-muted-foreground">
-                  {selectedProducts.length} produto(s) selecionado(s)
-                </h4>
-                {selectedProducts.map((sp) => (
-                  <div
-                    key={sp.productId}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border group"
-                  >
-                    <Package className="h-4 w-4 text-primary shrink-0" />
-                    <span className="flex-1 text-sm font-medium truncate">
-                      {sp.productName}
-                    </span>
-
-                    {/* Quantity Control */}
-                    <div className="flex items-center gap-1 bg-background rounded-lg p-1 border">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => updateProductQuantity(sp.productId, -1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm font-semibold">
-                        {sp.quantity}
-                      </span>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => updateProductQuantity(sp.productId, 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => removeProduct(sp.productId)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add Product Search */}
-            <div className="relative" ref={productListRef}>
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Add Product Search - More prominent */}
+            <div className="relative w-full" ref={productListRef}>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   placeholder="Buscar e adicionar produtos..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   onFocus={() => setShowProductList(true)}
-                  className="pl-10 h-11"
+                  className="pl-12 h-14 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
                 />
               </div>
 
               {showProductList && (
-                <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-[250px] overflow-y-auto">
+                <div className="absolute z-50 w-full mt-2 bg-popover border rounded-xl shadow-xl max-h-[300px] overflow-y-auto">
                   {filteredProducts.length === 0 ? (
-                    <div className="p-4 text-sm text-muted-foreground text-center">
+                    <div className="p-6 text-sm text-muted-foreground text-center">
                       {products.length === 0
                         ? "Nenhum produto cadastrado"
                         : "Nenhum produto encontrado"}
@@ -271,19 +226,21 @@ export function AmbienteProductsDialog({
                         key={product.id}
                         type="button"
                         onClick={() => addProduct(product)}
-                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/50 transition-colors border-b last:border-b-0"
+                        className="w-full flex items-center gap-4 p-4 text-left hover:bg-accent/50 transition-colors border-b last:border-b-0 group"
                       >
-                        <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
+                          <div className="font-medium text-sm truncate group-hover:text-primary transition-colors">
                             {product.name}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground mt-0.5">
                             {product.category && `${product.category} • `}
                             R$ {parseFloat(product.price).toFixed(2)}
                           </div>
                         </div>
-                        <Plus className="h-4 w-4 text-primary shrink-0" />
+                        <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
                       </button>
                     ))
                   )}
@@ -291,17 +248,94 @@ export function AmbienteProductsDialog({
               )}
             </div>
 
-            {selectedProducts.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Nenhum produto padrão configurado.
-                <br />
-                Clique no campo acima para adicionar produtos.
-              </p>
-            )}
+            {/* Selected Products Grid */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Produtos Selecionados
+                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-semibold">
+                    {selectedProducts.length}
+                  </span>
+                </h4>
+              </div>
+
+              {selectedProducts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {selectedProducts.map((sp) => (
+                    <div
+                      key={sp.productId}
+                      className="group relative flex flex-col p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => removeProduct(sp.productId)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="flex-1 min-w-0 mb-4">
+                        <p
+                          className="font-medium text-sm line-clamp-2 leading-tight"
+                          title={sp.productName}
+                        >
+                          {sp.productName}
+                        </p>
+                      </div>
+
+                      {/* Quantity Control - Bottom */}
+                      <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 border self-start mt-auto">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 hover:bg-background shadow-sm"
+                          onClick={() =>
+                            updateProductQuantity(sp.productId, -1)
+                          }
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-10 text-center text-sm font-semibold tabular-nums">
+                          {sp.quantity}
+                        </span>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 hover:bg-background shadow-sm"
+                          onClick={() => updateProductQuantity(sp.productId, 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl bg-muted/20 text-muted-foreground">
+                  <Package className="h-10 w-10 mb-3 opacity-20" />
+                  <p className="text-center font-medium">
+                    Nenhum produto configurado
+                  </p>
+                  <p className="text-center text-sm opacity-70">
+                    Use a busca acima para adicionar produtos a este ambiente
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        <DialogFooter>
+        <div className="p-4 border-t bg-muted/10 shrink-0 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             Cancelar
           </Button>
@@ -318,7 +352,7 @@ export function AmbienteProductsDialog({
               </>
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
