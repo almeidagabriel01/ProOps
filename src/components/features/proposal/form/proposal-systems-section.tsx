@@ -269,6 +269,7 @@ export function ProposalSystemsSection({
             onSistemaAction={onSistemaAction}
             sistemas={sistemas}
             ambientes={ambientes}
+            selectedSistemas={selectedSistemas}
           />
         </div>
       </CardContent>
@@ -412,9 +413,6 @@ function SystemCard({
                   <strong>{sistema.sistemaName}</strong> ({sistema.ambienteName}
                   ) desta proposta?
                   <br />
-                  <span className="text-amber-600 dark:text-amber-400">
-                    Todos os produtos deste sistema serão removidos.
-                  </span>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -747,41 +745,43 @@ function ProductRow({
       </div>
 
       {/* Remove button for extras */}
-      {isExtra && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-              title="Remover produto"
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+            title="Remover produto"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Produto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o produto{" "}
+              <strong>{product.productName}</strong> deste sistema?
+              <br />
+              <span className="text-sm text-muted-foreground mt-2 block">
+                Esta ação remove o produto apenas desta proposta.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() =>
+                onRemoveProduct(product.productId, product.systemInstanceId)
+              }
             >
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remover Produto Extra</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja remover o produto{" "}
-                <strong>{product.productName}</strong> deste sistema?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={() =>
-                  onRemoveProduct(product.productId, product.systemInstanceId)
-                }
-              >
-                Remover
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

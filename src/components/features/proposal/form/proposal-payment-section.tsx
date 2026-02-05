@@ -21,6 +21,7 @@ interface ProposalPaymentSectionProps {
   onPaymentToggle: (field: string, value: boolean) => void;
   onExtraExpenseChange: (value: number) => void;
   noContainer?: boolean;
+  errors?: Record<string, string>;
 }
 
 export function ProposalPaymentSection({
@@ -31,6 +32,7 @@ export function ProposalPaymentSection({
   onPaymentToggle,
   onExtraExpenseChange,
   noContainer = false,
+  errors = {},
 }: ProposalPaymentSectionProps) {
   // Calculate components
   const productsValue = selectedProducts.reduce((sum, p) => sum + p.total, 0);
@@ -221,9 +223,12 @@ export function ProposalPaymentSection({
 
             {/* First Installment Date */}
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Calendar className={`w-4 h-4 ${errors.firstInstallmentDate ? "text-destructive" : "text-muted-foreground"}`} />
               <div className="flex-1">
-                <Label htmlFor="firstInstallmentDate">
+                <Label 
+                  htmlFor="firstInstallmentDate"
+                  className={errors.firstInstallmentDate ? "text-destructive" : ""}
+                >
                   Vencimento da 1ª Parcela
                 </Label>
                 <Input
@@ -232,11 +237,17 @@ export function ProposalPaymentSection({
                   name="firstInstallmentDate"
                   value={formData.firstInstallmentDate || ""}
                   onChange={onFormChange}
-                  className="mt-1"
+                  className={`mt-1 ${errors.firstInstallmentDate ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Demais parcelas: +30 dias cada
-                </p>
+                {errors.firstInstallmentDate ? (
+                  <p className="text-xs text-destructive mt-1">
+                    {errors.firstInstallmentDate}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Demais parcelas: +30 dias cada
+                  </p>
+                )}
               </div>
             </div>
 
@@ -312,9 +323,12 @@ export function ProposalPaymentSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <Calendar className={`w-4 h-4 ${errors.downPaymentDueDate ? "text-destructive" : "text-muted-foreground"}`} />
                     <div className="flex-1">
-                      <Label htmlFor="downPaymentDueDate">
+                      <Label 
+                        htmlFor="downPaymentDueDate"
+                        className={errors.downPaymentDueDate ? "text-destructive" : ""}
+                      >
                         Data da Entrada
                       </Label>
                       <Input
@@ -323,8 +337,13 @@ export function ProposalPaymentSection({
                         name="downPaymentDueDate"
                         value={formData.downPaymentDueDate || ""}
                         onChange={onFormChange}
-                        className="mt-1"
+                        className={`mt-1 ${errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       />
+                      {errors.downPaymentDueDate && (
+                        <p className="text-xs text-destructive mt-1">
+                          {errors.downPaymentDueDate}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
