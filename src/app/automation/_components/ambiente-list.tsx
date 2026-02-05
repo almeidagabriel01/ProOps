@@ -5,7 +5,16 @@ import { Ambiente } from "@/types/automation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { Pencil, Trash2, Home, Plus, Loader2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Home,
+  Plus,
+  Loader2,
+  Check,
+  X,
+  LayoutGrid,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
@@ -19,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { motion, AnimatePresence } from "motion/react";
 
 interface AmbienteListProps {
   ambientes: Ambiente[];
@@ -107,97 +117,140 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-muted/20 p-4 rounded-lg border">
-        <h3 className="font-medium mb-2">Adicionar Novo Ambiente</h3>
-        <div className="flex items-center gap-2">
+    <div className="space-y-8">
+      {/* Create Section */}
+      <div className="max-w-xl">
+        <div className="relative flex items-center">
           <Input
             id="new-ambiente-input"
-            placeholder="Nome do ambiente (ex: Sala, Quarto, Cozinha)"
+            className="pr-32 h-12 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+            placeholder="Nome do novo ambiente (ex: Sala de Estar)"
             value={newAmbienteName}
             onChange={(e) => setNewAmbienteName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleCreate();
             }}
           />
-          <Button
-            onClick={handleCreate}
-            disabled={!newAmbienteName.trim() || isCreating}
-            id="trigger-new-ambiente"
-          >
-            {isCreating ? (
-              <Spinner className="h-4 w-4" />
-            ) : (
-              <Plus className="h-4 w-4 mr-2" />
-            )}
-            Adicionar
-          </Button>
+          <div className="absolute right-1 top-1 bottom-1">
+            <Button
+              onClick={handleCreate}
+              disabled={!newAmbienteName.trim() || isCreating}
+              className="h-full rounded-md px-4"
+              size="sm"
+            >
+              {isCreating ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" /> Adicionar
+                </>
+              )}
+            </Button>
+          </div>
         </div>
+        <p className="text-sm text-muted-foreground mt-2 px-1">
+          Adicione ambientes globais para serem utilizados em seus sistemas.
+        </p>
       </div>
 
-      <div className="grid gap-2">
-        {ambientes.map((amb) => (
-          <div
-            key={amb.id}
-            className="flex items-center justify-between p-3 border rounded-md hover:bg-muted/10 transition-colors"
-          >
-            <div className="flex items-center gap-3 flex-1">
-              <Home className="h-4 w-4 text-primary shrink-0" />
+      {/* Grid List */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <AnimatePresence mode="popLayout">
+          {ambientes.map((amb) => (
+            <motion.div
+              layout
+              key={amb.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className={`
+                group relative flex flex-col justify-between p-4 rounded-xl border bg-card transition-all duration-300
+                ${editingId === amb.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/50 hover:shadow-md"}
+              `}
+            >
               {editingId === amb.id ? (
-                <div className="flex gap-2 flex-1 max-w-sm">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-2 text-primary font-medium">
+                    <Home className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-wider">
+                      Editando
+                    </span>
+                  </div>
                   <Input
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     autoFocus
+                    className="h-9"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleEdit(amb.id);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
                   />
-                  <Button
-                    size="sm"
-                    onClick={() => handleEdit(amb.id)}
-                    disabled={isUpdating}
-                  >
-                    {isUpdating ? <Spinner className="h-3 w-3" /> : "Salvar"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEditingId(null)}
-                  >
-                    Cancelar
-                  </Button>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditingId(null)}
+                      className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleEdit(amb.id)}
+                      disabled={isUpdating}
+                      className="h-8 px-3"
+                    >
+                      {isUpdating ? (
+                        <Spinner className="h-3 w-3" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <span className="font-medium">{amb.name}</span>
+                <>
+                  <div className="flex items-start justify-between">
+                    <div className="p-2 bg-secondary rounded-lg text-secondary-foreground">
+                      <Home className="h-5 w-5" />
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => startEdit(amb)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setDeletingId(amb.id);
+                          setDeleteConfirmOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <h4 className="font-semibold text-lg">{amb.name}</h4>
+                  </div>
+                </>
               )}
-            </div>
-
-            {editingId !== amb.id && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => startEdit(amb)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => {
-                    setDeletingId(amb.id);
-                    setDeleteConfirmOpen(true);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {ambientes.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            Nenhum ambiente encontrado.
+          <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+            <LayoutGrid className="mx-auto h-12 w-12 text-muted-foreground/20 mb-3" />
+            <p>Nenhum ambiente encontrado.</p>
           </div>
         )}
       </div>
@@ -207,8 +260,10 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Ambiente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá o ambiente da lista global. Sistemas que usam
-              este ambiente podem ficar com referências quebradas.
+              Esta ação removerá o ambiente &quot;
+              {ambientes.find((a) => a.id === deletingId)?.name}&quot; da lista
+              global. Sistemas que usam este ambiente podem ficar com
+              referências quebradas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

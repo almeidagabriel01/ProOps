@@ -14,7 +14,7 @@ import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import {
   ArrowLeft,
   FileDown,
-  Edit,
+  Pencil,
   Loader2,
   Palette,
   Crown,
@@ -71,6 +71,13 @@ export default function ViewProposalPage() {
         try {
           const p = await ProposalService.getProposalById(proposalId);
           if (p) {
+            // Block draft proposals from being viewed
+            if (p.status === "draft") {
+              toast.error("Propostas em rascunho não podem ser visualizadas. Edite a proposta para ativá-la.");
+              router.push(`/proposals/${proposalId}`);
+              return;
+            }
+            
             // Sync client data from source if clientId exists
             if (p.clientId) {
               try {
@@ -155,7 +162,7 @@ export default function ViewProposalPage() {
       };
       fetchProposal();
     }
-  }, [proposalId, tenant]);
+  }, [proposalId, tenant, router]);
 
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
@@ -887,7 +894,7 @@ export default function ViewProposalPage() {
               onClick={() => router.push(`/proposals/${proposalId}`)}
               className="gap-2"
             >
-              <Edit className="w-4 h-4" />
+              <Pencil className="w-4 h-4" />
               Editar Dados
             </Button>
           )}

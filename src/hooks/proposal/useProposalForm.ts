@@ -585,7 +585,7 @@ export function useProposalForm({
               discount: proposal.discount || 0,
               extraExpense: proposal.extraExpense || 0,
               products: syncedProducts,
-              status: (proposal.status as ProposalStatus) || "in_progress",
+              status: (proposal.status === "draft" ? "in_progress" : proposal.status as ProposalStatus) || "in_progress",
               // Payment options
               downPaymentEnabled: proposal.downPaymentEnabled || false,
               downPaymentValue: proposal.downPaymentValue || 0,
@@ -618,16 +618,20 @@ export function useProposalForm({
                   setLocalSistemas(freshSistemas);
                 } catch (err) {
                   console.error("Error fetching fresh aux data", err);
-                  toast.error("Erro ao atualizar dados de ambientes e sistemas");
+                  toast.error(
+                    "Erro ao atualizar dados de ambientes e sistemas",
+                  );
                 }
               }
 
               const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => {
                 // Try to find by ID first, then by Name (fix for Temp ID persistence race condition)
                 // Handle both new format (ambientes array) and legacy (ambienteId)
-                const primaryAmbienteId = s.ambientes?.[0]?.ambienteId || s.ambienteId;
-                const primaryAmbienteName = s.ambientes?.[0]?.ambienteName || s.ambienteName;
-                
+                const primaryAmbienteId =
+                  s.ambientes?.[0]?.ambienteId || s.ambienteId;
+                const primaryAmbienteName =
+                  s.ambientes?.[0]?.ambienteName || s.ambienteName;
+
                 const masterAmbiente =
                   freshAmbientes.find((a) => a.id === primaryAmbienteId) ||
                   freshAmbientes.find((a) => a.name === primaryAmbienteName);
@@ -637,11 +641,14 @@ export function useProposalForm({
                   freshSistemas.find((sys) => sys.name === s.sistemaName);
 
                 // Get productIds from new or legacy format
-                const productIds = s.ambientes?.[0]?.productIds || s.productIds || [];
+                const productIds =
+                  s.ambientes?.[0]?.productIds || s.productIds || [];
 
                 // Build products array from synced products
                 const sistemaProducts = syncedProducts
-                  .filter((p: ProposalProduct) => productIds.includes(p.productId))
+                  .filter((p: ProposalProduct) =>
+                    productIds.includes(p.productId),
+                  )
                   .map((p: ProposalProduct) => ({
                     productId: p.productId,
                     productName: p.productName,
@@ -650,17 +657,22 @@ export function useProposalForm({
 
                 return {
                   sistemaId: masterSistema?.id || (s.sistemaId as string) || "",
-                  sistemaName: masterSistema?.name || (s.sistemaName as string) || "",
+                  sistemaName:
+                    masterSistema?.name || (s.sistemaName as string) || "",
                   description: (s.description as string) || "",
                   // New format - ambientes array
-                  ambientes: [{
-                    ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
-                    ambienteName: masterAmbiente?.name || primaryAmbienteName || "",
-                    products: sistemaProducts,
-                  }],
+                  ambientes: [
+                    {
+                      ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
+                      ambienteName:
+                        masterAmbiente?.name || primaryAmbienteName || "",
+                      products: sistemaProducts,
+                    },
+                  ],
                   // Legacy fields for backward compat
                   ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
-                  ambienteName: masterAmbiente?.name || primaryAmbienteName || "",
+                  ambienteName:
+                    masterAmbiente?.name || primaryAmbienteName || "",
                   products: sistemaProducts,
                 };
               });
@@ -838,7 +850,8 @@ export function useProposalForm({
         ),
       );
 
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro desconhecido";
       toast.error(`Erro ao alterar status do produto: ${errorMessage}`);
     }
   };
@@ -978,8 +991,10 @@ export function useProposalForm({
         // When user clicks "Save Proposal" (manual save), it's a finalization action
         // Only auto-save should use draft status
         // If incomplete, force draft; if complete and no status set, default to in_progress
-        const finalStatus: ProposalStatus = isComplete 
-          ? (formData.status && formData.status !== "draft" ? formData.status : "in_progress")
+        const finalStatus: ProposalStatus = isComplete
+          ? formData.status && formData.status !== "draft"
+            ? formData.status
+            : "in_progress"
           : "draft";
 
         const draftFormData = {
@@ -1005,7 +1020,7 @@ export function useProposalForm({
         // Update client data if proposal is being finalized (not draft) and client exists
         // This syncs any changes made to client data within the proposal back to the client record
         const isFinalizing = draftFormData.status !== "draft";
-        
+
         if (isFinalizing && clientId) {
           const clientUpdateData = {
             name: formData.clientName?.trim() || "",
@@ -1013,13 +1028,15 @@ export function useProposalForm({
             phone: formData.clientPhone || "",
             address: formData.clientAddress || "",
           };
-          
+
           try {
             const { ClientService } = await import("@/services/client-service");
             await ClientService.updateClient(clientId, clientUpdateData);
           } catch (clientUpdateError) {
             console.error("Failed to update client:", clientUpdateError);
-            toast.error("Proposta salva, mas houve um erro ao atualizar os dados do cliente");
+            toast.error(
+              "Proposta salva, mas houve um erro ao atualizar os dados do cliente",
+            );
           }
         }
 
@@ -1090,11 +1107,48 @@ export function useProposalForm({
   };
 
   const removeSistema = (index: number, systemInstanceId: string) => {
-    setSelectedSistemas((prev) => prev.filter((_, i) => i !== index));
+    // 1. Calculate the New Systems List first
+    const newSelectedSistemas = selectedSistemas.filter((_, i) => i !== index);
+
+    // 2. Identify ALL Valid Instance IDs from the NEW list
+    // This acts as a "Garbage Collection" for orphaned products
+    const validInstanceIds = new Set<string>();
+
+    newSelectedSistemas.forEach((sys) => {
+      // Skip incomplete/pending systems
+      if (!sys.sistemaId) return;
+
+      // Add IDs from 'ambientes' array (New Structure)
+      if (sys.ambientes?.length) {
+        sys.ambientes.forEach((amb) => {
+          if (amb.ambienteId) {
+            validInstanceIds.add(`${sys.sistemaId}-${amb.ambienteId}`);
+          }
+        });
+      }
+
+      // Add IDs from legacy fields (Backward Compatibility)
+      if (sys.ambienteId) {
+        validInstanceIds.add(`${sys.sistemaId}-${sys.ambienteId}`);
+      }
+    });
+
+    // 3. Validation: Log if systemInstanceId is not being removed (debugging)
+    if (systemInstanceId && validInstanceIds.has(systemInstanceId)) {
+      console.warn(
+        `Expected to remove ${systemInstanceId} but it's still in valid IDs - possible logic error`,
+      );
+    }
+
+    // 4. Update State
+    setSelectedSistemas(newSelectedSistemas);
+
+    // Filter products: Keep only those that are NOT associated with a system (standard)
+    // OR those that are associated with a VALID system remaining in the list.
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).filter(
-        (p) => p.systemInstanceId !== systemInstanceId,
+        (p) => !p.systemInstanceId || validInstanceIds.has(p.systemInstanceId),
       ),
     }));
   };

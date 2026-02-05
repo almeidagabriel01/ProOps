@@ -76,78 +76,106 @@ export function ProposalSummarySection({
               {/* Produtos agrupados por sistema */}
               {isAutomacaoNiche &&
                 selectedSistemas.map((sistema, sistemaIdx) => {
-                  const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-                  const sistemaProducts = selectedProducts.filter(
-                    (p) => p.systemInstanceId === systemInstanceId,
-                  );
-                  const sistemaTotal = sistemaProducts.reduce(
-                    (sum, p) => sum + p.total,
-                    0,
-                  );
-
-                  if (sistemaProducts.length === 0) return null;
+                  // Fallback for legacy structure or if key 'ambientes' is missing
+                  const environments =
+                    sistema.ambientes && sistema.ambientes.length > 0
+                      ? sistema.ambientes
+                      : sistema.ambienteId
+                        ? [
+                            {
+                              ambienteId: sistema.ambienteId,
+                              ambienteName: sistema.ambienteName || "Ambiente",
+                            },
+                          ]
+                        : [];
 
                   return (
-                    <React.Fragment key={`sistema-${sistemaIdx}`}>
-                      <tr
-                        className="border-t"
-                        style={{ backgroundColor: `${primaryColor}15` }}
-                      >
-                        <td colSpan={4} className="p-2 font-semibold text-sm">
-                          <div className="flex flex-row items-center gap-3">
-                            <span className="font-bold text-base text-gray-700 dark:text-gray-300">
-                              {sistema.sistemaName}
-                            </span>
-                            <span className="font-medium text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border shadow-xs flex items-center gap-1 text-foreground">
-                              📍 {sistema.ambienteName}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                      {sistemaProducts.map((product, idx) => (
-                        <tr
-                          key={`${product.productId}-${idx}`}
-                          className="border-t"
-                        >
-                          <td className="p-3 font-medium pl-6">
-                            <div className="flex items-center gap-2">
-                              <span>{product.productName}</span>
-                              {product.isExtra && (
-                                <Badge
-                                  variant="default"
-                                  className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"
-                                >
-                                  Extra
-                                </Badge>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-3 text-center">
-                            {product.quantity}
-                          </td>
-                          <td className="p-3 text-right whitespace-nowrap">
-                            R${" "}
-                            {(
-                              (product.unitPrice || 0) *
-                              (1 + (product.markup || 0) / 100)
-                            ).toFixed(2)}
-                          </td>
-                          <td className="p-3 text-right font-medium whitespace-nowrap">
-                            R$ {(product.total || 0).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr className="bg-muted/30">
-                        <td
-                          colSpan={3}
-                          className="p-2 text-right text-sm pl-6 whitespace-nowrap"
-                        >
-                          Subtotal do Sistema:
-                        </td>
-                        <td className="p-2 text-right font-medium text-sm whitespace-nowrap text-foreground">
-                          R$ {(sistemaTotal || 0).toFixed(2)}
-                        </td>
-                      </tr>
+                    <React.Fragment key={`sistema-group-${sistemaIdx}`}>
+                      {environments.map((ambiente, envIdx) => {
+                        const systemInstanceId = `${sistema.sistemaId}-${ambiente.ambienteId}`;
+                        const sistemaProducts = selectedProducts.filter(
+                          (p) => p.systemInstanceId === systemInstanceId,
+                        );
+
+                        // If no products found for this exact instance ID, try checking if products belong to these IDs
+                        // (sometimes migration might be tricky, but usually systemInstanceId is the key)
+
+                        const instanceTotal = sistemaProducts.reduce(
+                          (sum, p) => sum + p.total,
+                          0,
+                        );
+
+                        if (sistemaProducts.length === 0) return null;
+
+                        return (
+                          <React.Fragment
+                            key={`sistema-${sistemaIdx}-env-${envIdx}`}
+                          >
+                            <tr
+                              className="border-t"
+                              style={{ backgroundColor: `${primaryColor}15` }}
+                            >
+                              <td
+                                colSpan={4}
+                                className="p-2 font-semibold text-sm"
+                              >
+                                <div className="flex flex-row items-center gap-3">
+                                  <span className="font-bold text-base text-gray-700 dark:text-gray-300">
+                                    {sistema.sistemaName}
+                                  </span>
+                                  <span className="font-medium text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border shadow-xs flex items-center gap-1 text-foreground">
+                                    📍 {ambiente.ambienteName}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                            {sistemaProducts.map((product, idx) => (
+                              <tr
+                                key={`${product.productId}-${idx}`}
+                                className="border-t"
+                              >
+                                <td className="p-3 font-medium pl-6">
+                                  <div className="flex items-center gap-2">
+                                    <span>{product.productName}</span>
+                                    {product.isExtra && (
+                                      <Badge
+                                        variant="default"
+                                        className="text-[10px] h-5 px-1 bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200"
+                                      >
+                                        Extra
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 text-center">
+                                  {product.quantity}
+                                </td>
+                                <td className="p-3 text-right whitespace-nowrap">
+                                  R${" "}
+                                  {(
+                                    (product.unitPrice || 0) *
+                                    (1 + (product.markup || 0) / 100)
+                                  ).toFixed(2)}
+                                </td>
+                                <td className="p-3 text-right font-medium whitespace-nowrap">
+                                  R$ {(product.total || 0).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-muted/30">
+                              <td
+                                colSpan={3}
+                                className="p-2 text-right text-sm pl-6 whitespace-nowrap"
+                              >
+                                Subtotal ({ambiente.ambienteName}):
+                              </td>
+                              <td className="p-2 text-right font-medium text-sm whitespace-nowrap text-foreground">
+                                R$ {(instanceTotal || 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
                     </React.Fragment>
                   );
                 })}

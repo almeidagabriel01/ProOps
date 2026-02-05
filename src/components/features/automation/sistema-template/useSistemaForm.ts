@@ -93,7 +93,11 @@ export function useSistemaForm({
       if (editingSistema) {
         setName(editingSistema.name);
         setDescription(editingSistema.description);
-        setSelectedAmbientes(editingSistema.availableAmbienteIds || editingSistema.ambienteIds || []);
+        setSelectedAmbientes(
+          editingSistema.availableAmbienteIds ||
+            editingSistema.ambienteIds ||
+            [],
+        );
         setSelectedProducts(editingSistema.defaultProducts || []);
       } else {
         setName("");
@@ -108,7 +112,9 @@ export function useSistemaForm({
 
   // Close product list on outside click
   React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (
+      event: MouseEvent | PointerEvent | TouchEvent,
+    ) => {
       if (
         productListRef.current &&
         !productListRef.current.contains(event.target as Node)
@@ -117,7 +123,14 @@ export function useSistemaForm({
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const toggleAmbiente = (id: string) => {
