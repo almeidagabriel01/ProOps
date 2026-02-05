@@ -27,6 +27,10 @@ interface AmbienteProductsDialogProps {
   onSave?: () => void;
   // Managed mode
   onAction?: (action: MasterDataAction) => Promise<void> | void;
+  // Custom save handler (overrides default service calls)
+  onSaveProducts?: (products: AmbienteProduct[]) => Promise<void> | void;
+  // Overrides loading from ambiente.defaultProducts
+  initialProducts?: AmbienteProduct[];
 }
 
 export function AmbienteProductsDialog({
@@ -35,6 +39,7 @@ export function AmbienteProductsDialog({
   ambiente,
   onSave,
   onAction,
+  ...props
 }: AmbienteProductsDialogProps) {
   const { tenant } = useTenant();
   const [selectedProducts, setSelectedProducts] = React.useState<
@@ -59,7 +64,9 @@ export function AmbienteProductsDialog({
         setProducts(catalogProducts.filter((p) => p.status === "active"));
 
         // Set current ambiente products
-        if (ambiente?.defaultProducts) {
+        if (props.initialProducts) {
+          setSelectedProducts(props.initialProducts);
+        } else if (ambiente?.defaultProducts) {
           setSelectedProducts(ambiente.defaultProducts);
         } else {
           setSelectedProducts([]);
@@ -73,7 +80,7 @@ export function AmbienteProductsDialog({
     };
 
     loadData();
-  }, [isOpen, tenant?.id, ambiente]);
+  }, [isOpen, tenant?.id, ambiente, props.initialProducts]);
 
   // Close product list when clicking outside
   React.useEffect(() => {
@@ -126,7 +133,9 @@ export function AmbienteProductsDialog({
     try {
       const updatedData = { defaultProducts: selectedProducts };
 
-      if (onAction) {
+      if (props.onSaveProducts) {
+        await props.onSaveProducts(selectedProducts);
+      } else if (onAction) {
         // Managed mode
         await onAction({
           type: "update",

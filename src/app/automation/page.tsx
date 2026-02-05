@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
@@ -68,9 +69,26 @@ export default function AutomationAdminPage() {
     }
   }, [tenant?.id]);
 
+  const searchParams = useSearchParams();
+
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  React.useEffect(() => {
+    const editId = searchParams.get("editSistemaId");
+    if (editId) {
+      setEditingSistemaId(editId);
+    }
+  }, [searchParams]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Spinner className="h-8 w-8" />
+      </div>
+    );
+  }
 
   if (editingSistemaId === "new" || editingSistemaId) {
     const systemToEdit =
@@ -78,10 +96,13 @@ export default function AutomationAdminPage() {
         ? null
         : sistemas.find((s) => s.id === editingSistemaId);
 
+    const initialAmbienteId = searchParams.get("editAmbienteId");
+
     return (
       <SistemaEditor
         sistema={systemToEdit || null}
         allAmbientes={ambientes}
+        initialAmbienteId={initialAmbienteId}
         onBack={() => setEditingSistemaId(null)}
         onSave={() => {
           setEditingSistemaId(null);
