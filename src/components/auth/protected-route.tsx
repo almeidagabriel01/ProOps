@@ -31,6 +31,7 @@ import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
+import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
@@ -141,6 +142,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "adminOverview";
     } else if (pathname?.startsWith("/admin")) {
       skeletonType = "admin";
+    } else if (pathname?.startsWith("/automation")) {
+      skeletonType = "automation";
     } else if (pathname === "/" && typeof window !== "undefined") {
       // Only use cache guessing for root redirect
       try {
@@ -212,6 +215,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           return <ProposalsSkeleton />;
         case "clients":
           return <ContactsSkeleton />;
+        case "automation":
+          return <AutomationSkeleton />;
         case "list":
         default:
           return (
