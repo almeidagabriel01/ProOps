@@ -585,7 +585,7 @@ export function useProposalForm({
               discount: proposal.discount || 0,
               extraExpense: proposal.extraExpense || 0,
               products: syncedProducts,
-              status: (proposal.status as ProposalStatus) || "in_progress",
+              status: (proposal.status === "draft" ? "in_progress" : proposal.status as ProposalStatus) || "in_progress",
               // Payment options
               downPaymentEnabled: proposal.downPaymentEnabled || false,
               downPaymentValue: proposal.downPaymentValue || 0,
