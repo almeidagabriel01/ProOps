@@ -219,6 +219,15 @@ export default function FinancialPage() {
     setTransactionToDelete(null);
   };
 
+  const handleViewModeChange = (mode: "grouped" | "byDueDate") => {
+    setViewMode(mode);
+    if (mode === "byDueDate") {
+      setFilterStatus("pending");
+    } else {
+      setFilterStatus("all");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header with Balance */}
@@ -302,7 +311,7 @@ export default function FinancialPage() {
         sortBy={sortBy}
         onSortChange={setSortBy}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       {/* Transactions List */}
