@@ -285,6 +285,19 @@ export function SimpleProposalForm({
     }
   }, [formData.validUntil, errors.validUntil, clearFieldError, proposalId]);
 
+  // Clear payment field errors when filled
+  React.useEffect(() => {
+    if (formData.firstInstallmentDate && errors.firstInstallmentDate) {
+      clearFieldError("firstInstallmentDate");
+    }
+  }, [formData.firstInstallmentDate, errors.firstInstallmentDate, clearFieldError]);
+
+  React.useEffect(() => {
+    if (formData.downPaymentDueDate && errors.downPaymentDueDate) {
+      clearFieldError("downPaymentDueDate");
+    }
+  }, [formData.downPaymentDueDate, errors.downPaymentDueDate, clearFieldError]);
+
   React.useEffect(() => {
     if (
       selectedSistemas.length > 0 &&
@@ -391,6 +404,40 @@ export function SimpleProposalForm({
 
     return true;
   }, [isAutomacaoNiche, setFieldError, clearFieldError]);
+
+  // Validação do Step 3 (Payment)
+  const validateStep3 = React.useCallback((): boolean => {
+    const currentFormData = formDataRef.current;
+    const errors: Record<string, string> = {};
+
+    // Validate installments
+    if (currentFormData.installmentsEnabled) {
+      if (!currentFormData.firstInstallmentDate) {
+        errors.firstInstallmentDate = "Data de vencimento da primeira parcela é obrigatória";
+      }
+    }
+
+    // Validate down payment
+    if (currentFormData.downPaymentEnabled) {
+      if (!currentFormData.downPaymentDueDate) {
+        errors.downPaymentDueDate = "Data da entrada é obrigatória";
+      }
+    }
+
+    // Set errors if any
+    if (Object.keys(errors).length > 0) {
+      Object.entries(errors).forEach(([field, message]) => {
+        setFieldError(field, message);
+      });
+      return false;
+    }
+
+    // Clear errors
+    clearFieldError("firstInstallmentDate");
+    clearFieldError("downPaymentDueDate");
+
+    return true;
+  }, [setFieldError, clearFieldError]);
 
   // Handle client change
   const handleClientChange = (data: {
@@ -690,11 +737,14 @@ export function SimpleProposalForm({
       validators[1] = validateStep2; // Products step (for non-automation)
     }
 
-    // Steps 3 and 4 (Payment and PDF settings) don't need validation
+    // Step 3: Payment validation (installments and down payment dates)
+    validators[2] = validateStep3;
+
+    // Step 4 (PDF settings) don't need validation
     // Step 5 (Summary) is the last step
 
     return validators;
-  }, [isAutomacaoNiche, validateStep1, validateStep2]);
+  }, [isAutomacaoNiche, validateStep1, validateStep2, validateStep3]);
 
   // Loading state
   if (isLoading) {
@@ -888,9 +938,10 @@ export function SimpleProposalForm({
                 setFormData((prev) => ({ ...prev, extraExpense: value }));
               }}
               noContainer
+              errors={errors}
             />
           </div>
-          <StepNavigation />
+          <StepNavigation onBeforeNext={validateStep3} />
         </StepCard>
 
         {/* Step 4: PDF Settings */}

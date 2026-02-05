@@ -24,7 +24,8 @@ import {
   Eye,
   FileDown,
   Trash2,
-  FilePen,
+  Palette,
+  Pencil,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -185,6 +186,11 @@ export default function ProposalsPage() {
 
   // Check if a proposal has all required fields for PDF generation
   const canGeneratePdf = (proposal: Proposal): boolean => {
+    // Draft proposals cannot generate PDF
+    if (proposal.status === "draft") {
+      return false;
+    }
+    
     const hasValidTitle =
       proposal.title &&
       proposal.title.trim() !== "" &&
@@ -650,24 +656,38 @@ export default function ProposalsPage() {
                     </div>
                     <div className="flex items-center justify-end gap-1">
                       {/* Ver PDF */}
-                      <Link href={`/proposals/${proposal.id}/view`}>
+                      {proposal.status !== "draft" ? (
+                        <Link href={`/proposals/${proposal.id}/view`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            title="Ver PDF"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                      ) : (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          title="Ver PDF"
+                          className="h-8 w-8 text-muted-foreground cursor-not-allowed opacity-50"
+                          title="Rascunhos não podem ser visualizados"
+                          disabled
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                      </Link>
+                      )}
 
                       {/* Baixar PDF */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                         title={
-                          canGeneratePdf(proposal)
+                          proposal.status === "draft"
+                            ? "Rascunhos não podem ser baixados"
+                            : canGeneratePdf(proposal)
                             ? "Baixar PDF"
                             : "Preencha título, cliente e produtos para baixar o PDF"
                         }
@@ -689,9 +709,11 @@ export default function ProposalsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                           title={
-                            canGeneratePdf(proposal)
+                            proposal.status === "draft"
+                              ? "Rascunhos não podem ter PDF editado"
+                              : canGeneratePdf(proposal)
                               ? "Editar PDF"
                               : "Preencha título, cliente e produtos para editar o PDF"
                           }
@@ -701,7 +723,7 @@ export default function ProposalsPage() {
                             router.push(`/proposals/${proposal.id}/edit-pdf`)
                           }
                         >
-                          <FilePen className="w-4 h-4" />
+                          <Palette className="w-4 h-4" />
                         </Button>
                       )}
 
@@ -718,7 +740,7 @@ export default function ProposalsPage() {
                           {editingId === proposal.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <FileText className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           )}
                         </Button>
                       )}
