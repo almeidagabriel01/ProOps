@@ -73,12 +73,12 @@ interface UseTransactionFormReturn {
   handleChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleBlur: (
     e: React.FocusEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   handleClientChange: (data: {
     clientId?: string;
@@ -98,8 +98,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const { tenant } = useTenant();
   const { canCreate, isLoading: permLoading } = usePagePermission("financial");
   const { createClient } = useClientActions();
-  const [formData, setFormData] =
-    React.useState<TransactionFormData>(initialFormData);
+  const [formData, setFormData] = React.useState<TransactionFormData>(() => {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    return {
+      ...initialFormData,
+      date: localDate,
+    };
+  });
   const [isSaving, setIsSaving] = React.useState(false);
   const {
     errors,
@@ -136,7 +142,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -153,7 +159,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const handleBlur = (
     e: React.FocusEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     validateField(name as keyof TransactionFormData, value, formData);
@@ -216,10 +222,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
       if (formData.paymentMode === "installmentValue") {
         // Installment Value mode: calculate total from installments + down payment
         const installmentValue = parseFloat(formData.installmentValue || "0");
-        const downPayment = formData.downPaymentEnabled 
-          ? parseFloat(formData.downPaymentValue || "0") 
+        const downPayment = formData.downPaymentEnabled
+          ? parseFloat(formData.downPaymentValue || "0")
           : 0;
-        
+
         // The final amount per transaction is the installment value
         finalAmount = installmentValue;
         walletToUse = formData.installmentsWallet || formData.wallet;
@@ -233,7 +239,11 @@ export function useTransactionForm(): UseTransactionFormReturn {
         // Create down payment transaction if enabled (as part of the installment group)
         // NOTE: isInstallment is false to prevent backend from generating installments
         // but we include installmentGroupId to group it with the installments
-        if (formData.downPaymentEnabled && downPayment > 0 && installmentGroupId) {
+        if (
+          formData.downPaymentEnabled &&
+          downPayment > 0 &&
+          installmentGroupId
+        ) {
           await TransactionService.createTransaction({
             tenantId: tenant.id,
             type: formData.type,
@@ -280,12 +290,12 @@ export function useTransactionForm(): UseTransactionFormReturn {
       } else {
         // Total mode: original logic
         const totalAmount = parseFloat(formData.amount);
-        const downPayment = formData.downPaymentEnabled 
-          ? parseFloat(formData.downPaymentValue || "0") 
+        const downPayment = formData.downPaymentEnabled
+          ? parseFloat(formData.downPaymentValue || "0")
           : 0;
-        
+
         let remainingAmount = totalAmount;
-        
+
         // If down payment is enabled, subtract from total
         if (formData.downPaymentEnabled && downPayment > 0) {
           remainingAmount = totalAmount - downPayment;
@@ -296,12 +306,19 @@ export function useTransactionForm(): UseTransactionFormReturn {
         dueDateToUse = formData.dueDate;
 
         // Create installment group ID if needed
-        if ((formData.isInstallment && formData.installmentCount > 1) || (formData.downPaymentEnabled && downPayment > 0)) {
+        if (
+          (formData.isInstallment && formData.installmentCount > 1) ||
+          (formData.downPaymentEnabled && downPayment > 0)
+        ) {
           installmentGroupId = `installment_${Date.now()}`;
         }
-        
+
         // Create down payment transaction if enabled
-        if (formData.downPaymentEnabled && downPayment > 0 && installmentGroupId) {
+        if (
+          formData.downPaymentEnabled &&
+          downPayment > 0 &&
+          installmentGroupId
+        ) {
           await TransactionService.createTransaction({
             tenantId: tenant.id,
             type: formData.type,
@@ -337,9 +354,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
           description: formData.description.trim(),
           amount: finalAmount,
           date: formData.date,
-          // If there is a down payment but NO installments (edge case, or just 1 installment), 
-          // we should probably stick to the original due date. 
-          // If installments are enabled, due date logic might need to be checked, 
+          // If there is a down payment but NO installments (edge case, or just 1 installment),
+          // we should probably stick to the original due date.
+          // If installments are enabled, due date logic might need to be checked,
           // but usually the backend generates subsequent dates.
           dueDate: dueDateToUse || undefined,
           status: formData.status,
