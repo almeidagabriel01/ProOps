@@ -45,6 +45,7 @@ import { ProductSelectorSection } from "@/components/features/automation/sistema
 interface SistemaEditorProps {
   sistema: Sistema | null;
   allAmbientes: Ambiente[];
+  initialAmbienteId?: string | null;
   onBack: () => void;
   onSave: () => void;
 }
@@ -52,6 +53,7 @@ interface SistemaEditorProps {
 export function SistemaEditor({
   sistema,
   allAmbientes,
+  initialAmbienteId,
   onBack,
   onSave,
 }: SistemaEditorProps) {
@@ -87,8 +89,14 @@ export function SistemaEditor({
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
   const [activeAmbienteId, setActiveAmbienteId] = React.useState<string | null>(
-    null,
+    initialAmbienteId || null,
   );
+
+  React.useEffect(() => {
+    if (initialAmbienteId) {
+      setActiveAmbienteId(initialAmbienteId);
+    }
+  }, [initialAmbienteId]);
 
   // Search State for Products
   const [productSearch, setProductSearch] = React.useState("");

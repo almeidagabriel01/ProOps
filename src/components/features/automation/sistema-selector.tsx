@@ -15,9 +15,8 @@ import {
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { AmbienteManagerDialog } from "./ambiente-manager-dialog";
+import { SystemEnvironmentManagerDialog } from "./system-environment-manager-dialog";
 import { SistemaTemplateDialog } from "./sistema-template-dialog";
-import { SistemaManagerDialog } from "./sistema-manager-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import {
   createProposalSistema,
@@ -64,13 +63,12 @@ export function SistemaSelector({
   const [selectedSistemaId, setSelectedSistemaId] = React.useState<string>("");
 
   // Dialog state
-  const [isAmbienteDialogOpen, setIsAmbienteDialogOpen] = React.useState(false);
   const [isSistemaDialogOpen, setIsSistemaDialogOpen] = React.useState(false);
-  const [isSistemaManagerOpen, setIsSistemaManagerOpen] = React.useState(false);
+  const [isManagerOpen, setIsManagerOpen] = React.useState(false);
   const [editingSistema, setEditingSistema] = React.useState<Sistema | null>(
     null,
   );
-  const [openedFromManager, setOpenedFromManager] = React.useState(false);
+  // Unused state removed: openedFromManager
 
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -240,9 +238,9 @@ export function SistemaSelector({
             className="h-6 text-xs"
             onClick={() => {
               setEditingSistema(null);
-              setIsSistemaManagerOpen(true);
+              setIsManagerOpen(true);
             }}
-            title="Gerenciar Templates de Sistema"
+            title="Gerenciar Sistemas e Ambientes"
           >
             <Settings className="w-3 h-3 mr-1" />
             Gerenciar
@@ -290,17 +288,6 @@ export function SistemaSelector({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Ambiente</Label>
-          <Button
-            key="new-ambiente-btn"
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onClick={() => setIsAmbienteDialogOpen(true)}
-            title="Gerenciar Ambientes"
-          >
-            <Settings className="w-3 h-3 mr-1" />
-            Gerenciar
-          </Button>
         </div>
         <div className="relative">
           <Select
@@ -328,12 +315,19 @@ export function SistemaSelector({
       </div>
 
       {/* Dialogs */}
-      <AmbienteManagerDialog
-        isOpen={isAmbienteDialogOpen}
-        onClose={() => setIsAmbienteDialogOpen(false)}
-        onAmbientesChange={() => loadData(true)}
+      <SystemEnvironmentManagerDialog
+        isOpen={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onDataChange={() => loadData(true)}
+        sistemas={managedSistemas}
         ambientes={managedAmbientes}
-        onAction={onAmbienteAction}
+        onAction={async (action) => {
+          if (action.entity === "ambiente" && onAmbienteAction) {
+            await onAmbienteAction(action);
+          } else if (onSistemaAction) {
+            await onSistemaAction(action);
+          }
+        }}
       />
 
       <SistemaTemplateDialog
@@ -349,31 +343,7 @@ export function SistemaSelector({
         ambientes={managedAmbientes}
         onAction={onSistemaAction}
         onAmbienteAction={onAmbienteAction}
-        onBack={
-          openedFromManager ? () => setIsSistemaManagerOpen(true) : undefined
-        }
-      />
-
-      <SistemaManagerDialog
-        isOpen={isSistemaManagerOpen}
-        onClose={() => setIsSistemaManagerOpen(false)}
-        onSistemasChange={() => loadData(true)}
-        onEditSistema={(sistema) => {
-          setEditingSistema(sistema);
-          setIsSistemaManagerOpen(false);
-          setIsSistemaDialogOpen(true);
-          setOpenedFromManager(true);
-        }}
-        onCreateNew={() => {
-          setEditingSistema(null);
-          setIsSistemaManagerOpen(false);
-          setIsSistemaDialogOpen(true);
-          setOpenedFromManager(true);
-        }}
-        // filterAmbienteId removed as we are systems-focused now
-        sistemas={managedSistemas}
-        ambientes={managedAmbientes}
-        onAction={onSistemaAction}
+        onBack={undefined}
       />
     </div>
   );
