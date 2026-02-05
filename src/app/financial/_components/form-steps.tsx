@@ -449,23 +449,25 @@ export function PaymentStep({
             )}
           </FormItem>
 
-          {/* Due Date Input */}
-          <FormItem
-            label="Vencimento"
-            htmlFor="dueDate"
-            required={formData.type === "income"}
-            error={errors.dueDate}
-          >
-            <DateInput
-              id="dueDate"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={onChange}
-              onBlur={onBlur}
-              className={errors.dueDate ? "border-destructive" : ""}
+          {/* Due Date Input - HIDDEN if installments enabled */}
+          {!formData.isInstallment && (
+            <FormItem
+              label="Vencimento (Valor à Vista)"
+              htmlFor="dueDate"
               required={formData.type === "income"}
-            />
-          </FormItem>
+              error={errors.dueDate}
+            >
+              <DateInput
+                id="dueDate"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={errors.dueDate ? "border-destructive" : ""}
+                required={formData.type === "income"}
+              />
+            </FormItem>
+          )}
 
           {/* Wallet Select */}
           <div className="space-y-2">
@@ -655,6 +657,24 @@ export function PaymentStep({
                       R$ {getInstallmentValueFromTotal()}
                     </span>
                   </div>
+                </FormItem>
+
+                <FormItem
+                  label="Vencimento da 1ª Parcela"
+                  htmlFor="dueDateInstallment"
+                  className="col-span-2"
+                  required={formData.type === "income"}
+                  error={errors.dueDate}
+                >
+                  <DateInput
+                    id="dueDateInstallment"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    className={errors.dueDate ? "border-destructive" : ""}
+                    required={formData.type === "income"}
+                  />
                 </FormItem>
               </div>
             )}
