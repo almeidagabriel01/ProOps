@@ -34,6 +34,8 @@ import {
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
+import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
+
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
   const [activeTab, setActiveTab] = React.useState("sistemas");
@@ -87,16 +89,7 @@ export default function AutomationAdminPage() {
   }, [searchParams]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner className="h-10 w-10 text-primary" />
-          <p className="text-muted-foreground animate-pulse">
-            Carregando automações...
-          </p>
-        </div>
-      </div>
-    );
+    return <AutomationSkeleton />;
   }
 
   // Editing Mode
