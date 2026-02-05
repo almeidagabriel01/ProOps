@@ -311,3 +311,49 @@ export {
   defaultPdfDisplaySettings,
   mergePdfDisplaySettings,
 } from "./pdf-display-settings";
+
+// ============================================
+// SPREADSHEET TYPES
+// ============================================
+
+export type CellStyle = {
+  v?: string | number | boolean | null;
+  m?: string;
+  bg?: string;
+  fc?: string;
+  bl?: number;
+  it?: number;
+  fs?: number;
+  cl?: number;
+  ht?: number;
+  vt?: number;
+  // Add other known FortuneSheet cell properties as needed
+  [key: string]: unknown;
+};
+
+export type RowData = (CellStyle | null)[];
+
+export type SheetData = {
+  name: string;
+  id?: string;
+  color?: string;
+  status?: number;
+  order?: number;
+  hide?: number;
+  row?: number;
+  column?: number;
+  celldata?: unknown[]; // FortuneSheet specific compressed data
+  data?: RowData[]; // Expanded 2D array data
+  config?: Record<string, unknown>;
+  index?: number;
+  zoomRatio?: number;
+  scrollTop?: number;
+  scrollLeft?: number;
+  [key: string]: unknown;
+};
+
+export interface WorkbookInstance {
+  getCellValue: (r: number, c: number) => CellStyle | string | number | null;
+  getAllSheets: () => SheetData[];
+  // Add other methods used from the ref
+}

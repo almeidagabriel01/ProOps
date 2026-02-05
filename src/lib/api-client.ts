@@ -101,6 +101,7 @@ export const callPublicApi = async <T = unknown>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
   body?: unknown,
+  options?: RequestInit,
 ): Promise<T> => {
   const baseUrl = getBaseUrl();
 
@@ -115,6 +116,7 @@ export const callPublicApi = async <T = unknown>(
   const config: RequestInit = {
     method,
     headers,
+    ...options,
   };
 
   if (body) {

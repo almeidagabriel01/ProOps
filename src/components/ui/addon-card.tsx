@@ -56,7 +56,7 @@ export function AddonCard({
   const { tenant } = useTenant();
   const IconComponent = iconMap[addon.icon] || DollarSign;
 
-  // Price comes from Stripe in UNITS (BRL), not cents
+  // Price comes from Stripe in CENTS
   const monthlyPrice =
     dynamicPriceMonthly !== undefined ? dynamicPriceMonthly : null;
 
@@ -137,7 +137,7 @@ export function AddonCard({
                     className="text-2xl font-bold"
                     style={{ color: primaryColor }}
                   >
-                    R$ {monthlyPrice.toFixed(0)}
+                    R$ {(monthlyPrice / 100).toFixed(0)}
                   </span>
                   <span className="text-muted-foreground">/mês</span>
                 </>

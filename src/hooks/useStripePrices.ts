@@ -71,16 +71,17 @@ export function useStripePrices(): UseStripePricesReturn {
       if (!prices?.plans?.[tier]) return 0;
       return prices.plans[tier][interval]?.amount || 0;
     },
-    [prices]
+    [prices],
   );
 
   // Get add-on price in cents (returns 0 if not found)
+  // NOTE: Returns value in CENTS. Dividy by 100 for display.
   const getAddonPrice = useCallback(
     (addonType: string, interval: "monthly" | "yearly"): number => {
       if (!prices?.addons?.[addonType]) return 0;
       return prices.addons[addonType][interval]?.amount || 0;
     },
-    [prices]
+    [prices],
   );
 
   // Format price for display (converts cents to currency)
@@ -92,7 +93,7 @@ export function useStripePrices(): UseStripePricesReturn {
         currency: currency.toUpperCase(),
       }).format(amount);
     },
-    []
+    [],
   );
 
   return {

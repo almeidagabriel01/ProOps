@@ -1,4 +1,3 @@
-import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 
 import {
@@ -383,7 +382,6 @@ export function PdfSistemaHeader({
 }: {
   sistema: PdfSistema;
   primaryColor: string;
-  isFirstOnPage?: boolean;
 }) {
   return (
     <div className="">

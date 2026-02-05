@@ -11,6 +11,7 @@ import {
   Spreadsheet,
   SpreadsheetService,
 } from "@/services/spreadsheet-service";
+import { SheetData, WorkbookInstance } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,11 +27,9 @@ export default function SpreadsheetEditorPage() {
   const [name, setName] = useState("");
 
   // Ref for the Workbook to access data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const workbookRef = useRef<any>(null); // External library type not available
+  const workbookRef = useRef<WorkbookInstance>(null);
   // Ref to store current data directly from onChange to ensure we don't miss updates
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dataRef = useRef<any[]>([]);
+  const dataRef = useRef<SheetData[]>([]);
 
   // Memoize data to prevent re-renders of the heavy Workbook component
   // MUST BE CALLED BEFORE CONDITIONAL RETURNS
@@ -111,18 +110,16 @@ export default function SpreadsheetEditorPage() {
 
       // 2. Get data from Workbook ref
       // We re-query the ref AFTER the delay
-      const workbookRefData = workbookRef.current?.getAllSheets();
+      const workbookRefData = workbookRef.current?.getAllSheets() || [];
       console.log("Debug Save: workbookRefData (raw):", workbookRefData);
 
       // Helper to count populated cells
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const countCells = (sheets: any[]) => {
+      const countCells = (sheets: SheetData[]) => {
         if (!sheets || !Array.isArray(sheets)) return 0;
         let count = 0;
         sheets.forEach((sheet) => {
           if (sheet.data && Array.isArray(sheet.data)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            sheet.data.forEach((row: any[]) => {
+            sheet.data.forEach((row) => {
               if (Array.isArray(row)) {
                 row.forEach((cell) => {
                   if (cell !== null && cell !== undefined) count++;
@@ -228,8 +225,7 @@ export default function SpreadsheetEditorPage() {
           key={spreadsheet.id}
           ref={workbookRef}
           data={workbookData}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onChange={(d: any) => {
+          onChange={(d: SheetData[]) => {
             // Capture every change
             dataRef.current = d;
             // DEBUG: Find where the data is!

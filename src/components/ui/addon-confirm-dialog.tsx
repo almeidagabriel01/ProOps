@@ -31,8 +31,8 @@ export function AddonConfirmDialog({
 }: AddonConfirmDialogProps) {
   if (!addon) return null;
 
-  // Price comes in UNITS (BRL)
-  const monthlyPrice = priceMonthly;
+  // Price comes in CENTS, convert to UNITS (BRL)
+  const monthlyPrice = priceMonthly / 100;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
