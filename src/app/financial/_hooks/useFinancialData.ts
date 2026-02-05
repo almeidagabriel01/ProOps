@@ -119,6 +119,11 @@ interface UseFinancialDataReturn {
     transaction: Transaction,
     newStatus: Transaction["status"],
   ) => Promise<boolean>;
+  registerPartialPayment: (
+    originalTransaction: Transaction,
+    amount: number,
+    date: string,
+  ) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -152,30 +157,33 @@ export function useFinancialData(): UseFinancialDataReturn {
     pendingExpense: 0,
   });
 
-  const fetchData = React.useCallback(async () => {
-    if (!tenant || (!hasFinancial && !isPlanLoading)) return;
+  const fetchData = React.useCallback(
+    async (background = false) => {
+      if (!tenant || (!hasFinancial && !isPlanLoading)) return;
 
-    setIsLoading(true);
-    try {
-      const [data, summaryData, wallets] = await Promise.all([
-        TransactionService.getTransactions(tenant.id),
-        TransactionService.getSummary(tenant.id),
-        WalletService.getWallets(tenant.id),
-      ]);
-      setTransactions(data);
-      setSummary(summaryData);
+      if (!background) setIsLoading(true);
+      try {
+        const [data, summaryData, wallets] = await Promise.all([
+          TransactionService.getTransactions(tenant.id),
+          TransactionService.getSummary(tenant.id),
+          WalletService.getWallets(tenant.id),
+        ]);
+        setTransactions(data);
+        setSummary(summaryData);
 
-      // Calculate total wallet balance from active wallets
-      const totalBalance = wallets
-        .filter((w) => w.status === "active")
-        .reduce((sum, w) => sum + w.balance, 0);
-      setTotalWalletBalance(totalBalance);
-    } catch (error) {
-      console.error("Failed to fetch transactions", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tenant, hasFinancial, isPlanLoading]);
+        // Calculate total wallet balance from active wallets
+        const totalBalance = wallets
+          .filter((w) => w.status === "active")
+          .reduce((sum, w) => sum + w.balance, 0);
+        setTotalWalletBalance(totalBalance);
+      } catch (error) {
+        console.error("Failed to fetch transactions", error);
+      } finally {
+        if (!background) setIsLoading(false);
+      }
+    },
+    [tenant, hasFinancial, isPlanLoading],
+  );
 
   React.useEffect(() => {
     fetchData();
@@ -432,19 +440,13 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         await TransactionService.deleteTransaction(transaction.id);
+
+        // Optimistic update
         setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+
+        // Refresh truth from server (background)
+        await fetchData(true);
+
         toast.success("Lançamento excluído com sucesso!");
         return true;
       } catch (error) {
@@ -453,7 +455,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant],
+    [fetchData],
   );
 
   // Delete all installments in a group
@@ -476,7 +478,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             ),
           );
 
-          // Remove all from local state
+          // Optimistic update
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
 
@@ -492,18 +494,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           toast.success("Lançamento excluído com sucesso!");
         }
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -512,7 +504,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant, transactions],
+    [transactions, fetchData],
   );
 
   // Update single transaction status
@@ -526,7 +518,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           status: newStatus,
         });
 
-        // Update local state ONLY after success
+        // Optimistic update
         setTransactions((prev) =>
           prev.map((t) =>
             t.id === transaction.id ? { ...t, status: newStatus } : t,
@@ -535,18 +527,8 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         toast.success("Status atualizado!");
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -555,7 +537,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant],
+    [fetchData],
   );
 
   // Generic update transaction
@@ -567,25 +549,15 @@ export function useFinancialData(): UseFinancialDataReturn {
       try {
         await TransactionService.updateTransaction(transaction.id, data);
 
-        // Update local state ONLY after success
+        // Optimistic update
         setTransactions((prev) =>
           prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
         );
 
         toast.success("Lançamento atualizado!");
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -594,7 +566,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant],
+    [fetchData],
   );
 
   // Batch update transactions
@@ -609,7 +581,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           ),
         );
 
-        // Update local state
+        // Optimistic update
         setTransactions((prev) => {
           const updatesMap = new Map(updates.map((u) => [u.id, u.data]));
           return prev.map((t) => {
@@ -620,18 +592,8 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         toast.success(`${updates.length} lançamentos atualizados!`);
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -640,7 +602,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant],
+    [fetchData],
   );
 
   // Update status for all installments in a group OR single
@@ -723,18 +685,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           toast.success("Status atualizado!");
         }
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -743,7 +695,48 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant, transactions],
+    [transactions, fetchData],
+  );
+
+  // Register partial payment
+  const registerPartialPayment = React.useCallback(
+    async (
+      originalTransaction: Transaction,
+      amount: number,
+      date: string,
+    ): Promise<void> => {
+      try {
+        const remainingAmount = originalTransaction.amount - amount;
+
+        // 1. Update original to be the remaining part (keeping same ID)
+        await TransactionService.updateTransaction(originalTransaction.id, {
+          amount: remainingAmount,
+        });
+
+        // 2. Create new transaction for the paid part
+        await TransactionService.createTransaction({
+          ...originalTransaction,
+          amount: amount,
+          status: "paid",
+          date: date,
+          description: originalTransaction.description, // Keep description
+          isPartialPayment: true,
+          parentTransactionId: originalTransaction.id,
+          // IDs managed by backend or preserved if needed (but createTransaction usually handles ID gen)
+          // We probably want to keep proposalGroupId and installmentGroupId to keep them linked
+        });
+
+        toast.success("Pagamento parcial registrado com sucesso!");
+
+        // Refresh truth from server (background)
+        await fetchData(true);
+      } catch (error) {
+        console.error("Error registering partial payment:", error);
+        toast.error("Erro ao registrar pagamento parcial");
+        throw error;
+      }
+    },
+    [fetchData],
   );
 
   return {
@@ -778,6 +771,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     updateTransaction,
     updateBatchTransactions,
     updateGroupStatus,
+    registerPartialPayment,
     refreshData: fetchData,
   };
 }

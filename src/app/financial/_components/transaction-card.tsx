@@ -58,6 +58,11 @@ interface TransactionCardProps {
   onUpdateBatch?: (
     updates: { id: string; data: Partial<Transaction> }[],
   ) => Promise<boolean>;
+  onRegisterPartialPayment?: (
+    originalTransaction: Transaction,
+    amount: number,
+    date: string,
+  ) => Promise<void>;
   defaultExpanded?: boolean;
   isSelected?: boolean;
   onToggleSelection?: (id: string) => void;
@@ -85,6 +90,7 @@ export function TransactionCard({
   onStatusChange,
   onUpdate,
   onUpdateBatch,
+  onRegisterPartialPayment,
   defaultExpanded = false,
   isSelected = false,
   onToggleSelection,
@@ -288,36 +294,38 @@ export function TransactionCard({
     if (!partialPaymentTransaction) return;
 
     try {
-      const original = partialPaymentTransaction;
-      const remainingAmount = original.amount - amount;
+      if (onRegisterPartialPayment) {
+        await onRegisterPartialPayment(partialPaymentTransaction, amount, date);
+      } else {
+        // Fallback for when callback is not provided
+        const original = partialPaymentTransaction;
+        const remainingAmount = original.amount - amount;
 
-      // 1. Update original to be the remaining part (keeping same ID)
-      await TransactionService.updateTransaction(original.id, {
-        amount: remainingAmount,
-      });
+        // 1. Update original to be the remaining part (keeping same ID)
+        await TransactionService.updateTransaction(original.id, {
+          amount: remainingAmount,
+        });
 
-      // 2. Create new transaction for the paid part
-      await TransactionService.createTransaction({
-        ...original,
-        amount: amount,
-        status: "paid",
-        date: date,
-        description: original.description, // Keep description
-        isPartialPayment: true,
-        parentTransactionId: original.id,
-        // IDs managed by backend or omitted for new creation:
-        // installmentGroupId and proposalGroupId should be kept to link them
-      });
+        // 2. Create new transaction for the paid part
+        await TransactionService.createTransaction({
+          ...original,
+          amount: amount,
+          status: "paid",
+          date: date,
+          description: original.description, // Keep description
+          isPartialPayment: true,
+          parentTransactionId: original.id,
+          // IDs managed by backend or omitted for new creation:
+          // installmentGroupId and proposalGroupId should be kept to link them
+        });
 
-      toast.success("Pagamento parcial registrado com sucesso!");
+        toast.success("Pagamento parcial registrado com sucesso!");
 
-      // Refresh the page/view with a small delay to ensure propagation
-      setTimeout(() => {
-        router.refresh();
-      }, 500);
-
-      // If we have an onStatusChange with updateAll, we might call it to trigger parent refresh
-      // But router.refresh() is safer for now.
+        // Refresh the page/view with a small delay to ensure propagation
+        setTimeout(() => {
+          router.refresh();
+        }, 500);
+      }
     } catch (error) {
       console.error(error);
       throw error; // Dialog handles error toast

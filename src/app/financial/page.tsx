@@ -52,6 +52,7 @@ export default function FinancialPage() {
     updateGroupStatus,
     updateTransaction,
     updateBatchTransactions,
+    registerPartialPayment,
     transactions,
   } = useFinancialData();
 
@@ -416,6 +417,7 @@ export default function FinancialPage() {
                   onStatusChange={updateGroupStatus}
                   onUpdate={updateTransaction}
                   onUpdateBatch={updateBatchTransactions}
+                  onRegisterPartialPayment={registerPartialPayment}
                   isSelected={selectedIds.has(transaction.id)}
                   onToggleSelection={toggleSelection}
                   onToggleGroupSelection={toggleGroupSelection}
@@ -437,6 +439,7 @@ export default function FinancialPage() {
                 onStatusChange={updateGroupStatus}
                 onUpdate={updateTransaction}
                 onUpdateBatch={updateBatchTransactions}
+                onRegisterPartialPayment={registerPartialPayment}
                 isSelected={selectedIds.has(transaction.id)}
                 onToggleSelection={toggleSelection}
                 onToggleGroupSelection={toggleGroupSelection}
