@@ -301,23 +301,40 @@ export function TransactionCard({
         const original = partialPaymentTransaction;
         const remainingAmount = original.amount - amount;
 
-        // 1. Update original to be the remaining part (keeping same ID)
+        // 1. Update original to be the PAID part (Partial)
         await TransactionService.updateTransaction(original.id, {
-          amount: remainingAmount,
-        });
-
-        // 2. Create new transaction for the paid part
-        await TransactionService.createTransaction({
-          ...original,
           amount: amount,
           status: "paid",
           date: date,
-          description: original.description, // Keep description
           isPartialPayment: true,
+        });
+
+        // 2. Create new transaction for the REMAINING part (Pending/Main)
+        // Bypass backend recursion for Installment 1
+        const createResult = await TransactionService.createTransaction({
+          ...original,
+          amount: remainingAmount,
+          status: original.status === "paid" ? "pending" : original.status,
+          date: original.date, // Keep original date for the main/remaining part? Or update? Usually keep original due date etc.
+          description: original.description,
+          isPartialPayment: false,
           parentTransactionId: original.id,
+          installmentCount: 1, // Bypass backend recursion
+          id: undefined,
           // IDs managed by backend or omitted for new creation:
           // installmentGroupId and proposalGroupId should be kept to link them
-        });
+        } as any);
+
+        // 2.1 Restore count
+        if (
+          original.isInstallment &&
+          (original.installmentCount || 0) > 1 &&
+          createResult?.id
+        ) {
+          await TransactionService.updateTransaction(createResult.id, {
+            installmentCount: original.installmentCount,
+          });
+        }
 
         toast.success("Pagamento parcial registrado com sucesso!");
 

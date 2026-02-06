@@ -708,26 +708,44 @@ export function useFinancialData(): UseFinancialDataReturn {
       try {
         const remainingAmount = originalTransaction.amount - amount;
 
-        // 1. Update original to be the remaining part (keeping same ID)
+        // 1. Update original to be the PAID part (isPartialPayment = true)
+        // This ensures the history/log shows this specific ID was paid
         await TransactionService.updateTransaction(originalTransaction.id, {
-          amount: remainingAmount,
-        });
-
-        // 2. Create new transaction for the paid part
-        await TransactionService.createTransaction({
-          ...originalTransaction,
           amount: amount,
           status: "paid",
           date: date,
-          description: originalTransaction.description, // Keep description
           isPartialPayment: true,
-          parentTransactionId: originalTransaction.id,
-          // IDs managed by backend or preserved if needed (but createTransaction usually handles ID gen)
-          // We probably want to keep proposalGroupId and installmentGroupId to keep them linked
+          // Keep installment info so it stays linked to the group
         });
 
-        toast.success("Pagamento parcial registrado com sucesso!");
+        // 2. Create new transaction for the REMAINING part (Pending)
+        // Explicitly remove ID to ensure clean creation
+        const { id: _, ...originalData } = originalTransaction;
+        
+        // CRITICAL FIX: The backend auto-generates installments if isInstallment=true AND installmentCount > 1 AND installmentNumber=1.
+        // Since we are splitting Installment 1, we must avoid this auto-generation which creates duplicates (IDs 5,7,9,10 etc).
+        // We temporarily set installmentCount to 1 to bypass creation logic, then update it back.
+        
+        // 2.1 Create with count 1
+        const createResult = await TransactionService.createTransaction({
+          ...originalData,
+          amount: remainingAmount,
+          status: originalTransaction.status === "paid" ? "pending" : originalTransaction.status,
+          isPartialPayment: false, // This is the new "Main" one
+          parentTransactionId: originalTransaction.id,
+          installmentCount: 1, // Bypass backend recursion
+          // Keep other metadata
+        } as any);
 
+        // 2.2 Restore correct installment count if needed
+        if (originalData.isInstallment && (originalData.installmentCount || 0) > 1 && createResult?.id) {
+             await TransactionService.updateTransaction(createResult.id, {
+                 installmentCount: originalData.installmentCount
+             });
+        }
+
+        toast.success("Pagamento parcial registrado com sucesso!");
+        
         // Refresh truth from server (background)
         await fetchData(true);
       } catch (error) {

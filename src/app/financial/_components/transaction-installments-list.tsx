@@ -139,6 +139,7 @@ export function TransactionInstallmentsList({
       const num = item.installmentNumber || 0;
       if (!groups.has(num)) {
         groups.set(num, { main: item, subs: [] });
+        return; // Item is placed as main, stop processing
       }
 
       const group = groups.get(num)!;
