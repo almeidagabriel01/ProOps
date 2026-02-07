@@ -26,6 +26,14 @@ export interface EditTransactionFormData {
   notes: string;
   isInstallment: boolean;
   installmentCount: number;
+  paymentMode: "total" | "installmentValue";
+  installmentValue: string;
+  firstInstallmentDate: string;
+  installmentsWallet: string;
+  downPaymentEnabled: boolean;
+  downPaymentValue: string;
+  downPaymentWallet: string;
+  downPaymentDueDate: string;
 }
 
 export function useEditTransaction() {
@@ -61,6 +69,14 @@ export function useEditTransaction() {
     notes: "",
     isInstallment: false,
     installmentCount: 1,
+    paymentMode: "total",
+    installmentValue: "",
+    firstInstallmentDate: "",
+    installmentsWallet: "",
+    downPaymentEnabled: false,
+    downPaymentValue: "",
+    downPaymentWallet: "",
+    downPaymentDueDate: "",
   });
 
   React.useEffect(() => {
@@ -69,14 +85,17 @@ export function useEditTransaction() {
 
       try {
         const data = await TransactionService.getTransactionById(transactionId);
-
         if (data) {
           setTransaction(data);
+          const isPartOfGroup = !!(
+            data.installmentGroupId && !data.proposalGroupId
+          );
+          const effectiveIsInstallment = data.isInstallment || isPartOfGroup;
 
-          setFormData({
+          const initialData: EditTransactionFormData = {
             type: data.type,
             description: data.description,
-            amount: data.amount.toString(), // Will be overwritten if group found
+            amount: data.amount.toFixed(2),
             date: data.date.split("T")[0],
             dueDate: data.dueDate?.split("T")[0] || "",
             status: data.status,
@@ -85,12 +104,19 @@ export function useEditTransaction() {
             category: data.category || "",
             wallet: data.wallet || "",
             notes: data.notes || "",
-            isInstallment: data.isInstallment || false,
+            isInstallment: effectiveIsInstallment,
             installmentCount: data.installmentCount || 1,
-          });
+            paymentMode: "total",
+            installmentValue: "",
+            firstInstallmentDate: "",
+            installmentsWallet: "",
+            downPaymentEnabled: false,
+            downPaymentValue: "",
+            downPaymentWallet: "",
+            downPaymentDueDate: "",
+          };
 
-          if (data.isInstallment && data.installmentGroupId) {
-            // We need to fetch all transactions to find related ones.
+          if (effectiveIsInstallment && data.installmentGroupId) {
             const all = await TransactionService.getTransactions(data.tenantId);
             const related = all
               .filter((t) => t.installmentGroupId === data.installmentGroupId)
@@ -100,28 +126,57 @@ export function useEditTransaction() {
               );
             setRelatedInstallments(related);
 
-            // If it's an installment group (but NOT a proposal group), set amount to TOTAL
+            const realInstallments = related.filter((t) => !t.isDownPayment);
+            if (realInstallments.length > 0) {
+              initialData.installmentCount = realInstallments.length;
+            }
+
+            const downPayment = related.find(
+              (t) => t.isDownPayment || t.installmentNumber === 0,
+            );
+            if (downPayment) {
+              initialData.downPaymentEnabled = true;
+              initialData.downPaymentValue = downPayment.amount.toFixed(2);
+              initialData.downPaymentWallet = downPayment.wallet || "";
+              initialData.downPaymentDueDate =
+                downPayment.dueDate?.split("T")[0] ||
+                downPayment.date.split("T")[0];
+            }
+
+            const firstInstallment = realInstallments.find(
+              (t) => (t.installmentNumber || 0) > 0,
+            );
+
+            if (firstInstallment) {
+              initialData.installmentValue = firstInstallment.amount.toFixed(2);
+              initialData.installmentsWallet = firstInstallment.wallet || "";
+              initialData.firstInstallmentDate =
+                firstInstallment.dueDate?.split("T")[0] || "";
+
+              if (initialData.paymentMode === "total") {
+                initialData.wallet = firstInstallment.wallet || "";
+              }
+            }
+
             if (!data.proposalGroupId) {
               const total = related.reduce((sum, t) => sum + t.amount, 0);
-              setFormData((prev) => ({ ...prev, amount: total.toString() }));
+              if (initialData.paymentMode === "total") {
+                initialData.amount = total.toFixed(2);
+              }
             }
           } else if (data.proposalGroupId) {
-            // If part of a proposal group, fetch siblings (Entrada + Parcelas)
             const all = await TransactionService.getTransactions(data.tenantId);
             const related = all
               .filter((t) => t.proposalGroupId === data.proposalGroupId)
-              // Sort: Allocating Down Payment first, then by date/created
               .sort((a, b) => {
                 if (a.isDownPayment) return -1;
                 if (b.isDownPayment) return 1;
                 return new Date(a.date).getTime() - new Date(b.date).getTime();
               });
             setRelatedInstallments(related);
-
-            // If it's an installment group (but NOT a proposal group), set amount to TOTAL
-            setRelatedInstallments(related);
-            // Proposal group logic ends here
           }
+
+          setFormData(initialData);
         }
       } catch (error) {
         console.error("Error loading transaction:", error);
@@ -134,57 +189,29 @@ export function useEditTransaction() {
     loadTransaction();
   }, [transactionId]);
 
-  // Helper to add months to a date string (YYYY-MM-DD) safely
   const addMonths = (dateStr: string, months: number): string => {
     if (!dateStr) return "";
     const [year, month, day] = dateStr.split("-").map(Number);
     const dateObj = new Date(year, month - 1, day);
     dateObj.setMonth(dateObj.getMonth() + months);
-
-    // Manual format to avoid timezone shifts from toISOString
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, "0");
     const d = String(dateObj.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
-  // Derived state: Preview Installments with shifted dates
   const previewInstallments = React.useMemo(() => {
     if (!transaction) return [];
 
-    // Use relatedInstallments if available, otherwise use current transaction as base (e.g. converting single to installment)
     const baseList =
       relatedInstallments.length > 0 ? relatedInstallments : [transaction];
-
     const dateShifted = formData.date !== transaction.date;
 
-    // 1. Shift existing installments based on date changes
-    const shifted = baseList.map((inst) => {
-      // Current transaction is fully overridden by form data
-      if (inst.id === transaction.id) {
-        return {
-          ...inst,
-          date: formData.date,
-          dueDate: formData.dueDate || undefined,
-          amount:
-            formData.isInstallment && formData.installmentCount > 0
-              ? parseFloat(formData.amount) / formData.installmentCount
-              : parseFloat(formData.amount),
-        };
-      }
-
-      // Only shift future (standard logic here)
-      if (
-        (inst.installmentNumber || 0) <= (transaction.installmentNumber || 0)
-      ) {
-        return inst;
-      }
-
-      // Calculate new values
+    // 1. First pass: Apply basic updates and collect list
+    let workingList = baseList.map((inst) => {
       let newDate = inst.date;
       let newDueDate = inst.dueDate;
 
-      // Apply Date shift if Date changed
       if (dateShifted) {
         newDate = shiftDateByTransform(
           inst.date,
@@ -193,95 +220,176 @@ export function useEditTransaction() {
         );
       }
 
-      // Apply DueDate shift logic
       if (inst.dueDate && transaction.dueDate && formData.dueDate) {
-        newDueDate = shiftDateByTransform(
-          inst.dueDate,
-          transaction.dueDate,
-          formData.dueDate,
-        );
-      } else if (
-        formData.dueDate &&
-        transaction.dueDate &&
-        formData.dueDate !== transaction.dueDate &&
-        inst.dueDate
-      ) {
-        newDueDate = shiftDateByTransform(
-          inst.dueDate,
-          transaction.dueDate,
-          formData.dueDate,
-        );
+        if (!inst.isDownPayment) {
+          newDueDate = shiftDateByTransform(
+            inst.dueDate,
+            transaction.dueDate,
+            formData.dueDate,
+          );
+        }
+      }
+
+      if (inst.isDownPayment && formData.downPaymentDueDate) {
+        newDueDate = formData.downPaymentDueDate;
       }
 
       return {
         ...inst,
         date: newDate,
         dueDate: newDueDate,
-      };
+        status: formData.status,
+      } as Transaction;
     });
 
-    // 2. Sort by installment number
-    shifted.sort(
+    workingList.sort(
       (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
     );
 
-    // If it's a proposal transaction, do NOT allow adding/removing items via count match.
-    // The structure is fixed by the proposal.
     if (transaction.proposalGroupId) {
-      return shifted;
+      return workingList;
     }
 
-    // 3. Handle Installment Count Changes (Add/Remove)
-    const targetCount = parseInt(formData.installmentCount.toString(), 10); // Ensure it's an integer
-    const currentCount = shifted.length;
+    // 2. Adjust for Count Changes (Add/Remove)
+    const targetCount = parseInt(formData.installmentCount.toString(), 10);
+    const currentInstallments = workingList.filter((t) => !t.isDownPayment);
+    const downPaymentItem = workingList.find((t) => t.isDownPayment);
 
-    if (targetCount < currentCount) {
-      // Cut off extra installments from the end
-      return shifted.slice(0, targetCount);
-    } else if (targetCount > currentCount) {
-      // Add new items
-      const extra: Transaction[] = [];
-      let last = shifted[shifted.length - 1];
+    const effectiveTargetCount = isNaN(targetCount)
+      ? currentInstallments.length
+      : targetCount;
 
-      for (let i = currentCount + 1; i <= targetCount; i++) {
-        const newDate = addMonths(last.date, 1);
-        const newDueDate = last.dueDate
-          ? addMonths(last.dueDate, 1)
-          : undefined;
+    let resultList: Transaction[] = [];
 
-        const newItem: Transaction = {
-          ...last,
-          id: `temp-${i}`, // Temporary ID for new items
-          installmentNumber: i,
-          installmentCount: targetCount, // All should update to new count
-          date: newDate,
-          dueDate: newDueDate,
-          status: "pending", // New ones are pending
-          // Clear specific fields that might not carry over or need to be reset
-          notes: "",
-          clientId: undefined,
-          clientName: "",
-        };
-        extra.push(newItem);
-        last = newItem;
+    if (effectiveTargetCount < currentInstallments.length) {
+      // Shrink
+      resultList = currentInstallments.slice(0, effectiveTargetCount);
+    } else if (effectiveTargetCount > currentInstallments.length) {
+      // Grow
+      resultList = [...currentInstallments];
+      let last = resultList[resultList.length - 1];
+      if (!last && downPaymentItem) last = downPaymentItem;
+
+      if (last) {
+        for (
+          let i = currentInstallments.length + 1;
+          i <= effectiveTargetCount;
+          i++
+        ) {
+          const newDate = addMonths(last.date, 1);
+          const newDueDate = last.dueDate
+            ? addMonths(last.dueDate, 1)
+            : undefined;
+
+          const newItem: Transaction = {
+            ...last,
+            id: `temp-${i}`,
+            installmentNumber: i,
+            installmentCount: effectiveTargetCount,
+            date: newDate,
+            dueDate: newDueDate,
+            amount: 0, // Placeholder, calculated below
+            wallet: "", // Placeholder
+            status: "pending",
+            notes: "",
+            clientId: undefined,
+            clientName: "",
+            isDownPayment: false,
+            parentTransactionId: last.parentTransactionId || undefined,
+          };
+          resultList.push(newItem);
+          last = newItem;
+        }
       }
-
-      const result = [...shifted, ...extra];
-      // Update installmentCount for ALL items to match new total
-      return result.map((t) => ({ ...t, installmentCount: targetCount }));
+    } else {
+      resultList = [...currentInstallments];
     }
 
-    // If targetCount == currentCount, just update installmentCount
-    return shifted.map((t) => ({ ...t, installmentCount: targetCount }));
-  }, [
-    transaction,
-    formData.date,
-    formData.dueDate,
-    formData.amount,
-    formData.installmentCount,
-    relatedInstallments,
-    formData.isInstallment,
-  ]);
+    // Re-add down payment if exists
+    if (downPaymentItem) {
+      resultList = [downPaymentItem, ...resultList];
+    }
+
+    // 3. RECACLULATE AMOUNTS with PRECISION LOGIC
+    // We must distribute the total correctly to avoid rounding errors
+    const isTotalMode = formData.paymentMode === "total";
+    const totalAmount = parseFloat(formData.amount || "0");
+    const downPaymentVal = formData.downPaymentEnabled
+      ? parseFloat(formData.downPaymentValue || "0")
+      : 0;
+
+    // If in Installment Value mode, we trust the input value per installment
+    // BUT user complained about 55000.04 -> 55000.00.
+    // If they switch to "Total" mode, we must ensure the sum is exactly the total.
+
+    const installmentsToUpdate = resultList.filter((t) => !t.isDownPayment);
+    const count = installmentsToUpdate.length;
+
+    // Apply Down Payment updates
+    if (downPaymentItem) {
+      // Update Down Payment Item in the list
+      const idx = resultList.indexOf(downPaymentItem);
+      if (idx >= 0) {
+        resultList[idx] = {
+          ...resultList[idx],
+          amount: downPaymentVal,
+          wallet: formData.downPaymentWallet || formData.wallet,
+        };
+      }
+    }
+
+    if (isTotalMode && count > 0) {
+      const remainingForInstallments = totalAmount - downPaymentVal;
+      // Precision Logic:
+      // e.g. 100 / 3 = 33.33, 33.33, 33.34
+
+      // Floor to 2 decimals
+      const baseAmount =
+        Math.floor((remainingForInstallments / count) * 100) / 100;
+      const totalBase = baseAmount * count;
+      const remainder =
+        Math.round((remainingForInstallments - totalBase) * 100) / 100;
+      // Remainder is essentially number of cents to distribute. e.g. 0.01 or 0.02
+      const centsToDistribute = Math.round(remainder * 100); // 1 or 2 cents
+
+      installmentsToUpdate.forEach((inst, index) => {
+        // Distribute cents to the first N installments
+        const addCent = index < centsToDistribute;
+        const finalAmount = baseAmount + (addCent ? 0.01 : 0);
+
+        // Find in resultList and update
+        const mainIdx = resultList.indexOf(inst);
+        if (mainIdx >= 0) {
+          resultList[mainIdx] = {
+            ...resultList[mainIdx],
+            amount: finalAmount, // JS float math is generally safe for addition of 0.01 to 2-decimal floats, but toFixed ensures
+            wallet: formData.wallet,
+          };
+        }
+      });
+    } else if (!isTotalMode && count > 0) {
+      // Installment Value Mode
+      // We just set everyone to the value
+      const val = parseFloat(formData.installmentValue || "0");
+      const wallet = formData.installmentsWallet || formData.wallet;
+
+      installmentsToUpdate.forEach((inst) => {
+        const mainIdx = resultList.indexOf(inst);
+        if (mainIdx >= 0) {
+          resultList[mainIdx] = {
+            ...resultList[mainIdx],
+            amount: val,
+            wallet: wallet,
+          };
+        }
+      });
+    }
+
+    return resultList.map((t) => ({
+      ...t,
+      installmentCount: effectiveTargetCount,
+    }));
+  }, [transaction, formData, relatedInstallments]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -323,81 +431,48 @@ export function useEditTransaction() {
           .map((t) => t.id),
       );
       const deletedIds = relatedInstallments
-        .filter((t) => !previewRealIds.has(t.id) && t.id !== transaction.id) // Don't delete the current one if it's the only one left
+        .filter((t) => !previewRealIds.has(t.id) && t.id !== transaction.id)
         .map((t) => t.id);
 
-      // 1. Delete removed installments
       if (deletedIds.length > 0) {
         operations.push(
           ...deletedIds.map((id) => TransactionService.deleteTransaction(id)),
         );
       }
 
-      // 2. Create New / Update Existing
       previewInstallments.forEach((inst) => {
+        const basePayload = {
+          date: inst.date,
+          dueDate: inst.dueDate,
+          installmentCount: inst.installmentCount,
+          installmentNumber: inst.installmentNumber,
+          amount: parseFloat(inst.amount.toFixed(2)), // Ensure we send cleaned floats
+          status: inst.status,
+          wallet: inst.wallet,
+          description: formData.description.trim(),
+          category: formData.category,
+          clientId: formData.clientId,
+          clientName: formData.clientName,
+          notes: formData.notes,
+          type: formData.type,
+          isInstallment: formData.isInstallment,
+          isDownPayment: inst.isDownPayment,
+          installmentGroupId: transaction.installmentGroupId,
+        };
+
         if (inst.id.startsWith("temp-")) {
-          // Create New
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id, ...createPayload } = inst;
           operations.push(
             TransactionService.createTransaction({
-              ...createPayload,
-              amount: parseFloat(inst.amount.toString()),
-              description: inst.description || "",
-              date: inst.date,
-              type: inst.type,
-              clientId: inst.clientId,
-              tenantId: transaction.tenantId, // Must include tenantId for creation
-              installmentGroupId: transaction.installmentGroupId, // Must include group ID
+              ...basePayload,
+              tenantId: transaction.tenantId,
+              installmentGroupId: transaction.installmentGroupId,
+              isInstallment: true,
+              isDownPayment: false,
             } as unknown as Omit<Transaction, "id">),
           );
         } else {
-          // Update Existing
-          const updatePayload: Partial<Transaction> = {
-            date: inst.date,
-            dueDate: inst.dueDate,
-            installmentCount: inst.installmentCount,
-            installmentNumber: inst.installmentNumber,
-            amount: parseFloat(inst.amount.toString()), // Propagate amount changes if any
-            status: inst.status, // Propagate status changes if any
-          };
-
-          if (inst.id === transaction.id) {
-            // Full update for current transaction from formData
-            updatePayload.type = formData.type;
-            updatePayload.description = formData.description.trim();
-            // If it's an installment group (non-proposal), distribute the amount
-            if (
-              transaction.isInstallment &&
-              transaction.installmentGroupId &&
-              !transaction.proposalGroupId
-            ) {
-              // The amount in formData is the TOTAL. we need to divide it.
-              // HOWEVER, check if installmentCount changed?
-              // If count changed, the preview logic handles the split.
-              // If count didn't change, we just need to use the value from preview logic.
-
-              // Actually, the previewInstallments logic ALREADY calculates the individual amounts based on the formData.amount?
-              // Let's check previewInstallments logic.
-              // "amount: parseFloat(formData.amount)" in previewInstallments map.
-              // We need to change that logic too.
-
-              // For the main transaction update here, we should probably set the individual amount.
-              const total = parseFloat(formData.amount);
-              const count = parseInt(formData.installmentCount.toString());
-              updatePayload.amount = total / count;
-            } else {
-              updatePayload.amount = parseFloat(formData.amount);
-            }
-            updatePayload.status = formData.status;
-            updatePayload.clientId = formData.clientId;
-            updatePayload.clientName = formData.clientName;
-            updatePayload.category = formData.category;
-            updatePayload.wallet = formData.wallet;
-            updatePayload.notes = formData.notes;
-          }
           operations.push(
-            TransactionService.updateTransaction(inst.id, updatePayload),
+            TransactionService.updateTransaction(inst.id, basePayload),
           );
         }
       });
@@ -422,7 +497,7 @@ export function useEditTransaction() {
     handleSubmit,
     transaction,
     relatedInstallments,
-    previewInstallments, // Exported for UI
+    previewInstallments,
     transactionId,
     isLoading: isLoading || permLoading,
     isSaving,

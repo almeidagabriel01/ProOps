@@ -723,6 +723,94 @@ export function PaymentStep({
       {/* ================== MODE: VALOR DAS PARCELAS ================== */}
       {formData.paymentMode === "installmentValue" && (
         <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Down Payment Toggle - Compact (Advanced Mode) */}
+          <div
+            className={`
+            rounded-xl border p-4 transition-all duration-200
+            ${
+              formData.downPaymentEnabled
+                ? "border-blue-500/40 bg-blue-500/5"
+                : "border-border hover:border-blue-500/30"
+            }
+          `}
+          >
+            <label
+              htmlFor="downPaymentEnabledAdvanced"
+              className="flex items-center gap-3 cursor-pointer"
+            >
+              <div
+                className={`
+                w-8 h-8 rounded-lg flex items-center justify-center transition-all
+                ${formData.downPaymentEnabled ? "bg-blue-500/15 text-blue-500" : "bg-muted text-muted-foreground"}
+              `}
+              >
+                <Banknote className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Incluir Entrada</p>
+                <p className="text-xs text-muted-foreground">
+                  Valor à vista antes das parcelas
+                </p>
+              </div>
+              <Checkbox
+                id="downPaymentEnabledAdvanced"
+                checked={formData.downPaymentEnabled || false}
+                onCheckedChange={(checked) =>
+                  handlePaymentToggle("downPaymentEnabled", checked as boolean)
+                }
+                className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {formData.downPaymentEnabled && (
+              <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between h-7">
+                      <Label
+                        htmlFor="downPaymentValueAdvanced"
+                        className="text-sm font-medium"
+                      >
+                        Valor da Entrada
+                      </Label>
+                    </div>
+                    <CurrencyInput
+                      id="downPaymentValueAdvanced"
+                      name="downPaymentValue"
+                      value={formData.downPaymentValue || ""}
+                      onChange={onChange}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <WalletSelect
+                      label="Carteira"
+                      name="downPaymentWallet"
+                      value={formData.downPaymentWallet || ""}
+                      onChange={onChange}
+                      preSelectDefault
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="downPaymentDueDateAdvanced"
+                    className="text-sm font-medium"
+                  >
+                    Data da Entrada
+                  </Label>
+                  <Input
+                    type="date"
+                    id="downPaymentDueDateAdvanced"
+                    name="downPaymentDueDate"
+                    value={formData.downPaymentDueDate || ""}
+                    onChange={onChange}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Parcelamento Section */}
           <div className="space-y-4">
             <label
