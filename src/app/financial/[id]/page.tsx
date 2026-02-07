@@ -76,15 +76,15 @@ export default function EditTransactionPage() {
       clientId: formData.clientId || "",
       isInstallment: formData.isInstallment,
       installmentCount: formData.installmentCount,
-      // New payment mode fields (defaults for edit mode - not used in edit flow)
-      paymentMode: "total" as const,
-      installmentValue: "",
-      firstInstallmentDate: "",
-      installmentsWallet: "",
-      downPaymentEnabled: false,
-      downPaymentValue: "",
-      downPaymentWallet: "",
-      downPaymentDueDate: "",
+      // Pass through new fields instead of resetting them
+      paymentMode: formData.paymentMode,
+      installmentValue: formData.installmentValue,
+      firstInstallmentDate: formData.firstInstallmentDate,
+      installmentsWallet: formData.installmentsWallet,
+      downPaymentEnabled: formData.downPaymentEnabled,
+      downPaymentValue: formData.downPaymentValue,
+      downPaymentWallet: formData.downPaymentWallet,
+      downPaymentDueDate: formData.downPaymentDueDate,
     }),
     [formData],
   );
@@ -244,35 +244,17 @@ export default function EditTransactionPage() {
             onFormDataChange={(updater) => {
               if (typeof updater === "function") {
                 setFormData((prev) => {
-                  const result = updater({
+                  // Ensure types match TransactionFormData (clientId must be string)
+                  const prevAsTransactionFormData: TransactionFormData = {
                     ...prev,
                     clientId: prev.clientId || "",
-                    installmentCount: prev.installmentCount || 2,
-                    // New payment mode fields (defaults)
-                    paymentMode: "total" as const,
-                    installmentValue: "",
-                    firstInstallmentDate: "",
-                    installmentsWallet: "",
-                    downPaymentEnabled: false,
-                    downPaymentValue: "",
-                    downPaymentWallet: "",
-                    downPaymentDueDate: "",
-                  });
+                  };
+
+                  const result = updater(prevAsTransactionFormData);
+
                   return {
-                    type: result.type,
-                    description: result.description,
-                    amount: result.amount,
-                    date: result.date,
-                    dueDate: result.dueDate,
-                    category: result.category,
-                    wallet: result.wallet,
-                    status: result.status,
-                    clientName: result.clientName,
-                    clientId: result.clientId,
-                    notes: result.notes,
-                    // Preserve installment data
-                    isInstallment: result.isInstallment,
-                    installmentCount: result.installmentCount,
+                    ...result,
+                    // Map back to EditTransactionFormData (result has string clientId which is fine)
                   };
                 });
               }

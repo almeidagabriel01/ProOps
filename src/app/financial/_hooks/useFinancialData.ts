@@ -720,32 +720,40 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         // 2. Create new transaction for the REMAINING part (Pending)
         // Explicitly remove ID to ensure clean creation
-        const { id: _, ...originalData } = originalTransaction;
-        
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id: _id, ...originalData } = originalTransaction;
+
         // CRITICAL FIX: The backend auto-generates installments if isInstallment=true AND installmentCount > 1 AND installmentNumber=1.
         // Since we are splitting Installment 1, we must avoid this auto-generation which creates duplicates (IDs 5,7,9,10 etc).
         // We temporarily set installmentCount to 1 to bypass creation logic, then update it back.
-        
+
         // 2.1 Create with count 1
         const createResult = await TransactionService.createTransaction({
           ...originalData,
           amount: remainingAmount,
-          status: originalTransaction.status === "paid" ? "pending" : originalTransaction.status,
+          status:
+            originalTransaction.status === "paid"
+              ? "pending"
+              : originalTransaction.status,
           isPartialPayment: false, // This is the new "Main" one
           parentTransactionId: originalTransaction.id,
           installmentCount: 1, // Bypass backend recursion
           // Keep other metadata
-        } as any);
+        } as unknown as Omit<Transaction, "id">);
 
         // 2.2 Restore correct installment count if needed
-        if (originalData.isInstallment && (originalData.installmentCount || 0) > 1 && createResult?.id) {
-             await TransactionService.updateTransaction(createResult.id, {
-                 installmentCount: originalData.installmentCount
-             });
+        if (
+          originalData.isInstallment &&
+          (originalData.installmentCount || 0) > 1 &&
+          createResult?.id
+        ) {
+          await TransactionService.updateTransaction(createResult.id, {
+            installmentCount: originalData.installmentCount,
+          });
         }
 
         toast.success("Pagamento parcial registrado com sucesso!");
-        
+
         // Refresh truth from server (background)
         await fetchData(true);
       } catch (error) {

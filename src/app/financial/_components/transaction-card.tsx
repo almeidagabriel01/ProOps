@@ -323,7 +323,7 @@ export function TransactionCard({
           id: undefined,
           // IDs managed by backend or omitted for new creation:
           // installmentGroupId and proposalGroupId should be kept to link them
-        } as any);
+        } as unknown as Omit<Transaction, "id">);
 
         // 2.1 Restore count
         if (
