@@ -531,9 +531,6 @@ function SystemCard({
               <div className="p-3 space-y-2">
                 {scopeProducts.length > 0 ? (
                   scopeProducts.map((product, idx) => {
-                    const productData = products.find(
-                      (p) => p.id === product.productId,
-                    );
                     // UPDATED: use contextual status from proposal product, default to active
                     const isActive = product.status !== "inactive";
                     return (

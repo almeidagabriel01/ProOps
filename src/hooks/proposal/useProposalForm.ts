@@ -31,6 +31,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Proposal,
+  ProposalAmbienteInstance,
   ProposalProduct,
   ProposalService,
 } from "@/services/proposal-service";
@@ -701,20 +702,72 @@ export function useProposalForm({
                   sistemaName:
                     masterSistema?.name || (s.sistemaName as string) || "",
                   description: (s.description as string) || "",
-                  // New format - ambientes array
-                  ambientes: [
-                    {
-                      ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
-                      ambienteName:
-                        masterAmbiente?.name || primaryAmbienteName || "",
-                      description:
-                        systemEnvConfig?.description ||
-                        masterAmbiente?.description ||
-                        s.ambientes?.[0]?.description ||
-                        "", // Priority: Master Data (System Specific) -> Master Data (Global) -> Snapshot
-                      products: sistemaProducts,
-                    },
-                  ],
+                  // Fix: Map all environments from saved data, don't just take the first one
+                  ambientes:
+                    s.ambientes && s.ambientes.length > 0
+                      ? s.ambientes.map((env: ProposalAmbienteInstance) => {
+                          const envMasterAmbiente =
+                            freshAmbientes.find(
+                              (a) => a.id === env.ambienteId,
+                            ) ||
+                            freshAmbientes.find(
+                              (a) => a.name === env.ambienteName,
+                            );
+
+                          // Get productIds from the environment object
+                          const envProductIds: string[] = env.productIds || [];
+
+                          // Filter synced products that belong to this environment
+                          const envProducts = syncedProducts
+                            .filter((p: ProposalProduct) =>
+                              envProductIds.includes(p.productId),
+                            )
+                            .map((p: ProposalProduct) => ({
+                              productId: p.productId,
+                              productName: p.productName,
+                              quantity: p.quantity,
+                              status: p.status,
+                            }));
+
+                          return {
+                            ambienteId:
+                              envMasterAmbiente?.id ||
+                              env.ambienteId ||
+                              // Fallback to legacy ID if this is clearly the primary one being migrated
+                              (env.ambienteId ===
+                              (masterAmbiente?.id || primaryAmbienteId)
+                                ? masterAmbiente?.id || primaryAmbienteId
+                                : "") ||
+                              "",
+                            ambienteName:
+                              envMasterAmbiente?.name ||
+                              env.ambienteName ||
+                              (env.ambienteName ===
+                              (masterAmbiente?.name || primaryAmbienteName)
+                                ? masterAmbiente?.name || primaryAmbienteName
+                                : "") ||
+                              "",
+                            description:
+                              env.description ||
+                              envMasterAmbiente?.description ||
+                              "",
+                            products: envProducts,
+                          };
+                        })
+                      : [
+                          {
+                            ambienteId:
+                              masterAmbiente?.id || primaryAmbienteId || "",
+                            ambienteName:
+                              masterAmbiente?.name || primaryAmbienteName || "",
+                            description:
+                              systemEnvConfig?.description ||
+                              masterAmbiente?.description ||
+                              s.ambientes?.[0]?.description ||
+                              "",
+                            products: sistemaProducts,
+                          },
+                        ],
                   // Legacy fields for backward compat
                   ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
                   ambienteName:

@@ -44,8 +44,8 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
                 "",
             };
 
-            // Add inactive flag if filtering is enabled and product is inactive
-            if (options?.filterInactive && catalogProduct.status === 'inactive') {
+            // Add inactive flag if filtering is enabled and product is inactive (in catalog OR proposal)
+            if (options?.filterInactive && (catalogProduct.status === 'inactive' || proposalProduct.status === 'inactive')) {
               return {
                 ...baseEnriched,
                 _isInactive: true, // Metadata flag for visual hiding
