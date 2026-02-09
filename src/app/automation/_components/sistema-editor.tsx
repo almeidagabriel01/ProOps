@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -248,6 +249,7 @@ export function SistemaEditor({
       productId: product.id,
       productName: product.name,
       quantity: 1,
+      status: "active",
     };
     updateActiveProducts([...currentProducts, newProd]);
     setShowProductList(false);
@@ -269,6 +271,22 @@ export function SistemaEditor({
       currentProducts.map((p) => {
         if (p.productId === productId) {
           return { ...p, quantity: Math.max(1, p.quantity + delta) };
+        }
+        return p;
+      }),
+    );
+  };
+
+  const handleUpdateStatus = (
+    productId: string,
+    newStatus: "active" | "inactive",
+  ) => {
+    if (!activeAmbienteId) return;
+    const currentProducts = activeConfig?.products || [];
+    updateActiveProducts(
+      currentProducts.map((p) => {
+        if (p.productId === productId) {
+          return { ...p, status: newStatus };
         }
         return p;
       }),
@@ -622,6 +640,24 @@ export function SistemaEditor({
                           </div>
 
                           <div className="flex items-center gap-6">
+                            {/* Status Control */}
+                            <Select
+                              value={item.status || "active"}
+                              onChange={(e) =>
+                                handleUpdateStatus(
+                                  item.productId,
+                                  e.target.value as "active" | "inactive",
+                                )
+                              }
+                              inputSize="sm"
+                              className={cn(
+                                "w-[100px] border-none shadow-none focus:ring-0",
+                              )}
+                            >
+                              <option value="active">Ativo</option>
+                              <option value="inactive">Inativo</option>
+                            </Select>
+
                             {/* Quantity Control */}
                             <div className="flex items-center bg-muted/50 rounded-lg border p-1 shadow-sm">
                               <Button

@@ -61,6 +61,7 @@ interface ProposalSystemsSectionProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
   onDataUpdate?: () => void;
   // Transactional Data
@@ -338,6 +339,7 @@ interface SystemCardProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
 }
 
@@ -532,8 +534,8 @@ function SystemCard({
                     const productData = products.find(
                       (p) => p.id === product.productId,
                     );
-                    const isActive =
-                      !productData?.status || productData.status === "active";
+                    // UPDATED: use contextual status from proposal product, default to active
+                    const isActive = product.status !== "inactive";
                     return (
                       <ProductRow
                         key={`${product.productId}-${idx}`}
@@ -593,6 +595,7 @@ interface ProductRowProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
 }
 
@@ -619,7 +622,11 @@ function ProductRow({
 
     setIsUpdating(true);
     try {
-      await onToggleStatus(product.productId, isActive ? "inactive" : "active");
+      await onToggleStatus(
+        product.productId,
+        isActive ? "inactive" : "active",
+        product.systemInstanceId,
+      );
     } finally {
       setIsUpdating(false);
     }

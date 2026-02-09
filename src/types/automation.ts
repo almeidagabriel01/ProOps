@@ -9,6 +9,7 @@ export type AmbienteProduct = {
   productName: string; // Cache para exibição
   quantity: number;
   notes?: string;
+  status?: "active" | "inactive";
 };
 
 /**
@@ -39,7 +40,7 @@ export type Sistema = {
   icon?: string; // Emoji ou nome de ícone lucide
   // IDs dos ambientes disponíveis para este sistema
   // availableAmbienteIds: string[]; -> Deprecated in favor of configured environments
-  
+
   /**
    * Main configuration: Environments within this system, each with its own product list.
    * This is the SOURCE OF TRUTH for products when adding a system to a proposal.
@@ -48,7 +49,7 @@ export type Sistema = {
 
   createdAt: string;
   updatedAt: string;
-  
+
   // DEPRECATED: Mantido temporariamente para migração
   /** @deprecated Use ambientes field instead */
   availableAmbienteIds?: string[];
@@ -77,6 +78,7 @@ export type SistemaProduct = {
   productName: string;
   quantity: number;
   notes?: string;
+  status?: "active" | "inactive";
 };
 
 // ============================================

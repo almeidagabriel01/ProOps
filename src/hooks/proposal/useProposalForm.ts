@@ -997,35 +997,27 @@ export function useProposalForm({
     }));
   };
 
-  // Toggle product status (active/inactive)
+  // Toggle product status (active/inactive) - UPDATED: toggles LOCAL status only
   const handleToggleProductStatus = async (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => {
-    try {
-      // Optimistic update - update local state immediately
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p)),
-      );
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).map((p) => {
+        // Find specific instance if systemInstanceId provided
+        // Or find by productId if legacy/global (though for automation we prefer instance targeting)
+        const isTarget = systemInstanceId
+          ? p.systemInstanceId === systemInstanceId && p.productId === productId
+          : p.productId === productId;
 
-      // Persist to Firebase
-      await ProductService.updateProduct(productId, { status: newStatus });
-    } catch (error) {
-      console.error("Error toggling product status:", error);
-
-      // Revert optimistic update on error
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId
-            ? { ...p, status: newStatus === "active" ? "inactive" : "active" }
-            : p,
-        ),
-      );
-
-      const errorMessage =
-        error instanceof Error ? error.message : "Erro desconhecido";
-      toast.error(`Erro ao alterar status do produto: ${errorMessage}`);
-    }
+        if (isTarget) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      }),
+    }));
   };
 
   // Calculations - use visibleProducts to exclude phantom products
@@ -1268,6 +1260,7 @@ export function useProposalForm({
           category: productDef?.category,
           systemInstanceId,
           isExtra: false,
+          status: sp.status || "active",
         };
       });
 
@@ -1360,6 +1353,7 @@ export function useProposalForm({
         category: productDef?.category,
         systemInstanceId: newInstanceId,
         isExtra: false,
+        status: sp.status || "active",
       };
     });
 
@@ -1405,6 +1399,7 @@ export function useProposalForm({
       category: product.category,
       systemInstanceId,
       isExtra: true, // Default to true, will be checked below
+      status: "active",
     };
 
     // Check if product is part of the original definition to determine isExtra/isInactive

@@ -24,7 +24,7 @@ interface ProposalProductsSectionProps {
   onNavigateToProducts: () => void;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 }
 
@@ -64,7 +64,7 @@ export function ProposalProductsSection({
 
   // Filter out products that are already in systems
   const availableProducts = products.filter(
-    (product) => !systemProductIds.has(product.id)
+    (product) => !systemProductIds.has(product.id),
   );
 
   return (
@@ -82,7 +82,7 @@ export function ProposalProductsSection({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {availableProducts.map((product) => {
             const selected = extraProducts.find(
-              (p) => p.productId === product.id
+              (p) => p.productId === product.id,
             );
 
             return (
@@ -109,7 +109,7 @@ interface ProductCardProps {
   onUpdateQuantity: (productId: string, delta: number) => void;
   onToggleStatus?: (
     productId: string,
-    newStatus: "active" | "inactive"
+    newStatus: "active" | "inactive",
   ) => Promise<void>;
 }
 
@@ -121,7 +121,8 @@ function ProductCard({
   onToggleStatus,
 }: ProductCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
-  const isActive = !product.status || product.status === "active";
+  // Use proposal status if selected, otherwise default to active
+  const isActive = selected?.status ? selected.status !== "inactive" : true;
 
   const handleStatusToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();

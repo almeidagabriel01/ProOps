@@ -209,6 +209,7 @@ export function SistemaSelector({
           productName: p.productName,
           quantity: p.quantity,
           notes: p.notes,
+          status: p.status, // Preserve status if available
         }));
       }
 

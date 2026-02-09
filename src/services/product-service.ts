@@ -22,6 +22,7 @@ export type Product = {
   stock: string;
   images: string[]; // Changed from single image to array
   image?: string | null; // Kept for backward compatibility (optional)
+  /** @deprecated Status is now contextual (System/Proposal), not global */
   status?: "active" | "inactive";
   createdAt?: string;
   updatedAt?: string;

@@ -430,11 +430,8 @@ export function SimpleProposalForm({
 
           // Check if there's at least one active product
           const activeProducts = environmentProducts.filter((p) => {
-            const catalogProduct = products.find(
-              (prod) => prod.id === p.productId,
-            );
-            // Product is active if not found in catalog OR status is not 'inactive'
-            return !catalogProduct || catalogProduct.status !== "inactive";
+            // Product is active if its local status is 'active' (default) or undefined
+            return p.status !== "inactive";
           });
 
           if (activeProducts.length === 0 && environmentProducts.length > 0) {
@@ -448,8 +445,7 @@ export function SimpleProposalForm({
     } else if (!isAutomacaoNiche) {
       // For non-automation: validate at least one active product globally
       const activeProducts = currentFormData.products.filter((p) => {
-        const catalogProduct = products.find((prod) => prod.id === p.productId);
-        return !catalogProduct || catalogProduct.status !== "inactive";
+        return p.status !== "inactive";
       });
 
       if (activeProducts.length === 0) {

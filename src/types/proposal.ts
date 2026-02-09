@@ -27,6 +27,7 @@ export interface ProposalProduct {
   systemInstanceId?: string;
   isExtra?: boolean;
   isMonthly?: boolean;
+  status?: "active" | "inactive";
   _isInactive?: boolean; // Metadata flag for PDF visual hiding
 }
 
@@ -62,7 +63,7 @@ export interface ProposalAttachment {
   id: string;
   name: string;
   url: string;
-  type: 'image' | 'pdf';
+  type: "image" | "pdf";
   size: number;
   uploadedAt: string;
 }

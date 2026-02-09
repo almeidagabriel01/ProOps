@@ -484,18 +484,6 @@ export function ProductFormNew({
               </div>
             </div>
 
-            <FormItem label="Status do Produto" htmlFor="status">
-              <Select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-              >
-                <option value="active">Ativo - Visível no catálogo</option>
-                <option value="inactive">Inativo - Oculto do catálogo</option>
-              </Select>
-            </FormItem>
-
             {/* Summary card */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
               <h4 className="font-semibold text-foreground">
