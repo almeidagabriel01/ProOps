@@ -52,9 +52,12 @@ export function ProposalSummarySection({
   onFormChange,
 }: ProposalSummarySectionProps) {
   // Helper to check if product is inactive
-  const isProductInactive = (productId: string) => {
-    const product = products.find((p) => p.id === productId);
-    return product?.status === "inactive";
+  const isProductInactive = (product: ProposalProduct) => {
+    // Check if product is inactive in catalog OR marked as inactive in proposal
+    const catalogProduct = products.find((p) => p.id === product.productId);
+    return (
+      catalogProduct?.status === "inactive" || product.status === "inactive"
+    );
   };
   if (selectedProducts.length === 0) {
     return null;
@@ -153,7 +156,7 @@ export function ProposalSummarySection({
                                         Extra
                                       </Badge>
                                     )}
-                                    {isProductInactive(product.productId) && (
+                                    {isProductInactive(product) && (
                                       <Badge
                                         variant="secondary"
                                         className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"
@@ -215,7 +218,7 @@ export function ProposalSummarySection({
                           <span className="ml-2 text-xs text-gray-400">
                             (Extra)
                           </span>
-                          {isProductInactive(product.productId) && (
+                          {isProductInactive(product) && (
                             <Badge
                               variant="secondary"
                               className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"
@@ -248,7 +251,7 @@ export function ProposalSummarySection({
                     <td className="p-3 font-medium">
                       <div className="flex items-center gap-2">
                         <span>{product.productName}</span>
-                        {isProductInactive(product.productId) && (
+                        {isProductInactive(product) && (
                           <Badge
                             variant="secondary"
                             className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"

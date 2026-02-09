@@ -44,6 +44,7 @@ export function sanitizeProducts(products: ProposalProduct[]) {
     ambienteInstanceId: p.ambienteInstanceId || p.systemInstanceId,
     systemInstanceId: p.systemInstanceId || p.ambienteInstanceId,
     isExtra: p.isExtra,
+    status: p.status,
   }));
 }
 

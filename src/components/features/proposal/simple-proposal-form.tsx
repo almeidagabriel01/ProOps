@@ -462,13 +462,7 @@ export function SimpleProposalForm({
     else clearFieldError("products");
 
     return true;
-  }, [
-    isAutomacaoNiche,
-    setFieldError,
-    clearFieldError,
-    selectedSistemas,
-    products,
-  ]);
+  }, [isAutomacaoNiche, setFieldError, clearFieldError, selectedSistemas]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
