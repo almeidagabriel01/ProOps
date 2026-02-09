@@ -20,6 +20,7 @@ interface EnvironmentListProps {
   availableToAdd: Ambiente[];
   onLink: (id: string) => void;
   onCreate: () => void;
+  allowDelete?: boolean;
 }
 
 export function EnvironmentList({
@@ -37,6 +38,7 @@ export function EnvironmentList({
   availableToAdd,
   onLink,
   onCreate,
+  allowDelete = true,
 }: EnvironmentListProps) {
   return (
     <div>
@@ -77,14 +79,16 @@ export function EnvironmentList({
                   Editar Template
                 </Link>
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-destructive cursor-pointer"
-                onClick={() => onUnlink(amb.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {allowDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive cursor-pointer"
+                  onClick={() => onUnlink(amb.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
         ))}

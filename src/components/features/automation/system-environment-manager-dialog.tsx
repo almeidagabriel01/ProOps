@@ -34,6 +34,7 @@ interface SystemEnvironmentManagerDialogProps {
   sistemas?: Sistema[];
   ambientes?: Ambiente[];
   onAction?: (action: MasterDataAction) => void;
+  allowDelete?: boolean;
 }
 
 export function SystemEnvironmentManagerDialog({
@@ -43,6 +44,7 @@ export function SystemEnvironmentManagerDialog({
   sistemas: managedSistemas,
   ambientes: managedAmbientes,
   onAction,
+  allowDelete = true,
 }: SystemEnvironmentManagerDialogProps) {
   const { state, actions } = useSystemManager({
     isOpen,
@@ -102,6 +104,7 @@ export function SystemEnvironmentManagerDialog({
                   }
                 }}
                 onOpenMobileMenu={() => actions.setIsMobileMenuOpen(true)}
+                allowDelete={allowDelete}
               />
 
               {/* Content */}
@@ -123,6 +126,7 @@ export function SystemEnvironmentManagerDialog({
                       availableToAdd={state.availableAmbientesToAdd}
                       onLink={actions.handleLinkEnvironment}
                       onCreate={actions.handleCreateEnvironment}
+                      allowDelete={allowDelete}
                     />
                   </div>
                 ) : (

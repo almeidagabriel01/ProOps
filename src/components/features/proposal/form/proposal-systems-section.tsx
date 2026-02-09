@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { Package, Plus, Minus, Cpu, Trash2, Pencil } from "lucide-react";
+import { Package, Plus, Minus, Cpu, Trash2 } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SistemaSelectorProps } from "@/components/features/automation/sistema-selector";
 import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
+import { SystemEnvironmentManagerDialog } from "@/components/features/automation/system-environment-manager-dialog";
+import { Settings } from "lucide-react";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -78,7 +80,6 @@ export function ProposalSystemsSection({
   products,
   primaryColor,
   selectorKey,
-  onEditSystem,
   onRemoveSystem,
   onUpdateProductQuantity,
   onUpdateProductMarkup,
@@ -100,6 +101,8 @@ export function ProposalSystemsSection({
   // it is treated as the "Pending Selector State" and NOT rendered as a Card.
   const lastSystem = selectedSistemas[selectedSistemas.length - 1];
   const isLastSystemPending = lastSystem && !lastSystem.sistemaId;
+
+  const [isManagerOpen, setIsManagerOpen] = React.useState(false);
 
   const renderedSistemas = isLastSystemPending
     ? selectedSistemas.slice(0, -1)
@@ -197,7 +200,7 @@ export function ProposalSystemsSection({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cpu className="w-5 h-5" />
@@ -210,9 +213,20 @@ export function ProposalSystemsSection({
             />
           )}
         </div>
-        <CardDescription>
-          Adicione um ou mais sistemas de automação à proposta
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <CardDescription>
+            Adicione um ou mais sistemas de automação à proposta
+          </CardDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-2 text-xs"
+            onClick={() => setIsManagerOpen(true)}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Gerenciar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Lista de sistemas já adicionados (Completed only) */}
@@ -255,7 +269,6 @@ export function ProposalSystemsSection({
                   products={products}
                   primaryColor={primaryColor}
                   systemInstanceId={systemInstanceId}
-                  onEdit={() => onEditSystem(realIndex)}
                   onRemove={() => onRemoveSystem(realIndex, systemInstanceId)}
                   onUpdateQuantity={(productId, delta, instanceId) =>
                     onUpdateProductQuantity(
@@ -282,7 +295,7 @@ export function ProposalSystemsSection({
                     )
                   }
                   onToggleStatus={onToggleStatus}
-                  onRemoveAmbiente={(ambienteId) =>
+                  onDeleteEnvironment={(ambienteId) =>
                     onRemoveAmbiente(realIndex, ambienteId)
                   }
                 />
@@ -313,6 +326,22 @@ export function ProposalSystemsSection({
           />
         </div>
       </CardContent>
+
+      <SystemEnvironmentManagerDialog
+        isOpen={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onDataChange={() => onDataUpdate?.()}
+        sistemas={sistemas}
+        ambientes={ambientes}
+        onAction={async (action) => {
+          if (action.entity === "ambiente" && onAmbienteAction) {
+            onAmbienteAction(action);
+          } else if (onSistemaAction) {
+            onSistemaAction(action);
+          }
+        }}
+        allowDelete={false}
+      />
     </Card>
   );
 }
@@ -327,7 +356,6 @@ interface SystemCardProps {
   products: Product[];
   primaryColor: string;
   systemInstanceId: string;
-  onEdit: () => void;
   onRemove: () => void;
   onUpdateQuantity: (
     productId: string,
@@ -346,7 +374,7 @@ interface SystemCardProps {
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
   ) => Promise<void>;
-  onRemoveAmbiente: (ambienteId: string) => void;
+  onDeleteEnvironment: (ambienteId: string) => void;
 }
 
 function SystemCard({
@@ -356,14 +384,13 @@ function SystemCard({
   sistemaTotalWithMarkup,
   products,
   primaryColor,
-  onEdit,
   onRemove,
   onUpdateQuantity,
   onUpdateMarkup,
   onRemoveProduct,
   onAddExtraProduct,
   onToggleStatus,
-  onRemoveAmbiente,
+  onDeleteEnvironment,
 }: SystemCardProps) {
   return (
     <div
@@ -443,16 +470,6 @@ function SystemCard({
           </div>
 
           <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-primary"
-              onClick={onEdit}
-              title="Trocar Sistema/Ambiente"
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
@@ -559,7 +576,9 @@ function SystemCard({
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive hover:bg-destructive/90"
-                        onClick={() => onRemoveAmbiente(amb.ambienteId || "")}
+                        onClick={() =>
+                          onDeleteEnvironment(amb.ambienteId || "")
+                        }
                       >
                         Remover Ambiente
                       </AlertDialogAction>

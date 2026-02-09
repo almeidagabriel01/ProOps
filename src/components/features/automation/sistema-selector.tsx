@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Settings, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   Sistema,
   Ambiente,
@@ -254,19 +254,6 @@ export function SistemaSelector({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Sistema</Label>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onClick={() => {
-              setEditingSistema(null);
-              setIsManagerOpen(true);
-            }}
-            title="Gerenciar Sistemas e Ambientes"
-          >
-            <Settings className="w-3 h-3 mr-1" />
-            Gerenciar
-          </Button>
         </div>
         <div className="flex gap-2">
           <div className="flex-1 relative">
