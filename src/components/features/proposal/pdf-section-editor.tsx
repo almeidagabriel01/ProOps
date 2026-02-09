@@ -254,8 +254,8 @@ export function PdfSectionEditor({
   primaryColor,
 }: PdfSectionEditorProps) {
   const {
-    expandedSection,
-    setExpandedSection,
+    expandedSections,
+    toggleSection,
     draggedId,
     dragOverId,
     dropPlacement,
@@ -305,12 +305,12 @@ export function PdfSectionEditor({
             section={section}
             index={index}
             totalSections={sections.length}
-            isExpanded={expandedSection === section.id}
+            isExpanded={expandedSections.has(section.id)}
             isDragging={draggedId === section.id}
             isDragOver={dragOverId === section.id}
             dropPlacement={dragOverId === section.id ? dropPlacement : null}
             primaryColor={primaryColor}
-            onExpand={setExpandedSection}
+            onExpand={() => toggleSection(section.id)}
             onMove={moveSection}
             onRemove={removeSection}
             onHoverHandle={setHoveredHandleId}

@@ -120,7 +120,7 @@ export function PdfEditorTabs({
       </TabsList>
 
       {/* Cover Tab */}
-      <TabsContent value="cover" className="space-y-4 mt-4">
+      <TabsContent value="cover" className="space-y-4 mt-4 w-full">
         <PdfCoverTab
           coverTitle={coverTitle}
           setCoverTitle={setCoverTitle}
