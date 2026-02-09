@@ -41,6 +41,7 @@ interface PdfCoverTabProps {
   primaryColor?: string;
   canEditCoverElements?: boolean;
   clientName?: string;
+  validUntil?: string;
 }
 
 export function PdfCoverTab({
@@ -70,6 +71,7 @@ export function PdfCoverTab({
   primaryColor = "#2563eb",
   canEditCoverElements = true,
   clientName = "Nome do Contato",
+  validUntil,
 }: PdfCoverTabProps) {
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -290,6 +292,7 @@ export function PdfCoverTab({
               clientName={clientName}
               coverTitle={coverTitle}
               theme={theme}
+              validUntil={validUntil}
             />
           </div>
         )}

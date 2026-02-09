@@ -34,6 +34,7 @@ interface CoverElementsEditorProps {
   clientName?: string; // To show preview of client name
   coverTitle?: string; // Proposal title for auto-fill
   theme?: string; // Current theme - for showing/hiding livre-only elements
+  validUntil?: string; // Proposal validity date for preview
 }
 
 const elementTypeLabels: Record<CoverElement["type"], string> = {
@@ -43,6 +44,8 @@ const elementTypeLabels: Record<CoverElement["type"], string> = {
   label: "Rótulo",
   divider: "Divisor",
   "client-name": "Nome do Contato",
+  "proposal-title": "Título da Proposta",
+  "valid-until": "Válido até",
   logo: "Logo",
   "company-name": "Nome da Empresa",
   image: "Imagem",
@@ -62,6 +65,10 @@ const getElementIcon = (type: CoverElement["type"]) => {
       return <Minus className="w-4 h-4" />;
     case "client-name":
       return <User className="w-4 h-4" />;
+    case "proposal-title":
+      return <FileText className="w-4 h-4" />;
+    case "valid-until":
+      return <Tag className="w-4 h-4" />;
     case "logo":
       return <FileText className="w-4 h-4" />;
     case "company-name":
@@ -93,6 +100,7 @@ export function CoverElementsEditor({
   clientName = "Nome do Contato",
   coverTitle = "Título da Proposta",
   theme,
+  validUntil,
 }: CoverElementsEditorProps) {
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
@@ -106,28 +114,40 @@ export function CoverElementsEditor({
           ? ""
           : type === "client-name"
             ? ""
-            : type === "image"
+            : type === "proposal-title"
               ? ""
-              : "Novo texto",
+              : type === "valid-until"
+                ? ""
+                : type === "image"
+                  ? ""
+                  : "Novo texto",
+      prefix:
+        type === "client-name"
+          ? "Preparado para"
+          : type === "valid-until"
+            ? "Válido até"
+            : "",
+      suffix: "",
       x: 50, // Center by default
       y: 50 + elements.length * 8, // Stack new elements below
       order: maxOrder + 1,
-      includesClientName: type === "client-name",
       styles: {
         fontSize:
-          type === "title"
+          type === "title" || type === "proposal-title"
             ? "40px"
             : type === "subtitle"
               ? "20px"
               : type === "label"
                 ? "14px"
-                : type === "client-name"
+                : type === "client-name" || type === "valid-until"
                   ? "24px"
                   : "16px",
         fontWeight:
-          type === "title"
+          type === "title" || type === "proposal-title"
             ? "bold"
-            : type === "subtitle" || type === "client-name"
+            : type === "subtitle" ||
+                type === "client-name" ||
+                type === "valid-until"
               ? "600"
               : "normal",
         textAlign: "center",
@@ -193,17 +213,42 @@ export function CoverElementsEditor({
     );
   };
 
+  // Helper to format date for preview
+  const formatValidUntilPreview = (dateString?: string): string => {
+    if (!dateString) return "DD/MM/AAAA";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("pt-BR");
+    } catch {
+      return "DD/MM/AAAA";
+    }
+  };
+
   // Get display text for element preview
   const getDisplayPreview = (element: CoverElement) => {
     if (element.type === "divider") return "—";
-    if (element.type === "client-name") return clientName;
 
-    const content = element.usesProposalTitle ? coverTitle : element.content;
-
-    if (element.includesClientName) {
-      return content ? `${content} ${clientName}` : clientName;
+    // Handle backend-sourced elements with prefix/suffix
+    if (element.type === "client-name") {
+      const prefix = element.prefix ? `${element.prefix} ` : "";
+      const suffix = element.suffix ? ` ${element.suffix}` : "";
+      return `${prefix}${clientName}${suffix}`.trim();
     }
-    return content || "";
+
+    if (element.type === "proposal-title") {
+      const prefix = element.prefix ? `${element.prefix} ` : "";
+      const suffix = element.suffix ? ` ${element.suffix}` : "";
+      return `${prefix}${coverTitle}${suffix}`.trim();
+    }
+
+    if (element.type === "valid-until") {
+      const prefix = element.prefix ? `${element.prefix} ` : "";
+      const suffix = element.suffix ? ` ${element.suffix}` : "";
+      const date = formatValidUntilPreview(validUntil);
+      return `${prefix}${date}${suffix}`.trim();
+    }
+
+    return element.content || "";
   };
 
   return (
@@ -238,13 +283,15 @@ export function CoverElementsEditor({
                       </span>
                     )}
                     {element.type !== "divider" &&
-                      element.type !== "client-name" &&
-                      element.content && (
-                        <span className="text-muted-foreground font-normal ml-2">
-                          - {element.content.substring(0, 20)}
-                          {element.content.length > 20 ? "..." : ""}
-                        </span>
-                      )}
+                      (() => {
+                        const preview = getDisplayPreview(element);
+                        return preview ? (
+                          <span className="text-muted-foreground font-normal ml-2">
+                            - {preview.substring(0, 30)}
+                            {preview.length > 30 ? "..." : ""}
+                          </span>
+                        ) : null;
+                      })()}
                   </span>
                   <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded">
                     X:{Math.round(element.x ?? 50)}% Y:
@@ -295,41 +342,65 @@ export function CoverElementsEditor({
                 {/* Expanded Content */}
                 {expandedId === element.id && (
                   <CardContent className="pt-4 border-t space-y-4">
-                    {/* Use Proposal Title checkbox for title/subtitle */}
-                    {(element.type === "title" ||
-                      element.type === "subtitle") && (
-                      <div className="flex items-center gap-3 p-3 border rounded-lg bg-primary/5">
-                        <Checkbox
-                          id={`title-${element.id}`}
-                          checked={element.usesProposalTitle || false}
-                          onCheckedChange={(checked) =>
-                            updateElement(element.id, {
-                              usesProposalTitle: checked === true,
-                              content: checked === true ? "" : element.content,
-                            })
-                          }
-                          className="cursor-pointer"
-                        />
-                        <div className="flex-1">
-                          <Label
-                            htmlFor={`title-${element.id}`}
-                            className="cursor-pointer font-medium"
-                          >
-                            Usar título da proposta
+                    {/* Prefix/Suffix for backend-sourced elements */}
+                    {(element.type === "client-name" ||
+                      element.type === "proposal-title" ||
+                      element.type === "valid-until") && (
+                      <div className="space-y-3">
+                        <div className="p-3 border rounded-lg bg-muted/30">
+                          <Label className="font-medium">
+                            {element.type === "client-name"
+                              ? "Nome do Contato"
+                              : element.type === "proposal-title"
+                                ? "Título da Proposta"
+                                : "Válido até"}
                           </Label>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Exibirá automaticamente:{" "}
-                            <strong>&quot;{coverTitle}&quot;</strong>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Este elemento exibe automaticamente:{" "}
+                            <strong>
+                              {element.type === "client-name"
+                                ? clientName
+                                : element.type === "proposal-title"
+                                  ? coverTitle
+                                  : formatValidUntilPreview(validUntil)}
+                            </strong>
                           </p>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label>Texto antes</Label>
+                          <Input
+                            value={element.prefix || ""}
+                            onChange={(e) =>
+                              updateElement(element.id, {
+                                prefix: e.target.value,
+                              })
+                            }
+                            placeholder="Ex: Proposta para"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label>Texto depois</Label>
+                          <Input
+                            value={element.suffix || ""}
+                            onChange={(e) =>
+                              updateElement(element.id, {
+                                suffix: e.target.value,
+                              })
+                            }
+                            placeholder="Ex: - Versão 1.0"
+                          />
                         </div>
                       </div>
                     )}
 
-                    {/* Content (not for divider, client-name, image, or when using proposal title) */}
+                    {/* Content (not for divider, client-name, proposal-title, valid-until, or image) */}
                     {element.type !== "divider" &&
                       element.type !== "client-name" &&
-                      element.type !== "image" &&
-                      !element.usesProposalTitle && (
+                      element.type !== "proposal-title" &&
+                      element.type !== "valid-until" &&
+                      element.type !== "image" && (
                         <div className="grid gap-2">
                           <Label>Conteúdo</Label>
                           {element.type === "text" ||
@@ -562,47 +633,6 @@ export function CoverElementsEditor({
                             </div>
                           </div>
                         )}
-                      </div>
-                    )}
-
-                    {/* Include Client Name option */}
-                    {element.type !== "divider" &&
-                      element.type !== "client-name" &&
-                      element.type !== "image" && (
-                        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
-                          <Checkbox
-                            id={`client-${element.id}`}
-                            checked={element.includesClientName || false}
-                            onCheckedChange={(checked) =>
-                              updateElement(element.id, {
-                                includesClientName: checked === true,
-                              })
-                            }
-                            className="cursor-pointer"
-                          />
-                          <div className="flex-1">
-                            <Label
-                              htmlFor={`client-${element.id}`}
-                              className="cursor-pointer font-medium"
-                            >
-                              Incluir nome do contato após o texto
-                            </Label>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              O nome do contato será adicionado automaticamente:
-                              &quot;{getDisplayPreview(element)}&quot;
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                    {/* Client name preview for client-name type */}
-                    {element.type === "client-name" && (
-                      <div className="p-3 border rounded-lg bg-muted/30">
-                        <Label className="font-medium">Nome do Contato</Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Este elemento exibirá automaticamente o nome do
-                          cliente: <strong>{clientName}</strong>
-                        </p>
                       </div>
                     )}
 
@@ -912,6 +942,33 @@ export function CoverElementsEditor({
         >
           <Minus className="w-4 h-4" />
           Divisor
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addElement("proposal-title")}
+          className="gap-2"
+        >
+          <FileText className="w-4 h-4" />
+          Título da Proposta
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addElement("client-name")}
+          className="gap-2"
+        >
+          <User className="w-4 h-4" />
+          Nome do Contato
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => addElement("valid-until")}
+          className="gap-2"
+        >
+          <Tag className="w-4 h-4" />
+          Válido até
         </Button>
         {theme === "livre" && (
           <>

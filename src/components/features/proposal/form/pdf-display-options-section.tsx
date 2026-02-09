@@ -114,7 +114,7 @@ export function PdfDisplayOptionsSection({
       </div>
 
       {/* Options Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+      <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
         {/* Products Section */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -140,30 +140,6 @@ export function PdfDisplayOptionsSection({
               label="Mostrar subtotais"
               checked={settings.showSubtotals}
               onChange={(v) => updateSetting("showSubtotals", v)}
-            />
-          </div>
-        </div>
-
-        {/* Document Section */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Documento
-          </h4>
-          <div className="space-y-3">
-            <CheckboxOption
-              label="Mostrar logo"
-              checked={settings.showLogo}
-              onChange={(v) => updateSetting("showLogo", v)}
-            />
-            <CheckboxOption
-              label="Mostrar validade"
-              checked={settings.showValidUntil}
-              onChange={(v) => updateSetting("showValidUntil", v)}
-            />
-            <CheckboxOption
-              label="Mostrar observações"
-              checked={settings.showNotes}
-              onChange={(v) => updateSetting("showNotes", v)}
             />
           </div>
         </div>

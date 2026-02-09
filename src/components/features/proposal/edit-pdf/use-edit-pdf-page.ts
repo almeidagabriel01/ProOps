@@ -14,7 +14,8 @@ import {
   CoverElement,
   createDefaultSections,
   createDefaultCoverElements,
-} from "@/components/features/proposal/pdf-section-editor";
+  normalizeCoverElements,
+} from "../pdf-section-editor";
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
 import { generatePaymentTerms, hydrateSections } from "./pdf-hydration-utils";
@@ -237,7 +238,7 @@ export function useEditPdfPage() {
 
               // Load cover elements
               if (s.coverElements && s.coverElements.length > 0) {
-                setCoverElements(s.coverElements);
+                setCoverElements(normalizeCoverElements(s.coverElements));
               } else {
                 setCoverElements(createDefaultCoverElements());
               }
@@ -295,7 +296,7 @@ export function useEditPdfPage() {
 
               // Load cover elements from tenant defaults
               if (s.coverElements && s.coverElements.length > 0) {
-                setCoverElements(s.coverElements);
+                setCoverElements(normalizeCoverElements(s.coverElements));
               } else {
                 setCoverElements(createDefaultCoverElements());
               }

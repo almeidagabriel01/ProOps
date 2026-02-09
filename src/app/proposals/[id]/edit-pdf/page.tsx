@@ -194,6 +194,7 @@ export default function EditPdfPage() {
             setShowUpgradeModal={setShowUpgradeModal}
             clientName={proposal.clientName}
             tenantColor={tenant?.primaryColor}
+            validUntil={proposal.validUntil}
           />
         </div>
 

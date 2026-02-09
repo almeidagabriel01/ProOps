@@ -53,6 +53,7 @@ interface PdfEditorTabsProps {
   setShowUpgradeModal: (val: boolean) => void;
   clientName?: string;
   tenantColor?: string; // Tenant's primary color
+  validUntil?: string;
 }
 
 export function PdfEditorTabs({
@@ -88,6 +89,7 @@ export function PdfEditorTabs({
   setShowUpgradeModal,
   clientName,
   tenantColor,
+  validUntil,
 }: PdfEditorTabsProps) {
   return (
     <Tabs defaultValue="cover">
@@ -146,6 +148,7 @@ export function PdfEditorTabs({
           primaryColor={primaryColor}
           canEditCoverElements={canEditPdfSections}
           clientName={clientName}
+          validUntil={validUntil}
         />
       </TabsContent>
 
