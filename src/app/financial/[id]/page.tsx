@@ -70,7 +70,6 @@ export default function EditTransactionPage() {
     isProposalTransaction,
     groupTotalValue,
     switchPaymentMode,
-    refetch,
   } = useEditTransaction();
 
   // Adapt formData type for shared components
@@ -259,9 +258,6 @@ export default function EditTransactionPage() {
             onChange={handleChange}
             isProposalTransaction={!!isProposalTransaction}
             onPaymentModeChange={switchPaymentMode}
-            transaction={transaction}
-            relatedInstallments={relatedInstallments}
-            onReload={refetch}
           />
 
           <StepNavigation />

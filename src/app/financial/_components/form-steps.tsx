@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TransactionFormData, PaymentMode } from "../_hooks/useTransactionForm";
-import { TransactionType, Transaction } from "@/services/transaction-service";
+import { TransactionType } from "@/services/transaction-service";
 
 interface TypeSelectorStepProps {
   type: TransactionType;
@@ -262,11 +262,6 @@ interface PaymentStepProps {
   errors?: FormErrors<TransactionFormData>;
   isProposalTransaction?: boolean;
   onPaymentModeChange?: (mode: PaymentMode) => void;
-  totalValueOverride?: number;
-  transaction?: Transaction | null;
-  relatedInstallments?: Transaction[];
-  onUpdate?: (e: React.FormEvent) => void;
-  onReload?: () => Promise<void>;
 }
 
 export function PaymentStep({
@@ -277,11 +272,6 @@ export function PaymentStep({
   errors = {},
   isProposalTransaction = false,
   onPaymentModeChange,
-  totalValueOverride,
-  transaction,
-  relatedInstallments = [],
-  onUpdate,
-  onReload,
 }: PaymentStepProps) {
   // Calculate total based on mode
   const calculateTotal = (): number => {

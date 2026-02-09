@@ -22,8 +22,6 @@ import {
   Edit2,
   Banknote,
   CreditCard,
-  ChevronRight,
-  Wallet,
   Split,
 } from "lucide-react";
 import { toast } from "react-toastify";

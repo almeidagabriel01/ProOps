@@ -178,7 +178,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         ? !targetBuffer.amount
         : !targetBuffer.installmentValue;
 
-    let computedValues = {};
+    let computedValues: Partial<TransactionFormData> = {};
 
     if (isTargetEmpty) {
       if (newMode === "installmentValue") {
@@ -235,40 +235,39 @@ export function useTransactionForm(): UseTransactionFormReturn {
 
       ...(newMode === "total"
         ? {
-            // Restore Total Mode Fields (or Computed)
             amount: isTargetEmpty
-              ? (computedValues as any).amount
+              ? computedValues.amount || ""
               : targetBuffer.amount || "",
             wallet: isTargetEmpty
-              ? (computedValues as any).wallet
+              ? computedValues.wallet || ""
               : targetBuffer.wallet || "",
             dueDate: isTargetEmpty
-              ? (computedValues as any).dueDate
+              ? computedValues.dueDate || ""
               : targetBuffer.dueDate || "",
 
             isInstallment:
               targetBuffer.isInstallment ??
-              (computedValues as any).isInstallment ??
+              computedValues.isInstallment ??
               false,
             installmentCount:
               targetBuffer.installmentCount ??
-              (computedValues as any).installmentCount ??
+              computedValues.installmentCount ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
-              (computedValues as any).downPaymentEnabled ??
+              computedValues.downPaymentEnabled ??
               false,
             downPaymentValue:
               targetBuffer.downPaymentValue ??
-              (computedValues as any).downPaymentValue ??
+              computedValues.downPaymentValue ??
               "",
             downPaymentWallet:
               targetBuffer.downPaymentWallet ??
-              (computedValues as any).downPaymentWallet ??
+              computedValues.downPaymentWallet ??
               "",
             downPaymentDueDate:
               targetBuffer.downPaymentDueDate ??
-              (computedValues as any).downPaymentDueDate ??
+              computedValues.downPaymentDueDate ??
               "",
 
             // Clear Installment Mode Fields
@@ -277,40 +276,39 @@ export function useTransactionForm(): UseTransactionFormReturn {
             firstInstallmentDate: "",
           }
         : {
-            // Restore Installment Mode Fields (or Computed)
             installmentValue: isTargetEmpty
-              ? (computedValues as any).installmentValue
+              ? computedValues.installmentValue || ""
               : targetBuffer.installmentValue || "",
             installmentsWallet: isTargetEmpty
-              ? (computedValues as any).installmentsWallet
+              ? computedValues.installmentsWallet || ""
               : targetBuffer.installmentsWallet || "",
             firstInstallmentDate: isTargetEmpty
-              ? (computedValues as any).firstInstallmentDate
+              ? computedValues.firstInstallmentDate || ""
               : targetBuffer.firstInstallmentDate || "",
 
             isInstallment:
               targetBuffer.isInstallment ??
-              (computedValues as any).isInstallment ??
+              computedValues.isInstallment ??
               true,
             installmentCount:
               targetBuffer.installmentCount ??
-              (computedValues as any).installmentCount ??
+              computedValues.installmentCount ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
-              (computedValues as any).downPaymentEnabled ??
+              computedValues.downPaymentEnabled ??
               false,
             downPaymentValue:
               targetBuffer.downPaymentValue ??
-              (computedValues as any).downPaymentValue ??
+              computedValues.downPaymentValue ??
               "",
             downPaymentWallet:
               targetBuffer.downPaymentWallet ??
-              (computedValues as any).downPaymentWallet ??
+              computedValues.downPaymentWallet ??
               "",
             downPaymentDueDate:
               targetBuffer.downPaymentDueDate ??
-              (computedValues as any).downPaymentDueDate ??
+              computedValues.downPaymentDueDate ??
               "",
 
             // Clear Total Mode Fields

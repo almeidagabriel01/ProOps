@@ -9,6 +9,14 @@ import {
   TransactionType,
   TransactionStatus,
 } from "@/services/transaction-service";
+
+interface ExtendedTransaction extends Transaction {
+  hasDownPayment?: boolean;
+  downPaymentAmount?: number;
+  downPaymentWallet?: string;
+  downPaymentDate?: string;
+  firstInstallmentDate?: string;
+}
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { shiftDateByTransform } from "@/utils/date-utils";
 
@@ -132,7 +140,7 @@ export function useEditTransaction() {
       // Ensure numeric fields are strings for the form
       const safeData = {
         ...data,
-      } as any;
+      } as ExtendedTransaction;
 
       setTransaction(safeData);
 
@@ -174,12 +182,12 @@ export function useEditTransaction() {
         status: safeData.status,
         clientId: safeData.clientId,
         clientName: safeData.clientName || "",
-        category: safeData.category,
+        category: safeData.category || "",
         wallet: safeData.wallet || "",
         notes: safeData.notes || "",
 
         // Installment/Recurrence logic
-        isInstallment: safeData.isInstallment,
+        isInstallment: safeData.isInstallment ?? false,
         installmentCount: safeData.installmentCount || 1,
 
         // Payment Mode Logic for Edit
@@ -224,19 +232,6 @@ export function useEditTransaction() {
 
     setFormData((prev) => {
       // 1. Snapshot current state to the buffer of the OLD mode
-      const currentMode = prev.paymentMode;
-      const currentBuffer =
-        currentMode === "total"
-          ? getTotalFields(prev)
-          : getInstallmentFields(prev);
-
-      // 2. Load from buffer of the NEW mode (or use empty defaults)
-      const nextBuffer = modeBuffers[newMode];
-
-      // 3. Update Buffers State synchronously (conceptually)
-      // Since we are inside setFormData, we need to call setModeBuffers too
-      // But we can't do it inside here. We should do it outside.
-      // Refactoring: Let's do state updates in standard order outside.
       return prev;
     });
 
@@ -262,7 +257,7 @@ export function useEditTransaction() {
         ? !targetBuffer.amount
         : !targetBuffer.installmentValue;
 
-    let computedValues = {};
+    let computedValues: Partial<EditTransactionFormData> = {};
 
     if (isTargetEmpty) {
       if (newMode === "installmentValue") {
@@ -317,40 +312,39 @@ export function useEditTransaction() {
 
       ...(newMode === "total"
         ? {
-            // Restore Total Fields (or Computed)
             amount: isTargetEmpty
-              ? (computedValues as any).amount
+              ? computedValues.amount || ""
               : targetBuffer.amount || "",
             wallet: isTargetEmpty
-              ? (computedValues as any).wallet
+              ? computedValues.wallet || ""
               : targetBuffer.wallet || "",
             dueDate: isTargetEmpty
-              ? (computedValues as any).dueDate
+              ? computedValues.dueDate || ""
               : targetBuffer.dueDate || "",
 
             isInstallment:
               targetBuffer.isInstallment ??
-              (computedValues as any).isInstallment ??
+              computedValues.isInstallment ??
               false,
             installmentCount:
               targetBuffer.installmentCount ??
-              (computedValues as any).installmentCount ??
+              computedValues.installmentCount ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
-              (computedValues as any).downPaymentEnabled ??
+              computedValues.downPaymentEnabled ??
               false,
             downPaymentValue:
               targetBuffer.downPaymentValue ??
-              (computedValues as any).downPaymentValue ??
+              computedValues.downPaymentValue ??
               "",
             downPaymentWallet:
               targetBuffer.downPaymentWallet ??
-              (computedValues as any).downPaymentWallet ??
+              computedValues.downPaymentWallet ??
               "",
             downPaymentDueDate:
               targetBuffer.downPaymentDueDate ??
-              (computedValues as any).downPaymentDueDate ??
+              computedValues.downPaymentDueDate ??
               "",
 
             // Clear Installment Fields
@@ -359,40 +353,39 @@ export function useEditTransaction() {
             firstInstallmentDate: "",
           }
         : {
-            // Restore Installment Fields (or Computed)
             installmentValue: isTargetEmpty
-              ? (computedValues as any).installmentValue
+              ? computedValues.installmentValue || ""
               : targetBuffer.installmentValue || "",
             installmentsWallet: isTargetEmpty
-              ? (computedValues as any).installmentsWallet
+              ? computedValues.installmentsWallet || ""
               : targetBuffer.installmentsWallet || "",
             firstInstallmentDate: isTargetEmpty
-              ? (computedValues as any).firstInstallmentDate
+              ? computedValues.firstInstallmentDate || ""
               : targetBuffer.firstInstallmentDate || "",
 
             isInstallment:
               targetBuffer.isInstallment ??
-              (computedValues as any).isInstallment ??
+              computedValues.isInstallment ??
               true,
             installmentCount:
               targetBuffer.installmentCount ??
-              (computedValues as any).installmentCount ??
+              computedValues.installmentCount ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
-              (computedValues as any).downPaymentEnabled ??
+              computedValues.downPaymentEnabled ??
               false,
             downPaymentValue:
               targetBuffer.downPaymentValue ??
-              (computedValues as any).downPaymentValue ??
+              computedValues.downPaymentValue ??
               "",
             downPaymentWallet:
               targetBuffer.downPaymentWallet ??
-              (computedValues as any).downPaymentWallet ??
+              computedValues.downPaymentWallet ??
               "",
             downPaymentDueDate:
               targetBuffer.downPaymentDueDate ??
-              (computedValues as any).downPaymentDueDate ??
+              computedValues.downPaymentDueDate ??
               "",
 
             // Clear Total Fields
@@ -422,7 +415,7 @@ export function useEditTransaction() {
     const dateShifted = formData.date !== transaction.date;
 
     // 1. First pass: Apply basic updates and collect list
-    let workingList = baseList.map((inst) => {
+    const workingList = baseList.map((inst) => {
       let newDate = inst.date;
       let newDueDate = inst.dueDate;
 
