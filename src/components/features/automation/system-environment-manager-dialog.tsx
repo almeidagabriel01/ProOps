@@ -127,6 +127,7 @@ export function SystemEnvironmentManagerDialog({
                       onLink={actions.handleLinkEnvironment}
                       onCreate={actions.handleCreateEnvironment}
                       allowDelete={allowDelete}
+                      selectedSistema={state.selectedSistema}
                     />
                   </div>
                 ) : (
