@@ -1404,8 +1404,47 @@ export function useProposalForm({
       manufacturer: product.manufacturer,
       category: product.category,
       systemInstanceId,
-      isExtra: true, // Explicitly marked as extra added to system
+      isExtra: true, // Default to true, will be checked below
     };
+
+    // Check if product is part of the original definition to determine isExtra/isInactive
+    const targetSystem = selectedSistemas[systemIndex];
+    if (targetSystem && targetSystem.sistemaId) {
+      // Find matching master system definition from mergedSistemas (which contains full definitions)
+      const masterSistema = mergedSistemas.find(
+        (s) => s.id === targetSystem.sistemaId,
+      );
+
+      if (masterSistema) {
+        // Extract ambienteId from instanceId (format: sistemaId-ambienteId) or fallback
+        const parts = systemInstanceId.split("-");
+        // If systemInstanceId is valid (has 2 parts), use 2nd part. Else use system's first environment
+        const targetAmbienteId =
+          parts.length >= 2
+            ? parts[1]
+            : targetSystem.ambientes?.[0]?.ambienteId;
+
+        if (targetAmbienteId) {
+          // Find the specific environment configuration in the master system
+          const masterAmbienteConfig = masterSistema.ambientes?.find(
+            (a) => a.ambienteId === targetAmbienteId,
+          );
+
+          if (masterAmbienteConfig) {
+            // Check if product exists in the master configuration for this environment
+            const isOriginallyInSystem = masterAmbienteConfig.products.some(
+              (p) => p.productId === product.id,
+            );
+
+            if (isOriginallyInSystem) {
+              newProduct.isExtra = false;
+              // If it was originally in the system, it might have been "removed" (filtered out) earlier
+              // So when re-adding, we treat it as "active" again (not extra)
+            }
+          }
+        }
+      }
+    }
 
     setFormData((prev) => ({
       ...prev,
