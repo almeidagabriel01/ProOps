@@ -5,6 +5,7 @@ import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface UseSystemManagerProps {
   isOpen: boolean;
@@ -39,18 +40,12 @@ export function useSystemManager({
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
 
   // Editing State
+  // Editing State
   const [isEditingSystemName, setIsEditingSystemName] = useState(false);
-  const [editingSystemName, setEditingSystemName] = useState("");
 
   // Create System State
-  const [isCreatingSystem, setIsCreatingSystem] = useState(false);
-  const [newSystemName, setNewSystemName] = useState("");
-
   // Create Environment State
-  const [isAddingEnvironment, setIsAddingEnvironment] = useState(false);
-  const [newEnvironmentName, setNewEnvironmentName] = useState("");
   const [environmentSearch, setEnvironmentSearch] = useState("");
-  const [showEnvironmentSelector, setShowEnvironmentSelector] = useState(false);
 
   // Load Data
   const loadData = useCallback(async () => {
@@ -99,6 +94,14 @@ export function useSystemManager({
     }
   }, [isOpen, loadData]);
 
+  // Window Focus Handler - Refresh Data when modal is open
+  useWindowFocus(() => {
+    if (isOpen) {
+      console.log("Window focused - refreshing manager data...");
+      loadData?.();
+    }
+  });
+
   // Derived State
   const selectedSistema = useMemo(
     () => sistemas.find((s) => s.id === selectedSistemaId),
@@ -140,177 +143,6 @@ export function useSystemManager({
   }, [selectedSistema, ambientes, environmentSearch]);
 
   // Actions
-  const handleCreateSystem = async () => {
-    if (!newSystemName.trim()) return;
-
-    try {
-      if (onAction) {
-        const tempId = `temp-sys-${Date.now()}`;
-        onAction({
-          type: "create",
-          entity: "sistema",
-          id: tempId,
-          data: {
-            id: tempId,
-            name: newSystemName.trim(),
-            tenantId: tenant?.id,
-            description: "",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            ambientes: [],
-            availableAmbienteIds: [],
-          } as Sistema,
-        });
-      } else {
-        await SistemaService.createSistema({
-          name: newSystemName.trim(),
-          tenantId: tenant!.id,
-          description: "",
-          icon: "Cpu",
-          order: 99,
-          active: true,
-          availableAmbienteIds: [],
-          createdAt: new Date().toISOString(),
-        } as unknown as Sistema);
-        await loadData();
-      }
-
-      setNewSystemName("");
-      setIsCreatingSystem(false);
-      toast.success("Sistema criado!");
-      onDataChange?.();
-    } catch {
-      toast.error("Erro ao criar sistema");
-    }
-  };
-
-  const handleDeleteSystem = async () => {
-    if (!systemToDelete) return;
-
-    try {
-      if (onAction) {
-        onAction({
-          type: "delete",
-          entity: "sistema",
-          id: systemToDelete,
-        });
-      } else {
-        await SistemaService.deleteSistema(systemToDelete);
-        await loadData();
-      }
-      toast.success("Sistema removido!");
-      setSystemToDelete(null);
-      onDataChange?.();
-    } catch {
-      toast.error("Erro ao remover sistema");
-    }
-  };
-
-  const handleUpdateSystemName = async () => {
-    if (!selectedSistema || !editingSystemName.trim()) return;
-
-    try {
-      if (onAction) {
-        onAction({
-          type: "update",
-          entity: "sistema",
-          id: selectedSistema.id,
-          data: { name: editingSystemName.trim() },
-        });
-      } else {
-        await SistemaService.updateSistema(selectedSistema.id, {
-          name: editingSystemName.trim(),
-        });
-        await loadData();
-      }
-      setIsEditingSystemName(false);
-      toast.success("Nome atualizado!");
-      onDataChange?.();
-    } catch {
-      toast.error("Erro ao atualizar nome");
-    }
-  };
-
-  const handleCreateEnvironment = async () => {
-    if (!newEnvironmentName.trim() || !selectedSistema) return;
-
-    try {
-      let newAmbienteId = `temp-amb-${Date.now()}`;
-
-      if (onAction) {
-        onAction({
-          type: "create",
-          entity: "ambiente",
-          id: newAmbienteId,
-          data: {
-            id: newAmbienteId,
-            name: newEnvironmentName.trim(),
-            tenantId: tenant?.id,
-            icon: "Home",
-          } as Ambiente,
-        });
-
-        const newAmbientesConfig = [
-          ...(selectedSistema.ambientes || []),
-          {
-            ambienteId: newAmbienteId,
-            products: [],
-          },
-        ];
-
-        const currentIds =
-          selectedSistema.availableAmbienteIds ||
-          selectedSistema.ambienteIds ||
-          [];
-        const newAvailableIds = [...currentIds, newAmbienteId];
-
-        onAction({
-          type: "update",
-          entity: "sistema",
-          id: selectedSistema.id,
-          data: {
-            ambientes: newAmbientesConfig,
-            availableAmbienteIds: newAvailableIds,
-          },
-        });
-      } else {
-        const newAmb = await AmbienteService.createAmbiente({
-          name: newEnvironmentName.trim(),
-          tenantId: tenant!.id,
-          icon: "Home",
-          defaultProducts: [],
-        });
-        newAmbienteId = newAmb.id;
-
-        const newAmbientesConfig = [
-          ...(selectedSistema.ambientes || []),
-          {
-            ambienteId: newAmbienteId,
-            products: [],
-          },
-        ];
-        const currentIds =
-          selectedSistema.availableAmbienteIds ||
-          selectedSistema.ambienteIds ||
-          [];
-        const newAvailableIds = [...currentIds, newAmbienteId];
-
-        await SistemaService.updateSistema(selectedSistema.id, {
-          ambientes: newAmbientesConfig,
-          availableAmbienteIds: newAvailableIds,
-        });
-
-        await loadData();
-      }
-
-      setNewEnvironmentName("");
-      setIsAddingEnvironment(false);
-      toast.success("Ambiente criado e vinculado!");
-      onDataChange?.();
-    } catch {
-      toast.error("Erro ao criar ambiente");
-    }
-  };
 
   const handleLinkEnvironment = async (ambienteId: string) => {
     if (!selectedSistema) return;
@@ -350,7 +182,6 @@ export function useSystemManager({
         await loadData();
       }
 
-      setShowEnvironmentSelector(false);
       toast.success("Ambiente vinculado!");
       onDataChange?.();
     } catch {
@@ -412,13 +243,7 @@ export function useSystemManager({
       environmentToDelete,
       systemToDelete,
       isEditingSystemName,
-      editingSystemName,
-      isCreatingSystem,
-      newSystemName,
-      isAddingEnvironment,
-      newEnvironmentName,
       environmentSearch,
-      showEnvironmentSelector,
       linkedAmbientes,
       availableAmbientesToAdd,
     },
@@ -434,17 +259,7 @@ export function useSystemManager({
       setEnvironmentToDelete,
       setSystemToDelete,
       setIsEditingSystemName,
-      setEditingSystemName,
-      setIsCreatingSystem,
-      setNewSystemName,
-      setIsAddingEnvironment,
-      setNewEnvironmentName,
       setEnvironmentSearch,
-      setShowEnvironmentSelector,
-      handleCreateSystem,
-      handleDeleteSystem,
-      handleUpdateSystemName,
-      handleCreateEnvironment,
     },
   };
 }

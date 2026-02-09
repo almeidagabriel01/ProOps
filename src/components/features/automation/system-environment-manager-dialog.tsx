@@ -77,34 +77,13 @@ export function SystemEnvironmentManagerDialog({
               onSelect={actions.setSelectedSistemaId}
               isMobileMenuOpen={state.isMobileMenuOpen}
               onCloseMobileMenu={() => actions.setIsMobileMenuOpen(false)}
-              isCreating={state.isCreatingSystem}
-              setIsCreating={actions.setIsCreatingSystem}
-              newSystemName={state.newSystemName}
-              setNewSystemName={actions.setNewSystemName}
-              onCreate={actions.handleCreateSystem}
             />
 
             {/* Main Content (Selected System) */}
             <div className="flex-1 flex flex-col min-w-0 bg-background">
               <SystemHeader
                 selectedSistema={state.selectedSistema || null}
-                isEditingName={state.isEditingSystemName}
-                editingName={state.editingSystemName}
-                onEditNameChange={actions.setEditingSystemName}
-                onStartEditing={() => {
-                  if (state.selectedSistema) {
-                    actions.setEditingSystemName(state.selectedSistema.name);
-                    actions.setIsEditingSystemName(true);
-                  }
-                }}
-                onSaveName={actions.handleUpdateSystemName}
-                onDelete={() => {
-                  if (state.selectedSistema) {
-                    actions.setSystemToDelete(state.selectedSistema.id);
-                  }
-                }}
                 onOpenMobileMenu={() => actions.setIsMobileMenuOpen(true)}
-                allowDelete={allowDelete}
               />
 
               {/* Content */}
@@ -115,19 +94,7 @@ export function SystemEnvironmentManagerDialog({
                       activeSystemId={state.selectedSistema.id}
                       linkedAmbientes={state.linkedAmbientes}
                       onUnlink={actions.setEnvironmentToDelete}
-                      isAdding={state.isAddingEnvironment}
-                      setIsAdding={actions.setIsAddingEnvironment}
-                      newName={state.newEnvironmentName}
-                      setNewName={actions.setNewEnvironmentName}
-                      search={state.environmentSearch}
-                      setSearch={actions.setEnvironmentSearch}
-                      showSelector={state.showEnvironmentSelector}
-                      setShowSelector={actions.setShowEnvironmentSelector}
-                      availableToAdd={state.availableAmbientesToAdd}
-                      onLink={actions.handleLinkEnvironment}
-                      onCreate={actions.handleCreateEnvironment}
                       allowDelete={allowDelete}
-                      selectedSistema={state.selectedSistema}
                     />
                   </div>
                 ) : (
@@ -141,39 +108,6 @@ export function SystemEnvironmentManagerDialog({
           </div>
         )}
       </DialogContent>
-
-      {/* Delete System Confirmation */}
-      <AlertDialog
-        open={!!state.systemToDelete}
-        onOpenChange={(o) => {
-          if (!o) actions.setSystemToDelete(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover este sistema?
-              <br />
-              Todas as configurações de ambientes e produtos para este sistema
-              serão perdidas.
-              <br />
-              <strong className="text-destructive">
-                Propostas existentes usando este sistema serão afetadas.
-              </strong>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={actions.handleDeleteSystem}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Unlink Environment Confirmation */}
       <AlertDialog

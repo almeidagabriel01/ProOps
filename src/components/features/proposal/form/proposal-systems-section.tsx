@@ -32,6 +32,7 @@ import { SistemaSelectorProps } from "@/components/features/automation/sistema-s
 import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
 import { SystemEnvironmentManagerDialog } from "@/components/features/automation/system-environment-manager-dialog";
 import { Settings } from "lucide-react";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -197,6 +198,14 @@ export function ProposalSystemsSection({
       (p) => p.systemInstanceId && validInstanceIds.has(p.systemInstanceId),
     );
   }, [renderedSistemas, selectedProducts]);
+
+  // Window Focus Handler - Refresh Data
+  // This ensures that when the user returns from the Automation tab,
+  // the data (systems, environments) is up-to-date.
+  useWindowFocus(() => {
+    console.log("Window focused - refreshing proposal data...");
+    onDataUpdate?.();
+  });
 
   return (
     <Card>

@@ -1,26 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Search, Home, Trash2, ExternalLink } from "lucide-react";
-import { Ambiente, Sistema } from "@/types/automation";
+import { Plus, Home, Trash2, ExternalLink } from "lucide-react";
+import { Ambiente } from "@/types/automation";
 
 interface EnvironmentListProps {
   activeSystemId: string;
   linkedAmbientes: Ambiente[];
-  selectedSistema?: Sistema | null;
   onUnlink: (id: string) => void;
-
-  isAdding: boolean;
-  setIsAdding: (v: boolean) => void;
-  newName: string;
-  setNewName: (v: string) => void;
-  search: string;
-  setSearch: (v: string) => void;
-  showSelector: boolean;
-  setShowSelector: (v: boolean) => void;
-  availableToAdd: Ambiente[];
-  onLink: (id: string) => void;
-  onCreate: () => void;
   allowDelete?: boolean;
 }
 
@@ -28,19 +14,7 @@ export function EnvironmentList({
   activeSystemId,
   linkedAmbientes,
   onUnlink,
-  isAdding,
-  setIsAdding,
-  newName,
-  setNewName,
-  search,
-  setSearch,
-  showSelector,
-  setShowSelector,
-  availableToAdd,
-  onLink,
-  onCreate,
   allowDelete = true,
-  selectedSistema,
 }: EnvironmentListProps) {
   return (
     <div>
@@ -50,11 +24,6 @@ export function EnvironmentList({
 
       <div className="grid gap-3">
         {linkedAmbientes.map((amb) => {
-          const systemEnvConfig = selectedSistema?.ambientes?.find(
-            (sa) => sa.ambienteId === amb.id,
-          );
-          const productCount = systemEnvConfig?.products?.length || 0;
-
           return (
             <div
               key={amb.id}
@@ -67,7 +36,7 @@ export function EnvironmentList({
                 <div>
                   <p className="font-medium">{amb.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {productCount} produtos configurados
+                    Clique para editar produtos
                   </p>
                 </div>
               </div>
@@ -104,74 +73,18 @@ export function EnvironmentList({
 
         {/* Add Environment Block */}
         <div className="relative">
-          {!isAdding ? (
-            <Button
-              variant="outline"
-              className="w-full border-dashed py-6 text-muted-foreground hover:text-primary hover:border-primary/50"
-              onClick={() => setIsAdding(true)}
+          <Button
+            asChild
+            variant="outline"
+            className="w-full border-dashed py-6 text-muted-foreground hover:text-primary hover:border-primary/50"
+          >
+            <a
+              href={`/automation?editSistemaId=${activeSystemId}`}
+              target="_blank"
             >
               <Plus className="w-4 h-4 mr-2" /> Adicionar Ambiente
-            </Button>
-          ) : (
-            <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
-              <h4 className="text-sm font-medium">Novo/Vincular Ambiente</h4>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Nome do novo ambiente..."
-                      value={newName}
-                      onChange={(e) => {
-                        setNewName(e.target.value);
-                        setShowSelector(false); // Creating new
-                      }}
-                    />
-                    {/* Or Select Existing */}
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowSelector(!showSelector)}
-                      title="Selecionar existente"
-                    >
-                      <Search className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {showSelector && (
-                    <div className="absolute top-full left-0 w-full mt-1 bg-popover border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
-                      <div className="p-2 sticky top-0 bg-popover border-b">
-                        <Input
-                          placeholder="Buscar..."
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                          className="h-8 text-xs"
-                          autoFocus
-                        />
-                      </div>
-                      {availableToAdd.length === 0 ? (
-                        <div className="p-2 text-xs text-muted-foreground text-center">
-                          Nada encontrado
-                        </div>
-                      ) : (
-                        availableToAdd.map((a) => (
-                          <button
-                            key={a.id}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
-                            onClick={() => onLink(a.id)}
-                          >
-                            {a.name}
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                <Button onClick={onCreate}>Criar</Button>
-                <Button variant="ghost" onClick={() => setIsAdding(false)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          )}
+            </a>
+          </Button>
         </div>
       </div>
     </div>

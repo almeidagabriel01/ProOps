@@ -196,9 +196,10 @@ export function SistemaSelector({
 
       let products: AmbienteProduct[] = [];
 
-      if (systemEnvConfig && systemEnvConfig.products?.length > 0) {
+      if (systemEnvConfig) {
         // Priority 1: System-specific configuration (The new feature)
-        products = [...systemEnvConfig.products];
+        // If a configuration exists, we use it strictly, even if it has 0 products.
+        products = [...(systemEnvConfig.products || [])];
       } else if (ambiente.defaultProducts?.length) {
         // Priority 2: Global Environment Defaults (Backward compatibility / Fallback)
         products = [...ambiente.defaultProducts];

@@ -79,42 +79,9 @@ export function SistemaEditor({
       setDescription(sistema.description || "");
 
       const loadedAmbientes = sistema.ambientes || [];
-
-      // INTELLIGENT BACKFILL:
-      // Attempt to load products from legacy/global fallbacks if distinct config is missing.
-      // This matches the logic in `SistemaSelector` (Proposal View).
-      const backfilled = loadedAmbientes.map((env) => {
-        // 1. If we already have configured products, keep them.
-        if (env.products && env.products.length > 0) return env;
-
-        // 2. Fallback: Legacy System Defaults (apply to all envs if valid)
-        if (sistema.defaultProducts && sistema.defaultProducts.length > 0) {
-          return {
-            ...env,
-            products: sistema.defaultProducts.map((p) => ({
-              productId: p.productId,
-              productName: p.productName,
-              quantity: p.quantity,
-              notes: p.notes,
-            })),
-          };
-        }
-
-        // 3. Fallback: Global Environment Defaults
-        const globalEnv = allAmbientes.find((a) => a.id === env.ambienteId);
-        if (globalEnv && globalEnv.defaultProducts?.length > 0) {
-          return {
-            ...env,
-            products: [...globalEnv.defaultProducts],
-          };
-        }
-
-        return env;
-      });
-
-      setConfigAmbientes(backfilled);
+      setConfigAmbientes(loadedAmbientes);
     }
-  }, [sistema, allAmbientes]);
+  }, [sistema]);
 
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -204,18 +171,9 @@ export function SistemaEditor({
   const addAmbiente = (ambienteId: string) => {
     if (configAmbientes.some((a) => a.ambienteId === ambienteId)) return;
 
-    // Check for global defaults to pre-fill
-    const globalEnv = allAmbientes.find((a) => a.id === ambienteId);
-    let initialProducts: AmbienteProduct[] = [];
-
-    if (globalEnv && globalEnv.defaultProducts?.length > 0) {
-      initialProducts = [...globalEnv.defaultProducts];
-    }
-
-    setConfigAmbientes([
-      ...configAmbientes,
-      { ambienteId, products: initialProducts },
-    ]);
+    // Requirement: "Always come zeroed of products".
+    // We do NOT check for globalEnv.defaultProducts anymore.
+    setConfigAmbientes([...configAmbientes, { ambienteId, products: [] }]);
     setActiveAmbienteId(ambienteId);
   };
 
@@ -529,7 +487,7 @@ export function SistemaEditor({
                     htmlFor="env-description"
                     className="text-xs font-medium text-muted-foreground/80 ml-1"
                   >
-                    Descrição no PDF (Opcional)
+                    Descrição do Ambiente no PDF (Opcional)
                   </Label>
                   <Input
                     id="env-description"
