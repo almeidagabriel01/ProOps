@@ -69,6 +69,7 @@ interface ProposalSystemsSectionProps {
   sistemas?: Sistema[];
   onAmbienteAction?: (action: MasterDataAction) => void;
   onSistemaAction?: (action: MasterDataAction) => void;
+  onRemoveAmbiente: (sistemaIndex: number, ambienteId: string) => void;
 }
 
 export function ProposalSystemsSection({
@@ -92,6 +93,7 @@ export function ProposalSystemsSection({
   sistemas,
   onAmbienteAction,
   onSistemaAction,
+  onRemoveAmbiente,
 }: ProposalSystemsSectionProps) {
   // Logic to handle "Pending" (Environment-only) selection
   // If the last system in the list is incomplete (no sistemaId),
@@ -280,6 +282,9 @@ export function ProposalSystemsSection({
                     )
                   }
                   onToggleStatus={onToggleStatus}
+                  onRemoveAmbiente={(ambienteId) =>
+                    onRemoveAmbiente(realIndex, ambienteId)
+                  }
                 />
               );
             })}
@@ -341,6 +346,7 @@ interface SystemCardProps {
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
   ) => Promise<void>;
+  onRemoveAmbiente: (ambienteId: string) => void;
 }
 
 function SystemCard({
@@ -357,6 +363,7 @@ function SystemCard({
   onRemoveProduct,
   onAddExtraProduct,
   onToggleStatus,
+  onRemoveAmbiente,
 }: SystemCardProps) {
   return (
     <div
@@ -525,6 +532,40 @@ function SystemCard({
                     </span>
                   )}
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      title="Remover ambiente"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover Ambiente</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja remover o ambiente{" "}
+                        <strong>{amb.ambienteName}</strong> deste sistema?
+                        <br />
+                        Todos os produtos associados a este ambiente serão
+                        removidos da proposta.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive hover:bg-destructive/90"
+                        onClick={() => onRemoveAmbiente(amb.ambienteId || "")}
+                      >
+                        Remover Ambiente
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               {/* Lista de Produtos do Ambiente */}

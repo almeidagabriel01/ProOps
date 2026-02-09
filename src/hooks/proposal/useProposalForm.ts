@@ -141,6 +141,7 @@ export interface UseProposalFormReturn {
     markup: number,
     systemInstanceId?: string,
   ) => void;
+  removeAmbienteFromSistema: (sistemaIndex: number, ambienteId: string) => void;
   resetToInitial: () => void;
   markAsDiscarded: () => void;
 }
@@ -1642,6 +1643,50 @@ export function useProposalForm({
     }
   }, []);
 
+  // Remove an environment from a system
+  const removeAmbienteFromSistema = (
+    sistemaIndex: number,
+    ambienteId: string,
+  ) => {
+    // 1. Get the system
+    const sistema = selectedSistemas[sistemaIndex];
+    if (!sistema) return;
+
+    const sistemaId = sistema.sistemaId;
+    const instanceId = `${sistemaId}-${ambienteId}`;
+
+    // 2. Remove products associated with this environment instance
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).filter(
+        (p) =>
+          p.systemInstanceId !== instanceId &&
+          p.ambienteInstanceId !== instanceId,
+      ),
+    }));
+
+    // 3. Update the system's environments list
+    const updatedAmbientes = (sistema.ambientes || []).filter(
+      (a) => a.ambienteId !== ambienteId,
+    );
+
+    // 4. If system has no more environments, remove the system entirely
+    if (updatedAmbientes.length === 0) {
+      removeSistema(sistemaIndex, instanceId); // Use instanceId even if system is removed
+      toast.success("Sistema removido pois não possui mais ambientes.");
+      return;
+    }
+
+    // 5. Update the system with the remaining environments
+    const updatedSistema = {
+      ...sistema,
+      ambientes: updatedAmbientes,
+    };
+
+    updateSistema(sistemaIndex, updatedSistema);
+    toast.success("Ambiente removido com sucesso.");
+  };
+
   // Mark that user discarded changes (prevents auto-save)
   const markAsDiscarded = React.useCallback(() => {
     userDiscardedRef.current = true;
@@ -1695,6 +1740,7 @@ export function useProposalForm({
     updateSistema,
     addProductToSystem,
     updateProductMarkup,
+    removeAmbienteFromSistema,
     resetToInitial,
     markAsDiscarded,
   };

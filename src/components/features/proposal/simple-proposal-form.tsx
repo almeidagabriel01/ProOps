@@ -169,6 +169,7 @@ export function SimpleProposalForm({
     primaryColor,
     markAsDiscarded,
     // isAutomacaoNiche - removed duplicate
+    removeAmbienteFromSistema,
   } = useProposalForm({ proposalId });
 
   // State for unsaved changes modal
@@ -931,6 +932,7 @@ export function SimpleProposalForm({
                   sistemas={mergedSistemas}
                   onAmbienteAction={handleAmbienteAction}
                   onSistemaAction={handleSistemaAction}
+                  onRemoveAmbiente={removeAmbienteFromSistema}
                 />
               </>
             ) : (
