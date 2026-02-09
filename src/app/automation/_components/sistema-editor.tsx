@@ -284,6 +284,15 @@ export function SistemaEditor({
         p.category?.toLowerCase().includes(productSearch.toLowerCase())),
   );
 
+  const handleUpdateAmbienteDescription = (desc: string) => {
+    if (!activeAmbienteId) return;
+    setConfigAmbientes(
+      configAmbientes.map((c) =>
+        c.ambienteId === activeAmbienteId ? { ...c, description: desc } : c,
+      ),
+    );
+  };
+
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col space-y-4">
       {/* Header */}
@@ -494,6 +503,25 @@ export function SistemaEditor({
                     {activeConfig.products.length}{" "}
                     {activeConfig.products.length === 1 ? "item" : "itens"}
                   </Badge>
+                </div>
+
+                {/* Description Field for the Environment */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="env-description"
+                    className="text-xs font-medium text-muted-foreground/80 ml-1"
+                  >
+                    Descrição no PDF (Opcional)
+                  </Label>
+                  <Input
+                    id="env-description"
+                    value={activeConfig.description || ""}
+                    onChange={(e) =>
+                      handleUpdateAmbienteDescription(e.target.value)
+                    }
+                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name}...`}
+                    className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-all"
+                  />
                 </div>
 
                 <div className="relative z-20 w-full" ref={productListRef}>

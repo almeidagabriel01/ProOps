@@ -58,6 +58,7 @@ export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemIn
       ? s.ambientes.map(a => ({
           ambienteId: a.ambienteId,
           ambienteName: a.ambienteName,
+          description: a.description,
           productIds: a.products.map(p => p.productId),
         }))
       : primaryAmbiente

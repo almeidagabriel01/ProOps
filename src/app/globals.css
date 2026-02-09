@@ -624,3 +624,8 @@ body {
 :root:not(.dark) .Toastify__toast--info .Toastify__toast-icon {
   color: oklch(0.5 0.15 250) !important;
 }
+
+/* PDF Utilities - Hide inactive products visually while keeping in calculations */
+.pdf-hide-inactive {
+  display: none !important;
+}

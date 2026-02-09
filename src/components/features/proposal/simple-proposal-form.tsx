@@ -16,7 +16,9 @@ import {
   CheckCircle,
   CreditCard,
   Settings2,
+  AlertCircle,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
@@ -127,6 +129,7 @@ export function SimpleProposalForm({
     selectedClientId,
     formData,
     selectedProducts,
+    visibleProducts,
     selectedSistemas,
     systemProductIds,
     extraProducts,
@@ -290,7 +293,11 @@ export function SimpleProposalForm({
     if (formData.firstInstallmentDate && errors.firstInstallmentDate) {
       clearFieldError("firstInstallmentDate");
     }
-  }, [formData.firstInstallmentDate, errors.firstInstallmentDate, clearFieldError]);
+  }, [
+    formData.firstInstallmentDate,
+    errors.firstInstallmentDate,
+    clearFieldError,
+  ]);
 
   React.useEffect(() => {
     if (formData.downPaymentDueDate && errors.downPaymentDueDate) {
@@ -395,7 +402,63 @@ export function SimpleProposalForm({
         ? "Selecione pelo menos 1 sistema de automação com produtos"
         : "Selecione pelo menos 1 produto";
       setFieldError(field, message);
+      toast.error(message);
       return false;
+    }
+
+    // For automation niche: validate each system/environment has at least one active product
+    if (isAutomacaoNiche && selectedSistemas.length > 0) {
+      for (const sistema of selectedSistemas) {
+        // Get environments for this system
+        const environments =
+          sistema.ambientes && sistema.ambientes.length > 0
+            ? sistema.ambientes
+            : [
+                {
+                  ambienteId: sistema.ambienteId,
+                  ambienteName: sistema.ambienteName || "Ambiente",
+                },
+              ];
+
+        for (const ambiente of environments) {
+          const instanceId = `${sistema.sistemaId}-${ambiente.ambienteId}`;
+
+          // Get products for this environment
+          const environmentProducts = currentFormData.products.filter(
+            (p) => p.systemInstanceId === instanceId,
+          );
+
+          // Check if there's at least one active product
+          const activeProducts = environmentProducts.filter((p) => {
+            const catalogProduct = products.find(
+              (prod) => prod.id === p.productId,
+            );
+            // Product is active if not found in catalog OR status is not 'inactive'
+            return !catalogProduct || catalogProduct.status !== "inactive";
+          });
+
+          if (activeProducts.length === 0 && environmentProducts.length > 0) {
+            const errorMessage = `O sistema "${sistema.sistemaName}" - Ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo. Ative pelo menos 1 produto ou remova o sistema.`;
+            setFieldError("sistemas", errorMessage);
+            toast.error(errorMessage, { autoClose: 5000 });
+            return false;
+          }
+        }
+      }
+    } else if (!isAutomacaoNiche) {
+      // For non-automation: validate at least one active product globally
+      const activeProducts = currentFormData.products.filter((p) => {
+        const catalogProduct = products.find((prod) => prod.id === p.productId);
+        return !catalogProduct || catalogProduct.status !== "inactive";
+      });
+
+      if (activeProducts.length === 0) {
+        const errorMessage =
+          "Não há produtos ativos na proposta. Ative pelo menos 1 produto.";
+        setFieldError("products", errorMessage);
+        toast.error(errorMessage);
+        return false;
+      }
     }
 
     // Clear errors
@@ -403,7 +466,13 @@ export function SimpleProposalForm({
     else clearFieldError("products");
 
     return true;
-  }, [isAutomacaoNiche, setFieldError, clearFieldError]);
+  }, [
+    isAutomacaoNiche,
+    setFieldError,
+    clearFieldError,
+    selectedSistemas,
+    products,
+  ]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
@@ -413,7 +482,8 @@ export function SimpleProposalForm({
     // Validate installments
     if (currentFormData.installmentsEnabled) {
       if (!currentFormData.firstInstallmentDate) {
-        errors.firstInstallmentDate = "Data de vencimento da primeira parcela é obrigatória";
+        errors.firstInstallmentDate =
+          "Data de vencimento da primeira parcela é obrigatória";
       }
     }
 
@@ -778,7 +848,7 @@ export function SimpleProposalForm({
         />
         <ProposalReadOnlyView
           formData={formData}
-          selectedProducts={selectedProducts}
+          selectedProducts={visibleProducts}
           calculateSubtotal={calculateSubtotal}
           calculateDiscount={calculateDiscount}
           calculateTotal={calculateTotal}
@@ -901,10 +971,16 @@ export function SimpleProposalForm({
             )}
           </div>
           {errors.sistemas && (
-            <p className="text-sm text-destructive mt-2">{errors.sistemas}</p>
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errors.sistemas}</AlertDescription>
+            </Alert>
           )}
           {errors.products && (
-            <p className="text-sm text-destructive mt-2">{errors.products}</p>
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errors.products}</AlertDescription>
+            </Alert>
           )}
           <StepNavigation onBeforeNext={validateStep2} />
         </StepCard>
@@ -928,7 +1004,7 @@ export function SimpleProposalForm({
 
             <ProposalPaymentSection
               formData={formData}
-              selectedProducts={selectedProducts}
+              selectedProducts={visibleProducts}
               calculateTotal={calculateTotal}
               onFormChange={handleChange}
               onPaymentToggle={(field, value) => {
@@ -970,11 +1046,12 @@ export function SimpleProposalForm({
 
             <ProposalSummarySection
               formData={formData}
-              selectedProducts={selectedProducts}
+              selectedProducts={visibleProducts}
               selectedSistemas={selectedSistemas}
               extraProducts={extraProducts}
               isAutomacaoNiche={isAutomacaoNiche}
               primaryColor={primaryColor}
+              products={products}
               calculateSubtotal={calculateSubtotal}
               calculateDiscount={calculateDiscount}
               calculateTotal={calculateTotal}

@@ -27,6 +27,7 @@ export interface ProposalProduct {
   systemInstanceId?: string;
   isExtra?: boolean;
   isMonthly?: boolean;
+  _isInactive?: boolean; // Metadata flag for PDF visual hiding
 }
 
 /**
@@ -35,6 +36,7 @@ export interface ProposalProduct {
 export interface ProposalAmbienteInstance {
   ambienteId: string;
   ambienteName: string;
+  description?: string;
   productIds: string[];
 }
 

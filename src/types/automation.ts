@@ -19,6 +19,7 @@ export type Ambiente = {
   id: string;
   tenantId: string;
   name: string;
+  description?: string; // Descrição do ambiente (template)
   icon?: string; // Emoji ou nome de ícone lucide
   order?: number;
   // Template de produtos padrão para este ambiente
@@ -63,6 +64,7 @@ export type Sistema = {
  */
 export type SistemaAmbienteTemplate = {
   ambienteId: string; // Reference to the generic Ambiente (Name/Icon)
+  description?: string; // Optional: Override description for this specific system-environment pair
   products: AmbienteProduct[];
 };
 
@@ -87,6 +89,7 @@ export type SistemaProduct = {
 export type ProposalAmbiente = {
   ambienteId: string;
   ambienteName: string;
+  description?: string; // Descrição snapshot do ambiente nesta proposta
   // Produtos específicos deste ambiente nesta proposta
   products: AmbienteProduct[];
 };

@@ -40,6 +40,7 @@ interface Product {
   productImages?: string[];
   productDescription?: string;
   systemInstanceId?: string;
+  _isInactive?: boolean; // Metadata flag for PDF visual hiding
 }
 
 interface Sistema {
@@ -54,6 +55,7 @@ interface Sistema {
   ambientes?: {
     ambienteId: string;
     ambienteName: string;
+    description?: string;
     productIds?: string[];
   }[];
 }
@@ -292,6 +294,7 @@ function buildContentItems(
             {
               ambienteId: sistema.ambienteId || "",
               ambienteName: sistema.ambienteName || "",
+              description: undefined,
             },
           ];
 
@@ -363,14 +366,18 @@ function buildContentItems(
           data: {
             ambienteName: group.env.ambienteName,
             ambienteId: group.env.ambienteId,
+            description: group.env.description,
             primaryColor: primaryColor,
             isFirst: index === 0,
           },
-          height: 40,
+          height: group.env.description ? 60 : 40,
         });
 
-        // Add products
-        group.products.forEach((product, idx) => {
+        // Add products (filter out inactive products)
+        const visibleProducts = group.products.filter(
+          (p: Product) => !p._isInactive,
+        );
+        visibleProducts.forEach((product, idx) => {
           const productHeight = calculateProductHeight(product, 80, settings);
           items.push({
             type: "sistema-product",
@@ -379,7 +386,7 @@ function buildContentItems(
               product,
               sistema, // Parent sistema reference
               isFirst: idx === 0, // Visual separation if needed
-              isLast: idx === group.products.length - 1,
+              isLast: idx === visibleProducts.length - 1,
               pdfDisplaySettings: settings,
             },
             height: productHeight,
@@ -855,6 +862,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               ambienteName={item.data.ambienteName}
               primaryColor={primaryColor}
               standalone={true}
+              description={item.data.description}
             />
           </div>
         );

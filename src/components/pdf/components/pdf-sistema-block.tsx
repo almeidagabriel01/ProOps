@@ -16,6 +16,7 @@ interface PdfProduct {
   total: number;
   isExtra?: boolean;
   systemInstanceId?: string;
+  _isInactive?: boolean; // Metadata flag for visual hiding
 }
 
 interface PdfSistema {
@@ -28,6 +29,7 @@ interface PdfSistema {
   ambientes?: {
     ambienteId: string;
     ambienteName: string;
+    description?: string;
   }[];
 }
 
@@ -191,6 +193,7 @@ export function PdfSistemaBlock({
                 {
                   ambienteName: sistema.ambienteName || "Ambiente",
                   ambienteId: sistema.ambienteId,
+                  description: undefined,
                 },
               ]
           ).map((amb, index) => {
@@ -218,133 +221,138 @@ export function PdfSistemaBlock({
                   ambienteName={amb.ambienteName || "Ambiente"}
                   primaryColor={primaryColor}
                   className={index > 0 ? "border-t border-dashed" : ""}
+                  description={amb.description}
                 />
 
                 <div className="px-4 pb-3 space-y-2">
-                  {scopeProducts.map((product: PdfProduct, idx: number) => {
-                    const allImages = product.productImages?.length
-                      ? product.productImages
-                      : product.productImage
-                        ? [product.productImage]
-                        : [];
+                  {scopeProducts
+                    .filter((product: PdfProduct) => !product._isInactive)
+                    .map((product: PdfProduct, idx: number) => {
+                      const allImages = product.productImages?.length
+                        ? product.productImages
+                        : product.productImage
+                          ? [product.productImage]
+                          : [];
 
-                    return (
-                      <div
-                        key={`${product.productId}-${idx}`}
-                        className="p-3 rounded-lg border break-inside-avoid"
-                        style={{
-                          backgroundColor: product.isExtra
-                            ? "#eff6ff"
-                            : idx % 2 === 0
-                              ? "#f9fafb"
-                              : "#ffffff",
-                          borderColor: product.isExtra ? "#bfdbfe" : "#e5e7eb",
-                        }}
-                      >
-                        {/* PROFESSIONAL LAYOUT: Top to Bottom */}
-                        <div className="space-y-2">
-                          {/* Header Row: Title + Price */}
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              {/* Flexbox Layout - Better for html2canvas */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "6px",
-                                  minHeight: "20px",
-                                }}
-                              >
-                                <h4
-                                  className="font-semibold text-gray-900 text-sm m-0 p-0"
+                      return (
+                        <div
+                          key={`${product.productId}-${idx}`}
+                          className="p-3 rounded-lg border break-inside-avoid"
+                          style={{
+                            backgroundColor: product.isExtra
+                              ? "#eff6ff"
+                              : idx % 2 === 0
+                                ? "#f9fafb"
+                                : "#ffffff",
+                            borderColor: product.isExtra
+                              ? "#bfdbfe"
+                              : "#e5e7eb",
+                          }}
+                        >
+                          {/* PROFESSIONAL LAYOUT: Top to Bottom */}
+                          <div className="space-y-2">
+                            {/* Header Row: Title + Price */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                {/* Flexbox Layout - Better for html2canvas */}
+                                <div
                                   style={{
-                                    lineHeight: "20px",
                                     display: "flex",
                                     alignItems: "center",
+                                    gap: "6px",
+                                    minHeight: "20px",
                                   }}
                                 >
-                                  {product.productName}
-                                </h4>
-                                {product.isExtra && (
-                                  <div
+                                  <h4
+                                    className="font-semibold text-gray-900 text-sm m-0 p-0"
                                     style={{
+                                      lineHeight: "20px",
                                       display: "flex",
                                       alignItems: "center",
-                                      height: "20px",
                                     }}
                                   >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='18'%3E%3Crect width='50' height='18' rx='4' fill='%23dbeafe' stroke='%23bfdbfe' stroke-width='1'/%3E%3Ctext x='25' y='13' font-family='system-ui,sans-serif' font-size='9' font-weight='bold' fill='%231d4ed8' text-anchor='middle' letter-spacing='0.5'%3EEXTRA%3C/text%3E%3C/svg%3E"
-                                      alt="EXTRA"
-                                      width="50"
-                                      height="18"
-                                      style={{ display: "block" }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="text-right shrink-0">
-                              {settings.showProductPrices ? (
-                                <div className="space-y-0">
-                                  <span className="text-[10px] text-gray-500 block">
-                                    {product.quantity}x{" "}
-                                    {formatCurrency(product.unitPrice)}
-                                  </span>
-                                  <span
-                                    className="font-semibold text-sm"
-                                    style={{ color: primaryColor }}
-                                  >
-                                    {formatCurrency(product.total)}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="font-medium text-xs text-gray-600">
-                                  Qtd: {product.quantity}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Images Gallery - Grid Layout (max 4 per row) */}
-                          {settings.showProductImages &&
-                            allImages.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {allImages.map(
-                                  (imgSrc: string, imgIdx: number) => (
+                                    {product.productName}
+                                  </h4>
+                                  {product.isExtra && (
                                     <div
-                                      key={imgIdx}
-                                      className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
                                       style={{
-                                        flexBasis: "calc(25% - 4.5px)",
-                                        maxWidth: "84px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        height: "20px",
                                       }}
                                     >
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
-                                        src={imgSrc}
-                                        alt=""
-                                        className="w-full h-full object-contain p-0.5"
+                                        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='18'%3E%3Crect width='50' height='18' rx='4' fill='%23dbeafe' stroke='%23bfdbfe' stroke-width='1'/%3E%3Ctext x='25' y='13' font-family='system-ui,sans-serif' font-size='9' font-weight='bold' fill='%231d4ed8' text-anchor='middle' letter-spacing='0.5'%3EEXTRA%3C/text%3E%3C/svg%3E"
+                                        alt="EXTRA"
+                                        width="50"
+                                        height="18"
+                                        style={{ display: "block" }}
                                       />
                                     </div>
-                                  ),
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                {settings.showProductPrices ? (
+                                  <div className="space-y-0">
+                                    <span className="text-[10px] text-gray-500 block">
+                                      {product.quantity}x{" "}
+                                      {formatCurrency(product.unitPrice)}
+                                    </span>
+                                    <span
+                                      className="font-semibold text-sm"
+                                      style={{ color: primaryColor }}
+                                    >
+                                      {formatCurrency(product.total)}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="font-medium text-xs text-gray-600">
+                                    Qtd: {product.quantity}
+                                  </span>
                                 )}
                               </div>
-                            )}
+                            </div>
 
-                          {/* Description */}
-                          {settings.showProductDescriptions &&
-                            product.productDescription && (
-                              <p className="text-[10px] text-gray-600 leading-relaxed pt-1">
-                                {product.productDescription}
-                              </p>
-                            )}
+                            {/* Images Gallery - Grid Layout (max 4 per row) */}
+                            {settings.showProductImages &&
+                              allImages.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {allImages.map(
+                                    (imgSrc: string, imgIdx: number) => (
+                                      <div
+                                        key={imgIdx}
+                                        className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
+                                        style={{
+                                          flexBasis: "calc(25% - 4.5px)",
+                                          maxWidth: "84px",
+                                        }}
+                                      >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={imgSrc}
+                                          alt=""
+                                          className="w-full h-full object-contain p-0.5"
+                                        />
+                                      </div>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+
+                            {/* Description */}
+                            {settings.showProductDescriptions &&
+                              product.productDescription && (
+                                <p className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                                  {product.productDescription}
+                                </p>
+                              )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
               </div>
             );
@@ -465,18 +473,38 @@ export function PdfSistemaHeader({
                     </h3>
                   </div>
 
-                  {/* Ambiente tag - SVG Implementation reused */}
+                  {/* Ambiente tags */}
                   <div
                     style={{
                       display: "block",
                       marginTop: "2px", // Push tag down
+                      lineHeight: "1.0",
                     }}
                   >
-                    <PdfAmbienteTag
-                      ambienteName={sistema.ambienteName || "Ambiente"}
-                      primaryColor={primaryColor}
-                      scale={1.0}
-                    />
+                    {(sistema.ambientes && sistema.ambientes.length > 0
+                      ? sistema.ambientes
+                      : [
+                          {
+                            ambienteName: sistema.ambienteName || "Ambiente",
+                            ambienteId: sistema.ambienteId,
+                          },
+                        ]
+                    ).map((amb, i) => (
+                      <div
+                        key={`${amb.ambienteId}-${i}`}
+                        style={{
+                          display: "inline-block",
+                          marginRight: "8px",
+                          verticalAlign: "middle",
+                        }}
+                      >
+                        <PdfAmbienteTag
+                          ambienteName={amb.ambienteName}
+                          primaryColor={primaryColor}
+                          scale={1.0}
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   {sistema.description && (
@@ -807,11 +835,13 @@ export function PdfAmbienteHeader({
   primaryColor,
   className = "",
   standalone = false,
+  description,
 }: {
   ambienteName: string;
   primaryColor: string;
   className?: string;
   standalone?: boolean;
+  description?: string;
 }) {
   return (
     <div
@@ -842,6 +872,13 @@ export function PdfAmbienteHeader({
           style={{ backgroundColor: `${primaryColor}20` }}
         />
       </div>
+
+      {/* Description below header */}
+      {description && (
+        <p className="text-xs text-gray-500 mt-1 text-center italic">
+          {description}
+        </p>
+      )}
     </div>
   );
 }

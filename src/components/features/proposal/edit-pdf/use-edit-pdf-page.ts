@@ -118,6 +118,67 @@ export function useEditPdfPage() {
               p.products = [];
             }
 
+            // Sync system data (descriptions) to ensure PDF shows latest master data
+            if (p.sistemas && p.sistemas.length > 0) {
+              try {
+                const { SistemaService } = await import(
+                  "@/services/sistema-service"
+                );
+                const { AmbienteService } = await import(
+                  "@/services/ambiente-service"
+                );
+
+                const [allSistemas, allAmbientes] = await Promise.all([
+                  SistemaService.getSistemas(tenant.id),
+                  AmbienteService.getAmbientes(tenant.id),
+                ]);
+
+                // Update system and environment descriptions
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                p.sistemas = p.sistemas.map((ps: any) => {
+                  const masterSistema = allSistemas.find(
+                    (s) => s.id === ps.sistemaId,
+                  );
+                  if (!masterSistema) return ps;
+
+                  const updatedSystem = {
+                    ...ps,
+                    // Update system description if available in master
+                    description: masterSistema.description || ps.description,
+                  };
+
+                  if (updatedSystem.ambientes) {
+                    updatedSystem.ambientes = updatedSystem.ambientes.map(
+                      (pa: any) => {
+                        const masterAmbiente = allAmbientes.find(
+                          (a) => a.id === pa.ambienteId,
+                        );
+                        // Check for system-specific environment override
+                        const systemEnvConfig = masterSistema.ambientes?.find(
+                          (a) => a.ambienteId === pa.ambienteId,
+                        );
+
+                        return {
+                          ...pa,
+                          // Update environment description: System Override > Global > Snapshot
+                          description:
+                            systemEnvConfig?.description ||
+                            masterAmbiente?.description ||
+                            pa.description,
+                        };
+                      },
+                    );
+                  }
+                  return updatedSystem;
+                });
+              } catch (sysError) {
+                console.warn(
+                  "Could not fetch fresh system data:",
+                  sysError,
+                );
+              }
+            }
+
             setProposal(p);
 
             // ORDEM DE PRIORIDADE NO CARREGAMENTO DAS CONFIGURAÇÕES:

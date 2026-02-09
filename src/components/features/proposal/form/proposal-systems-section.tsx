@@ -164,6 +164,34 @@ export function ProposalSystemsSection({
     }
   };
 
+  // Calculate visible products for the summary header
+  // This ensures we only count products that belong to the visible systems
+  const visibleProducts = React.useMemo(() => {
+    const validInstanceIds = new Set<string>();
+
+    renderedSistemas.forEach((s) => {
+      // Collect IDs from environments array
+      if (s.ambientes && s.ambientes.length > 0) {
+        s.ambientes.forEach((a) => {
+          if (s.sistemaId && a.ambienteId) {
+            validInstanceIds.add(`${s.sistemaId}-${a.ambienteId}`);
+          }
+        });
+      }
+      // Collect legacy/fallback ID
+      else {
+        const primary = getPrimaryAmbiente(s);
+        if (s.sistemaId && primary?.ambienteId) {
+          validInstanceIds.add(`${s.sistemaId}-${primary.ambienteId}`);
+        }
+      }
+    });
+
+    return selectedProducts.filter(
+      (p) => p.systemInstanceId && validInstanceIds.has(p.systemInstanceId),
+    );
+  }, [renderedSistemas, selectedProducts]);
+
   return (
     <Card>
       <CardHeader>
@@ -172,9 +200,9 @@ export function ProposalSystemsSection({
             <Cpu className="w-5 h-5" />
             <CardTitle>Sistemas de Automação</CardTitle>
           </div>
-          {selectedProducts.length > 0 && (
+          {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
-              selectedProducts={selectedProducts}
+              selectedProducts={visibleProducts}
               className="ml-auto"
             />
           )}
@@ -204,6 +232,11 @@ export function ProposalSystemsSection({
               );
 
               const sistemaTotal = sistemaProducts.reduce(
+                (sum, p) => sum + p.unitPrice * p.quantity,
+                0,
+              );
+
+              const sistemaTotalWithMarkup = sistemaProducts.reduce(
                 (sum, p) => sum + p.total,
                 0,
               );
@@ -215,6 +248,7 @@ export function ProposalSystemsSection({
                   sistemaIndex={realIndex}
                   sistemaProducts={sistemaProducts}
                   sistemaTotal={sistemaTotal}
+                  sistemaTotalWithMarkup={sistemaTotalWithMarkup}
                   products={products}
                   primaryColor={primaryColor}
                   systemInstanceId={systemInstanceId}
@@ -283,6 +317,7 @@ interface SystemCardProps {
   sistemaIndex: number;
   sistemaProducts: ProposalProduct[];
   sistemaTotal: number;
+  sistemaTotalWithMarkup: number;
   products: Product[];
   primaryColor: string;
   systemInstanceId: string;
@@ -310,6 +345,7 @@ function SystemCard({
   sistema,
   sistemaProducts,
   sistemaTotal,
+  sistemaTotalWithMarkup,
   products,
   primaryColor,
   onEdit,
@@ -330,10 +366,10 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex items-center justify-between"
+        className="p-4 flex items-start justify-between"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
             style={{ backgroundColor: primaryColor }}
@@ -379,53 +415,70 @@ function SystemCard({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 ml-4">
-          <span className="font-bold text-lg" style={{ color: primaryColor }}>
-            R$ {sistemaTotal.toFixed(2)}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={onEdit}
-            title="Trocar Sistema/Ambiente"
-          >
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Remover sistema"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja remover o sistema{" "}
-                  <strong>{sistema.sistemaName}</strong> ({sistema.ambienteName}
-                  ) desta proposta?
-                  <br />
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive hover:bg-destructive/90"
-                  onClick={onRemove}
+        <div className="flex items-center gap-10 shrink-0 ml-4">
+          <div className="flex flex-col items-end gap-1">
+            <span
+              className="text-sm font-bold"
+              style={{ color: primaryColor }}
+              title="Soma do valor de custo dos produtos (sem markup)"
+            >
+              Custo: R$ {sistemaTotal.toFixed(2)}
+            </span>
+            <span
+              className="text-sm font-bold"
+              style={{ color: primaryColor }}
+              title="Soma do valor final dos produtos (com markup)"
+            >
+              Venda: R$ {sistemaTotalWithMarkup.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={onEdit}
+              title="Trocar Sistema/Ambiente"
+            >
+              <Pencil className="w-4 h-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  title="Remover sistema"
                 >
-                  Remover Sistema
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja remover o sistema{" "}
+                    <strong>{sistema.sistemaName}</strong> (
+                    {sistema.ambienteName}
+                    ) desta proposta?
+                    <br />
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive hover:bg-destructive/90"
+                    onClick={onRemove}
+                  >
+                    Remover Sistema
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
 
@@ -437,6 +490,7 @@ function SystemCard({
               {
                 ambienteName: sistema.ambienteName || "Ambiente",
                 ambienteId: sistema.ambienteId,
+                description: undefined,
               },
             ]
         ).map((amb) => {
@@ -463,6 +517,11 @@ function SystemCard({
                   >
                     📍 {amb.ambienteName}
                   </span>
+                  {amb.description && (
+                    <span className="text-xs text-muted-foreground italic">
+                      - {amb.description}
+                    </span>
+                  )}
                 </div>
               </div>
 

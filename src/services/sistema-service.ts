@@ -41,6 +41,7 @@ function normalizeSistema(id: string, data: Record<string, unknown>): Sistema {
       products: Array.isArray(a.products)
         ? (a.products as SistemaAmbienteTemplate["products"])
         : [],
+      description: (a as any).description,
     }))
     .filter((a) => a.ambienteId); // Filter out invalid entries
 

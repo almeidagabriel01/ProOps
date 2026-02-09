@@ -128,14 +128,14 @@ export function SistemaSelector({
         // Remove ambientes already selected for this system
         if (selectedSistemas && selectedSistemas.length > 0) {
           const currentSystem = selectedSistemas.find(
-            (s) => s.sistemaId === selectedSistemaId
+            (s) => s.sistemaId === selectedSistemaId,
           );
           if (currentSystem && currentSystem.ambientes) {
             const selectedAmbienteIds = currentSystem.ambientes.map(
-              (a) => a.ambienteId
+              (a) => a.ambienteId,
             );
             filtered = filtered.filter(
-              (a) => !selectedAmbienteIds.includes(a.id)
+              (a) => !selectedAmbienteIds.includes(a.id),
             );
           }
         }
@@ -219,6 +219,7 @@ export function SistemaSelector({
         ambiente.name,
         sistema.description,
         products,
+        systemEnvConfig?.description || ambiente.description, // Pass description (System Override or Global Default)
       );
 
       onChange(proposalSistema);

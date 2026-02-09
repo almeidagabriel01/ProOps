@@ -42,6 +42,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
+import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { getExtraProducts } from "./product-handlers";
 import { toast } from "react-toastify";
@@ -74,6 +75,7 @@ export interface UseProposalFormReturn {
   clientTypes: ClientType[];
   formData: Partial<Proposal>;
   selectedProducts: ProposalProduct[];
+  visibleProducts: ProposalProduct[];
   selectedSistemas: ProposalSistema[];
   systemProductIds: Set<string>;
   extraProducts: ProposalProduct[];
@@ -379,15 +381,24 @@ export function useProposalForm({
             };
 
             // 1. Prepare payload (IDs are already real)
+            // Calculate visibleProducts: filter out phantom products from removed systems
+            const primarySistemaIds = new Set(
+              state.selectedSistemas.map((s) => s.sistemaId)
+            );
+            const visibleProductsForSave = state.selectedProducts.filter((p) => {
+              const primaryAmbienteId = p.ambienteInstanceId?.split("-")[0] || p.systemInstanceId?.split("-")[0];
+              return primaryAmbienteId ? primarySistemaIds.has(primaryAmbienteId) : !p.ambienteInstanceId;
+            });
+            // Use visibleProducts to exclude phantom products from removed systems
             const payload = prepareCreatePayload({
               formData: draftFormData,
-              selectedProducts: state.selectedProducts,
+              selectedProducts: visibleProductsForSave,
               selectedSistemas: state.selectedSistemas,
               clientId: state.selectedClientId,
               tenantId: state.tenant?.id || "",
               calculateTotal: () => {
-                const sub = state.selectedProducts.reduce(
-                  (sum, p) => sum + p.total,
+                const sub = visibleProductsForSave.reduce(
+                  (sum: number, p: ProposalProduct) => sum + p.total,
                   0,
                 );
                 const disc = (sub * (state.formData.discount || 0)) / 100;
@@ -644,6 +655,11 @@ export function useProposalForm({
                 const productIds =
                   s.ambientes?.[0]?.productIds || s.productIds || [];
 
+                // Find the specific environment configuration in the system
+                const systemEnvConfig = masterSistema?.ambientes?.find(
+                  (a) => a.ambienteId === (masterAmbiente?.id || primaryAmbienteId)
+                );
+
                 // Build products array from synced products
                 const sistemaProducts = syncedProducts
                   .filter((p: ProposalProduct) =>
@@ -666,6 +682,7 @@ export function useProposalForm({
                       ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
                       ambienteName:
                         masterAmbiente?.name || primaryAmbienteName || "",
+                      description: systemEnvConfig?.description || masterAmbiente?.description || s.ambientes?.[0]?.description || "", // Priority: Master Data (System Specific) -> Master Data (Global) -> Snapshot
                       products: sistemaProducts,
                     },
                   ],
@@ -713,12 +730,139 @@ export function useProposalForm({
     getFormSnapshot,
     setLocalAmbientes,
     setLocalSistemas,
-  ]);
+  ],
+  );
+
+  // Real-time Master Data Sync (Focus Refetch)
+  // Automatically updates system/environment descriptions when user returns to the tab
+  const refreshMasterData = React.useCallback(async () => {
+    if (!tenant?.id) return;
+
+    try {
+      // 1. Fetch fresh master data
+      const [freshAmbientes, freshSistemas] = await Promise.all([
+        AmbienteService.getAmbientes(tenant.id),
+        SistemaService.getSistemas(tenant.id),
+      ]);
+
+      // 2. Update local transaction state
+      setLocalAmbientes(freshAmbientes);
+      setLocalSistemas(freshSistemas);
+
+      // 3. Sync current selected systems with fresh data
+      setSelectedSistemas((prevSistemas) => {
+        return prevSistemas.map((s) => {
+          // Normalize legacy structure if needed (though state should be normalized)
+          const currentAmbientes =
+            s.ambientes && s.ambientes.length > 0
+              ? s.ambientes
+              : [
+                  {
+                    ambienteId: s.ambienteId || "",
+                    ambienteName: s.ambienteName || "",
+                    description: s.description || "",
+                    products: s.products || [],
+                  },
+                ];
+
+          const updatedAmbientes = currentAmbientes.map((env) => {
+            const masterAmbiente =
+              freshAmbientes.find((a) => a.id === env.ambienteId) ||
+              freshAmbientes.find((a) => a.name === env.ambienteName);
+
+            const masterSistema =
+              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+              freshSistemas.find((sys) => sys.name === s.sistemaName);
+
+            const systemEnvConfig = masterSistema?.ambientes?.find(
+              (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
+            );
+
+            return {
+              ...env,
+              ambienteName: masterAmbiente?.name || env.ambienteName,
+              // Update Description: System-Specific -> Global -> Keep Existing
+              description:
+                systemEnvConfig?.description ||
+                masterAmbiente?.description ||
+                env.description ||
+                "",
+            };
+          });
+
+          // Sync root system data
+          const masterSistema =
+            freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+            freshSistemas.find((sys) => sys.name === s.sistemaName);
+
+          const primaryEnv = updatedAmbientes[0];
+
+          return {
+            ...s,
+            sistemaName: masterSistema?.name || s.sistemaName,
+            description: masterSistema?.description || s.description,
+            ambientes: updatedAmbientes,
+            // Keep legacy fields in sync
+            ambienteName: primaryEnv?.ambienteName || s.ambienteName,
+            ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+          };
+        });
+      });
+    } catch (err) {
+      console.error("Silent refresh failed", err);
+    }
+  }, [tenant?.id, setLocalAmbientes, setLocalSistemas]);
+
+  // Trigger refresh on window focus
+  React.useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState === "visible") {
+        refreshMasterData();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("visibilitychange", onFocus);
+
+    return () => {
+        window.removeEventListener("focus", onFocus);
+        window.removeEventListener("visibilitychange", onFocus);
+      };
+    }, [refreshMasterData]);
 
   const selectedProducts = React.useMemo(
     () => formData.products || [],
     [formData.products],
   );
+
+  // Calculate visible products - only products belonging to visible systems
+  // This ensures we exclude "phantom" products from financial calculations
+  const visibleProducts = React.useMemo(() => {
+    const validInstanceIds = new Set<string>();
+
+    selectedSistemas.forEach((s) => {
+      // Collect IDs from environments array
+      if (s.ambientes && s.ambientes.length > 0) {
+        s.ambientes.forEach((a) => {
+          if (s.sistemaId && a.ambienteId) {
+            validInstanceIds.add(`${s.sistemaId}-${a.ambienteId}`);
+          }
+        });
+      }
+      // Collect legacy/fallback ID
+      else {
+        const primary = getPrimaryAmbiente(s);
+        if (s.sistemaId && primary?.ambienteId) {
+          validInstanceIds.add(`${s.sistemaId}-${primary.ambienteId}`);
+        }
+      }
+    });
+
+    return selectedProducts.filter(
+      (p) => p.systemInstanceId && validInstanceIds.has(p.systemInstanceId),
+    );
+  }, [selectedSistemas, selectedProducts]);
+
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
 
   // Product handlers
@@ -856,11 +1000,10 @@ export function useProposalForm({
     }
   };
 
-  // Calculations
-  // Calculations
+  // Calculations - use visibleProducts to exclude phantom products
   const calculateSubtotal = React.useCallback(
-    () => selectedProducts.reduce((sum, p) => sum + p.total, 0),
-    [selectedProducts],
+    () => visibleProducts.reduce((sum, p) => sum + p.total, 0),
+    [visibleProducts],
   );
 
   const calculateDiscount = React.useCallback(
@@ -1005,9 +1148,10 @@ export function useProposalForm({
         };
 
         // 3. Prepare Payload
+        // Use visibleProducts to exclude phantom products from removed systems
         const payload = prepareCreatePayload({
           formData: draftFormData,
-          selectedProducts: formData.products || [],
+          selectedProducts: visibleProducts,
           selectedSistemas: selectedSistemas, // Direct usage
           clientId,
           tenantId: tenant.id,
@@ -1399,6 +1543,7 @@ export function useProposalForm({
     clientTypes,
     formData,
     selectedProducts,
+    visibleProducts,
     selectedSistemas,
     systemProductIds,
     extraProducts,
