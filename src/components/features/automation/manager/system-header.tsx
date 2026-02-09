@@ -13,6 +13,7 @@ interface SystemHeaderProps {
   onSaveName: () => void;
   onDelete: () => void;
   onOpenMobileMenu: () => void;
+  allowDelete?: boolean;
 }
 
 export function SystemHeader({
@@ -24,6 +25,7 @@ export function SystemHeader({
   onSaveName,
   onDelete,
   onOpenMobileMenu,
+  allowDelete = true,
 }: SystemHeaderProps) {
   return (
     <div className="p-6 pr-12 border-b flex items-start justify-between gap-4 relative">
@@ -76,7 +78,7 @@ export function SystemHeader({
         </p>
       </div>
 
-      {selectedSistema && (
+      {selectedSistema && allowDelete && (
         <Button
           size="icon"
           variant="ghost"
