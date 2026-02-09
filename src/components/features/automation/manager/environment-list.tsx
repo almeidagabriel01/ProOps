@@ -2,11 +2,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Home, Trash2, ExternalLink } from "lucide-react";
-import { Ambiente } from "@/types/automation";
+import { Ambiente, Sistema } from "@/types/automation";
 
 interface EnvironmentListProps {
   activeSystemId: string;
   linkedAmbientes: Ambiente[];
+  selectedSistema?: Sistema | null;
   onUnlink: (id: string) => void;
 
   isAdding: boolean;
@@ -39,6 +40,7 @@ export function EnvironmentList({
   onLink,
   onCreate,
   allowDelete = true,
+  selectedSistema,
 }: EnvironmentListProps) {
   return (
     <div>
@@ -47,51 +49,58 @@ export function EnvironmentList({
       </h3>
 
       <div className="grid gap-3">
-        {linkedAmbientes.map((amb) => (
-          <div
-            key={amb.id}
-            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10 text-primary">
-                <Home className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-medium">{amb.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {amb.defaultProducts?.length || 0} produtos configurados
-                </p>
-              </div>
-            </div>
+        {linkedAmbientes.map((amb) => {
+          const systemEnvConfig = selectedSistema?.ambientes?.find(
+            (sa) => sa.ambienteId === amb.id,
+          );
+          const productCount = systemEnvConfig?.products?.length || 0;
 
-            <div className="flex items-center gap-1">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="gap-2 cursor-pointer"
-              >
-                <Link
-                  href={`/automation?editSistemaId=${activeSystemId}&editAmbienteId=${amb.id}`}
-                  target="_blank"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Editar Template
-                </Link>
-              </Button>
-              {allowDelete && (
+          return (
+            <div
+              key={amb.id}
+              className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10 text-primary">
+                  <Home className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-medium">{amb.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {productCount} produtos configurados
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1">
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive cursor-pointer"
-                  onClick={() => onUnlink(amb.id)}
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 cursor-pointer"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Link
+                    href={`/automation?editSistemaId=${activeSystemId}&editAmbienteId=${amb.id}`}
+                    target="_blank"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Editar Template
+                  </Link>
                 </Button>
-              )}
+                {allowDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive cursor-pointer"
+                    onClick={() => onUnlink(amb.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Add Environment Block */}
         <div className="relative">
