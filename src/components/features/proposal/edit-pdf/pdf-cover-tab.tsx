@@ -279,7 +279,7 @@ export function PdfCoverTab({
 
         {/* Cover Elements Editor - Moved above theme */}
         {canEditCoverElements && coverElements && setCoverElements && (
-          <div className="grid gap-2 pt-4 border-t">
+          <div className="flex flex-col gap-2 pt-4 border-t w-full min-w-0 overflow-hidden">
             <Label className="text-base font-semibold">Elementos da Capa</Label>
             <p className="text-sm text-muted-foreground mb-2">
               Adicione e personalize os elementos de texto que aparecem na capa

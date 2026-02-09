@@ -102,7 +102,19 @@ export function CoverElementsEditor({
   theme,
   validUntil,
 }: CoverElementsEditorProps) {
-  const [expandedId, setExpandedId] = React.useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+
+  const toggleElement = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const addElement = (type: CoverElement["type"]) => {
     const maxOrder = Math.max(0, ...elements.map((e) => e.order));
@@ -158,12 +170,18 @@ export function CoverElementsEditor({
       },
     };
     onChange([...elements, newElement]);
-    setExpandedId(newElement.id);
+    setExpandedIds((prev) => new Set(prev).add(newElement.id));
   };
 
   const removeElement = (id: string) => {
     onChange(elements.filter((e) => e.id !== id));
-    if (expandedId === id) setExpandedId(null);
+    if (expandedIds.has(id)) {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const moveElement = (id: string, direction: "up" | "down") => {
@@ -254,7 +272,7 @@ export function CoverElementsEditor({
   return (
     <div className="space-y-4">
       {/* Element list */}
-      <div className="space-y-2">
+      <div className="space-y-2 px-0.5 w-full max-w-full overflow-hidden">
         {elements.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             Nenhum elemento na capa. Adicione elementos usando os botões abaixo.
@@ -263,45 +281,76 @@ export function CoverElementsEditor({
           elements
             .sort((a, b) => a.order - b.order)
             .map((element, index) => (
-              <Card key={element.id} className="overflow-hidden">
+              <Card
+                key={element.id}
+                className="overflow-hidden w-full max-w-full border shadow-sm"
+              >
                 {/* Header */}
+                {/* Header - Aligned with SectionCard structure */}
                 <div
-                  className="flex items-center gap-2 p-3 bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() =>
-                    setExpandedId(expandedId === element.id ? null : element.id)
-                  }
+                  className={`flex items-center gap-3 p-3 pr-4 bg-muted/50 hover:bg-muted transition-colors cursor-pointer border-l-2 w-full max-w-full overflow-hidden ${expandedIds.has(element.id) ? "border-primary" : "border-transparent hover:border-primary/50"}`}
+                  onMouseEnter={() => {}} // Placeholder
+                  onClick={() => toggleElement(element.id)}
                 >
-                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
-                  <span className="text-muted-foreground">
+                  {/* Drag Handle */}
+                  <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted-foreground/10 rounded outline-none shrink-0">
+                    <GripVertical className="w-4 h-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
+                  </div>
+
+                  {/* Icon Container */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-md bg-background border shrink-0 text-muted-foreground shadow-sm">
                     {getElementIcon(element.type)}
-                  </span>
-                  <span className="font-medium text-sm flex-1 truncate">
-                    {elementTypeLabels[element.type]}
-                    {element.includesClientName && (
-                      <span className="text-primary ml-2 text-xs">
-                        (+ Cliente)
+                  </div>
+
+                  {/* Content Container (Flexible) */}
+                  <div className="flex flex-col gap-0.5 flex-1 min-w-0 w-full overflow-hidden">
+                    {/* Top Row: Type + Badges */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium text-sm truncate text-foreground">
+                        {elementTypeLabels[element.type]}
                       </span>
-                    )}
-                    {element.type !== "divider" &&
-                      (() => {
-                        const preview = getDisplayPreview(element);
-                        return preview ? (
-                          <span className="text-muted-foreground font-normal ml-2">
-                            - {preview.substring(0, 30)}
-                            {preview.length > 30 ? "..." : ""}
-                          </span>
-                        ) : null;
-                      })()}
-                  </span>
-                  <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded">
-                    X:{Math.round(element.x ?? 50)}% Y:
-                    {Math.round(element.y ?? 50)}%
-                  </span>
-                  <div className="flex items-center gap-1">
+                      {element.includesClientName && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary whitespace-nowrap shrink-0">
+                          + Cliente
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bottom Row: Preview + Coords */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
+                      {element.type !== "divider" &&
+                        (() => {
+                          const preview = getDisplayPreview(element);
+                          return preview ? (
+                            <span className="truncate min-w-0 flex-1 block">
+                              {preview}
+                            </span>
+                          ) : (
+                            <span className="italic opacity-50 truncate shrink-0">
+                              Sem conteúdo
+                            </span>
+                          );
+                        })()}
+
+                      {/* Divider dot if both exist */}
+                      {element.type !== "divider" &&
+                        getDisplayPreview(element) && (
+                          <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0 hidden xl:block" />
+                        )}
+
+                      <span className="whitespace-nowrap font-mono opacity-70 hidden xl:block shrink-0">
+                        X:{Math.round(element.x ?? 50)}% Y:
+                        {Math.round(element.y ?? 50)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions (Always visible, shrink-0) */}
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
                         moveElement(element.id, "up");
@@ -313,7 +362,7 @@ export function CoverElementsEditor({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       onClick={(e) => {
                         e.stopPropagation();
                         moveElement(element.id, "down");
@@ -325,7 +374,7 @@ export function CoverElementsEditor({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeElement(element.id);
@@ -333,14 +382,16 @@ export function CoverElementsEditor({
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                    <ChevronRight
-                      className={`w-4 h-4 text-muted-foreground transition-transform ${expandedId === element.id ? "rotate-90" : ""}`}
-                    />
+                    <div
+                      className={`transition-transform duration-200 ${expandedIds.has(element.id) ? "rotate-90" : ""}`}
+                    >
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
                   </div>
                 </div>
 
                 {/* Expanded Content */}
-                {expandedId === element.id && (
+                {expandedIds.has(element.id) && (
                   <CardContent className="pt-4 border-t space-y-4">
                     {/* Prefix/Suffix for backend-sourced elements */}
                     {(element.type === "client-name" ||
@@ -705,7 +756,7 @@ export function CoverElementsEditor({
                     {/* Style controls (not for divider or image) */}
                     {element.type !== "divider" && element.type !== "image" && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                           {/* Font Size */}
                           <div className="grid gap-2">
                             <Label className="text-xs">Tamanho da Fonte</Label>
