@@ -242,8 +242,17 @@ export function TransactionCard({
     }
 
     // 3. Fallback
+    // If the main transaction is a down payment part of a group, and we failed to find an installment wallet above,
+    // returning the down payment wallet would be misleading as the "main" wallet.
+    if (
+      transaction.isDownPayment &&
+      (isProposalGroup || relatedInstallments.length > 0)
+    ) {
+      return undefined;
+    }
+
     return transaction.wallet;
-  }, [isProposalGroup, installments, relatedInstallments, transaction.wallet]);
+  }, [isProposalGroup, installments, relatedInstallments, transaction]);
 
   // Check how many items are expandable
   const hasExpandableContent =

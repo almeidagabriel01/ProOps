@@ -24,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
+import { useSort } from "@/hooks/use-sort";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -34,6 +36,12 @@ export default function SpreadsheetsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    items: sortedSpreadsheets,
+    requestSort,
+    sortConfig,
+  } = useSort(spreadsheets);
 
   const isPageLoading = tenantLoading || loading;
 
@@ -96,11 +104,71 @@ export default function SpreadsheetsPage() {
     }
   };
 
-  const filteredSpreadsheets = spreadsheets.filter((sheet) =>
+  const filteredSpreadsheets = sortedSpreadsheets.filter((sheet) =>
     sheet.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const sheetToDelete = spreadsheets.find((s) => s.id === deleteId);
+  const sheetToDelete = sortedSpreadsheets.find((s) => s.id === deleteId);
+  const columns: DataTableColumn<Spreadsheet>[] = [
+    {
+      key: "name",
+      header: "Nome",
+      className: "col-span-6",
+      render: (sheet) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-md flex items-center justify-center">
+            <FileSpreadsheet className="w-5 h-5 text-green-600 dark:text-green-400" />
+          </div>
+          <Link
+            href={`/spreadsheets/${sheet.id}`}
+            className="font-medium hover:underline"
+          >
+            {sheet.name}
+          </Link>
+        </div>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Data de Criação",
+      className: "col-span-3",
+      render: (sheet) => (
+        <div className="text-sm text-muted-foreground">
+          {new Date(sheet.createdAt || "").toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Ações",
+      className: "col-span-3 text-right",
+      headerClassName: "col-span-3 flex justify-end",
+      sortable: false,
+      render: (sheet) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/spreadsheets/${sheet.id}`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Editar"
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteId(sheet.id)}
+            title="Excluir"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   if (isPageLoading) {
     return (
@@ -186,60 +254,14 @@ export default function SpreadsheetsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {/* Header */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-              <div className="col-span-6">Nome</div>
-              <div className="col-span-3 text-center">Data de Criação</div>
-              <div className="col-span-3 text-right">Ações</div>
-            </div>
-
-            {/* Rows */}
-            {filteredSpreadsheets.map((sheet) => (
-              <Card
-                key={sheet.id}
-                className="hover:bg-muted/50 transition-colors"
-              >
-                <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
-                  <div className="col-span-6 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-md flex items-center justify-center">
-                      <FileSpreadsheet className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <Link
-                      href={`/spreadsheets/${sheet.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {sheet.name}
-                    </Link>
-                  </div>
-                  <div className="col-span-3 text-center text-sm text-muted-foreground">
-                    {new Date(sheet.createdAt || "").toLocaleDateString()}
-                  </div>
-                  <div className="col-span-3 flex items-center justify-end gap-1">
-                    <Link href={`/spreadsheets/${sheet.id}`}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Editar"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteId(sheet.id)}
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredSpreadsheets}
+            keyExtractor={(sheet) => sheet.id}
+            gridClassName="grid-cols-12"
+            onSort={requestSort}
+            sortConfig={sortConfig}
+          />
         )}
       </div>
 

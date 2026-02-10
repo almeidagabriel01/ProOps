@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, FileText } from "lucide-react";
+import { Bell, FileText, Clock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +11,39 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Notification } from "@/types/notification";
+import { Notification, NotificationType } from "@/types/notification";
+
+/**
+ * Retorna o ícone apropriado para cada tipo de notificação
+ */
+function getNotificationIcon(type: NotificationType) {
+  switch (type) {
+    case NotificationType.TRANSACTION_DUE_REMINDER:
+      return Clock;
+    case NotificationType.PROPOSAL_EXPIRING:
+      return AlertTriangle;
+    default:
+      return FileText;
+  }
+}
+
+/**
+ * Retorna o link de navegação apropriado para cada tipo de notificação
+ */
+function getNotificationLink(notification: Notification): string | undefined {
+  switch (notification.type) {
+    case NotificationType.TRANSACTION_DUE_REMINDER:
+      return "/financial";
+    case NotificationType.PROPOSAL_EXPIRING:
+      return notification.proposalId
+        ? `/proposals/${notification.proposalId}/view`
+        : "/proposals";
+    default:
+      return notification.proposalId
+        ? `/proposals/${notification.proposalId}/view`
+        : undefined;
+  }
+}
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } =
@@ -93,10 +125,10 @@ export function NotificationBell() {
             </div>
           ) : (
             notifications.map((notification) => {
-              const Icon = FileText;
-              const linkHref = notification.proposalId
-                ? `/proposals/${notification.proposalId}/view`
-                : undefined;
+              const Icon = getNotificationIcon(
+                notification.type as NotificationType,
+              );
+              const linkHref = getNotificationLink(notification);
 
               const content = (
                 <div

@@ -375,7 +375,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
             }
           }}
           className={cn(
-            "flex items-center h-10 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-2 text-sm text-left cursor-pointer",
+            "flex items-center h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm text-left cursor-pointer",
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
             "hover:border-primary/40 hover:shadow-md",
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",

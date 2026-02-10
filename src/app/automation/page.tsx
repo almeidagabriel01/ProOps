@@ -177,10 +177,11 @@ export default function AutomationAdminPage() {
               animate={{ opacity: 1, x: 0 }}
             >
               <Button
+                size="lg"
                 onClick={() => setEditingSistemaId("new")}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 rounded-full px-6"
+                className="gap-2"
               >
-                <Plus className="mr-2 h-4 w-4" /> Novo Sistema
+                <Plus className="w-5 h-5" /> Novo Sistema
               </Button>
             </motion.div>
           )}
