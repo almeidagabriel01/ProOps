@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
@@ -192,20 +193,18 @@ export function TransactionFilters({
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             de:
           </span>
-          <Input
-            type="date"
+          <DatePicker
             value={filterStartDate || ""}
             onChange={(e) => onStartDateChange?.(e.target.value)}
-            className="w-auto min-w-[140px] h-9 py-1"
+            className="w-auto min-w-[140px]"
           />
           <span className="text-sm text-muted-foreground whitespace-nowrap">
             até
           </span>
-          <Input
-            type="date"
+          <DatePicker
             value={filterEndDate || ""}
             onChange={(e) => onEndDateChange?.(e.target.value)}
-            className="w-auto min-w-[140px] h-9 py-1"
+            className="w-auto min-w-[140px]"
           />
         </div>
 

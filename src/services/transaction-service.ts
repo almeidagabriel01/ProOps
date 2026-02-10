@@ -145,12 +145,16 @@ export const TransactionService = {
     }
   },
 
-  getInstallmentsByGroupId: async (groupId: string): Promise<Transaction[]> => {
+  getInstallmentsByGroupId: async (
+    groupId: string,
+    tenantId?: string,
+  ): Promise<Transaction[]> => {
     try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("installmentGroupId", "==", groupId),
-      );
+      const constraints = [where("installmentGroupId", "==", groupId)];
+      if (tenantId) {
+        constraints.push(where("tenantId", "==", tenantId));
+      }
+      const q = query(collection(db, COLLECTION_NAME), ...constraints);
       const querySnapshot = await getDocs(q);
       const transactions = querySnapshot.docs.map((doc) => ({
         id: doc.id,

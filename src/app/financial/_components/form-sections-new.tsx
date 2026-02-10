@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { DateInput } from "@/components/ui/date-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ClientSelect } from "@/components/features/client-select";
 import { WalletSelect } from "@/components/features/wallet-select";
 import {
@@ -44,9 +44,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("income")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${type === "income"
-            ? "border-green-500 bg-linear-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
-            : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
+          ${
+            type === "income"
+              ? "border-green-500 bg-linear-to-br from-green-500/10 to-green-500/5 shadow-lg shadow-green-500/10"
+              : "border-border/50 bg-card hover:border-green-500/40 hover:bg-green-500/5"
           }
         `}
       >
@@ -54,9 +55,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           <div
             className={`
               w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-              ${type === "income"
-                ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
-                : "bg-green-500/10 text-green-500"
+              ${
+                type === "income"
+                  ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
+                  : "bg-green-500/10 text-green-500"
               }
             `}
           >
@@ -64,8 +66,11 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           </div>
           <div className="text-center">
             <p
-              className={`font-bold text-lg ${type === "income" ? "text-green-600 dark:text-green-400" : "text-foreground"
-                }`}
+              className={`font-bold text-lg ${
+                type === "income"
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-foreground"
+              }`}
             >
               Receita
             </p>
@@ -97,9 +102,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
         onClick={() => onTypeChange("expense")}
         className={`
           relative overflow-hidden rounded-2xl border-2 p-6 transition-all duration-300
-          ${type === "expense"
-            ? "border-red-500 bg-linear-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
-            : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
+          ${
+            type === "expense"
+              ? "border-red-500 bg-linear-to-br from-red-500/10 to-red-500/5 shadow-lg shadow-red-500/10"
+              : "border-border/50 bg-card hover:border-red-500/40 hover:bg-red-500/5"
           }
         `}
       >
@@ -107,9 +113,10 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           <div
             className={`
               w-14 h-14 rounded-2xl flex items-center justify-center transition-all
-              ${type === "expense"
-                ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
-                : "bg-red-500/10 text-red-500"
+              ${
+                type === "expense"
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
+                  : "bg-red-500/10 text-red-500"
               }
             `}
           >
@@ -117,8 +124,11 @@ export function TypeSelectorNew({ type, onTypeChange }: TypeSelectorNewProps) {
           </div>
           <div className="text-center">
             <p
-              className={`font-bold text-lg ${type === "expense" ? "text-red-600 dark:text-red-400" : "text-foreground"
-                }`}
+              className={`font-bold text-lg ${
+                type === "expense"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-foreground"
+              }`}
             >
               Despesa
             </p>
@@ -156,7 +166,7 @@ interface DetailsStepProps {
   onChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
 }
 
@@ -191,14 +201,10 @@ export function DetailsStep({ formData, onChange }: DetailsStepProps) {
 
         <FormGroup>
           <FormItem label="Data de Competência *" htmlFor="date">
-            <DateInput
-              name="date"
-              value={formData.date}
-              onChange={onChange}
-            />
+            <DatePicker name="date" value={formData.date} onChange={onChange} />
           </FormItem>
           <FormItem label="Data de Vencimento" htmlFor="dueDate">
-            <DateInput
+            <DatePicker
               name="dueDate"
               value={formData.dueDate || ""}
               onChange={onChange}
@@ -237,10 +243,10 @@ interface PaymentStepProps {
   onChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
   onFormDataChange: (
-    updater: (prev: TransactionFormData) => TransactionFormData
+    updater: (prev: TransactionFormData) => TransactionFormData,
   ) => void;
 }
 
@@ -260,9 +266,10 @@ export function PaymentStep({
           <div
             className={`
               w-10 h-10 rounded-xl flex items-center justify-center
-              ${formData.isInstallment
-                ? "bg-primary/15 text-primary"
-                : "bg-muted text-muted-foreground"
+              ${
+                formData.isInstallment
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground"
               }
             `}
           >
@@ -314,8 +321,8 @@ export function PaymentStep({
                 <span className="font-bold text-primary">
                   {formData.amount
                     ? `R$ ${(
-                      parseFloat(formData.amount) / formData.installmentCount
-                    ).toFixed(2)}`
+                        parseFloat(formData.amount) / formData.installmentCount
+                      ).toFixed(2)}`
                     : "R$ 0,00"}
                 </span>
               </div>

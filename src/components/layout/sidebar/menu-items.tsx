@@ -21,7 +21,8 @@ export function MenuItemLink({
     <Link
       href={item.href}
       className={cn(
-        "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+        "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+        isExpanded ? "gap-3" : "gap-0 justify-center px-0",
         isActive
           ? "bg-primary/10 text-primary shadow-sm"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -33,24 +34,28 @@ export function MenuItemLink({
           !isActive && "group-hover:scale-110",
         )}
       />
-      <span
-        className={cn(
-          "whitespace-nowrap transition-all duration-300",
-          isExpanded
-            ? "opacity-100 translate-x-0"
-            : "opacity-0 -translate-x-2 w-0",
-          !isActive && "group-hover:translate-x-1",
-        )}
-      >
-        {item.label}
-      </span>
-      {isActive && (
-        <div
-          className={cn(
-            "ml-auto h-2 w-2 rounded-full bg-primary transition-all duration-300",
-            isExpanded ? "opacity-100" : "opacity-0",
+      {isExpanded && (
+        <>
+          <span
+            className={cn(
+              "whitespace-nowrap transition-all duration-300",
+              isExpanded
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 -translate-x-2 w-0",
+              !isActive && "group-hover:translate-x-1",
+            )}
+          >
+            {item.label}
+          </span>
+          {isActive && (
+            <div
+              className={cn(
+                "ml-auto h-2 w-2 rounded-full bg-primary transition-all duration-300",
+                isExpanded ? "opacity-100" : "opacity-0",
+              )}
+            />
           )}
-        />
+        </>
       )}
     </Link>
   );
@@ -72,7 +77,10 @@ export function RestrictedMenuItem({
   return (
     <button
       onClick={onUpgrade}
-      className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10 cursor-pointer"
+      className={cn(
+        "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10 cursor-pointer",
+        isExpanded ? "gap-3" : "gap-0 justify-center px-0",
+      )}
       style={{ color: premiumColor }}
     >
       <div className="relative shrink-0">
@@ -85,23 +93,27 @@ export function RestrictedMenuItem({
           style={{ color: premiumColor }}
         />
       </div>
-      <span
-        className={cn(
-          "whitespace-nowrap transition-all duration-300 flex-1 text-left",
-          isExpanded
-            ? "opacity-100 translate-x-0"
-            : "opacity-0 -translate-x-2 w-0",
-        )}
-      >
-        {item.label}
-      </span>
-      <Crown
-        className={cn(
-          "w-4 h-4 shrink-0 transition-all duration-300",
-          isExpanded ? "opacity-100" : "opacity-0",
-        )}
-        style={{ color: premiumColor }}
-      />
+      {isExpanded && (
+        <>
+          <span
+            className={cn(
+              "whitespace-nowrap transition-all duration-300 flex-1 text-left",
+              isExpanded
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 -translate-x-2 w-0",
+            )}
+          >
+            {item.label}
+          </span>
+          <Crown
+            className={cn(
+              "w-4 h-4 shrink-0 transition-all duration-300",
+              isExpanded ? "opacity-100" : "opacity-0",
+            )}
+            style={{ color: premiumColor }}
+          />
+        </>
+      )}
     </button>
   );
 }
@@ -132,8 +144,9 @@ export function SubmenuItem({
       <button
         onClick={onToggle}
         className={cn(
-          "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
-          isParentActive || isSubmenuOpen
+          "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
+          isExpanded ? "gap-3" : "gap-0 justify-center px-0",
+          isParentActive
             ? "text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
@@ -144,23 +157,27 @@ export function SubmenuItem({
             !isParentActive && "group-hover:scale-110",
           )}
         />
-        <span
-          className={cn(
-            "whitespace-nowrap transition-all duration-300 flex-1 text-left",
-            isExpanded
-              ? "opacity-100 translate-x-0"
-              : "opacity-0 -translate-x-2 w-0",
-          )}
-        >
-          {item.label}
-        </span>
-        <ChevronRight
-          className={cn(
-            "w-4 h-4 shrink-0 transition-all duration-300",
-            isExpanded ? "opacity-100" : "opacity-0",
-            isSubmenuOpen && "rotate-90",
-          )}
-        />
+        {isExpanded && (
+          <>
+            <span
+              className={cn(
+                "whitespace-nowrap transition-all duration-300 flex-1 text-left",
+                isExpanded
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 -translate-x-2 w-0",
+              )}
+            >
+              {item.label}
+            </span>
+            <ChevronRight
+              className={cn(
+                "w-4 h-4 shrink-0 transition-all duration-300",
+                isExpanded ? "opacity-100" : "opacity-0",
+                isSubmenuOpen && "rotate-90",
+              )}
+            />
+          </>
+        )}
       </button>
 
       {/* Submenu items */}
@@ -168,9 +185,7 @@ export function SubmenuItem({
         <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/50 pl-3">
           {visibleChildren.map((child) => {
             const isChildActive =
-              pathname === child.href ||
-              (child.href !== "/financial" &&
-                pathname.startsWith(child.href + "/"));
+              pathname === child.href || pathname.startsWith(child.href + "/");
 
             return (
               <Link

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -252,10 +253,9 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="validUntil">Válida até</Label>
-                  <Input
+                  <DatePicker
                     id="validUntil"
                     name="validUntil"
-                    type="date"
                     value={
                       formData.validUntil
                         ? formData.validUntil.split("T")[0]

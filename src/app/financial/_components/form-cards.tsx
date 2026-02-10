@@ -4,7 +4,7 @@ import { FormCard } from "@/components/ui/form-card";
 import { FormField, FormRow } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { DateInput } from "@/components/ui/date-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -136,7 +136,7 @@ export function DetailsCard({ formData, onChange }: DetailsCardProps) {
 
       <FormRow cols={3}>
         <FormField label="Data" htmlFor="date" required>
-          <DateInput
+          <DatePicker
             id="date"
             name="date"
             value={formData.date}
@@ -145,7 +145,7 @@ export function DetailsCard({ formData, onChange }: DetailsCardProps) {
           />
         </FormField>
         <FormField label="Vencimento" htmlFor="dueDate">
-          <DateInput
+          <DatePicker
             id="dueDate"
             name="dueDate"
             value={formData.dueDate}

@@ -9,7 +9,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Transaction } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
@@ -86,9 +87,9 @@ export function PartialPaymentDialog({
 
           <div className="space-y-2">
             <Label htmlFor="date">Data do Pagamento</Label>
-            <Input
+            <DatePicker
               id="date"
-              type="date"
+              name="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required

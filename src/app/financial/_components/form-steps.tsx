@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { DateInput } from "@/components/ui/date-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ClientSelect } from "@/components/features/client-select";
 import { WalletSelect } from "@/components/features/wallet-select";
 import { FormGroup, FormItem } from "@/components/ui/form-components";
@@ -234,7 +234,7 @@ export function DetailsStep({
       </FormGroup>
 
       <FormItem label="Data" htmlFor="date" required error={errors.date}>
-        <DateInput
+        <DatePicker
           id="date"
           name="date"
           value={formData.date}
@@ -451,7 +451,7 @@ export function PaymentStep({
               required={formData.type === "income"}
               error={errors.dueDate}
             >
-              <DateInput
+              <DatePicker
                 id="dueDate"
                 name="dueDate"
                 value={formData.dueDate}
@@ -562,8 +562,7 @@ export function PaymentStep({
                     >
                       Data da Entrada
                     </Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       id="downPaymentDueDateTotal"
                       name="downPaymentDueDate"
                       value={formData.downPaymentDueDate || ""}
@@ -660,7 +659,7 @@ export function PaymentStep({
                   required={formData.type === "income"}
                   error={errors.dueDate}
                 >
-                  <DateInput
+                  <DatePicker
                     id="dueDateInstallment"
                     name="dueDate"
                     value={formData.dueDate}
@@ -793,8 +792,7 @@ export function PaymentStep({
                   >
                     Data da Entrada
                   </Label>
-                  <Input
-                    type="date"
+                  <DatePicker
                     id="downPaymentDueDateAdvanced"
                     name="downPaymentDueDate"
                     value={formData.downPaymentDueDate || ""}
@@ -913,8 +911,7 @@ export function PaymentStep({
                     <Label htmlFor="firstInstallmentDate">
                       Vencimento da 1ª Parcela
                     </Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       id="firstInstallmentDate"
                       name="firstInstallmentDate"
                       value={formData.firstInstallmentDate || ""}

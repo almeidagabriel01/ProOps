@@ -83,7 +83,13 @@ export function useSidebar(
   }, []);
 
   // Auto-expand menu if one of its children is active
-  useEffect(() => {
+  // Using render-time state update pattern to avoid useEffect/setState warning
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    const newExpandedMenus = new Set<string>();
+
     menuItems.forEach((item) => {
       if (item.children) {
         const isChildActive = item.children.some(
@@ -91,11 +97,13 @@ export function useSidebar(
             pathname === child.href || pathname.startsWith(child.href + "/"),
         );
         if (isChildActive) {
-          setExpandedMenus((prev) => new Set([...prev, item.href]));
+          newExpandedMenus.add(item.href);
         }
       }
     });
-  }, [pathname]);
+
+    setExpandedMenus(newExpandedMenus);
+  }
 
   // Fetch user's current plan name (or tenant owner's plan for superadmin viewing)
   useEffect(() => {

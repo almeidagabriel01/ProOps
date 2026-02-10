@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { TenantNiche, NICHE_LABELS } from "@/types";
@@ -428,9 +429,9 @@ export function TenantDialog({
                       <Label htmlFor="currentPeriodEnd" className="mb-3 block">
                         Próximo Pagamento
                       </Label>
-                      <Input
+                      <DatePicker
                         id="currentPeriodEnd"
-                        type="date"
+                        name="currentPeriodEnd"
                         value={
                           formData.currentPeriodEnd
                             ? formData.currentPeriodEnd.split("T")[0]
@@ -439,9 +440,6 @@ export function TenantDialog({
                         onChange={(e) => {
                           setFormData({
                             ...formData,
-                            // Ideally keep simple YYYY-MM-DD.
-                            // If backend STRICTLY needs full ISO, we might need to change this,
-                            // but usually preserving the date string is safester.
                             currentPeriodEnd: e.target.value,
                           });
                         }}

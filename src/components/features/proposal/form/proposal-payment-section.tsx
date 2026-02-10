@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { CreditCard, Wallet, Calendar, Banknote } from "lucide-react";
@@ -223,16 +224,19 @@ export function ProposalPaymentSection({
 
             {/* First Installment Date */}
             <div className="flex items-center gap-2">
-              <Calendar className={`w-4 h-4 ${errors.firstInstallmentDate ? "text-destructive" : "text-muted-foreground"}`} />
+              <Calendar
+                className={`w-4 h-4 ${errors.firstInstallmentDate ? "text-destructive" : "text-muted-foreground"}`}
+              />
               <div className="flex-1">
-                <Label 
+                <Label
                   htmlFor="firstInstallmentDate"
-                  className={errors.firstInstallmentDate ? "text-destructive" : ""}
+                  className={
+                    errors.firstInstallmentDate ? "text-destructive" : ""
+                  }
                 >
                   Vencimento da 1ª Parcela
                 </Label>
-                <Input
-                  type="date"
+                <DatePicker
                   id="firstInstallmentDate"
                   name="firstInstallmentDate"
                   value={formData.firstInstallmentDate || ""}
@@ -323,16 +327,19 @@ export function ProposalPaymentSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Calendar className={`w-4 h-4 ${errors.downPaymentDueDate ? "text-destructive" : "text-muted-foreground"}`} />
+                    <Calendar
+                      className={`w-4 h-4 ${errors.downPaymentDueDate ? "text-destructive" : "text-muted-foreground"}`}
+                    />
                     <div className="flex-1">
-                      <Label 
+                      <Label
                         htmlFor="downPaymentDueDate"
-                        className={errors.downPaymentDueDate ? "text-destructive" : ""}
+                        className={
+                          errors.downPaymentDueDate ? "text-destructive" : ""
+                        }
                       >
                         Data da Entrada
                       </Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         id="downPaymentDueDate"
                         name="downPaymentDueDate"
                         value={formData.downPaymentDueDate || ""}

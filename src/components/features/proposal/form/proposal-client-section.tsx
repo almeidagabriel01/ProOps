@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { DateInput } from "@/components/ui/date-input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ClientSelect } from "@/components/features/client-select";
 import { Proposal } from "@/services/proposal-service";
 import { ClientType } from "@/services/client-service";
@@ -197,7 +197,7 @@ export function ProposalClientSection({
           required
           error={errors.validUntil}
         >
-          <DateInput
+          <DatePicker
             id="validUntil"
             name="validUntil"
             value={formData.validUntil ? formData.validUntil.split("T")[0] : ""}

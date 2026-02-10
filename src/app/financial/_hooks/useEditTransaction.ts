@@ -153,6 +153,7 @@ export function useEditTransaction() {
         try {
           const group = await TransactionService.getInstallmentsByGroupId(
             safeData.installmentGroupId,
+            safeData.tenantId,
           );
           // Sort by installment number
           const sorted = group.sort(

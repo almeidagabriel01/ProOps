@@ -354,6 +354,13 @@ export type SheetData = {
 
 export interface WorkbookInstance {
   getCellValue: (r: number, c: number) => CellStyle | string | number | null;
+  setCellValue: (
+    row: number,
+    column: number,
+    value: unknown,
+    options?: Record<string, unknown>,
+  ) => void;
+  getSelection: () => { row: number[]; column: number[] }[] | undefined;
+  setSelection: (range: { row: number[]; column: number[] }[]) => void;
   getAllSheets: () => SheetData[];
-  // Add other methods used from the ref
 }
