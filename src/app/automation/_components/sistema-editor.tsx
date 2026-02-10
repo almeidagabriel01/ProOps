@@ -206,7 +206,7 @@ export function SistemaEditor({
     const newProd: AmbienteProduct = {
       productId: product.id,
       productName: product.name,
-      quantity: 1,
+      quantity: 0,
       status: "active",
     };
     updateActiveProducts([...currentProducts, newProd]);
@@ -228,7 +228,7 @@ export function SistemaEditor({
     updateActiveProducts(
       currentProducts.map((p) => {
         if (p.productId === productId) {
-          return { ...p, quantity: Math.max(1, p.quantity + delta) };
+          return { ...p, quantity: Math.max(0, p.quantity + delta) };
         }
         return p;
       }),
