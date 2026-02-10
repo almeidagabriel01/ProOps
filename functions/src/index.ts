@@ -22,6 +22,7 @@ export { api } from "./api";
 
 // 2. Scheduled Tasks
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
+export { checkDueDates } from "./checkDueDates";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

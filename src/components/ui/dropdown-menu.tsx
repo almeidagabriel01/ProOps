@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface DropdownMenuProps {
@@ -10,9 +11,13 @@ interface DropdownMenuProps {
 const DropdownMenuContext = React.createContext<{
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  triggerRef: React.RefObject<HTMLDivElement | null>;
+  contentRef: (node: HTMLDivElement | null) => void;
 }>({
   open: false,
   setOpen: () => {},
+  triggerRef: { current: null },
+  contentRef: () => {},
 });
 
 export function useDropdownMenuContext() {
@@ -22,13 +27,17 @@ export function useDropdownMenuContext() {
 export function DropdownMenu({ children }: DropdownMenuProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const portalContentRef = React.useRef<HTMLDivElement>(null);
+  const handleContentRef = React.useCallback((node: HTMLDivElement | null) => {
+    portalContentRef.current = node;
+  }, []);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const isInsideContainer = containerRef.current?.contains(target);
+      const isInsidePortal = portalContentRef.current?.contains(target);
+      if (!isInsideContainer && !isInsidePortal) {
         setOpen(false);
       }
     };
@@ -41,7 +50,14 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
   }, [open]);
 
   return (
-    <DropdownMenuContext.Provider value={{ open, setOpen }}>
+    <DropdownMenuContext.Provider
+      value={{
+        open,
+        setOpen,
+        triggerRef: containerRef,
+        contentRef: handleContentRef,
+      }}
+    >
       <div className="relative inline-block text-left" ref={containerRef}>
         {children}
       </div>
@@ -98,41 +114,68 @@ export function DropdownMenuContent({
   side?: "top" | "right" | "bottom" | "left";
   forceMount?: boolean;
 }) {
-  const { open } = React.useContext(DropdownMenuContext);
+  const { open, triggerRef, contentRef } =
+    React.useContext(DropdownMenuContext);
+  const localRef = React.useRef<HTMLDivElement>(null);
+  const [position, setPosition] = React.useState<{ top: number; left: number }>(
+    { top: 0, left: 0 },
+  );
+
+  React.useEffect(() => {
+    if (!open || !triggerRef?.current) return;
+
+    const rect = triggerRef.current.getBoundingClientRect();
+    const contentEl = localRef.current;
+    const contentWidth = contentEl?.offsetWidth || 200;
+
+    let top = 0;
+    let left = 0;
+
+    // Side positioning
+    if (side === "bottom") {
+      top = rect.bottom + 8;
+    } else if (side === "top") {
+      top = rect.top - 8 - (contentEl?.offsetHeight || 0);
+    }
+
+    // Align positioning
+    if (align === "end") {
+      left = rect.right - contentWidth;
+    } else if (align === "start") {
+      left = rect.left;
+    } else {
+      left = rect.left + rect.width / 2 - contentWidth / 2;
+    }
+
+    // Clamp to viewport
+    left = Math.max(8, Math.min(left, window.innerWidth - contentWidth - 8));
+
+    setPosition({ top, left });
+  }, [open, align, side, triggerRef]);
 
   if (!open) return null;
 
-  // Alignment classes for horizontal positioning (when side is top/bottom)
-  const alignmentClasses = {
-    start: "left-0",
-    center: "left-1/2 -translate-x-1/2",
-    end: "right-0",
-  };
-
-  // Side positioning classes
-  const sideClasses = {
-    top: "bottom-full mb-2",
-    bottom: "top-full mt-2",
-    left: "right-full mr-2 top-0",
-    right: "left-full ml-2 top-0",
-  };
-
-  // Only apply horizontal alignment for top/bottom sides
-  const positionClasses =
-    side === "left" || side === "right"
-      ? sideClasses[side]
-      : cn(sideClasses[side], alignmentClasses[align]);
-
-  return (
+  return ReactDOM.createPortal(
     <div
+      ref={(el) => {
+        (localRef as React.MutableRefObject<HTMLDivElement | null>).current =
+          el;
+        contentRef(el);
+      }}
+      style={{
+        position: "fixed",
+        top: position.top,
+        left: position.left,
+        zIndex: 9999,
+      }}
       className={cn(
-        "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        positionClasses,
+        "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
         className,
       )}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

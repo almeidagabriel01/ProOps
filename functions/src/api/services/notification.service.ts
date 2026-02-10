@@ -6,6 +6,8 @@ import { db } from "../../init";
 export type NotificationType =
   | "proposal_viewed"
   | "proposal_approved"
+  | "transaction_due_reminder"
+  | "proposal_expiring"
   | "system";
 
 /**
@@ -20,6 +22,7 @@ export interface Notification {
   message: string;
   proposalId?: string;
   sharedProposalId?: string;
+  transactionId?: string;
   isRead: boolean;
   createdAt: string;
   readAt?: string;
@@ -33,6 +36,7 @@ export interface CreateNotificationData {
   message: string;
   proposalId?: string;
   sharedProposalId?: string;
+  transactionId?: string;
 }
 
 /**
@@ -176,6 +180,33 @@ export class NotificationService {
     } catch (error) {
       console.error("Error marking all as read:", error);
       throw new Error("Failed to mark all as read");
+    }
+  }
+
+  /**
+   * Verifica se já existe uma notificação não-lida do mesmo tipo para o mesmo recurso.
+   * Usado para evitar notificações duplicadas de lembrete de vencimento.
+   */
+  static async findExistingReminder(
+    tenantId: string,
+    type: NotificationType,
+    resourceId: string,
+    resourceField: "transactionId" | "proposalId",
+  ): Promise<boolean> {
+    try {
+      const snapshot = await db
+        .collection(this.COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .where("type", "==", type)
+        .where(resourceField, "==", resourceId)
+        .where("isRead", "==", false)
+        .limit(1)
+        .get();
+
+      return !snapshot.empty;
+    } catch (error) {
+      console.error("Error finding existing reminder:", error);
+      return false;
     }
   }
 }

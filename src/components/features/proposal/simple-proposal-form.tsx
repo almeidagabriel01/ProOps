@@ -432,11 +432,12 @@ export function SimpleProposalForm({
           // Check if there's at least one active product
           const activeProducts = environmentProducts.filter((p) => {
             // Product is active if its local status is 'active' (default) or undefined
-            return p.status !== "inactive";
+            // AND quantity is greater than 0
+            return p.status !== "inactive" && (p.quantity || 0) > 0;
           });
 
           if (activeProducts.length === 0 && environmentProducts.length > 0) {
-            const errorMessage = `O sistema "${sistema.sistemaName}" - Ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo. Ative pelo menos 1 produto ou remova o sistema.`;
+            const errorMessage = `O sistema "${sistema.sistemaName}" - Ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
             setFieldError("sistemas", errorMessage);
             toast.error(errorMessage, { autoClose: 5000 });
             return false;
