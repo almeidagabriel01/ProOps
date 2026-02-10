@@ -21,8 +21,8 @@ export function MenuItemLink({
     <Link
       href={item.href}
       className={cn(
-        "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
-        isExpanded ? "gap-3" : "gap-0 justify-center px-0",
+        "group flex items-center py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer",
+        isExpanded ? "gap-3 px-3" : "gap-0 px-0 pl-[14px]",
         isActive
           ? "bg-primary/10 text-primary shadow-sm"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -78,8 +78,8 @@ export function RestrictedMenuItem({
     <button
       onClick={onUpgrade}
       className={cn(
-        "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10 cursor-pointer",
-        isExpanded ? "gap-3" : "gap-0 justify-center px-0",
+        "group flex items-center py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full hover:bg-primary/10 cursor-pointer",
+        isExpanded ? "gap-3 px-3" : "gap-0 px-0 pl-[14px]",
       )}
       style={{ color: premiumColor }}
     >
@@ -144,8 +144,8 @@ export function SubmenuItem({
       <button
         onClick={onToggle}
         className={cn(
-          "group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
-          isExpanded ? "gap-3" : "gap-0 justify-center px-0",
+          "group flex items-center py-2.5 rounded-lg text-sm font-medium transition-all duration-200 w-full cursor-pointer",
+          isExpanded ? "gap-3 px-3" : "gap-0 px-0 pl-[14px]",
           isParentActive
             ? "text-primary"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -184,8 +184,20 @@ export function SubmenuItem({
       {isSubmenuOpen && isExpanded && (
         <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/50 pl-3">
           {visibleChildren.map((child) => {
-            const isChildActive =
+            // Check if this child matches
+            const matches =
               pathname === child.href || pathname.startsWith(child.href + "/");
+
+            // Check if any OTHER child has a longer match (is more specific)
+            const hasMoreSpecificMatch = visibleChildren.some(
+              (other) =>
+                other !== child &&
+                other.href.length > child.href.length &&
+                (pathname === other.href ||
+                  pathname.startsWith(other.href + "/")),
+            );
+
+            const isChildActive = matches && !hasMoreSpecificMatch;
 
             return (
               <Link
