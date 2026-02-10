@@ -106,20 +106,25 @@ interface UseFinancialDataReturn {
   deleteTransactionGroup: (transaction: Transaction) => Promise<boolean>;
   updateTransactionStatus: (
     transaction: Transaction,
-    newStatus: Transaction["status"]
+    newStatus: Transaction["status"],
   ) => Promise<boolean>;
   updateTransaction: (
     transaction: Transaction,
-    data: Partial<Transaction>
+    data: Partial<Transaction>,
   ) => Promise<boolean>;
   updateBatchTransactions: (
-    updates: { id: string; data: Partial<Transaction> }[]
+    updates: { id: string; data: Partial<Transaction> }[],
   ) => Promise<boolean>;
   updateGroupStatus: (
     transaction: Transaction,
-    newStatus: Transaction["status"]
+    newStatus: Transaction["status"],
   ) => Promise<boolean>;
-  refreshData: () => Promise<void>;
+  registerPartialPayment: (
+    originalTransaction: Transaction,
+    amount: number,
+    date: string,
+  ) => Promise<void>;
+  refreshData: (background?: boolean) => Promise<void>;
 }
 
 export function useFinancialData(): UseFinancialDataReturn {
@@ -129,7 +134,7 @@ export function useFinancialData(): UseFinancialDataReturn {
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterType, setFilterType] = React.useState<TransactionType | "all">(
-    "all"
+    "all",
   );
   const [filterStatus, setFilterStatus] = React.useState<
     TransactionStatus | "all"
@@ -139,9 +144,11 @@ export function useFinancialData(): UseFinancialDataReturn {
   const [filterEndDate, setFilterEndDate] = React.useState<string>("");
   const [filterDateType, setFilterDateType] = React.useState<
     "date" | "dueDate"
-  >("date");
+  >("dueDate");
   const [sortBy, setSortBy] = React.useState<"date" | "created">("created");
-  const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">("grouped");
+  const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
+    "grouped",
+  );
   const [totalWalletBalance, setTotalWalletBalance] = React.useState<number>(0);
   const [summary, setSummary] = React.useState<FinancialSummary>({
     totalIncome: 0,
@@ -150,30 +157,33 @@ export function useFinancialData(): UseFinancialDataReturn {
     pendingExpense: 0,
   });
 
-  const fetchData = React.useCallback(async () => {
-    if (!tenant || (!hasFinancial && !isPlanLoading)) return;
+  const fetchData = React.useCallback(
+    async (background = false) => {
+      if (!tenant || (!hasFinancial && !isPlanLoading)) return;
 
-    setIsLoading(true);
-    try {
-      const [data, summaryData, wallets] = await Promise.all([
-        TransactionService.getTransactions(tenant.id),
-        TransactionService.getSummary(tenant.id),
-        WalletService.getWallets(tenant.id),
-      ]);
-      setTransactions(data);
-      setSummary(summaryData);
+      if (!background) setIsLoading(true);
+      try {
+        const [data, summaryData, wallets] = await Promise.all([
+          TransactionService.getTransactions(tenant.id),
+          TransactionService.getSummary(tenant.id),
+          WalletService.getWallets(tenant.id),
+        ]);
+        setTransactions(data);
+        setSummary(summaryData);
 
-      // Calculate total wallet balance from active wallets
-      const totalBalance = wallets
-        .filter((w) => w.status === "active")
-        .reduce((sum, w) => sum + w.balance, 0);
-      setTotalWalletBalance(totalBalance);
-    } catch (error) {
-      console.error("Failed to fetch transactions", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tenant, hasFinancial, isPlanLoading]);
+        // Calculate total wallet balance from active wallets
+        const totalBalance = wallets
+          .filter((w) => w.status === "active")
+          .reduce((sum, w) => sum + w.balance, 0);
+        setTotalWalletBalance(totalBalance);
+      } catch (error) {
+        console.error("Failed to fetch transactions", error);
+      } finally {
+        if (!background) setIsLoading(false);
+      }
+    },
+    [tenant, hasFinancial, isPlanLoading],
+  );
 
   React.useEffect(() => {
     fetchData();
@@ -196,7 +206,7 @@ export function useFinancialData(): UseFinancialDataReturn {
       // Pre-sort transactions by date to ensure order (though we sort again later)
       // We need to look at all transactions to find the representatives
       const sortedRaw = [...transactions].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
 
       sortedRaw.forEach((t) => {
@@ -206,7 +216,7 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // Find all transactions belonging to this proposal group
           const proposalGroup = transactions.filter(
-            (g) => g.proposalGroupId === t.proposalGroupId
+            (g) => g.proposalGroupId === t.proposalGroupId,
           );
 
           // Find the down payment transaction as the base for the representative
@@ -217,31 +227,37 @@ export function useFinancialData(): UseFinancialDataReturn {
             // Calculate aggregate status
             // Priority: Overdue > Pending > Paid
             let aggregateStatus: Transaction["status"] = "paid";
-            
-            const hasOverdue = proposalGroup.some(g => g.status === "overdue");
-            const hasPending = proposalGroup.some(g => g.status === "pending");
-            
+
+            const hasOverdue = proposalGroup.some(
+              (g) => g.status === "overdue",
+            );
+            const hasPending = proposalGroup.some(
+              (g) => g.status === "pending",
+            );
+
             if (hasOverdue) {
               aggregateStatus = "overdue";
             } else if (hasPending) {
               aggregateStatus = "pending";
             }
-            
+
             // Create a synthetic representative with the aggregate status
             // This ensures the main card reflects the group state
             const representative = {
               ...base,
-              status: aggregateStatus
+              status: aggregateStatus,
             };
 
             effectiveTransactions.push(representative);
             processedProposalGroups.add(t.proposalGroupId);
-            
+
             // Also mark the installmentGroupId as processed to avoid duplicates
             const installmentGroupIds = proposalGroup
-              .filter(g => g.installmentGroupId)
-              .map(g => g.installmentGroupId!);
-            installmentGroupIds.forEach(id => processedInstallmentGroups.add(id));
+              .filter((g) => g.installmentGroupId)
+              .map((g) => g.installmentGroupId!);
+            installmentGroupIds.forEach((id) =>
+              processedInstallmentGroups.add(id),
+            );
           }
           return;
         }
@@ -253,7 +269,7 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // Find all belonging to this group (both installments and down payments)
           const group = transactions.filter(
-            (g) => g.installmentGroupId === t.installmentGroupId
+            (g) => g.installmentGroupId === t.installmentGroupId,
           );
 
           // Sort group: down payment first (installmentNumber 0), then by installment number
@@ -313,7 +329,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         ) {
           // Get all installments in this group
           const group = transactions.filter(
-            (g) => g.installmentGroupId === t.installmentGroupId
+            (g) => g.installmentGroupId === t.installmentGroupId,
           );
 
           // Check if ANY installment has dueDate in the range
@@ -371,7 +387,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           t.description.toLowerCase().includes(term) ||
           t.clientName?.toLowerCase().includes(term) ||
           t.category?.toLowerCase().includes(term) ||
-          t.wallet?.toLowerCase().includes(term)
+          t.wallet?.toLowerCase().includes(term),
       );
     }
 
@@ -424,19 +440,13 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         await TransactionService.deleteTransaction(transaction.id);
+
+        // Optimistic update
         setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+
+        // Refresh truth from server (background)
+        await fetchData(true);
+
         toast.success("Lançamento excluído com sucesso!");
         return true;
       } catch (error) {
@@ -445,7 +455,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant]
+    [fetchData],
   );
 
   // Delete all installments in a group
@@ -453,46 +463,39 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         // If it's an installment, delete all in the group
-        if ((transaction.isInstallment || transaction.isDownPayment) && transaction.installmentGroupId) {
+        if (
+          (transaction.isInstallment || transaction.isDownPayment) &&
+          transaction.installmentGroupId
+        ) {
           const groupTransactions = transactions.filter(
-            (t) => t.installmentGroupId === transaction.installmentGroupId
+            (t) => t.installmentGroupId === transaction.installmentGroupId,
           );
 
           // Delete all installments
           await Promise.all(
             groupTransactions.map((t) =>
-              TransactionService.deleteTransaction(t.id)
-            )
+              TransactionService.deleteTransaction(t.id),
+            ),
           );
 
-          // Remove all from local state
+          // Optimistic update
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
 
           toast.success(
-            `${groupTransactions.length} parcelas excluídas com sucesso!`
+            `${groupTransactions.length} parcelas excluídas com sucesso!`,
           );
         } else {
           // Single transaction
           await TransactionService.deleteTransaction(transaction.id);
           setTransactions((prev) =>
-            prev.filter((t) => t.id !== transaction.id)
+            prev.filter((t) => t.id !== transaction.id),
           );
           toast.success("Lançamento excluído com sucesso!");
         }
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -501,41 +504,31 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant, transactions]
+    [transactions, fetchData],
   );
 
   // Update single transaction status
   const updateTransactionStatus = React.useCallback(
     async (
       transaction: Transaction,
-      newStatus: Transaction["status"]
+      newStatus: Transaction["status"],
     ): Promise<boolean> => {
       try {
         await TransactionService.updateTransaction(transaction.id, {
           status: newStatus,
         });
 
-        // Update local state ONLY after success
+        // Optimistic update
         setTransactions((prev) =>
           prev.map((t) =>
-            t.id === transaction.id ? { ...t, status: newStatus } : t
-          )
+            t.id === transaction.id ? { ...t, status: newStatus } : t,
+          ),
         );
 
         toast.success("Status atualizado!");
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -544,39 +537,27 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant]
+    [fetchData],
   );
 
   // Generic update transaction
   const updateTransaction = React.useCallback(
     async (
       transaction: Transaction,
-      data: Partial<Transaction>
+      data: Partial<Transaction>,
     ): Promise<boolean> => {
       try {
         await TransactionService.updateTransaction(transaction.id, data);
 
-        // Update local state ONLY after success
+        // Optimistic update
         setTransactions((prev) =>
-          prev.map((t) =>
-            t.id === transaction.id ? { ...t, ...data } : t
-          )
+          prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
         );
 
         toast.success("Lançamento atualizado!");
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -585,22 +566,22 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant]
+    [fetchData],
   );
 
   // Batch update transactions
   const updateBatchTransactions = React.useCallback(
     async (
-      updates: { id: string; data: Partial<Transaction> }[]
+      updates: { id: string; data: Partial<Transaction> }[],
     ): Promise<boolean> => {
       try {
         await Promise.all(
           updates.map((update) =>
-            TransactionService.updateTransaction(update.id, update.data)
-          )
+            TransactionService.updateTransaction(update.id, update.data),
+          ),
         );
 
-        // Update local state
+        // Optimistic update
         setTransactions((prev) => {
           const updatesMap = new Map(updates.map((u) => [u.id, u.data]));
           return prev.map((t) => {
@@ -611,18 +592,8 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         toast.success(`${updates.length} lançamentos atualizados!`);
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -631,7 +602,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant]
+    [fetchData],
   );
 
   // Update status for all installments in a group OR single
@@ -639,21 +610,22 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (
       transaction: Transaction,
       newStatus: Transaction["status"],
-      updateAll: boolean = true
+      updateAll: boolean = true,
     ): Promise<boolean> => {
       try {
         // Check if this is a proposal group (has proposalGroupId)
         const hasProposalGroup = transaction.proposalGroupId && updateAll;
-        
+
         // Check if this is an installment group
-        const hasInstallmentGroup = transaction.isInstallment && 
-          transaction.installmentGroupId && 
+        const hasInstallmentGroup =
+          transaction.isInstallment &&
+          transaction.installmentGroupId &&
           updateAll;
 
         if (hasProposalGroup) {
           // Update all transactions in the proposal group (down payment + all installments)
           const groupTransactions = transactions.filter(
-            (t) => t.proposalGroupId === transaction.proposalGroupId
+            (t) => t.proposalGroupId === transaction.proposalGroupId,
           );
 
           // Update all in parallel
@@ -661,23 +633,25 @@ export function useFinancialData(): UseFinancialDataReturn {
             groupTransactions.map((t) =>
               TransactionService.updateTransaction(t.id, {
                 status: newStatus,
-              })
-            )
+              }),
+            ),
           );
 
           // Update local state for all
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
-              groupIds.has(t.id) ? { ...t, status: newStatus } : t
-            )
+              groupIds.has(t.id) ? { ...t, status: newStatus } : t,
+            ),
           );
 
-          toast.success(`${groupTransactions.length} lançamentos da proposta atualizados!`);
+          toast.success(
+            `${groupTransactions.length} lançamentos da proposta atualizados!`,
+          );
         } else if (hasInstallmentGroup) {
           // Update all installments in the installment group
           const groupTransactions = transactions.filter(
-            (t) => t.installmentGroupId === transaction.installmentGroupId
+            (t) => t.installmentGroupId === transaction.installmentGroupId,
           );
 
           // Update all installments in parallel
@@ -685,16 +659,16 @@ export function useFinancialData(): UseFinancialDataReturn {
             groupTransactions.map((t) =>
               TransactionService.updateTransaction(t.id, {
                 status: newStatus,
-              })
-            )
+              }),
+            ),
           );
 
           // Update local state for all
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
-              groupIds.has(t.id) ? { ...t, status: newStatus } : t
-            )
+              groupIds.has(t.id) ? { ...t, status: newStatus } : t,
+            ),
           );
 
           toast.success(`${groupTransactions.length} parcelas atualizadas!`);
@@ -705,24 +679,14 @@ export function useFinancialData(): UseFinancialDataReturn {
           });
           setTransactions((prev) =>
             prev.map((t) =>
-              t.id === transaction.id ? { ...t, status: newStatus } : t
-            )
+              t.id === transaction.id ? { ...t, status: newStatus } : t,
+            ),
           );
           toast.success("Status atualizado!");
         }
 
-        // Refresh summary and wallet balance
-        if (tenant) {
-          const [summaryData, wallets] = await Promise.all([
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-          ]);
-          setSummary(summaryData);
-          const totalBalance = wallets
-            .filter((w) => w.status === "active")
-            .reduce((sum, w) => sum + w.balance, 0);
-          setTotalWalletBalance(totalBalance);
-        }
+        // Refresh truth from server (background)
+        await fetchData(true);
 
         return true;
       } catch (error) {
@@ -731,7 +695,74 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [tenant, transactions]
+    [transactions, fetchData],
+  );
+
+  // Register partial payment
+  const registerPartialPayment = React.useCallback(
+    async (
+      originalTransaction: Transaction,
+      amount: number,
+      date: string,
+    ): Promise<void> => {
+      try {
+        const remainingAmount = originalTransaction.amount - amount;
+
+        // 1. Update original to be the PAID part (isPartialPayment = true)
+        // This ensures the history/log shows this specific ID was paid
+        await TransactionService.updateTransaction(originalTransaction.id, {
+          amount: amount,
+          status: "paid",
+          date: date,
+          isPartialPayment: true,
+          // Keep installment info so it stays linked to the group
+        });
+
+        // 2. Create new transaction for the REMAINING part (Pending)
+        // Explicitly remove ID to ensure clean creation
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id: _id, ...originalData } = originalTransaction;
+
+        // CRITICAL FIX: The backend auto-generates installments if isInstallment=true AND installmentCount > 1 AND installmentNumber=1.
+        // Since we are splitting Installment 1, we must avoid this auto-generation which creates duplicates (IDs 5,7,9,10 etc).
+        // We temporarily set installmentCount to 1 to bypass creation logic, then update it back.
+
+        // 2.1 Create with count 1
+        const createResult = await TransactionService.createTransaction({
+          ...originalData,
+          amount: remainingAmount,
+          status:
+            originalTransaction.status === "paid"
+              ? "pending"
+              : originalTransaction.status,
+          isPartialPayment: false, // This is the new "Main" one
+          parentTransactionId: originalTransaction.id,
+          installmentCount: 1, // Bypass backend recursion
+          // Keep other metadata
+        } as unknown as Omit<Transaction, "id">);
+
+        // 2.2 Restore correct installment count if needed
+        if (
+          originalData.isInstallment &&
+          (originalData.installmentCount || 0) > 1 &&
+          createResult?.id
+        ) {
+          await TransactionService.updateTransaction(createResult.id, {
+            installmentCount: originalData.installmentCount,
+          });
+        }
+
+        toast.success("Pagamento parcial registrado com sucesso!");
+
+        // Refresh truth from server (background)
+        await fetchData(true);
+      } catch (error) {
+        console.error("Error registering partial payment:", error);
+        toast.error("Erro ao registrar pagamento parcial");
+        throw error;
+      }
+    },
+    [fetchData],
   );
 
   return {
@@ -766,6 +797,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     updateTransaction,
     updateBatchTransactions,
     updateGroupStatus,
-    refreshData: fetchData,
+    registerPartialPayment,
+    refreshData: (background?: boolean) => fetchData(background),
   };
 }

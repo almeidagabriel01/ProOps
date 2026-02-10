@@ -93,6 +93,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
               coverTitle={proposal.title || ""}
               fontFamily={settings.fontFamily}
               logoStyle={settings.logoStyle}
+              validUntil={proposal.validUntil}
             />
           </div>
         </div>

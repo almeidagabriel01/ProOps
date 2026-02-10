@@ -19,6 +19,7 @@ import {
   PdfThemeDecorations,
   ThemeType,
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
+import { normalizeCoverElements } from "@/components/features/proposal/pdf-section-editor";
 
 interface ProposalPdfViewerProps {
   proposal: Proposal;
@@ -168,6 +169,11 @@ export function ProposalPdfViewer({
   const pdfDisplaySettings: PdfDisplaySettings =
     mergePdfDisplaySettings(savedPdfSettings);
 
+  // Normalize cover elements to ensure backward compatibility
+  const coverElements = normalizeCoverElements(
+    customSettings?.coverElements || savedPdfSettings?.coverElements || [],
+  );
+
   return (
     <>
       {showCover && (
@@ -183,15 +189,14 @@ export function ProposalPdfViewer({
           coverTitle={coverTitle}
           proposal={proposal}
           fontFamily={fontFamily}
-          coverElements={
-            customSettings?.coverElements || savedPdfSettings?.coverElements
-          }
+          coverElements={coverElements}
           logoStyle={
             customSettings?.logoStyle ||
             savedPdfSettings?.logoStyle ||
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (template as any)?.logoStyle
           }
+          validUntil={proposal.validUntil}
         />
       )}
       <RenderPagedContent

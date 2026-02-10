@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -78,42 +79,9 @@ export function SistemaEditor({
       setDescription(sistema.description || "");
 
       const loadedAmbientes = sistema.ambientes || [];
-
-      // INTELLIGENT BACKFILL:
-      // Attempt to load products from legacy/global fallbacks if distinct config is missing.
-      // This matches the logic in `SistemaSelector` (Proposal View).
-      const backfilled = loadedAmbientes.map((env) => {
-        // 1. If we already have configured products, keep them.
-        if (env.products && env.products.length > 0) return env;
-
-        // 2. Fallback: Legacy System Defaults (apply to all envs if valid)
-        if (sistema.defaultProducts && sistema.defaultProducts.length > 0) {
-          return {
-            ...env,
-            products: sistema.defaultProducts.map((p) => ({
-              productId: p.productId,
-              productName: p.productName,
-              quantity: p.quantity,
-              notes: p.notes,
-            })),
-          };
-        }
-
-        // 3. Fallback: Global Environment Defaults
-        const globalEnv = allAmbientes.find((a) => a.id === env.ambienteId);
-        if (globalEnv && globalEnv.defaultProducts?.length > 0) {
-          return {
-            ...env,
-            products: [...globalEnv.defaultProducts],
-          };
-        }
-
-        return env;
-      });
-
-      setConfigAmbientes(backfilled);
+      setConfigAmbientes(loadedAmbientes);
     }
-  }, [sistema, allAmbientes]);
+  }, [sistema]);
 
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -203,18 +171,9 @@ export function SistemaEditor({
   const addAmbiente = (ambienteId: string) => {
     if (configAmbientes.some((a) => a.ambienteId === ambienteId)) return;
 
-    // Check for global defaults to pre-fill
-    const globalEnv = allAmbientes.find((a) => a.id === ambienteId);
-    let initialProducts: AmbienteProduct[] = [];
-
-    if (globalEnv && globalEnv.defaultProducts?.length > 0) {
-      initialProducts = [...globalEnv.defaultProducts];
-    }
-
-    setConfigAmbientes([
-      ...configAmbientes,
-      { ambienteId, products: initialProducts },
-    ]);
+    // Requirement: "Always come zeroed of products".
+    // We do NOT check for globalEnv.defaultProducts anymore.
+    setConfigAmbientes([...configAmbientes, { ambienteId, products: [] }]);
     setActiveAmbienteId(ambienteId);
   };
 
@@ -248,6 +207,7 @@ export function SistemaEditor({
       productId: product.id,
       productName: product.name,
       quantity: 1,
+      status: "active",
     };
     updateActiveProducts([...currentProducts, newProd]);
     setShowProductList(false);
@@ -275,6 +235,22 @@ export function SistemaEditor({
     );
   };
 
+  const handleUpdateStatus = (
+    productId: string,
+    newStatus: "active" | "inactive",
+  ) => {
+    if (!activeAmbienteId) return;
+    const currentProducts = activeConfig?.products || [];
+    updateActiveProducts(
+      currentProducts.map((p) => {
+        if (p.productId === productId) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      }),
+    );
+  };
+
   // Filtered products for search
   const filteredProducts = products.filter(
     (p) =>
@@ -283,6 +259,15 @@ export function SistemaEditor({
         p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
         p.category?.toLowerCase().includes(productSearch.toLowerCase())),
   );
+
+  const handleUpdateAmbienteDescription = (desc: string) => {
+    if (!activeAmbienteId) return;
+    setConfigAmbientes(
+      configAmbientes.map((c) =>
+        c.ambienteId === activeAmbienteId ? { ...c, description: desc } : c,
+      ),
+    );
+  };
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col space-y-4">
@@ -496,6 +481,25 @@ export function SistemaEditor({
                   </Badge>
                 </div>
 
+                {/* Description Field for the Environment */}
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="env-description"
+                    className="text-xs font-medium text-muted-foreground/80 ml-1"
+                  >
+                    Descrição do Ambiente no PDF (Opcional)
+                  </Label>
+                  <Input
+                    id="env-description"
+                    value={activeConfig.description || ""}
+                    onChange={(e) =>
+                      handleUpdateAmbienteDescription(e.target.value)
+                    }
+                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name}...`}
+                    className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-all"
+                  />
+                </div>
+
                 <div className="relative z-20 w-full" ref={productListRef}>
                   <div className="relative w-full group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
@@ -594,6 +598,24 @@ export function SistemaEditor({
                           </div>
 
                           <div className="flex items-center gap-6">
+                            {/* Status Control */}
+                            <Select
+                              value={item.status || "active"}
+                              onChange={(e) =>
+                                handleUpdateStatus(
+                                  item.productId,
+                                  e.target.value as "active" | "inactive",
+                                )
+                              }
+                              inputSize="sm"
+                              className={cn(
+                                "w-[100px] border-none shadow-none focus:ring-0",
+                              )}
+                            >
+                              <option value="active">Ativo</option>
+                              <option value="inactive">Inativo</option>
+                            </Select>
+
                             {/* Quantity Control */}
                             <div className="flex items-center bg-muted/50 rounded-lg border p-1 shadow-sm">
                               <Button

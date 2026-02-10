@@ -1,8 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Cpu, Menu, Plus, Check, Trash2 } from "lucide-react";
+import { Cpu, Menu, Plus } from "lucide-react";
 import { Sistema } from "@/types/automation";
 
 interface SystemSidebarProps {
@@ -11,11 +10,6 @@ interface SystemSidebarProps {
   onSelect: (id: string) => void;
   isMobileMenuOpen: boolean;
   onCloseMobileMenu: () => void;
-  isCreating: boolean;
-  setIsCreating: (v: boolean) => void;
-  newSystemName: string;
-  setNewSystemName: (v: string) => void;
-  onCreate: () => void;
 }
 
 export function SystemSidebar({
@@ -24,11 +18,6 @@ export function SystemSidebar({
   onSelect,
   isMobileMenuOpen,
   onCloseMobileMenu,
-  isCreating,
-  setIsCreating,
-  newSystemName,
-  setNewSystemName,
-  onCreate,
 }: SystemSidebarProps) {
   return (
     <>
@@ -73,41 +62,15 @@ export function SystemSidebar({
         </div>
 
         <div className="p-2 border-t mt-auto">
-          {isCreating ? (
-            <div className="flex gap-1 items-center px-1">
-              <Input
-                placeholder="Nome do sistema..."
-                className="h-8 text-sm"
-                value={newSystemName}
-                onChange={(e) => setNewSystemName(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && onCreate()}
-              />
-              <Button
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={onCreate}
-              >
-                <Check className="w-3 h-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setIsCreating(false)}
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-2 text-muted-foreground"
-              onClick={() => setIsCreating(true)}
-            >
+          <Button
+            asChild
+            variant="outline"
+            className="w-full justify-start gap-2 text-muted-foreground"
+          >
+            <a href="/automation?editSistemaId=new" target="_blank">
               <Plus className="w-3 h-3" /> Novo Sistema
-            </Button>
-          )}
+            </a>
+          </Button>
         </div>
       </div>
 

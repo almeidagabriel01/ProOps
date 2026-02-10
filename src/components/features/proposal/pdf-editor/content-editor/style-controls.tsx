@@ -39,7 +39,7 @@ interface AlignmentControlsProps {
   updateStyle: (
     id: string,
     styleKey: keyof PdfSection["styles"],
-    value: string
+    value: string,
   ) => void;
   showVertical?: boolean;
 }
@@ -159,7 +159,7 @@ interface TextStyleOptionsProps {
   updateStyle: (
     id: string,
     styleKey: keyof PdfSection["styles"],
-    value: string
+    value: string,
   ) => void;
 }
 
@@ -172,7 +172,7 @@ export function TextStyleOptions({
     <div className="space-y-4 pt-4 border-t">
       <Label className="text-muted-foreground">Estilo e Formatação</Label>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label className="text-xs">Tamanho</Label>
           <Select
@@ -223,7 +223,7 @@ export function TextStyleOptions({
                 updateStyle(
                   section.id,
                   "fontWeight",
-                  section.styles.fontWeight === "bold" ? "normal" : "bold"
+                  section.styles.fontWeight === "bold" ? "normal" : "bold",
                 )
               }
               title="Negrito"
@@ -240,7 +240,7 @@ export function TextStyleOptions({
                 updateStyle(
                   section.id,
                   "fontStyle",
-                  section.styles.fontStyle === "italic" ? "normal" : "italic"
+                  section.styles.fontStyle === "italic" ? "normal" : "italic",
                 )
               }
               title="Itálico"

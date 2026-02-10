@@ -21,6 +21,7 @@ export function normalizeProposalSistema(legacy: Partial<ProposalSistema> & { si
     ambientes.push({
       ambienteId: legacy.ambienteId,
       ambienteName: legacy.ambienteName,
+      description: "", // Legacy didn't have description snapshot
       products: legacy.products || [],
     });
   }
@@ -77,7 +78,8 @@ export function createProposalSistema(
   ambienteId: string,
   ambienteName: string,
   description: string = "",
-  products: AmbienteProduct[] = []
+  products: AmbienteProduct[] = [],
+  ambienteDescription?: string
 ): ProposalSistema {
   return {
     sistemaId,
@@ -86,6 +88,7 @@ export function createProposalSistema(
     ambientes: [{
       ambienteId,
       ambienteName,
+      description: ambienteDescription,
       products,
     }],
     // Legacy fields for backward compat

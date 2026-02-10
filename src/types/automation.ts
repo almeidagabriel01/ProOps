@@ -9,6 +9,7 @@ export type AmbienteProduct = {
   productName: string; // Cache para exibição
   quantity: number;
   notes?: string;
+  status?: "active" | "inactive";
 };
 
 /**
@@ -19,6 +20,7 @@ export type Ambiente = {
   id: string;
   tenantId: string;
   name: string;
+  description?: string; // Descrição do ambiente (template)
   icon?: string; // Emoji ou nome de ícone lucide
   order?: number;
   // Template de produtos padrão para este ambiente
@@ -38,7 +40,7 @@ export type Sistema = {
   icon?: string; // Emoji ou nome de ícone lucide
   // IDs dos ambientes disponíveis para este sistema
   // availableAmbienteIds: string[]; -> Deprecated in favor of configured environments
-  
+
   /**
    * Main configuration: Environments within this system, each with its own product list.
    * This is the SOURCE OF TRUTH for products when adding a system to a proposal.
@@ -47,7 +49,7 @@ export type Sistema = {
 
   createdAt: string;
   updatedAt: string;
-  
+
   // DEPRECATED: Mantido temporariamente para migração
   /** @deprecated Use ambientes field instead */
   availableAmbienteIds?: string[];
@@ -63,6 +65,7 @@ export type Sistema = {
  */
 export type SistemaAmbienteTemplate = {
   ambienteId: string; // Reference to the generic Ambiente (Name/Icon)
+  description?: string; // Optional: Override description for this specific system-environment pair
   products: AmbienteProduct[];
 };
 
@@ -75,6 +78,7 @@ export type SistemaProduct = {
   productName: string;
   quantity: number;
   notes?: string;
+  status?: "active" | "inactive";
 };
 
 // ============================================
@@ -87,6 +91,7 @@ export type SistemaProduct = {
 export type ProposalAmbiente = {
   ambienteId: string;
   ambienteName: string;
+  description?: string; // Descrição snapshot do ambiente nesta proposta
   // Produtos específicos deste ambiente nesta proposta
   products: AmbienteProduct[];
 };

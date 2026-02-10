@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { ProposalProduct, Proposal } from "@/services/proposal-service";
+import { Product } from "@/services/product-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus } from "@/types/proposal";
 import { FileText, Percent, Tag } from "lucide-react";
@@ -26,6 +27,7 @@ interface ProposalSummarySectionProps {
   extraProducts: ProposalProduct[];
   isAutomacaoNiche: boolean;
   primaryColor: string;
+  products?: Product[]; // Full product list for status checking
   calculateSubtotal: () => number;
   calculateDiscount: () => number;
   calculateTotal: () => number;
@@ -43,11 +45,20 @@ export function ProposalSummarySection({
   extraProducts,
   isAutomacaoNiche,
   primaryColor,
+  products = [],
   calculateSubtotal,
   calculateDiscount,
   calculateTotal,
   onFormChange,
 }: ProposalSummarySectionProps) {
+  // Helper to check if product is inactive
+  const isProductInactive = (product: ProposalProduct) => {
+    // Check if product is inactive in catalog OR marked as inactive in proposal
+    const catalogProduct = products.find((p) => p.id === product.productId);
+    return (
+      catalogProduct?.status === "inactive" || product.status === "inactive"
+    );
+  };
   if (selectedProducts.length === 0) {
     return null;
   }
@@ -145,6 +156,14 @@ export function ProposalSummarySection({
                                         Extra
                                       </Badge>
                                     )}
+                                    {isProductInactive(product) && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"
+                                      >
+                                        Inativo
+                                      </Badge>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="p-3 text-center">
@@ -194,10 +213,20 @@ export function ProposalSummarySection({
                   {extraProducts.map((product) => (
                     <tr key={product.productId} className="border-t">
                       <td className="p-3 font-medium pl-6">
-                        {product.productName}
-                        <span className="ml-2 text-xs text-gray-400">
-                          (Extra)
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span>{product.productName}</span>
+                          <span className="ml-2 text-xs text-gray-400">
+                            (Extra)
+                          </span>
+                          {isProductInactive(product) && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"
+                            >
+                              Inativo
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 text-center">{product.quantity}</td>
                       <td className="p-3 text-right whitespace-nowrap">
@@ -219,7 +248,19 @@ export function ProposalSummarySection({
               {!isAutomacaoNiche &&
                 selectedProducts.map((product) => (
                   <tr key={product.productId} className="border-t">
-                    <td className="p-3 font-medium">{product.productName}</td>
+                    <td className="p-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{product.productName}</span>
+                        {isProductInactive(product) && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] h-5 px-1 bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-300"
+                          >
+                            Inativo
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
                     <td className="p-3 text-center">{product.quantity}</td>
                     <td className="p-3 text-right whitespace-nowrap">
                       R${" "}
@@ -251,6 +292,26 @@ export function ProposalSummarySection({
 
                 return (
                   <>
+                    {/* Cost row (without markup) - only visible in UI, not PDF */}
+                    {(() => {
+                      const totalCost = selectedProducts.reduce((sum, p) => {
+                        return sum + p.unitPrice * p.quantity;
+                      }, 0);
+                      return (
+                        <tr className="no-pdf-export border-t">
+                          <td
+                            colSpan={3}
+                            className="p-3 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap text-sm"
+                          >
+                            Custo (sem markup):
+                          </td>
+                          <td className="p-3 text-right font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap text-sm">
+                            R$ {totalCost.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })()}
+
                     <tr className="border-t">
                       <td
                         colSpan={3}

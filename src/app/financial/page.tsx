@@ -52,7 +52,9 @@ export default function FinancialPage() {
     updateGroupStatus,
     updateTransaction,
     updateBatchTransactions,
+    registerPartialPayment,
     transactions,
+    refreshData,
   } = useFinancialData();
 
   const isLoading = tenantLoading || dataLoading || isPlanLoading;
@@ -65,6 +67,27 @@ export default function FinancialPage() {
 
   // Selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+
+  // Helper to get stable ID for expansion
+  const getExpansionKey = React.useCallback((t: Transaction) => {
+    if (t.proposalGroupId) return `proposal-${t.proposalGroupId}`;
+    if (t.installmentGroupId) return `installment-${t.installmentGroupId}`;
+    return `transaction-${t.id}`;
+  }, []);
+
+  // Toggle expand for a transaction using stable key
+  const toggleExpand = React.useCallback((key: string, isOpen: boolean) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (isOpen) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  }, []);
 
   // Toggle selection for a single transaction (used for individual installments)
   const toggleSelection = React.useCallback((id: string) => {
@@ -183,11 +206,12 @@ export default function FinancialPage() {
 
   // Use total wallet balance OR calculation from selected items
   const balance = React.useMemo(() => {
-    if (selectedIds.size > 0 && selectionSummary) {
-      return selectionSummary.paidIncome - selectionSummary.paidExpense;
-    }
+    // User requested that balance NEVER filters/changes with selection
+    // if (selectedIds.size > 0 && selectionSummary) {
+    //   return selectionSummary.paidIncome - selectionSummary.paidExpense;
+    // }
     return totalWalletBalance;
-  }, [selectedIds.size, selectionSummary, totalWalletBalance]);
+  }, [totalWalletBalance]);
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading) {
@@ -217,6 +241,15 @@ export default function FinancialPage() {
     setIsDeleting(false);
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
+  };
+
+  const handleViewModeChange = (mode: "grouped" | "byDueDate") => {
+    setViewMode(mode);
+    if (mode === "byDueDate") {
+      setFilterStatus("pending");
+    } else {
+      setFilterStatus("all");
+    }
   };
 
   return (
@@ -302,7 +335,7 @@ export default function FinancialPage() {
         sortBy={sortBy}
         onSortChange={setSortBy}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
       />
 
       {/* Transactions List */}
@@ -406,10 +439,16 @@ export default function FinancialPage() {
                   onStatusChange={updateGroupStatus}
                   onUpdate={updateTransaction}
                   onUpdateBatch={updateBatchTransactions}
+                  onRegisterPartialPayment={registerPartialPayment}
                   isSelected={selectedIds.has(transaction.id)}
                   onToggleSelection={toggleSelection}
                   onToggleGroupSelection={toggleGroupSelection}
                   selectedIds={selectedIds}
+                  isExpanded={expandedIds.has(getExpansionKey(transaction))}
+                  onToggleExpand={(isOpen) =>
+                    toggleExpand(getExpansionKey(transaction), isOpen)
+                  }
+                  onReload={() => refreshData(true)} // Background refresh
                 />
               );
             }
@@ -427,10 +466,16 @@ export default function FinancialPage() {
                 onStatusChange={updateGroupStatus}
                 onUpdate={updateTransaction}
                 onUpdateBatch={updateBatchTransactions}
+                onRegisterPartialPayment={registerPartialPayment}
                 isSelected={selectedIds.has(transaction.id)}
                 onToggleSelection={toggleSelection}
                 onToggleGroupSelection={toggleGroupSelection}
                 selectedIds={selectedIds}
+                isExpanded={expandedIds.has(getExpansionKey(transaction))}
+                onToggleExpand={(isOpen) =>
+                  toggleExpand(getExpansionKey(transaction), isOpen)
+                }
+                onReload={() => refreshData(true)} // Background refresh
               />
             );
           })}

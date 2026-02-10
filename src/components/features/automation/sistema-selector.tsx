@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Settings, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   Sistema,
   Ambiente,
@@ -128,14 +128,14 @@ export function SistemaSelector({
         // Remove ambientes already selected for this system
         if (selectedSistemas && selectedSistemas.length > 0) {
           const currentSystem = selectedSistemas.find(
-            (s) => s.sistemaId === selectedSistemaId
+            (s) => s.sistemaId === selectedSistemaId,
           );
           if (currentSystem && currentSystem.ambientes) {
             const selectedAmbienteIds = currentSystem.ambientes.map(
-              (a) => a.ambienteId
+              (a) => a.ambienteId,
             );
             filtered = filtered.filter(
-              (a) => !selectedAmbienteIds.includes(a.id)
+              (a) => !selectedAmbienteIds.includes(a.id),
             );
           }
         }
@@ -196,9 +196,10 @@ export function SistemaSelector({
 
       let products: AmbienteProduct[] = [];
 
-      if (systemEnvConfig && systemEnvConfig.products?.length > 0) {
+      if (systemEnvConfig) {
         // Priority 1: System-specific configuration (The new feature)
-        products = [...systemEnvConfig.products];
+        // If a configuration exists, we use it strictly, even if it has 0 products.
+        products = [...(systemEnvConfig.products || [])];
       } else if (ambiente.defaultProducts?.length) {
         // Priority 2: Global Environment Defaults (Backward compatibility / Fallback)
         products = [...ambiente.defaultProducts];
@@ -209,6 +210,7 @@ export function SistemaSelector({
           productName: p.productName,
           quantity: p.quantity,
           notes: p.notes,
+          status: p.status, // Preserve status if available
         }));
       }
 
@@ -219,6 +221,7 @@ export function SistemaSelector({
         ambiente.name,
         sistema.description,
         products,
+        systemEnvConfig?.description || ambiente.description, // Pass description (System Override or Global Default)
       );
 
       onChange(proposalSistema);
@@ -252,19 +255,6 @@ export function SistemaSelector({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label>Sistema</Label>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-xs"
-            onClick={() => {
-              setEditingSistema(null);
-              setIsManagerOpen(true);
-            }}
-            title="Gerenciar Sistemas e Ambientes"
-          >
-            <Settings className="w-3 h-3 mr-1" />
-            Gerenciar
-          </Button>
         </div>
         <div className="flex gap-2">
           <div className="flex-1 relative">

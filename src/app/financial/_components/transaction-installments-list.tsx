@@ -22,8 +22,6 @@ import {
   Edit2,
   Banknote,
   CreditCard,
-  ChevronRight,
-  Wallet,
   Split,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -45,6 +43,7 @@ interface TransactionInstallmentsListProps {
   selectedIds?: Set<string>;
   onToggleSelection?: (id: string) => void;
   onPartialPayment?: (transaction: Transaction) => void;
+  onUndoPartial?: (partialTransaction: Transaction) => Promise<void>;
 }
 
 const statusOptions: {
@@ -65,6 +64,7 @@ export function TransactionInstallmentsList({
   selectedIds,
   onToggleSelection,
   onPartialPayment,
+  onUndoPartial,
 }: TransactionInstallmentsListProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -139,6 +139,7 @@ export function TransactionInstallmentsList({
       const num = item.installmentNumber || 0;
       if (!groups.has(num)) {
         groups.set(num, { main: item, subs: [] });
+        return; // Item is placed as main, stop processing
       }
 
       const group = groups.get(num)!;
@@ -344,6 +345,30 @@ export function TransactionInstallmentsList({
     );
   };
 
+  const [undoingId, setUndoingId] = React.useState<string | null>(null);
+
+  const handleUndoClick = async (partialTx: Transaction) => {
+    if (!onUndoPartial) return;
+    setUndoingId(partialTx.id);
+    try {
+      await onUndoPartial(partialTx);
+    } finally {
+      setUndoingId(null);
+    }
+  };
+
+  // Function to find the partial payment in a group
+  const findPartialPayment = (main: Transaction, subs: Transaction[]) => {
+    // Usually the main one is the failing one or pending one if split?
+    // Actually, in the split logic:
+    // Original = Paid (Partial) -> This is the one we want to undo.
+    // New = Pending (Remainder)
+
+    // So we look for a sub-item OR main item that has isPartialPayment=true
+    if (main.isPartialPayment) return main;
+    return subs.find((s) => s.isPartialPayment);
+  };
+
   return (
     <div className="animate-in slide-in-from-top-2 duration-200">
       <div className="flex flex-col gap-2">
@@ -420,6 +445,11 @@ export function TransactionInstallmentsList({
                     itemsToShow.push(...group.subs);
                   }
 
+                  const partialPaymentTx = findPartialPayment(
+                    group.main,
+                    group.subs,
+                  );
+
                   return (
                     <div
                       key={`group-${group.main.installmentNumber}`}
@@ -462,42 +492,32 @@ export function TransactionInstallmentsList({
                             </div>
                           )}
 
-                          {/* Expand Toggle */}
-                          {hasSubs ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleGroup(group.main.installmentNumber || 0);
-                              }}
-                              className="p-0.5 hover:bg-muted-foreground/10 rounded cursor-pointer"
-                            >
-                              <ChevronRight
-                                className={cn(
-                                  "w-4 h-4 transition-transform text-muted-foreground",
-                                  isExpanded && "rotate-90",
-                                )}
-                              />
-                            </button>
-                          ) : // Placeholder for alignment if we want consistent indentation (optional, maybe not needed if mostly singular)
-                          // But if user wants perfect alignment, maybe a spacer matching toggle button width (approx 20px)
-                          hasSubs ? (
-                            <div className="w-5" />
-                          ) : null}
+                          {/* Expand/Collapse Chevron */}
+                          {hasSubs && (
+                            <div className="p-1 rounded-full hover:bg-muted/80 text-muted-foreground">
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 rotate-180 transition-transform" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 transition-transform" />
+                              )}
+                            </div>
+                          )}
 
-                          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                            {!group.main.isInstallment ? (
-                              <Wallet className="w-3.5 h-3.5 text-primary" />
-                            ) : (
-                              <span className="text-xs font-bold text-primary">
-                                {group.main.installmentNumber}
-                              </span>
-                            )}
-                          </div>
+                          {!hasSubs && (
+                            <div className="p-1.5 rounded-full bg-muted">
+                              <CreditCard className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          )}
+
                           <div>
                             <div className="font-medium text-sm">
-                              {!group.main.isInstallment
-                                ? "Restante"
-                                : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`}
+                              {hasSubs
+                                ? `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`
+                                : group.main.isPartialPayment // If single item is partial (rare/impossible in this flow?)
+                                  ? `Parcela ${group.main.installmentNumber}/${group.main.installmentCount} (Parcial)`
+                                  : group.main.description === "Restante"
+                                    ? "Restante"
+                                    : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Venc:{" "}
@@ -510,6 +530,26 @@ export function TransactionInstallmentsList({
                         </div>
 
                         <div className="flex items-center gap-3">
+                          {partialPaymentTx && onUndoPartial && canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-3 text-xs font-medium text-red-600 hover:text-red-700 gap-2 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUndoClick(partialPaymentTx);
+                              }}
+                              disabled={!!undoingId}
+                            >
+                              {undoingId === partialPaymentTx.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Split className="w-3.5 h-3.5 rotate-180" />
+                              )}
+                              Desfazer Parcial
+                            </Button>
+                          )}
+
                           <div className="font-bold text-primary text-right">
                             {editingId === group.main.id ? (
                               <div className="relative">

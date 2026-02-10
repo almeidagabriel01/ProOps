@@ -261,6 +261,7 @@ interface PaymentStepProps {
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors?: FormErrors<TransactionFormData>;
   isProposalTransaction?: boolean;
+  onPaymentModeChange?: (mode: PaymentMode) => void;
 }
 
 export function PaymentStep({
@@ -270,6 +271,7 @@ export function PaymentStep({
   onBlur,
   errors = {},
   isProposalTransaction = false,
+  onPaymentModeChange,
 }: PaymentStepProps) {
   // Calculate total based on mode
   const calculateTotal = (): number => {
@@ -281,7 +283,7 @@ export function PaymentStep({
       const downPayment = formData.downPaymentEnabled
         ? parseFloat(formData.downPaymentValue || "0")
         : 0;
-      return installmentValue * formData.installmentCount + downPayment;
+      return installmentValue * (formData.installmentCount || 1) + downPayment;
     }
   };
 
@@ -292,28 +294,20 @@ export function PaymentStep({
       ? parseFloat(formData.downPaymentValue || "0")
       : 0;
     const remaining = total - downPayment;
-    if (remaining <= 0 || formData.installmentCount <= 0) return "0,00";
-    return (remaining / formData.installmentCount).toFixed(2);
+    const count = formData.installmentCount || 1;
+    if (remaining <= 0 || count <= 0) return "0,00";
+    return (remaining / count).toFixed(2);
   };
 
   const handlePaymentModeChange = (mode: PaymentMode) => {
-    onFormDataChange((prev) => ({
-      ...prev,
-      paymentMode: mode,
-      // Reset relevant fields when switching modes
-      ...(mode === "total"
-        ? {
-            installmentValue: "",
-            downPaymentEnabled: false,
-            downPaymentValue: "",
-            isInstallment: false,
-          }
-        : {
-            amount: "",
-            wallet: "",
-            isInstallment: true,
-          }),
-    }));
+    if (onPaymentModeChange) {
+      onPaymentModeChange(mode);
+    } else {
+      onFormDataChange((prev) => ({
+        ...prev,
+        paymentMode: mode,
+      }));
+    }
   };
 
   const handlePaymentToggle = (field: string, value: boolean) => {
@@ -449,23 +443,25 @@ export function PaymentStep({
             )}
           </FormItem>
 
-          {/* Due Date Input */}
-          <FormItem
-            label="Vencimento"
-            htmlFor="dueDate"
-            required={formData.type === "income"}
-            error={errors.dueDate}
-          >
-            <DateInput
-              id="dueDate"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={onChange}
-              onBlur={onBlur}
-              className={errors.dueDate ? "border-destructive" : ""}
+          {/* Due Date Input - HIDDEN if installments enabled */}
+          {!formData.isInstallment && (
+            <FormItem
+              label="Vencimento (Valor à Vista)"
+              htmlFor="dueDate"
               required={formData.type === "income"}
-            />
-          </FormItem>
+              error={errors.dueDate}
+            >
+              <DateInput
+                id="dueDate"
+                name="dueDate"
+                value={formData.dueDate}
+                onChange={onChange}
+                onBlur={onBlur}
+                className={errors.dueDate ? "border-destructive" : ""}
+                required={formData.type === "income"}
+              />
+            </FormItem>
+          )}
 
           {/* Wallet Select */}
           <div className="space-y-2">
@@ -656,6 +652,24 @@ export function PaymentStep({
                     </span>
                   </div>
                 </FormItem>
+
+                <FormItem
+                  label="Vencimento da 1ª Parcela"
+                  htmlFor="dueDateInstallment"
+                  className="col-span-2"
+                  required={formData.type === "income"}
+                  error={errors.dueDate}
+                >
+                  <DateInput
+                    id="dueDateInstallment"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    className={errors.dueDate ? "border-destructive" : ""}
+                    required={formData.type === "income"}
+                  />
+                </FormItem>
               </div>
             )}
           </div>
@@ -703,6 +717,94 @@ export function PaymentStep({
       {/* ================== MODE: VALOR DAS PARCELAS ================== */}
       {formData.paymentMode === "installmentValue" && (
         <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Down Payment Toggle - Compact (Advanced Mode) */}
+          <div
+            className={`
+            rounded-xl border p-4 transition-all duration-200
+            ${
+              formData.downPaymentEnabled
+                ? "border-blue-500/40 bg-blue-500/5"
+                : "border-border hover:border-blue-500/30"
+            }
+          `}
+          >
+            <label
+              htmlFor="downPaymentEnabledAdvanced"
+              className="flex items-center gap-3 cursor-pointer"
+            >
+              <div
+                className={`
+                w-8 h-8 rounded-lg flex items-center justify-center transition-all
+                ${formData.downPaymentEnabled ? "bg-blue-500/15 text-blue-500" : "bg-muted text-muted-foreground"}
+              `}
+              >
+                <Banknote className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Incluir Entrada</p>
+                <p className="text-xs text-muted-foreground">
+                  Valor à vista antes das parcelas
+                </p>
+              </div>
+              <Checkbox
+                id="downPaymentEnabledAdvanced"
+                checked={formData.downPaymentEnabled || false}
+                onCheckedChange={(checked) =>
+                  handlePaymentToggle("downPaymentEnabled", checked as boolean)
+                }
+                className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 cursor-pointer"
+              />
+            </label>
+
+            {formData.downPaymentEnabled && (
+              <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between h-7">
+                      <Label
+                        htmlFor="downPaymentValueAdvanced"
+                        className="text-sm font-medium"
+                      >
+                        Valor da Entrada
+                      </Label>
+                    </div>
+                    <CurrencyInput
+                      id="downPaymentValueAdvanced"
+                      name="downPaymentValue"
+                      value={formData.downPaymentValue || ""}
+                      onChange={onChange}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <WalletSelect
+                      label="Carteira"
+                      name="downPaymentWallet"
+                      value={formData.downPaymentWallet || ""}
+                      onChange={onChange}
+                      preSelectDefault
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="downPaymentDueDateAdvanced"
+                    className="text-sm font-medium"
+                  >
+                    Data da Entrada
+                  </Label>
+                  <Input
+                    type="date"
+                    id="downPaymentDueDateAdvanced"
+                    name="downPaymentDueDate"
+                    value={formData.downPaymentDueDate || ""}
+                    onChange={onChange}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Parcelamento Section */}
           <div className="space-y-4">
             <label

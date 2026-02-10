@@ -28,13 +28,8 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
         const enriched = (proposal?.products || []).map((proposalProduct) => {
           const catalogProduct = productMap.get(proposalProduct.productId);
           
-          // If filtering is enabled and product is inactive, skip it
-          if (options?.filterInactive && catalogProduct && catalogProduct.status === 'inactive') {
-            return null;
-          }
-
           if (catalogProduct) {
-            return {
+            const baseEnriched = {
               ...proposalProduct,
               productImage:
                 catalogProduct.images?.[0] || catalogProduct.image || "",
@@ -48,9 +43,19 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
                 proposalProduct.productDescription ||
                 "",
             };
+
+            // Add inactive flag if filtering is enabled and product is inactive (in catalog OR proposal)
+            if (options?.filterInactive && (catalogProduct.status === 'inactive' || proposalProduct.status === 'inactive')) {
+              return {
+                ...baseEnriched,
+                _isInactive: true, // Metadata flag for visual hiding
+              };
+            }
+
+            return baseEnriched;
           }
           return proposalProduct;
-        }).filter(Boolean) as ProposalProduct[]; // Remove nulls (inactive products)
+        }); // Keep all products, including inactive ones
 
         setEnrichedProducts(enriched);
       } catch (error) {

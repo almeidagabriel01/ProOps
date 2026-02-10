@@ -41,6 +41,7 @@ interface PdfCoverTabProps {
   primaryColor?: string;
   canEditCoverElements?: boolean;
   clientName?: string;
+  validUntil?: string;
 }
 
 export function PdfCoverTab({
@@ -70,6 +71,7 @@ export function PdfCoverTab({
   primaryColor = "#2563eb",
   canEditCoverElements = true,
   clientName = "Nome do Contato",
+  validUntil,
 }: PdfCoverTabProps) {
   const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -277,7 +279,7 @@ export function PdfCoverTab({
 
         {/* Cover Elements Editor - Moved above theme */}
         {canEditCoverElements && coverElements && setCoverElements && (
-          <div className="grid gap-2 pt-4 border-t">
+          <div className="flex flex-col gap-2 pt-4 border-t w-full min-w-0 overflow-hidden">
             <Label className="text-base font-semibold">Elementos da Capa</Label>
             <p className="text-sm text-muted-foreground mb-2">
               Adicione e personalize os elementos de texto que aparecem na capa
@@ -290,6 +292,7 @@ export function PdfCoverTab({
               clientName={clientName}
               coverTitle={coverTitle}
               theme={theme}
+              validUntil={validUntil}
             />
           </div>
         )}

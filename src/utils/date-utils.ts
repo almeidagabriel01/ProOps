@@ -59,6 +59,20 @@ export function toISODateString(date: Date): string {
 }
 
 /**
+ * Returns the current date in YYYY-MM-DD format using local time.
+ * This avoids issues where usage of toISOString() (UTC) returns the next day
+ * in late evening hours for western timezones.
+ */
+export function getTodayISO(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Shifts a target date based on the difference between an original date and a new date.
  * Safe for YYYY-MM-DD strings.
  */

@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { Package, Plus, Minus, Cpu, Trash2, Pencil } from "lucide-react";
+import { Package, Plus, Minus, Cpu, Trash2 } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -30,6 +30,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { SistemaSelectorProps } from "@/components/features/automation/sistema-selector";
 import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
+import { SystemEnvironmentManagerDialog } from "@/components/features/automation/system-environment-manager-dialog";
+import { Settings } from "lucide-react";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -61,6 +64,7 @@ interface ProposalSystemsSectionProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
   onDataUpdate?: () => void;
   // Transactional Data
@@ -68,6 +72,7 @@ interface ProposalSystemsSectionProps {
   sistemas?: Sistema[];
   onAmbienteAction?: (action: MasterDataAction) => void;
   onSistemaAction?: (action: MasterDataAction) => void;
+  onRemoveAmbiente: (sistemaIndex: number, ambienteId: string) => void;
 }
 
 export function ProposalSystemsSection({
@@ -76,7 +81,6 @@ export function ProposalSystemsSection({
   products,
   primaryColor,
   selectorKey,
-  onEditSystem,
   onRemoveSystem,
   onUpdateProductQuantity,
   onUpdateProductMarkup,
@@ -91,12 +95,15 @@ export function ProposalSystemsSection({
   sistemas,
   onAmbienteAction,
   onSistemaAction,
+  onRemoveAmbiente,
 }: ProposalSystemsSectionProps) {
   // Logic to handle "Pending" (Environment-only) selection
   // If the last system in the list is incomplete (no sistemaId),
   // it is treated as the "Pending Selector State" and NOT rendered as a Card.
   const lastSystem = selectedSistemas[selectedSistemas.length - 1];
   const isLastSystemPending = lastSystem && !lastSystem.sistemaId;
+
+  const [isManagerOpen, setIsManagerOpen] = React.useState(false);
 
   const renderedSistemas = isLastSystemPending
     ? selectedSistemas.slice(0, -1)
@@ -164,24 +171,71 @@ export function ProposalSystemsSection({
     }
   };
 
+  // Calculate visible products for the summary header
+  // This ensures we only count products that belong to the visible systems
+  const visibleProducts = React.useMemo(() => {
+    const validInstanceIds = new Set<string>();
+
+    renderedSistemas.forEach((s) => {
+      // Collect IDs from environments array
+      if (s.ambientes && s.ambientes.length > 0) {
+        s.ambientes.forEach((a) => {
+          if (s.sistemaId && a.ambienteId) {
+            validInstanceIds.add(`${s.sistemaId}-${a.ambienteId}`);
+          }
+        });
+      }
+      // Collect legacy/fallback ID
+      else {
+        const primary = getPrimaryAmbiente(s);
+        if (s.sistemaId && primary?.ambienteId) {
+          validInstanceIds.add(`${s.sistemaId}-${primary.ambienteId}`);
+        }
+      }
+    });
+
+    return selectedProducts.filter(
+      (p) => p.systemInstanceId && validInstanceIds.has(p.systemInstanceId),
+    );
+  }, [renderedSistemas, selectedProducts]);
+
+  // Window Focus Handler - Refresh Data
+  // This ensures that when the user returns from the Automation tab,
+  // the data (systems, environments) is up-to-date.
+  useWindowFocus(() => {
+    console.log("Window focused - refreshing proposal data...");
+    onDataUpdate?.();
+  });
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Cpu className="w-5 h-5" />
             <CardTitle>Sistemas de Automação</CardTitle>
           </div>
-          {selectedProducts.length > 0 && (
+          {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
-              selectedProducts={selectedProducts}
+              selectedProducts={visibleProducts}
               className="ml-auto"
             />
           )}
         </div>
-        <CardDescription>
-          Adicione um ou mais sistemas de automação à proposta
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <CardDescription>
+            Adicione um ou mais sistemas de automação à proposta
+          </CardDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-2 text-xs"
+            onClick={() => setIsManagerOpen(true)}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Gerenciar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Lista de sistemas já adicionados (Completed only) */}
@@ -204,6 +258,11 @@ export function ProposalSystemsSection({
               );
 
               const sistemaTotal = sistemaProducts.reduce(
+                (sum, p) => sum + p.unitPrice * p.quantity,
+                0,
+              );
+
+              const sistemaTotalWithMarkup = sistemaProducts.reduce(
                 (sum, p) => sum + p.total,
                 0,
               );
@@ -215,10 +274,10 @@ export function ProposalSystemsSection({
                   sistemaIndex={realIndex}
                   sistemaProducts={sistemaProducts}
                   sistemaTotal={sistemaTotal}
+                  sistemaTotalWithMarkup={sistemaTotalWithMarkup}
                   products={products}
                   primaryColor={primaryColor}
                   systemInstanceId={systemInstanceId}
-                  onEdit={() => onEditSystem(realIndex)}
                   onRemove={() => onRemoveSystem(realIndex, systemInstanceId)}
                   onUpdateQuantity={(productId, delta, instanceId) =>
                     onUpdateProductQuantity(
@@ -245,6 +304,9 @@ export function ProposalSystemsSection({
                     )
                   }
                   onToggleStatus={onToggleStatus}
+                  onDeleteEnvironment={(ambienteId) =>
+                    onRemoveAmbiente(realIndex, ambienteId)
+                  }
                 />
               );
             })}
@@ -273,6 +335,22 @@ export function ProposalSystemsSection({
           />
         </div>
       </CardContent>
+
+      <SystemEnvironmentManagerDialog
+        isOpen={isManagerOpen}
+        onClose={() => setIsManagerOpen(false)}
+        onDataChange={() => onDataUpdate?.()}
+        sistemas={sistemas}
+        ambientes={ambientes}
+        onAction={async (action) => {
+          if (action.entity === "ambiente" && onAmbienteAction) {
+            onAmbienteAction(action);
+          } else if (onSistemaAction) {
+            onSistemaAction(action);
+          }
+        }}
+        allowDelete={false}
+      />
     </Card>
   );
 }
@@ -283,10 +361,10 @@ interface SystemCardProps {
   sistemaIndex: number;
   sistemaProducts: ProposalProduct[];
   sistemaTotal: number;
+  sistemaTotalWithMarkup: number;
   products: Product[];
   primaryColor: string;
   systemInstanceId: string;
-  onEdit: () => void;
   onRemove: () => void;
   onUpdateQuantity: (
     productId: string,
@@ -303,22 +381,25 @@ interface SystemCardProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
+  onDeleteEnvironment: (ambienteId: string) => void;
 }
 
 function SystemCard({
   sistema,
   sistemaProducts,
   sistemaTotal,
+  sistemaTotalWithMarkup,
   products,
   primaryColor,
-  onEdit,
   onRemove,
   onUpdateQuantity,
   onUpdateMarkup,
   onRemoveProduct,
   onAddExtraProduct,
   onToggleStatus,
+  onDeleteEnvironment,
 }: SystemCardProps) {
   return (
     <div
@@ -330,10 +411,10 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex items-center justify-between"
+        className="p-4 flex items-start justify-between"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
             style={{ backgroundColor: primaryColor }}
@@ -379,53 +460,60 @@ function SystemCard({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 ml-4">
-          <span className="font-bold text-lg" style={{ color: primaryColor }}>
-            R$ {sistemaTotal.toFixed(2)}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={onEdit}
-            title="Trocar Sistema/Ambiente"
-          >
-            <Pencil className="w-4 h-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title="Remover sistema"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja remover o sistema{" "}
-                  <strong>{sistema.sistemaName}</strong> ({sistema.ambienteName}
-                  ) desta proposta?
-                  <br />
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive hover:bg-destructive/90"
-                  onClick={onRemove}
+        <div className="flex items-center gap-10 shrink-0 ml-4">
+          <div className="flex flex-col items-end gap-1">
+            <span
+              className="text-sm font-bold"
+              style={{ color: primaryColor }}
+              title="Soma do valor de custo dos produtos (sem markup)"
+            >
+              Custo: R$ {sistemaTotal.toFixed(2)}
+            </span>
+            <span
+              className="text-sm font-bold"
+              style={{ color: primaryColor }}
+              title="Soma do valor final dos produtos (com markup)"
+            >
+              Venda: R$ {sistemaTotalWithMarkup.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  title="Remover sistema"
                 >
-                  Remover Sistema
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tem certeza que deseja remover o sistema{" "}
+                    <strong>{sistema.sistemaName}</strong> (
+                    {sistema.ambienteName}
+                    ) desta proposta?
+                    <br />
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive hover:bg-destructive/90"
+                    onClick={onRemove}
+                  >
+                    Remover Sistema
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </div>
 
@@ -437,6 +525,7 @@ function SystemCard({
               {
                 ambienteName: sistema.ambienteName || "Ambiente",
                 ambienteId: sistema.ambienteId,
+                description: undefined,
               },
             ]
         ).map((amb) => {
@@ -463,18 +552,56 @@ function SystemCard({
                   >
                     📍 {amb.ambienteName}
                   </span>
+                  {amb.description && (
+                    <span className="text-xs text-muted-foreground italic">
+                      - {amb.description}
+                    </span>
+                  )}
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      title="Remover ambiente"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover Ambiente</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja remover o ambiente{" "}
+                        <strong>{amb.ambienteName}</strong> deste sistema?
+                        <br />
+                        Todos os produtos associados a este ambiente serão
+                        removidos da proposta.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive hover:bg-destructive/90"
+                        onClick={() =>
+                          onDeleteEnvironment(amb.ambienteId || "")
+                        }
+                      >
+                        Remover Ambiente
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
 
               {/* Lista de Produtos do Ambiente */}
               <div className="p-3 space-y-2">
                 {scopeProducts.length > 0 ? (
                   scopeProducts.map((product, idx) => {
-                    const productData = products.find(
-                      (p) => p.id === product.productId,
-                    );
-                    const isActive =
-                      !productData?.status || productData.status === "active";
+                    // UPDATED: use contextual status from proposal product, default to active
+                    const isActive = product.status !== "inactive";
                     return (
                       <ProductRow
                         key={`${product.productId}-${idx}`}
@@ -534,6 +661,7 @@ interface ProductRowProps {
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => Promise<void>;
 }
 
@@ -560,7 +688,11 @@ function ProductRow({
 
     setIsUpdating(true);
     try {
-      await onToggleStatus(product.productId, isActive ? "inactive" : "active");
+      await onToggleStatus(
+        product.productId,
+        isActive ? "inactive" : "active",
+        product.systemInstanceId,
+      );
     } finally {
       setIsUpdating(false);
     }

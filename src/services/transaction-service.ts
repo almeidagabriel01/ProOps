@@ -145,6 +145,27 @@ export const TransactionService = {
     }
   },
 
+  getInstallmentsByGroupId: async (groupId: string): Promise<Transaction[]> => {
+    try {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("installmentGroupId", "==", groupId),
+      );
+      const querySnapshot = await getDocs(q);
+      const transactions = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Transaction[];
+
+      return transactions.sort(
+        (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
+      );
+    } catch (error) {
+      console.error("Error fetching installments by group:", error);
+      throw error;
+    }
+  },
+
   // Get summary for dashboard
   getSummary: async (
     tenantId: string,

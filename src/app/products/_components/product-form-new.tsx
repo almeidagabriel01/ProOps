@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DynamicSelect } from "@/components/features/dynamic-select";
@@ -193,7 +192,7 @@ export function ProductFormNew({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
                 <Package className="w-6 h-6 text-primary" />
               </div>
               <div>
@@ -267,7 +266,7 @@ export function ProductFormNew({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
               <div>
@@ -351,7 +350,7 @@ export function ProductFormNew({
             </FormGroup>
 
             {/* Price preview card */}
-            <div className="p-5 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
+            <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">
@@ -404,7 +403,7 @@ export function ProductFormNew({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
                 <ImageIcon className="w-6 h-6 text-purple-600" />
               </div>
               <div>
@@ -458,7 +457,7 @@ export function ProductFormNew({
                   key={i}
                   className={`w-16 h-2 rounded-full transition-all duration-300 ${
                     i < imageUrls.length
-                      ? "bg-gradient-to-r from-primary to-primary/80"
+                      ? "bg-linear-to-r from-primary to-primary/80"
                       : "bg-border/50"
                   }`}
                 />
@@ -473,7 +472,7 @@ export function ProductFormNew({
         <StepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
                 <Settings className="w-6 h-6 text-amber-600" />
               </div>
               <div>
@@ -484,20 +483,8 @@ export function ProductFormNew({
               </div>
             </div>
 
-            <FormItem label="Status do Produto" htmlFor="status">
-              <Select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-              >
-                <option value="active">Ativo - Visível no catálogo</option>
-                <option value="inactive">Inativo - Oculto do catálogo</option>
-              </Select>
-            </FormItem>
-
             {/* Summary card */}
-            <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
+            <div className="p-5 rounded-xl bg-linear-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
               <h4 className="font-semibold text-foreground">
                 Resumo do Produto
               </h4>

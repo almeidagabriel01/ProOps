@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Transaction } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
+import { getTodayISO } from "@/utils/date-utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -31,16 +32,14 @@ export function PartialPaymentDialog({
   onConfirm,
 }: PartialPaymentDialogProps) {
   const [amount, setAmount] = React.useState<number>(0);
-  const [date, setDate] = React.useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
+  const [date, setDate] = React.useState<string>(getTodayISO());
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   // Reset state when dialog opens
   React.useEffect(() => {
     if (open) {
       setAmount(0);
-      setDate(new Date().toISOString().split("T")[0]);
+      setDate(getTodayISO());
     }
   }, [open]);
 
@@ -97,7 +96,7 @@ export function PartialPaymentDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="amount">Valor a Pagar</Label>
+            <Label htmlFor="amount">Valor Pago</Label>
             <CurrencyInput
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
@@ -106,7 +105,7 @@ export function PartialPaymentDialog({
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Restante após pagamento:{" "}
+              Restante a pagar:{" "}
               <span className="font-bold text-primary">
                 {formatCurrency(Math.max(0, transaction.amount - amount))}
               </span>

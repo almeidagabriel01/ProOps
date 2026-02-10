@@ -3,7 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Wallet, AlertCircle } from "lucide-react";
-import { useEditTransaction } from "../_hooks/useEditTransaction";
+import {
+  useEditTransaction,
+  EditTransactionFormData,
+} from "../_hooks/useEditTransaction";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import {
   StepWizard,
@@ -16,7 +19,7 @@ import {
   PaymentStep,
   ReviewStep,
 } from "../_components/form-steps";
-import { InstallmentsCard } from "../_components";
+
 import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -60,12 +63,13 @@ export default function EditTransactionPage() {
     handleSubmit,
     transaction,
     relatedInstallments,
-    previewInstallments, // Use from hook
+
     isLoading,
     isSaving,
     canEdit,
     isProposalTransaction,
     groupTotalValue,
+    switchPaymentMode,
   } = useEditTransaction();
 
   // Adapt formData type for shared components
@@ -76,15 +80,15 @@ export default function EditTransactionPage() {
       clientId: formData.clientId || "",
       isInstallment: formData.isInstallment,
       installmentCount: formData.installmentCount,
-      // New payment mode fields (defaults for edit mode - not used in edit flow)
-      paymentMode: "total" as const,
-      installmentValue: "",
-      firstInstallmentDate: "",
-      installmentsWallet: "",
-      downPaymentEnabled: false,
-      downPaymentValue: "",
-      downPaymentWallet: "",
-      downPaymentDueDate: "",
+      // Pass through new fields instead of resetting them
+      paymentMode: formData.paymentMode,
+      installmentValue: formData.installmentValue,
+      firstInstallmentDate: formData.firstInstallmentDate,
+      installmentsWallet: formData.installmentsWallet,
+      downPaymentEnabled: formData.downPaymentEnabled,
+      downPaymentValue: formData.downPaymentValue,
+      downPaymentWallet: formData.downPaymentWallet,
+      downPaymentDueDate: formData.downPaymentDueDate,
     }),
     [formData],
   );
@@ -180,13 +184,6 @@ export default function EditTransactionPage() {
           totalOverride={totalValueOverride}
         />
 
-        {previewInstallments.length > 0 && (
-          <InstallmentsCard
-            installments={previewInstallments} // No currentTransactionId passed here to avoid "Editing" highlight
-            disableLinks
-          />
-        )}
-
         <div className="flex justify-end pt-6">
           <button
             onClick={() => router.push("/financial")}
@@ -244,51 +241,24 @@ export default function EditTransactionPage() {
             onFormDataChange={(updater) => {
               if (typeof updater === "function") {
                 setFormData((prev) => {
-                  const result = updater({
+                  // Ensure types match TransactionFormData (clientId must be string)
+                  const prevAsTransactionFormData: TransactionFormData = {
                     ...prev,
                     clientId: prev.clientId || "",
-                    installmentCount: prev.installmentCount || 2,
-                    // New payment mode fields (defaults)
-                    paymentMode: "total" as const,
-                    installmentValue: "",
-                    firstInstallmentDate: "",
-                    installmentsWallet: "",
-                    downPaymentEnabled: false,
-                    downPaymentValue: "",
-                    downPaymentWallet: "",
-                    downPaymentDueDate: "",
-                  });
-                  return {
-                    type: result.type,
-                    description: result.description,
-                    amount: result.amount,
-                    date: result.date,
-                    dueDate: result.dueDate,
-                    category: result.category,
-                    wallet: result.wallet,
-                    status: result.status,
-                    clientName: result.clientName,
-                    clientId: result.clientId,
-                    notes: result.notes,
-                    // Preserve installment data
-                    isInstallment: result.isInstallment,
-                    installmentCount: result.installmentCount,
                   };
+
+                  const result = updater(prevAsTransactionFormData);
+
+                  return result as unknown as EditTransactionFormData;
                 });
+              } else {
+                setFormData(updater as unknown as EditTransactionFormData);
               }
             }}
             onChange={handleChange}
             isProposalTransaction={!!isProposalTransaction}
+            onPaymentModeChange={switchPaymentMode}
           />
-
-          {previewInstallments.length > 0 && (
-            <div className="mt-6">
-              <InstallmentsCard
-                installments={previewInstallments}
-                disableLinks
-              />
-            </div>
-          )}
 
           <StepNavigation />
         </StepCard>

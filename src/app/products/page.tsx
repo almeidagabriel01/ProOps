@@ -223,11 +223,10 @@ export default function ProductsPage() {
             {/* Header */}
             <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
               <div className="col-span-1">Imagem</div>
-              <div className="col-span-3">Nome</div>
+              <div className="col-span-4">Nome</div>
               <div className="col-span-2">Categoria</div>
               <div className="col-span-2 text-center">Estoque</div>
               <div className="col-span-2 text-center">Preço</div>
-              <div className="col-span-1 text-center">Status</div>
               <div className="col-span-1 text-right">Ações</div>
             </div>
 
@@ -252,7 +251,7 @@ export default function ProductsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <Link
                       href={`/products/${product.id}`}
                       className="font-medium hover:underline"
@@ -291,19 +290,6 @@ export default function ProductsPage() {
                         </span>
                       )}
                     </div>
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        !product.status || product.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {!product.status || product.status === "active"
-                        ? "Ativo"
-                        : "Inativo"}
-                    </span>
                   </div>
                   <div className="col-span-1 flex items-center justify-end gap-1">
                     {canEdit && (

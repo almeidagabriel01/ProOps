@@ -44,6 +44,7 @@ export function sanitizeProducts(products: ProposalProduct[]) {
     ambienteInstanceId: p.ambienteInstanceId || p.systemInstanceId,
     systemInstanceId: p.systemInstanceId || p.ambienteInstanceId,
     isExtra: p.isExtra,
+    status: p.status,
   }));
 }
 
@@ -58,6 +59,7 @@ export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemIn
       ? s.ambientes.map(a => ({
           ambienteId: a.ambienteId,
           ambienteName: a.ambienteName,
+          description: a.description,
           productIds: a.products.map(p => p.productId),
         }))
       : primaryAmbiente

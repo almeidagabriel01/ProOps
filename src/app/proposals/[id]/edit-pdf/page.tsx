@@ -160,7 +160,7 @@ export default function EditPdfPage() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Editor Panel */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <PdfEditorTabs
             coverTitle={coverTitle}
             setCoverTitle={setCoverTitle}
@@ -194,6 +194,7 @@ export default function EditPdfPage() {
             setShowUpgradeModal={setShowUpgradeModal}
             clientName={proposal.clientName}
             tenantColor={tenant?.primaryColor}
+            validUntil={proposal.validUntil}
           />
         </div>
 

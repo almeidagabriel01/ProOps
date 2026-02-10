@@ -23,7 +23,18 @@ interface PdfCoverPageProps {
   fontFamily: string;
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
+  validUntil?: string;
 }
+
+// Helper to format date for display
+const formatValidUntil = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR");
+  } catch {
+    return dateString;
+  }
+};
 
 // Render a single cover element with X/Y positioning
 const renderSingleElement = (
@@ -31,6 +42,7 @@ const renderSingleElement = (
   textColor: string = "#ffffff",
   clientName: string = "",
   coverTitle: string = "",
+  validUntil: string = "",
   coverLogo?: string,
   tenantName?: string,
 ) => {
@@ -110,7 +122,7 @@ const renderSingleElement = (
 
     const imageWidth = element.styles.imageWidth || 30;
     const imageHeight = element.styles.imageHeight || 0;
-    
+
     // Calcular dimensões absolutas em pixels
     const absoluteWidth = (PAGE_WIDTH_PX * imageWidth) / 100;
 
@@ -164,30 +176,27 @@ const renderSingleElement = (
     };
 
     return (
-      <img
-        key={element.id}
-        src={element.imageUrl}
-        alt=""
-        style={imageStyle}
-      />
+      <img key={element.id} src={element.imageUrl} alt="" style={imageStyle} />
     );
   }
 
-  // Determine display content based on flags
+  // Determine display content
   let displayContent = element.content;
 
-  // Handle usesProposalTitle flag
-  if (element.usesProposalTitle && coverTitle) {
-    displayContent = coverTitle;
-  }
-
-  // Handle client name inclusion
+  // Handle backend-sourced elements with prefix/suffix
   if (element.type === "client-name") {
-    displayContent = clientName;
-  } else if (element.includesClientName && clientName) {
-    displayContent = displayContent
-      ? `${displayContent} ${clientName}`
-      : clientName;
+    const prefix = element.prefix ? `${element.prefix} ` : "";
+    const suffix = element.suffix ? ` ${element.suffix}` : "";
+    displayContent = `${prefix}${clientName}${suffix}`.trim();
+  } else if (element.type === "proposal-title") {
+    const prefix = element.prefix ? `${element.prefix} ` : "";
+    const suffix = element.suffix ? ` ${element.suffix}` : "";
+    displayContent = `${prefix}${coverTitle}${suffix}`.trim();
+  } else if (element.type === "valid-until") {
+    const prefix = element.prefix ? `${element.prefix} ` : "";
+    const suffix = element.suffix ? ` ${element.suffix}` : "";
+    const formattedDate = validUntil ? formatValidUntil(validUntil) : "";
+    displayContent = `${prefix}${formattedDate}${suffix}`.trim();
   }
 
   return (
@@ -216,6 +225,7 @@ const renderCoverElements = (
   textColor: string = "#ffffff",
   clientName: string = "",
   coverTitle: string = "",
+  validUntil: string = "",
   coverLogo?: string,
   tenantName?: string,
 ) => {
@@ -235,6 +245,7 @@ const renderCoverElements = (
           textColor,
           clientName,
           coverTitle,
+          validUntil,
           coverLogo,
           tenantName,
         ),
@@ -257,6 +268,7 @@ export function PdfCoverPage({
   fontFamily,
   coverElements,
   logoStyle,
+  validUntil,
 }: PdfCoverPageProps) {
   const coverStyle: React.CSSProperties = {
     height: `${PAGE_HEIGHT_PX}px`,
@@ -323,6 +335,7 @@ export function PdfCoverPage({
               "#ffffff",
               proposal.clientName,
               coverTitle,
+              validUntil || "",
               coverLogo,
               tenant?.name,
             )
@@ -708,6 +721,7 @@ export function PdfCoverPage({
               "#ffffff",
               proposal.clientName,
               coverTitle,
+              validUntil || "",
               coverLogo,
               tenant?.name,
             )

@@ -33,14 +33,18 @@ function normalizeSistema(id: string, data: Record<string, unknown>): Sistema {
   // New field: detailed configuration
   // If not present, we migrate in-memory from the ID list
   const rawAmbientes =
-    (data.ambientes as Array<{ ambienteId?: string; products?: unknown[] }>) ||
-    [];
+    (data.ambientes as Array<{
+      ambienteId?: string;
+      products?: unknown[];
+      description?: string;
+    }>) || [];
   let ambientes: SistemaAmbienteTemplate[] = rawAmbientes
     .map((a) => ({
       ambienteId: a.ambienteId || "",
       products: Array.isArray(a.products)
         ? (a.products as SistemaAmbienteTemplate["products"])
         : [],
+      description: a.description,
     }))
     .filter((a) => a.ambienteId); // Filter out invalid entries
 

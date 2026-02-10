@@ -36,12 +36,21 @@ interface ProposalProduct {
   isExtra?: boolean;
 }
 
-interface ProposalSistema {
-  sistemaId: string;
-  sistemaName: string;
+interface ProposalAmbiente {
   ambienteId: string;
   ambienteName: string;
   description?: string;
+  productIds: string[];
+}
+
+interface ProposalSistema {
+  sistemaId: string;
+  sistemaName: string;
+  description?: string;
+  ambientes?: ProposalAmbiente[];
+  // Legacy
+  ambienteId?: string;
+  ambienteName?: string;
   productIds?: string[];
 }
 

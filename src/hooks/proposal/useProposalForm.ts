@@ -31,6 +31,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   Proposal,
+  ProposalAmbienteInstance,
   ProposalProduct,
   ProposalService,
 } from "@/services/proposal-service";
@@ -42,6 +43,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
+import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { getExtraProducts } from "./product-handlers";
 import { toast } from "react-toastify";
@@ -74,6 +76,7 @@ export interface UseProposalFormReturn {
   clientTypes: ClientType[];
   formData: Partial<Proposal>;
   selectedProducts: ProposalProduct[];
+  visibleProducts: ProposalProduct[];
   selectedSistemas: ProposalSistema[];
   systemProductIds: Set<string>;
   extraProducts: ProposalProduct[];
@@ -138,6 +141,7 @@ export interface UseProposalFormReturn {
     markup: number,
     systemInstanceId?: string,
   ) => void;
+  removeAmbienteFromSistema: (sistemaIndex: number, ambienteId: string) => void;
   resetToInitial: () => void;
   markAsDiscarded: () => void;
 }
@@ -162,6 +166,15 @@ export function useProposalForm({
   const initialSistemasRef = React.useRef<string | null>(null);
   const initialClientIdRef = React.useRef<string | undefined>(undefined);
   const initialIsNewClientRef = React.useRef<boolean>(true);
+
+  // Track if proposal has been fetched to prevent re-fetching on valid dependency changes (like products list)
+  const proposalFetchedRef = React.useRef(false);
+
+  // Reset fetch state when proposalId changes
+  React.useEffect(() => {
+    proposalFetchedRef.current = false;
+    setIsLoading(!!proposalId);
+  }, [proposalId]);
 
   // Flag to prevent auto-save when user explicitly discards changes
   const userDiscardedRef = React.useRef(false);
@@ -379,15 +392,30 @@ export function useProposalForm({
             };
 
             // 1. Prepare payload (IDs are already real)
+            // Calculate visibleProducts: filter out phantom products from removed systems
+            const primarySistemaIds = new Set(
+              state.selectedSistemas.map((s) => s.sistemaId),
+            );
+            const visibleProductsForSave = state.selectedProducts.filter(
+              (p) => {
+                const primaryAmbienteId =
+                  p.ambienteInstanceId?.split("-")[0] ||
+                  p.systemInstanceId?.split("-")[0];
+                return primaryAmbienteId
+                  ? primarySistemaIds.has(primaryAmbienteId)
+                  : !p.ambienteInstanceId;
+              },
+            );
+            // Use visibleProducts to exclude phantom products from removed systems
             const payload = prepareCreatePayload({
               formData: draftFormData,
-              selectedProducts: state.selectedProducts,
+              selectedProducts: visibleProductsForSave,
               selectedSistemas: state.selectedSistemas,
               clientId: state.selectedClientId,
               tenantId: state.tenant?.id || "",
               calculateTotal: () => {
-                const sub = state.selectedProducts.reduce(
-                  (sum, p) => sum + p.total,
+                const sub = visibleProductsForSave.reduce(
+                  (sum: number, p: ProposalProduct) => sum + p.total,
                   0,
                 );
                 const disc = (sub * (state.formData.discount || 0)) / 100;
@@ -517,8 +545,14 @@ export function useProposalForm({
   // Load existing proposal if editing
   React.useEffect(() => {
     const fetchProposal = async () => {
+      // Prevent re-fetching if already loaded (fixes issue where updating products triggers reload and data loss)
+      if (proposalFetchedRef.current) return;
+
       if (proposalId && products.length > 0) {
         try {
+          // Mark as fetched immediately to prevent race conditions
+          proposalFetchedRef.current = true;
+
           const proposal = await ProposalService.getProposalById(proposalId);
           if (proposal) {
             // Use proposal data as-is - do NOT sync with client
@@ -585,7 +619,10 @@ export function useProposalForm({
               discount: proposal.discount || 0,
               extraExpense: proposal.extraExpense || 0,
               products: syncedProducts,
-              status: (proposal.status === "draft" ? "in_progress" : proposal.status as ProposalStatus) || "in_progress",
+              status:
+                (proposal.status === "draft"
+                  ? "in_progress"
+                  : (proposal.status as ProposalStatus)) || "in_progress",
               // Payment options
               downPaymentEnabled: proposal.downPaymentEnabled || false,
               downPaymentValue: proposal.downPaymentValue || 0,
@@ -644,6 +681,12 @@ export function useProposalForm({
                 const productIds =
                   s.ambientes?.[0]?.productIds || s.productIds || [];
 
+                // Find the specific environment configuration in the system
+                const systemEnvConfig = masterSistema?.ambientes?.find(
+                  (a) =>
+                    a.ambienteId === (masterAmbiente?.id || primaryAmbienteId),
+                );
+
                 // Build products array from synced products
                 const sistemaProducts = syncedProducts
                   .filter((p: ProposalProduct) =>
@@ -660,15 +703,72 @@ export function useProposalForm({
                   sistemaName:
                     masterSistema?.name || (s.sistemaName as string) || "",
                   description: (s.description as string) || "",
-                  // New format - ambientes array
-                  ambientes: [
-                    {
-                      ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
-                      ambienteName:
-                        masterAmbiente?.name || primaryAmbienteName || "",
-                      products: sistemaProducts,
-                    },
-                  ],
+                  // Fix: Map all environments from saved data, don't just take the first one
+                  ambientes:
+                    s.ambientes && s.ambientes.length > 0
+                      ? s.ambientes.map((env: ProposalAmbienteInstance) => {
+                          const envMasterAmbiente =
+                            freshAmbientes.find(
+                              (a) => a.id === env.ambienteId,
+                            ) ||
+                            freshAmbientes.find(
+                              (a) => a.name === env.ambienteName,
+                            );
+
+                          // Get productIds from the environment object
+                          const envProductIds: string[] = env.productIds || [];
+
+                          // Filter synced products that belong to this environment
+                          const envProducts = syncedProducts
+                            .filter((p: ProposalProduct) =>
+                              envProductIds.includes(p.productId),
+                            )
+                            .map((p: ProposalProduct) => ({
+                              productId: p.productId,
+                              productName: p.productName,
+                              quantity: p.quantity,
+                              status: p.status,
+                            }));
+
+                          return {
+                            ambienteId:
+                              envMasterAmbiente?.id ||
+                              env.ambienteId ||
+                              // Fallback to legacy ID if this is clearly the primary one being migrated
+                              (env.ambienteId ===
+                              (masterAmbiente?.id || primaryAmbienteId)
+                                ? masterAmbiente?.id || primaryAmbienteId
+                                : "") ||
+                              "",
+                            ambienteName:
+                              envMasterAmbiente?.name ||
+                              env.ambienteName ||
+                              (env.ambienteName ===
+                              (masterAmbiente?.name || primaryAmbienteName)
+                                ? masterAmbiente?.name || primaryAmbienteName
+                                : "") ||
+                              "",
+                            description:
+                              env.description ||
+                              envMasterAmbiente?.description ||
+                              "",
+                            products: envProducts,
+                          };
+                        })
+                      : [
+                          {
+                            ambienteId:
+                              masterAmbiente?.id || primaryAmbienteId || "",
+                            ambienteName:
+                              masterAmbiente?.name || primaryAmbienteName || "",
+                            description:
+                              systemEnvConfig?.description ||
+                              masterAmbiente?.description ||
+                              s.ambientes?.[0]?.description ||
+                              "",
+                            products: sistemaProducts,
+                          },
+                        ],
                   // Legacy fields for backward compat
                   ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
                   ambienteName:
@@ -715,10 +815,136 @@ export function useProposalForm({
     setLocalSistemas,
   ]);
 
+  // Real-time Master Data Sync (Focus Refetch)
+  // Automatically updates system/environment descriptions when user returns to the tab
+  const refreshMasterData = React.useCallback(async () => {
+    if (!tenant?.id) return;
+
+    try {
+      // 1. Fetch fresh master data
+      const [freshAmbientes, freshSistemas] = await Promise.all([
+        AmbienteService.getAmbientes(tenant.id),
+        SistemaService.getSistemas(tenant.id),
+      ]);
+
+      // 2. Update local transaction state
+      setLocalAmbientes(freshAmbientes);
+      setLocalSistemas(freshSistemas);
+
+      // 3. Sync current selected systems with fresh data
+      setSelectedSistemas((prevSistemas) => {
+        return prevSistemas.map((s) => {
+          // Normalize legacy structure if needed (though state should be normalized)
+          const currentAmbientes =
+            s.ambientes && s.ambientes.length > 0
+              ? s.ambientes
+              : [
+                  {
+                    ambienteId: s.ambienteId || "",
+                    ambienteName: s.ambienteName || "",
+                    description: s.description || "",
+                    products: s.products || [],
+                  },
+                ];
+
+          const updatedAmbientes = currentAmbientes.map((env) => {
+            const masterAmbiente =
+              freshAmbientes.find((a) => a.id === env.ambienteId) ||
+              freshAmbientes.find((a) => a.name === env.ambienteName);
+
+            const masterSistema =
+              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+              freshSistemas.find((sys) => sys.name === s.sistemaName);
+
+            const systemEnvConfig = masterSistema?.ambientes?.find(
+              (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
+            );
+
+            return {
+              ...env,
+              ambienteName: masterAmbiente?.name || env.ambienteName,
+              // Update Description: System-Specific -> Global -> Keep Existing
+              description:
+                systemEnvConfig?.description ||
+                masterAmbiente?.description ||
+                env.description ||
+                "",
+            };
+          });
+
+          // Sync root system data
+          const masterSistema =
+            freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+            freshSistemas.find((sys) => sys.name === s.sistemaName);
+
+          const primaryEnv = updatedAmbientes[0];
+
+          return {
+            ...s,
+            sistemaName: masterSistema?.name || s.sistemaName,
+            description: masterSistema?.description || s.description,
+            ambientes: updatedAmbientes,
+            // Keep legacy fields in sync
+            ambienteName: primaryEnv?.ambienteName || s.ambienteName,
+            ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+          };
+        });
+      });
+    } catch (err) {
+      console.error("Silent refresh failed", err);
+    }
+  }, [tenant?.id, setLocalAmbientes, setLocalSistemas]);
+
+  // Trigger refresh on window focus
+  React.useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState === "visible") {
+        refreshMasterData();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("visibilitychange", onFocus);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshMasterData]);
+
   const selectedProducts = React.useMemo(
     () => formData.products || [],
     [formData.products],
   );
+
+  // Calculate visible products - only products belonging to visible systems
+  // This ensures we exclude "phantom" products from financial calculations
+  const visibleProducts = React.useMemo(() => {
+    const validInstanceIds = new Set<string>();
+
+    selectedSistemas.forEach((s) => {
+      // Collect IDs from environments array
+      if (s.ambientes && s.ambientes.length > 0) {
+        s.ambientes.forEach((a) => {
+          if (s.sistemaId && a.ambienteId) {
+            validInstanceIds.add(`${s.sistemaId}-${a.ambienteId}`);
+          }
+        });
+      }
+      // Collect legacy/fallback ID
+      else {
+        const primary = getPrimaryAmbiente(s);
+        if (s.sistemaId && primary?.ambienteId) {
+          validInstanceIds.add(`${s.sistemaId}-${primary.ambienteId}`);
+        }
+      }
+    });
+
+    return selectedProducts.filter(
+      (p) => p.systemInstanceId && validInstanceIds.has(p.systemInstanceId),
+    );
+  }, [selectedSistemas, selectedProducts]);
+
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
 
   // Product handlers
@@ -825,42 +1051,33 @@ export function useProposalForm({
     }));
   };
 
-  // Toggle product status (active/inactive)
+  // Toggle product status (active/inactive) - UPDATED: toggles LOCAL status only
   const handleToggleProductStatus = async (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
   ) => {
-    try {
-      // Optimistic update - update local state immediately
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, status: newStatus } : p)),
-      );
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).map((p) => {
+        // Find specific instance if systemInstanceId provided
+        // Or find by productId if legacy/global (though for automation we prefer instance targeting)
+        const isTarget = systemInstanceId
+          ? p.systemInstanceId === systemInstanceId && p.productId === productId
+          : p.productId === productId;
 
-      // Persist to Firebase
-      await ProductService.updateProduct(productId, { status: newStatus });
-    } catch (error) {
-      console.error("Error toggling product status:", error);
-
-      // Revert optimistic update on error
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === productId
-            ? { ...p, status: newStatus === "active" ? "inactive" : "active" }
-            : p,
-        ),
-      );
-
-      const errorMessage =
-        error instanceof Error ? error.message : "Erro desconhecido";
-      toast.error(`Erro ao alterar status do produto: ${errorMessage}`);
-    }
+        if (isTarget) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      }),
+    }));
   };
 
-  // Calculations
-  // Calculations
+  // Calculations - use visibleProducts to exclude phantom products
   const calculateSubtotal = React.useCallback(
-    () => selectedProducts.reduce((sum, p) => sum + p.total, 0),
-    [selectedProducts],
+    () => visibleProducts.reduce((sum, p) => sum + p.total, 0),
+    [visibleProducts],
   );
 
   const calculateDiscount = React.useCallback(
@@ -1005,9 +1222,10 @@ export function useProposalForm({
         };
 
         // 3. Prepare Payload
+        // Use visibleProducts to exclude phantom products from removed systems
         const payload = prepareCreatePayload({
           formData: draftFormData,
-          selectedProducts: formData.products || [],
+          selectedProducts: visibleProducts,
           selectedSistemas: selectedSistemas, // Direct usage
           clientId,
           tenantId: tenant.id,
@@ -1096,6 +1314,7 @@ export function useProposalForm({
           category: productDef?.category,
           systemInstanceId,
           isExtra: false,
+          status: sp.status || "active",
         };
       });
 
@@ -1188,6 +1407,7 @@ export function useProposalForm({
         category: productDef?.category,
         systemInstanceId: newInstanceId,
         isExtra: false,
+        status: sp.status || "active",
       };
     });
 
@@ -1232,8 +1452,48 @@ export function useProposalForm({
       manufacturer: product.manufacturer,
       category: product.category,
       systemInstanceId,
-      isExtra: true, // Explicitly marked as extra added to system
+      isExtra: true, // Default to true, will be checked below
+      status: "active",
     };
+
+    // Check if product is part of the original definition to determine isExtra/isInactive
+    const targetSystem = selectedSistemas[systemIndex];
+    if (targetSystem && targetSystem.sistemaId) {
+      // Find matching master system definition from mergedSistemas (which contains full definitions)
+      const masterSistema = mergedSistemas.find(
+        (s) => s.id === targetSystem.sistemaId,
+      );
+
+      if (masterSistema) {
+        // Extract ambienteId from instanceId (format: sistemaId-ambienteId) or fallback
+        const parts = systemInstanceId.split("-");
+        // If systemInstanceId is valid (has 2 parts), use 2nd part. Else use system's first environment
+        const targetAmbienteId =
+          parts.length >= 2
+            ? parts[1]
+            : targetSystem.ambientes?.[0]?.ambienteId;
+
+        if (targetAmbienteId) {
+          // Find the specific environment configuration in the master system
+          const masterAmbienteConfig = masterSistema.ambientes?.find(
+            (a) => a.ambienteId === targetAmbienteId,
+          );
+
+          if (masterAmbienteConfig) {
+            // Check if product exists in the master configuration for this environment
+            const isOriginallyInSystem = masterAmbienteConfig.products.some(
+              (p) => p.productId === product.id,
+            );
+
+            if (isOriginallyInSystem) {
+              newProduct.isExtra = false;
+              // If it was originally in the system, it might have been "removed" (filtered out) earlier
+              // So when re-adding, we treat it as "active" again (not extra)
+            }
+          }
+        }
+      }
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -1383,6 +1643,50 @@ export function useProposalForm({
     }
   }, []);
 
+  // Remove an environment from a system
+  const removeAmbienteFromSistema = (
+    sistemaIndex: number,
+    ambienteId: string,
+  ) => {
+    // 1. Get the system
+    const sistema = selectedSistemas[sistemaIndex];
+    if (!sistema) return;
+
+    const sistemaId = sistema.sistemaId;
+    const instanceId = `${sistemaId}-${ambienteId}`;
+
+    // 2. Remove products associated with this environment instance
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).filter(
+        (p) =>
+          p.systemInstanceId !== instanceId &&
+          p.ambienteInstanceId !== instanceId,
+      ),
+    }));
+
+    // 3. Update the system's environments list
+    const updatedAmbientes = (sistema.ambientes || []).filter(
+      (a) => a.ambienteId !== ambienteId,
+    );
+
+    // 4. If system has no more environments, remove the system entirely
+    if (updatedAmbientes.length === 0) {
+      removeSistema(sistemaIndex, instanceId); // Use instanceId even if system is removed
+      toast.success("Sistema removido pois não possui mais ambientes.");
+      return;
+    }
+
+    // 5. Update the system with the remaining environments
+    const updatedSistema = {
+      ...sistema,
+      ambientes: updatedAmbientes,
+    };
+
+    updateSistema(sistemaIndex, updatedSistema);
+    toast.success("Ambiente removido com sucesso.");
+  };
+
   // Mark that user discarded changes (prevents auto-save)
   const markAsDiscarded = React.useCallback(() => {
     userDiscardedRef.current = true;
@@ -1399,6 +1703,7 @@ export function useProposalForm({
     clientTypes,
     formData,
     selectedProducts,
+    visibleProducts,
     selectedSistemas,
     systemProductIds,
     extraProducts,
@@ -1435,6 +1740,7 @@ export function useProposalForm({
     updateSistema,
     addProductToSystem,
     updateProductMarkup,
+    removeAmbienteFromSistema,
     resetToInitial,
     markAsDiscarded,
   };

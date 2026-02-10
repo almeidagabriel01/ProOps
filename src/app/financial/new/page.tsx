@@ -63,6 +63,7 @@ export default function NewTransactionPage() {
     setFieldError,
     isSaving,
     isLoading,
+    switchPaymentMode,
   } = useTransactionForm();
 
   // Redirect if no create permission
@@ -159,7 +160,7 @@ export default function NewTransactionPage() {
         ) {
           setFieldError(
             "installmentValue",
-            "Valor da parcela deve ser maior que 0"
+            "Valor da parcela deve ser maior que 0",
           );
           isValid = false;
         }
@@ -169,7 +170,7 @@ export default function NewTransactionPage() {
         ) {
           setFieldError(
             "installmentsWallet",
-            "Carteira para parcelas é obrigatória"
+            "Carteira para parcelas é obrigatória",
           );
           isValid = false;
         }
@@ -180,7 +181,7 @@ export default function NewTransactionPage() {
           ) {
             setFieldError(
               "downPaymentValue",
-              "Valor da entrada deve ser maior que 0"
+              "Valor da entrada deve ser maior que 0",
             );
             isValid = false;
           }
@@ -229,6 +230,7 @@ export default function NewTransactionPage() {
             onChange={handleChange}
             onBlur={handleBlur}
             errors={errors}
+            onPaymentModeChange={switchPaymentMode}
           />
           <StepNavigation onBeforeNext={validateStep3} />
         </StepCard>

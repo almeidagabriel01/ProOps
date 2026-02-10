@@ -53,14 +53,17 @@ export interface CoverElement {
     | "label"
     | "divider"
     | "client-name"
+    | "proposal-title"
+    | "valid-until"
     | "logo"
     | "company-name"
     | "image";
   content: string;
   imageUrl?: string; // For image elements
-  // X/Y positioning as percentages (0-100)
-  x: number; // Percentage from left
-  y: number; // Percentage from top
+  prefix?: string; // Text to show before the main content (for backend-sourced elements)
+  suffix?: string; // Text to show after the main content (for backend-sourced elements)
+  x: number; // Horizontal position (0-100%)
+  y: number; // Vertical position (0-100%)
   order: number;
   // Special flags
   includesClientName?: boolean; // If true, appends client name after content
@@ -81,6 +84,10 @@ export interface CoverElement {
     imageHeight?: number; // Height in px for image elements
     imageFit?: "cover" | "contain";
     imageBorder?: boolean;
+    // Divider specific
+    width?: string;
+    height?: string;
+    backgroundColor?: string;
   };
 }
 
@@ -90,29 +97,32 @@ export function createDefaultCoverElements(): CoverElement[] {
     {
       id: crypto.randomUUID(),
       type: "label",
-      content: "Proposta Comercial",
+      content: "PROPOSTA COMERCIAL",
       x: 50,
       y: 35,
       order: 0,
       styles: {
         fontSize: "14px",
-        textTransform: "uppercase",
-        letterSpacing: "0.2em",
+        fontWeight: "600",
+        color: "#ffffff",
         textAlign: "center",
-        opacity: 0.8,
+        letterSpacing: "2px",
+        textTransform: "uppercase",
       },
     },
     {
       id: crypto.randomUUID(),
-      type: "title",
-      content: "", // Empty - uses proposal title when usesProposalTitle is true
+      type: "proposal-title",
+      content: "",
+      prefix: "",
+      suffix: "",
       x: 50,
       y: 45,
       order: 1,
-      usesProposalTitle: true, // Uses the proposal title automatically
       styles: {
         fontSize: "40px",
         fontWeight: "bold",
+        color: "#ffffff",
         textAlign: "center",
       },
     },
@@ -124,25 +134,112 @@ export function createDefaultCoverElements(): CoverElement[] {
       y: 55,
       order: 2,
       styles: {
-        marginTop: "16px",
-        marginBottom: "16px",
+        width: "200px",
+        height: "2px",
+        backgroundColor: "#ffffff",
       },
     },
     {
       id: crypto.randomUUID(),
-      type: "text",
-      content: "Preparado para",
+      type: "client-name",
+      content: "",
+      prefix: "Preparado para",
+      suffix: "",
       x: 50,
       y: 62,
       order: 3,
-      includesClientName: true, // Appends client name after this text
       styles: {
         fontSize: "18px",
+        fontWeight: "normal",
+        color: "#ffffff",
         textAlign: "center",
-        opacity: 0.9,
+      },
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "valid-until",
+      content: "",
+      prefix: "Válido até",
+      suffix: "",
+      x: 50,
+      y: 90,
+      order: 4,
+      styles: {
+        fontSize: "18px",
+        fontWeight: "600",
+        color: "#ffffff",
+        textAlign: "center",
       },
     },
   ];
+}
+
+/**
+ * Normalizes cover elements to ensure they have the correct dynamic types and required fields.
+ * This handles data integrity for older proposals or malformed data.
+ */
+export function normalizeCoverElements(
+  elements: CoverElement[],
+): CoverElement[] {
+  if (!elements || elements.length === 0) {
+    return elements;
+  }
+
+  // Check if we need to normalize legacy types
+  const hasLegacyTypes = elements.some(
+    (el) =>
+      (el.type === "title" && !el.content) ||
+      (el.type === "text" && el.content?.includes("Preparado")),
+  );
+
+  // Normalize: Convert old element types to new dynamic types
+  const normalizedElements = elements.map((el: CoverElement) => {
+    // Convert old "title" type with empty content to "proposal-title"
+    if (el.type === "title" && !el.content) {
+      return {
+        ...el,
+        type: "proposal-title" as const,
+        prefix: el.prefix || "",
+        suffix: el.suffix || "",
+      };
+    }
+
+    // Convert old "text" type with "Preparado para" to "client-name"
+    if (el.type === "text" && el.content?.includes("Preparado")) {
+      return {
+        ...el,
+        type: "client-name" as const,
+        content: "",
+        prefix: el.content || "Preparado para",
+        suffix: el.suffix || "",
+      };
+    }
+
+    return el;
+  });
+
+  // Ensure mandatory elements like 'valid-until' exist for legacy proposals
+  const hasValidUntil = normalizedElements.some(
+    (el) => el.type === "valid-until",
+  );
+
+  if (hasLegacyTypes && !hasValidUntil) {
+    const maxOrder = Math.max(0, ...normalizedElements.map((e) => e.order));
+    const defaultElements = createDefaultCoverElements();
+    const defaultValidUntil = defaultElements.find(
+      (el) => el.type === "valid-until",
+    );
+
+    if (defaultValidUntil) {
+      normalizedElements.push({
+        ...defaultValidUntil,
+        id: crypto.randomUUID(), // Always generate a new ID
+        order: maxOrder + 1,
+      });
+    }
+  }
+
+  return normalizedElements;
 }
 
 interface PdfSectionEditorProps {
@@ -157,8 +254,8 @@ export function PdfSectionEditor({
   primaryColor,
 }: PdfSectionEditorProps) {
   const {
-    expandedSection,
-    setExpandedSection,
+    expandedSections,
+    toggleSection,
     draggedId,
     dragOverId,
     dropPlacement,
@@ -208,12 +305,12 @@ export function PdfSectionEditor({
             section={section}
             index={index}
             totalSections={sections.length}
-            isExpanded={expandedSection === section.id}
+            isExpanded={expandedSections.has(section.id)}
             isDragging={draggedId === section.id}
             isDragOver={dragOverId === section.id}
             dropPlacement={dragOverId === section.id ? dropPlacement : null}
             primaryColor={primaryColor}
-            onExpand={setExpandedSection}
+            onExpand={() => toggleSection(section.id)}
             onMove={moveSection}
             onRemove={removeSection}
             onHoverHandle={setHoveredHandleId}
