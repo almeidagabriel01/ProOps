@@ -41,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -175,10 +176,13 @@ export default function ProposalsPage() {
     new Map(),
   );
 
-  const handleEdit = (id: string) => {
-    setEditingId(id);
-    router.push(`/proposals/${id}`);
-  };
+  const handleEdit = React.useCallback(
+    (id: string) => {
+      setEditingId(id);
+      router.push(`/proposals/${id}`);
+    },
+    [router],
+  );
 
   const handleDownload = (proposal: Proposal) => {
     setDownloadingId(proposal.id);
@@ -323,42 +327,45 @@ export default function ProposalsPage() {
     }
   };
 
-  const handleDuplicate = async (id: string) => {
-    setDuplicatingId(id);
-    try {
-      const original = proposals.find((p) => p.id === id);
-      if (!original) return;
-      if (!tenant) return;
+  const handleDuplicate = React.useCallback(
+    async (id: string) => {
+      setDuplicatingId(id);
+      try {
+        const original = proposals.find((p) => p.id === id);
+        if (!original) return;
+        if (!tenant) return;
 
-      await ProposalService.createProposal({
-        title: `${original.title} (Cópia)`,
-        tenantId: original.tenantId,
-        clientId: original.clientId || "",
-        clientName: original.clientName || "",
-        clientEmail: original.clientEmail,
-        clientPhone: original.clientPhone,
-        clientAddress: original.clientAddress,
-        validUntil: original.validUntil,
-        status: "in_progress",
-        products: original.products || [],
-        sistemas: original.sistemas || [],
-        customNotes: original.customNotes,
-        discount: original.discount || 0,
-        totalValue: original.totalValue || 0,
-        sections: original.sections || [],
-        pdfSettings: original.pdfSettings,
-      });
+        await ProposalService.createProposal({
+          title: `${original.title} (Cópia)`,
+          tenantId: original.tenantId,
+          clientId: original.clientId || "",
+          clientName: original.clientName || "",
+          clientEmail: original.clientEmail,
+          clientPhone: original.clientPhone,
+          clientAddress: original.clientAddress,
+          validUntil: original.validUntil,
+          status: "in_progress",
+          products: original.products || [],
+          sistemas: original.sistemas || [],
+          customNotes: original.customNotes,
+          discount: original.discount || 0,
+          totalValue: original.totalValue || 0,
+          sections: original.sections || [],
+          pdfSettings: original.pdfSettings,
+        });
 
-      const data = await ProposalService.getProposals(tenant.id);
-      setProposals(data);
-      toast.success("Proposta duplicada com sucesso!");
-    } catch (error) {
-      console.error("Duplicate error:", error);
-      toast.error("Erro ao duplicar proposta.");
-    } finally {
-      setDuplicatingId(null);
-    }
-  };
+        const data = await ProposalService.getProposals(tenant.id);
+        setProposals(data);
+        toast.success("Proposta duplicada com sucesso!");
+      } catch (error) {
+        console.error("Duplicate error:", error);
+        toast.error("Erro ao duplicar proposta.");
+      } finally {
+        setDuplicatingId(null);
+      }
+    },
+    [proposals, tenant],
+  );
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return "-";
@@ -369,31 +376,359 @@ export default function ProposalsPage() {
     });
   };
 
-  const handleStatusChange = async (
-    proposalId: string,
-    newStatus: ProposalStatus,
-  ) => {
-    const proposal = proposals.find((p) => p.id === proposalId);
-    if (!proposal || proposal.status === newStatus) return;
+  const handleStatusChange = React.useCallback(
+    async (proposalId: string, newStatus: ProposalStatus) => {
+      const proposal = proposals.find((p) => p.id === proposalId);
+      if (!proposal || proposal.status === newStatus) return;
 
-    setUpdatingStatusId(proposalId);
-    try {
-      await ProposalService.updateProposal(proposalId, { status: newStatus });
-      setProposals((prev) =>
-        prev.map((p) =>
-          p.id === proposalId ? { ...p, status: newStatus } : p,
-        ),
-      );
-      toast.success(`Status alterado para "${statusConfig[newStatus].label}"`);
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error("Erro ao alterar status");
-    } finally {
-      setUpdatingStatusId(null);
-    }
-  };
+      setUpdatingStatusId(proposalId);
+      try {
+        await ProposalService.updateProposal(proposalId, { status: newStatus });
+        setProposals((prev) =>
+          prev.map((p) =>
+            p.id === proposalId ? { ...p, status: newStatus } : p,
+          ),
+        );
+        toast.success(
+          `Status alterado para "${statusConfig[newStatus].label}"`,
+        );
+      } catch (error) {
+        console.error("Error updating status:", error);
+        toast.error("Erro ao alterar status");
+      } finally {
+        setUpdatingStatusId(null);
+      }
+    },
+    [proposals],
+  );
 
   const proposalToDelete = proposals.find((p) => p.id === deleteId);
+  const columns: DataTableColumn<Proposal>[] = React.useMemo(
+    () => [
+      {
+        key: "title",
+        header: "Título",
+        render: (proposal) => {
+          const productCount = proposal.products?.length || 0;
+          const total =
+            proposal.products?.reduce(
+              (sum: number, p: { total: number }) => sum + p.total,
+              0,
+            ) || 0;
+          return (
+            <div>
+              <Link
+                href={`/proposals/${proposal.id}?initialStep=automation`}
+                className="font-medium hover:underline"
+              >
+                {proposal.title}
+              </Link>
+              {productCount > 0 && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {productCount} produto(s) • R$ {total.toFixed(2)}
+                </div>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "client",
+        header: "Contato",
+        render: (proposal) => (
+          <div className="text-sm text-muted-foreground truncate">
+            {proposal.clientName}
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        render: (proposal) => (
+          <div>
+            {canEdit ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="focus:outline-none cursor-pointer"
+                    disabled={updatingStatusId === proposal.id}
+                  >
+                    <Badge
+                      variant={
+                        statusConfig[proposal.status as ProposalStatus]
+                          ?.variant || "default"
+                      }
+                      className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-start"
+                    >
+                      {updatingStatusId === proposal.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : null}
+                      {statusConfig[proposal.status as ProposalStatus]?.label ||
+                        "Rascunho"}
+                      <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
+                    </Badge>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="min-w-[140px]">
+                  {statusOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isActive = proposal.status === option.value;
+                    return (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() =>
+                          handleStatusChange(proposal.id, option.value)
+                        }
+                        className={isActive ? "bg-muted" : ""}
+                      >
+                        <Icon className="w-4 h-4 mr-2" />
+                        {option.label}
+                        {isActive && <Check className="w-4 h-4 ml-auto" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Badge
+                variant={
+                  statusConfig[proposal.status as ProposalStatus]?.variant ||
+                  "default"
+                }
+              >
+                {statusConfig[proposal.status as ProposalStatus]?.label ||
+                  "Rascunho"}
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "ambiente",
+        header: "Ambiente",
+        render: (proposal) => {
+          const uniqueAmbientes = Array.from(
+            new Set(
+              proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean),
+            ),
+          );
+          return (
+            <div className="text-sm text-muted-foreground truncate">
+              {uniqueAmbientes.length > 0 ? (
+                <span title={uniqueAmbientes.join(", ")}>
+                  {uniqueAmbientes.length > 2
+                    ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
+                    : uniqueAmbientes.join(", ")}
+                </span>
+              ) : (
+                "-"
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "sistema",
+        header: "Sistema",
+        render: (proposal) => {
+          const uniqueSistemas = Array.from(
+            new Set(
+              proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean),
+            ),
+          );
+          return (
+            <div className="text-sm text-muted-foreground truncate">
+              {uniqueSistemas.length > 0 ? (
+                <span title={uniqueSistemas.join(", ")}>
+                  {uniqueSistemas.length > 2
+                    ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
+                    : uniqueSistemas.join(", ")}
+                </span>
+              ) : (
+                "-"
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        key: "validity",
+        header: "Validade",
+        render: (proposal) => (
+          <div className="text-sm text-muted-foreground">
+            {formatDate(proposal.validUntil)}
+          </div>
+        ),
+      },
+      {
+        key: "actions",
+        header: "Ações",
+        className: "text-right",
+        headerClassName: "text-right",
+        render: (proposal) => (
+          <div className="flex items-center justify-end gap-1">
+            {/* Individual action buttons — hidden on small screens (≤1700px) */}
+            <div className="hidden min-[1701px]:flex items-center gap-1">
+              {/* Ver PDF */}
+              {proposal.status !== "draft" ? (
+                <Link href={`/proposals/${proposal.id}/view`}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    title="Ver PDF"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground cursor-not-allowed opacity-50"
+                  title="Rascunhos não podem ser visualizados"
+                  disabled
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Baixar PDF */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                title={
+                  proposal.status === "draft"
+                    ? "Rascunhos não podem ser baixados"
+                    : canGeneratePdf(proposal)
+                      ? "Baixar PDF"
+                      : "Preencha título, cliente e produtos para baixar o PDF"
+                }
+                onClick={() => handleDownload(proposal)}
+                disabled={
+                  downloadingId === proposal.id || !canGeneratePdf(proposal)
+                }
+              >
+                {downloadingId === proposal.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileDown className="w-4 h-4" />
+                )}
+              </Button>
+
+              {/* Editar PDF */}
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  title={
+                    proposal.status === "draft"
+                      ? "Rascunhos não podem ter PDF editado"
+                      : canGeneratePdf(proposal)
+                        ? "Editar PDF"
+                        : "Preencha título, cliente e produtos para editar o PDF"
+                  }
+                  disabled={!canGeneratePdf(proposal)}
+                  onClick={() =>
+                    canGeneratePdf(proposal) &&
+                    router.push(`/proposals/${proposal.id}/edit-pdf`)
+                  }
+                >
+                  <Palette className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Editar */}
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  title="Editar"
+                  onClick={() => handleEdit(proposal.id)}
+                  disabled={editingId === proposal.id}
+                >
+                  {editingId === proposal.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Pencil className="w-4 h-4" />
+                  )}
+                </Button>
+              )}
+
+              {/* Excluir */}
+              {canDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
+                  title="Excluir"
+                  onClick={() => setDeleteId(proposal.id)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Dropdown with extra actions (Compartilhar, Duplicar, Anexos) — large screens */}
+              <ProposalActionsDropdown
+                proposal={proposal}
+                canEdit={canEdit}
+                canCreate={canCreate}
+                canGeneratePdf={canGeneratePdf(proposal)}
+                isSharing={sharingId === proposal.id}
+                isDuplicating={duplicatingId === proposal.id}
+                onShare={() => handleShare(proposal.id)}
+                onDuplicate={() => handleDuplicate(proposal.id)}
+                onAttachments={() => setAttachmentsProposalId(proposal.id)}
+              />
+            </div>
+
+            {/* Compact dropdown with ALL actions — visible only on small screens (≤1700px) */}
+            <div className="flex min-[1701px]:hidden">
+              <ProposalActionsDropdown
+                proposal={proposal}
+                canEdit={canEdit}
+                canCreate={canCreate}
+                canDelete={canDelete}
+                canGeneratePdf={canGeneratePdf(proposal)}
+                isSharing={sharingId === proposal.id}
+                isDuplicating={duplicatingId === proposal.id}
+                isDownloading={downloadingId === proposal.id}
+                isEditing={editingId === proposal.id}
+                onShare={() => handleShare(proposal.id)}
+                onDuplicate={() => handleDuplicate(proposal.id)}
+                onAttachments={() => setAttachmentsProposalId(proposal.id)}
+                showAllActions
+                onViewPdf={() => router.push(`/proposals/${proposal.id}/view`)}
+                onDownloadPdf={() => handleDownload(proposal)}
+                onEditPdf={() =>
+                  router.push(`/proposals/${proposal.id}/edit-pdf`)
+                }
+                onEdit={() => handleEdit(proposal.id)}
+                onDelete={() => setDeleteId(proposal.id)}
+              />
+            </div>
+          </div>
+        ),
+      },
+    ],
+    [
+      canEdit,
+      canDelete,
+      canCreate,
+      updatingStatusId,
+      downloadingId,
+      editingId,
+      sharingId,
+      duplicatingId,
+      handleDuplicate,
+      handleEdit,
+      handleStatusChange,
+      router,
+    ],
+  );
 
   const renderDialogs = () => (
     <AlertDialog
@@ -504,313 +839,12 @@ export default function ProposalsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {/* Header */}
-            <div className="grid grid-cols-7 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-              <div>Título</div>
-              <div className="text-center">Contato</div>
-              <div className="text-center">Status</div>
-              <div className="text-center">Ambiente</div>
-              <div className="text-center">Sistema</div>
-              <div className="text-center">Validade</div>
-              <div className="text-right">Ações</div>
-            </div>
-
-            {/* Rows */}
-            {filteredProposals.map((proposal) => {
-              const productCount = proposal.products?.length || 0;
-              const total =
-                proposal.products?.reduce(
-                  (sum: number, p: { total: number }) => sum + p.total,
-                  0,
-                ) || 0;
-
-              // Extract unique Ambientes and Sistemas
-              const uniqueAmbientes = Array.from(
-                new Set(
-                  proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean),
-                ),
-              );
-              const uniqueSistemas = Array.from(
-                new Set(
-                  proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean),
-                ),
-              );
-
-              return (
-                <Card
-                  key={proposal.id}
-                  className="hover:bg-muted/50 transition-colors"
-                >
-                  <CardContent className="grid grid-cols-7 gap-4 items-center py-4 px-4">
-                    <div>
-                      <Link
-                        href={`/proposals/${proposal.id}?initialStep=automation`}
-                        className="font-medium hover:underline"
-                      >
-                        {proposal.title}
-                      </Link>
-                      {productCount > 0 && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {productCount} produto(s) • R$ {total.toFixed(2)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground truncate text-center">
-                      {proposal.clientName}
-                    </div>
-                    <div className="text-center">
-                      {canEdit ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="focus:outline-none cursor-pointer"
-                              disabled={updatingStatusId === proposal.id}
-                            >
-                              <Badge
-                                variant={
-                                  statusConfig[
-                                    proposal.status as ProposalStatus
-                                  ]?.variant || "default"
-                                }
-                                className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-center"
-                              >
-                                {updatingStatusId === proposal.id ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : null}
-                                {statusConfig[proposal.status as ProposalStatus]
-                                  ?.label || "Rascunho"}
-                                <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
-                              </Badge>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="center"
-                            className="min-w-[140px]"
-                          >
-                            {statusOptions.map((option) => {
-                              const Icon = option.icon;
-                              const isActive = proposal.status === option.value;
-                              return (
-                                <DropdownMenuItem
-                                  key={option.value}
-                                  onClick={() =>
-                                    handleStatusChange(
-                                      proposal.id,
-                                      option.value,
-                                    )
-                                  }
-                                  className={isActive ? "bg-muted" : ""}
-                                >
-                                  <Icon className="w-4 h-4 mr-2" />
-                                  {option.label}
-                                  {isActive && (
-                                    <Check className="w-4 h-4 ml-auto" />
-                                  )}
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge
-                          variant={
-                            statusConfig[proposal.status as ProposalStatus]
-                              ?.variant || "default"
-                          }
-                        >
-                          {statusConfig[proposal.status as ProposalStatus]
-                            ?.label || "Rascunho"}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Ambientes */}
-                    <div className="text-sm text-muted-foreground text-center truncate px-2">
-                      {uniqueAmbientes.length > 0 ? (
-                        <span title={uniqueAmbientes.join(", ")}>
-                          {uniqueAmbientes.length > 2
-                            ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
-                            : uniqueAmbientes.join(", ")}
-                        </span>
-                      ) : (
-                        "-"
-                      )}
-                    </div>
-
-                    {/* Sistemas */}
-                    <div className="text-sm text-muted-foreground text-center truncate px-2">
-                      {uniqueSistemas.length > 0 ? (
-                        <span title={uniqueSistemas.join(", ")}>
-                          {uniqueSistemas.length > 2
-                            ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
-                            : uniqueSistemas.join(", ")}
-                        </span>
-                      ) : (
-                        "-"
-                      )}
-                    </div>
-
-                    <div className="text-sm text-muted-foreground text-center">
-                      {formatDate(proposal.validUntil)}
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Individual action buttons — hidden on small screens (≤1700px) */}
-                      <div className="hidden min-[1701px]:flex items-center gap-1">
-                        {/* Ver PDF */}
-                        {proposal.status !== "draft" ? (
-                          <Link href={`/proposals/${proposal.id}/view`}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              title="Ver PDF"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground cursor-not-allowed opacity-50"
-                            title="Rascunhos não podem ser visualizados"
-                            disabled
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        )}
-
-                        {/* Baixar PDF */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={
-                            proposal.status === "draft"
-                              ? "Rascunhos não podem ser baixados"
-                              : canGeneratePdf(proposal)
-                                ? "Baixar PDF"
-                                : "Preencha título, cliente e produtos para baixar o PDF"
-                          }
-                          onClick={() => handleDownload(proposal)}
-                          disabled={
-                            downloadingId === proposal.id ||
-                            !canGeneratePdf(proposal)
-                          }
-                        >
-                          {downloadingId === proposal.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <FileDown className="w-4 h-4" />
-                          )}
-                        </Button>
-
-                        {/* Editar PDF */}
-                        {canEdit && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
-                            title={
-                              proposal.status === "draft"
-                                ? "Rascunhos não podem ter PDF editado"
-                                : canGeneratePdf(proposal)
-                                  ? "Editar PDF"
-                                  : "Preencha título, cliente e produtos para editar o PDF"
-                            }
-                            disabled={!canGeneratePdf(proposal)}
-                            onClick={() =>
-                              canGeneratePdf(proposal) &&
-                              router.push(`/proposals/${proposal.id}/edit-pdf`)
-                            }
-                          >
-                            <Palette className="w-4 h-4" />
-                          </Button>
-                        )}
-
-                        {/* Editar */}
-                        {canEdit && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            title="Editar"
-                            onClick={() => handleEdit(proposal.id)}
-                            disabled={editingId === proposal.id}
-                          >
-                            {editingId === proposal.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Pencil className="w-4 h-4" />
-                            )}
-                          </Button>
-                        )}
-
-                        {/* Excluir */}
-                        {canDelete && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir"
-                            onClick={() => setDeleteId(proposal.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-
-                        {/* Dropdown with extra actions (Compartilhar, Duplicar, Anexos) — large screens */}
-                        <ProposalActionsDropdown
-                          proposal={proposal}
-                          canEdit={canEdit}
-                          canCreate={canCreate}
-                          canGeneratePdf={canGeneratePdf(proposal)}
-                          isSharing={sharingId === proposal.id}
-                          isDuplicating={duplicatingId === proposal.id}
-                          onShare={() => handleShare(proposal.id)}
-                          onDuplicate={() => handleDuplicate(proposal.id)}
-                          onAttachments={() =>
-                            setAttachmentsProposalId(proposal.id)
-                          }
-                        />
-                      </div>
-
-                      {/* Compact dropdown with ALL actions — visible only on small screens (≤1700px) */}
-                      <div className="flex min-[1701px]:hidden">
-                        <ProposalActionsDropdown
-                          proposal={proposal}
-                          canEdit={canEdit}
-                          canCreate={canCreate}
-                          canDelete={canDelete}
-                          canGeneratePdf={canGeneratePdf(proposal)}
-                          isSharing={sharingId === proposal.id}
-                          isDuplicating={duplicatingId === proposal.id}
-                          isDownloading={downloadingId === proposal.id}
-                          isEditing={editingId === proposal.id}
-                          onShare={() => handleShare(proposal.id)}
-                          onDuplicate={() => handleDuplicate(proposal.id)}
-                          onAttachments={() =>
-                            setAttachmentsProposalId(proposal.id)
-                          }
-                          showAllActions
-                          onViewPdf={() =>
-                            router.push(`/proposals/${proposal.id}/view`)
-                          }
-                          onDownloadPdf={() => handleDownload(proposal)}
-                          onEditPdf={() =>
-                            router.push(`/proposals/${proposal.id}/edit-pdf`)
-                          }
-                          onEdit={() => handleEdit(proposal.id)}
-                          onDelete={() => setDeleteId(proposal.id)}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredProposals}
+            keyExtractor={(proposal) => proposal.id}
+            gridClassName="grid-cols-7"
+          />
         )}
       </div>
       {renderDialogs()}

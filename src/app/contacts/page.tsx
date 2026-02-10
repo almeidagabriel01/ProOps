@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 const sourceConfig: Record<
   string,
@@ -155,6 +156,122 @@ export default function CustomersPage() {
   const clientToDelete = React.useMemo(() => {
     return clients.find((c) => c.id === deleteId);
   }, [clients, deleteId]);
+
+  const columns: DataTableColumn<Client>[] = React.useMemo(
+    () => [
+      {
+        key: "name",
+        header: "Nome",
+        render: (client) => (
+          <div className="min-w-0">
+            <Link
+              href={`/contacts/${client.id}`}
+              className="font-medium hover:underline truncate block"
+            >
+              {client.name}
+            </Link>
+          </div>
+        ),
+      },
+      {
+        key: "type",
+        header: "Tipo",
+        render: (client) => {
+          const clientTypes = client.types || ["cliente"];
+          return (
+            <div className="flex flex-wrap gap-1 justify-start">
+              {clientTypes.map((t) => {
+                const cfg = typeConfig[t] || typeConfig.cliente;
+                return (
+                  <Badge key={t} variant={cfg.variant} className="text-xs">
+                    {cfg.label}
+                  </Badge>
+                );
+              })}
+            </div>
+          );
+        },
+      },
+      {
+        key: "address",
+        header: "Endereço",
+        className: "hidden min-[1401px]:block",
+        headerClassName: "hidden min-[1401px]:block",
+        render: (client) => (
+          <div className="text-sm text-muted-foreground truncate">
+            {client.address || "-"}
+          </div>
+        ),
+      },
+      {
+        key: "contact",
+        header: "Contato",
+        render: (client) => (
+          <div className="space-y-1 min-w-0">
+            {client.email && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Mail className="w-3 h-3 shrink-0" />
+                <span className="truncate">{client.email}</span>
+              </div>
+            )}
+            {client.phone && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Phone className="w-3 h-3 shrink-0" />
+                <span className="truncate">{client.phone}</span>
+              </div>
+            )}
+            {!client.email && !client.phone && (
+              <span className="text-sm text-muted-foreground">-</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "source",
+        header: "Origem",
+        className: "hidden min-[1401px]:block",
+        headerClassName: "hidden min-[1401px]:block",
+        render: (client) => {
+          const source = sourceConfig[client.source] || sourceConfig.manual;
+          return <Badge variant={source.variant}>{source.label}</Badge>;
+        },
+      },
+      {
+        key: "actions",
+        header: "Ações",
+        className: "text-right",
+        headerClassName: "text-right",
+        render: (client) => (
+          <div className="flex items-center justify-end gap-1">
+            {canEdit && (
+              <Link href={`/contacts/${client.id}`}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  title="Editar"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              </Link>
+            )}
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteId(client.id)}
+                title="Excluir"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [canEdit, canDelete],
+  );
 
   const renderDialogs = () => (
     <>
@@ -301,104 +418,12 @@ export default function CustomersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {/* Header */}
-            <div className="grid grid-cols-[1fr_1fr_1fr_auto] min-[1401px]:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-              <div>Nome</div>
-              <div>Tipo</div>
-              <div className="hidden min-[1401px]:block">Endereço</div>
-              <div>Contato</div>
-              <div className="hidden min-[1401px]:block">Origem</div>
-
-              <div className="text-right">Ações</div>
-            </div>
-
-            {/* Rows */}
-            {filteredClients.map((client) => {
-              const source = sourceConfig[client.source] || sourceConfig.manual;
-              const clientTypes = client.types || ["cliente"];
-              return (
-                <Card
-                  key={client.id}
-                  className="hover:bg-muted/50 transition-colors"
-                >
-                  <CardContent className="grid grid-cols-[1fr_1fr_1fr_auto] min-[1401px]:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center py-4 px-4">
-                    <div className="min-w-0">
-                      <Link
-                        href={`/contacts/${client.id}`}
-                        className="font-medium hover:underline truncate block"
-                      >
-                        {client.name}
-                      </Link>
-                    </div>
-                    <div className="flex flex-wrap gap-1 justify-start">
-                      {clientTypes.map((t) => {
-                        const cfg = typeConfig[t] || typeConfig.cliente;
-                        return (
-                          <Badge
-                            key={t}
-                            variant={cfg.variant}
-                            className="text-xs"
-                          >
-                            {cfg.label}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                    <div className="hidden min-[1401px]:block text-sm text-muted-foreground truncate">
-                      {client.address || "-"}
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      {client.email && (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Mail className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{client.email}</span>
-                        </div>
-                      )}
-                      {client.phone && (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Phone className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{client.phone}</span>
-                        </div>
-                      )}
-                      {!client.email && !client.phone && (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </div>
-                    <div className="hidden min-[1401px]:block">
-                      <Badge variant={source.variant}>{source.label}</Badge>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-1">
-                      {canEdit && (
-                        <Link href={`/contacts/${client.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                      )}
-                      {canDelete && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteId(client.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredClients}
+            keyExtractor={(client) => client.id}
+            gridClassName="grid-cols-4 min-[1401px]:grid-cols-6"
+          />
         )}
       </div>
       {renderDialogs()}

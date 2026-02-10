@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 
 import { usePagePermission } from "@/hooks/usePagePermission";
 
@@ -110,6 +111,121 @@ export default function ProductsPage() {
   );
 
   const productToDelete = products.find((p) => p.id === deleteId);
+  const columns: DataTableColumn<Product>[] = [
+    {
+      key: "image",
+      header: "Imagem",
+      className: "col-span-1",
+      render: (product) => (
+        <div>
+          {product.images?.[0] || product.image ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={product.images?.[0] || product.image || ""}
+              alt={product.name}
+              className="w-10 h-10 object-cover rounded-md"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
+              <Package className="w-5 h-5 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "name",
+      header: "Nome",
+      className: "col-span-4",
+      render: (product) => (
+        <Link
+          href={`/products/${product.id}`}
+          className="font-medium hover:underline"
+        >
+          {product.name}
+        </Link>
+      ),
+    },
+    {
+      key: "category",
+      header: "Categoria",
+      className: "col-span-2",
+      render: (product) => (
+        <div className="text-sm text-muted-foreground">{product.category}</div>
+      ),
+    },
+    {
+      key: "stock",
+      header: "Estoque",
+      className: "col-span-2",
+      render: (product) => (
+        <span
+          className={
+            Number(product.stock) < 10
+              ? "text-red-500 font-medium"
+              : "text-sm text-muted-foreground"
+          }
+        >
+          {product.stock}
+        </span>
+      ),
+    },
+    {
+      key: "price",
+      header: "Preço",
+      className: "col-span-2",
+      render: (product) => (
+        <div className="flex flex-col items-start gap-0.5">
+          <span className="text-sm font-medium">
+            R${" "}
+            {(
+              parseFloat(product.price) +
+              (parseFloat(product.price) * parseFloat(product.markup || "0")) /
+                100
+            ).toFixed(2)}
+          </span>
+          {product.markup && parseFloat(product.markup) > 0 && (
+            <span className="text-xs text-muted-foreground">
+              (+{parseFloat(product.markup).toFixed(0)}% markup)
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Ações",
+      className: "col-span-1 text-right",
+      headerClassName: "col-span-1 text-right",
+      render: (product) => (
+        <div className="flex items-center justify-end gap-1">
+          {canEdit && (
+            <Link href={`/products/${product.id}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Editar"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            </Link>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteId(product.id)}
+              title="Excluir"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   const renderDialogs = () => (
     <AlertDialog
@@ -219,107 +335,12 @@ export default function ProductsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
-            {/* Header */}
-            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-              <div className="col-span-1">Imagem</div>
-              <div className="col-span-4">Nome</div>
-              <div className="col-span-2">Categoria</div>
-              <div className="col-span-2 text-center">Estoque</div>
-              <div className="col-span-2 text-center">Preço</div>
-              <div className="col-span-1 text-right">Ações</div>
-            </div>
-
-            {/* Rows */}
-            {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className="hover:bg-muted/50 transition-colors"
-              >
-                <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
-                  <div className="col-span-1">
-                    {product.images?.[0] || product.image ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={product.images?.[0] || product.image || ""}
-                        alt={product.name}
-                        className="w-10 h-10 object-cover rounded-md"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                        <Package className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="col-span-4">
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {product.name}
-                    </Link>
-                  </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">
-                    {product.category}
-                  </div>
-                  <div className="col-span-2 text-center">
-                    <span
-                      className={
-                        Number(product.stock) < 10
-                          ? "text-red-500 font-medium"
-                          : "text-sm text-muted-foreground"
-                      }
-                    >
-                      {product.stock}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-center">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-sm font-medium">
-                        R${" "}
-                        {(
-                          parseFloat(product.price) +
-                          (parseFloat(product.price) *
-                            parseFloat(product.markup || "0")) /
-                            100
-                        ).toFixed(2)}
-                      </span>
-                      {product.markup && parseFloat(product.markup) > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          (+{parseFloat(product.markup).toFixed(0)}% markup)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="col-span-1 flex items-center justify-end gap-1">
-                    {canEdit && (
-                      <Link href={`/products/${product.id}`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </Link>
-                    )}
-                    {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteId(product.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <DataTable
+            columns={columns}
+            data={filteredProducts}
+            keyExtractor={(product) => product.id}
+            gridClassName="grid-cols-12"
+          />
         )}
       </div>
       {renderDialogs()}
