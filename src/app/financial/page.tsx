@@ -274,7 +274,7 @@ export default function FinancialPage() {
 
         <div className="flex items-center gap-4 md:gap-8">
           <div className="text-center md:text-right">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
               <Wallet className="w-4 h-4" />
               <span className="text-xs font-medium uppercase tracking-wide">
                 Saldo
@@ -321,7 +321,7 @@ export default function FinancialPage() {
         <FinancialSummaryCards
           summary={summary}
           selectionSummary={selectionSummary}
-          balance={balance}
+          balance={filteredTransactions.length === 0 ? 0 : balance}
         />
       </div>
 

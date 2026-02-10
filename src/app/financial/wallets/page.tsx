@@ -59,17 +59,17 @@ export default function WalletsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const [selectedWallet, setSelectedWallet] = React.useState<Wallet | null>(
-    null
+    null,
   );
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isArchiving, setIsArchiving] = React.useState(false);
   const [isTransferring, setIsTransferring] = React.useState(false);
   const [settingDefaultId, setSettingDefaultId] = React.useState<string | null>(
-    null
+    null,
   );
   const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false);
   const [walletForHistory, setWalletForHistory] = React.useState<Wallet | null>(
-    null
+    null,
   );
 
   // Filter states
@@ -99,7 +99,7 @@ export default function WalletsPage() {
       filtered = filtered.filter(
         (w) =>
           w.name.toLowerCase().includes(term) ||
-          w.description?.toLowerCase().includes(term)
+          w.description?.toLowerCase().includes(term),
       );
     }
 
@@ -137,7 +137,7 @@ export default function WalletsPage() {
   };
 
   const handleFormSubmit = async (
-    data: CreateWalletInput | UpdateWalletInput
+    data: CreateWalletInput | UpdateWalletInput,
   ) => {
     if (selectedWallet) {
       return await updateWallet(selectedWallet.id, data as UpdateWalletInput);
@@ -147,7 +147,7 @@ export default function WalletsPage() {
   };
 
   const handleTransferSubmit = async (
-    data: Parameters<typeof transferBalance>[0]
+    data: Parameters<typeof transferBalance>[0],
   ) => {
     setIsTransferring(true);
     const result = await transferBalance(data);
@@ -157,7 +157,7 @@ export default function WalletsPage() {
 
   const handleAdjustSubmit = async (
     walletId: string,
-    data: Parameters<typeof adjustBalance>[1]
+    data: Parameters<typeof adjustBalance>[1],
   ) => {
     return await adjustBalance(walletId, data);
   };
@@ -283,7 +283,7 @@ export default function WalletsPage() {
 
           <div className="flex items-center gap-4 md:gap-8">
             <div className="text-center md:text-right">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
                 <WalletIcon className="w-4 h-4" />
                 <span className="text-xs font-medium uppercase tracking-wide">
                   Saldo Total
