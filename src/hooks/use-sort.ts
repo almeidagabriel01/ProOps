@@ -65,8 +65,8 @@ export function useSort<T>(items: T[], initialConfig?: SortConfig<T>) {
       // String comparison for text
       if (typeof valA === "string" && typeof valB === "string") {
         return direction === "asc"
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA);
+          ? valA.localeCompare(valB, undefined, { numeric: true })
+          : valB.localeCompare(valA, undefined, { numeric: true });
       }
 
       // Numeric/Date comparison

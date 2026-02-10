@@ -20,6 +20,137 @@ import {
   TransactionListByDueDate,
 } from "./_components";
 import { useSort } from "@/hooks/use-sort";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+
+/** Paginated wrapper for grouped transaction cards (3 per page) */
+function PaginatedTransactionList({
+  filteredTransactions,
+  transactions,
+  canEdit,
+  canDelete,
+  openDeleteDialog,
+  updateGroupStatus,
+  updateTransaction,
+  updateBatchTransactions,
+  registerPartialPayment,
+  selectedIds,
+  toggleSelection,
+  toggleGroupSelection,
+  expandedIds,
+  getExpansionKey,
+  toggleExpand,
+  refreshData,
+}: {
+  filteredTransactions: Transaction[];
+  transactions: Transaction[];
+  canEdit: boolean;
+  canDelete: boolean;
+  openDeleteDialog: (t: Transaction) => void;
+  updateGroupStatus: Parameters<typeof TransactionCard>[0]["onStatusChange"];
+  updateTransaction: Parameters<typeof TransactionCard>[0]["onUpdate"];
+  updateBatchTransactions: Parameters<
+    typeof TransactionCard
+  >[0]["onUpdateBatch"];
+  registerPartialPayment: Parameters<
+    typeof TransactionCard
+  >[0]["onRegisterPartialPayment"];
+  selectedIds: Set<string>;
+  toggleSelection: (id: string) => void;
+  toggleGroupSelection: (t: Transaction) => void;
+  expandedIds: Set<string>;
+  getExpansionKey: (t: Transaction) => string;
+  toggleExpand: (key: string, isOpen: boolean) => void;
+  refreshData: (bg?: boolean) => Promise<void>;
+}) {
+  const { currentPage, totalPages, paginatedData, setCurrentPage } =
+    usePagination(filteredTransactions, 3);
+
+  return (
+    <div className="flex flex-col gap-3 flex-1">
+      {paginatedData.map((transaction) => {
+        const groupId =
+          transaction.proposalGroupId || transaction.installmentGroupId;
+
+        if (groupId) {
+          const groupMembers = transactions.filter(
+            (t) =>
+              t.proposalGroupId === groupId || t.installmentGroupId === groupId,
+          );
+
+          groupMembers.sort((a, b) => {
+            if (a.isDownPayment && !b.isDownPayment) return -1;
+            if (!a.isDownPayment && b.isDownPayment) return 1;
+            if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
+              return (a.installmentNumber || 0) - (b.installmentNumber || 0);
+            }
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
+          });
+
+          return (
+            <TransactionCard
+              key={transaction.id}
+              transaction={transaction}
+              relatedInstallments={
+                !transaction.proposalGroupId ? groupMembers : []
+              }
+              proposalGroupTransactions={
+                transaction.proposalGroupId ? groupMembers : []
+              }
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onDelete={openDeleteDialog}
+              onStatusChange={updateGroupStatus}
+              onUpdate={updateTransaction}
+              onUpdateBatch={updateBatchTransactions}
+              onRegisterPartialPayment={registerPartialPayment}
+              isSelected={selectedIds.has(transaction.id)}
+              onToggleSelection={toggleSelection}
+              onToggleGroupSelection={toggleGroupSelection}
+              selectedIds={selectedIds}
+              isExpanded={expandedIds.has(getExpansionKey(transaction))}
+              onToggleExpand={(isOpen) =>
+                toggleExpand(getExpansionKey(transaction), isOpen)
+              }
+              onReload={() => refreshData(true)}
+            />
+          );
+        }
+
+        return (
+          <TransactionCard
+            key={transaction.id}
+            transaction={transaction}
+            relatedInstallments={[]}
+            proposalGroupTransactions={[]}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onDelete={openDeleteDialog}
+            onStatusChange={updateGroupStatus}
+            onUpdate={updateTransaction}
+            onUpdateBatch={updateBatchTransactions}
+            onRegisterPartialPayment={registerPartialPayment}
+            isSelected={selectedIds.has(transaction.id)}
+            onToggleSelection={toggleSelection}
+            onToggleGroupSelection={toggleGroupSelection}
+            selectedIds={selectedIds}
+            isExpanded={expandedIds.has(getExpansionKey(transaction))}
+            onToggleExpand={(isOpen) =>
+              toggleExpand(getExpansionKey(transaction), isOpen)
+            }
+            onReload={() => refreshData(true)}
+          />
+        );
+      })}
+      <div className="mt-auto pt-4">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function FinancialPage() {
   const { isLoading: tenantLoading } = useTenant();
@@ -262,7 +393,7 @@ export default function FinancialPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
       {/* Header with Balance */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -398,99 +529,24 @@ export default function FinancialPage() {
           sortConfig={sortConfig}
         />
       ) : (
-        <div className="grid gap-3">
-          {filteredTransactions.map((transaction) => {
-            // Check if this transaction is part of a group (installment or proposal)
-            const groupId =
-              transaction.proposalGroupId || transaction.installmentGroupId;
-
-            if (groupId) {
-              // Find all transactions in this group within the full dataset
-              // (Correctness: we use 'transactions' to find all members, not just filtered ones,
-              // so the group logic holds even if some members are filtered out?
-              // Actually, usually we want to show the group if ANY member is in the filter?
-              // For now, let's stick to the current logic: find "leader" in the COMPLETED list
-              // to ensure consistent leader selection)
-              const groupMembers = transactions.filter(
-                (t) =>
-                  t.proposalGroupId === groupId ||
-                  t.installmentGroupId === groupId,
-              );
-
-              // Sort members to find the "leader"
-              // Priority: Down Payment -> Installment Number (asc) -> Date (asc)
-              groupMembers.sort((a, b) => {
-                if (a.isDownPayment && !b.isDownPayment) return -1;
-                if (!a.isDownPayment && b.isDownPayment) return 1;
-                if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
-                  return (
-                    (a.installmentNumber || 0) - (b.installmentNumber || 0)
-                  );
-                }
-                return new Date(a.date).getTime() - new Date(b.date).getTime();
-              });
-
-              // If it IS the leader, we render it, passing the group members
-              // We render the representative transaction (which might be the leader or the active installment)
-              // The hook useFinancialData ensures only one representative per group exists in filtereTransactions
-
-              return (
-                <TransactionCard
-                  key={transaction.id}
-                  transaction={transaction}
-                  relatedInstallments={
-                    !transaction.proposalGroupId ? groupMembers : []
-                  }
-                  proposalGroupTransactions={
-                    transaction.proposalGroupId ? groupMembers : []
-                  }
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  onDelete={openDeleteDialog}
-                  onStatusChange={updateGroupStatus}
-                  onUpdate={updateTransaction}
-                  onUpdateBatch={updateBatchTransactions}
-                  onRegisterPartialPayment={registerPartialPayment}
-                  isSelected={selectedIds.has(transaction.id)}
-                  onToggleSelection={toggleSelection}
-                  onToggleGroupSelection={toggleGroupSelection}
-                  selectedIds={selectedIds}
-                  isExpanded={expandedIds.has(getExpansionKey(transaction))}
-                  onToggleExpand={(isOpen) =>
-                    toggleExpand(getExpansionKey(transaction), isOpen)
-                  }
-                  onReload={() => refreshData(true)} // Background refresh
-                />
-              );
-            }
-
-            // Standalone transactions
-            return (
-              <TransactionCard
-                key={transaction.id}
-                transaction={transaction}
-                relatedInstallments={[]}
-                proposalGroupTransactions={[]}
-                canEdit={canEdit}
-                canDelete={canDelete}
-                onDelete={openDeleteDialog}
-                onStatusChange={updateGroupStatus}
-                onUpdate={updateTransaction}
-                onUpdateBatch={updateBatchTransactions}
-                onRegisterPartialPayment={registerPartialPayment}
-                isSelected={selectedIds.has(transaction.id)}
-                onToggleSelection={toggleSelection}
-                onToggleGroupSelection={toggleGroupSelection}
-                selectedIds={selectedIds}
-                isExpanded={expandedIds.has(getExpansionKey(transaction))}
-                onToggleExpand={(isOpen) =>
-                  toggleExpand(getExpansionKey(transaction), isOpen)
-                }
-                onReload={() => refreshData(true)} // Background refresh
-              />
-            );
-          })}
-        </div>
+        <PaginatedTransactionList
+          filteredTransactions={filteredTransactions}
+          transactions={transactions}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          openDeleteDialog={openDeleteDialog}
+          updateGroupStatus={updateGroupStatus}
+          updateTransaction={updateTransaction}
+          updateBatchTransactions={updateBatchTransactions}
+          registerPartialPayment={registerPartialPayment}
+          selectedIds={selectedIds}
+          toggleSelection={toggleSelection}
+          toggleGroupSelection={toggleGroupSelection}
+          expandedIds={expandedIds}
+          getExpansionKey={getExpansionKey}
+          toggleExpand={toggleExpand}
+          refreshData={refreshData}
+        />
       )}
 
       {/* Delete Confirmation Dialog */}
