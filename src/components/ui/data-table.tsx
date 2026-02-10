@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,8 @@ export interface DataTableColumn<T> {
   headerClassName?: string;
   /** Render function for the cell content */
   render: (item: T) => React.ReactNode;
+  /** Whether the column is sortable (default: true) */
+  sortable?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -31,6 +34,10 @@ export interface DataTableProps<T> {
    * If not provided, defaults to equal columns based on columns.length using inline styles (not responsive).
    */
   gridClassName?: string;
+  /** Callback for sorting */
+  onSort?: (key: string) => void;
+  /** Current sort configuration */
+  sortConfig?: { key: string | null; direction: "asc" | "desc" | null };
 }
 
 export function DataTable<T>({
@@ -38,6 +45,8 @@ export function DataTable<T>({
   data,
   keyExtractor,
   gridClassName,
+  onSort,
+  sortConfig,
 }: DataTableProps<T>) {
   const colCount = columns.length;
   // If no class provided, use inline style for equal columns as fallback
@@ -55,11 +64,38 @@ export function DataTable<T>({
         )}
         style={style}
       >
-        {columns.map((col) => (
-          <div key={col.key} className={cn(col.className, col.headerClassName)}>
-            {col.header}
-          </div>
-        ))}
+        {columns.map((col) => {
+          const isSortable = col.sortable !== false;
+          const isSorted = sortConfig?.key === col.key;
+          const direction = isSorted ? sortConfig?.direction : null;
+
+          return (
+            <div
+              key={col.key}
+              className={cn(
+                col.className,
+                col.headerClassName,
+                isSortable &&
+                  "cursor-pointer select-none hover:text-foreground",
+                "flex items-center gap-1",
+              )}
+              onClick={() => isSortable && onSort && onSort(col.key)}
+            >
+              {col.header}
+              {isSortable && onSort && (
+                <span className="text-muted-foreground/50">
+                  {direction === "asc" ? (
+                    <ArrowUp className="w-3 h-3 text-foreground" />
+                  ) : direction === "desc" ? (
+                    <ArrowDown className="w-3 h-3 text-foreground" />
+                  ) : (
+                    <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                  )}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Rows */}

@@ -19,6 +19,7 @@ import {
   TransactionFilters,
   TransactionListByDueDate,
 } from "./_components";
+import { useSort } from "@/hooks/use-sort";
 
 export default function FinancialPage() {
   const { isLoading: tenantLoading } = useTenant();
@@ -68,6 +69,13 @@ export default function FinancialPage() {
   // Selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+
+  // Sorting state for byDueDate view
+  const {
+    items: sortedTransactions,
+    requestSort,
+    sortConfig,
+  } = useSort(filteredTransactions);
 
   // Helper to get stable ID for expansion
   const getExpansionKey = React.useCallback((t: Transaction) => {
@@ -377,7 +385,7 @@ export default function FinancialPage() {
       ) : viewMode === "byDueDate" ? (
         // In byDueDate mode, use compact list view
         <TransactionListByDueDate
-          transactions={filteredTransactions}
+          transactions={sortedTransactions}
           canEdit={canEdit}
           canDelete={canDelete}
           onDelete={openDeleteDialog}
@@ -386,6 +394,8 @@ export default function FinancialPage() {
           selectedIds={selectedIds}
           onToggleSelection={toggleSelection}
           onToggleSelectAll={toggleSelectAll}
+          onSort={requestSort}
+          sortConfig={sortConfig}
         />
       ) : (
         <div className="grid gap-3">

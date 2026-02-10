@@ -49,6 +49,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { useSort } from "@/hooks/use-sort";
+
 const statusConfig: Record<
   ProposalStatus,
   { label: string; variant: "default" | "success" | "warning" | "destructive" }
@@ -229,12 +231,18 @@ export default function ProposalsPage() {
     }
   };
 
+  const {
+    items: sortedProposals,
+    requestSort,
+    sortConfig,
+  } = useSort(proposals);
+
   // Filter proposals based on search term
   const filteredProposals = React.useMemo(() => {
-    if (!searchTerm.trim()) return proposals;
+    if (!searchTerm.trim()) return sortedProposals;
 
     const term = searchTerm.toLowerCase();
-    return proposals.filter(
+    return sortedProposals.filter(
       (proposal) =>
         proposal.title.toLowerCase().includes(term) ||
         proposal.clientName?.toLowerCase().includes(term) ||
@@ -242,7 +250,7 @@ export default function ProposalsPage() {
           .toLowerCase()
           .includes(term),
     );
-  }, [proposals, searchTerm]);
+  }, [sortedProposals, searchTerm]);
 
   const isPageLoading = tenantLoading || isLoading;
 
@@ -402,7 +410,7 @@ export default function ProposalsPage() {
     [proposals],
   );
 
-  const proposalToDelete = proposals.find((p) => p.id === deleteId);
+  const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
   const columns: DataTableColumn<Proposal>[] = React.useMemo(
     () => [
       {
@@ -433,7 +441,7 @@ export default function ProposalsPage() {
         },
       },
       {
-        key: "client",
+        key: "clientName",
         header: "Contato",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground truncate">
@@ -504,7 +512,7 @@ export default function ProposalsPage() {
         ),
       },
       {
-        key: "ambiente",
+        key: "sistemas.0.ambientes.0.ambienteName",
         header: "Ambiente",
         render: (proposal) => {
           const uniqueAmbientes = Array.from(
@@ -528,7 +536,7 @@ export default function ProposalsPage() {
         },
       },
       {
-        key: "sistema",
+        key: "sistemas.0.sistemaName",
         header: "Sistema",
         render: (proposal) => {
           const uniqueSistemas = Array.from(
@@ -552,7 +560,7 @@ export default function ProposalsPage() {
         },
       },
       {
-        key: "validity",
+        key: "validUntil",
         header: "Validade",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground">
@@ -563,8 +571,9 @@ export default function ProposalsPage() {
       {
         key: "actions",
         header: "Ações",
+        sortable: false,
         className: "text-right",
-        headerClassName: "text-right",
+        headerClassName: "flex justify-end",
         render: (proposal) => (
           <div className="flex items-center justify-end gap-1">
             {/* Individual action buttons — hidden on small screens (≤1700px) */}
@@ -844,6 +853,8 @@ export default function ProposalsPage() {
             data={filteredProposals}
             keyExtractor={(proposal) => proposal.id}
             gridClassName="grid-cols-7"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
+import { useSort } from "@/hooks/use-sort";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -35,6 +36,12 @@ export default function SpreadsheetsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const {
+    items: sortedSpreadsheets,
+    requestSort,
+    sortConfig,
+  } = useSort(spreadsheets);
 
   const isPageLoading = tenantLoading || loading;
 
@@ -97,11 +104,11 @@ export default function SpreadsheetsPage() {
     }
   };
 
-  const filteredSpreadsheets = spreadsheets.filter((sheet) =>
+  const filteredSpreadsheets = sortedSpreadsheets.filter((sheet) =>
     sheet.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const sheetToDelete = spreadsheets.find((s) => s.id === deleteId);
+  const sheetToDelete = sortedSpreadsheets.find((s) => s.id === deleteId);
   const columns: DataTableColumn<Spreadsheet>[] = [
     {
       key: "name",
@@ -135,7 +142,8 @@ export default function SpreadsheetsPage() {
       key: "actions",
       header: "Ações",
       className: "col-span-3 text-right",
-      headerClassName: "col-span-3 text-right",
+      headerClassName: "col-span-3 flex justify-end",
+      sortable: false,
       render: (sheet) => (
         <div className="flex items-center justify-end gap-1">
           <Link href={`/spreadsheets/${sheet.id}`}>
@@ -251,6 +259,8 @@ export default function SpreadsheetsPage() {
             data={filteredSpreadsheets}
             keyExtractor={(sheet) => sheet.id}
             gridClassName="grid-cols-12"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

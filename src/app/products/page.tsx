@@ -24,8 +24,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
-
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useSort } from "@/hooks/use-sort";
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -40,9 +40,7 @@ export default function ProductsPage() {
   // effective loading is tenant loading OR internal data loading
   const isPageLoading = tenantLoading || loading;
 
-  // ... (rest of code) ...
-
-  // Update the return check to use isPageLoading
+  const { items: sortedProducts, requestSort, sortConfig } = useSort(products);
 
   const loadProducts = useCallback(async () => {
     if (!tenant) return;
@@ -104,18 +102,19 @@ export default function ProductsPage() {
     }
   };
 
-  const filteredProducts = products.filter(
+  const filteredProducts = sortedProducts.filter(
     (product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const productToDelete = products.find((p) => p.id === deleteId);
+  const productToDelete = sortedProducts.find((p) => p.id === deleteId);
   const columns: DataTableColumn<Product>[] = [
     {
       key: "image",
       header: "Imagem",
       className: "col-span-1",
+      sortable: false,
       render: (product) => (
         <div>
           {product.images?.[0] || product.image ? (
@@ -196,7 +195,8 @@ export default function ProductsPage() {
       key: "actions",
       header: "Ações",
       className: "col-span-1 text-right",
-      headerClassName: "col-span-1 text-right",
+      headerClassName: "col-span-1 flex justify-end",
+      sortable: false,
       render: (product) => (
         <div className="flex items-center justify-end gap-1">
           {canEdit && (
@@ -340,6 +340,8 @@ export default function ProductsPage() {
             data={filteredProducts}
             keyExtractor={(product) => product.id}
             gridClassName="grid-cols-12"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

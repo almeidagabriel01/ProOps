@@ -59,6 +59,7 @@ const typeConfig: Record<
 };
 
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useSort } from "@/hooks/use-sort";
 
 export default function CustomersPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -128,8 +129,10 @@ export default function CustomersPage() {
     }
   };
 
+  const { items: sortedClients, requestSort, sortConfig } = useSort(clients);
+
   const filteredClients = React.useMemo(() => {
-    let result = clients;
+    let result = sortedClients;
 
     // Filter by type
     if (typeFilter !== "todos") {
@@ -151,11 +154,11 @@ export default function CustomersPage() {
     }
 
     return result;
-  }, [clients, searchTerm, typeFilter]);
+  }, [sortedClients, searchTerm, typeFilter]);
 
   const clientToDelete = React.useMemo(() => {
-    return clients.find((c) => c.id === deleteId);
-  }, [clients, deleteId]);
+    return sortedClients.find((c) => c.id === deleteId);
+  }, [sortedClients, deleteId]);
 
   const columns: DataTableColumn<Client>[] = React.useMemo(
     () => [
@@ -174,7 +177,7 @@ export default function CustomersPage() {
         ),
       },
       {
-        key: "type",
+        key: "types",
         header: "Tipo",
         render: (client) => {
           const clientTypes = client.types || ["cliente"];
@@ -196,7 +199,7 @@ export default function CustomersPage() {
         key: "address",
         header: "Endereço",
         className: "hidden min-[1401px]:block",
-        headerClassName: "hidden min-[1401px]:block",
+        headerClassName: "hidden min-[1401px]:block whitespace-nowrap",
         render: (client) => (
           <div className="text-sm text-muted-foreground truncate">
             {client.address || "-"}
@@ -204,7 +207,7 @@ export default function CustomersPage() {
         ),
       },
       {
-        key: "contact",
+        key: "email",
         header: "Contato",
         render: (client) => (
           <div className="space-y-1 min-w-0">
@@ -240,7 +243,8 @@ export default function CustomersPage() {
         key: "actions",
         header: "Ações",
         className: "text-right",
-        headerClassName: "text-right",
+        headerClassName: "flex justify-end",
+        sortable: false,
         render: (client) => (
           <div className="flex items-center justify-end gap-1">
             {canEdit && (
@@ -423,6 +427,8 @@ export default function CustomersPage() {
             data={filteredClients}
             keyExtractor={(client) => client.id}
             gridClassName="grid-cols-4 min-[1401px]:grid-cols-6"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

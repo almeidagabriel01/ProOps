@@ -25,7 +25,11 @@ import {
   Trash2,
   ArrowUpCircle,
   ArrowDownCircle,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface TransactionListByDueDateProps {
   transactions: Transaction[];
@@ -44,6 +48,8 @@ interface TransactionListByDueDateProps {
   selectedIds: Set<string>;
   onToggleSelection: (id: string) => void;
   onToggleSelectAll: () => void;
+  onSort?: (key: string) => void;
+  sortConfig?: { key: string | null; direction: "asc" | "desc" | null };
 }
 
 const statusOptions: {
@@ -65,6 +71,8 @@ export function TransactionListByDueDate({
   selectedIds,
   onToggleSelection,
   onToggleSelectAll,
+  onSort,
+  sortConfig,
 }: TransactionListByDueDateProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
@@ -118,11 +126,34 @@ export function TransactionListByDueDate({
               className="cursor-pointer"
             />
           </div>
-          <div>Descrição</div>
-          <div className="text-center">Vencimento</div>
-          <div className="text-center">Valor</div>
-          <div className="text-center">Status</div>
-          <div className="text-center">Ações</div>
+          <HeaderCell
+            label="Descrição"
+            sortKey="description"
+            onSort={onSort}
+            sortConfig={sortConfig}
+          />
+          <HeaderCell
+            label="Vencimento"
+            sortKey="dueDate"
+            onSort={onSort}
+            sortConfig={sortConfig}
+            className="text-center justify-center"
+          />
+          <HeaderCell
+            label="Valor"
+            sortKey="amount"
+            onSort={onSort}
+            sortConfig={sortConfig}
+            className="text-center justify-center"
+          />
+          <HeaderCell
+            label="Status"
+            sortKey="status"
+            onSort={onSort}
+            sortConfig={sortConfig}
+            className="text-center justify-center"
+          />
+          <div className="text-right">Ações</div>
         </div>
 
         {/* Table Rows */}
@@ -277,5 +308,43 @@ export function TransactionListByDueDate({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function HeaderCell({
+  label,
+  sortKey,
+  onSort,
+  sortConfig,
+  className,
+}: {
+  label: string;
+  sortKey: string;
+  onSort?: (key: string) => void;
+  sortConfig?: { key: string | null; direction: "asc" | "desc" | null };
+  className?: string;
+}) {
+  const isSorted = sortConfig?.key === sortKey;
+  const direction = isSorted ? sortConfig?.direction : null;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors",
+        className,
+      )}
+      onClick={() => onSort?.(sortKey)}
+    >
+      {label}
+      <span className="text-muted-foreground/50">
+        {direction === "asc" ? (
+          <ArrowUp className="w-3 h-3 text-foreground" />
+        ) : direction === "desc" ? (
+          <ArrowDown className="w-3 h-3 text-foreground" />
+        ) : (
+          <ChevronsUpDown className="w-3 h-3 opacity-50" />
+        )}
+      </span>
+    </div>
   );
 }
