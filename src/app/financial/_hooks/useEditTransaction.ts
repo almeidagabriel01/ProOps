@@ -144,9 +144,11 @@ export function useEditTransaction() {
 
       setTransaction(safeData);
 
+      let groupTransactions: Transaction[] = [];
+
       // If it's an installment, fetch related ones
       if (
-        safeData.isInstallment &&
+        (safeData.isInstallment || safeData.isDownPayment) &&
         safeData.installmentGroupId &&
         safeData.installmentGroupId !== "stub-group-id"
       ) {
@@ -156,11 +158,11 @@ export function useEditTransaction() {
             safeData.tenantId,
           );
           // Sort by installment number
-          const sorted = group.sort(
+          groupTransactions = group.sort(
             (a: Transaction, b: Transaction) =>
               (a.installmentNumber || 0) - (b.installmentNumber || 0),
           );
-          setRelatedInstallments(sorted);
+          setRelatedInstallments(groupTransactions);
         } catch (error) {
           console.error("Error fetching related installments:", error);
           setRelatedInstallments([]);
@@ -169,51 +171,88 @@ export function useEditTransaction() {
         setRelatedInstallments([]);
       }
 
+      // DERIVE FORM STATE FROM GROUP (if exists) OR SINGLE TRANSACTION
+      const downPaymentItem = groupTransactions.find((t) => t.isDownPayment);
+      const regularInstallments = groupTransactions.filter(
+        (t) => !t.isDownPayment,
+      );
+
+      // Determine if we should treat this as an installment group edit
+      const hasGroup = groupTransactions.length > 0;
+
+      // Calculate Total Amount
+      // If it's a group, sum everyone (including down payment)
+      // If single, just use safeData.amount
+      const totalAmount = hasGroup
+        ? groupTransactions.reduce((sum, t) => sum + t.amount, 0)
+        : safeData.amount;
+
+      // Installment Count:
+      // If group, count regular installments.
+      // If single, use safeData.installmentCount
+      const instCount = hasGroup
+        ? regularInstallments.length
+        : safeData.installmentCount || 1;
+
+      // Installment Value (for form pre-fill if needed):
+      // If group, take the first regular installment's amount (approximation)
+      const firstRegular = regularInstallments[0];
+      const instValue = firstRegular
+        ? firstRegular.amount
+        : hasGroup
+          ? 0
+          : safeData.amount / (safeData.installmentCount || 1);
+
       // Initialize form data
       setFormData((prev) => ({
         ...prev,
         type: safeData.type,
         description: safeData.description,
-        amount: safeData.amount.toString(),
+        amount: totalAmount.toFixed(2),
         // Use displayed date (dueDate if expense, date if income/other preferences)
-        // But for editing, we usually want the core date or due date fields separate.
-        // Let's stick to: date -> data.date, dueDate -> data.dueDate
         date: safeData.date ? safeData.date.split("T")[0] : "",
-        dueDate: safeData.dueDate ? safeData.dueDate.split("T")[0] : "",
+        dueDate:
+          hasGroup && firstRegular?.dueDate
+            ? firstRegular.dueDate.split("T")[0]
+            : safeData.dueDate
+              ? safeData.dueDate.split("T")[0]
+              : "",
         status: safeData.status,
         clientId: safeData.clientId,
         clientName: safeData.clientName || "",
         category: safeData.category || "",
-        wallet: safeData.wallet || "",
+        wallet:
+          hasGroup && firstRegular?.wallet
+            ? firstRegular.wallet
+            : safeData.wallet || "",
         notes: safeData.notes || "",
 
         // Installment/Recurrence logic
-        isInstallment: safeData.isInstallment ?? false,
-        installmentCount: safeData.installmentCount || 1,
+        // It is an installment if it has a group OR if the single transaction says so
+        isInstallment: hasGroup || (safeData.isInstallment ?? false),
+        installmentCount: instCount > 0 ? instCount : 1,
 
         // Payment Mode Logic for Edit
-        // If it has installments, we probably want "installmentValue" mode or "total" mode?
-        // Let's infer:
-        paymentMode: safeData.isInstallment ? "total" : "total", // Defaulting to total is safer for now
+        // Default to "total" as it's the most common entry point, but could infer based on consistency
+        paymentMode: "total",
 
-        // Check for down payment (needs heuristic if not explicitly flagged)
-        downPaymentEnabled: safeData.hasDownPayment || false,
-        downPaymentValue: safeData.downPaymentAmount
-          ? safeData.downPaymentAmount.toString()
+        // Down Payment Logic
+        downPaymentEnabled: !!downPaymentItem,
+        downPaymentValue: downPaymentItem
+          ? downPaymentItem.amount.toFixed(2)
           : "",
-        downPaymentWallet: safeData.downPaymentWallet || "",
-        downPaymentDueDate: safeData.downPaymentDate
-          ? safeData.downPaymentDate.split("T")[0]
+        downPaymentWallet: downPaymentItem?.wallet || safeData.wallet || "",
+        downPaymentDueDate: downPaymentItem?.date
+          ? downPaymentItem.date.split("T")[0]
           : "",
 
-        installmentValue:
-          safeData.isInstallment && safeData.amount
-            ? (safeData.amount / (safeData.installmentCount || 1)).toString() // Approximation
+        installmentValue: instValue.toFixed(2),
+        installmentsWallet: firstRegular?.wallet || safeData.wallet || "",
+        firstInstallmentDate: firstRegular?.date
+          ? firstRegular.date.split("T")[0]
+          : safeData.date
+            ? safeData.date.split("T")[0]
             : "",
-        installmentsWallet: safeData.isInstallment ? safeData.wallet || "" : "",
-        firstInstallmentDate: safeData.firstInstallmentDate
-          ? safeData.firstInstallmentDate.split("T")[0]
-          : "",
       }));
     } catch (error) {
       console.error("Error fetching transaction:", error);
@@ -280,7 +319,7 @@ export function useEditTransaction() {
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentValue: formData.downPaymentValue,
-          downPaymentWallet: formData.wallet,
+          downPaymentWallet: formData.downPaymentWallet, // Preserve existing value
           downPaymentDueDate: formData.date,
         };
       } else {
@@ -415,6 +454,15 @@ export function useEditTransaction() {
       relatedInstallments.length > 0 ? relatedInstallments : [transaction];
     const dateShifted = formData.date !== transaction.date;
 
+    const firstRegularOriginal = baseList.find((t) => !t.isDownPayment);
+
+    const targetStartDate =
+      formData.paymentMode === "installmentValue"
+        ? formData.firstInstallmentDate
+        : formData.dueDate;
+
+    const baseInstallmentNumber = firstRegularOriginal?.installmentNumber || 1;
+
     // 1. First pass: Apply basic updates and collect list
     const workingList = baseList.map((inst) => {
       let newDate = inst.date;
@@ -428,14 +476,10 @@ export function useEditTransaction() {
         );
       }
 
-      if (inst.dueDate && transaction.dueDate && formData.dueDate) {
-        if (!inst.isDownPayment) {
-          newDueDate = shiftDateByTransform(
-            inst.dueDate,
-            transaction.dueDate,
-            formData.dueDate,
-          );
-        }
+      if (!inst.isDownPayment && targetStartDate) {
+        const currentNum = inst.installmentNumber || 1;
+        const offset = currentNum - baseInstallmentNumber;
+        newDueDate = addMonths(targetStartDate, offset);
       }
 
       if (inst.isDownPayment && formData.downPaymentDueDate) {
@@ -535,7 +579,7 @@ export function useEditTransaction() {
         resultList[idx] = {
           ...resultList[idx],
           amount: downPaymentVal,
-          wallet: formData.downPaymentWallet || formData.wallet,
+          wallet: formData.downPaymentWallet, // decoupled: no fallback to main wallet
         };
       }
     }

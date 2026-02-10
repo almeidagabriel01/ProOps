@@ -1174,10 +1174,12 @@ export function ReviewStep({
                     </p>
                     <p className="text-xs text-muted-foreground">
                       1ª:{" "}
-                      {formData.firstInstallmentDate
-                        ? new Date(
-                            formData.firstInstallmentDate + "T12:00:00",
-                          ).toLocaleDateString("pt-BR")
+                      {formData.paymentMode === "installmentValue"
+                        ? formData.firstInstallmentDate
+                          ? new Date(
+                              formData.firstInstallmentDate + "T12:00:00",
+                            ).toLocaleDateString("pt-BR")
+                          : "Data não definida"
                         : formData.dueDate
                           ? new Date(
                               formData.dueDate + "T12:00:00",
