@@ -11,7 +11,7 @@ import {
   Spreadsheet,
   SpreadsheetService,
 } from "@/services/spreadsheet-service";
-import { SheetData, WorkbookInstance } from "@/types";
+import { WorkbookInstance } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -26,10 +26,8 @@ export default function SpreadsheetEditorPage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
 
-  // Ref for the Workbook to access data
+  // Ref for the Workbook to access data (single source of truth)
   const workbookRef = useRef<WorkbookInstance>(null);
-  // Ref to store current data directly from onChange to ensure we don't miss updates
-  const dataRef = useRef<SheetData[]>([]);
 
   // Memoize data to prevent re-renders of the heavy Workbook component
   // MUST BE CALLED BEFORE CONDITIONAL RETURNS
@@ -38,15 +36,6 @@ export default function SpreadsheetEditorPage() {
       ? spreadsheet.data
       : [{ name: "Sheet1", celldata: [], status: 1 }]; // Ensure valid initial structure
   }, [spreadsheet]); // Only re-create if spreadsheet object changes (which only happens on load)
-
-  // Sync dataRef with initial loaded data so if we save without editing, we don't lose data
-  useEffect(() => {
-    if (spreadsheet?.data && spreadsheet.data.length > 0) {
-      dataRef.current = spreadsheet.data;
-    } else {
-      dataRef.current = [{ name: "Sheet1", celldata: [], status: 1 }];
-    }
-  }, [spreadsheet]);
 
   const loadSpreadsheet = useCallback(async () => {
     if (!id) return;
@@ -77,95 +66,57 @@ export default function SpreadsheetEditorPage() {
     setSaving(true);
 
     try {
-      // DEBUG: Check ref state
-      console.log(
-        "Debug Save: Starting save process. Ref exists?",
-        !!workbookRef.current,
-      );
+      // Capture current selection to restore after reload
+      // @ts-expect-error - luckysheet is a global object from FortuneSheet
+      const currentSelection = window.luckysheet?.getRange?.()?.[0];
 
-      // Force commit of any active edit by blurring the inputs
+      // Force commit of active cell in FortuneSheet
+      const fortuneInput = document.querySelector(
+        'input[class*="luckysheet"], textarea[class*="luckysheet"], [contenteditable="true"]',
+      ) as HTMLElement;
+
+      if (fortuneInput) {
+        fortuneInput.dispatchEvent(new Event("input", { bubbles: true }));
+        fortuneInput.dispatchEvent(new Event("change", { bubbles: true }));
+        fortuneInput.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Enter",
+            keyCode: 13,
+            bubbles: true,
+          }),
+        );
+        fortuneInput.blur();
+      }
+
       if (document.activeElement instanceof HTMLElement) {
-        console.log("Debug Save: Triggering blur on active element");
         document.activeElement.blur();
       }
 
-      // VITAL: Wait for the blur event to propagate and FortuneSheet to update its internal model
-      // React state updates and event loops can be async.
-      console.log("Debug Save: Waiting for valid state...");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log("Debug Save: Reading data now.");
+      // Wait for FortuneSheet to commit the active cell
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Probe cells to see if Ref is alive and looking at the right data
-      try {
-        const cell00 = workbookRef.current?.getCellValue(0, 0);
-        const cell01 = workbookRef.current?.getCellValue(0, 1);
-        console.log("Debug Save Probe (0,0):", JSON.stringify(cell00));
-        console.log("Debug Save Probe (0,1):", JSON.stringify(cell01));
-      } catch (e) {
-        console.error("Debug Save Probe Failed:", e);
-      }
+      const currentData = workbookRef.current?.getAllSheets() || [];
 
-      // 1. Get data from onChange ref
-      const onChangeData = dataRef.current;
-
-      // 2. Get data from Workbook ref
-      // We re-query the ref AFTER the delay
-      const workbookRefData = workbookRef.current?.getAllSheets() || [];
-      console.log("Debug Save: workbookRefData (raw):", workbookRefData);
-
-      // Helper to count populated cells
-      const countCells = (sheets: SheetData[]) => {
-        if (!sheets || !Array.isArray(sheets)) return 0;
-        let count = 0;
-        sheets.forEach((sheet) => {
-          if (sheet.data && Array.isArray(sheet.data)) {
-            sheet.data.forEach((row) => {
-              if (Array.isArray(row)) {
-                row.forEach((cell) => {
-                  if (cell !== null && cell !== undefined) count++;
-                });
-              }
-            });
-          } else if (sheet.celldata && Array.isArray(sheet.celldata)) {
-            // Also count celldata if present (initial state often uses this)
-            count += sheet.celldata.length;
-          }
-        });
-        return count;
-      };
-
-      const onChangeCount = countCells(onChangeData);
-      const workbookCount = countCells(workbookRefData);
-
-      console.log(
-        `Debug Save: onChangeCells=${onChangeCount}, workbookRefCells=${workbookCount}`,
-      );
-
-      // Choose the best data source (prefer workbookRef if equal, as it's the source of truth)
-      let finalData = [];
-      if (workbookCount >= onChangeCount && workbookCount > 0) {
-        finalData = workbookRefData;
-        console.log("Debug Save: Using WorkbookRef data");
-      } else if (onChangeCount > 0) {
-        finalData = onChangeData;
-        console.log("Debug Save: Using onChange data (fallback)");
-      } else {
-        // Both empty? try to fallback to existing spreadsheet data if we have it?
-        // No, if user cleared it, we should save clear.
-        // But if it's an error, we risk data loss.
-        // For now, save whatever we have.
-        finalData = workbookRefData || onChangeData || [];
-        console.warn("Debug Save: Both sources appear empty!");
+      if (!currentData || currentData.length === 0) {
+        toast.error("Nenhum dado para salvar");
+        return;
       }
 
       await SpreadsheetService.updateSpreadsheet(id, {
         name,
-        data: finalData,
+        data: currentData,
       });
-      toast.success("Planilha salva com sucesso!");
 
-      // Reload to confirm data is persistent and update state
+      toast.success("Planilha salva com sucesso!");
       await loadSpreadsheet();
+
+      // Restore selection after reload
+      if (currentSelection) {
+        setTimeout(() => {
+          // @ts-expect-error - luckysheet is a global object from FortuneSheet
+          window.luckysheet?.setRangeShow?.(currentSelection);
+        }, 200);
+      }
     } catch (error) {
       console.error("Error saving spreadsheet:", error);
       toast.error("Erro ao salvar planilha");
@@ -225,31 +176,9 @@ export default function SpreadsheetEditorPage() {
           key={spreadsheet.id}
           ref={workbookRef}
           data={workbookData}
-          onChange={(d: SheetData[]) => {
-            // Capture every change
-            dataRef.current = d;
-            // DEBUG: Find where the data is!
-            if (d && d[0]) {
-              console.log(
-                "JSS OnChange Update. Sheet 0 Keys:",
-                Object.keys(d[0]),
-              );
-              console.log(
-                "JSS OnChange Celldata Length:",
-                d[0].celldata?.length,
-              );
-              const firstRow = d[0].data?.[0];
-              if (Array.isArray(firstRow)) {
-                // Log non-null cells in first row
-                const filled = firstRow.filter((c) => c !== null);
-                console.log(
-                  `JSS OnChange Row 0: ${firstRow.length} cells, ${filled.length} filled.`,
-                );
-                if (filled.length > 0) console.log("Sample cell:", filled[0]);
-              } else {
-                console.log("JSS OnChange: Sheet 0 has no 'data' array.");
-              }
-            }
+          onChange={() => {
+            // onChange fires as data updates - workbookRef will have the latest state
+            // No need to store separately as we query workbookRef on save
           }}
         />
       </div>
