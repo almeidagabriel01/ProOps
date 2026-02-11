@@ -783,7 +783,7 @@ export default function ProposalsPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
@@ -855,6 +855,7 @@ export default function ProposalsPage() {
             gridClassName="grid-cols-7"
             onSort={requestSort}
             sortConfig={sortConfig}
+            pageSize={5}
           />
         )}
       </div>

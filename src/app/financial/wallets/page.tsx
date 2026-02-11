@@ -32,6 +32,64 @@ import {
   WalletHistoryDialog,
 } from "./_components";
 import { WalletType } from "@/types";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+
+/** Paginated wallet grid (6 per page) */
+function PaginatedWalletGrid({
+  filteredWallets,
+  canEdit,
+  canDelete,
+  onEdit,
+  onDelete,
+  onTransfer,
+  onAdjust,
+  onArchive,
+  onSetDefault,
+  onViewHistory,
+}: {
+  filteredWallets: Wallet[];
+  canEdit: boolean;
+  canDelete: boolean;
+  onEdit: (w: Wallet) => void;
+  onDelete: (w: Wallet) => void;
+  onTransfer: (w: Wallet) => void;
+  onAdjust: (w: Wallet) => void;
+  onArchive: (w: Wallet) => void;
+  onSetDefault: (w: Wallet) => void;
+  onViewHistory: (w: Wallet) => void;
+}) {
+  const { currentPage, totalPages, paginatedData, setCurrentPage } =
+    usePagination(filteredWallets, 6);
+
+  return (
+    <div className="flex flex-col gap-4 flex-1">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {paginatedData.map((wallet) => (
+          <WalletCard
+            key={wallet.id}
+            wallet={wallet}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onTransfer={onTransfer}
+            onAdjust={onAdjust}
+            onArchive={onArchive}
+            onSetDefault={onSetDefault}
+            onViewHistory={onViewHistory}
+          />
+        ))}
+      </div>
+      <div className="mt-auto pt-4">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function WalletsPage() {
   const { isLoading: tenantLoading } = useTenant();
@@ -59,17 +117,17 @@ export default function WalletsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
   const [selectedWallet, setSelectedWallet] = React.useState<Wallet | null>(
-    null
+    null,
   );
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isArchiving, setIsArchiving] = React.useState(false);
   const [isTransferring, setIsTransferring] = React.useState(false);
   const [settingDefaultId, setSettingDefaultId] = React.useState<string | null>(
-    null
+    null,
   );
   const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false);
   const [walletForHistory, setWalletForHistory] = React.useState<Wallet | null>(
-    null
+    null,
   );
 
   // Filter states
@@ -99,7 +157,7 @@ export default function WalletsPage() {
       filtered = filtered.filter(
         (w) =>
           w.name.toLowerCase().includes(term) ||
-          w.description?.toLowerCase().includes(term)
+          w.description?.toLowerCase().includes(term),
       );
     }
 
@@ -137,7 +195,7 @@ export default function WalletsPage() {
   };
 
   const handleFormSubmit = async (
-    data: CreateWalletInput | UpdateWalletInput
+    data: CreateWalletInput | UpdateWalletInput,
   ) => {
     if (selectedWallet) {
       return await updateWallet(selectedWallet.id, data as UpdateWalletInput);
@@ -147,7 +205,7 @@ export default function WalletsPage() {
   };
 
   const handleTransferSubmit = async (
-    data: Parameters<typeof transferBalance>[0]
+    data: Parameters<typeof transferBalance>[0],
   ) => {
     setIsTransferring(true);
     const result = await transferBalance(data);
@@ -157,7 +215,7 @@ export default function WalletsPage() {
 
   const handleAdjustSubmit = async (
     walletId: string,
-    data: Parameters<typeof adjustBalance>[1]
+    data: Parameters<typeof adjustBalance>[1],
   ) => {
     return await adjustBalance(walletId, data);
   };
@@ -271,7 +329,7 @@ export default function WalletsPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
         {/* Header with Total Balance */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -283,7 +341,7 @@ export default function WalletsPage() {
 
           <div className="flex items-center gap-4 md:gap-8">
             <div className="text-center md:text-right">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
                 <WalletIcon className="w-4 h-4" />
                 <span className="text-xs font-medium uppercase tracking-wide">
                   Saldo Total
@@ -412,26 +470,21 @@ export default function WalletsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredWallets.map((wallet) => (
-              <WalletCard
-                key={wallet.id}
-                wallet={wallet}
-                canEdit={canEdit}
-                canDelete={canDelete}
-                onEdit={handleEditWallet}
-                onDelete={handleOpenDelete}
-                onTransfer={handleOpenTransfer}
-                onAdjust={handleOpenAdjust}
-                onArchive={handleOpenArchive}
-                onSetDefault={handleSetDefault}
-                onViewHistory={(wallet) => {
-                  setWalletForHistory(wallet);
-                  setHistoryDialogOpen(true);
-                }}
-              />
-            ))}
-          </div>
+          <PaginatedWalletGrid
+            filteredWallets={filteredWallets}
+            canEdit={canEdit}
+            canDelete={canDelete}
+            onEdit={handleEditWallet}
+            onDelete={handleOpenDelete}
+            onTransfer={handleOpenTransfer}
+            onAdjust={handleOpenAdjust}
+            onArchive={handleOpenArchive}
+            onSetDefault={handleSetDefault}
+            onViewHistory={(wallet) => {
+              setWalletForHistory(wallet);
+              setHistoryDialogOpen(true);
+            }}
+          />
         )}
       </div>
       {renderDialogs()}

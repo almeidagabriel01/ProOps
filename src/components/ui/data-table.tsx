@@ -4,6 +4,7 @@ import * as React from "react";
 import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 
 export interface DataTableColumn<T> {
   /** Unique identifier for the column */
@@ -38,6 +39,8 @@ export interface DataTableProps<T> {
   onSort?: (key: string) => void;
   /** Current sort configuration */
   sortConfig?: { key: string | null; direction: "asc" | "desc" | null };
+  /** Items per page. When set, enables pagination. */
+  pageSize?: number;
 }
 
 export function DataTable<T>({
@@ -47,6 +50,7 @@ export function DataTable<T>({
   gridClassName,
   onSort,
   sortConfig,
+  pageSize,
 }: DataTableProps<T>) {
   const colCount = columns.length;
   // If no class provided, use inline style for equal columns as fallback
@@ -54,8 +58,14 @@ export function DataTable<T>({
     ? undefined
     : { gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` };
 
+  // Pagination — only active when pageSize is set
+  const { currentPage, totalPages, paginatedData, setCurrentPage } =
+    usePagination(data, pageSize ?? data.length);
+
+  const displayData = pageSize ? paginatedData : data;
+
   return (
-    <div className="grid gap-4">
+    <div className="flex flex-col gap-4 flex-1">
       {/* Header — border-transparent matches the Card 1px border for alignment */}
       <div
         className={cn(
@@ -99,7 +109,7 @@ export function DataTable<T>({
       </div>
 
       {/* Rows */}
-      {data.map((item) => (
+      {displayData.map((item) => (
         <Card
           key={keyExtractor(item)}
           className="hover:bg-muted/50 transition-colors"
@@ -116,6 +126,17 @@ export function DataTable<T>({
           </CardContent>
         </Card>
       ))}
+
+      {/* Pagination */}
+      {pageSize && (
+        <div className="mt-auto">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      )}
     </div>
   );
 }

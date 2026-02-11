@@ -78,6 +78,32 @@ export function useProductActions() {
     }
   };
 
+  const updateProduct = async (
+    productId: string,
+    data: Partial<CreateProductData>,
+  ): Promise<boolean> => {
+    if (!productId) return false;
+
+    // Don't set global loading state to avoid full page UI block for small updates
+    // setIsLoading(true); 
+    try {
+      await callApi<{ success: boolean; message: string }>(
+        `v1/products/${productId}`,
+        "PUT",
+        data,
+      );
+
+      toast.success("Produto atualizado com sucesso!");
+      return true;
+    } catch (error: unknown) {
+      console.error("Error updating product:", error);
+      const message =
+        error instanceof Error ? error.message : "Erro ao atualizar produto.";
+      toast.error(message);
+      return false;
+    }
+  };
+
   const deleteProduct = async (productId: string): Promise<boolean> => {
     if (!productId) return false;
 
@@ -103,6 +129,7 @@ export function useProductActions() {
 
   return {
     createProduct,
+    updateProduct,
     deleteProduct,
     isLoading,
   };

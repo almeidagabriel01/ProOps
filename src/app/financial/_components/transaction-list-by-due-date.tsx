@@ -30,6 +30,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 
 interface TransactionListByDueDateProps {
   transactions: Transaction[];
@@ -76,6 +77,10 @@ export function TransactionListByDueDate({
 }: TransactionListByDueDateProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
+  // Pagination: 8 rows per page
+  const { currentPage, totalPages, paginatedData, setCurrentPage } =
+    usePagination(transactions, 8);
+
   const handleStatusChange = async (
     transaction: Transaction,
     newStatus: TransactionStatus,
@@ -109,205 +114,214 @@ export function TransactionListByDueDate({
   };
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        {/* Table Header */}
-        <div className="grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
-          <div className="flex items-center justify-center">
-            <Checkbox
-              checked={isAllSelected}
-              ref={(el) => {
-                if (el) {
-                  (el as unknown as HTMLInputElement).indeterminate =
-                    isSomeSelected;
-                }
-              }}
-              onCheckedChange={onToggleSelectAll}
-              className="cursor-pointer"
+    <div className="flex flex-col gap-4 flex-1">
+      <Card>
+        <CardContent className="p-0">
+          {/* Table Header */}
+          <div className="grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+            <div className="flex items-center justify-center">
+              <Checkbox
+                checked={isAllSelected}
+                ref={(el) => {
+                  if (el) {
+                    (el as unknown as HTMLInputElement).indeterminate =
+                      isSomeSelected;
+                  }
+                }}
+                onCheckedChange={onToggleSelectAll}
+                className="cursor-pointer"
+              />
+            </div>
+            <HeaderCell
+              label="Descrição"
+              sortKey="description"
+              onSort={onSort}
+              sortConfig={sortConfig}
             />
+            <HeaderCell
+              label="Vencimento"
+              sortKey="dueDate"
+              onSort={onSort}
+              sortConfig={sortConfig}
+              className="text-center justify-center"
+            />
+            <HeaderCell
+              label="Valor"
+              sortKey="amount"
+              onSort={onSort}
+              sortConfig={sortConfig}
+              className="text-center justify-center"
+            />
+            <HeaderCell
+              label="Status"
+              sortKey="status"
+              onSort={onSort}
+              sortConfig={sortConfig}
+              className="text-center justify-center"
+            />
+            <div className="text-right">Ações</div>
           </div>
-          <HeaderCell
-            label="Descrição"
-            sortKey="description"
-            onSort={onSort}
-            sortConfig={sortConfig}
-          />
-          <HeaderCell
-            label="Vencimento"
-            sortKey="dueDate"
-            onSort={onSort}
-            sortConfig={sortConfig}
-            className="text-center justify-center"
-          />
-          <HeaderCell
-            label="Valor"
-            sortKey="amount"
-            onSort={onSort}
-            sortConfig={sortConfig}
-            className="text-center justify-center"
-          />
-          <HeaderCell
-            label="Status"
-            sortKey="status"
-            onSort={onSort}
-            sortConfig={sortConfig}
-            className="text-center justify-center"
-          />
-          <div className="text-right">Ações</div>
-        </div>
 
-        {/* Table Rows */}
-        <div className="divide-y">
-          {transactions.map((transaction) => {
-            const isUpdating = updatingId === transaction.id;
-            const statusInfo = statusConfig[transaction.status];
-            const isSelected = selectedIds.has(transaction.id);
+          {/* Table Rows */}
+          <div className="divide-y">
+            {paginatedData.map((transaction) => {
+              const isUpdating = updatingId === transaction.id;
+              const statusInfo = statusConfig[transaction.status];
+              const isSelected = selectedIds.has(transaction.id);
 
-            return (
-              <div
-                key={transaction.id}
-                className={`grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm ${
-                  isSelected
-                    ? transaction.type === "income"
-                      ? "bg-green-500/15"
-                      : "bg-red-500/20"
-                    : ""
-                }`}
-              >
-                {/* Checkbox */}
-                <div className="flex items-center justify-center">
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => onToggleSelection(transaction.id)}
-                    className="cursor-pointer"
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="flex items-center gap-2 min-w-0">
-                  {transaction.type === "income" ? (
-                    <ArrowUpCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                  ) : (
-                    <ArrowDownCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                  )}
-                  <span className="truncate">{transaction.description}</span>
-                  {transaction.isInstallment && (
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      ({transaction.installmentNumber}/
-                      {transaction.installmentCount})
-                    </span>
-                  )}
-                  {transaction.isDownPayment && (
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] h-4 px-1 shrink-0"
-                    >
-                      Entrada
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Due Date */}
-                <div className="text-center text-xs text-muted-foreground">
-                  {formatDate(transaction.dueDate || transaction.date)}
-                </div>
-
-                {/* Amount */}
+              return (
                 <div
-                  className={`text-center font-medium ${getTypeColor(transaction)}`}
+                  key={transaction.id}
+                  className={`grid grid-cols-[32px_1fr_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm ${
+                    isSelected
+                      ? transaction.type === "income"
+                        ? "bg-green-500/15"
+                        : "bg-red-500/20"
+                      : ""
+                  }`}
                 >
-                  {transaction.type === "expense" ? "-" : ""}
-                  {formatCurrency(transaction.amount)}
-                </div>
+                  {/* Checkbox */}
+                  <div className="flex items-center justify-center">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelection(transaction.id)}
+                      className="cursor-pointer"
+                    />
+                  </div>
 
-                {/* Status */}
-                <div className="flex justify-center">
-                  {canEdit && onStatusChange ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 gap-1 px-2 text-xs border"
-                          disabled={isUpdating}
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <>
-                              {(() => {
-                                const opt = statusOptions.find(
-                                  (o) => o.value === transaction.status,
-                                );
-                                const Icon = opt?.icon || Check;
-                                return <Icon className="h-3 w-3" />;
-                              })()}
-                              <span>
-                                {statusConfig[transaction.status].label}
-                              </span>
-                              <ChevronDown className="h-2.5 w-2.5 opacity-50" />
-                            </>
-                          )}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[120px]">
-                        {statusOptions.map((option) => (
-                          <DropdownMenuItem
-                            key={option.value}
-                            onClick={() =>
-                              handleStatusChange(transaction, option.value)
-                            }
-                            className="gap-2 cursor-pointer text-xs"
+                  {/* Description */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {transaction.type === "income" ? (
+                      <ArrowUpCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                    ) : (
+                      <ArrowDownCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                    )}
+                    <span className="truncate">{transaction.description}</span>
+                    {transaction.isInstallment && (
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ({transaction.installmentNumber}/
+                        {transaction.installmentCount})
+                      </span>
+                    )}
+                    {transaction.isDownPayment && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] h-4 px-1 shrink-0"
+                      >
+                        Entrada
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="text-center text-xs text-muted-foreground">
+                    {formatDate(transaction.dueDate || transaction.date)}
+                  </div>
+
+                  {/* Amount */}
+                  <div
+                    className={`text-center font-medium ${getTypeColor(transaction)}`}
+                  >
+                    {transaction.type === "expense" ? "-" : ""}
+                    {formatCurrency(transaction.amount)}
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex justify-center">
+                    {canEdit && onStatusChange ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 gap-1 px-2 text-xs border"
+                            disabled={isUpdating}
                           >
-                            <option.icon className="h-3 w-3" />
-                            <span>{option.label}</span>
-                            {transaction.status === option.value && (
-                              <Check className="h-3 w-3 ml-auto opacity-50" />
+                            {isUpdating ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                {(() => {
+                                  const opt = statusOptions.find(
+                                    (o) => o.value === transaction.status,
+                                  );
+                                  const Icon = opt?.icon || Check;
+                                  return <Icon className="h-3 w-3" />;
+                                })()}
+                                <span>
+                                  {statusConfig[transaction.status].label}
+                                </span>
+                                <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                              </>
                             )}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    <Badge
-                      variant={statusInfo.variant}
-                      className="text-[10px] h-5"
-                    >
-                      {statusInfo.label}
-                    </Badge>
-                  )}
-                </div>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[120px]">
+                          {statusOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option.value}
+                              onClick={() =>
+                                handleStatusChange(transaction, option.value)
+                              }
+                              className="gap-2 cursor-pointer text-xs"
+                            >
+                              <option.icon className="h-3 w-3" />
+                              <span>{option.label}</span>
+                              {transaction.status === option.value && (
+                                <Check className="h-3 w-3 ml-auto opacity-50" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Badge
+                        variant={statusInfo.variant}
+                        className="text-[10px] h-5"
+                      >
+                        {statusInfo.label}
+                      </Badge>
+                    )}
+                  </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-center gap-0.5">
-                  <Link href={`/financial/${transaction.id}/view`}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      title="Ver"
-                    >
-                      <Eye className="w-3 h-3" />
-                    </Button>
-                  </Link>
-                  {canDelete && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-destructive hover:text-destructive"
-                      onClick={() => onDelete(transaction)}
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  )}
+                  {/* Actions */}
+                  <div className="flex items-center justify-center gap-0.5">
+                    <Link href={`/financial/${transaction.id}/view`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        title="Ver"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                    </Link>
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:text-destructive"
+                        onClick={() => onDelete(transaction)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      <div className="mt-auto pt-4">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      </div>
+    </div>
   );
 }
 
