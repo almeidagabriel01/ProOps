@@ -203,9 +203,9 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto flex flex-col min-h-[calc(100vh_-_180px)]">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_135px)]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
             <Users className="w-8 h-8" />
@@ -236,7 +236,7 @@ export default function TeamPage() {
 
       {/* Create Member Form (Collapsible) */}
       {isCreatingMember && (
-        <div className="animate-in slide-in-from-top-4 fade-in duration-300">
+        <div className="animate-in slide-in-from-top-4 fade-in duration-300 shrink-0">
           <CreateMemberSection
             onSuccess={() => {
               fetchMembers();
@@ -246,55 +246,59 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* Content Wrapper acting like DataTable */}
+      {/* Content Wrapper */}
       <div className="flex flex-col gap-4 flex-1">
         {/* Members List */}
-        {members.length > 0 ? (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
-              Membros ({members.length})
-            </h2>
+        <div className="space-y-4">
+          {members.length > 0 ? (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
+                Membros ({members.length})
+              </h2>
 
-            <div className="grid gap-4">
-              {paginatedMembers.map((member) => (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  onUpdatePermission={updatePermission}
-                  saving={savingPermissions}
-                  updatingKey={updatingKey}
-                  onRefresh={fetchMembers}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          !isLoading &&
-          !isCreatingMember && (
-            <Card className="p-12 text-center border-dashed">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-muted-foreground opacity-50" />
+              <div className="grid gap-4">
+                {paginatedMembers.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    onUpdatePermission={updatePermission}
+                    saving={savingPermissions}
+                    updatingKey={updatingKey}
+                    onRefresh={fetchMembers}
+                  />
+                ))}
               </div>
-              <h3 className="text-lg font-medium mb-2">
-                Sua equipe está vazia
-              </h3>
-              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                Adicione membros para colaborar no gerenciamento da sua empresa.
-              </p>
-              <Button onClick={() => setIsCreatingMember(true)}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Adicionar Primeiro Membro
-              </Button>
-            </Card>
-          )
-        )}
-        <div className="mt-auto pt-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+            </div>
+          ) : (
+            !isLoading &&
+            !isCreatingMember && (
+              <Card className="p-12 text-center border-dashed">
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground opacity-50" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">
+                  Sua equipe está vazia
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Adicione membros para colaborar no gerenciamento da sua
+                  empresa.
+                </p>
+                <Button onClick={() => setIsCreatingMember(true)}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Adicionar Primeiro Membro
+                </Button>
+              </Card>
+            )
+          )}
         </div>
+      </div>
+
+      <div className="mt-auto pt-4 border-t">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

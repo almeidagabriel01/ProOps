@@ -1,9 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 
 export function AutomationSkeleton() {
   return (
-    <div className="container mx-auto py-8 space-y-8 max-w-7xl">
+    <div className="space-y-8">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-2">
@@ -29,33 +29,34 @@ export function AutomationSkeleton() {
         </div>
 
         {/* Content List */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {/* Simulate a list of systems */}
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="border-none shadow-sm bg-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-12 w-12 rounded-lg" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-48" />
-                      <Skeleton className="h-4 w-64" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card
+              key={i}
+              className="bg-card border rounded-xl shadow-sm overflow-hidden h-[200px] flex flex-col"
+            >
+              <div className="p-6 space-y-4 flex-1">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3 w-full">
+                    <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+                    <div className="space-y-2 w-full">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <div className="flex gap-1">
                     <Skeleton className="h-8 w-8 rounded-md" />
                     <Skeleton className="h-8 w-8 rounded-md" />
                   </div>
                 </div>
-                <div className="space-y-2 pl-[60px]">
-                  <Skeleton className="h-4 w-full max-w-md" />
-                  <div className="flex gap-2 mt-4">
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                  </div>
-                </div>
-              </CardContent>
+
+                <Skeleton className="h-9 w-full rounded-md mt-auto" />
+              </div>
             </Card>
           ))}
         </div>
