@@ -141,7 +141,7 @@ export default function AutomationAdminPage() {
   }
 
   return (
-    <div className="container mx-auto py-4 gap-4 max-w-7xl flex flex-col min-h-[calc(100vh_-_180px)]">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -208,6 +208,7 @@ export default function AutomationAdminPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
+          className="flex-1"
         >
           <TabsContent value="sistemas" className="space-y-4 m-0">
             <Card className="border-none shadow-sm bg-transparent">
@@ -246,7 +247,7 @@ export default function AutomationAdminPage() {
         </motion.div>
       </Tabs>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto border-t pt-4">
         {activeTab === "sistemas" ? (
           <Pagination
             currentPage={sysPage}
