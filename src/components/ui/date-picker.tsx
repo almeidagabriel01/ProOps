@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -131,10 +132,50 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
     const [yearRangeStart, setYearRangeStart] = React.useState(
       () => Math.floor(displayMonth.year / 12) * 12,
     );
+    const [coords, setCoords] = React.useState({ top: 0, left: 0 });
 
     const containerRef = React.useRef<HTMLDivElement>(null);
     const hiddenInputRef = React.useRef<HTMLInputElement>(null);
     const popoverRef = React.useRef<HTMLDivElement>(null);
+
+    const updatePosition = React.useCallback(() => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        // Only flip to top if there is strictly not enough space below AND much more space above
+        // Calendar height approx 380px.
+        const placeAbove = spaceBelow < 300 && rect.top > 450;
+
+        setOpenAbove(placeAbove);
+
+        setCoords({
+          top: placeAbove
+            ? rect.top - (popoverRef.current?.offsetHeight ?? 380) - 8
+            : rect.bottom + 8,
+          left: rect.left,
+        });
+      }
+    }, []);
+
+    React.useEffect(() => {
+      if (isOpen) {
+        updatePosition();
+        window.addEventListener("scroll", updatePosition, true);
+        window.addEventListener("resize", updatePosition);
+        return () => {
+          window.removeEventListener("scroll", updatePosition, true);
+          window.removeEventListener("resize", updatePosition);
+        };
+      }
+    }, [isOpen, updatePosition]);
+
+    // Update position when view changes (height might change)
+    React.useLayoutEffect(() => {
+      if (isOpen) {
+        updatePosition();
+      }
+    }, [isOpen, view, displayMonth, updatePosition]);
 
     // Merge refs for the hidden input
     React.useImperativeHandle(ref, () => hiddenInputRef.current!);
@@ -156,7 +197,9 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
       const handleClickOutside = (e: MouseEvent) => {
         if (
           containerRef.current &&
-          !containerRef.current.contains(e.target as Node)
+          !containerRef.current.contains(e.target as Node) &&
+          popoverRef.current &&
+          !popoverRef.current.contains(e.target as Node)
         ) {
           setIsOpen(false);
           setView("days");
@@ -330,7 +373,13 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
-          setOpenAbove(spaceBelow < 380);
+          const spaceAbove = rect.top;
+          const popoverHeight = popoverRef.current?.offsetHeight ?? 380; // Estimate height if not rendered yet
+
+          // Prefer opening below unless there's strictly no space below and enough space above
+          const shouldOpenAbove =
+            spaceBelow < popoverHeight && spaceAbove >= popoverHeight;
+          setOpenAbove(shouldOpenAbove);
         }
         setView("days");
       }
@@ -401,36 +450,160 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
         </button>
 
         {/* Popover */}
-        {isOpen && (
-          <div
-            ref={popoverRef}
-            className={cn(
-              "absolute z-50 w-[310px] rounded-2xl border-2 border-border/60 bg-card shadow-2xl",
-              "animate-in fade-in-0 zoom-in-95 duration-150",
-              "overflow-hidden",
-              openAbove ? "bottom-full mb-2" : "top-full mt-2",
-            )}
-            style={{ left: 0 }}
-          >
-            {/* ==================== DAYS VIEW ==================== */}
-            {view === "days" && (
-              <div>
-                {/* Header */}
-                <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                  <button
-                    type="button"
-                    onClick={goToPrevMonth}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-center gap-1">
+        {isOpen &&
+          typeof document !== "undefined" &&
+          // Use createPortal to render outside of any overflow-hidden parents
+          createPortal(
+            <div
+              ref={popoverRef}
+              className={cn(
+                "fixed z-[9999] w-[310px] rounded-2xl border-2 border-border/60 bg-card shadow-2xl",
+                "animate-in fade-in-0 zoom-in-95 duration-150",
+                "overflow-hidden",
+                // "pointer-events-auto", // Ensure interaction even if body has pointer-events: none
+              )}
+              style={{
+                top: coords.top,
+                left: coords.left,
+                pointerEvents: "auto",
+              }}
+              onPointerDown={(e) => {
+                // Prevent Radix/Dialog from seeing this as an "outside" click
+                // Do not prevent default, otherwise we can't click buttons!
+                e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
+              }}
+              onMouseDown={(e) => {
+                // Redundant safety for other listeners
+                e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              {/* ==================== DAYS VIEW ==================== */}
+              {view === "days" && (
+                <div>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <button
                       type="button"
-                      onClick={() => setView("months")}
-                      className="px-2 py-1 rounded-lg text-sm font-semibold hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      onClick={goToPrevMonth}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
                     >
-                      {MONTH_NAMES[displayMonth.month]}
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setView("months")}
+                        className="px-2 py-1 rounded-lg text-sm font-semibold hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        {MONTH_NAMES[displayMonth.month]}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setYearRangeStart(
+                            Math.floor(displayMonth.year / 12) * 12,
+                          );
+                          setView("years");
+                        }}
+                        className="px-2 py-1 rounded-lg text-sm font-semibold hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      >
+                        {displayMonth.year}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={goToNextMonth}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Weekday headers */}
+                  <div className="grid grid-cols-7 px-3 pb-1">
+                    {WEEKDAYS.map((wd) => (
+                      <div
+                        key={wd}
+                        className="text-center text-xs font-medium text-muted-foreground py-1"
+                      >
+                        {wd}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Day Grid */}
+                  <div className="grid grid-cols-7 px-3 pb-3 gap-0.5">
+                    {calendarDays.map((d, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={!d.isCurrentMonth}
+                        onClick={() =>
+                          d.isCurrentMonth && handleDayClick(d.day)
+                        }
+                        className={cn(
+                          "relative w-full aspect-square rounded-lg text-sm flex items-center justify-center transition-all duration-150",
+                          d.isCurrentMonth
+                            ? "hover:bg-primary/10 hover:text-primary cursor-pointer"
+                            : "text-muted-foreground/30 cursor-default",
+                          d.isSelected &&
+                            "bg-primary text-primary-foreground font-bold hover:bg-primary/90 hover:text-primary-foreground shadow-md",
+                          d.isToday &&
+                            !d.isSelected &&
+                            "font-bold text-primary ring-2 ring-primary/30",
+                          !d.isSelected && d.isCurrentMonth && "font-medium",
+                        )}
+                      >
+                        {d.day}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between bg-muted/30">
+                    <button
+                      type="button"
+                      onClick={goToToday}
+                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded-md hover:bg-primary/10 cursor-pointer"
+                    >
+                      Hoje
+                    </button>
+                    {value && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          emitChange("");
+                          setIsOpen(false);
+                        }}
+                        className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-md hover:bg-destructive/10 cursor-pointer"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ==================== MONTHS VIEW ==================== */}
+              {view === "months" && (
+                <div>
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDisplayMonth((prev) => ({
+                          ...prev,
+                          year: prev.year - 1,
+                        }))
+                      }
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
@@ -440,203 +613,103 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
                         );
                         setView("years");
                       }}
-                      className="px-2 py-1 rounded-lg text-sm font-semibold hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                      className="text-sm font-bold hover:text-primary transition-colors px-3 py-1 rounded-lg hover:bg-primary/10 cursor-pointer"
                     >
                       {displayMonth.year}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDisplayMonth((prev) => ({
+                          ...prev,
+                          year: prev.year + 1,
+                        }))
+                      }
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={goToNextMonth}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Weekday headers */}
-                <div className="grid grid-cols-7 px-3 pb-1">
-                  {WEEKDAYS.map((wd) => (
-                    <div
-                      key={wd}
-                      className="text-center text-xs font-medium text-muted-foreground py-1"
-                    >
-                      {wd}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Day Grid */}
-                <div className="grid grid-cols-7 px-3 pb-3 gap-0.5">
-                  {calendarDays.map((d, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={!d.isCurrentMonth}
-                      onClick={() => d.isCurrentMonth && handleDayClick(d.day)}
-                      className={cn(
-                        "relative w-full aspect-square rounded-lg text-sm flex items-center justify-center transition-all duration-150",
-                        d.isCurrentMonth
-                          ? "hover:bg-primary/10 hover:text-primary cursor-pointer"
-                          : "text-muted-foreground/30 cursor-default",
-                        d.isSelected &&
-                          "bg-primary text-primary-foreground font-bold hover:bg-primary/90 hover:text-primary-foreground shadow-md",
-                        d.isToday &&
-                          !d.isSelected &&
-                          "font-bold text-primary ring-2 ring-primary/30",
-                        !d.isSelected && d.isCurrentMonth && "font-medium",
-                      )}
-                    >
-                      {d.day}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Footer */}
-                <div className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between bg-muted/30">
-                  <button
-                    type="button"
-                    onClick={goToToday}
-                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded-md hover:bg-primary/10 cursor-pointer"
-                  >
-                    Hoje
-                  </button>
-                  {value && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        emitChange("");
-                        setIsOpen(false);
-                      }}
-                      className="text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-md hover:bg-destructive/10 cursor-pointer"
-                    >
-                      Limpar
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ==================== MONTHS VIEW ==================== */}
-            {view === "months" && (
-              <div>
-                <div className="flex items-center justify-between px-4 pt-4 pb-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDisplayMonth((prev) => ({
-                        ...prev,
-                        year: prev.year - 1,
-                      }))
-                    }
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setYearRangeStart(
-                        Math.floor(displayMonth.year / 12) * 12,
+                  <div className="grid grid-cols-3 gap-2 px-4 pb-4">
+                    {MONTH_NAMES_SHORT.map((m, idx) => {
+                      const isCurrent = displayMonth.month === idx;
+                      const isCurrentMonth =
+                        new Date().getFullYear() === displayMonth.year &&
+                        new Date().getMonth() === idx;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => handleMonthClick(idx)}
+                          className={cn(
+                            "py-3 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer",
+                            isCurrent
+                              ? "bg-primary text-primary-foreground font-bold shadow-md"
+                              : "hover:bg-primary/10 hover:text-primary",
+                            isCurrentMonth &&
+                              !isCurrent &&
+                              "ring-2 ring-primary/30 font-bold text-primary",
+                          )}
+                        >
+                          {m}
+                        </button>
                       );
-                      setView("years");
-                    }}
-                    className="text-sm font-bold hover:text-primary transition-colors px-3 py-1 rounded-lg hover:bg-primary/10 cursor-pointer"
-                  >
-                    {displayMonth.year}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDisplayMonth((prev) => ({
-                        ...prev,
-                        year: prev.year + 1,
-                      }))
-                    }
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 px-4 pb-4">
-                  {MONTH_NAMES_SHORT.map((m, idx) => {
-                    const isCurrent = displayMonth.month === idx;
-                    const isCurrentMonth =
-                      new Date().getFullYear() === displayMonth.year &&
-                      new Date().getMonth() === idx;
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => handleMonthClick(idx)}
-                        className={cn(
-                          "py-3 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer",
-                          isCurrent
-                            ? "bg-primary text-primary-foreground font-bold shadow-md"
-                            : "hover:bg-primary/10 hover:text-primary",
-                          isCurrentMonth &&
-                            !isCurrent &&
-                            "ring-2 ring-primary/30 font-bold text-primary",
-                        )}
-                      >
-                        {m}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+              )}
 
-            {/* ==================== YEARS VIEW ==================== */}
-            {view === "years" && (
-              <div>
-                <div className="flex items-center justify-between px-4 pt-4 pb-3">
-                  <button
-                    type="button"
-                    onClick={goToPrevYearRange}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-sm font-bold text-muted-foreground">
-                    {yearRangeStart} — {yearRangeStart + 11}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={goToNextYearRange}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+              {/* ==================== YEARS VIEW ==================== */}
+              {view === "years" && (
+                <div>
+                  <div className="flex items-center justify-between px-4 pt-4 pb-3">
+                    <button
+                      type="button"
+                      onClick={goToPrevYearRange}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-bold text-muted-foreground">
+                      {yearRangeStart} — {yearRangeStart + 11}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={goToNextYearRange}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 px-4 pb-4">
+                    {yearRange.map((year) => {
+                      const isCurrent = displayMonth.year === year;
+                      const isCurrentYear = new Date().getFullYear() === year;
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          onClick={() => handleYearClick(year)}
+                          className={cn(
+                            "py-3 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer",
+                            isCurrent
+                              ? "bg-primary text-primary-foreground font-bold shadow-md"
+                              : "hover:bg-primary/10 hover:text-primary",
+                            isCurrentYear &&
+                              !isCurrent &&
+                              "ring-2 ring-primary/30 font-bold text-primary",
+                          )}
+                        >
+                          {year}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 px-4 pb-4">
-                  {yearRange.map((year) => {
-                    const isCurrent = displayMonth.year === year;
-                    const isCurrentYear = new Date().getFullYear() === year;
-                    return (
-                      <button
-                        key={year}
-                        type="button"
-                        onClick={() => handleYearClick(year)}
-                        className={cn(
-                          "py-3 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer",
-                          isCurrent
-                            ? "bg-primary text-primary-foreground font-bold shadow-md"
-                            : "hover:bg-primary/10 hover:text-primary",
-                          isCurrentYear &&
-                            !isCurrent &&
-                            "ring-2 ring-primary/30 font-bold text-primary",
-                        )}
-                      >
-                        {year}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>,
+            document.body,
+          )}
       </div>
     );
   },

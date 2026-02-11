@@ -58,7 +58,7 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
         contentRef: handleContentRef,
       }}
     >
-      <div className="relative inline-block text-left" ref={containerRef}>
+      <div className="relative inline-block text-left mt-1" ref={containerRef}>
         {children}
       </div>
     </DropdownMenuContext.Provider>
