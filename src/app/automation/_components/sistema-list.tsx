@@ -29,7 +29,7 @@ export function SistemaList({ sistemas, onEdit, onDelete }: SistemaListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {sistemas.map((sistema, index) => (
         <motion.div
           key={sistema.id}

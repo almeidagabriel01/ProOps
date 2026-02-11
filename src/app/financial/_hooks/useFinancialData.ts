@@ -11,6 +11,7 @@ import {
 import { WalletService } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { Wallet } from "@/types";
 
 type DateLike =
   | string
@@ -149,8 +150,9 @@ export function useFinancialData(): UseFinancialDataReturn {
   const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
     "grouped",
   );
-  const [totalWalletBalance, setTotalWalletBalance] = React.useState<number>(0);
-  const [summary, setSummary] = React.useState<FinancialSummary>({
+  const [wallets, setWallets] = React.useState<Wallet[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [serverSummary, setServerSummary] = React.useState<FinancialSummary>({
     totalIncome: 0,
     totalExpense: 0,
     pendingIncome: 0,
@@ -163,19 +165,14 @@ export function useFinancialData(): UseFinancialDataReturn {
 
       if (!background) setIsLoading(true);
       try {
-        const [data, summaryData, wallets] = await Promise.all([
+        const [data, summaryData, walletsData] = await Promise.all([
           TransactionService.getTransactions(tenant.id),
           TransactionService.getSummary(tenant.id),
           WalletService.getWallets(tenant.id),
         ]);
         setTransactions(data);
-        setSummary(summaryData);
-
-        // Calculate total wallet balance from active wallets
-        const totalBalance = wallets
-          .filter((w) => w.status === "active")
-          .reduce((sum, w) => sum + w.balance, 0);
-        setTotalWalletBalance(totalBalance);
+        setServerSummary(summaryData);
+        setWallets(walletsData);
       } catch (error) {
         console.error("Failed to fetch transactions", error);
       } finally {
@@ -434,6 +431,88 @@ export function useFinancialData(): UseFinancialDataReturn {
     sortBy,
     viewMode,
   ]);
+
+  // Calculate filtered summary
+  const summary = React.useMemo(() => {
+    const result = {
+      totalIncome: 0,
+      totalExpense: 0,
+      pendingIncome: 0,
+      pendingExpense: 0,
+    };
+
+    const term = searchTerm.toLowerCase().trim();
+
+    transactions.forEach((t) => {
+      // 1. Filter by Wallet
+      if (filterWallet && t.wallet !== filterWallet) return;
+
+      // 2. Filter by Type
+      if (filterType !== "all" && t.type !== filterType) return;
+
+      // 3. Filter by Status
+      if (filterStatus !== "all" && t.status !== filterStatus) return;
+
+      // 4. Filter by Search
+      if (term) {
+        const matches =
+          t.description.toLowerCase().includes(term) ||
+          t.clientName?.toLowerCase().includes(term) ||
+          t.category?.toLowerCase().includes(term) ||
+          t.wallet?.toLowerCase().includes(term);
+        if (!matches) return;
+      }
+
+      // 5. Filter by Date
+      let dateVal: string | undefined = t.date;
+      if (filterDateType === "dueDate") {
+        if(!t.dueDate) return;
+        dateVal = t.dueDate;
+      }
+      
+      const dateStr = getDateString(dateVal);
+      if (!dateStr) return;
+
+      if (filterStartDate && dateStr < filterStartDate) return;
+      if (filterEndDate && dateStr > filterEndDate) return;
+
+      // Accumulate
+      if (t.type === "income") {
+        if (t.status === "paid") {
+          result.totalIncome += t.amount;
+        } else {
+          result.pendingIncome += t.amount;
+        }
+      } else if (t.type === "expense") {
+        if (t.status === "paid") {
+          result.totalExpense += t.amount;
+        } else {
+          result.pendingExpense += t.amount;
+        }
+      }
+    });
+
+    return result;
+  }, [
+    transactions,
+    filterWallet,
+    filterType,
+    filterStatus,
+    searchTerm,
+    filterDateType,
+    filterStartDate,
+    filterEndDate,
+  ]);
+
+  const totalWalletBalance = React.useMemo(() => {
+    return wallets
+      .filter((w) => {
+        const isActive = w.status === "active";
+        const matchesFilter = filterWallet ? w.id === filterWallet : true;
+        return isActive && matchesFilter;
+      })
+      .reduce((sum, w) => sum + w.balance, 0);
+  }, [wallets, filterWallet]);
 
   // Delete a single transaction (individual installment)
   const deleteTransaction = React.useCallback(

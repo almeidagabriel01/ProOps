@@ -34,6 +34,7 @@ import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
@@ -52,6 +53,21 @@ export default function AutomationAdminPage() {
   // Delete State
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+
+  // Pagination
+  const {
+    currentPage: sysPage,
+    totalPages: sysTotalPages,
+    paginatedData: paginatedSistemas,
+    setCurrentPage: setSysPage,
+  } = usePagination(sistemas, 6);
+
+  const {
+    currentPage: envPage,
+    totalPages: envTotalPages,
+    paginatedData: paginatedAmbientes,
+    setCurrentPage: setEnvPage,
+  } = usePagination(ambientes, 8);
 
   const loadData = React.useCallback(
     async (silent: boolean = false) => {
@@ -125,7 +141,7 @@ export default function AutomationAdminPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8 max-w-7xl">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -151,7 +167,7 @@ export default function AutomationAdminPage() {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="w-full space-y-6"
+        className="w-full space-y-6 flex-1 flex flex-col"
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
           <TabsList className="bg-muted/50 p-1 rounded-xl h-auto">
@@ -192,12 +208,13 @@ export default function AutomationAdminPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
+          className="flex-1"
         >
           <TabsContent value="sistemas" className="space-y-4 m-0">
             <Card className="border-none shadow-sm bg-transparent">
               <CardContent className="px-0">
                 <SistemaList
-                  sistemas={sistemas}
+                  sistemas={paginatedSistemas}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) => setDeleteId(id)}
                 />
@@ -221,7 +238,7 @@ export default function AutomationAdminPage() {
               </CardHeader>
               <CardContent className="px-0">
                 <AmbienteList
-                  ambientes={ambientes}
+                  ambientes={paginatedAmbientes}
                   onUpdate={() => loadData(true)}
                 />
               </CardContent>
@@ -229,6 +246,22 @@ export default function AutomationAdminPage() {
           </TabsContent>
         </motion.div>
       </Tabs>
+
+      <div className="mt-auto border-t pt-4">
+        {activeTab === "sistemas" ? (
+          <Pagination
+            currentPage={sysPage}
+            totalPages={sysTotalPages}
+            onPageChange={setSysPage}
+          />
+        ) : (
+          <Pagination
+            currentPage={envPage}
+            totalPages={envTotalPages}
+            onPageChange={setEnvPage}
+          />
+        )}
+      </div>
 
       {/* Delete Alert */}
       <AlertDialog

@@ -8,6 +8,7 @@ import { ProductsSkeleton } from "./_components/products-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { Product, ProductService } from "@/services/product-service";
 import { useProductActions } from "@/hooks/useProductActions";
+import { StockEditableCell } from "./_components/stock-editable-cell";
 import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +33,26 @@ export default function ProductsPage() {
   const { canCreate, canDelete, canEdit } = usePagePermission("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true); // Internal data loading
-  const { deleteProduct } = useProductActions();
+  const { deleteProduct, updateProduct } = useProductActions();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleStockUpdate = async (product: Product, newStock: string) => {
+    // 1. Update in backend
+    const success = await updateProduct(product.id, {
+      stock: newStock,
+    });
+
+    // 2. Optimistic update (or re-fetch, but optimistic is better)
+    if (success) {
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? { ...p, stock: newStock } : p)),
+      );
+    }
+
+    return success;
+  };
 
   // effective loading is tenant loading OR internal data loading
   const isPageLoading = tenantLoading || loading;
@@ -158,15 +175,10 @@ export default function ProductsPage() {
       header: "Estoque",
       className: "col-span-2",
       render: (product) => (
-        <span
-          className={
-            Number(product.stock) < 10
-              ? "text-red-500 font-medium"
-              : "text-sm text-muted-foreground"
-          }
-        >
-          {product.stock}
-        </span>
+        <StockEditableCell
+          initialValue={product.stock}
+          onUpdate={(val) => handleStockUpdate(product, val)}
+        />
       ),
     },
     {
@@ -270,7 +282,7 @@ export default function ProductsPage() {
   }
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
@@ -342,6 +354,7 @@ export default function ProductsPage() {
             gridClassName="grid-cols-12"
             onSort={requestSort}
             sortConfig={sortConfig}
+            pageSize={5}
           />
         )}
       </div>

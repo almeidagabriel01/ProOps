@@ -92,7 +92,7 @@ function ProfileContent() {
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6 min-h-[calc(100vh-100px)]">
+      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6 min-h-[calc(100vh_-_100px)]">
         {/* Header Section */}
         <ProfileHeader
           user={effectiveUser}
@@ -132,7 +132,7 @@ function ProfileContent() {
                       "relative z-10 font-medium transition-colors duration-200 text-sm",
                       activeTab === tab
                         ? "text-primary-foreground"
-                        : "text-muted-foreground"
+                        : "text-muted-foreground",
                     )}
                   >
                     {tab === "overview"

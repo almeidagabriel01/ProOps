@@ -180,7 +180,7 @@ export default function SpreadsheetsPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Planilhas</h1>
@@ -261,6 +261,7 @@ export default function SpreadsheetsPage() {
             gridClassName="grid-cols-12"
             onSort={requestSort}
             sortConfig={sortConfig}
+            pageSize={5}
           />
         )}
       </div>
