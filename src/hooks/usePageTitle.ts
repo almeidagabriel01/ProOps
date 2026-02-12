@@ -18,6 +18,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/proposals": "Propostas | ERP",
   "/contacts": "Contatos | ERP",
   "/financial": "Financeiro | ERP",
+  "/solutions": "Soluções | ERP",
   "/profile": "Meu Perfil | ERP",
   "/settings": "Configurações | ERP",
   "/settings/team": "Equipe | ERP",

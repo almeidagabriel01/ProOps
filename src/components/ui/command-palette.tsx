@@ -10,6 +10,7 @@ import {
   Wallet,
   WalletCards,
   ReceiptText,
+  Bot,
   User,
   Settings,
   CreditCard,
@@ -119,6 +120,14 @@ const searchItems: SearchItem[] = [
     icon: WalletCards,
     keywords: ["carteira", "carteiras", "contas", "saldos"],
     requiresFinancial: true,
+  },
+  {
+    id: "solutions",
+    label: "Soluções",
+    description: "Gerenciar soluções e templates",
+    path: "/solutions",
+    icon: Bot,
+    keywords: ["solucoes", "soluções", "automacao", "automação", "templates"],
   },
   {
     id: "new-income",

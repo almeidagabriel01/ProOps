@@ -152,7 +152,7 @@ export default function AutomationAdminPage() {
               <Settings2 className="w-6 h-6 text-primary" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Automação
+              Soluções
             </h1>
           </div>
           <p className="text-muted-foreground text-lg pl-12">

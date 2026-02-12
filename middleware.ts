@@ -80,6 +80,13 @@ function isSuperAdminRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Legacy route redirect: /automation -> /solutions
+  if (pathname === "/automation" || pathname.startsWith("/automation/")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = pathname.replace("/automation", "/solutions");
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // Skip static assets and API routes
   if (shouldSkip(pathname)) {
     return NextResponse.next();

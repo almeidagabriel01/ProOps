@@ -142,7 +142,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "adminOverview";
     } else if (pathname?.startsWith("/admin")) {
       skeletonType = "admin";
-    } else if (pathname?.startsWith("/automation")) {
+    } else if (pathname?.startsWith("/solutions")) {
       skeletonType = "automation";
     } else if (pathname === "/" && typeof window !== "undefined") {
       // Only use cache guessing for root redirect
