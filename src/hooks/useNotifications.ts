@@ -10,6 +10,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const { tenant } = useTenant();
 
   // Subscribe em tempo real às notificações
@@ -125,7 +126,10 @@ export function useNotifications() {
   }, []);
 
   const markAllAsRead = useCallback(async () => {
+    if (isMarkingAllAsRead) return;
+
     try {
+      setIsMarkingAllAsRead(true);
       await NotificationService.markAllAsRead();
       // Atualização local otimista
       setNotifications((prev) =>
@@ -138,13 +142,16 @@ export function useNotifications() {
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
+    } finally {
+      setIsMarkingAllAsRead(false);
     }
-  }, []);
+  }, [isMarkingAllAsRead]);
 
   return {
     notifications,
     unreadCount,
     isLoading,
+    isMarkingAllAsRead,
     markAsRead,
     markAllAsRead,
   };

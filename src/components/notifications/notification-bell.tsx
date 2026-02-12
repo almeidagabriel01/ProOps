@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bell, FileText, Clock, AlertTriangle } from "lucide-react";
+import { Bell, FileText, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,8 +46,13 @@ function getNotificationLink(notification: Notification): string | undefined {
 }
 
 export function NotificationBell() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    isMarkingAllAsRead,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
@@ -105,6 +110,7 @@ export function NotificationBell() {
             <Button
               variant="ghost"
               size="sm"
+              disabled={isMarkingAllAsRead}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -112,7 +118,14 @@ export function NotificationBell() {
               }}
               className="text-xs h-auto p-1"
             >
-              Marcar todas como lidas
+              {isMarkingAllAsRead ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Marcando...
+                </>
+              ) : (
+                "Marcar todas como lidas"
+              )}
             </Button>
           )}
         </div>
