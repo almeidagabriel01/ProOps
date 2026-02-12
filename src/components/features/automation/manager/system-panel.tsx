@@ -67,7 +67,7 @@ export function SystemPanel({
             variant="outline"
             className="w-full justify-start gap-2 text-muted-foreground"
           >
-            <a href="/automation?editSistemaId=new" target="_blank">
+            <a href="/solutions?editSistemaId=new" target="_blank">
               <Plus className="w-3 h-3" /> Novo Sistema
             </a>
           </Button>

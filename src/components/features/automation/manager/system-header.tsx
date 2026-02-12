@@ -34,7 +34,7 @@ export function SystemHeader({
                 className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <a
-                  href={`/automation?editSistemaId=${selectedSistema.id}`}
+                  href={`/solutions?editSistemaId=${selectedSistema.id}`}
                   target="_blank"
                 >
                   <Pencil className="w-3 h-3" />
