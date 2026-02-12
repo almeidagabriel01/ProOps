@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
-import { SubscriptionStatus } from "@/types";
 import { AlertTriangle, CreditCard, Clock, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
@@ -32,6 +31,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const currentPeriodEnd = user?.currentPeriodEnd;
   const subscriptionStatus = user?.subscriptionStatus;
   const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
+  const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
 
   const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
     if (subscriptionStatus !== "past_due") {
@@ -40,7 +40,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
     const referenceDate = currentPeriodEnd
       ? new Date(currentPeriodEnd)
-      : (subscriptionUpdatedAt ? new Date(subscriptionUpdatedAt) : new Date());
+      : subscriptionUpdatedAt
+        ? new Date(subscriptionUpdatedAt)
+        : new Date();
 
     const deadline = new Date(referenceDate);
     deadline.setDate(deadline.getDate() + GRACE_PERIOD_DAYS);
@@ -60,10 +62,21 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   React.useEffect(() => {
     if (!shouldCheckSubscription || isLoading) return;
 
-    const blockedStatuses: SubscriptionStatus[] = [
+    let isScheduledCancellationExpired = false;
+    if (cancelAtPeriodEnd && currentPeriodEnd) {
+      const periodEndDate = new Date(currentPeriodEnd);
+      if (!Number.isNaN(periodEndDate.getTime())) {
+        isScheduledCancellationExpired =
+          periodEndDate.getTime() <= new Date().getTime();
+      }
+    }
+
+    const blockedStatuses = [
       "canceled",
+      "cancelled",
       "unpaid",
       "inactive",
+      "payment_failed",
     ];
 
     if (subscriptionStatus && blockedStatuses.includes(subscriptionStatus)) {
@@ -73,6 +86,11 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
     if (subscriptionStatus === "past_due" && isGracePeriodExpired) {
       router.push("/subscription-blocked");
+      return;
+    }
+
+    if (isScheduledCancellationExpired) {
+      router.push("/subscription-blocked");
     }
   }, [
     subscriptionStatus,
@@ -80,6 +98,8 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     isLoading,
     router,
     isGracePeriodExpired,
+    cancelAtPeriodEnd,
+    currentPeriodEnd,
   ]);
 
   const showWarningBanner =
@@ -158,7 +178,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
       {addonWarnings.map((info, index) => {
         const addonDef = AddonService.getAddonDefinition(info.addon.addonType);
         const addonName = addonDef?.name || info.addon.addonType;
-        const topOffset = showWarningBanner ? 44 + (index + 1) * 8 : 20 + index * 8;
+        const topOffset = showWarningBanner
+          ? 44 + (index + 1) * 8
+          : 20 + index * 8;
 
         return (
           <div
@@ -206,4 +228,3 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     </>
   );
 }
-

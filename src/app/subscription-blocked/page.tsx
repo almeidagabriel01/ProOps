@@ -28,9 +28,16 @@ export default function SubscriptionBlockedPage() {
     }
 
     const validStatuses = ["active", "trialing"];
+    const isScheduledCancellationExpired =
+      user.cancelAtPeriodEnd &&
+      user.currentPeriodEnd &&
+      !Number.isNaN(new Date(user.currentPeriodEnd).getTime()) &&
+      new Date(user.currentPeriodEnd).getTime() <= Date.now();
+
     if (
       user.subscriptionStatus &&
-      validStatuses.includes(user.subscriptionStatus)
+      validStatuses.includes(user.subscriptionStatus) &&
+      !isScheduledCancellationExpired
     ) {
       router.push("/");
     }
@@ -56,6 +63,7 @@ export default function SubscriptionBlockedPage() {
     switch (user?.subscriptionStatus) {
       case "unpaid":
       case "past_due":
+      case "payment_failed":
         return {
           title: "Falha no Pagamento",
           description:
@@ -63,6 +71,7 @@ export default function SubscriptionBlockedPage() {
           icon: CreditCard,
         };
       case "canceled":
+      case "cancelled":
         return {
           title: "Assinatura Cancelada",
           description:

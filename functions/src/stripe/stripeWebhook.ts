@@ -138,7 +138,13 @@ async function handleSubscriptionUpdated(
 
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
-    await updateSubscriptionStatus(userId, status, undefined, currentPeriodEnd);
+    await updateSubscriptionStatus(
+      userId,
+      status,
+      undefined,
+      currentPeriodEnd,
+      subscription.cancel_at_period_end,
+    );
     console.log(`User ${userId} subscription status synced to ${status}`);
 
     if (planTier) {
@@ -164,7 +170,9 @@ async function handleInvoicePaymentFailed(
       await updateSubscriptionStatus(
         userId,
         "PAYMENT_FAILED",
-        `Invoice ${invoice.id} payment failed`
+        `Invoice ${invoice.id} payment failed`,
+        undefined,
+        subscription.cancel_at_period_end,
       );
       console.log(`User ${userId} marked as PAYMENT_FAILED`);
     }
@@ -189,7 +197,7 @@ async function handleSubscriptionDeleted(
   const userId = metadata.userId;
 
   if (userId) {
-    await updateSubscriptionStatus(userId, "CANCELED");
+    await updateSubscriptionStatus(userId, "CANCELED", undefined, undefined, false);
     const starterPlanId = await getPlanIdByTier("starter");
 
     if (starterPlanId) {

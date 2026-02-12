@@ -46,6 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         let permissions = userData.permissions || {};
+        const isManualSubscription = userData.isManualSubscription || false;
+
+        const rawSubscriptionStatus = (
+          isManualSubscription
+            ? userData.subscriptionStatus || userData.subscription?.status
+            : userData.subscription?.status || userData.subscriptionStatus
+        ) as string | undefined;
 
         if (userData.role !== "free" && !userData.permissions) {
           try {
@@ -107,15 +114,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ?.toDate?.()
               ?.toISOString() ||
             undefined,
-          subscriptionStatus: (
-            userData.subscriptionStatus || userData.subscription?.status
-          )?.toLowerCase() as SubscriptionStatus | undefined,
+          subscriptionStatus: rawSubscriptionStatus?.toLowerCase() as
+            | SubscriptionStatus
+            | undefined,
           subscriptionUpdatedAt:
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||
             undefined,
-          cancelAtPeriodEnd: userData.cancelAtPeriodEnd || false,
-          isManualSubscription: userData.isManualSubscription || false,
+          cancelAtPeriodEnd:
+            userData.cancelAtPeriodEnd ||
+            userData.subscription?.cancelAtPeriodEnd ||
+            userData.subscription?.cancel_at_period_end ||
+            false,
+          isManualSubscription,
         } as User;
       } else {
         console.warn(

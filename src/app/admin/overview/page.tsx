@@ -5,7 +5,12 @@ import { ArrowLeft, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
-import { TenantsMetricsCards, TenantsTable, AdminOverviewSkeleton } from "./_components";
+import {
+  TenantsMetricsCards,
+  TenantsTable,
+  AdminOverviewSkeleton,
+  SubscriptionSyncCard,
+} from "./_components";
 import { motion } from "motion/react";
 
 export default function AdminOverviewPage() {
@@ -51,9 +56,7 @@ export default function AdminOverviewPage() {
               <LayoutDashboard className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Visão Geral
-              </h1>
+              <h1 className="text-2xl font-bold tracking-tight">Visão Geral</h1>
               <p className="text-sm text-muted-foreground">
                 Monitoramento de empresas e recursos
               </p>
@@ -75,6 +78,9 @@ export default function AdminOverviewPage() {
       {/* Metrics Cards */}
       <TenantsMetricsCards metrics={metrics} />
 
+      {/* Stripe Subscription Sync */}
+      <SubscriptionSyncCard />
+
       {/* Tenants Table */}
       <TenantsTable
         filteredData={filteredData}
@@ -93,6 +99,6 @@ export default function AdminOverviewPage() {
         currentFeatures={editDialog.features}
         onSaved={loadData}
       />
-    </div >
+    </div>
   );
 }

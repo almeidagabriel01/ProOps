@@ -5,6 +5,7 @@ import {
   createPortalSession,
   getPlans,
   syncSubscription,
+  syncAllSubscriptions,
   cancelAddon,
   cancelSubscription,
 } from "../controllers/stripe.controller";
@@ -18,6 +19,7 @@ router.post("/cancel", cancelAddon);
 router.post("/cancel-subscription", cancelSubscription);
 router.post("/portal", createPortalSession);
 router.post("/sync", syncSubscription);
+router.post("/sync-all", syncAllSubscriptions);
 
 publicRouter.get("/plans", getPlans);
 

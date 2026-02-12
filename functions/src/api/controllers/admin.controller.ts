@@ -447,6 +447,33 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
+        interface BillingUserData {
+          tenantId?: string;
+          companyId?: string;
+          companyName?: string;
+          createdAt?: string;
+          planId?: string;
+          name?: string;
+          displayName?: string;
+          email?: string;
+          subscriptionStatus?: string;
+          currentPeriodEnd?: unknown;
+          cancelAtPeriodEnd?: boolean;
+          subscription?: {
+            status?: string;
+            currentPeriodEnd?: unknown;
+            cancelAtPeriodEnd?: boolean;
+            cancel_at_period_end?: boolean;
+          };
+          usage?: {
+            users?: number;
+            proposals?: number;
+            clients?: number;
+            products?: number;
+          };
+          [key: string]: unknown;
+        }
+
     const userId = req.user!.uid;
     const { isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
@@ -460,10 +487,83 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
       .get();
 
+    const normalizeStatus = (rawStatus: unknown): string => {
+      if (!rawStatus) return "";
+      return String(rawStatus).trim().toLowerCase();
+    };
+
+    const parsePeriodEnd = (value: unknown): Date | null => {
+      if (!value) return null;
+
+      if (typeof value === "string") {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        "toDate" in value &&
+        typeof (value as { toDate?: unknown }).toDate === "function"
+      ) {
+        const converted = (value as { toDate: () => Date }).toDate();
+        return Number.isNaN(converted.getTime()) ? null : converted;
+      }
+
+      return null;
+    };
+
+    const deriveTenantStatus = (userData: BillingUserData): string => {
+      const normalizedPlanId = String(userData.planId || "free").toLowerCase();
+      if (normalizedPlanId === "free") return "free";
+
+      const rawStatus =
+        normalizeStatus(userData.subscriptionStatus) ||
+        normalizeStatus(userData.subscription?.status);
+
+      const blockedStatuses = new Set([
+        "inactive",
+        "canceled",
+        "cancelled",
+        "unpaid",
+        "payment_failed",
+      ]);
+
+      if (blockedStatuses.has(rawStatus)) {
+        return "inactive";
+      }
+
+      const periodEnd =
+        parsePeriodEnd(userData.currentPeriodEnd) ||
+        parsePeriodEnd(
+          userData.subscription?.currentPeriodEnd,
+        );
+
+      const cancelAtPeriodEnd = Boolean(
+        userData.cancelAtPeriodEnd ||
+          userData.subscription?.cancelAtPeriodEnd ||
+          userData.subscription?.cancel_at_period_end,
+      );
+
+      if (cancelAtPeriodEnd && periodEnd && periodEnd.getTime() <= Date.now()) {
+        return "inactive";
+      }
+
+      if (!rawStatus && periodEnd && periodEnd.getTime() <= Date.now()) {
+        return "inactive";
+      }
+
+      return "active";
+    };
+
     // Mapeia para TenantBillingInfo
     const tenantsData = await Promise.all(
       usersSnapshot.docs.map(async (userDoc) => {
-        const userData = userDoc.data();
+        const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
 
         // Busca dados do tenant
@@ -484,7 +584,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         }
 
         // Determina nome do plano
-        const planId = userData.planId || "free";
+        const planId = String(userData.planId || "free");
         const tierToName: Record<string, string> = {
           free: "Gratuito",
           starter: "Starter",
@@ -493,7 +593,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         };
 
         // Se planId é um tier conhecido, usa direto. Senão, busca o documento do plano
-        let planName = tierToName[planId];
+        let planName = tierToName[planId.toLowerCase()];
         if (!planName && planId !== "free") {
           try {
             const planSnap = await db.collection("plans").doc(planId).get();
@@ -508,6 +608,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           }
         }
 
+        const effectiveStatus = deriveTenantStatus(userData);
+
         return {
           tenant: {
             id: tenantId || userDoc.id,
@@ -521,14 +623,14 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           admin: {
             id: userDoc.id,
             name: userData.name || userData.displayName || "",
-            email: userData.email,
+            email: userData.email || "",
             subscriptionStatus: userData.subscriptionStatus,
             currentPeriodEnd: userData.currentPeriodEnd,
             subscription: userData.subscription,
           },
           planName: planName || planId,
           planId,
-          subscriptionStatus: userData.subscriptionStatus || "active",
+          subscriptionStatus: effectiveStatus,
           usage: {
             users: userData.usage?.users || 0,
             proposals: userData.usage?.proposals || 0,
