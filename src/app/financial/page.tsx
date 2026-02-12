@@ -20,10 +20,11 @@ import {
   TransactionListByDueDate,
 } from "./_components";
 import { useSort } from "@/hooks/use-sort";
-import { Pagination, usePagination } from "@/components/ui/pagination";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { Loader2 } from "lucide-react";
 
-/** Paginated wrapper for grouped transaction cards (3 per page) */
-function PaginatedTransactionList({
+/** Infinite scroll wrapper for grouped transaction cards */
+function TransactionListInfinite({
   filteredTransactions,
   transactions,
   canEdit,
@@ -62,12 +63,14 @@ function PaginatedTransactionList({
   toggleExpand: (key: string, isOpen: boolean) => void;
   refreshData: (bg?: boolean) => Promise<void>;
 }) {
-  const { currentPage, totalPages, paginatedData, setCurrentPage } =
-    usePagination(filteredTransactions, 3);
+  const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
+    filteredTransactions,
+    6,
+  );
 
   return (
     <div className="flex flex-col gap-3 flex-1">
-      {paginatedData.map((transaction) => {
+      {displayedItems.map((transaction) => {
         const groupId =
           transaction.proposalGroupId || transaction.installmentGroupId;
 
@@ -141,13 +144,14 @@ function PaginatedTransactionList({
           />
         );
       })}
-      <div className="mt-auto pt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+      {hasMore && (
+        <div
+          ref={sentinelRef}
+          className="flex items-center justify-center py-4"
+        >
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }
@@ -529,7 +533,7 @@ export default function FinancialPage() {
           sortConfig={sortConfig}
         />
       ) : (
-        <PaginatedTransactionList
+        <TransactionListInfinite
           filteredTransactions={filteredTransactions}
           transactions={transactions}
           canEdit={canEdit}

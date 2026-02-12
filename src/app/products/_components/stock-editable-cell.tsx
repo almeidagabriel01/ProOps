@@ -3,24 +3,22 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil } from "lucide-react";
 
-interface StockEditableCellProps {
-  initialValue: string;
-  onUpdate: (newValue: string) => Promise<boolean>;
-  className?: string;
-}
-
 export function StockEditableCell({
   initialValue,
   onUpdate,
   className,
-}: StockEditableCellProps) {
+}: {
+  initialValue: number;
+  onUpdate: (newValue: string) => Promise<boolean>;
+  className?: string;
+}) {
   const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(initialValue);
+  const [value, setValue] = useState(String(initialValue));
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setValue(initialValue);
+    setValue(String(initialValue));
   }, [initialValue]);
 
   useEffect(() => {
@@ -30,7 +28,7 @@ export function StockEditableCell({
   }, [isEditing]);
 
   const handleSave = async () => {
-    if (value === initialValue) {
+    if (value === String(initialValue)) {
       setIsEditing(false);
       return;
     }
@@ -42,19 +40,19 @@ export function StockEditableCell({
         setIsEditing(false);
       } else {
         // Revert on failure
-        setValue(initialValue);
+        setValue(String(initialValue));
         // Toast is likely handled by the parent/hook, but good to ensure
       }
     } catch (error) {
       console.error("Failed to update stock:", error);
-      setValue(initialValue);
+      setValue(String(initialValue));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setValue(initialValue);
+    setValue(String(initialValue));
     setIsEditing(false);
   };
 

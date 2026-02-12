@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
 import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
@@ -50,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { useSort } from "@/hooks/use-sort";
+import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 const statusConfig: Record<
   ProposalStatus,
@@ -154,10 +156,10 @@ function PdfDownloader({
 
 export default function ProposalsPage() {
   const router = useRouter();
-  const { tenant, isLoading: tenantLoading } = useTenant();
+  const { tenant } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -173,10 +175,16 @@ export default function ProposalsPage() {
   const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
     string | null
   >(null);
+  const [hasAnyProposals, setHasAnyProposals] = React.useState<boolean | null>(
+    null,
+  );
   // Cache for attachments to prevent fetchProposals from overwriting local updates
   const attachmentsCacheRef = React.useRef<Map<string, ProposalAttachment[]>>(
     new Map(),
   );
+  const resetRef = React.useRef<(() => void) | null>(null);
+  const isFiltering = searchTerm.trim() !== "";
+  const [asyncDataReady, setAsyncDataReady] = React.useState(false);
 
   const handleEdit = React.useCallback(
     (id: string) => {
@@ -239,7 +247,7 @@ export default function ProposalsPage() {
 
   // Filter proposals based on search term
   const filteredProposals = React.useMemo(() => {
-    if (!searchTerm.trim()) return sortedProposals;
+    if (!isFiltering) return [];
 
     const term = searchTerm.toLowerCase();
     return sortedProposals.filter(
@@ -250,9 +258,55 @@ export default function ProposalsPage() {
           .toLowerCase()
           .includes(term),
     );
-  }, [sortedProposals, searchTerm]);
+  }, [sortedProposals, searchTerm, isFiltering]);
 
-  const isPageLoading = tenantLoading || isLoading;
+  const isPageLoading = isFiltering && isLoading;
+
+  // Show full page skeleton until initial async data is ready (or empty state determined)
+  const showFullPageSkeleton =
+    !isFiltering && !asyncDataReady && hasAnyProposals !== false;
+
+  // Check if there are any proposals (for empty state)
+  React.useEffect(() => {
+    const check = async () => {
+      if (!tenant) return;
+      try {
+        const result = await ProposalService.getProposalsPaginated(
+          tenant.id,
+          1,
+        );
+        setHasAnyProposals(result.data.length > 0);
+      } catch {
+        setHasAnyProposals(false);
+      }
+    };
+    check();
+  }, [tenant]);
+
+  // fetchPage callback for async pagination
+  const fetchPage = React.useCallback(
+    async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+      if (!tenant)
+        return { data: [] as Proposal[], lastDoc: null, hasMore: false };
+      return ProposalService.getProposalsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
+    },
+    [tenant, sortConfig],
+  );
+
+  // Reset pagination when sort changes
+  React.useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const fetchProposals = React.useCallback(async () => {
     if (tenant) {
@@ -303,19 +357,24 @@ export default function ProposalsPage() {
     setIsLoading(false);
   }, [tenant]);
 
-  // Initial fetch
+  // Initial fetch — only when searching/filtering
   React.useEffect(() => {
-    fetchProposals();
-  }, [fetchProposals]);
+    if (isFiltering && tenant) {
+      fetchProposals();
+    }
+  }, [isFiltering, tenant, fetchProposals]);
 
   // Subscribe to updates (e.g. from auto-save)
   React.useEffect(() => {
     return ProposalService.subscribe(() => {
       console.log("Received proposal update notification, refreshing list...");
-      setIsLoading(true); // Show loading skeleton while waiting/fetching
-      fetchProposals();
+      resetRef.current?.();
+      if (isFiltering) {
+        setIsLoading(true);
+        fetchProposals();
+      }
     });
-  }, [fetchProposals]);
+  }, [fetchProposals, isFiltering]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -324,6 +383,8 @@ export default function ProposalsPage() {
     setIsDeleting(true);
     try {
       await ProposalService.deleteProposal(deleteId);
+      resetRef.current?.();
+      setHasAnyProposals(null);
       setProposals((prev) => prev.filter((p) => p.id !== deleteId));
       toast.success("Proposta excluída com sucesso.");
     } catch (error) {
@@ -362,8 +423,7 @@ export default function ProposalsPage() {
           pdfSettings: original.pdfSettings,
         });
 
-        const data = await ProposalService.getProposals(tenant.id);
-        setProposals(data);
+        resetRef.current?.();
         toast.success("Proposta duplicada com sucesso!");
       } catch (error) {
         console.error("Duplicate error:", error);
@@ -383,6 +443,15 @@ export default function ProposalsPage() {
       year: "numeric",
     });
   };
+
+  const sortLabelsPtBr = React.useCallback((values: string[]) => {
+    return [...values].sort((a, b) =>
+      a.localeCompare(b, "pt-BR", {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
+  }, []);
 
   const handleStatusChange = React.useCallback(
     async (proposalId: string, newStatus: ProposalStatus) => {
@@ -512,21 +581,42 @@ export default function ProposalsPage() {
         ),
       },
       {
-        key: "sistemas.0.ambientes.0.ambienteName",
+        key: "primaryEnvironment",
         header: "Ambiente",
+        sortable: true,
         render: (proposal) => {
+          const ambienteNamesFromSystems =
+            proposal.sistemas?.flatMap((s) => {
+              const namesFromNested = Array.isArray(s.ambientes)
+                ? s.ambientes
+                    .map((ambiente) => ambiente.ambienteName)
+                    .filter(Boolean)
+                : [];
+
+              if (namesFromNested.length > 0) {
+                return namesFromNested;
+              }
+
+              return s.ambienteName ? [s.ambienteName] : [];
+            }) || [];
+
           const uniqueAmbientes = Array.from(
             new Set(
-              proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean),
+              ambienteNamesFromSystems.length > 0
+                ? ambienteNamesFromSystems
+                : proposal.primaryEnvironment
+                  ? [proposal.primaryEnvironment]
+                  : [],
             ),
           );
+          const sortedAmbientes = sortLabelsPtBr(uniqueAmbientes);
           return (
             <div className="text-sm text-muted-foreground truncate">
-              {uniqueAmbientes.length > 0 ? (
-                <span title={uniqueAmbientes.join(", ")}>
-                  {uniqueAmbientes.length > 2
-                    ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
-                    : uniqueAmbientes.join(", ")}
+              {sortedAmbientes.length > 0 ? (
+                <span title={sortedAmbientes.join(", ")}>
+                  {sortedAmbientes.length > 2
+                    ? `${sortedAmbientes.slice(0, 2).join(", ")} +${sortedAmbientes.length - 2}`
+                    : sortedAmbientes.join(", ")}
                 </span>
               ) : (
                 "-"
@@ -536,21 +626,32 @@ export default function ProposalsPage() {
         },
       },
       {
-        key: "sistemas.0.sistemaName",
+        key: "primarySystem",
         header: "Sistema",
+        sortable: true,
         render: (proposal) => {
+          const systemsFromArray =
+            proposal.sistemas?.flatMap((s) =>
+              s.sistemaName ? [s.sistemaName] : [],
+            ) || [];
+
           const uniqueSistemas = Array.from(
             new Set(
-              proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean),
+              systemsFromArray.length > 0
+                ? systemsFromArray
+                : proposal.primarySystem
+                  ? [proposal.primarySystem]
+                  : [],
             ),
           );
+          const sortedSistemas = sortLabelsPtBr(uniqueSistemas);
           return (
             <div className="text-sm text-muted-foreground truncate">
-              {uniqueSistemas.length > 0 ? (
-                <span title={uniqueSistemas.join(", ")}>
-                  {uniqueSistemas.length > 2
-                    ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
-                    : uniqueSistemas.join(", ")}
+              {sortedSistemas.length > 0 ? (
+                <span title={sortedSistemas.join(", ")}>
+                  {sortedSistemas.length > 2
+                    ? `${sortedSistemas.slice(0, 2).join(", ")} +${sortedSistemas.length - 2}`
+                    : sortedSistemas.join(", ")}
                 </span>
               ) : (
                 "-"
@@ -736,6 +837,7 @@ export default function ProposalsPage() {
       handleEdit,
       handleStatusChange,
       router,
+      sortLabelsPtBr,
     ],
   );
 
@@ -783,7 +885,13 @@ export default function ProposalsPage() {
 
   return (
     <>
-      <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
+      {showFullPageSkeleton && <ProposalsSkeleton />}
+      <div
+        className={cn(
+          "space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]",
+          showFullPageSkeleton && "hidden",
+        )}
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
@@ -802,7 +910,7 @@ export default function ProposalsPage() {
         </div>
 
         {/* Search */}
-        {proposals.length > 0 && (
+        {hasAnyProposals !== false && (
           <div className="max-w-md">
             <Input
               placeholder="Buscar por título, contato ou status..."
@@ -813,7 +921,7 @@ export default function ProposalsPage() {
           </div>
         )}
 
-        {proposals.length === 0 ? (
+        {hasAnyProposals === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -835,7 +943,7 @@ export default function ProposalsPage() {
               )}
             </CardContent>
           </Card>
-        ) : filteredProposals.length === 0 ? (
+        ) : isFiltering && filteredProposals.length === 0 && !isLoading ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="w-12 h-12 text-muted-foreground mb-4" />
@@ -847,7 +955,7 @@ export default function ProposalsPage() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : isFiltering ? (
           <DataTable
             columns={columns}
             data={filteredProposals}
@@ -855,7 +963,24 @@ export default function ProposalsPage() {
             gridClassName="grid-cols-7"
             onSort={requestSort}
             sortConfig={sortConfig}
-            pageSize={5}
+            minWidth="900px"
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            keyExtractor={(proposal) => proposal.id}
+            gridClassName="grid-cols-7"
+            fetchPage={fetchPage}
+            fetchEnabled={!!tenant}
+            onResetRef={resetRef}
+            batchSize={12}
+            minWidth="900px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
+            onItemsChange={(items) => {
+              setProposals(items);
+              if (items.length > 0) setAsyncDataReady(true);
+            }}
           />
         )}
       </div>
@@ -867,7 +992,6 @@ export default function ProposalsPage() {
         isOpen={!!downloadingId}
         onClose={() => setDownloadingId(null)}
       />
-
       {/* Share Link Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="sm:max-w-md">

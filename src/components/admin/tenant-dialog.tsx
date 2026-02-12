@@ -213,7 +213,7 @@ export function TenantDialog({
       open={isOpen}
       onOpenChange={(open) => !isSaving && !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto top-[15%] translate-y-0">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Empresa" : "Nova Empresa"}

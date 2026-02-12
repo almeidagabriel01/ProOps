@@ -305,7 +305,7 @@ export function SistemaEditor({
 
       {/* Main Layout - Grid */}
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
-        {/* Sidebar: System Info & Environments */}
+        {/* System info & environments */}
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           {/* Info Card */}
           <Card>

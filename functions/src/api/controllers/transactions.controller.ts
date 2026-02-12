@@ -219,42 +219,67 @@ export const updateTransaction = async (req: Request, res: Response) => {
       // Use the transaction's tenantId for wallet lookup (not the user's tenantId)
       const txTenantId = currentData?.tenantId || tenantId;
 
-      if (oldImpact !== newImpact || currentData?.wallet !== newData.wallet) {
-        const now = Timestamp.now();
+      const shouldAdjustWallets =
+        oldImpact !== newImpact || currentData?.wallet !== newData.wallet;
+
+      const now = Timestamp.now();
+
+      let oldWalletInfo: {
+        ref: FirebaseFirestore.DocumentReference;
+        data: { name: string; balance: number; tenantId: string };
+      } | null = null;
+      let newWalletInfo: {
+        ref: FirebaseFirestore.DocumentReference;
+        data: { name: string; balance: number; tenantId: string };
+      } | null = null;
+      let sameWalletInfo: {
+        ref: FirebaseFirestore.DocumentReference;
+        data: { name: string; balance: number; tenantId: string };
+      } | null = null;
+
+      // IMPORTANT: Firestore transaction rule requires all reads before writes.
+      if (shouldAdjustWallets) {
         if (currentData?.wallet !== newData.wallet) {
-          // Reverse old
           if (oldImpact !== 0 && currentData?.wallet) {
-            const w = await resolveWalletRef(
+            oldWalletInfo = await resolveWalletRef(
               t,
               db,
               txTenantId,
               currentData.wallet
             );
-            if (w)
-              t.update(w.ref, {
-                balance: FieldValue.increment(-oldImpact),
-                updatedAt: now,
-              });
           }
-          // Apply new
           if (newImpact !== 0 && newData.wallet) {
-            const w = await resolveWalletRef(t, db, txTenantId, newData.wallet);
-            if (w)
-              t.update(w.ref, {
-                balance: FieldValue.increment(newImpact),
-                updatedAt: now,
-              });
+            newWalletInfo = await resolveWalletRef(t, db, txTenantId, newData.wallet);
           }
         } else {
-          // Same wallet
           const diff = newImpact - oldImpact;
           if (diff !== 0 && newData.wallet) {
-            const w = await resolveWalletRef(t, db, txTenantId, newData.wallet);
-            if (w)
-              t.update(w.ref, {
-                balance: FieldValue.increment(diff),
-                updatedAt: now,
-              });
+            sameWalletInfo = await resolveWalletRef(t, db, txTenantId, newData.wallet);
+          }
+        }
+      }
+
+      if (shouldAdjustWallets) {
+        if (currentData?.wallet !== newData.wallet) {
+          if (oldWalletInfo) {
+            t.update(oldWalletInfo.ref, {
+              balance: FieldValue.increment(-oldImpact),
+              updatedAt: now,
+            });
+          }
+          if (newWalletInfo) {
+            t.update(newWalletInfo.ref, {
+              balance: FieldValue.increment(newImpact),
+              updatedAt: now,
+            });
+          }
+        } else {
+          const diff = newImpact - oldImpact;
+          if (diff !== 0 && sameWalletInfo) {
+            t.update(sameWalletInfo.ref, {
+              balance: FieldValue.increment(diff),
+              updatedAt: now,
+            });
           }
         }
       }
@@ -286,6 +311,141 @@ export const updateTransaction = async (req: Request, res: Response) => {
     console.error("updateTransaction Error:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar.";
+    return res.status(500).json({ message });
+  }
+};
+
+export const updateTransactionsStatusBatch = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userId = req.user!.uid;
+    const { ids, newStatus } = req.body as {
+      ids?: string[];
+      newStatus?: "paid" | "pending" | "overdue";
+    };
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "IDs inválidos." });
+    }
+
+    if (!newStatus || !["paid", "pending", "overdue"].includes(newStatus)) {
+      return res.status(400).json({ message: "Status inválido." });
+    }
+
+    const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
+      userId,
+      "canEdit",
+      req.user
+    );
+
+    await db.runTransaction(async (t) => {
+      const now = Timestamp.now();
+
+      const transactionsToUpdate: FirebaseFirestore.DocumentReference[] = [];
+
+      const walletAdjustments = new Map<
+        string,
+        { tenantId: string; wallet: string; delta: number }
+      >();
+
+      // 1) Read all transactions first
+      for (const id of uniqueIds) {
+        const txRef = db.collection(COLLECTION_NAME).doc(id);
+        const txSnap = await t.get(txRef);
+
+        if (!txSnap.exists) continue;
+
+        const txData = txSnap.data() as {
+          tenantId?: string;
+          status?: "paid" | "pending" | "overdue";
+          wallet?: string;
+          type?: "income" | "expense";
+          amount?: number;
+        };
+        if (!txData) continue;
+
+        if (!isSuperAdmin && txData.tenantId !== tenantId) {
+          throw new Error("Acesso negado.");
+        }
+
+        const oldImpact =
+          txData.status === "paid" && txData.wallet
+            ? (txData.type === "income" ? 1 : -1) * (txData.amount || 0)
+            : 0;
+
+        const nextData: {
+          status: "paid" | "pending" | "overdue";
+          wallet?: string;
+          type?: "income" | "expense";
+          amount?: number;
+        } = {
+          status: newStatus,
+          wallet: txData.wallet,
+          type: txData.type,
+          amount: txData.amount,
+        };
+        const newImpact =
+          nextData.status === "paid" && nextData.wallet
+            ? (nextData.type === "income" ? 1 : -1) * (nextData.amount || 0)
+            : 0;
+
+        const diff = newImpact - oldImpact;
+        const txTenantId = txData.tenantId || tenantId;
+
+        if (diff !== 0 && nextData.wallet) {
+          const key = `${txTenantId}::${nextData.wallet}`;
+          const prev = walletAdjustments.get(key);
+          walletAdjustments.set(key, {
+            tenantId: txTenantId,
+            wallet: nextData.wallet,
+            delta: (prev?.delta || 0) + diff,
+          });
+        }
+
+        transactionsToUpdate.push(txRef);
+      }
+
+      // 2) Read all wallets before any write
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [key, adj] of walletAdjustments.entries()) {
+        if (adj.delta === 0) continue;
+        const walletInfo = await resolveWalletRef(t, db, adj.tenantId, adj.wallet);
+        if (walletInfo) {
+          walletRefs.set(key, walletInfo.ref);
+        }
+      }
+
+      // 3) Write transaction statuses
+      for (const txRef of transactionsToUpdate) {
+        t.update(txRef, { status: newStatus, updatedAt: now });
+      }
+
+      // 4) Write wallet balance deltas
+      for (const [key, adj] of walletAdjustments.entries()) {
+        if (adj.delta === 0) continue;
+        const walletRef = walletRefs.get(key);
+        if (!walletRef) continue;
+
+        t.update(walletRef, {
+          balance: FieldValue.increment(adj.delta),
+          updatedAt: now,
+        });
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: "Status atualizado em lote com sucesso.",
+      count: uniqueIds.length,
+    });
+  } catch (error: unknown) {
+    console.error("updateTransactionsStatusBatch Error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar status.";
     return res.status(500).json({ message });
   }
 };

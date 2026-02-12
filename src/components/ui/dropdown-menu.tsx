@@ -58,7 +58,7 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
         contentRef: handleContentRef,
       }}
     >
-      <div className="relative inline-block text-left" ref={containerRef}>
+      <div className="relative inline-block text-left mt-1" ref={containerRef}>
         {children}
       </div>
     </DropdownMenuContext.Provider>
@@ -121,21 +121,35 @@ export function DropdownMenuContent({
     { top: 0, left: 0 },
   );
 
-  React.useEffect(() => {
-    if (!open || !triggerRef?.current) return;
+  const updatePosition = React.useCallback(() => {
+    if (!triggerRef?.current) return;
 
     const rect = triggerRef.current.getBoundingClientRect();
     const contentEl = localRef.current;
-    const contentWidth = contentEl?.offsetWidth || 200;
+    if (!contentEl) return;
+
+    const contentWidth = contentEl.offsetWidth || 200;
+    const contentH = contentEl.offsetHeight || 0;
 
     let top = 0;
     let left = 0;
 
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    let usedSide = side;
+
+    // Auto-flip if not enough space below
+    if (side === "bottom" && spaceBelow < contentH + 10) {
+      if (rect.top > contentH + 10) {
+        usedSide = "top";
+      }
+    }
+
     // Side positioning
-    if (side === "bottom") {
+    if (usedSide === "bottom") {
       top = rect.bottom + 8;
-    } else if (side === "top") {
-      top = rect.top - 8 - (contentEl?.offsetHeight || 0);
+    } else if (usedSide === "top") {
+      top = rect.top - 8 - contentH;
     }
 
     // Align positioning
@@ -151,7 +165,20 @@ export function DropdownMenuContent({
     left = Math.max(8, Math.min(left, window.innerWidth - contentWidth - 8));
 
     setPosition({ top, left });
-  }, [open, align, side, triggerRef]);
+  }, [align, side, triggerRef]);
+
+  React.useLayoutEffect(() => {
+    if (open) {
+      updatePosition();
+      // Use capture=true for scroll to detect scrolling of parent containers
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
+      return () => {
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+      };
+    }
+  }, [open, updatePosition]);
 
   if (!open) return null;
 
@@ -166,10 +193,9 @@ export function DropdownMenuContent({
         position: "fixed",
         top: position.top,
         left: position.left,
-        zIndex: 9999,
       }}
       className={cn(
-        "min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+        "z-[45] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
         className,
       )}
     >
