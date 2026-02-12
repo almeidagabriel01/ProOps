@@ -190,11 +190,9 @@ function LoginContent() {
 
     // For users going to ERP, show appropriate skeleton
     let content = <DashboardSkeleton />;
-    let showSidebar = true;
 
     if (user?.role === "superadmin") {
       content = <AdminSkeleton />;
-      showSidebar = false;
     } else if (user?.role === "user" || user?.role === "member") {
       const perms = (user?.permissions || {}) as Record<
         string,
@@ -208,7 +206,7 @@ function LoginContent() {
       }
     }
 
-    return <AppSkeleton showSidebar={showSidebar}>{content}</AppSkeleton>;
+    return <AppSkeleton>{content}</AppSkeleton>;
   }
 
   const steps = [

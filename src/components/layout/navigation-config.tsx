@@ -1,17 +1,15 @@
 import {
   LayoutDashboard,
-  Package,
-  Users,
-  FileText,
+  Package2,
+  Contact,
+  FilePenLine,
   Wallet,
-  Shield,
+  WalletCards,
   FileSpreadsheet,
-  Cpu,
+  Bot,
+  ReceiptText,
+  UsersRound,
 } from "lucide-react";
-
-// ============================================
-// TYPES
-// ============================================
 
 export type MenuItem = {
   icon: typeof LayoutDashboard;
@@ -30,10 +28,6 @@ export type SubMenuItem = {
   masterOnly?: boolean;
 };
 
-// ============================================
-// MENU CONFIGURATION
-// ============================================
-
 export const menuItems: MenuItem[] = [
   {
     icon: LayoutDashboard,
@@ -41,15 +35,15 @@ export const menuItems: MenuItem[] = [
     href: "/dashboard",
     pageId: "dashboard",
   },
-  { icon: Package, label: "Produtos", href: "/products", pageId: "products" },
+  { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
   {
-    icon: FileText,
+    icon: FilePenLine,
     label: "Propostas",
     href: "/proposals",
     pageId: "proposals",
   },
   {
-    icon: Users,
+    icon: Contact,
     label: "Contatos",
     href: "/contacts",
     pageId: "clients",
@@ -67,24 +61,24 @@ export const menuItems: MenuItem[] = [
     requiresFinancial: true,
     children: [
       {
-        icon: FileText,
+        icon: ReceiptText,
         label: "Lançamentos",
         href: "/financial",
       },
       {
-        icon: Wallet,
+        icon: WalletCards,
         label: "Carteiras",
         href: "/financial/wallets",
       },
     ],
   },
   {
-    icon: Cpu,
+    icon: Bot,
     label: "Automação",
     href: "/automation",
   },
   {
-    icon: Shield,
+    icon: UsersRound,
     label: "Equipe",
     href: "/settings/team",
     pageId: "team",
@@ -92,20 +86,6 @@ export const menuItems: MenuItem[] = [
   },
 ];
 
-// ============================================
-// DIMENSIONS
-// ============================================
-
-export const COLLAPSED_WIDTH = 72;
-export const EXPANDED_WIDTH = 300;
-
-// ============================================
-// UTILITIES
-// ============================================
-
-/**
- * Lighten a hex color by a percentage
- */
 export function lightenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace("#", ""), 16);
   const amt = Math.round(2.55 * percent);
@@ -115,13 +95,7 @@ export function lightenColor(hex: string, percent: number): string {
   return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
-/**
- * Get visible children for a menu item based on user role
- */
-export function getVisibleChildren(
-  item: MenuItem,
-  isMaster: boolean,
-): SubMenuItem[] {
+export function getVisibleChildren(item: MenuItem, isMaster: boolean): SubMenuItem[] {
   if (!item.children) return [];
   return item.children.filter((child) => {
     if (child.masterOnly) return isMaster;

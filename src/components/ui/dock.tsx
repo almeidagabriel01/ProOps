@@ -144,8 +144,8 @@ const DockIcon = ({
     damping: 16,
   })
 
-  const isActive =
-    (props as React.HTMLAttributes<HTMLDivElement>)["data-active"] === "true"
+  const dataActive = (props as { "data-active"?: string })["data-active"]
+  const isActive = dataActive === "true"
 
   // Se o item virar ativo enquanto o mouse ainda está em cima (após clique),
   // remove o halo de hover para não somar com o background do ativo.
