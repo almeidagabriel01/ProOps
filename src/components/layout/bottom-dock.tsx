@@ -267,15 +267,19 @@ export function BottomDock() {
   }
 
   const renderMenuItem = (entry: DockEntry) => {
-    const isRestricted =
-      !!entry.requiresFinancial && !hasFinancial && !isMaster;
+    const isRestricted = !!entry.requiresFinancial && !hasFinancial;
     const active = !!activeHref && entry.href === activeHref;
 
     if (isRestricted) {
       return (
         <DockIcon
           key={entry.href}
-          className="relative"
+          className={cn(
+            "relative opacity-55 cursor-pointer",
+            active &&
+              "bg-primary/15 dark:bg-primary/20 ring-1 ring-primary/30 dark:ring-primary/20",
+          )}
+          data-active={active ? "true" : undefined}
           aria-label={entry.label}
         >
           <DockItemContent label={entry.label}>
@@ -288,16 +292,18 @@ export function BottomDock() {
                   "pro",
                 )
               }
-              className="flex items-center justify-center w-full h-full"
+              className="flex items-center justify-center w-full h-full cursor-pointer"
               aria-label={entry.label}
             >
-              <entry.icon className="w-6 h-6" style={{ color: premiumColor }} />
+              <entry.icon
+                className="w-6 h-6 opacity-90"
+                style={{ color: premiumColor }}
+              />
             </button>
           </DockItemContent>
-          <Crown
-            className="absolute -top-1 -right-1 w-3.5 h-3.5"
-            style={{ color: premiumColor }}
-          />
+          <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-background/90 ring-1 ring-border/70">
+            <Crown className="h-3 w-3" style={{ color: premiumColor }} />
+          </span>
         </DockIcon>
       );
     }
