@@ -19,6 +19,11 @@ router.get("/", NotificationsController.getNotifications);
 router.get("/unread-count", NotificationsController.getUnreadCount);
 
 /**
+ * POST /v1/notifications/due-toast/claim - Claim diário de toast por tipo
+ */
+router.post("/due-toast/claim", NotificationsController.claimDailyDueToast);
+
+/**
  * PUT /v1/notifications/:id/read - Marca como lida
  */
 router.put("/:id/read", NotificationsController.markAsRead);
