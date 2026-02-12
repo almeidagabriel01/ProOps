@@ -144,6 +144,69 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 };
 
 /**
+ * DELETE /v1/notifications/:id
+ * Remove uma notificação
+ */
+export const deleteNotification = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { id } = req.params;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ message: "ID da notificação é obrigatório" });
+    }
+
+    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+
+    await NotificationService.deleteNotification(id, tenantId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Notificação removida com sucesso",
+    });
+  } catch (error) {
+    console.error("Error deleting notification:", error);
+
+    if (error instanceof Error && error.message.includes("Unauthorized")) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+
+    if (error instanceof Error && error.message.includes("not found")) {
+      return res.status(404).json({ message: "Notificação não encontrada" });
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Erro ao remover notificação";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * DELETE /v1/notifications/clear-all
+ * Remove todas as notificações do tenant
+ */
+export const clearAllNotifications = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+
+    await NotificationService.clearAllNotifications(tenantId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Todas as notificações foram removidas",
+    });
+  } catch (error) {
+    console.error("Error clearing notifications:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao limpar notificações";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
  * POST /v1/notifications/due-toast/claim
  * Faz claim atômico de exibição diária por tenant+tipo.
  */

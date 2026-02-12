@@ -141,6 +141,33 @@ export class NotificationService {
   }
 
   /**
+   * Remove uma notificação de um tenant
+   */
+  static async deleteNotification(
+    notificationId: string,
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      const docRef = db.collection(this.COLLECTION).doc(notificationId);
+      const doc = await docRef.get();
+
+      if (!doc.exists) {
+        throw new Error("Notification not found");
+      }
+
+      const data = doc.data() as Notification;
+      if (data.tenantId !== tenantId) {
+        throw new Error("Unauthorized: Notification does not belong to tenant");
+      }
+
+      await docRef.delete();
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Conta notificações não lidas de um tenant
    */
   static async getUnreadCount(tenantId: string): Promise<number> {
@@ -183,6 +210,44 @@ export class NotificationService {
     } catch (error) {
       console.error("Error marking all as read:", error);
       throw new Error("Failed to mark all as read");
+    }
+  }
+
+  /**
+   * Remove todas as notificações de um tenant
+   */
+  static async clearAllNotifications(tenantId: string): Promise<void> {
+    try {
+      const snapshot = await db
+        .collection(this.COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .get();
+
+      if (snapshot.empty) return;
+
+      const batches: FirebaseFirestore.WriteBatch[] = [];
+      let currentBatch = db.batch();
+      let opCount = 0;
+
+      snapshot.docs.forEach((doc) => {
+        currentBatch.delete(doc.ref);
+        opCount++;
+
+        if (opCount === 450) {
+          batches.push(currentBatch);
+          currentBatch = db.batch();
+          opCount = 0;
+        }
+      });
+
+      if (opCount > 0) {
+        batches.push(currentBatch);
+      }
+
+      await Promise.all(batches.map((batch) => batch.commit()));
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+      throw new Error("Failed to clear all notifications");
     }
   }
 
