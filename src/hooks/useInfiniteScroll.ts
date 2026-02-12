@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { PaginatedResult } from "@/services/client-service";
 
@@ -213,8 +213,10 @@ export function useInfiniteScroll<T>(
   const isSentinelVisibleRef = useRef(false);
 
   useEffect(() => {
-    setVisibleCount(batchSize);
-    setIsLoadingMore(false);
+    startTransition(() => {
+      setVisibleCount(batchSize);
+      setIsLoadingMore(false);
+    });
     isLoadingMoreRef.current = false;
     isSentinelVisibleRef.current = false;
   }, [data.length, batchSize]);
@@ -342,7 +344,13 @@ export function useInfiniteScroll<T>(
     if (isLoadingMoreRef.current) return;
     if (requireUserScroll && !userHasScrolledRef.current) return;
 
-    loadMore();
+    const timeoutId = window.setTimeout(() => {
+      loadMore();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [visibleCount, hasMore, requireUserScroll, loadMore]);
 
   useEffect(() => {

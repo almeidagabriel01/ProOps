@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Type, FileText, Image as ImageIcon, List } from "lucide-react"
+import { Type, FileText, Image as ImageIcon } from "lucide-react"
 import { PdfSection } from "../pdf-section-editor"
 
 interface AddSectionButtonsProps {

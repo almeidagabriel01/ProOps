@@ -241,9 +241,7 @@ export function usePdfSectionEditor({
           ? "Novo Título"
           : type === "text"
             ? "Novo parágrafo de texto..."
-            : type === "product-table"
-              ? "Lista de Produtos"
-              : "",
+            : "",
       styles: {
         fontSize: type === "title" ? "24px" : "14px",
         fontWeight: type === "title" ? "bold" : "normal",
