@@ -34,7 +34,7 @@ import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
-import { Pagination, usePagination } from "@/components/ui/pagination";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
@@ -54,20 +54,18 @@ export default function AutomationAdminPage() {
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  // Pagination
+  // Infinite scroll
   const {
-    currentPage: sysPage,
-    totalPages: sysTotalPages,
-    paginatedData: paginatedSistemas,
-    setCurrentPage: setSysPage,
-  } = usePagination(sistemas, 6);
+    displayedItems: displayedSistemas,
+    hasMore: hasMoreSistemas,
+    sentinelRef: sistemasSentinelRef,
+  } = useInfiniteScroll(sistemas, 6);
 
   const {
-    currentPage: envPage,
-    totalPages: envTotalPages,
-    paginatedData: paginatedAmbientes,
-    setCurrentPage: setEnvPage,
-  } = usePagination(ambientes, 8);
+    displayedItems: displayedAmbientes,
+    hasMore: hasMoreAmbientes,
+    sentinelRef: ambientesSentinelRef,
+  } = useInfiniteScroll(ambientes, 8);
 
   const loadData = React.useCallback(
     async (silent: boolean = false) => {
@@ -214,10 +212,18 @@ export default function AutomationAdminPage() {
             <Card className="border-none shadow-sm bg-transparent">
               <CardContent className="px-0">
                 <SistemaList
-                  sistemas={paginatedSistemas}
+                  sistemas={displayedSistemas}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) => setDeleteId(id)}
                 />
+                {hasMoreSistemas && (
+                  <div
+                    ref={sistemasSentinelRef}
+                    className="flex items-center justify-center py-4"
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -238,30 +244,22 @@ export default function AutomationAdminPage() {
               </CardHeader>
               <CardContent className="px-0">
                 <AmbienteList
-                  ambientes={paginatedAmbientes}
+                  ambientes={displayedAmbientes}
                   onUpdate={() => loadData(true)}
                 />
+                {hasMoreAmbientes && (
+                  <div
+                    ref={ambientesSentinelRef}
+                    className="flex items-center justify-center py-4"
+                  >
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </motion.div>
       </Tabs>
-
-      <div className="mt-auto border-t pt-4">
-        {activeTab === "sistemas" ? (
-          <Pagination
-            currentPage={sysPage}
-            totalPages={sysTotalPages}
-            onPageChange={setSysPage}
-          />
-        ) : (
-          <Pagination
-            currentPage={envPage}
-            totalPages={envTotalPages}
-            onPageChange={setEnvPage}
-          />
-        )}
-      </div>
 
       {/* Delete Alert */}
       <AlertDialog

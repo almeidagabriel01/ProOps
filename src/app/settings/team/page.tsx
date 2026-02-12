@@ -26,7 +26,8 @@ import {
   CreateMemberSection,
   MemberCard,
 } from "@/components/features/team";
-import { Pagination, usePagination } from "@/components/ui/pagination";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { Loader2 } from "lucide-react";
 
 export default function TeamPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -48,13 +49,12 @@ export default function TeamPage() {
   const [isCreatingMember, setIsCreatingMember] = React.useState(false);
   const [updatingKey, setUpdatingKey] = React.useState<string | null>(null);
 
-  // Pagination
+  // Infinite scroll
   const {
-    currentPage,
-    totalPages,
-    paginatedData: paginatedMembers,
-    setCurrentPage,
-  } = usePagination(members, 6);
+    displayedItems: displayedMembers,
+    hasMore,
+    sentinelRef,
+  } = useInfiniteScroll(members, 6);
 
   // Use Cloud Function hook for updating permissions
   const { updateSinglePermission, isLoading: savingPermissions } =
@@ -257,7 +257,7 @@ export default function TeamPage() {
               </h2>
 
               <div className="grid gap-4">
-                {paginatedMembers.map((member) => (
+                {displayedMembers.map((member) => (
                   <MemberCard
                     key={member.id}
                     member={member}
@@ -268,6 +268,14 @@ export default function TeamPage() {
                   />
                 ))}
               </div>
+              {hasMore && (
+                <div
+                  ref={sentinelRef}
+                  className="flex items-center justify-center py-4"
+                >
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
             </div>
           ) : (
             !isLoading &&
@@ -291,14 +299,6 @@ export default function TeamPage() {
             )
           )}
         </div>
-      </div>
-
-      <div className="mt-auto pt-4 border-t">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
       </div>
     </div>
   );

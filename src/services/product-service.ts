@@ -7,7 +7,13 @@ import {
   query,
   where,
   getDoc,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
+import { PaginatedResult } from "./client-service";
 
 export type Product = {
   id: string;
@@ -30,6 +36,20 @@ export type Product = {
 
 const COLLECTION_NAME = "products";
 
+function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt,
+  } as Product;
+}
+
 export const ProductService = {
   // Get all products for a specific tenant
   getProducts: async (tenantId: string): Promise<Product[]> => {
@@ -40,21 +60,46 @@ export const ProductService = {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-          updatedAt: data.updatedAt?.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-        } as Product;
-      });
+      return querySnapshot.docs.map(mapProductDoc);
     } catch (error) {
       console.error("Error fetching products:", error);
+      throw error;
+    }
+  },
+
+  getProductsPaginated: async (
+    tenantId: string,
+    pageSize: number = 12,
+    cursor?: QueryDocumentSnapshot<DocumentData> | null,
+  ): Promise<PaginatedResult<Product>> => {
+    try {
+      const q = cursor
+        ? query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            startAfter(cursor),
+            limit(pageSize + 1),
+          )
+        : query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            limit(pageSize + 1),
+          );
+
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageSize;
+      const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+      return {
+        data: pageDocs.map(mapProductDoc),
+        lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("Error fetching products paginated:", error);
       throw error;
     }
   },

@@ -32,10 +32,11 @@ import {
   WalletHistoryDialog,
 } from "./_components";
 import { WalletType } from "@/types";
-import { Pagination, usePagination } from "@/components/ui/pagination";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { Loader2 } from "lucide-react";
 
-/** Paginated wallet grid (6 per page) */
-function PaginatedWalletGrid({
+/** Infinite scroll wrapper for wallet grid */
+function WalletGridInfinite({
   filteredWallets,
   canEdit,
   canDelete,
@@ -58,13 +59,15 @@ function PaginatedWalletGrid({
   onSetDefault: (w: Wallet) => void;
   onViewHistory: (w: Wallet) => void;
 }) {
-  const { currentPage, totalPages, paginatedData, setCurrentPage } =
-    usePagination(filteredWallets, 6);
+  const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
+    filteredWallets,
+    6,
+  );
 
   return (
     <div className="flex flex-col gap-4 flex-1">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {paginatedData.map((wallet) => (
+        {displayedItems.map((wallet) => (
           <WalletCard
             key={wallet.id}
             wallet={wallet}
@@ -80,13 +83,14 @@ function PaginatedWalletGrid({
           />
         ))}
       </div>
-      <div className="mt-auto pt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+      {hasMore && (
+        <div
+          ref={sentinelRef}
+          className="flex items-center justify-center py-4"
+        >
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }
@@ -470,7 +474,7 @@ export default function WalletsPage() {
             </CardContent>
           </Card>
         ) : (
-          <PaginatedWalletGrid
+          <WalletGridInfinite
             filteredWallets={filteredWallets}
             canEdit={canEdit}
             canDelete={canDelete}

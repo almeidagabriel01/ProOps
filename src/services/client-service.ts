@@ -9,6 +9,11 @@ import {
   query,
   where,
   getDoc,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 
 export type ClientSource = "manual" | "proposal" | "financial";
@@ -30,31 +35,76 @@ export type Client = {
   updatedAt: string;
 };
 
+export interface PaginatedResult<T> {
+  data: T[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
+}
+
 const COLLECTION_NAME = "clients";
+
+function mapClientDoc(d: QueryDocumentSnapshot<DocumentData>): Client {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt,
+  } as Client;
+}
 
 export const ClientService = {
   getClients: async (tenantId: string): Promise<Client[]> => {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
+        where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-          updatedAt: data.updatedAt?.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-        };
-      }) as Client[];
+      return querySnapshot.docs.map(mapClientDoc);
     } catch (error) {
       console.error("Error fetching clients:", error);
+      throw error;
+    }
+  },
+
+  getClientsPaginated: async (
+    tenantId: string,
+    pageSize: number = 12,
+    cursor?: QueryDocumentSnapshot<DocumentData> | null,
+  ): Promise<PaginatedResult<Client>> => {
+    try {
+      const q = cursor
+        ? query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            startAfter(cursor),
+            limit(pageSize + 1),
+          )
+        : query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            limit(pageSize + 1),
+          );
+
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageSize;
+      const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+      return {
+        data: pageDocs.map(mapClientDoc),
+        lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("Error fetching clients paginated:", error);
       throw error;
     }
   },
@@ -86,13 +136,13 @@ export const ClientService = {
 
   getClientByEmail: async (
     tenantId: string,
-    email: string
+    email: string,
   ): Promise<Client | null> => {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
-        where("email", "==", email.toLowerCase().trim())
+        where("email", "==", email.toLowerCase().trim()),
       );
       const querySnapshot = await getDocs(q);
 
@@ -110,13 +160,13 @@ export const ClientService = {
 
   getClientByName: async (
     tenantId: string,
-    name: string
+    name: string,
   ): Promise<Client | null> => {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
-        where("name", "==", name.trim())
+        where("name", "==", name.trim()),
       );
       const querySnapshot = await getDocs(q);
 

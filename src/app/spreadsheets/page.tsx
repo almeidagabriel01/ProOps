@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
@@ -26,49 +26,84 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
+import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const router = useRouter();
-  const [spreadsheets, setSpreadsheets] = useState<Spreadsheet[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allSpreadsheets, setAllSpreadsheets] = useState<Spreadsheet[] | null>(
+    null,
+  );
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [hasAnySheets, setHasAnySheets] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const resetRef = useRef<(() => void) | null>(null);
+
+  const isFiltering = searchTerm.trim() !== "";
 
   const {
     items: sortedSpreadsheets,
     requestSort,
     sortConfig,
-  } = useSort(spreadsheets);
+  } = useSort(allSpreadsheets ?? []);
 
-  const isPageLoading = tenantLoading || loading;
+  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
 
-  const loadSpreadsheets = useCallback(async () => {
-    if (!tenant) return;
-    setLoading(true);
-    try {
-      const data = await SpreadsheetService.getSpreadsheets(tenant.id);
-      data.sort(
-        (a, b) =>
-          new Date(b.updatedAt || 0).getTime() -
-          new Date(a.updatedAt || 0).getTime(),
-      );
-      setSpreadsheets(data);
-    } catch (error) {
-      console.error("Error loading spreadsheets:", error);
-      toast.error("Erro ao carregar planilhas");
-    } finally {
-      setLoading(false);
-    }
+  // Check if we have any spreadsheets (for empty state)
+  useEffect(() => {
+    const check = async () => {
+      if (!tenant) return;
+      try {
+        const result = await SpreadsheetService.getSpreadsheetsPaginated(
+          tenant.id,
+          1,
+        );
+        setHasAnySheets(result.data.length > 0);
+      } catch {
+        setHasAnySheets(false);
+      }
+    };
+    check();
   }, [tenant]);
 
+  // Fetch all spreadsheets when searching
   useEffect(() => {
-    if (tenant) {
-      loadSpreadsheets();
+    if (!isFiltering || !tenant) {
+      setAllSpreadsheets(null);
+      return;
     }
-  }, [tenant, loadSpreadsheets]);
+
+    let cancelled = false;
+    const fetchAll = async () => {
+      setIsLoadingAll(true);
+      try {
+        const data = await SpreadsheetService.getSpreadsheets(tenant.id);
+        if (!cancelled) setAllSpreadsheets(data);
+      } catch (error) {
+        console.error("Failed to fetch spreadsheets for filtering", error);
+      } finally {
+        if (!cancelled) setIsLoadingAll(false);
+      }
+    };
+    fetchAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isFiltering, tenant]);
+
+  // fetchPage callback for async pagination
+  const fetchPage = useCallback(
+    async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+      if (!tenant)
+        return { data: [] as Spreadsheet[], lastDoc: null, hasMore: false };
+      return SpreadsheetService.getSpreadsheetsPaginated(tenant.id, 12, cursor);
+    },
+    [tenant],
+  );
 
   const handleCreate = async () => {
     if (!tenant) return;
@@ -93,7 +128,13 @@ export default function SpreadsheetsPage() {
     setIsDeleting(true);
     try {
       await SpreadsheetService.deleteSpreadsheet(deleteId);
-      setSpreadsheets(spreadsheets.filter((s) => s.id !== deleteId));
+      resetRef.current?.();
+      setHasAnySheets(null);
+      if (allSpreadsheets) {
+        setAllSpreadsheets(
+          (prev) => prev?.filter((s) => s.id !== deleteId) ?? null,
+        );
+      }
       toast.success("Planilha excluída com sucesso");
       setDeleteId(null);
     } catch (error) {
@@ -104,11 +145,13 @@ export default function SpreadsheetsPage() {
     }
   };
 
-  const filteredSpreadsheets = sortedSpreadsheets.filter((sheet) =>
-    sheet.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredSpreadsheets = isFiltering
+    ? sortedSpreadsheets.filter((sheet) =>
+        sheet.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    : [];
 
-  const sheetToDelete = sortedSpreadsheets.find((s) => s.id === deleteId);
+  const sheetToDelete = (allSpreadsheets ?? []).find((s) => s.id === deleteId);
   const columns: DataTableColumn<Spreadsheet>[] = [
     {
       key: "name",
@@ -204,7 +247,7 @@ export default function SpreadsheetsPage() {
         </div>
 
         {/* Search */}
-        {spreadsheets.length > 0 && (
+        {hasAnySheets !== false && (
           <div className="max-w-md">
             <Input
               placeholder="Buscar planilhas..."
@@ -215,7 +258,7 @@ export default function SpreadsheetsPage() {
           </div>
         )}
 
-        {spreadsheets.length === 0 ? (
+        {hasAnySheets === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -241,7 +284,9 @@ export default function SpreadsheetsPage() {
               </Button>
             </CardContent>
           </Card>
-        ) : filteredSpreadsheets.length === 0 ? (
+        ) : isFiltering &&
+          filteredSpreadsheets.length === 0 &&
+          !isLoadingAll ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="w-12 h-12 text-muted-foreground mb-4" />
@@ -253,7 +298,7 @@ export default function SpreadsheetsPage() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : isFiltering ? (
           <DataTable
             columns={columns}
             data={filteredSpreadsheets}
@@ -261,7 +306,18 @@ export default function SpreadsheetsPage() {
             gridClassName="grid-cols-12"
             onSort={requestSort}
             sortConfig={sortConfig}
-            pageSize={5}
+            minWidth="600px"
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            keyExtractor={(sheet) => sheet.id}
+            gridClassName="grid-cols-12"
+            fetchPage={fetchPage}
+            fetchEnabled={!!tenant}
+            onResetRef={resetRef}
+            batchSize={12}
+            minWidth="600px"
           />
         )}
       </div>
