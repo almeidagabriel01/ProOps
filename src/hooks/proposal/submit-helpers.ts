@@ -32,8 +32,8 @@ export function sanitizeProducts(products: ProposalProduct[]) {
     productName: p.productName,
     quantity:
       typeof p.quantity === "number" && !isNaN(p.quantity)
-        ? Math.max(1, p.quantity)
-        : 1,
+        ? Math.max(0, p.quantity)
+        : 0,
     unitPrice:
       typeof p.unitPrice === "number" && !isNaN(p.unitPrice) ? p.unitPrice : 0,
     markup: typeof p.markup === "number" && !isNaN(p.markup) ? p.markup : 0,

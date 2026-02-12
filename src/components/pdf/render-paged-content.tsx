@@ -41,6 +41,8 @@ interface Product {
   productDescription?: string;
   systemInstanceId?: string;
   _isInactive?: boolean; // Metadata flag for PDF visual hiding
+  _isGhost?: boolean;
+  _shouldHide?: boolean;
 }
 
 interface Sistema {
@@ -211,12 +213,15 @@ function buildContentItems(
     proposal.sistemas!.forEach((rawSistema: Record<string, unknown>) => {
       const sistema = rawSistema as unknown as Sistema;
 
-      // Gather all products for this system across all environments
+      // Gather all products for this system across all environments, filtering out hidden ones
       let productsForSistema: Product[] = [];
 
       // Modern format: products have systemInstanceId
-      productsForSistema = products.filter((p) =>
-        p.systemInstanceId?.startsWith(`${sistema.sistemaId}-`),
+      productsForSistema = products.filter(
+        (p) =>
+          p.systemInstanceId?.startsWith(`${sistema.sistemaId}-`) &&
+          !p._shouldHide &&
+          !p._isGhost,
       );
 
       // Fallback for legacy (no instanceId)
@@ -228,8 +233,8 @@ function buildContentItems(
           ...new Set([...legacyProductIds, ...ambientProductIds]),
         ];
 
-        productsForSistema = products.filter((p) =>
-          allIds.includes(p.productId),
+        productsForSistema = products.filter(
+          (p) => allIds.includes(p.productId) && !p._shouldHide && !p._isGhost,
         );
       }
 
@@ -249,7 +254,10 @@ function buildContentItems(
     );
     const extraProducts = products.filter(
       (p: Product) =>
-        !p.systemInstanceId && !sistemaProductIds.has(p.productId),
+        !p.systemInstanceId &&
+        !sistemaProductIds.has(p.productId) &&
+        !p._shouldHide &&
+        !p._isGhost,
     );
 
     if (extraProducts.length > 0) {
@@ -373,9 +381,9 @@ function buildContentItems(
           height: group.env.description ? 60 : 40,
         });
 
-        // Add products (filter out inactive products)
+        // Add products (filter out hidden products)
         const visibleProducts = group.products.filter(
-          (p: Product) => !p._isInactive,
+          (p: Product) => !p._shouldHide && !p._isGhost,
         );
         visibleProducts.forEach((product, idx) => {
           const productHeight = calculateProductHeight(product, 80, settings);
@@ -807,7 +815,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
         return (
           <div key="totals" style={{ width: "100%" }}>
             <PdfTotals
-              products={products}
+              products={products.filter((p) => !p._isGhost)}
               discount={proposal.discount || 0}
               extraExpense={proposal.extraExpense || 0}
               contentStyles={

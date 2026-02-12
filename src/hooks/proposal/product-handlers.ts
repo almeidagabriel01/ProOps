@@ -62,7 +62,7 @@ export function createUpdateProductQuantity({
           p.systemInstanceId === systemInstanceId &&
           p.productId === productId
         ) {
-          const newQty = Math.max(1, p.quantity + delta);
+          const newQty = Math.max(0, p.quantity + delta);
           const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
           return { ...p, quantity: newQty, total: newQty * sellingPrice };
         } else if (
@@ -70,7 +70,7 @@ export function createUpdateProductQuantity({
           !p.systemInstanceId &&
           p.productId === productId
         ) {
-          const newQty = Math.max(1, p.quantity + delta);
+          const newQty = Math.max(0, p.quantity + delta);
           const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
           return { ...p, quantity: newQty, total: newQty * sellingPrice };
         }
