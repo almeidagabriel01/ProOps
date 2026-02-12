@@ -135,6 +135,22 @@ export const TransactionService = {
     }
   },
 
+  updateTransactionsStatusBatch: async (
+    ids: string[],
+    newStatus: TransactionStatus,
+  ) => {
+    try {
+      await callApi("v1/transactions/status-batch", "POST", {
+        ids,
+        newStatus,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error updating transactions status batch:", error);
+      throw error;
+    }
+  },
+
   deleteTransaction: async (id: string) => {
     try {
       await callApi(`v1/transactions/${id}`, "DELETE");

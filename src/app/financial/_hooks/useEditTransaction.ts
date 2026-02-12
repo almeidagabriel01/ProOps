@@ -490,7 +490,7 @@ export function useEditTransaction() {
         ...inst,
         date: newDate,
         dueDate: newDueDate,
-        status: formData.status,
+        status: inst.status,
       } as Transaction;
     });
 
@@ -660,7 +660,34 @@ export function useEditTransaction() {
 
     setIsSaving(true);
     try {
-      const operations: Promise<unknown>[] = [];
+      const runWithRetry = async <T,>(
+        operation: () => Promise<T>,
+        maxAttempts = 4,
+      ): Promise<T> => {
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            return await operation();
+          } catch (error) {
+            lastError = error;
+            const message =
+              error instanceof Error ? error.message.toLowerCase() : "";
+            const isContentionError =
+              message.includes("aborted") ||
+              message.includes("cross-transaction contention");
+
+            if (!isContentionError || attempt === maxAttempts) {
+              throw error;
+            }
+
+            const backoffMs = 150 * attempt;
+            await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          }
+        }
+
+        throw lastError;
+      };
 
       const previewRealIds = new Set(
         previewInstallments
@@ -668,16 +695,18 @@ export function useEditTransaction() {
           .map((t) => t.id),
       );
       const deletedIds = relatedInstallments
-        .filter((t) => !previewRealIds.has(t.id) && t.id !== transaction.id)
+        .filter((t) => !previewRealIds.has(t.id))
         .map((t) => t.id);
 
       if (deletedIds.length > 0) {
-        operations.push(
-          ...deletedIds.map((id) => TransactionService.deleteTransaction(id)),
-        );
+        for (const id of deletedIds) {
+          await runWithRetry(() => TransactionService.deleteTransaction(id));
+        }
       }
 
-      previewInstallments.forEach((inst) => {
+      const persistedIds = new Set<string>();
+
+      for (const inst of previewInstallments) {
         const basePayload = {
           date: inst.date,
           dueDate: inst.dueDate,
@@ -698,7 +727,7 @@ export function useEditTransaction() {
         };
 
         if (inst.id.startsWith("temp-")) {
-          operations.push(
+          const created = await runWithRetry(() =>
             TransactionService.createTransaction({
               ...basePayload,
               tenantId: transaction.tenantId,
@@ -707,14 +736,32 @@ export function useEditTransaction() {
               isDownPayment: false,
             } as unknown as Omit<Transaction, "id">),
           );
+
+          if (created?.id) persistedIds.add(created.id);
         } else {
-          operations.push(
+          await runWithRetry(() =>
             TransactionService.updateTransaction(inst.id, basePayload),
           );
+          persistedIds.add(inst.id);
         }
-      });
+      }
 
-      await Promise.all(operations);
+      if (transaction.installmentGroupId) {
+        const latestGroup = await runWithRetry(() =>
+          TransactionService.getInstallmentsByGroupId(
+            transaction.installmentGroupId!,
+            transaction.tenantId,
+          ),
+        );
+
+        const staleIds = latestGroup
+          .filter((t) => !persistedIds.has(t.id))
+          .map((t) => t.id);
+
+        for (const staleId of staleIds) {
+          await runWithRetry(() => TransactionService.deleteTransaction(staleId));
+        }
+      }
 
       toast.success("Lançamento atualizado com sucesso!");
       router.push("/financial");
