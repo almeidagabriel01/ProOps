@@ -83,6 +83,26 @@ export const NotificationService = {
   },
 
   /**
+   * Solicita ao backend claim diário para exibição de toast por tipo.
+   * Retorna true apenas na primeira exibição do dia.
+   */
+  claimDailyDueToast: async (
+    type: "transaction_due_reminder" | "proposal_expiring",
+  ): Promise<boolean> => {
+    try {
+      const response = await callApi<{
+        success: boolean;
+        shouldShow: boolean;
+      }>("/v1/notifications/due-toast/claim", "POST", { type });
+
+      return response.shouldShow;
+    } catch (error) {
+      console.error("Error claiming daily due toast:", error);
+      return false;
+    }
+  },
+
+  /**
    * Subscreve a notificações em tempo real
    * @param tenantId ID do tenant
    * @param callback Função chamada quando há mudanças

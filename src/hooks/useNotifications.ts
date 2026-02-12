@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Notification } from "@/types/notification";
+import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "react-toastify";
@@ -27,17 +27,64 @@ export function useNotifications() {
     let isInitialLoad = true;
     let previousIds = new Set<string>();
 
-    const unsubscribe = NotificationService.subscribe(tenant.id, (notifs) => {
+    const unsubscribe = NotificationService.subscribe(tenant.id, async (notifs) => {
       setNotifications(notifs);
       setUnreadCount(notifs.filter((n) => !n.isRead).length);
 
-      // Check for new notifications
-      if (!isInitialLoad) {
-        const newNotifs = notifs.filter(
-          (n) => !previousIds.has(n.id) && !n.isRead,
+      const newNotifs = notifs.filter((n) => !previousIds.has(n.id) && !n.isRead);
+      const notifsToProcess = isInitialLoad ? notifs.filter((n) => !n.isRead) : newNotifs;
+
+      const proposalDueNotifs = notifsToProcess.filter(
+        (n) => n.type === NotificationType.PROPOSAL_EXPIRING,
+      );
+
+      const transactionDueNotifs = notifsToProcess.filter(
+        (n) => n.type === NotificationType.TRANSACTION_DUE_REMINDER,
+      );
+
+      if (proposalDueNotifs.length > 0) {
+        const shouldShowProposalToast = await NotificationService.claimDailyDueToast(
+          "proposal_expiring",
         );
 
-        newNotifs.forEach((n) => {
+        if (shouldShowProposalToast) {
+          toast.warn("Há propostas próximas do vencimento ou vencidas.", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
+      }
+
+      if (transactionDueNotifs.length > 0) {
+        const shouldShowTransactionToast =
+          await NotificationService.claimDailyDueToast(
+            "transaction_due_reminder",
+          );
+
+        if (shouldShowTransactionToast) {
+          toast.warn("Há lançamentos próximos do vencimento ou vencidos.", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        }
+      }
+
+      if (!isInitialLoad) {
+        const otherNotifs = newNotifs.filter(
+          (n) =>
+            n.type !== NotificationType.PROPOSAL_EXPIRING &&
+            n.type !== NotificationType.TRANSACTION_DUE_REMINDER,
+        );
+
+        otherNotifs.forEach((n) => {
           toast.info(n.title || "Nova notificação", {
             position: "top-center",
             autoClose: 5000,
@@ -46,10 +93,6 @@ export function useNotifications() {
             pauseOnHover: true,
             draggable: true,
           });
-
-          // Play a subtle sound if desired
-          // const audio = new Audio('/notification.mp3');
-          // audio.play().catch(e => console.log('Audio play failed', e));
         });
       }
 

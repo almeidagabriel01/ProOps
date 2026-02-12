@@ -2,6 +2,13 @@ import { Request, Response } from "express";
 import { NotificationService } from "../services/notification.service";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 
+const DUE_TOAST_TYPES = [
+  "transaction_due_reminder",
+  "proposal_expiring",
+] as const;
+
+type DueToastType = (typeof DUE_TOAST_TYPES)[number];
+
 /**
  * GET /v1/notifications
  * Lista notificações do tenant com paginação
@@ -132,6 +139,42 @@ export const markAllAsRead = async (req: Request, res: Response) => {
     console.error("Error marking all as read:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao marcar notificações";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * POST /v1/notifications/due-toast/claim
+ * Faz claim atômico de exibição diária por tenant+tipo.
+ */
+export const claimDailyDueToast = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { type } = req.body as { type?: string };
+
+    if (!type || !DUE_TOAST_TYPES.includes(type as DueToastType)) {
+      return res.status(400).json({
+        message:
+          "Tipo inválido. Use 'transaction_due_reminder' ou 'proposal_expiring'.",
+      });
+    }
+
+    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+
+    const shouldShow = await NotificationService.claimDailyDueToast(
+      tenantId,
+      type as DueToastType,
+      userId,
+    );
+
+    return res.status(200).json({
+      success: true,
+      shouldShow,
+    });
+  } catch (error) {
+    console.error("Error claiming daily due toast:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao validar toast diário";
     return res.status(500).json({ message });
   }
 };
