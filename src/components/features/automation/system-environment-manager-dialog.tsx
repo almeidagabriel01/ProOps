@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useSystemManager } from "./manager/use-system-manager";
-import { SystemSidebar } from "./manager/system-sidebar";
+import { SystemPanel } from "./manager/system-panel";
 import { SystemHeader } from "./manager/system-header";
 import { EnvironmentList } from "./manager/environment-list";
 
@@ -70,8 +70,8 @@ export function SystemEnvironmentManagerDialog({
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
-            {/* Sidebar (Systems List) */}
-            <SystemSidebar
+            {/* Systems list */}
+            <SystemPanel
               sistemas={state.sistemas}
               selectedSistemaId={state.selectedSistemaId}
               onSelect={actions.setSelectedSistemaId}

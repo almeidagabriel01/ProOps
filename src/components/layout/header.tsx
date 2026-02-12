@@ -180,7 +180,7 @@ export function Header({}: HeaderProps) {
 
   return (
     <header
-      className="relative z-[50] bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-tl-[2rem]"
+      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem]"
       style={{ height: "64px", minHeight: "64px" }}
     >
       <div className="flex items-center gap-4">
@@ -285,7 +285,7 @@ export function Header({}: HeaderProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-56 z-[55]"
+                  className="w-56 z-50"
                   align="end"
                   forceMount
                 >

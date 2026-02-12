@@ -14,8 +14,8 @@ import {
   getVisibleChildren,
   lightenColor,
   MenuItem,
-} from "@/components/layout/sidebar";
-import { useSidebar } from "@/components/layout/sidebar";
+} from "@/components/layout/navigation-config";
+import { useNavigationItems } from "@/components/layout/use-navigation-items";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
@@ -82,7 +82,7 @@ export function BottomDock() {
   const { isMaster } = usePermissions();
   const upgradeModal = useUpgradeModal();
 
-  const { visibleMenuItems } = useSidebar();
+  const { visibleMenuItems } = useNavigationItems();
 
   const hasHover = useHasHoverSupport();
 
@@ -254,7 +254,7 @@ export function BottomDock() {
     return best;
   }, [dockEntries, pathname]);
 
-  // Não mostrar dock no admin (o Sidebar já era oculto lá)
+  // Não mostrar dock no admin
   if (isAdminPage) {
     return null;
   }
