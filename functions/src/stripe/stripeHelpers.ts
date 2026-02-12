@@ -47,16 +47,40 @@ export type SubscriptionStatus =
   | "PAYMENT_FAILED"
   | "INACTIVE";
 
+function toClientSubscriptionStatus(
+  status: SubscriptionStatus
+): "active" | "trialing" | "past_due" | "canceled" | "payment_failed" | "inactive" {
+  switch (status) {
+    case "ACTIVE":
+      return "active";
+    case "TRIALING":
+      return "trialing";
+    case "PAST_DUE":
+      return "past_due";
+    case "CANCELED":
+      return "canceled";
+    case "PAYMENT_FAILED":
+      return "payment_failed";
+    case "INACTIVE":
+    default:
+      return "inactive";
+  }
+}
+
 export async function updateSubscriptionStatus(
   userId: string,
   status: SubscriptionStatus,
   reason?: string,
-  currentPeriodEnd?: Date
+  currentPeriodEnd?: Date,
+  cancelAtPeriodEnd?: boolean
 ): Promise<void> {
   const userRef = db.collection("users").doc(userId);
   await userRef.update({
+    subscriptionStatus: toClientSubscriptionStatus(status),
+    cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
     "subscription.status": status,
     "subscription.updatedAt": FieldValue.serverTimestamp(),
+    "subscription.cancelAtPeriodEnd": cancelAtPeriodEnd ?? false,
     ...(reason && { "subscription.reason": reason }),
     ...(currentPeriodEnd && {
       "subscription.currentPeriodEnd": currentPeriodEnd,
