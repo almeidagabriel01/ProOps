@@ -638,6 +638,7 @@ export function SimpleProposalForm({
               isExtra: false,
               // Link to the environment for grouping
               ambienteInstanceId: newInstanceId,
+              status: sp.status || "active",
             };
           },
         );
@@ -727,6 +728,7 @@ export function SimpleProposalForm({
           ambienteInstanceId: newInstanceId,
           systemInstanceId: newInstanceId, // Legacy field
           isExtra: false,
+          status: sp.status || "active",
         };
       });
 
