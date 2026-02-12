@@ -19,9 +19,24 @@ router.get("/", NotificationsController.getNotifications);
 router.get("/unread-count", NotificationsController.getUnreadCount);
 
 /**
+ * POST /v1/notifications/due-toast/claim - Claim diário de toast por tipo
+ */
+router.post("/due-toast/claim", NotificationsController.claimDailyDueToast);
+
+/**
+ * DELETE /v1/notifications/clear-all - Remove todas as notificações
+ */
+router.delete("/clear-all", NotificationsController.clearAllNotifications);
+
+/**
  * PUT /v1/notifications/:id/read - Marca como lida
  */
 router.put("/:id/read", NotificationsController.markAsRead);
+
+/**
+ * DELETE /v1/notifications/:id - Remove uma notificação
+ */
+router.delete("/:id", NotificationsController.deleteNotification);
 
 /**
  * PUT /v1/notifications/mark-all-read - Marca todas como lidas

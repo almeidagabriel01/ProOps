@@ -49,7 +49,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // Check for "Viewing As" override (Super Admin feature)
     const viewingAsId =
       typeof window !== "undefined"
-        ? localStorage.getItem("viewingAsTenant")
+        ? sessionStorage.getItem("viewingAsTenant")
         : null;
 
     let tenantIdToLoad = viewingAsId;
@@ -210,12 +210,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearViewingTenant = () => {
-    localStorage.removeItem("viewingAsTenant");
+    sessionStorage.removeItem("viewingAsTenant");
     setRefreshTrigger((prev) => prev + 1);
   };
 
   const setViewingTenant = (newTenant: Tenant) => {
-    localStorage.setItem("viewingAsTenant", newTenant.id);
+    sessionStorage.setItem("viewingAsTenant", newTenant.id);
     setTenant(newTenant); // Immediate update
     // We don't trigger refresh here because we just manually set the state
     // ideally we should also fetch owner here or trigger refresh

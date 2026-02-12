@@ -10,6 +10,43 @@ import { updateSubscriptionStatus } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
 
+type StripeSyncStatus =
+  | "ACTIVE"
+  | "TRIALING"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "INACTIVE";
+
+function mapStripeSubscriptionStatus(status: string): StripeSyncStatus {
+  switch (status) {
+    case "active":
+      return "ACTIVE";
+    case "trialing":
+      return "TRIALING";
+    case "past_due":
+      return "PAST_DUE";
+    case "canceled":
+    case "unpaid":
+      return "CANCELED";
+    default:
+      return "INACTIVE";
+  }
+}
+
+async function hasSuperAdminRole(req: Request): Promise<boolean> {
+  const claimRole = String(req.user?.role || "").toLowerCase();
+  if (claimRole === "superadmin") return true;
+
+  const userId = req.user?.uid;
+  if (!userId) return false;
+
+  const userSnap = await db.collection("users").doc(userId).get();
+  if (!userSnap.exists) return false;
+
+  const userRole = String(userSnap.data()?.role || "").toLowerCase();
+  return userRole === "superadmin";
+}
+
 // Handlers adapted from original onCall functions
 
 export const cancelAddon = async (req: Request, res: Response) => {
@@ -558,25 +595,7 @@ export const syncSubscription = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Subscription not found" });
     }
 
-    // Update status
-    let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
-    switch (subscription.status) {
-      case "active":
-        status = "ACTIVE";
-        break;
-      case "trialing":
-        status = "TRIALING";
-        break;
-      case "past_due":
-        status = "PAST_DUE";
-        break;
-      case "canceled":
-      case "unpaid":
-        status = "CANCELED";
-        break;
-      default:
-        status = "INACTIVE";
-    }
+    const status = mapStripeSubscriptionStatus(subscription.status);
 
     const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
 
@@ -585,6 +604,7 @@ export const syncSubscription = async (req: Request, res: Response) => {
       status,
       "Manual Sync",
       currentPeriodEnd,
+      subscription.cancel_at_period_end,
     );
 
     return res.json({
@@ -596,6 +616,106 @@ export const syncSubscription = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Sync Subscription Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
+  }
+};
+
+export const syncAllSubscriptions = async (req: Request, res: Response) => {
+  try {
+    if (!(await hasSuperAdminRole(req))) {
+      return res.status(403).json({ message: "Only superadmin can run batch sync" });
+    }
+
+    const body = (req.body || {}) as {
+      dryRun?: boolean;
+      limit?: number;
+      startAfterId?: string;
+    };
+
+    const dryRun = body.dryRun !== false;
+    const limit = Math.min(Math.max(Number(body.limit) || 100, 1), 500);
+    const startAfterId =
+      typeof body.startAfterId === "string" && body.startAfterId.trim().length > 0
+        ? body.startAfterId.trim()
+        : undefined;
+
+    let usersQuery: FirebaseFirestore.Query = db
+      .collection("users")
+      .orderBy("__name__")
+      .limit(limit);
+
+    if (startAfterId) {
+      const cursorDoc = await db.collection("users").doc(startAfterId).get();
+      if (!cursorDoc.exists) {
+        return res.status(400).json({ message: "startAfterId user not found" });
+      }
+      usersQuery = usersQuery.startAfter(cursorDoc);
+    }
+
+    const usersSnapshot = await usersQuery.get();
+    const stripe = getStripe();
+
+    let scanned = 0;
+    let eligible = 0;
+    let synced = 0;
+    let failed = 0;
+
+    const errors: Array<{ userId: string; error: string }> = [];
+
+    for (const userDoc of usersSnapshot.docs) {
+      scanned += 1;
+      const userData = userDoc.data();
+      const stripeSubscriptionId =
+        userData?.stripeSubscriptionId || userData?.subscription?.id;
+
+      if (!stripeSubscriptionId || typeof stripeSubscriptionId !== "string") {
+        continue;
+      }
+
+      eligible += 1;
+
+      try {
+        const subscription = await stripe.subscriptions.retrieve(
+          stripeSubscriptionId
+        );
+
+        const status = mapStripeSubscriptionStatus(subscription.status);
+        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+        if (!dryRun) {
+          await updateSubscriptionStatus(
+            userDoc.id,
+            status,
+            "Batch sync",
+            currentPeriodEnd,
+            subscription.cancel_at_period_end,
+          );
+        }
+
+        synced += 1;
+      } catch (error) {
+        failed += 1;
+        const message = error instanceof Error ? error.message : "Unknown error";
+        errors.push({ userId: userDoc.id, error: message });
+      }
+    }
+
+    const lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+
+    return res.json({
+      success: true,
+      dryRun,
+      scanned,
+      eligible,
+      synced,
+      failed,
+      nextStartAfterId: usersSnapshot.empty ? null : lastDoc.id,
+      hasMore: usersSnapshot.size === limit,
+      errors,
+    });
+  } catch (error) {
+    console.error("Batch sync subscriptions error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return res.status(500).json({ message });
   }

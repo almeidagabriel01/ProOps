@@ -74,8 +74,8 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: Bot,
-    label: "Automação",
-    href: "/automation",
+    label: "Soluções",
+    href: "/solutions",
   },
   {
     icon: UsersRound,
@@ -95,7 +95,10 @@ export function lightenColor(hex: string, percent: number): string {
   return "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
 }
 
-export function getVisibleChildren(item: MenuItem, isMaster: boolean): SubMenuItem[] {
+export function getVisibleChildren(
+  item: MenuItem,
+  isMaster: boolean,
+): SubMenuItem[] {
   if (!item.children) return [];
   return item.children.filter((child) => {
     if (child.masterOnly) return isMaster;

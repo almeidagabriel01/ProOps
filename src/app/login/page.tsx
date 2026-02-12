@@ -64,8 +64,9 @@ function LoginContent() {
     setMode,
     isLoading,
     user,
-    resetSent,
     handleLogin,
+    isResetting,
+    resetSent,
     handleRegister,
     handleForgotPassword,
     handleLogoUpload,
@@ -486,8 +487,19 @@ function LoginContent() {
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 {!resetSent && (
-                  <Button type="submit" className="w-full">
-                    Enviar Link de Redefinição
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isResetting}
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      "Enviar Link de Redefinição"
+                    )}
                   </Button>
                 )}
                 <Button

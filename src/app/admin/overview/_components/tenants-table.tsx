@@ -1,6 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardFooter,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -11,7 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Mail, Building2, Users, Package, FileText } from "lucide-react";
+import {
+  Search,
+  Mail,
+  Building2,
+  Users,
+  Package,
+  FileText,
+} from "lucide-react";
 import { TenantBillingInfo } from "@/services/admin-service";
 import { motion } from "motion/react";
 

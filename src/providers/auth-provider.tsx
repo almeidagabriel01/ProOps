@@ -27,8 +27,8 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   login: async () => false,
-  logout: async () => { },
-  refreshUser: async () => { },
+  logout: async () => {},
+  refreshUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const fetchUserData = async (
-    firebaseUser: FirebaseUser
+    firebaseUser: FirebaseUser,
   ): Promise<User | null> => {
     try {
       const userDocRef = doc(db, "users", firebaseUser.uid);
@@ -46,6 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         let permissions = userData.permissions || {};
+        const isManualSubscription = userData.isManualSubscription || false;
+
+        const rawSubscriptionStatus = (
+          isManualSubscription
+            ? userData.subscriptionStatus || userData.subscription?.status
+            : userData.subscription?.status || userData.subscriptionStatus
+        ) as string | undefined;
 
         if (userData.role !== "free" && !userData.permissions) {
           try {
@@ -54,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               db,
               "users",
               firebaseUser.uid,
-              "permissions"
+              "permissions",
             );
             const permsSnap = await getDocs(permsRef);
 
@@ -77,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             console.error(
               "Error fetching member permissions in auth-provider:",
-              err
+              err,
             );
           }
         }
@@ -107,19 +114,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ?.toDate?.()
               ?.toISOString() ||
             undefined,
-          subscriptionStatus: (
-            userData.subscriptionStatus || userData.subscription?.status
-          )?.toLowerCase() as SubscriptionStatus | undefined,
+          subscriptionStatus: rawSubscriptionStatus?.toLowerCase() as
+            | SubscriptionStatus
+            | undefined,
           subscriptionUpdatedAt:
             userData.subscription?.updatedAt?.toDate?.()?.toISOString() ||
             userData.subscription?.updatedAt ||
             undefined,
-          cancelAtPeriodEnd: userData.cancelAtPeriodEnd || false,
-          isManualSubscription: userData.isManualSubscription || false,
+          cancelAtPeriodEnd:
+            userData.cancelAtPeriodEnd ||
+            userData.subscription?.cancelAtPeriodEnd ||
+            userData.subscription?.cancel_at_period_end ||
+            false,
+          isManualSubscription,
         } as User;
       } else {
         console.warn(
-          "User document not found in Firestore, treating as free user."
+          "User document not found in Firestore, treating as free user.",
         );
         return {
           id: firebaseUser.uid,
@@ -188,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOut(auth);
       setUser(null);
 
-      localStorage.removeItem("viewingAsTenant");
+      sessionStorage.removeItem("viewingAsTenant");
 
       document.documentElement.style.removeProperty("--primary");
       const styleTag = document.getElementById("tenant-styles");

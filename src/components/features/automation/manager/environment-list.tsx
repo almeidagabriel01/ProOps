@@ -49,7 +49,7 @@ export function EnvironmentList({
                   className="gap-2 cursor-pointer"
                 >
                   <Link
-                    href={`/automation?editSistemaId=${activeSystemId}&editAmbienteId=${amb.id}`}
+                    href={`/solutions?editSistemaId=${activeSystemId}&editAmbienteId=${amb.id}`}
                     target="_blank"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -79,7 +79,7 @@ export function EnvironmentList({
             className="w-full border-dashed py-6 text-muted-foreground hover:text-primary hover:border-primary/50"
           >
             <a
-              href={`/automation?editSistemaId=${activeSystemId}`}
+              href={`/solutions?editSistemaId=${activeSystemId}`}
               target="_blank"
             >
               <Plus className="w-4 h-4 mr-2" /> Adicionar Ambiente

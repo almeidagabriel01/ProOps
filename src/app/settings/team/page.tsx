@@ -72,7 +72,7 @@ export default function TeamPage() {
       // Check if super admin is viewing another tenant
       const viewingAsTenant =
         typeof window !== "undefined"
-          ? localStorage.getItem("viewingAsTenant")
+          ? sessionStorage.getItem("viewingAsTenant")
           : null;
 
       // Determine the master ID to query

@@ -134,6 +134,24 @@ interface SyncResponse {
   };
 }
 
+interface SyncAllRequest {
+  dryRun?: boolean;
+  limit?: number;
+  startAfterId?: string;
+}
+
+interface SyncAllResponse {
+  success: boolean;
+  dryRun: boolean;
+  scanned: number;
+  eligible: number;
+  synced: number;
+  failed: number;
+  nextStartAfterId: string | null;
+  hasMore: boolean;
+  errors: Array<{ userId: string; error: string }>;
+}
+
 // ============================================
 // SERVICE
 // ============================================
@@ -231,6 +249,22 @@ export const StripeService = {
       return response;
     } catch (error) {
       console.error("Error syncing subscription:", error);
+      throw error;
+    }
+  },
+
+  syncAllSubscriptions: async (
+    data: SyncAllRequest,
+  ): Promise<SyncAllResponse> => {
+    try {
+      const response = await callApi<SyncAllResponse>(
+        "/v1/stripe/sync-all",
+        "POST",
+        data,
+      );
+      return response;
+    } catch (error) {
+      console.error("Error syncing all subscriptions:", error);
       throw error;
     }
   },

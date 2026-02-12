@@ -164,16 +164,16 @@ export function Header({}: HeaderProps) {
     // Check localStorage directly
     const viewingAsId =
       typeof window !== "undefined"
-        ? localStorage.getItem("viewingAsTenant")
+        ? sessionStorage.getItem("viewingAsTenant")
         : null;
     setIsViewingAsTenant(!!viewingAsId);
   }, [tenant]);
 
   const handleBackToAdmin = () => {
     clearViewingTenant();
-    // Use localStorage directly if needed, or rely on clearViewingTenant
+    // Use sessionStorage directly if needed, or rely on clearViewingTenant
     if (typeof window !== "undefined") {
-      localStorage.removeItem("viewingAsTenant");
+      sessionStorage.removeItem("viewingAsTenant");
     }
     router.push("/admin");
   };

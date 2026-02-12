@@ -10,6 +10,8 @@ export type NotificationType =
   | "proposal_expiring"
   | "system";
 
+export type DueToastType = "transaction_due_reminder" | "proposal_expiring";
+
 /**
  * Interface para Notificação
  */
@@ -44,6 +46,7 @@ export interface CreateNotificationData {
  */
 export class NotificationService {
   private static COLLECTION = "notifications";
+  private static DUE_TOAST_CLAIMS_COLLECTION = "notification_due_toast_claims";
 
   /**
    * Cria uma nova notificação
@@ -138,6 +141,33 @@ export class NotificationService {
   }
 
   /**
+   * Remove uma notificação de um tenant
+   */
+  static async deleteNotification(
+    notificationId: string,
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      const docRef = db.collection(this.COLLECTION).doc(notificationId);
+      const doc = await docRef.get();
+
+      if (!doc.exists) {
+        throw new Error("Notification not found");
+      }
+
+      const data = doc.data() as Notification;
+      if (data.tenantId !== tenantId) {
+        throw new Error("Unauthorized: Notification does not belong to tenant");
+      }
+
+      await docRef.delete();
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Conta notificações não lidas de um tenant
    */
   static async getUnreadCount(tenantId: string): Promise<number> {
@@ -184,8 +214,46 @@ export class NotificationService {
   }
 
   /**
-   * Verifica se já existe uma notificação não-lida do mesmo tipo para o mesmo recurso.
-   * Usado para evitar notificações duplicadas de lembrete de vencimento.
+   * Remove todas as notificações de um tenant
+   */
+  static async clearAllNotifications(tenantId: string): Promise<void> {
+    try {
+      const snapshot = await db
+        .collection(this.COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .get();
+
+      if (snapshot.empty) return;
+
+      const batches: FirebaseFirestore.WriteBatch[] = [];
+      let currentBatch = db.batch();
+      let opCount = 0;
+
+      snapshot.docs.forEach((doc) => {
+        currentBatch.delete(doc.ref);
+        opCount++;
+
+        if (opCount === 450) {
+          batches.push(currentBatch);
+          currentBatch = db.batch();
+          opCount = 0;
+        }
+      });
+
+      if (opCount > 0) {
+        batches.push(currentBatch);
+      }
+
+      await Promise.all(batches.map((batch) => batch.commit()));
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+      throw new Error("Failed to clear all notifications");
+    }
+  }
+
+  /**
+   * Verifica se já existe uma notificação do mesmo tipo para o mesmo recurso no dia atual.
+   * Usado para evitar duplicação no mesmo dia, mas permitir novo lembrete no dia seguinte.
    */
   static async findExistingReminder(
     tenantId: string,
@@ -194,19 +262,58 @@ export class NotificationService {
     resourceField: "transactionId" | "proposalId",
   ): Promise<boolean> {
     try {
+      const todayPrefix = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+
       const snapshot = await db
         .collection(this.COLLECTION)
         .where("tenantId", "==", tenantId)
         .where("type", "==", type)
         .where(resourceField, "==", resourceId)
-        .where("isRead", "==", false)
-        .limit(1)
         .get();
 
-      return !snapshot.empty;
+      return snapshot.docs.some((doc) => {
+        const createdAt = (doc.data().createdAt as string | undefined) || "";
+        return createdAt.startsWith(todayPrefix);
+      });
     } catch (error) {
       console.error("Error finding existing reminder:", error);
       return false;
+    }
+  }
+
+  /**
+   * Registra de forma atômica a exibição diária de toast para lembretes de vencimento.
+   * Retorna true somente na primeira tentativa do dia para tenant+tipo.
+   */
+  static async claimDailyDueToast(
+    tenantId: string,
+    type: DueToastType,
+    userId: string,
+  ): Promise<boolean> {
+    try {
+      const dateKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+      const claimId = `${tenantId}_${type}_${dateKey}`;
+      const claimRef = db
+        .collection(this.DUE_TOAST_CLAIMS_COLLECTION)
+        .doc(claimId);
+
+      await claimRef.create({
+        tenantId,
+        type,
+        dateKey,
+        claimedBy: userId,
+        createdAt: new Date().toISOString(),
+      });
+
+      return true;
+    } catch (error) {
+      const code = (error as { code?: number | string })?.code;
+      if (code === 6 || code === "already-exists") {
+        return false;
+      }
+
+      console.error("Error claiming daily due toast:", error);
+      throw new Error("Failed to claim daily due toast");
     }
   }
 }
