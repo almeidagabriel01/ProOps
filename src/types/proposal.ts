@@ -29,6 +29,8 @@ export interface ProposalProduct {
   isMonthly?: boolean;
   status?: "active" | "inactive";
   _isInactive?: boolean; // Metadata flag for PDF visual hiding
+  _isGhost?: boolean;
+  _shouldHide?: boolean;
 }
 
 /**

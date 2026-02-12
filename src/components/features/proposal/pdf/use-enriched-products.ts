@@ -44,11 +44,16 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
                 "",
             };
 
-            // Add inactive flag if filtering is enabled and product is inactive (in catalog OR proposal)
-            if (options?.filterInactive && (catalogProduct.status === 'inactive' || proposalProduct.status === 'inactive')) {
+            // Metadata flags
+            const isInactiveStatus = options?.filterInactive && (catalogProduct.status === 'inactive' || proposalProduct.status === 'inactive');
+            const isGhost = (proposalProduct.quantity || 0) === 0;
+
+            if (isInactiveStatus || isGhost) {
               return {
                 ...baseEnriched,
-                _isInactive: true, // Metadata flag for visual hiding
+                _isInactive: isInactiveStatus, // Metadata flag for visual hiding in list (status based)
+                _isGhost: isGhost, // Metadata flag for 0 quantity (hidden + excluded from total)
+                _shouldHide: true, // Helper for list filtering
               };
             }
 
