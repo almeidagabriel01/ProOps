@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Proposal } from "@/services/proposal-service";
+import type { Proposal as DomainProposal } from "@/types/proposal";
 import {
   ProposalTemplate,
   Tenant,
@@ -11,6 +12,11 @@ import {
   CoverElement,
   createDefaultSections,
 } from "@/components/features/proposal/pdf-section-editor";
+import {
+  ensureCanonicalSectionStructure,
+  generatePaymentTerms,
+  hydrateSections,
+} from "@/components/features/proposal/edit-pdf/pdf-hydration-utils";
 import { RenderPagedContent } from "@/components/pdf/render-paged-content";
 import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enriched-products";
 import { PdfCoverPage } from "@/components/features/proposal/pdf/pdf-cover-page";
@@ -54,6 +60,8 @@ export function ProposalPdfViewer({
   customSettings,
   showCover = true,
 }: ProposalPdfViewerProps) {
+  const proposalData = proposal as unknown as DomainProposal;
+
   // Use enriched products hook (filter out inactive products for PDF)
   const { products } = useEnrichedProducts(proposal, tenant?.id, {
     filterInactive: true,
@@ -153,12 +161,22 @@ export function ProposalPdfViewer({
   let sectionsToUse: PdfSection[] = [];
 
   if (customSettings?.sections && customSettings.sections.length > 0) {
-    sectionsToUse = customSettings.sections;
+    sectionsToUse = hydrateSections(customSettings.sections, proposalData);
   } else if (Array.isArray(savedSections) && savedSections.length > 0) {
-    sectionsToUse = savedSections;
+    sectionsToUse = hydrateSections(savedSections, proposalData);
   } else if (template) {
-    sectionsToUse = createDefaultSections(template, primaryColor);
+    const templateWithDynamicPaymentTerms = {
+      ...template,
+      paymentTerms: generatePaymentTerms(proposalData),
+    };
+
+    sectionsToUse = createDefaultSections(
+      templateWithDynamicPaymentTerms,
+      primaryColor,
+    );
   }
+
+  sectionsToUse = ensureCanonicalSectionStructure(sectionsToUse);
 
   const displaySections = sectionsToUse;
 

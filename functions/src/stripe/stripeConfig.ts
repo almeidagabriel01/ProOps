@@ -115,5 +115,13 @@ export function getPriceIdForAddon(addonType: string): string | null {
  * Get the app URL for redirects
  */
 export function getAppUrl(): string {
-  return process.env.APP_URL || "http://localhost:3000/";
+  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+  if (appUrl) {
+    return appUrl.endsWith("/") ? appUrl : `${appUrl}/`;
+  }
+
+  return process.env.NODE_ENV === "production"
+    ? "https://proops.com.br/"
+    : "http://localhost:3000/";
 }

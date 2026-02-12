@@ -5,6 +5,7 @@ import {
   getPriceConfig,
   BillingInterval,
   getPriceIdForAddon,
+  getAppUrl,
 } from "../../stripe/stripeConfig";
 import { updateSubscriptionStatus } from "../../stripe/stripeHelpers";
 
@@ -45,6 +46,16 @@ async function hasSuperAdminRole(req: Request): Promise<boolean> {
 
   const userRole = String(userSnap.data()?.role || "").toLowerCase();
   return userRole === "superadmin";
+}
+
+function resolveRequestOrigin(req: Request): string {
+  const requestOrigin = req.headers.origin;
+
+  if (typeof requestOrigin === "string" && requestOrigin.trim()) {
+    return requestOrigin.replace(/\/+$/, "");
+  }
+
+  return getAppUrl().replace(/\/+$/, "");
 }
 
 // Handlers adapted from original onCall functions
@@ -258,13 +269,15 @@ export const createAddonCheckoutSession = async (
       await userRef.update({ stripeId: customerId });
     }
 
+    const appOrigin = resolveRequestOrigin(req);
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${req.headers.origin || "https://app-url.com"}/profile/addons?success=true`,
-      cancel_url: `${req.headers.origin || "https://app-url.com"}/profile/addons?canceled=true`,
+      success_url: `${appOrigin}/profile/addons?success=true`,
+      cancel_url: `${appOrigin}/profile/addons?canceled=true`,
       metadata: { userId, addonType: addonId, tenantId, type: "addon" },
       allow_promotion_codes: true,
     });
@@ -333,13 +346,15 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       await userRef.update({ stripeId: customerId });
     }
 
+    const appOrigin = resolveRequestOrigin(req);
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${req.headers.origin || "https://app-url.com"}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin || "https://app-url.com"}/subscribe`,
+      success_url: `${appOrigin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appOrigin}/subscribe`,
       metadata: { userId, planTier, billingInterval: validInterval },
       allow_promotion_codes: true,
     });
@@ -385,9 +400,11 @@ export const createPortalSession = async (req: Request, res: Response) => {
       await db.collection("users").doc(userId).update({ stripeId });
     }
 
+    const appOrigin = resolveRequestOrigin(req);
+
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeId,
-      return_url: `${req.headers.origin || "https://app-url.com"}/profile`,
+      return_url: `${appOrigin}/profile`,
     });
 
     return res.json({ url: session.url });
