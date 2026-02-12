@@ -36,7 +36,7 @@ export function ProposalsSkeleton() {
                 <Skeleton className="h-4 w-3/4" />
               </div>
               <div className="col-span-2">
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-20" />
               </div>
               <div className="col-span-2">
                 <Skeleton className="h-4 w-24" />

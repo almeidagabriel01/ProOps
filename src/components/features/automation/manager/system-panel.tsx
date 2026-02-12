@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Cpu, Menu, Plus } from "lucide-react";
 import { Sistema } from "@/types/automation";
 
-interface SystemSidebarProps {
+interface SystemPanelProps {
   sistemas: Sistema[];
   selectedSistemaId: string | null;
   onSelect: (id: string) => void;
@@ -12,13 +12,13 @@ interface SystemSidebarProps {
   onCloseMobileMenu: () => void;
 }
 
-export function SystemSidebar({
+export function SystemPanel({
   sistemas,
   selectedSistemaId,
   onSelect,
   isMobileMenuOpen,
   onCloseMobileMenu,
-}: SystemSidebarProps) {
+}: SystemPanelProps) {
   return (
     <>
       <div

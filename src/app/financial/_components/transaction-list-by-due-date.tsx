@@ -30,7 +30,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Pagination, usePagination } from "@/components/ui/pagination";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 interface TransactionListByDueDateProps {
   transactions: Transaction[];
@@ -77,9 +77,11 @@ export function TransactionListByDueDate({
 }: TransactionListByDueDateProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
-  // Pagination: 8 rows per page
-  const { currentPage, totalPages, paginatedData, setCurrentPage } =
-    usePagination(transactions, 8);
+  // Infinite scroll: 15 rows per batch
+  const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
+    transactions,
+    15,
+  );
 
   const handleStatusChange = async (
     transaction: Transaction,
@@ -164,7 +166,7 @@ export function TransactionListByDueDate({
 
           {/* Table Rows */}
           <div className="divide-y">
-            {paginatedData.map((transaction) => {
+            {displayedItems.map((transaction) => {
               const isUpdating = updatingId === transaction.id;
               const statusInfo = statusConfig[transaction.status];
               const isSelected = selectedIds.has(transaction.id);
@@ -314,13 +316,14 @@ export function TransactionListByDueDate({
           </div>
         </CardContent>
       </Card>
-      <div className="mt-auto pt-4">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+      {hasMore && (
+        <div
+          ref={sentinelRef}
+          className="flex items-center justify-center py-4"
+        >
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }
@@ -342,23 +345,22 @@ function HeaderCell({
   const direction = isSorted ? sortConfig?.direction : null;
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors",
-        className,
-      )}
-      onClick={() => onSort?.(sortKey)}
-    >
-      {label}
-      <span className="text-muted-foreground/50">
-        {direction === "asc" ? (
-          <ArrowUp className="w-3 h-3 text-foreground" />
-        ) : direction === "desc" ? (
-          <ArrowDown className="w-3 h-3 text-foreground" />
-        ) : (
-          <ChevronsUpDown className="w-3 h-3 opacity-50" />
-        )}
-      </span>
+    <div className={cn("flex items-center", className)}>
+      <button
+        className="flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors focus:outline-none"
+        onClick={() => onSort?.(sortKey)}
+      >
+        {label}
+        <span className="text-muted-foreground/50">
+          {direction === "asc" ? (
+            <ArrowUp className="w-3 h-3 text-foreground" />
+          ) : direction === "desc" ? (
+            <ArrowDown className="w-3 h-3 text-foreground" />
+          ) : (
+            <ChevronsUpDown className="w-3 h-3 opacity-50" />
+          )}
+        </span>
+      </button>
     </div>
   );
 }

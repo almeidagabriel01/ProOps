@@ -286,7 +286,13 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // If for some reason we didn't find one (empty group?), skip
           if (active) {
-            effectiveTransactions.push(active);
+            const stableAnchor = group.find((g) => g.isDownPayment) || group[0];
+            const representative: Transaction = {
+              ...active,
+              createdAt: stableAnchor?.createdAt || active.createdAt,
+            };
+
+            effectiveTransactions.push(representative);
             processedInstallmentGroups.add(t.installmentGroupId);
           }
           return;
@@ -707,13 +713,9 @@ export function useFinancialData(): UseFinancialDataReturn {
             (t) => t.proposalGroupId === transaction.proposalGroupId,
           );
 
-          // Update all in parallel
-          await Promise.all(
-            groupTransactions.map((t) =>
-              TransactionService.updateTransaction(t.id, {
-                status: newStatus,
-              }),
-            ),
+          await TransactionService.updateTransactionsStatusBatch(
+            groupTransactions.map((t) => t.id),
+            newStatus,
           );
 
           // Update local state for all
@@ -733,13 +735,9 @@ export function useFinancialData(): UseFinancialDataReturn {
             (t) => t.installmentGroupId === transaction.installmentGroupId,
           );
 
-          // Update all installments in parallel
-          await Promise.all(
-            groupTransactions.map((t) =>
-              TransactionService.updateTransaction(t.id, {
-                status: newStatus,
-              }),
-            ),
+          await TransactionService.updateTransactionsStatusBatch(
+            groupTransactions.map((t) => t.id),
+            newStatus,
           );
 
           // Update local state for all

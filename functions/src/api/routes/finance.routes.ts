@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createTransaction,
   updateTransaction,
+  updateTransactionsStatusBatch,
   deleteTransaction,
 } from "../controllers/transactions.controller";
 import {
@@ -16,6 +17,7 @@ const router = Router();
 
 // Transactions
 router.post("/transactions", createTransaction);
+router.post("/transactions/status-batch", updateTransactionsStatusBatch);
 router.put("/transactions/:id", updateTransaction);
 router.delete("/transactions/:id", deleteTransaction);
 

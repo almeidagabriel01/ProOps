@@ -30,6 +30,7 @@ const PUBLIC_ROUTES = [
   "/pricing",
   "/api/webhooks", // Webhooks need to be public
   "/share", // Public shared proposal pages
+  "/auth/action", // Password reset and other auth actions
 ];
 
 // Static assets and API routes to skip

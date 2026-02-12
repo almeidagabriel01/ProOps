@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from "react-toastify";
@@ -27,63 +27,124 @@ import {
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
+import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canDelete, canEdit } = usePagePermission("products");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true); // Internal data loading
+  const [allProducts, setAllProducts] = useState<Product[] | null>(null);
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [hasAnyProducts, setHasAnyProducts] = useState<boolean | null>(null);
   const { deleteProduct, updateProduct } = useProductActions();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const resetRef = useRef<(() => void) | null>(null);
+
+  const isFiltering = searchTerm.trim() !== "";
 
   const handleStockUpdate = async (product: Product, newStock: string) => {
-    // 1. Update in backend
+    const numericStock = parseInt(newStock, 10);
+    if (isNaN(numericStock)) return false;
+
     const success = await updateProduct(product.id, {
-      stock: newStock,
+      stock: numericStock,
     });
 
-    // 2. Optimistic update (or re-fetch, but optimistic is better)
     if (success) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === product.id ? { ...p, stock: newStock } : p)),
-      );
+      // Trigger re-fetch
+      resetRef.current?.();
+      // Optimistic update
+      if (allProducts) {
+        setAllProducts(
+          (prev) =>
+            prev?.map((p) =>
+              p.id === product.id ? { ...p, stock: numericStock } : p,
+            ) ?? null,
+        );
+      }
     }
 
     return success;
   };
 
-  // effective loading is tenant loading OR internal data loading
-  const isPageLoading = tenantLoading || loading;
+  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
 
-  const { items: sortedProducts, requestSort, sortConfig } = useSort(products);
+  const {
+    items: sortedProducts,
+    requestSort,
+    sortConfig,
+  } = useSort(allProducts ?? []);
 
-  const loadProducts = useCallback(async () => {
-    if (!tenant) return;
-    setLoading(true);
-    try {
-      const data = await ProductService.getProducts(tenant.id);
-      // Sort by createdAt descending (most recent first)
-      data.sort(
-        (a, b) =>
-          new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime(),
-      );
-      setProducts(data);
-    } catch (error) {
-      console.error("Error loading products:", error);
-    } finally {
-      setLoading(false);
-    }
+  // Check if we have any products (for empty state)
+  useEffect(() => {
+    const check = async () => {
+      if (!tenant) return;
+      try {
+        const result = await ProductService.getProductsPaginated(tenant.id, 1);
+        setHasAnyProducts(result.data.length > 0);
+      } catch {
+        setHasAnyProducts(false);
+      }
+    };
+    check();
   }, [tenant]);
 
+  // Fetch all products when searching
   useEffect(() => {
-    if (tenant) {
-      loadProducts();
+    if (!isFiltering || !tenant) {
+      setAllProducts(null);
+      return;
     }
-    // If no tenant yet, we are still loading (handled by initial state true)
-  }, [tenant, loadProducts]);
+
+    let cancelled = false;
+    const fetchAll = async () => {
+      setIsLoadingAll(true);
+      try {
+        const data = await ProductService.getProducts(tenant.id);
+        if (!cancelled) setAllProducts(data);
+      } catch (error) {
+        console.error("Failed to fetch products for filtering", error);
+      } finally {
+        if (!cancelled) setIsLoadingAll(false);
+      }
+    };
+    fetchAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isFiltering, tenant]);
+
+  // fetchPage callback for async pagination
+  const fetchPage = useCallback(
+    async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+      if (!tenant)
+        return { data: [] as Product[], lastDoc: null, hasMore: false };
+      return ProductService.getProductsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
+    },
+    [tenant, sortConfig],
+  );
+
+  // Reset pagination when sort changes
+  useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
+
+  // Reset pagination when sort changes
+  useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -108,7 +169,13 @@ export default function ProductsPage() {
       // await ProductService.deleteProduct(deleteId);
       const success = await deleteProduct(deleteId);
       if (success) {
-        setProducts(products.filter((p) => p.id !== deleteId));
+        resetRef.current?.();
+        setHasAnyProducts(null);
+        if (allProducts) {
+          setAllProducts(
+            (prev) => prev?.filter((p) => p.id !== deleteId) ?? null,
+          );
+        }
       }
       setDeleteId(null);
     } catch (error) {
@@ -119,13 +186,15 @@ export default function ProductsPage() {
     }
   };
 
-  const filteredProducts = sortedProducts.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredProducts = isFiltering
+    ? sortedProducts.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    : [];
 
-  const productToDelete = sortedProducts.find((p) => p.id === deleteId);
+  const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
   const columns: DataTableColumn<Product>[] = [
     {
       key: "image",
@@ -291,17 +360,19 @@ export default function ProductsPage() {
             </p>
           </div>
           {canCreate && (
-            <Link href="/products/new">
-              <Button size="lg" className="gap-2">
-                <Plus className="w-5 h-5" />
-                Novo Produto
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/products/new">
+                <Button size="lg" className="gap-2">
+                  <Plus className="w-5 h-5" />
+                  Novo Produto
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 
         {/* Search */}
-        {products.length > 0 && (
+        {hasAnyProducts !== false && (
           <div className="max-w-md">
             <Input
               placeholder="Buscar por nome ou SKU..."
@@ -312,7 +383,7 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {products.length === 0 ? (
+        {hasAnyProducts === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -334,7 +405,7 @@ export default function ProductsPage() {
               )}
             </CardContent>
           </Card>
-        ) : filteredProducts.length === 0 ? (
+        ) : isFiltering && filteredProducts.length === 0 && !isLoadingAll ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="w-12 h-12 text-muted-foreground mb-4" />
@@ -346,7 +417,7 @@ export default function ProductsPage() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : isFiltering ? (
           <DataTable
             columns={columns}
             data={filteredProducts}
@@ -354,7 +425,20 @@ export default function ProductsPage() {
             gridClassName="grid-cols-12"
             onSort={requestSort}
             sortConfig={sortConfig}
-            pageSize={5}
+            minWidth="800px"
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            keyExtractor={(product) => product.id}
+            gridClassName="grid-cols-12"
+            fetchPage={fetchPage}
+            fetchEnabled={!!tenant}
+            onResetRef={resetRef}
+            batchSize={12}
+            minWidth="800px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

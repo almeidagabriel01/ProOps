@@ -10,8 +10,14 @@ import {
   query,
   where,
   serverTimestamp,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 import { SheetData, RowData, CellStyle } from "@/types";
+import { PaginatedResult } from "./client-service";
 
 export type Spreadsheet = {
   id: string;
@@ -84,11 +90,15 @@ const expandCelldata = (sheetData: SheetData[]): SheetData[] => {
     }
 
     // If has celldata, expand it to data array
-    if (sheet.celldata && Array.isArray(sheet.celldata) && sheet.celldata.length > 0) {
+    if (
+      sheet.celldata &&
+      Array.isArray(sheet.celldata) &&
+      sheet.celldata.length > 0
+    ) {
       // Determine grid size from celldata
       let maxRow = 0;
       let maxCol = 0;
-      
+
       (sheet.celldata as Array<{ r: number; c: number }>).forEach((cell) => {
         if (cell.r > maxRow) maxRow = cell.r;
         if (cell.c > maxCol) maxCol = cell.c;
@@ -98,7 +108,7 @@ const expandCelldata = (sheetData: SheetData[]): SheetData[] => {
       // Add some padding to ensure we have enough space
       const rows = Math.max(maxRow + 1, sheet.row || 100);
       const cols = Math.max(maxCol + 1, sheet.column || 60);
-      
+
       const dataArray: RowData[] = [];
       for (let r = 0; r < rows; r++) {
         const row: (CellStyle | null)[] = [];
@@ -109,11 +119,13 @@ const expandCelldata = (sheetData: SheetData[]): SheetData[] => {
       }
 
       // Fill in the cells from celldata
-      (sheet.celldata as Array<{ r: number; c: number; v: unknown }>).forEach((cell) => {
-        if (cell.r < rows && cell.c < cols) {
-          dataArray[cell.r][cell.c] = cell.v as CellStyle | null;
-        }
-      });
+      (sheet.celldata as Array<{ r: number; c: number; v: unknown }>).forEach(
+        (cell) => {
+          if (cell.r < rows && cell.c < cols) {
+            dataArray[cell.r][cell.c] = cell.v as CellStyle | null;
+          }
+        },
+      );
 
       return {
         ...sheet,
@@ -130,6 +142,35 @@ const expandCelldata = (sheetData: SheetData[]): SheetData[] => {
   });
 };
 
+function mapSpreadsheetDoc(
+  d: QueryDocumentSnapshot<DocumentData>,
+): Spreadsheet {
+  const data = d.data();
+  let parsedData: SheetData[] = [];
+  try {
+    if (data.dataJson) {
+      parsedData = JSON.parse(data.dataJson);
+      parsedData = expandCelldata(parsedData);
+    } else if (data.data) {
+      parsedData = data.data;
+    }
+  } catch (e) {
+    console.error("Error parsing spreadsheet data", e);
+  }
+
+  return {
+    id: d.id,
+    ...data,
+    data: parsedData,
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt,
+  } as Spreadsheet;
+}
+
 export const SpreadsheetService = {
   getSpreadsheets: async (tenantId: string): Promise<Spreadsheet[]> => {
     try {
@@ -139,37 +180,50 @@ export const SpreadsheetService = {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        let parsedData = [];
-        try {
-          // Fallback for older documents that might store data directly (if any worked)
-          // or use the new dataJson field
-          if (data.dataJson) {
-            parsedData = JSON.parse(data.dataJson);
-            // Expand celldata to data array for rendering
-            parsedData = expandCelldata(parsedData);
-          } else if (data.data) {
-            parsedData = data.data;
-          }
-        } catch (e) {
-          console.error("Error parsing spreadsheet data", e);
-        }
-
-        return {
-          id: doc.id,
-          ...data,
-          data: parsedData,
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-          updatedAt: data.updatedAt?.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-        } as Spreadsheet;
-      });
+      return querySnapshot.docs.map(mapSpreadsheetDoc);
     } catch (error) {
       console.error("Error fetching spreadsheets:", error);
+      throw error;
+    }
+  },
+
+  getSpreadsheetsPaginated: async (
+    tenantId: string,
+    pageSize: number = 12,
+    cursor?: QueryDocumentSnapshot<DocumentData> | null,
+    sortConfig?: { key: string; direction: "asc" | "desc" } | null,
+  ): Promise<PaginatedResult<Spreadsheet>> => {
+    try {
+      const sortField = sortConfig?.key || "updatedAt";
+      const sortDirection = sortConfig?.direction || "desc";
+
+      const q = cursor
+        ? query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy(sortField, sortDirection),
+            startAfter(cursor),
+            limit(pageSize + 1),
+          )
+        : query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy(sortField, sortDirection),
+            limit(pageSize + 1),
+          );
+
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageSize;
+      const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+      return {
+        data: pageDocs.map(mapSpreadsheetDoc),
+        lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("Error fetching spreadsheets paginated:", error);
       throw error;
     }
   },

@@ -8,12 +8,12 @@ export function TeamSkeleton() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-8 w-8" />
             <Skeleton className="h-8 w-48" />
           </div>
           <Skeleton className="h-4 w-64" />
         </div>
-        <Skeleton className="h-10 w-40 rounded-md" /> {/* Add Member Button */}
+        <Skeleton className="h-10 w-40" /> {/* Add Member Button */}
       </div>
 
       {/* Members List */}
@@ -25,13 +25,13 @@ export function TeamSkeleton() {
               <div className="flex-1 p-2 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {/* Avatar */}
-                  <Skeleton className="w-12 h-12 rounded-full" />
+                  <Skeleton className="w-12 h-12" />
 
                   {/* Name and Email */}
                   <div className="space-y-1.5">
                     <Skeleton className="h-4 w-32" />
                     <div className="flex items-center gap-1">
-                      <Skeleton className="w-3 h-3 rounded-full" />
+                      <Skeleton className="w-3 h-3" />
                       <Skeleton className="h-3 w-40" />
                     </div>
                   </div>
@@ -41,19 +41,19 @@ export function TeamSkeleton() {
               {/* Right Side Actions */}
               <div className="flex items-center gap-3">
                 {/* Role Badge */}
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-20" />
 
                 {/* Vertical Divider */}
                 <div className="h-8 w-px bg-border mx-2" />
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-1">
-                  <Skeleton className="h-8 w-8 rounded-md" />
-                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
                 </div>
 
                 {/* Chevron */}
-                <Skeleton className="h-5 w-5 rounded-full ml-1" />
+                <Skeleton className="h-5 w-5 ml-1" />
               </div>
             </div>
           </Card>

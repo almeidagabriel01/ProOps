@@ -88,7 +88,11 @@ export function useLoginForm(): UseLoginFormReturn {
 
     try {
       const { sendPasswordResetEmail } = await import("firebase/auth");
-      await sendPasswordResetEmail(auth, email);
+      const actionCodeSettings = {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true,
+      };
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
       setResetSent(true);
       setError("");
     } catch (err: unknown) {

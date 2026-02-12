@@ -821,8 +821,8 @@ export function SimpleProposalForm({
         </div>
         <div className="grid gap-6">
           <div className="grid gap-4">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
           </div>
         </div>
       </FormContainer>
