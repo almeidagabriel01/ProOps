@@ -11,6 +11,8 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { tenant } = useTenant();
 
   // Subscribe em tempo real às notificações
@@ -147,12 +149,49 @@ export function useNotifications() {
     }
   }, [isMarkingAllAsRead]);
 
+  const clearNotification = useCallback(async (notificationId: string) => {
+    if (clearingIds.includes(notificationId)) return;
+
+    try {
+      setClearingIds((prev) => [...prev, notificationId]);
+      const targetNotification = notifications.find((n) => n.id === notificationId);
+      await NotificationService.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      if (targetNotification && !targetNotification.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error clearing notification:", error);
+    } finally {
+      setClearingIds((prev) => prev.filter((id) => id !== notificationId));
+    }
+  }, [clearingIds, notifications]);
+
+  const clearAllNotifications = useCallback(async () => {
+    if (isClearingAll) return;
+
+    try {
+      setIsClearingAll(true);
+      await NotificationService.clearAllNotifications();
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+    } finally {
+      setIsClearingAll(false);
+    }
+  }, [isClearingAll]);
+
   return {
     notifications,
     unreadCount,
     isLoading,
     isMarkingAllAsRead,
+    isClearingAll,
+    clearingIds,
     markAsRead,
     markAllAsRead,
+    clearNotification,
+    clearAllNotifications,
   };
 }

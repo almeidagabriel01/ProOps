@@ -83,6 +83,30 @@ export const NotificationService = {
   },
 
   /**
+   * Remove uma notificação
+   */
+  deleteNotification: async (notificationId: string): Promise<void> => {
+    try {
+      await callApi(`/v1/notifications/${notificationId}`, "DELETE");
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Remove todas as notificações
+   */
+  clearAllNotifications: async (): Promise<void> => {
+    try {
+      await callApi("/v1/notifications/clear-all", "DELETE");
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Solicita ao backend claim diário para exibição de toast por tipo.
    * Retorna true apenas na primeira exibição do dia.
    */
@@ -117,7 +141,6 @@ export const NotificationService = {
       const q = query(
         notificationsRef,
         where("tenantId", "==", tenantId),
-        where("isRead", "==", false),
         orderBy("createdAt", "desc"),
       );
 
