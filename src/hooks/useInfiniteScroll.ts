@@ -22,7 +22,16 @@ export interface AsyncInfiniteScrollResult<T> {
 export interface StaticInfiniteScrollResult<T> {
   displayedItems: T[];
   hasMore: boolean;
+  isLoadingMore: boolean;
   sentinelRef: React.MutableRefObject<HTMLDivElement | null>;
+}
+
+export interface StaticScrollOptions {
+  requireUserScroll?: boolean;
+  rootMargin?: string;
+  threshold?: number;
+  loadDelayMs?: number;
+  allowAutoLoadUntilScrollable?: boolean;
 }
 
 /** Options for async mode */
@@ -184,25 +193,107 @@ export function useAsyncInfiniteScroll<T>(
 export function useInfiniteScroll<T>(
   data: T[],
   batchSize: number = 10,
+  options: StaticScrollOptions = {},
 ): StaticInfiniteScrollResult<T> {
+  const {
+    requireUserScroll = false,
+    rootMargin = "200px",
+    threshold = 0,
+    loadDelayMs = 0,
+    allowAutoLoadUntilScrollable = true,
+  } = options;
+
   const [visibleCount, setVisibleCount] = useState(batchSize);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userHasScrolledRef = useRef(!requireUserScroll);
+  const isLoadingMoreRef = useRef(false);
+  const isSentinelVisibleRef = useRef(false);
 
-  // Reset when data changes (filters, search, etc.)
-  // We use the render-update pattern to clean state during render
-  const [prevDataLength, setPrevDataLength] = useState(data.length);
-
-  if (data.length !== prevDataLength) {
-    setPrevDataLength(data.length);
+  useEffect(() => {
     setVisibleCount(batchSize);
-  }
+    setIsLoadingMore(false);
+    isLoadingMoreRef.current = false;
+    isSentinelVisibleRef.current = false;
+  }, [data.length, batchSize]);
+
+  useEffect(() => {
+    userHasScrolledRef.current = !requireUserScroll;
+
+    if (!requireUserScroll) return;
+
+    const unlockLoading = () => {
+      if (!userHasScrolledRef.current) {
+        userHasScrolledRef.current = true;
+      }
+    };
+
+    const unlockIfNotScrollable = () => {
+      if (!allowAutoLoadUntilScrollable) return;
+
+      const doc = document.documentElement;
+      if (doc.scrollHeight <= window.innerHeight + 16) {
+        unlockLoading();
+      }
+    };
+
+    const handleScroll = () => {
+      if (window.scrollY > 24) {
+        unlockLoading();
+      }
+    };
+
+    const handleWheel = () => {
+      unlockLoading();
+    };
+
+    const handleTouchMove = () => {
+      unlockLoading();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) {
+        unlockLoading();
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", unlockIfNotScrollable);
+
+    unlockIfNotScrollable();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", unlockIfNotScrollable);
+    };
+  }, [requireUserScroll, allowAutoLoadUntilScrollable]);
 
   const hasMore = visibleCount < data.length;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + batchSize, data.length));
-  }, [batchSize, data.length]);
+    if (isLoadingMoreRef.current || !hasMore) return;
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + batchSize, data.length));
+      setIsLoadingMore(false);
+      isLoadingMoreRef.current = false;
+    }, loadDelayMs);
+  }, [batchSize, data.length, hasMore, loadDelayMs]);
 
   // Set up IntersectionObserver
   useEffect(() => {
@@ -216,13 +307,22 @@ export function useInfiniteScroll<T>(
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry?.isIntersecting) {
-          loadMore();
+        if (!entry) return;
+
+        isSentinelVisibleRef.current = entry.isIntersecting;
+
+        if (!entry.isIntersecting) {
+          return;
         }
+
+        if (!userHasScrolledRef.current) return;
+        if (isLoadingMoreRef.current) return;
+
+        loadMore();
       },
       {
-        rootMargin: "200px", // Start loading before the sentinel is visible
-        threshold: 0,
+        rootMargin,
+        threshold,
       },
     );
 
@@ -234,13 +334,31 @@ export function useInfiniteScroll<T>(
     return () => {
       observerRef.current?.disconnect();
     };
-  }, [hasMore, loadMore]);
+  }, [hasMore, loadMore, rootMargin, threshold]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    if (!isSentinelVisibleRef.current) return;
+    if (isLoadingMoreRef.current) return;
+    if (requireUserScroll && !userHasScrolledRef.current) return;
+
+    loadMore();
+  }, [visibleCount, hasMore, requireUserScroll, loadMore]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const displayedItems = data.slice(0, visibleCount);
 
   return {
     displayedItems,
     hasMore,
+    isLoadingMore,
     sentinelRef,
   };
 }
