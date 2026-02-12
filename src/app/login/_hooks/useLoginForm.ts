@@ -43,6 +43,7 @@ interface UseLoginFormReturn {
   mode: AuthMode;
   setMode: (value: AuthMode) => void;
   isLoading: boolean;
+  isResetting: boolean;
   resetSent: boolean;
   user: User | null;
 
@@ -78,6 +79,7 @@ export function useLoginForm(): UseLoginFormReturn {
   // ... (inside function)
   const [mode, setMode] = React.useState<AuthMode>("login");
   const [resetSent, setResetSent] = React.useState(false);
+  const [isResetting, setIsResetting] = React.useState(false);
 
   const handleForgotPassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -85,6 +87,8 @@ export function useLoginForm(): UseLoginFormReturn {
       setError("Digite seu email para redefinir a senha.");
       return;
     }
+
+    setIsResetting(true);
 
     try {
       const { sendPasswordResetEmail } = await import("firebase/auth");
@@ -98,6 +102,8 @@ export function useLoginForm(): UseLoginFormReturn {
     } catch (err: unknown) {
       console.error("Reset password error:", err);
       setError("Erro ao enviar email. Verifique se o email está correto.");
+    } finally {
+      setIsResetting(false);
     }
   };
   const { login, user, isLoading } = useAuth();
@@ -342,5 +348,6 @@ export function useLoginForm(): UseLoginFormReturn {
     handleForgotPassword,
     handleLogoUpload,
     resetSent,
+    isResetting,
   };
 }
