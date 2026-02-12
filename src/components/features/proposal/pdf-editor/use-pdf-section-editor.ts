@@ -57,6 +57,136 @@ export function usePdfSectionEditor({
   const [hoveredHandleId, setHoveredHandleId] = React.useState<string | null>(
     null,
   );
+  const SCOPE_ANCHOR_TEXT =
+    "esta proposta contempla os seguintes produtos e servicos conforme especificado na tabela abaixo";
+
+  const normalizeText = React.useCallback((value?: string): string => {
+    return (value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }, []);
+
+  const isPaymentTitle = React.useCallback(
+    (section: PdfSection): boolean => {
+      if (section.type !== "title") return false;
+      const content = normalizeText(section.content);
+      return (
+        content.includes("condicoes de pagamento") ||
+        content.includes("formas de pagamento")
+      );
+    },
+    [normalizeText],
+  );
+
+  const getFixedProductInsertIndex = React.useCallback(
+    (baseSections: PdfSection[]): number => {
+      const scopeTextIndex = baseSections.findIndex((section) => {
+        if (section.type !== "text") return false;
+        return normalizeText(section.content).includes(SCOPE_ANCHOR_TEXT);
+      });
+
+      if (scopeTextIndex !== -1) {
+        return scopeTextIndex + 1;
+      }
+
+      const paymentTitleIndex = baseSections.findIndex((section) =>
+        isPaymentTitle(section),
+      );
+
+      if (paymentTitleIndex !== -1) {
+        return paymentTitleIndex;
+      }
+
+      return Math.min(2, baseSections.length);
+    },
+    [isPaymentTitle, normalizeText],
+  );
+
+  const createFixedProductTableSection = React.useCallback(
+    (): PdfSection => ({
+      id: crypto.randomUUID(),
+      type: "product-table",
+      content: "Sistemas / Ambientes / Produtos",
+      columnWidth: 100,
+      styles: {
+        fontSize: "14px",
+        fontWeight: "normal",
+        textAlign: "left",
+        color: "#374151",
+        marginTop: "16px",
+        marginBottom: "8px",
+      },
+    }),
+    [],
+  );
+
+  const normalizeSections = React.useCallback(
+    (currentSections: PdfSection[]): PdfSection[] => {
+      let firstProductTable: PdfSection | null = null;
+      const baseSections: PdfSection[] = [];
+
+      currentSections.forEach((section) => {
+        if (section.type !== "product-table") {
+          baseSections.push(section);
+          return;
+        }
+
+        if (firstProductTable) {
+          return;
+        }
+
+        const normalizedProductTable: PdfSection =
+          section.content === "Sistemas / Ambientes / Produtos" &&
+          section.columnWidth === 100
+            ? section
+            : {
+                ...section,
+                content: "Sistemas / Ambientes / Produtos",
+                columnWidth: 100,
+              };
+
+        firstProductTable = normalizedProductTable;
+      });
+
+      const productTableSection = firstProductTable || createFixedProductTableSection();
+      const insertIndex = getFixedProductInsertIndex(baseSections);
+
+      return [
+        ...baseSections.slice(0, insertIndex),
+        productTableSection,
+        ...baseSections.slice(insertIndex),
+      ];
+    },
+    [createFixedProductTableSection, getFixedProductInsertIndex],
+  );
+
+  const needsNormalization = React.useCallback(
+    (currentSections: PdfSection[]): boolean => {
+      const productTableSections = currentSections.filter(
+        (section) => section.type === "product-table",
+      );
+
+      if (productTableSections.length !== 1) {
+        return true;
+      }
+
+      const [productTable] = productTableSections;
+
+      return !(
+        productTable.content === "Sistemas / Ambientes / Produtos" &&
+        productTable.columnWidth === 100
+      );
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    if (needsNormalization(sections)) {
+      const normalized = normalizeSections(sections);
+      onChange(normalized);
+    }
+  }, [sections, onChange, normalizeSections, needsNormalization]);
 
   const toggleSection = (id: string) => {
     setExpandedSections((prev) => {
@@ -71,7 +201,15 @@ export function usePdfSectionEditor({
   };
 
   const healLayout = (currentSections: PdfSection[]) => {
-    return currentSections.map((section, index) => {
+    const healed = currentSections.map((section, index) => {
+      if (section.type === "product-table") {
+        return {
+          ...section,
+          content: "Sistemas / Ambientes / Produtos",
+          columnWidth: 100,
+        };
+      }
+
       if (!section.columnWidth || section.columnWidth === 100) return section;
 
       const prev = currentSections[index - 1];
@@ -85,14 +223,13 @@ export function usePdfSectionEditor({
       }
       return section;
     });
+
+    return normalizeSections(healed);
   };
 
   const addSection = (type: PdfSection["type"]) => {
-    if (
-      type === "product-table" &&
-      sections.some((s) => s.type === "product-table")
-    ) {
-      alert("Já existe uma lista de produtos na proposta.");
+    if (type === "product-table") {
+      alert("Este bloco é fixo e já existe na proposta.");
       return;
     }
 
@@ -104,9 +241,7 @@ export function usePdfSectionEditor({
           ? "Novo Título"
           : type === "text"
             ? "Novo parágrafo de texto..."
-            : type === "product-table"
-              ? "Lista de Produtos"
-              : "",
+            : "",
       styles: {
         fontSize: type === "title" ? "24px" : "14px",
         fontWeight: type === "title" ? "bold" : "normal",
@@ -116,11 +251,17 @@ export function usePdfSectionEditor({
         marginBottom: "8px",
       },
     };
-    onChange([...sections, newSection]);
+    onChange(healLayout([...sections, newSection]));
     setExpandedSections((prev) => new Set(prev).add(newSection.id));
   };
 
   const removeSection = (id: string) => {
+    const sectionToRemove = sections.find((s) => s.id === id);
+    if (sectionToRemove?.type === "product-table") {
+      alert("Este bloco é fixo e não pode ser removido.");
+      return;
+    }
+
     const newSections = sections.filter((s) => s.id !== id);
     onChange(healLayout(newSections));
   };
@@ -128,6 +269,7 @@ export function usePdfSectionEditor({
   const moveSection = (id: string, direction: "up" | "down") => {
     const index = sections.findIndex((s) => s.id === id);
     if (index === -1) return;
+    if (sections[index].type === "product-table") return;
     if (direction === "up" && index === 0) return;
     if (direction === "down" && index === sections.length - 1) return;
 
@@ -141,6 +283,12 @@ export function usePdfSectionEditor({
   };
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
+    const section = sections.find((s) => s.id === id);
+    if (section?.type === "product-table") {
+      e.preventDefault();
+      return;
+    }
+
     setDraggedId(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
@@ -207,6 +355,11 @@ export function usePdfSectionEditor({
       }
     } else {
       removed.columnWidth = 100;
+    }
+
+    if (removed.type === "product-table") {
+      removed.columnWidth = 100;
+      removed.content = "Sistemas / Ambientes / Produtos";
     }
 
     newSections.splice(targetIndex, 0, removed);

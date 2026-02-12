@@ -37,6 +37,18 @@ export class SharedProposalService {
   private static COLLECTION = "shared_proposals";
   private static EXPIRATION_DAYS = 30;
 
+  private static getBaseAppUrl(): string {
+    const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+
+    if (configuredUrl) {
+      return configuredUrl;
+    }
+
+    return process.env.NODE_ENV === "production"
+      ? "https://proops.com.br/"
+      : "http://localhost:3000/";
+  }
+
   /**
    * Cria um link compartilhável para uma proposta
    */
@@ -67,10 +79,10 @@ export class SharedProposalService {
       await db.collection(this.COLLECTION).add(sharedProposal);
 
       // Construir URL compartilhável
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        process.env.APP_URL;
-      const shareUrl = `${baseUrl}share/${token}`;
+      const shareUrl = new URL(
+        `/share/${token}`,
+        this.getBaseAppUrl(),
+      ).toString();
 
       return {
         shareUrl,

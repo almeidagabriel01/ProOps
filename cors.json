@@ -2,7 +2,8 @@
   {
     "origin": [
       "http://localhost:3000",
-      "https://template-erp.vercel.app",
+      "https://template-erp-git-develop-softcodes-projects-643d793a.vercel.app",
+      "https://proops.com.br",
       "https://*.vercel.app"
     ],
     "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],

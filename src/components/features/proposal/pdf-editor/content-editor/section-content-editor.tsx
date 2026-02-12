@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { PdfSection } from "../../pdf-section-editor";
-import { TextStyleOptions } from "./style-controls";
+import { TextStyleOptions, SectionSpacingControls } from "./style-controls";
 import {
   ColumnLayoutControl,
   TitleEditor,
@@ -38,7 +38,9 @@ export function SectionContentEditor({
 }: SectionContentEditorProps) {
   return (
     <div className="space-y-4">
-      <ColumnLayoutControl section={section} updateSection={updateSection} />
+      {section.type !== "product-table" && (
+        <ColumnLayoutControl section={section} updateSection={updateSection} />
+      )}
 
       {section.type === "title" && (
         <TitleEditor section={section} updateSection={updateSection} />
@@ -66,6 +68,8 @@ export function SectionContentEditor({
           updateStyle={updateStyle}
         />
       )}
+
+      <SectionSpacingControls section={section} updateStyle={updateStyle} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus, Settings2, Box, Layers } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
@@ -34,7 +35,215 @@ import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+
+interface LocalLazyOptions {
+  batchSize: number;
+  enabled: boolean;
+  resetKey?: string;
+}
+
+type SortOption = "alphabetical" | "createdDesc";
+
+function parseDate(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const maybeTimestamp = value as { toDate?: () => Date };
+    if (typeof maybeTimestamp.toDate === "function") {
+      const parsedFromTimestamp = maybeTimestamp.toDate();
+      return Number.isNaN(parsedFromTimestamp.getTime())
+        ? null
+        : parsedFromTimestamp;
+    }
+  }
+
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function sortByCreatedAtDesc<T extends { createdAt?: unknown; name: string }>(
+  items: T[],
+): T[] {
+  return [...items].sort((a, b) => {
+    const dateA = parseDate(a.createdAt)?.getTime() ?? 0;
+    const dateB = parseDate(b.createdAt)?.getTime() ?? 0;
+
+    if (dateA === dateB) {
+      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+    }
+
+    return dateB - dateA;
+  });
+}
+
+function sortByNameAsc<T extends { name: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
+  );
+}
+
+function sortItems<T extends { name: string; createdAt?: unknown }>(
+  items: T[],
+  sortOption: SortOption,
+): T[] {
+  if (sortOption === "alphabetical") {
+    return sortByNameAsc(items);
+  }
+
+  return sortByCreatedAtDesc(items);
+}
+
+function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
+  const { batchSize, enabled, resetKey } = options;
+  const [visibleCount, setVisibleCount] = React.useState(batchSize);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [sentinelElement, setSentinelElement] = React.useState<HTMLDivElement | null>(null);
+  const observerRef = React.useRef<IntersectionObserver | null>(null);
+  const hasUserInteractedRef = React.useRef(false);
+  const wasIntersectingRef = React.useRef(false);
+  const isSentinelVisibleRef = React.useRef(false);
+  const isLoadingMoreRef = React.useRef(false);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasMore = visibleCount < items.length;
+
+  React.useEffect(() => {
+    if (!enabled) return;
+
+    wasIntersectingRef.current = false;
+    isSentinelVisibleRef.current = false;
+
+    if (window.scrollY > 0) {
+      hasUserInteractedRef.current = true;
+    }
+  }, [enabled]);
+
+  React.useEffect(() => {
+    setVisibleCount(batchSize);
+    setIsLoadingMore(false);
+    isLoadingMoreRef.current = false;
+    wasIntersectingRef.current = false;
+    isSentinelVisibleRef.current = false;
+    hasUserInteractedRef.current = window.scrollY > 0;
+  }, [items.length, batchSize, resetKey]);
+
+  const loadMore = React.useCallback(() => {
+    if (!enabled || !hasMore || isLoadingMoreRef.current) return;
+
+    isLoadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setVisibleCount((prev) => Math.min(prev + batchSize, items.length));
+      setIsLoadingMore(false);
+      isLoadingMoreRef.current = false;
+    }, 420);
+  }, [enabled, hasMore, batchSize, items.length]);
+
+  const maybeLoadMore = React.useCallback(() => {
+    if (!enabled || !hasMore) return;
+    if (!hasUserInteractedRef.current) return;
+    if (!isSentinelVisibleRef.current) return;
+    if (isLoadingMoreRef.current) return;
+
+    loadMore();
+  }, [enabled, hasMore, loadMore]);
+
+  React.useEffect(() => {
+    if (!enabled) return;
+
+    const registerInteraction = () => {
+      hasUserInteractedRef.current = true;
+      maybeLoadMore();
+    };
+
+    const onScroll = () => registerInteraction();
+    const onWheel = () => registerInteraction();
+    const onTouchMove = () => registerInteraction();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) {
+        registerInteraction();
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [enabled, maybeLoadMore]);
+
+  React.useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    if (!enabled || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        isSentinelVisibleRef.current = entry.isIntersecting;
+
+        if (!entry.isIntersecting) {
+          wasIntersectingRef.current = false;
+          return;
+        }
+
+        if (wasIntersectingRef.current) return;
+        if (!hasUserInteractedRef.current) return;
+        if (isLoadingMoreRef.current) return;
+
+        wasIntersectingRef.current = true;
+        loadMore();
+      },
+      { rootMargin: "120px", threshold: 0 },
+    );
+
+    if (sentinelElement) {
+      observerRef.current.observe(sentinelElement);
+    }
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [enabled, hasMore, loadMore, sentinelElement]);
+
+  const sentinelRef = React.useCallback((node: HTMLDivElement | null) => {
+    setSentinelElement(node);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    displayedItems: items.slice(0, visibleCount),
+    hasMore,
+    isLoadingMore,
+    sentinelRef,
+  };
+}
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
@@ -53,19 +262,39 @@ export default function AutomationAdminPage() {
   // Delete State
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [sistemaSort, setSistemaSort] = React.useState<SortOption>("alphabetical");
+  const [ambienteSort, setAmbienteSort] = React.useState<SortOption>("alphabetical");
+
+  const sortedSistemas = React.useMemo(() => {
+    return sortItems(sistemas, sistemaSort);
+  }, [sistemas, sistemaSort]);
+
+  const sortedAmbientes = React.useMemo(() => {
+    return sortItems(ambientes, ambienteSort);
+  }, [ambientes, ambienteSort]);
 
   // Infinite scroll
   const {
     displayedItems: displayedSistemas,
     hasMore: hasMoreSistemas,
+    isLoadingMore: isLoadingMoreSistemas,
     sentinelRef: sistemasSentinelRef,
-  } = useInfiniteScroll(sistemas, 6);
+  } = useLocalLazyLoading(sortedSistemas, {
+    batchSize: 12,
+    enabled: activeTab === "sistemas" && !isLoading && !editingSistemaId,
+    resetKey: sistemaSort,
+  });
 
   const {
     displayedItems: displayedAmbientes,
     hasMore: hasMoreAmbientes,
+    isLoadingMore: isLoadingMoreAmbientes,
     sentinelRef: ambientesSentinelRef,
-  } = useInfiniteScroll(ambientes, 8);
+  } = useLocalLazyLoading(sortedAmbientes, {
+    batchSize: 16,
+    enabled: activeTab === "ambientes" && !isLoading && !editingSistemaId,
+    resetKey: ambienteSort,
+  });
 
   const loadData = React.useCallback(
     async (silent: boolean = false) => {
@@ -139,7 +368,7 @@ export default function AutomationAdminPage() {
   }
 
   return (
-    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -211,7 +440,24 @@ export default function AutomationAdminPage() {
           <TabsContent value="sistemas" className="space-y-4 m-0">
             <Card className="border-none shadow-sm bg-transparent">
               <CardContent className="px-0">
+                <div className="flex justify-end mb-4">
+                  <div className="w-full sm:w-[300px]">
+                    <Select
+                      value={sistemaSort}
+                      onChange={(event) =>
+                        setSistemaSort(event.target.value as SortOption)
+                      }
+                      inputSize="sm"
+                    >
+                      <option value="alphabetical">Ordem alfabética (A-Z)</option>
+                      <option value="createdDesc">
+                        Mais recentes primeiro
+                      </option>
+                    </Select>
+                  </div>
+                </div>
                 <SistemaList
+                  key={`sistemas-${sistemaSort}`}
                   sistemas={displayedSistemas}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) => setDeleteId(id)}
@@ -219,9 +465,11 @@ export default function AutomationAdminPage() {
                 {hasMoreSistemas && (
                   <div
                     ref={sistemasSentinelRef}
-                    className="flex items-center justify-center py-4"
+                    className="flex items-center justify-center mt-8 py-4 min-h-12"
                   >
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    {isLoadingMoreSistemas && (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -243,16 +491,35 @@ export default function AutomationAdminPage() {
                 </div>
               </CardHeader>
               <CardContent className="px-0">
+                <div className="flex justify-end mb-4">
+                  <div className="w-full sm:w-[300px]">
+                    <Select
+                      value={ambienteSort}
+                      onChange={(event) =>
+                        setAmbienteSort(event.target.value as SortOption)
+                      }
+                      inputSize="sm"
+                    >
+                      <option value="alphabetical">Ordem alfabética (A-Z)</option>
+                      <option value="createdDesc">
+                        Mais recentes primeiro
+                      </option>
+                    </Select>
+                  </div>
+                </div>
                 <AmbienteList
+                  key={`ambientes-${ambienteSort}`}
                   ambientes={displayedAmbientes}
                   onUpdate={() => loadData(true)}
                 />
                 {hasMoreAmbientes && (
                   <div
                     ref={ambientesSentinelRef}
-                    className="flex items-center justify-center py-4"
+                    className="flex items-center justify-center mt-8 py-4 min-h-12"
                   >
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    {isLoadingMoreAmbientes && (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    )}
                   </div>
                 )}
               </CardContent>

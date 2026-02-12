@@ -50,7 +50,7 @@ export const hydrateSections = (
   p: Proposal,
 ): PdfSection[] => {
   const paymentTerms = generatePaymentTerms(p);
-  return sectionsToHydrate.map((s) => {
+  const hydratedSections = sectionsToHydrate.map((s) => {
     // Determine if this is a payment terms section
     if (
       s.type === "text" &&
@@ -63,4 +63,173 @@ export const hydrateSections = (
     }
     return s;
   });
+
+  return ensureCanonicalSectionStructure(hydratedSections);
 };
+
+function createProductTableSection(): PdfSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "product-table",
+    content: "Sistemas / Ambientes / Produtos",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      color: "#374151",
+      marginTop: "16px",
+      marginBottom: "16px",
+    },
+  };
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
+  let firstProductTable: PdfSection | null = null;
+  const baseSections: PdfSection[] = [];
+
+  sections.forEach((section) => {
+    if (section.type !== "product-table") {
+      baseSections.push(section);
+      return;
+    }
+
+    if (!firstProductTable) {
+      firstProductTable = {
+        ...section,
+        content: "Sistemas / Ambientes / Produtos",
+        columnWidth: 100,
+      };
+    }
+  });
+
+  const productTable = firstProductTable || createProductTableSection();
+
+  const insertionIndex = baseSections.findIndex((section) => {
+    if (isPaymentTitle(section) || isPaymentText(section)) return true;
+    if (isWarrantyTitle(section) || isWarrantyText(section)) return true;
+    if (isFooterText(section)) return true;
+
+    return normalizeText(section.content || "").includes(
+      "atenciosamente",
+    );
+  });
+
+  if (insertionIndex === -1) {
+    return [...baseSections, productTable];
+  }
+
+  return [
+    ...baseSections.slice(0, insertionIndex),
+    productTable,
+    ...baseSections.slice(insertionIndex),
+  ];
+}
+
+function isPaymentTitle(section: PdfSection): boolean {
+  return (
+    section.type === "title" &&
+    section.content.toLowerCase().includes("condições de pagamento")
+  );
+}
+
+function isPaymentText(section: PdfSection): boolean {
+  if (section.type !== "text") return false;
+  const content = section.content.toLowerCase();
+  return (
+    content.includes("formas de pagamento") ||
+    content.includes("pagamento à vista") ||
+    content.includes("entrada:") ||
+    content.includes("parcelamento:") ||
+    content.includes("saldo:")
+  );
+}
+
+function isWarrantyTitle(section: PdfSection): boolean {
+  return section.type === "title" && section.content.toLowerCase() === "garantia";
+}
+
+function isWarrantyText(section: PdfSection): boolean {
+  return (
+    section.type === "text" &&
+    section.content.toLowerCase().includes("garantia")
+  );
+}
+
+function isFooterText(section: PdfSection): boolean {
+  return (
+    section.type === "text" &&
+    section.content.toLowerCase().includes("atenciosamente")
+  );
+}
+
+export function normalizeSectionStructure(sections: PdfSection[]): PdfSection[] {
+  const productTableIndexes = sections
+    .map((section, index) => ({ section, index }))
+    .filter(({ section }) => section.type === "product-table")
+    .map(({ index }) => index);
+
+  if (productTableIndexes.length === 0) {
+    return sections;
+  }
+
+  const fixedIds = new Set<string>();
+  const paymentBlock: PdfSection[] = [];
+  const warrantyBlock: PdfSection[] = [];
+  const footerBlock: PdfSection[] = [];
+
+  sections.forEach((section, index) => {
+    if (isPaymentTitle(section) || isPaymentText(section)) {
+      paymentBlock.push(section);
+      fixedIds.add(section.id);
+      return;
+    }
+
+    if (isWarrantyTitle(section) || isWarrantyText(section)) {
+      warrantyBlock.push(section);
+      fixedIds.add(section.id);
+      return;
+    }
+
+    if (isFooterText(section)) {
+      const previous = index > 0 ? sections[index - 1] : undefined;
+      if (previous?.type === "divider" && !fixedIds.has(previous.id)) {
+        footerBlock.push(previous);
+        fixedIds.add(previous.id);
+      }
+      footerBlock.push(section);
+      fixedIds.add(section.id);
+    }
+  });
+
+  const baseSections = sections.filter((section) => !fixedIds.has(section.id));
+  const lastProductTableIndex =
+    baseSections.map((section) => section.type).lastIndexOf("product-table");
+
+  if (lastProductTableIndex === -1) {
+    return sections;
+  }
+
+  const normalized = [...baseSections];
+  normalized.splice(
+    lastProductTableIndex + 1,
+    0,
+    ...paymentBlock,
+    ...warrantyBlock,
+    ...footerBlock,
+  );
+
+  return normalized;
+}
+
+export function ensureCanonicalSectionStructure(
+  sections: PdfSection[],
+): PdfSection[] {
+  const withProductTable = ensureProductTableExists(sections);
+  return normalizeSectionStructure(withProductTable);
+}

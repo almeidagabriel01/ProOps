@@ -163,6 +163,66 @@ interface TextStyleOptionsProps {
   ) => void;
 }
 
+interface SectionSpacingControlsProps {
+  section: PdfSection;
+  updateStyle: (
+    id: string,
+    styleKey: keyof PdfSection["styles"],
+    value: string,
+  ) => void;
+}
+
+export function SectionSpacingControls({
+  section,
+  updateStyle,
+}: SectionSpacingControlsProps) {
+  const marginTop = parseInt(String(section.styles.marginTop || "16"), 10) || 0;
+  const marginBottom =
+    parseInt(String(section.styles.marginBottom || "8"), 10) || 0;
+
+  return (
+    <div className="space-y-3 pt-4 border-t">
+      <Label className="text-muted-foreground">Espaçamento da Seção</Label>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label className="text-xs">Margem Superior (px)</Label>
+          <Input
+            type="number"
+            min="0"
+            max="200"
+            step="1"
+            value={marginTop}
+            onChange={(e) =>
+              updateStyle(
+                section.id,
+                "marginTop",
+                `${Math.max(0, Number(e.target.value || 0))}px`,
+              )
+            }
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label className="text-xs">Margem Inferior (px)</Label>
+          <Input
+            type="number"
+            min="0"
+            max="200"
+            step="1"
+            value={marginBottom}
+            onChange={(e) =>
+              updateStyle(
+                section.id,
+                "marginBottom",
+                `${Math.max(0, Number(e.target.value || 0))}px`,
+              )
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TextStyleOptions({
   section,
   primaryColor,
