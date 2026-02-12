@@ -131,18 +131,21 @@ export function ProposalPdfViewer({
   const coverImageOpacity =
     customSettings?.coverImageOpacity ??
     savedCoverImageSettings.opacity ??
+    savedPdfSettings?.coverImageOpacity ??
     templateSettings.opacity ??
     30;
 
   const coverImageFit =
     customSettings?.coverImageFit ??
     savedCoverImageSettings.fit ??
+    savedPdfSettings?.coverImageFit ??
     templateSettings.fit ??
     "cover";
 
   const coverImagePosition =
     customSettings?.coverImagePosition ??
     savedCoverImageSettings.position ??
+    savedPdfSettings?.coverImagePosition ??
     templateSettings.position ??
     "center";
 

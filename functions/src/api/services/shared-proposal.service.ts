@@ -145,6 +145,7 @@ export class SharedProposalService {
       ip?: string;
       userAgent?: string;
     },
+    proposalTitle?: string,
   ): Promise<void> {
     try {
       const viewerInfo: ViewerInfo = {
@@ -155,31 +156,31 @@ export class SharedProposalService {
 
       // Atualizar documento com informação de visualização
       const docRef = db.collection(this.COLLECTION).doc(sharedProposalId);
-      await docRef.update({
-        viewedAt: new Date().toISOString(),
-        viewerInfo: FieldValue.arrayUnion(viewerInfo),
-      });
 
-      // Buscar informações da proposta para criar notificação
-      const proposalDoc = await db
-        .collection("proposals")
-        .doc(proposalId)
-        .get();
+      let resolvedProposalTitle = proposalTitle;
 
-      if (proposalDoc.exists) {
-        const proposalData = proposalDoc.data();
-        const proposalTitle = proposalData?.title || "Proposta sem título";
+      if (!resolvedProposalTitle) {
+        const proposalDoc = await db.collection("proposals").doc(proposalId).get();
+        if (proposalDoc.exists) {
+          const proposalData = proposalDoc.data();
+          resolvedProposalTitle = proposalData?.title || "Proposta sem título";
+        }
+      }
 
-        // Criar notificação para o admin
-        await NotificationService.createNotification({
+      await Promise.all([
+        docRef.update({
+          viewedAt: new Date().toISOString(),
+          viewerInfo: FieldValue.arrayUnion(viewerInfo),
+        }),
+        NotificationService.createNotification({
           tenantId,
           type: "proposal_viewed",
           title: "Proposta Visualizada",
-          message: `A proposta "${proposalTitle}" foi visualizada por um cliente`,
+          message: `A proposta "${resolvedProposalTitle || "Proposta sem título"}" foi visualizada por um cliente`,
           proposalId,
           sharedProposalId,
-        });
-      }
+        }),
+      ]);
     } catch (error) {
       console.error("Error recording view:", error);
       // Não lançar erro para não bloquear visualização do PDF

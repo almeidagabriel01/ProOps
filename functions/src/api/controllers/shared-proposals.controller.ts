@@ -101,13 +101,14 @@ export const getSharedProposal = async (req: Request, res: Response) => {
       userAgent: req.headers["user-agent"],
     };
 
-    // Registrar visualização em background (não bloqueia resposta)
-    SharedProposalService.recordView(
+    // Registrar visualização antes da resposta para evitar perda em ambiente serverless
+    await SharedProposalService.recordView(
       sharedProposal.id,
       sharedProposal.tenantId,
       sharedProposal.proposalId,
       viewerData,
-    ).catch((err) => console.error("Error recording view:", err));
+      proposalData?.title,
+    );
 
     // Retornar dados da proposta
     return res.status(200).json({

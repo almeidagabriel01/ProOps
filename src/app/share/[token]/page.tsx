@@ -163,6 +163,11 @@ export default function SharedProposalPage() {
                 proposal={proposal}
                 tenant={tenant}
                 template={template}
+                customSettings={
+                  (proposal.pdfSettings as Parameters<
+                    typeof ProposalPdfViewer
+                  >[0]["customSettings"]) ?? undefined
+                }
               />
             </CardContent>
           </Card>
