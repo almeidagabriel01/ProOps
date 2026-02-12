@@ -42,7 +42,7 @@ export function ContactsSkeleton() {
                 <Skeleton className="h-4 w-1/2" />
               </div>
               <div className="col-span-2">
-                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-20" />
               </div>
               <div className="col-span-2">
                 <Skeleton className="h-4 w-24" />

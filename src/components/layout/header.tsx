@@ -217,107 +217,87 @@ export function Header({}: HeaderProps) {
       <div className="flex items-center gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
         <NotificationBell />
-        <div className="h-8 w-px bg-border mx-2" />
-        <div className="flex items-center gap-3 pl-2">
+        <div className="h-8 w-px bg-border" />
+        <div className="flex items-center gap-3">
           {isLoading ? (
             <div className="flex items-center gap-3">
               <div className="hidden md:flex flex-col items-end gap-1">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-16" />
               </div>
-              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-10 w-10" />
             </div>
           ) : (
-            <>
-              <div className="hidden md:flex flex-col items-end">
-                <span className="text-sm font-medium">
-                  {isViewingAsTenant && tenantOwner
-                    ? tenantOwner.name
-                    : user
-                      ? user.name
-                      : "Visitante"}
-                </span>
-                <span className="text-xs text-muted-foreground capitalize">
-                  {userPlanName ||
-                    (user?.role === "superadmin" && !isViewingAsTenant
-                      ? "Super Admin"
-                      : isViewingAsTenant && tenantOwner
-                        ? tenantOwner.role || "Membro"
-                        : user?.role || "Guest")}
-                </span>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="relative h-10 w-10 rounded-full p-0"
-                  >
-                    <Avatar
-                      className="h-9 w-9 border border-border"
-                      key={user?.id}
-                    >
-                      {user?.photoURL ? (
-                        <AvatarImage
-                          src={user.photoURL}
-                          alt={user?.name || "User"}
-                        />
-                      ) : (
-                        <AvatarFallback
-                          className="text-white font-medium"
-                          style={{
-                            backgroundColor:
-                              tenant?.primaryColor ||
-                              getUserColor(
-                                isViewingAsTenant && tenantOwner
-                                  ? tenantOwner.name
-                                  : user?.name || "User",
-                              ),
-                          }}
-                        >
-                          {getInitials(
-                            isViewingAsTenant && tenantOwner
-                              ? tenantOwner.name
-                              : user?.name || "User",
-                          )}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-56 z-50"
-                  align="end"
-                  forceMount
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="relative h-fit py-2 pr-2 pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
                 >
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user ? user.name : "Visitante"}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user ? user.email : ""}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => router.push("/profile")}
-                    className="cursor-pointer"
+                  <div className="hidden md:flex flex-col items-end">
+                    <span className="text-sm font-medium">
+                      {isViewingAsTenant && tenantOwner
+                        ? tenantOwner.name
+                        : tenant?.name || "Minha Empresa"}
+                    </span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {userPlanName || "Sem Plano"}
+                    </span>
+                  </div>
+                  <Avatar
+                    className="h-9 w-9 border border-border"
+                    key={tenant?.id || user?.id}
                   >
-                    <UserIcon className="mr-2 h-4 w-4" />
-                    <span>Meu Perfil</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={logout}
-                    className="text-red-600 focus:text-red-600 cursor-pointer"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Sair</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+                    {tenant?.logoUrl ? (
+                      <AvatarImage
+                        src={tenant.logoUrl}
+                        alt={tenant.name || "Company Logo"}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <AvatarFallback
+                        className="text-xs font-medium text-white"
+                        style={{
+                          backgroundColor: getUserColor(
+                            tenant?.name || user?.name || "U",
+                          ),
+                        }}
+                      >
+                        {getInitials(tenant?.name || user?.name || "U")}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 z-50" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {user ? user.name : "Visitante"}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user ? user.email : ""}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => router.push("/profile")}
+                  className="cursor-pointer"
+                >
+                  <UserIcon className="mr-2 h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="text-red-600 focus:text-red-600 cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>

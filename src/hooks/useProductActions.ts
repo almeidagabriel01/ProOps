@@ -21,7 +21,7 @@ export interface CreateProductData {
   manufacturer?: string;
   category?: string;
   sku?: string;
-  stock?: string;
+  stock?: number;
   status?: string;
   images?: string[];
   targetTenantId?: string;
@@ -53,7 +53,7 @@ export function useProductActions() {
         manufacturer: data.manufacturer || "",
         category: data.category || "",
         sku: data.sku || "",
-        stock: data.stock || "0",
+        stock: data.stock ?? 0,
         status: data.status || "active",
         images: data.images || [],
         targetTenantId: data.targetTenantId,
@@ -85,7 +85,7 @@ export function useProductActions() {
     if (!productId) return false;
 
     // Don't set global loading state to avoid full page UI block for small updates
-    // setIsLoading(true); 
+    // setIsLoading(true);
     try {
       await callApi<{ success: boolean; message: string }>(
         `v1/products/${productId}`,

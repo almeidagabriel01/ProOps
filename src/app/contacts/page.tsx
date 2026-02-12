@@ -124,15 +124,36 @@ export default function CustomersPage() {
     };
   }, [isFiltering, tenant]);
 
+  const {
+    items: sortedClients,
+    requestSort,
+    sortConfig,
+  } = useSort(allClients ?? []);
+
   // fetchPage callback for async pagination
   const fetchPage = React.useCallback(
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
       if (!tenant)
         return { data: [] as Client[], lastDoc: null, hasMore: false };
-      return ClientService.getClientsPaginated(tenant.id, 12, cursor);
+      return ClientService.getClientsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
     },
-    [tenant],
+    [tenant, sortConfig],
   );
+
+  // Reset pagination when sort changes
+  React.useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -172,12 +193,6 @@ export default function CustomersPage() {
       setIsDeleting(false);
     }
   };
-
-  const {
-    items: sortedClients,
-    requestSort,
-    sortConfig,
-  } = useSort(allClients ?? []);
 
   const filteredClients = React.useMemo(() => {
     if (!isFiltering) return [];
@@ -491,6 +506,8 @@ export default function CustomersPage() {
             onResetRef={resetRef}
             batchSize={12}
             minWidth="900px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

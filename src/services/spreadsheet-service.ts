@@ -191,20 +191,24 @@ export const SpreadsheetService = {
     tenantId: string,
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
+    sortConfig?: { key: string; direction: "asc" | "desc" } | null,
   ): Promise<PaginatedResult<Spreadsheet>> => {
     try {
+      const sortField = sortConfig?.key || "updatedAt";
+      const sortDirection = sortConfig?.direction || "desc";
+
       const q = cursor
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("updatedAt", "desc"),
+            orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
           )
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("updatedAt", "desc"),
+            orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
 

@@ -92,7 +92,10 @@ export function useProductForm(
     manufacturer: initialData?.manufacturer || "",
     category: initialData?.category || "",
     sku: initialData?.sku || "",
-    stock: initialData?.stock || "",
+    stock:
+      typeof initialData?.stock === "number"
+        ? String(initialData.stock)
+        : "",
     status: initialData?.status || "active",
     image: null,
     images: [],
@@ -126,7 +129,10 @@ export function useProductForm(
         manufacturer: initialData.manufacturer || "",
         category: initialData.category || "",
         sku: initialData.sku || "",
-        stock: initialData.stock || "",
+        stock:
+          typeof initialData.stock === "number"
+            ? String(initialData.stock)
+            : "",
         status: initialData.status || "active",
         images: [],
       }));
@@ -295,6 +301,7 @@ export function useProductForm(
 
       // Combine existing URLs with newly uploaded ones
       const allImageUrls = [...imageUrls, ...uploadedUrls];
+      const normalizedStock = Number(formData.stock || 0);
 
       // Delete removed images from Storage
       for (const url of removedUrls) {
@@ -314,7 +321,7 @@ export function useProductForm(
         manufacturer: formData.manufacturer,
         category: formData.category,
         sku: formData.sku,
-        stock: formData.stock,
+        stock: normalizedStock,
         status: formData.status as "active" | "inactive",
         images: allImageUrls,
       };
@@ -334,7 +341,7 @@ export function useProductForm(
           manufacturer: formData.manufacturer,
           category: formData.category,
           sku: formData.sku,
-          stock: formData.stock,
+          stock: normalizedStock,
           status: formData.status as "active" | "inactive",
           images: allImageUrls,
         });

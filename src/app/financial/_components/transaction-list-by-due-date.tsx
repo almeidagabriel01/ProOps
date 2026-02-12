@@ -345,23 +345,22 @@ function HeaderCell({
   const direction = isSorted ? sortConfig?.direction : null;
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors",
-        className,
-      )}
-      onClick={() => onSort?.(sortKey)}
-    >
-      {label}
-      <span className="text-muted-foreground/50">
-        {direction === "asc" ? (
-          <ArrowUp className="w-3 h-3 text-foreground" />
-        ) : direction === "desc" ? (
-          <ArrowDown className="w-3 h-3 text-foreground" />
-        ) : (
-          <ChevronsUpDown className="w-3 h-3 opacity-50" />
-        )}
-      </span>
+    <div className={cn("flex items-center", className)}>
+      <button
+        className="flex items-center gap-1 cursor-pointer select-none hover:text-foreground transition-colors focus:outline-none"
+        onClick={() => onSort?.(sortKey)}
+      >
+        {label}
+        <span className="text-muted-foreground/50">
+          {direction === "asc" ? (
+            <ArrowUp className="w-3 h-3 text-foreground" />
+          ) : direction === "desc" ? (
+            <ArrowDown className="w-3 h-3 text-foreground" />
+          ) : (
+            <ChevronsUpDown className="w-3 h-3 opacity-50" />
+          )}
+        </span>
+      </button>
     </div>
   );
 }

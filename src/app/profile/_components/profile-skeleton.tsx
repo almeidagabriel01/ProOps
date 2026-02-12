@@ -7,12 +7,12 @@ export function ProfileSkeleton() {
       {/* Profile Header Skeleton */}
       <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between pb-6 border-b">
         <div className="flex items-center gap-4">
-          <Skeleton className="h-20 w-20 rounded-full" /> {/* Avatar */}
+          <Skeleton className="h-20 w-20" /> {/* Avatar */}
           <div className="space-y-2">
             <Skeleton className="h-6 w-48" /> {/* Name */}
             <div className="flex gap-2">
-              <Skeleton className="h-5 w-24 rounded-full" /> {/* Badge */}
-              <Skeleton className="h-5 w-32 rounded-full" /> {/* Badge */}
+              <Skeleton className="h-5 w-24" /> {/* Badge */}
+              <Skeleton className="h-5 w-32" /> {/* Badge */}
             </div>
           </div>
         </div>
@@ -23,7 +23,7 @@ export function ProfileSkeleton() {
 
       {/* Pill Tabs Skeleton */}
       <div className="flex justify-center pb-2">
-        <Skeleton className="h-11 w-full max-w-[400px] rounded-full bg-muted/50" />
+        <Skeleton className="h-11 w-full max-w-[400px] bg-muted/50" />
       </div>
 
       {/* Content Grid (OverviewTab) */}
@@ -37,7 +37,7 @@ export function ProfileSkeleton() {
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="h-4 w-56" />
               </div>
-              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8" />
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -65,12 +65,12 @@ export function ProfileSkeleton() {
                 <div key={i} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-8 w-8" />
                       <Skeleton className="h-4 w-20" />
                     </div>
                     <Skeleton className="h-4 w-12" />
                   </div>
-                  <Skeleton className="h-2 w-full rounded-full" />
+                  <Skeleton className="h-2 w-full" />
                 </div>
               ))}
               <div className="pt-4 border-t">
@@ -87,7 +87,7 @@ export function ProfileSkeleton() {
               <Skeleton className="h-5 w-48" />
               <Skeleton className="h-4 w-64" />
             </div>
-            <Skeleton className="h-8 w-8 rounded-md" />
+            <Skeleton className="h-8 w-8" />
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -102,11 +102,11 @@ export function ProfileSkeleton() {
               <Skeleton className="h-4 w-28" />
               <div className="flex gap-2">
                 <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-10 rounded-md shrink-0" />
+                <Skeleton className="h-10 w-10 shrink-0" />
               </div>
             </div>
             <div className="pt-4 mt-auto">
-              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full" />
             </div>
           </CardContent>
         </Card>

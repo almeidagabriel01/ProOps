@@ -175,23 +175,27 @@ function AsyncDataTable<T>({
                 className={cn(
                   col.className,
                   col.headerClassName,
-                  isSortable &&
-                    "cursor-pointer select-none hover:text-foreground",
                   "flex items-center gap-1 whitespace-nowrap",
                 )}
-                onClick={() => isSortable && onSort && onSort(col.key)}
               >
-                {col.header}
-                {isSortable && onSort && (
-                  <span className="text-muted-foreground/50">
-                    {direction === "asc" ? (
-                      <ArrowUp className="w-3 h-3 text-foreground" />
-                    ) : direction === "desc" ? (
-                      <ArrowDown className="w-3 h-3 text-foreground" />
-                    ) : (
-                      <ChevronsUpDown className="w-3 h-3 opacity-50" />
-                    )}
-                  </span>
+                {isSortable ? (
+                  <button
+                    className="flex items-center gap-1 cursor-pointer hover:text-foreground focus:outline-none"
+                    onClick={() => onSort && onSort(col.key)}
+                  >
+                    {col.header}
+                    <span className="ml-1 text-muted-foreground/50">
+                      {direction === "asc" ? (
+                        <ArrowUp className="w-3 h-3 text-foreground" />
+                      ) : direction === "desc" ? (
+                        <ArrowDown className="w-3 h-3 text-foreground" />
+                      ) : (
+                        <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </span>
+                  </button>
+                ) : (
+                  col.header
                 )}
               </div>
             );
@@ -319,23 +323,27 @@ function StaticDataTable<T>({
                 className={cn(
                   col.className,
                   col.headerClassName,
-                  isSortable &&
-                    "cursor-pointer select-none hover:text-foreground",
                   "flex items-center gap-1 whitespace-nowrap",
                 )}
-                onClick={() => isSortable && onSort && onSort(col.key)}
               >
-                {col.header}
-                {isSortable && onSort && (
-                  <span className="text-muted-foreground/50">
-                    {direction === "asc" ? (
-                      <ArrowUp className="w-3 h-3 text-foreground" />
-                    ) : direction === "desc" ? (
-                      <ArrowDown className="w-3 h-3 text-foreground" />
-                    ) : (
-                      <ChevronsUpDown className="w-3 h-3 opacity-50" />
-                    )}
-                  </span>
+                {isSortable ? (
+                  <button
+                    className="flex items-center gap-1 cursor-pointer hover:text-foreground focus:outline-none"
+                    onClick={() => onSort && onSort(col.key)}
+                  >
+                    {col.header}
+                    <span className="ml-1 text-muted-foreground/50">
+                      {direction === "asc" ? (
+                        <ArrowUp className="w-3 h-3 text-foreground" />
+                      ) : direction === "desc" ? (
+                        <ArrowDown className="w-3 h-3 text-foreground" />
+                      ) : (
+                        <ChevronsUpDown className="w-3 h-3 opacity-50" />
+                      )}
+                    </span>
+                  </button>
+                ) : (
+                  col.header
                 )}
               </div>
             );

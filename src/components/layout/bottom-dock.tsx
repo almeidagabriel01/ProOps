@@ -63,7 +63,11 @@ function DockItemContent({
   label: string;
   children: React.ReactNode;
 }) {
-  return <Tooltip content={label} delayMs={0}>{children}</Tooltip>;
+  return (
+    <Tooltip content={label} delayMs={0}>
+      {children}
+    </Tooltip>
+  );
 }
 
 type DockEntry = {
@@ -218,7 +222,10 @@ export function BottomDock() {
       const children = item.children ? getVisibleChildren(item, isMaster) : [];
 
       // Achatar o Financeiro: remover item pai e inserir os filhos como itens diretos.
-      if ((item.href === "/financial" || item.label === "Financeiro") && children.length > 0) {
+      if (
+        (item.href === "/financial" || item.label === "Financeiro") &&
+        children.length > 0
+      ) {
         for (const child of children) {
           entries.push({
             icon: child.icon,
@@ -309,7 +316,7 @@ export function BottomDock() {
           <Link
             href={entry.href}
             className={cn(
-              "flex items-center justify-center w-full h-full",
+              "absolute inset-0 flex items-center justify-center",
               active
                 ? "text-foreground"
                 : "text-foreground/85 hover:text-foreground",

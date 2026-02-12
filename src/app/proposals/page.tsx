@@ -288,10 +288,25 @@ export default function ProposalsPage() {
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
       if (!tenant)
         return { data: [] as Proposal[], lastDoc: null, hasMore: false };
-      return ProposalService.getProposalsPaginated(tenant.id, 12, cursor);
+      return ProposalService.getProposalsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
     },
-    [tenant],
+    [tenant, sortConfig],
   );
+
+  // Reset pagination when sort changes
+  React.useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const fetchProposals = React.useCallback(async () => {
     if (tenant) {
@@ -429,6 +444,15 @@ export default function ProposalsPage() {
     });
   };
 
+  const sortLabelsPtBr = React.useCallback((values: string[]) => {
+    return [...values].sort((a, b) =>
+      a.localeCompare(b, "pt-BR", {
+        sensitivity: "base",
+        numeric: true,
+      }),
+    );
+  }, []);
+
   const handleStatusChange = React.useCallback(
     async (proposalId: string, newStatus: ProposalStatus) => {
       const proposal = proposals.find((p) => p.id === proposalId);
@@ -557,21 +581,42 @@ export default function ProposalsPage() {
         ),
       },
       {
-        key: "sistemas.0.ambientes.0.ambienteName",
+        key: "primaryEnvironment",
         header: "Ambiente",
+        sortable: true,
         render: (proposal) => {
+          const ambienteNamesFromSystems =
+            proposal.sistemas?.flatMap((s) => {
+              const namesFromNested = Array.isArray(s.ambientes)
+                ? s.ambientes
+                    .map((ambiente) => ambiente.ambienteName)
+                    .filter(Boolean)
+                : [];
+
+              if (namesFromNested.length > 0) {
+                return namesFromNested;
+              }
+
+              return s.ambienteName ? [s.ambienteName] : [];
+            }) || [];
+
           const uniqueAmbientes = Array.from(
             new Set(
-              proposal.sistemas?.map((s) => s.ambienteName).filter(Boolean),
+              ambienteNamesFromSystems.length > 0
+                ? ambienteNamesFromSystems
+                : proposal.primaryEnvironment
+                  ? [proposal.primaryEnvironment]
+                  : [],
             ),
           );
+          const sortedAmbientes = sortLabelsPtBr(uniqueAmbientes);
           return (
             <div className="text-sm text-muted-foreground truncate">
-              {uniqueAmbientes.length > 0 ? (
-                <span title={uniqueAmbientes.join(", ")}>
-                  {uniqueAmbientes.length > 2
-                    ? `${uniqueAmbientes.slice(0, 2).join(", ")} +${uniqueAmbientes.length - 2}`
-                    : uniqueAmbientes.join(", ")}
+              {sortedAmbientes.length > 0 ? (
+                <span title={sortedAmbientes.join(", ")}>
+                  {sortedAmbientes.length > 2
+                    ? `${sortedAmbientes.slice(0, 2).join(", ")} +${sortedAmbientes.length - 2}`
+                    : sortedAmbientes.join(", ")}
                 </span>
               ) : (
                 "-"
@@ -581,21 +626,32 @@ export default function ProposalsPage() {
         },
       },
       {
-        key: "sistemas.0.sistemaName",
+        key: "primarySystem",
         header: "Sistema",
+        sortable: true,
         render: (proposal) => {
+          const systemsFromArray =
+            proposal.sistemas?.flatMap((s) =>
+              s.sistemaName ? [s.sistemaName] : [],
+            ) || [];
+
           const uniqueSistemas = Array.from(
             new Set(
-              proposal.sistemas?.map((s) => s.sistemaName).filter(Boolean),
+              systemsFromArray.length > 0
+                ? systemsFromArray
+                : proposal.primarySystem
+                  ? [proposal.primarySystem]
+                  : [],
             ),
           );
+          const sortedSistemas = sortLabelsPtBr(uniqueSistemas);
           return (
             <div className="text-sm text-muted-foreground truncate">
-              {uniqueSistemas.length > 0 ? (
-                <span title={uniqueSistemas.join(", ")}>
-                  {uniqueSistemas.length > 2
-                    ? `${uniqueSistemas.slice(0, 2).join(", ")} +${uniqueSistemas.length - 2}`
-                    : uniqueSistemas.join(", ")}
+              {sortedSistemas.length > 0 ? (
+                <span title={sortedSistemas.join(", ")}>
+                  {sortedSistemas.length > 2
+                    ? `${sortedSistemas.slice(0, 2).join(", ")} +${sortedSistemas.length - 2}`
+                    : sortedSistemas.join(", ")}
                 </span>
               ) : (
                 "-"
@@ -781,6 +837,7 @@ export default function ProposalsPage() {
       handleEdit,
       handleStatusChange,
       router,
+      sortLabelsPtBr,
     ],
   );
 
@@ -918,6 +975,8 @@ export default function ProposalsPage() {
             onResetRef={resetRef}
             batchSize={12}
             minWidth="900px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
             onItemsChange={(items) => {
               setProposals(items);
               if (items.length > 0) setAsyncDataReady(true);

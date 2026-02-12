@@ -44,18 +44,22 @@ export default function ProductsPage() {
   const isFiltering = searchTerm.trim() !== "";
 
   const handleStockUpdate = async (product: Product, newStock: string) => {
+    const numericStock = parseInt(newStock, 10);
+    if (isNaN(numericStock)) return false;
+
     const success = await updateProduct(product.id, {
-      stock: newStock,
+      stock: numericStock,
     });
 
     if (success) {
       // Trigger re-fetch
       resetRef.current?.();
+      // Optimistic update
       if (allProducts) {
         setAllProducts(
           (prev) =>
             prev?.map((p) =>
-              p.id === product.id ? { ...p, stock: newStock } : p,
+              p.id === product.id ? { ...p, stock: numericStock } : p,
             ) ?? null,
         );
       }
@@ -117,10 +121,30 @@ export default function ProductsPage() {
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
       if (!tenant)
         return { data: [] as Product[], lastDoc: null, hasMore: false };
-      return ProductService.getProductsPaginated(tenant.id, 12, cursor);
+      return ProductService.getProductsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
     },
-    [tenant],
+    [tenant, sortConfig],
   );
+
+  // Reset pagination when sort changes
+  useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
+
+  // Reset pagination when sort changes
+  useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -336,12 +360,14 @@ export default function ProductsPage() {
             </p>
           </div>
           {canCreate && (
-            <Link href="/products/new">
-              <Button size="lg" className="gap-2">
-                <Plus className="w-5 h-5" />
-                Novo Produto
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/products/new">
+                <Button size="lg" className="gap-2">
+                  <Plus className="w-5 h-5" />
+                  Novo Produto
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 
@@ -411,6 +437,8 @@ export default function ProductsPage() {
             onResetRef={resetRef}
             batchSize={12}
             minWidth="800px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

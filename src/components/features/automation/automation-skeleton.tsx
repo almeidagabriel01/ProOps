@@ -8,7 +8,7 @@ export function AutomationSkeleton() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Skeleton className="h-10 w-10 rounded-lg" /> {/* Icon */}
+            <Skeleton className="h-10 w-10" /> {/* Icon */}
             <Skeleton className="h-8 w-48" /> {/* Title */}
           </div>
           <Skeleton className="h-5 w-96 ml-12" /> {/* Description */}
@@ -20,12 +20,12 @@ export function AutomationSkeleton() {
         {/* Tabs List */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
           <div className="flex gap-2">
-            <Skeleton className="h-10 w-32 rounded-lg" />
-            <Skeleton className="h-10 w-40 rounded-lg" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-40" />
           </div>
 
           {/* New System Button */}
-          <Skeleton className="h-10 w-40 rounded-full" />
+          <Skeleton className="h-10 w-40" />
         </div>
 
         {/* Content List */}
@@ -34,12 +34,12 @@ export function AutomationSkeleton() {
           {Array.from({ length: 8 }).map((_, i) => (
             <Card
               key={i}
-              className="bg-card border rounded-xl shadow-sm overflow-hidden h-[200px] flex flex-col"
+              className="bg-card border shadow-sm overflow-hidden h-[200px] flex flex-col"
             >
               <div className="p-6 space-y-4 flex-1">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3 w-full">
-                    <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+                    <Skeleton className="h-10 w-10 shrink-0" />
                     <div className="space-y-2 w-full">
                       <Skeleton className="h-5 w-3/4" />
                       <Skeleton className="h-3 w-1/2" />
@@ -48,14 +48,14 @@ export function AutomationSkeleton() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-5 w-24" />
                   <div className="flex gap-1">
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
                   </div>
                 </div>
 
-                <Skeleton className="h-9 w-full rounded-md mt-auto" />
+                <Skeleton className="h-9 w-full mt-auto" />
               </div>
             </Card>
           ))}

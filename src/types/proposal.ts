@@ -101,4 +101,8 @@ export interface Proposal {
   installmentValue?: number;
   installmentsWallet?: string; // Internal use only - not shown in PDF
   firstInstallmentDate?: string; // YYYY-MM-DD - date of first installment
+
+  // Flattened fields for sorting
+  primarySystem?: string;
+  primaryEnvironment?: string;
 }

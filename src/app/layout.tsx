@@ -67,7 +67,7 @@ export default function RootLayout({
                       </main>
                     ) : (
                       <div className="flex h-screen overflow-hidden bg-card">
-                        <div className="flex-1 flex flex-col bg-background rounded-[2rem] m-1 overflow-hidden">
+                        <div className="flex-1 flex flex-col bg-background overflow-hidden">
                           <Header sidebarWidth={0} />
                           <SubscriptionGuard>
                             <main

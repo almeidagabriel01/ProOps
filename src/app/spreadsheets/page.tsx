@@ -100,10 +100,25 @@ export default function SpreadsheetsPage() {
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
       if (!tenant)
         return { data: [] as Spreadsheet[], lastDoc: null, hasMore: false };
-      return SpreadsheetService.getSpreadsheetsPaginated(tenant.id, 12, cursor);
+      return SpreadsheetService.getSpreadsheetsPaginated(
+        tenant.id,
+        12,
+        cursor,
+        sortConfig?.key
+          ? {
+              key: sortConfig.key as string,
+              direction: sortConfig.direction || "asc",
+            }
+          : null,
+      );
     },
-    [tenant],
+    [tenant, sortConfig],
   );
+
+  // Reset pagination when sort changes
+  useEffect(() => {
+    resetRef.current?.();
+  }, [sortConfig]);
 
   const handleCreate = async () => {
     if (!tenant) return;
@@ -318,6 +333,8 @@ export default function SpreadsheetsPage() {
             onResetRef={resetRef}
             batchSize={12}
             minWidth="600px"
+            onSort={requestSort}
+            sortConfig={sortConfig}
           />
         )}
       </div>

@@ -25,7 +25,7 @@ export type Product = {
   manufacturer: string;
   category: string;
   sku: string;
-  stock: string;
+  stock: number;
   images: string[]; // Changed from single image to array
   image?: string | null; // Kept for backward compatibility (optional)
   /** @deprecated Status is now contextual (System/Proposal), not global */
@@ -41,6 +41,9 @@ function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
   return {
     id: d.id,
     ...data,
+    // Coerce stock to number
+    stock:
+      typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -48,6 +51,49 @@ function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
       ? data.updatedAt.toDate().toISOString()
       : data.updatedAt,
   } as Product;
+}
+
+function compareProductsByField(
+  a: QueryDocumentSnapshot<DocumentData>,
+  b: QueryDocumentSnapshot<DocumentData>,
+  sortField: string,
+  sortDirection: "asc" | "desc",
+): number {
+  const dataA = a.data();
+  const dataB = b.data();
+
+  const rawA = dataA[sortField];
+  const rawB = dataB[sortField];
+
+  let valueA: unknown = rawA;
+  let valueB: unknown = rawB;
+
+  if (sortField === "stock") {
+    valueA = typeof rawA === "number" ? rawA : Number(rawA ?? 0);
+    valueB = typeof rawB === "number" ? rawB : Number(rawB ?? 0);
+  }
+
+  if (valueA === valueB) {
+    return 0;
+  }
+
+  if (valueA === null || valueA === undefined) {
+    return 1;
+  }
+  if (valueB === null || valueB === undefined) {
+    return -1;
+  }
+
+  if (typeof valueA === "string" && typeof valueB === "string") {
+    return sortDirection === "asc"
+      ? valueA.localeCompare(valueB, undefined, { numeric: true })
+      : valueB.localeCompare(valueA, undefined, { numeric: true });
+  }
+
+  if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+  if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+
+  return 0;
 }
 
 export const ProductService = {
@@ -71,20 +117,51 @@ export const ProductService = {
     tenantId: string,
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
+    sortConfig?: { key: string; direction: "asc" | "desc" } | null,
   ): Promise<PaginatedResult<Product>> => {
     try {
+      const sortField = sortConfig?.key || "createdAt";
+      const sortDirection = sortConfig?.direction || "desc";
+
+      const needsClientSort = sortField === "stock";
+
+      if (needsClientSort) {
+        const baseQuery = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+        );
+
+        const allSnapshot = await getDocs(baseQuery);
+        const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
+          compareProductsByField(a, b, sortField, sortDirection),
+        );
+
+        const startIndex = cursor
+          ? sortedDocs.findIndex((doc) => doc.id === cursor.id) + 1
+          : 0;
+
+        const pageDocs = sortedDocs.slice(startIndex, startIndex + pageSize);
+        const hasMore = startIndex + pageSize < sortedDocs.length;
+
+        return {
+          data: pageDocs.map(mapProductDoc),
+          lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+          hasMore,
+        };
+      }
+
       const q = cursor
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
           )
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
 

@@ -76,20 +76,24 @@ export const ClientService = {
     tenantId: string,
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
+    sortConfig?: { key: string; direction: "asc" | "desc" } | null,
   ): Promise<PaginatedResult<Client>> => {
     try {
+      const sortField = sortConfig?.key || "createdAt";
+      const sortDirection = sortConfig?.direction || "desc";
+
       const q = cursor
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
           )
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
 

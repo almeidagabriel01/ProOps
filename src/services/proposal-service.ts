@@ -32,11 +32,146 @@ const notifyListeners = () => {
   listeners.forEach((l) => l());
 };
 
+function sortStringsPtBr(values: string[]): string[] {
+  return [...values].sort((a, b) =>
+    a.localeCompare(b, "pt-BR", {
+      sensitivity: "base",
+      numeric: true,
+    }),
+  );
+}
+
+function normalizeLabelList(values: unknown[]): string[] {
+  const labels = values
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return sortStringsPtBr(Array.from(new Set(labels)));
+}
+
+function extractSystemNames(data: DocumentData): string[] {
+  const fromSistemas = Array.isArray(data.sistemas)
+    ? data.sistemas
+        .map((sistema: { sistemaName?: unknown }) => sistema?.sistemaName)
+        .filter((name): name is string => typeof name === "string")
+    : [];
+
+  const normalized = normalizeLabelList(fromSistemas);
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  return normalizeLabelList([data.primarySystem]);
+}
+
+function extractEnvironmentNames(data: DocumentData): string[] {
+  const fromSistemas = Array.isArray(data.sistemas)
+    ? data.sistemas.flatMap((sistema: {
+        ambientes?: Array<{ ambienteName?: unknown }>;
+        ambienteName?: unknown;
+      }) => {
+        const nested = Array.isArray(sistema?.ambientes)
+          ? sistema.ambientes
+              .map(
+                (ambiente: { ambienteName?: unknown }) =>
+                  ambiente?.ambienteName,
+              )
+              .filter((name): name is string => typeof name === "string")
+          : [];
+
+        if (nested.length > 0) {
+          return nested;
+        }
+
+        return typeof sistema?.ambienteName === "string"
+          ? [sistema.ambienteName]
+          : [];
+      })
+    : [];
+
+  const normalized = normalizeLabelList(fromSistemas);
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  return normalizeLabelList([data.primaryEnvironment]);
+}
+
+function getPrimarySystemFromData(data: DocumentData): string {
+  return extractSystemNames(data).join(", ");
+}
+
+function getPrimaryEnvironmentFromData(data: DocumentData): string {
+  return extractEnvironmentNames(data).join(", ");
+}
+
+function compareProposalsByField(
+  a: QueryDocumentSnapshot<DocumentData>,
+  b: QueryDocumentSnapshot<DocumentData>,
+  sortField: string,
+  sortDirection: "asc" | "desc",
+): number {
+  const dataA = a.data();
+  const dataB = b.data();
+
+  let valueA: unknown = dataA[sortField];
+  let valueB: unknown = dataB[sortField];
+
+  if (sortField === "primarySystem") {
+    valueA = getPrimarySystemFromData(dataA);
+    valueB = getPrimarySystemFromData(dataB);
+  }
+
+  if (sortField === "primaryEnvironment") {
+    valueA = getPrimaryEnvironmentFromData(dataA);
+    valueB = getPrimaryEnvironmentFromData(dataB);
+  }
+
+  if (valueA === null || valueA === undefined || valueA === "") {
+    return 1;
+  }
+  if (valueB === null || valueB === undefined || valueB === "") {
+    return -1;
+  }
+
+  if (typeof valueA === "string" && typeof valueB === "string") {
+    const alphabetical = valueA.localeCompare(valueB, "pt-BR", {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+    if (alphabetical !== 0) {
+      return sortDirection === "asc" ? alphabetical : -alphabetical;
+    }
+
+    const titleA = typeof dataA.title === "string" ? dataA.title : "";
+    const titleB = typeof dataB.title === "string" ? dataB.title : "";
+    const byTitle = titleA.localeCompare(titleB, "pt-BR", {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+    if (byTitle !== 0) {
+      return byTitle;
+    }
+
+    return a.id.localeCompare(b.id, "pt-BR", { sensitivity: "base" });
+  }
+
+  if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
+  if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
+
+  return 0;
+}
+
 function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   const data = d.data();
   return {
     id: d.id,
     ...data,
+    primarySystem: getPrimarySystemFromData(data),
+    primaryEnvironment: getPrimaryEnvironmentFromData(data),
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -93,20 +228,52 @@ export const ProposalService = {
     tenantId: string,
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
+    sortConfig?: { key: string; direction: "asc" | "desc" } | null,
   ): Promise<PaginatedResult<Proposal>> => {
     try {
+      const sortField = sortConfig?.key || "createdAt";
+      const sortDirection = sortConfig?.direction || "desc";
+
+      const needsClientSort =
+        sortField === "primaryEnvironment" || sortField === "primarySystem";
+
+      if (needsClientSort) {
+        const baseQuery = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+        );
+
+        const allSnapshot = await getDocs(baseQuery);
+        const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
+          compareProposalsByField(a, b, sortField, sortDirection),
+        );
+
+        const startIndex = cursor
+          ? sortedDocs.findIndex((doc) => doc.id === cursor.id) + 1
+          : 0;
+
+        const pageDocs = sortedDocs.slice(startIndex, startIndex + pageSize);
+        const hasMore = startIndex + pageSize < sortedDocs.length;
+
+        return {
+          data: pageDocs.map(mapProposalDoc),
+          lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+          hasMore,
+        };
+      }
+
       const q = cursor
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
           )
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
-            orderBy("createdAt", "desc"),
+            orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
 
@@ -150,17 +317,37 @@ export const ProposalService = {
 
   createProposal: async (data: Partial<Proposal>): Promise<Proposal> => {
     try {
+      const payload = {
+        ...data,
+      };
+
+      // Populate flattened fields for sorting if systems exist
+      if (data.sistemas && data.sistemas.length > 0) {
+        payload.primarySystem = data.sistemas[0].sistemaName;
+        // Check if environment exists in the first system
+        if (
+          data.sistemas[0].ambientes &&
+          data.sistemas[0].ambientes.length > 0
+        ) {
+          payload.primaryEnvironment =
+            data.sistemas[0].ambientes[0].ambienteName;
+        } else {
+          // Legacy support
+          payload.primaryEnvironment = data.sistemas[0].ambienteName || "";
+        }
+      }
+
       const result = await callApi<{ success: boolean; proposalId: string }>(
         "/v1/proposals",
         "POST",
-        data,
+        payload,
       );
 
       notifyListeners(); // Notify list to refresh
 
       return {
         id: result.proposalId,
-        ...data,
+        ...payload,
       } as Proposal;
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -173,7 +360,27 @@ export const ProposalService = {
     data: Partial<Proposal>,
   ): Promise<void> => {
     try {
-      await callApi(`/v1/proposals/${id}`, "PUT", data);
+      const payload = { ...data };
+
+      // Update flattened fields if sistemas is being updated
+      if (data.sistemas && data.sistemas.length > 0) {
+        payload.primarySystem = data.sistemas[0].sistemaName;
+        if (
+          data.sistemas[0].ambientes &&
+          data.sistemas[0].ambientes.length > 0
+        ) {
+          payload.primaryEnvironment =
+            data.sistemas[0].ambientes[0].ambienteName;
+        } else {
+          payload.primaryEnvironment = data.sistemas[0].ambienteName || "";
+        }
+      } else if (data.sistemas && data.sistemas.length === 0) {
+        // If clearing systems, clear sorting fields
+        payload.primarySystem = "";
+        payload.primaryEnvironment = "";
+      }
+
+      await callApi(`/v1/proposals/${id}`, "PUT", payload);
       notifyListeners(); // Notify list to refresh
     } catch (error) {
       console.error("Error updating proposal:", error);
