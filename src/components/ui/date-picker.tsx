@@ -116,7 +116,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
   ) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [view, setView] = React.useState<CalendarView>("days");
-    const [openAbove, setOpenAbove] = React.useState(false);
 
     // The currently displayed month/year in the calendar
     const [displayMonth, setDisplayMonth] = React.useState(() => {
@@ -146,8 +145,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
         // Only flip to top if there is strictly not enough space below AND much more space above
         // Calendar height approx 380px.
         const placeAbove = spaceBelow < 300 && rect.top > 450;
-
-        setOpenAbove(placeAbove);
 
         setCoords({
           top: placeAbove
@@ -369,18 +366,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
     const handleToggle = () => {
       if (disabled) return;
       if (!isOpen) {
-        // Calculate whether to open above or below
-        if (containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          const spaceBelow = window.innerHeight - rect.bottom;
-          const spaceAbove = rect.top;
-          const popoverHeight = popoverRef.current?.offsetHeight ?? 380; // Estimate height if not rendered yet
-
-          // Prefer opening below unless there's strictly no space below and enough space above
-          const shouldOpenAbove =
-            spaceBelow < popoverHeight && spaceAbove >= popoverHeight;
-          setOpenAbove(shouldOpenAbove);
-        }
         setView("days");
       }
       setIsOpen((prev) => !prev);

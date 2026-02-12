@@ -60,14 +60,19 @@ const typeConfig: Record<
 
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
+import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export default function CustomersPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canDelete, canEdit } = usePagePermission("clients");
-  const [clients, setClients] = React.useState<Client[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  // All clients — only loaded when search/filter is active
+  const [allClients, setAllClients] = React.useState<Client[] | null>(null);
+  const [isLoadingAll, setIsLoadingAll] = React.useState(false);
+  // Track if we have ANY clients (for empty state)
+  const [hasAnyClients, setHasAnyClients] = React.useState<boolean | null>(
+    null,
+  );
 
-  const isPageLoading = tenantLoading || isLoading;
   const { deleteClient } = useClientActions();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState<
@@ -75,27 +80,59 @@ export default function CustomersPage() {
   >("todos");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const resetRef = React.useRef<(() => void) | null>(null);
 
+  const isFiltering = searchTerm.trim() !== "" || typeFilter !== "todos";
+
+  // Check if we have any clients at all (for empty state)
   React.useEffect(() => {
-    const fetchClients = async () => {
-      if (tenant) {
-        try {
-          const data = await ClientService.getClients(tenant.id);
-          // Sort by createdAt descending (most recent first)
-          data.sort(
-            (a, b) =>
-              new Date(b.createdAt || 0).getTime() -
-              new Date(a.createdAt || 0).getTime(),
-          );
-          setClients(data);
-        } catch (error) {
-          console.error("Failed to fetch clients", error);
-        }
+    const check = async () => {
+      if (!tenant) return;
+      try {
+        const result = await ClientService.getClientsPaginated(tenant.id, 1);
+        setHasAnyClients(result.data.length > 0);
+      } catch {
+        setHasAnyClients(false);
       }
-      setIsLoading(false);
     };
-    fetchClients();
+    check();
   }, [tenant]);
+
+  // Fetch all clients when filtering/searching
+  React.useEffect(() => {
+    if (!isFiltering || !tenant) {
+      setAllClients(null);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAll = async () => {
+      setIsLoadingAll(true);
+      try {
+        const data = await ClientService.getClients(tenant.id);
+        if (!cancelled) setAllClients(data);
+      } catch (error) {
+        console.error("Failed to fetch clients for filtering", error);
+      } finally {
+        if (!cancelled) setIsLoadingAll(false);
+      }
+    };
+    fetchAll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isFiltering, tenant]);
+
+  // fetchPage callback for async pagination
+  const fetchPage = React.useCallback(
+    async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+      if (!tenant)
+        return { data: [] as Client[], lastDoc: null, hasMore: false };
+      return ClientService.getClientsPaginated(tenant.id, 12, cursor);
+    },
+    [tenant],
+  );
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -119,7 +156,14 @@ export default function CustomersPage() {
 
       const success = await deleteClient(deleteId);
       if (success) {
-        setClients((prev) => prev.filter((c) => c.id !== deleteId));
+        // Reset pagination to re-fetch
+        resetRef.current?.();
+        setHasAnyClients(null); // Will re-check
+        if (allClients) {
+          setAllClients(
+            (prev) => prev?.filter((c) => c.id !== deleteId) ?? null,
+          );
+        }
       }
       setDeleteId(null);
     } catch (error) {
@@ -129,9 +173,14 @@ export default function CustomersPage() {
     }
   };
 
-  const { items: sortedClients, requestSort, sortConfig } = useSort(clients);
+  const {
+    items: sortedClients,
+    requestSort,
+    sortConfig,
+  } = useSort(allClients ?? []);
 
   const filteredClients = React.useMemo(() => {
+    if (!isFiltering) return [];
     let result = sortedClients;
 
     // Filter by type
@@ -154,11 +203,13 @@ export default function CustomersPage() {
     }
 
     return result;
-  }, [sortedClients, searchTerm, typeFilter]);
+  }, [sortedClients, searchTerm, typeFilter, isFiltering]);
 
   const clientToDelete = React.useMemo(() => {
-    return sortedClients.find((c) => c.id === deleteId);
-  }, [sortedClients, deleteId]);
+    return (allClients ?? []).find((c) => c.id === deleteId);
+  }, [allClients, deleteId]);
+
+  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
 
   const columns: DataTableColumn<Client>[] = React.useMemo(
     () => [
@@ -198,8 +249,8 @@ export default function CustomersPage() {
       {
         key: "address",
         header: "Endereço",
-        className: "hidden min-[1401px]:block",
-        headerClassName: "hidden min-[1401px]:block whitespace-nowrap",
+        className: "",
+        headerClassName: "whitespace-nowrap",
         render: (client) => (
           <div className="text-sm text-muted-foreground truncate">
             {client.address || "-"}
@@ -232,8 +283,8 @@ export default function CustomersPage() {
       {
         key: "source",
         header: "Origem",
-        className: "hidden min-[1401px]:block",
-        headerClassName: "hidden min-[1401px]:block",
+        className: "",
+        headerClassName: "",
         render: (client) => {
           const source = sourceConfig[client.source] || sourceConfig.manual;
           return <Badge variant={source.variant}>{source.label}</Badge>;
@@ -345,8 +396,7 @@ export default function CustomersPage() {
           )}
         </div>
 
-        {/* Filters */}
-        {clients.length > 0 && (
+        {hasAnyClients !== false && (
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="max-w-md flex-1">
               <Input
@@ -386,7 +436,7 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {clients.length === 0 ? (
+        {hasAnyClients === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -409,7 +459,7 @@ export default function CustomersPage() {
               )}
             </CardContent>
           </Card>
-        ) : filteredClients.length === 0 ? (
+        ) : isFiltering && filteredClients.length === 0 && !isLoadingAll ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Search className="w-12 h-12 text-muted-foreground mb-4" />
@@ -421,15 +471,26 @@ export default function CustomersPage() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : isFiltering ? (
           <DataTable
             columns={columns}
             data={filteredClients}
             keyExtractor={(client) => client.id}
-            gridClassName="grid-cols-4 min-[1401px]:grid-cols-6"
+            gridClassName="grid-cols-6"
             onSort={requestSort}
             sortConfig={sortConfig}
-            pageSize={5}
+            minWidth="900px"
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            keyExtractor={(client) => client.id}
+            gridClassName="grid-cols-6"
+            fetchPage={fetchPage}
+            fetchEnabled={!!tenant}
+            onResetRef={resetRef}
+            batchSize={12}
+            minWidth="900px"
           />
         )}
       </div>

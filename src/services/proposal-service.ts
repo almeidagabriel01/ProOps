@@ -9,8 +9,14 @@ import {
   getDoc,
   query,
   where,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 import { Proposal, ProposalProduct } from "@/types/proposal";
+import { PaginatedResult } from "./client-service";
 
 const COLLECTION_NAME = "proposals";
 
@@ -25,6 +31,20 @@ let savingPromise: Promise<void> | null = null;
 const notifyListeners = () => {
   listeners.forEach((l) => l());
 };
+
+function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt,
+  } as Proposal;
+}
 
 export const ProposalService = {
   // Saving synchronization
@@ -62,21 +82,46 @@ export const ProposalService = {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-          updatedAt: data.updatedAt?.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-        } as Proposal;
-      });
+      return querySnapshot.docs.map(mapProposalDoc);
     } catch (error) {
       console.error("Error fetching proposals:", error);
+      throw error;
+    }
+  },
+
+  getProposalsPaginated: async (
+    tenantId: string,
+    pageSize: number = 12,
+    cursor?: QueryDocumentSnapshot<DocumentData> | null,
+  ): Promise<PaginatedResult<Proposal>> => {
+    try {
+      const q = cursor
+        ? query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            startAfter(cursor),
+            limit(pageSize + 1),
+          )
+        : query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            orderBy("createdAt", "desc"),
+            limit(pageSize + 1),
+          );
+
+      const querySnapshot = await getDocs(q);
+      const docs = querySnapshot.docs;
+      const hasMore = docs.length > pageSize;
+      const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+      return {
+        data: pageDocs.map(mapProposalDoc),
+        lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("Error fetching proposals paginated:", error);
       throw error;
     }
   },

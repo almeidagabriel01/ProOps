@@ -179,7 +179,10 @@ export function Header({}: HeaderProps) {
   };
 
   return (
-    <header className="bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-tl-[2rem]" style={{ height: '64px', minHeight: '64px' }}>
+    <header
+      className="relative z-[50] bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-tl-[2rem]"
+      style={{ height: "64px", minHeight: "64px" }}
+    >
       <div className="flex items-center gap-4">
         <CommandPalette />
       </div>
@@ -281,7 +284,11 @@ export function Header({}: HeaderProps) {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent
+                  className="w-56 z-[55]"
+                  align="end"
+                  forceMount
+                >
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
