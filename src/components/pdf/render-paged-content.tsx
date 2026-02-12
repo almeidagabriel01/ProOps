@@ -154,57 +154,30 @@ function buildContentItems(
     );
   };
 
-  // Pre-process sections: Extract payment sections to ensure correct placement
-  const manualPaymentSections: PdfSection[] = [];
-  const processedSections = sections.filter((section) => {
-    if (section.type !== "text" && section.type !== "title") return true;
+  // Only skip manual payment sections when dynamic payment block is enabled
+  const shouldSkipPaymentSection = (section: PdfSection): boolean => {
+    if (!hasDynamicPaymentOptions) return false;
+    if (section.type !== "text" && section.type !== "title") return false;
+    return isPaymentSection(section);
+  };
 
-    if (isPaymentSection(section)) {
-      if (hasDynamicPaymentOptions) {
-        // Dynamic mode: Skip manual section (replaced by dynamic block)
-        return false;
-      } else {
-        // Manual mode: Extract to render in forced position (after totals)
-        manualPaymentSections.push(section);
-        return false;
-      }
-    }
-    return true;
-  });
-
-  // Helper to add payment terms block (Dynamic or Manual)
+  // Helper to add dynamic payment terms block (when enabled)
   const addUnifiedPaymentBlock = () => {
     if (hasAddedPaymentTerms) return;
+    if (!hasDynamicPaymentOptions) return;
 
-    // 1. Add Dynamic Payment Terms if enabled
-    if (hasDynamicPaymentOptions) {
-      items.push({
-        type: "payment-terms",
-        id: generateId("payment-terms"),
-        height: calculatePaymentTermsHeight(
-          !!(
-            proposal.downPaymentEnabled &&
-            proposal.downPaymentValue &&
-            proposal.downPaymentValue > 0
-          ),
-          proposal.installmentsEnabled ? proposal.installmentsCount || 0 : 0,
+    items.push({
+      type: "payment-terms",
+      id: generateId("payment-terms"),
+      height: calculatePaymentTermsHeight(
+        !!(
+          proposal.downPaymentEnabled &&
+          proposal.downPaymentValue &&
+          proposal.downPaymentValue > 0
         ),
-      });
-    }
-
-    // 2. Add extracted Manual Payment Sections if Dynamic is NOT enabled
-    // (If dynamic is enabled, we skipped them in pre-process, so this is empty)
-    if (!hasDynamicPaymentOptions && manualPaymentSections.length > 0) {
-      manualPaymentSections.forEach((section) => {
-        const height = calculateSectionHeight(section);
-        items.push({
-          type: "section",
-          id: generateId("section-payment"),
-          data: section,
-          height,
-        });
-      });
-    }
+        proposal.installmentsEnabled ? proposal.installmentsCount || 0 : 0,
+      ),
+    });
 
     hasAddedPaymentTerms = true;
   };
@@ -282,12 +255,6 @@ function buildContentItems(
       height: ESTIMATED_HEIGHTS.TOTALS,
     });
     addUnifiedPaymentBlock();
-  };
-
-  // Helper to check if section is "Garantia"
-  const isGarantiaSection = (section: PdfSection): boolean => {
-    const content = (section.content || "").toLowerCase();
-    return content.includes("garantia") && section.type === "title";
   };
 
   const addSistemaProducts = (
@@ -453,12 +420,12 @@ function buildContentItems(
     }
   };
 
-  const productSectionIndex = processedSections.findIndex(
+  const productSectionIndex = sections.findIndex(
     (s) => s.type === "product-table",
   );
 
   if (productSectionIndex !== -1) {
-    processedSections.forEach((section) => {
+    sections.forEach((section) => {
       if (section.type === "product-table") {
         if (hasSistemas) {
           renderAllSistemas();
@@ -466,10 +433,8 @@ function buildContentItems(
           addRegularProducts(products);
         }
       } else {
-        // Insert payment terms before "Garantia" if not already added
-        if (isGarantiaSection(section)) {
-          addUnifiedPaymentBlock();
-        }
+        // Skip static payment sections only when dynamic payment is enabled
+        if (shouldSkipPaymentSection(section)) return;
 
         const height = calculateSectionHeight(section);
         items.push({
@@ -492,8 +457,8 @@ function buildContentItems(
       "validade",
     ];
 
-    for (let i = 0; i < processedSections.length; i++) {
-      const text = (processedSections[i].content || "").toLowerCase();
+    for (let i = 0; i < sections.length; i++) {
+      const text = (sections[i].content || "").toLowerCase();
       if (footerKeywords.some((k) => text.includes(k))) {
         insertIndex = i;
         break;
@@ -501,10 +466,10 @@ function buildContentItems(
     }
 
     if (insertIndex === -1) {
-      insertIndex = processedSections.length > 1 ? 1 : processedSections.length;
+      insertIndex = sections.length > 1 ? 1 : sections.length;
     }
 
-    for (let i = 0; i < processedSections.length; i++) {
+    for (let i = 0; i < sections.length; i++) {
       if (i === insertIndex) {
         if (hasSistemas) {
           renderAllSistemas();
@@ -513,11 +478,11 @@ function buildContentItems(
         }
       }
 
-      const section = processedSections[i];
+      const section = sections[i];
 
-      // Insert payment terms before "Garantia" if not already added
-      if (isGarantiaSection(section)) {
-        addUnifiedPaymentBlock();
+      // Skip static payment sections only when dynamic payment is enabled
+      if (shouldSkipPaymentSection(section)) {
+        continue;
       }
 
       const height = calculateSectionHeight(section);
@@ -529,7 +494,7 @@ function buildContentItems(
       });
     }
 
-    if (insertIndex >= processedSections.length) {
+    if (insertIndex >= sections.length) {
       if (hasSistemas) {
         renderAllSistemas();
       } else if (products.length > 0) {

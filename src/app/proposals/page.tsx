@@ -170,6 +170,8 @@ export default function ProposalsPage() {
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [sharingId, setSharingId] = React.useState<string | null>(null);
+  const [isGeneratingShareLink, setIsGeneratingShareLink] =
+    React.useState(false);
   const [shareLink, setShareLink] = React.useState<string | null>(null);
   const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
   const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
@@ -219,6 +221,9 @@ export default function ProposalsPage() {
 
   const handleShare = async (proposalId: string) => {
     setSharingId(proposalId);
+    setIsGeneratingShareLink(true);
+    setIsShareDialogOpen(false);
+    setShareLink(null);
     try {
       const result = await SharedProposalService.generateShareLink(proposalId);
       setShareLink(result.shareUrl);
@@ -227,10 +232,17 @@ export default function ProposalsPage() {
     } catch (error) {
       console.error("Error generating share link:", error);
       toast.error("Erro ao gerar link de compartilhamento");
+      setIsGeneratingShareLink(false);
     } finally {
       setSharingId(null);
     }
   };
+
+  React.useEffect(() => {
+    if (isShareDialogOpen && shareLink) {
+      setIsGeneratingShareLink(false);
+    }
+  }, [isShareDialogOpen, shareLink]);
 
   const handleCopyLink = () => {
     if (shareLink) {
@@ -992,6 +1004,22 @@ export default function ProposalsPage() {
         isOpen={!!downloadingId}
         onClose={() => setDownloadingId(null)}
       />
+
+      <Dialog open={isGeneratingShareLink}>
+        <DialogContent className="sm:max-w-sm [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Gerando link</DialogTitle>
+            <DialogDescription>
+              Aguarde enquanto preparamos o link de compartilhamento da
+              proposta.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Share Link Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="sm:max-w-md">

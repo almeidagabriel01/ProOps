@@ -101,17 +101,25 @@ export function calculateSectionHeight(section: PdfSection): number {
     const totalLines = Math.max(estimatedWrapLines, explicitLines);
 
     height += totalLines * ESTIMATED_HEIGHTS.LINE_HEIGHT;
+  } else if (section.type === "title") {
+    const charCount = section.content?.length || 0;
+    const charsPerLine = 50;
+    const estimatedWrapLines = Math.ceil(Math.max(1, charCount) / charsPerLine);
+    const explicitLines = (section.content || "").split("\n").length;
+    const totalLines = Math.max(estimatedWrapLines, explicitLines);
 
-    if (section.styles?.marginTop) {
-      height += parseInt(section.styles.marginTop as string) || 0;
-    }
-    if (section.styles?.marginBottom) {
-      height += parseInt(section.styles.marginBottom as string) || 0;
-    }
+    height += totalLines * (ESTIMATED_HEIGHTS.LINE_HEIGHT + 6);
   } else if (section.type === "image") {
     height += ESTIMATED_HEIGHTS.IMAGE_DEFAULT;
   } else if (section.type === "divider") {
     height += 20;
+  }
+
+  if (section.styles?.marginTop) {
+    height += parseInt(section.styles.marginTop as string) || 0;
+  }
+  if (section.styles?.marginBottom) {
+    height += parseInt(section.styles.marginBottom as string) || 0;
   }
 
   return height;

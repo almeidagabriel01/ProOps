@@ -317,7 +317,9 @@ export function PdfSectionEditor({
             updateSection={updateSection}
             updateStyle={updateStyle}
             handleImageUpload={handleImageUpload}
-            draggable={hoveredHandleId === section.id}
+            draggable={
+              section.type !== "product-table" && hoveredHandleId === section.id
+            }
             onDragStart={(e) => handleDragStart(e, section.id)}
             onDragOver={(e) => handleDragOver(e, section.id)}
             onDragLeave={handleDragLeave}
@@ -375,6 +377,19 @@ export function createDefaultSections(
       styles: { fontSize: "14px", color: "#374151", marginBottom: "16px" },
     });
   }
+
+  sections.push({
+    id: crypto.randomUUID(),
+    type: "product-table",
+    content: "Sistemas / Ambientes / Produtos",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      color: "#374151",
+      marginTop: "16px",
+      marginBottom: "16px",
+    },
+  });
 
   if (template.paymentTerms) {
     sections.push({

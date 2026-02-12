@@ -120,10 +120,10 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
     <div className="space-y-8">
       {/* Create Section */}
       <div className="max-w-xl">
-        <div className="relative flex items-center">
+        <div className="flex items-center gap-2">
           <Input
             id="new-ambiente-input"
-            className="pr-32 h-12 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+            className="h-12 w-96 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
             placeholder="Nome do novo ambiente (ex: Sala de Estar)"
             value={newAmbienteName}
             onChange={(e) => setNewAmbienteName(e.target.value)}
@@ -131,22 +131,20 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
               if (e.key === "Enter") handleCreate();
             }}
           />
-          <div className="absolute right-1 top-1 bottom-1">
-            <Button
-              onClick={handleCreate}
-              disabled={!newAmbienteName.trim() || isCreating}
-              className="h-full rounded-md px-4"
-              size="sm"
-            >
-              {isCreating ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" /> Adicionar
-                </>
-              )}
-            </Button>
-          </div>
+          <Button
+            onClick={handleCreate}
+            disabled={!newAmbienteName.trim() || isCreating}
+            className="h-12 px-4 shrink-0"
+            size="sm"
+          >
+            {isCreating ? (
+              <Spinner className="h-4 w-4" />
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" /> Adicionar
+              </>
+            )}
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground mt-2 px-1">
           Adicione ambientes globais para serem utilizados em seus sistemas.

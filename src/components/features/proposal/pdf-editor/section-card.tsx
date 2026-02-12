@@ -72,7 +72,7 @@ const getSectionLabel = (type: PdfSection["type"]) => {
     case "image":
       return "Imagem";
     case "product-table":
-      return "Lista de Produtos";
+      return "Sistemas / Ambientes / Produtos";
     case "divider":
       return "Divisor";
   }
@@ -101,6 +101,7 @@ export function SectionCard({
   onDrop,
   onDragEnd,
 }: SectionCardProps) {
+  const isFixedProductsCard = section.type === "product-table";
   const columnWidth = section.columnWidth || 100;
   const flexBasis =
     columnWidth === 100
@@ -162,8 +163,12 @@ export function SectionCard({
       >
         {/* Drag Handle */}
         <div
-          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted-foreground/10 rounded outline-none shrink-0"
-          title="Arraste para reordenar"
+          className={`p-1 rounded outline-none shrink-0 ${isFixedProductsCard ? "cursor-not-allowed opacity-40" : "cursor-grab active:cursor-grabbing hover:bg-muted-foreground/10"}`}
+          title={
+            isFixedProductsCard
+              ? "Este card tem posição fixa"
+              : "Arraste para reordenar"
+          }
         >
           <GripVertical className="w-4 h-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
         </div>
@@ -187,6 +192,11 @@ export function SectionCard({
               <span className="font-medium text-sm truncate text-foreground">
                 {getSectionLabel(section.type)}
               </span>
+              {isFixedProductsCard && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground whitespace-nowrap">
+                  Fixo
+                </span>
+              )}
               {/* Width Badge */}
               {section.columnWidth && section.columnWidth < 100 && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground whitespace-nowrap">
@@ -209,7 +219,7 @@ export function SectionCard({
                 </span>
               ) : section.type === "product-table" ? (
                 <span className="italic opacity-70">
-                  Tabela de produtos e valores
+                  Bloco fixo com sistemas, ambientes e produtos
                 </span>
               ) : section.type === "image" ? (
                 <span className="italic opacity-70">
@@ -223,13 +233,13 @@ export function SectionCard({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+        <div className="flex items-center gap-1 shrink-0 ml-2">
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
             onClick={() => onMove(section.id, "up")}
-            disabled={index === 0}
+            disabled={isFixedProductsCard || index === 0}
           >
             <ChevronUp className="w-4 h-4" />
           </Button>
@@ -238,7 +248,7 @@ export function SectionCard({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
             onClick={() => onMove(section.id, "down")}
-            disabled={index === totalSections - 1}
+            disabled={isFixedProductsCard || index === totalSections - 1}
           >
             <ChevronDown className="w-4 h-4" />
           </Button>
@@ -247,6 +257,12 @@ export function SectionCard({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => onRemove(section.id)}
+            disabled={isFixedProductsCard}
+            title={
+              isFixedProductsCard
+                ? "Este card é fixo e não pode ser removido"
+                : "Remover seção"
+            }
           >
             <Trash2 className="w-4 h-4" />
           </Button>

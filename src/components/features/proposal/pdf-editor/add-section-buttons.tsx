@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Type, FileText, Image as ImageIcon, List } from "lucide-react"
+import { Type, FileText, Image as ImageIcon } from "lucide-react"
 import { PdfSection } from "../pdf-section-editor"
 
 interface AddSectionButtonsProps {
@@ -27,10 +27,6 @@ export function AddSectionButtons({ onAddSection }: AddSectionButtonsProps) {
             <Button variant="outline" size="sm" onClick={() => onAddSection('divider')} className="gap-2">
                 <div className="w-4 h-0.5 bg-current" />
                 Divisor
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => onAddSection('product-table')} className="gap-2">
-                <List className="w-4 h-4" />
-                Lista de Produtos
             </Button>
         </div>
     )
