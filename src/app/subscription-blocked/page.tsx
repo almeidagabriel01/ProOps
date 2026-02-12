@@ -3,7 +3,7 @@
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, CreditCard, Mail, Loader2 } from "lucide-react";
+import { AlertTriangle, CreditCard, Mail, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,9 +15,10 @@ import {
 import { StripeService } from "@/services/stripe-service";
 
 export default function SubscriptionBlockedPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     if (isLoading) return;
@@ -56,6 +57,15 @@ export default function SubscriptionBlockedPage() {
     } catch (error) {
       console.error("Error opening billing portal:", error);
       setIsRedirecting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -140,6 +150,25 @@ export default function SubscriptionBlockedPage() {
           >
             <Mail className="h-4 w-4 mr-2" />
             Contatar Suporte
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saindo...
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sair da Conta
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
