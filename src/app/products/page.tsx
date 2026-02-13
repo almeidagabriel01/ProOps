@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from "react-toastify";
 import { ProductsSkeleton } from "./_components/products-skeleton";
+import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
+import { normalize } from "@/utils/text";
 import { useTenant } from "@/providers/tenant-provider";
 import { Product, ProductService } from "@/services/product-service";
 import { useProductActions } from "@/hooks/useProductActions";
@@ -68,7 +70,8 @@ export default function ProductsPage() {
     return success;
   };
 
-  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
+  /* isPageLoading now only for initial tenant load to avoid full page blink */
+  const isPageLoading = tenantLoading;
 
   const {
     items: sortedProducts,
@@ -189,8 +192,8 @@ export default function ProductsPage() {
   const filteredProducts = isFiltering
     ? sortedProducts.filter(
         (product) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
+          normalize(product.name).includes(normalize(searchTerm)) ||
+          normalize(product.sku).includes(normalize(searchTerm)),
       )
     : [];
 
@@ -341,14 +344,14 @@ export default function ProductsPage() {
     </AlertDialog>
   );
 
-  if (isPageLoading) {
-    return (
-      <>
-        <ProductsSkeleton />
-        {renderDialogs()}
-      </>
-    );
-  }
+  // if (isPageLoading) {
+  //   return (
+  //     <>
+  //       <ProductsSkeleton />
+  //       {renderDialogs()}
+  //     </>
+  //   );
+  // }
   return (
     <>
       <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
@@ -378,12 +381,20 @@ export default function ProductsPage() {
               placeholder="Buscar por nome ou SKU..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
+              icon={
+                isFiltering && isLoadingAll ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )
+              }
             />
           </div>
         )}
 
-        {hasAnyProducts === false ? (
+        {isPageLoading ? (
+          <ProductsSkeleton />
+        ) : hasAnyProducts === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -427,6 +438,8 @@ export default function ProductsPage() {
             sortConfig={sortConfig}
             minWidth="800px"
           />
+        ) : isFiltering && isLoadingAll ? (
+          <ProductsTableSkeleton />
         ) : (
           <DataTable
             columns={columns}

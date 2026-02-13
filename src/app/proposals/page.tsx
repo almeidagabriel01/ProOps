@@ -30,6 +30,8 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
+import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
+import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "react-toastify";
 import {
@@ -261,18 +263,19 @@ export default function ProposalsPage() {
   const filteredProposals = React.useMemo(() => {
     if (!isFiltering) return [];
 
-    const term = searchTerm.toLowerCase();
+    const term = normalize(searchTerm);
     return sortedProposals.filter(
       (proposal) =>
-        proposal.title.toLowerCase().includes(term) ||
-        proposal.clientName?.toLowerCase().includes(term) ||
-        statusConfig[proposal.status as ProposalStatus]?.label
-          .toLowerCase()
-          .includes(term),
+        normalize(proposal.title).includes(term) ||
+        normalize(proposal.clientName || "").includes(term) ||
+        normalize(
+          statusConfig[proposal.status as ProposalStatus]?.label || "",
+        ).includes(term),
     );
   }, [sortedProposals, searchTerm, isFiltering]);
 
-  const isPageLoading = isFiltering && isLoading;
+  /* isPageLoading is now false for search to prevent table blink. We use isLoading for Input spinner. */
+  const isPageLoading = false;
 
   // Show full page skeleton until initial async data is ready (or empty state determined)
   const showFullPageSkeleton =
@@ -324,7 +327,7 @@ export default function ProposalsPage() {
     if (tenant) {
       try {
         await ProposalService.waitForSave(); // Wait for any pending auto-saves
-        // setIsLoading(true); // Optional: don't show full loading state on refresh to avoid flicker
+        setIsLoading(true);
         const data = await ProposalService.getProposals(tenant.id);
 
         // Sync client names from clients collection
@@ -886,14 +889,14 @@ export default function ProposalsPage() {
     </AlertDialog>
   );
 
-  if (isPageLoading) {
-    return (
-      <>
-        <ProposalsSkeleton />
-        {renderDialogs()}
-      </>
-    );
-  }
+  // if (isPageLoading) {
+  //   return (
+  //     <>
+  //       <ProposalsSkeleton />
+  //       {renderDialogs()}
+  //     </>
+  //   );
+  // }
 
   return (
     <>
@@ -928,12 +931,20 @@ export default function ProposalsPage() {
               placeholder="Buscar por título, contato ou status..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
+              icon={
+                isFiltering && isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )
+              }
             />
           </div>
         )}
 
-        {hasAnyProposals === false ? (
+        {isPageLoading ? (
+          <ProposalsTableSkeleton />
+        ) : hasAnyProposals === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
