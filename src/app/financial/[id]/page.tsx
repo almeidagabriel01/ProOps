@@ -86,11 +86,88 @@ export default function EditTransactionPage() {
       firstInstallmentDate: formData.firstInstallmentDate,
       installmentsWallet: formData.installmentsWallet,
       downPaymentEnabled: formData.downPaymentEnabled,
+      downPaymentType: formData.downPaymentType,
+      downPaymentPercentage: formData.downPaymentPercentage,
       downPaymentValue: formData.downPaymentValue,
       downPaymentWallet: formData.downPaymentWallet,
       downPaymentDueDate: formData.downPaymentDueDate,
     }),
     [formData],
+  );
+
+  const [paymentErrors, setPaymentErrors] = React.useState<
+    Partial<Record<keyof TransactionFormData, string>>
+  >({});
+
+  const handlePaymentFieldChange = React.useCallback(
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >,
+    ) => {
+      handleChange(e);
+      const { name } = e.target;
+      if (
+        name === "downPaymentPercentage" ||
+        name === "downPaymentValue" ||
+        name === "downPaymentDueDate" ||
+        name === "firstInstallmentDate" ||
+        name === "dueDate"
+      ) {
+        setPaymentErrors((prev) => {
+          if (!prev[name as keyof TransactionFormData]) return prev;
+          return {
+            ...prev,
+            [name]: undefined,
+          };
+        });
+      }
+    },
+    [handleChange],
+  );
+
+  const validatePaymentStep = React.useCallback((): boolean => {
+    const errors: Partial<Record<keyof TransactionFormData, string>> = {};
+
+    if (adaptedFormData.downPaymentEnabled) {
+      if (adaptedFormData.downPaymentType === "percentage") {
+        const percentage = parseFloat(adaptedFormData.downPaymentPercentage || "0");
+        if (!adaptedFormData.downPaymentPercentage || percentage <= 0) {
+          errors.downPaymentPercentage =
+            "Percentual da entrada deve ser maior que 0";
+        }
+      } else if (
+        !adaptedFormData.downPaymentValue ||
+        parseFloat(adaptedFormData.downPaymentValue) <= 0
+      ) {
+        errors.downPaymentValue = "Valor da entrada deve ser maior que 0";
+      }
+    }
+
+    if (adaptedFormData.downPaymentEnabled && !adaptedFormData.downPaymentDueDate) {
+      errors.downPaymentDueDate = "Data da entrada é obrigatória";
+    }
+
+    if (adaptedFormData.isInstallment) {
+      if (adaptedFormData.paymentMode === "installmentValue") {
+        if (!adaptedFormData.firstInstallmentDate) {
+          errors.firstInstallmentDate =
+            "Data de vencimento da primeira parcela é obrigatória";
+        }
+      } else if (!adaptedFormData.dueDate) {
+        errors.dueDate = "Vencimento da primeira parcela é obrigatório";
+      }
+    }
+
+    setPaymentErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [adaptedFormData]);
+
+  const stepValidators = React.useMemo(
+    () => ({
+      2: validatePaymentStep,
+    }),
+    [validatePaymentStep],
   );
 
   // Calculate total amount (sum of all installments) for display
@@ -162,6 +239,10 @@ export default function EditTransactionPage() {
   }
 
   const handleFormSubmit = async () => {
+    if (!validatePaymentStep()) {
+      return;
+    }
+
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
@@ -205,7 +286,11 @@ export default function EditTransactionPage() {
         onBack={() => router.push("/financial")}
       />
 
-      <StepWizard steps={transactionSteps} allowClickAhead={true}>
+      <StepWizard
+        steps={transactionSteps}
+        allowClickAhead={true}
+        stepValidators={stepValidators}
+      >
         {/* Step 1: Type Selection */}
         <StepCard>
           <TypeSelectorStep
@@ -255,12 +340,13 @@ export default function EditTransactionPage() {
                 setFormData(updater as unknown as EditTransactionFormData);
               }
             }}
-            onChange={handleChange}
+            onChange={handlePaymentFieldChange}
             isProposalTransaction={!!isProposalTransaction}
             onPaymentModeChange={switchPaymentMode}
+            errors={paymentErrors}
           />
 
-          <StepNavigation />
+          <StepNavigation onBeforeNext={validatePaymentStep} />
         </StepCard>
 
         {/* Step 4: Review */}

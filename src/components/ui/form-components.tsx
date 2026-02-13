@@ -234,7 +234,7 @@ export function FormItem({
   ...props
 }: FormItemProps) {
   return (
-    <div className={cn("flex flex-col gap-2", className)} {...props}>
+    <div className={cn("flex flex-col gap-4", className)} {...props}>
       {/* Label row - fixed height for alignment */}
       <div className="flex items-center justify-between h-5">
         <label

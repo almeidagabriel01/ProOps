@@ -481,6 +481,16 @@ export function SimpleProposalForm({
 
     // Validate down payment
     if (currentFormData.downPaymentEnabled) {
+      if (currentFormData.downPaymentType === "percentage") {
+        const percentage = Number(currentFormData.downPaymentPercentage || 0);
+        if (!currentFormData.downPaymentPercentage || percentage <= 0) {
+          errors.downPaymentPercentage =
+            "Percentual da entrada deve ser maior que 0";
+        }
+      } else if (!currentFormData.downPaymentValue || currentFormData.downPaymentValue <= 0) {
+        errors.downPaymentValue = "Valor da entrada deve ser maior que 0";
+      }
+
       if (!currentFormData.downPaymentDueDate) {
         errors.downPaymentDueDate = "Data da entrada é obrigatória";
       }
@@ -496,6 +506,8 @@ export function SimpleProposalForm({
 
     // Clear errors
     clearFieldError("firstInstallmentDate");
+    clearFieldError("downPaymentPercentage");
+    clearFieldError("downPaymentValue");
     clearFieldError("downPaymentDueDate");
 
     return true;
@@ -747,6 +759,10 @@ export function SimpleProposalForm({
   };
 
   const handleFormSubmit = async (): Promise<boolean> => {
+    if (!validateStep3()) {
+      return false;
+    }
+
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     return await handleSubmit(fakeEvent);
   };

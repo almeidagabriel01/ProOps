@@ -68,8 +68,11 @@ interface Proposal {
   extraExpense?: number;
   clientName: string;
   title?: string;
+  totalValue?: number;
   // Payment options
   downPaymentEnabled?: boolean;
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: number;
   downPaymentValue?: number;
   installmentsEnabled?: boolean;
   installmentsCount?: number;
@@ -801,7 +804,10 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
+              proposalTotalValue={proposal.totalValue}
               downPaymentEnabled={proposal.downPaymentEnabled}
+              downPaymentType={proposal.downPaymentType}
+              downPaymentPercentage={proposal.downPaymentPercentage}
               downPaymentValue={proposal.downPaymentValue}
               installmentsEnabled={proposal.installmentsEnabled}
               installmentsCount={proposal.installmentsCount}

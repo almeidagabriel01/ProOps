@@ -149,6 +149,8 @@ export const createProposal = async (req: Request, res: Response) => {
         sections: input.sections || [],
         // Payment options
         downPaymentEnabled: input.downPaymentEnabled || false,
+        downPaymentType: input.downPaymentType || "value",
+        downPaymentPercentage: input.downPaymentPercentage || 0,
         downPaymentValue: input.downPaymentValue || 0,
         downPaymentWallet: input.downPaymentWallet || null,
         downPaymentDueDate: input.downPaymentDueDate || null,
@@ -253,6 +255,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "totalValue",
       // Payment options
       "downPaymentEnabled",
+      "downPaymentType",
+      "downPaymentPercentage",
       "downPaymentValue",
       "downPaymentWallet",
       "downPaymentDueDate",
@@ -303,9 +307,20 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (isAlreadyApproved) {
       const proposalTenantId = proposalData?.tenantId || tenantId;
+      const mergedData = { ...proposalData, ...safeUpdate } as any;
+      const nowDateStr = new Date().toISOString().split("T")[0];
 
       // Check for changes (undefined check is important because partial updates are possible)
       const changes = {
+        dpEnabled:
+          updateData.downPaymentEnabled !== undefined &&
+          updateData.downPaymentEnabled !== proposalData?.downPaymentEnabled,
+        dpType:
+          updateData.downPaymentType !== undefined &&
+          updateData.downPaymentType !== proposalData?.downPaymentType,
+        dpPercentage:
+          updateData.downPaymentPercentage !== undefined &&
+          updateData.downPaymentPercentage !== proposalData?.downPaymentPercentage,
         dpValue:
           updateData.downPaymentValue !== undefined &&
           updateData.downPaymentValue !== proposalData?.downPaymentValue,
@@ -343,6 +358,14 @@ export const updateProposal = async (req: Request, res: Response) => {
         if (!transactionsQuery.empty) {
           const batch = db.batch();
           const walletAdjustments = new Map<string, number>();
+          const existingDownPaymentDoc = transactionsQuery.docs.find(
+            (doc) => doc.data().isDownPayment,
+          );
+          const firstInstallmentDoc = transactionsQuery.docs.find(
+            (doc) => doc.data().isInstallment,
+          );
+          const shouldHaveDownPayment =
+            !!mergedData.downPaymentEnabled && Number(mergedData.downPaymentValue || 0) > 0;
 
           // Helper for balance adjustments
           const registerAdjustment = (walletName: string, amount: number) => {
@@ -411,6 +434,17 @@ export const updateProposal = async (req: Request, res: Response) => {
               if (changes.dpDate) {
                 updatePayload.dueDate = updateData.downPaymentDueDate;
                 updatePayload.date = updateData.downPaymentDueDate;
+                shouldUpdate = true;
+              }
+
+              if (changes.dpType) {
+                updatePayload.downPaymentType = updateData.downPaymentType;
+                shouldUpdate = true;
+              }
+
+              if (changes.dpPercentage) {
+                updatePayload.downPaymentPercentage =
+                  updateData.downPaymentPercentage;
                 shouldUpdate = true;
               }
 
@@ -498,6 +532,59 @@ export const updateProposal = async (req: Request, res: Response) => {
               batch.update(doc.ref, updatePayload);
             }
           });
+
+          // --- 2.5. Down Payment presence sync for already approved proposals ---
+          if (shouldHaveDownPayment && !existingDownPaymentDoc) {
+            const installData = firstInstallmentDoc?.data() || {};
+            const downPaymentRef = db.collection("transactions").doc();
+
+            batch.set(downPaymentRef, {
+              tenantId: proposalTenantId,
+              type: "income",
+              description: `Entrada: ${mergedData.title || proposalData?.title || "Proposta"}`,
+              amount: Number(mergedData.downPaymentValue || 0),
+              date: mergedData.downPaymentDueDate || installData.date || nowDateStr,
+              dueDate:
+                mergedData.downPaymentDueDate || installData.dueDate || nowDateStr,
+              status: installData.status || "pending",
+              clientId: mergedData.clientId || null,
+              clientName: mergedData.clientName || null,
+              proposalId: id,
+              proposalGroupId: installData.proposalGroupId || null,
+              category: null,
+              wallet:
+                mergedData.downPaymentWallet ||
+                installData.wallet ||
+                proposalData?.downPaymentWallet ||
+                null,
+              isDownPayment: true,
+              downPaymentType: mergedData.downPaymentType || "value",
+              downPaymentPercentage: mergedData.downPaymentPercentage || 0,
+              isInstallment: false,
+              installmentCount: installData.installmentCount || null,
+              installmentNumber: 0,
+              installmentGroupId: installData.installmentGroupId || null,
+              notes: "Entrada gerada automaticamente pela proposta",
+              createdAt: Timestamp.now(),
+              updatedAt: Timestamp.now(),
+              createdById: userId,
+            });
+          }
+
+          if (!shouldHaveDownPayment && existingDownPaymentDoc) {
+            const existingData = existingDownPaymentDoc.data();
+
+            if (
+              existingData.status === "paid" &&
+              existingData.type === "income" &&
+              existingData.wallet &&
+              existingData.amount
+            ) {
+              registerAdjustment(existingData.wallet, -existingData.amount);
+            }
+
+            batch.delete(existingDownPaymentDoc.ref);
+          }
 
           // --- 3. Consolidate Wallet Updates ---
           // Need to fetch wallet refs to update balances
@@ -636,6 +723,8 @@ export const updateProposal = async (req: Request, res: Response) => {
               category: null,
               wallet: wName,
               isDownPayment: true, // Nova flag para identificar entrada
+              downPaymentType: mergedData.downPaymentType || "value",
+              downPaymentPercentage: mergedData.downPaymentPercentage || 0,
               isInstallment: false,
               installmentCount: null,
               installmentNumber: null,

@@ -36,6 +36,8 @@ export const transactionSchema = z
     firstInstallmentDate: z.string().optional().or(z.literal("")),
     installmentsWallet: z.string().optional().or(z.literal("")),
     downPaymentEnabled: z.boolean().default(false),
+    downPaymentType: z.enum(["value", "percentage"]).default("value"),
+    downPaymentPercentage: z.string().optional().or(z.literal("")),
     downPaymentValue: z.string().optional().or(z.literal("")),
     downPaymentWallet: z.string().optional().or(z.literal("")),
     downPaymentDueDate: z.string().optional().or(z.literal("")),

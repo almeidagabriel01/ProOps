@@ -203,6 +203,8 @@ export function useProposalForm({
     status: "in_progress" as ProposalStatus,
     // Payment options
     downPaymentEnabled: false,
+    downPaymentType: "value",
+    downPaymentPercentage: undefined,
     downPaymentValue: 0,
     downPaymentWallet: "",
     downPaymentDueDate: "",
@@ -530,6 +532,8 @@ export function useProposalForm({
         isExtra: p.isExtra,
       })),
       downPaymentEnabled: data.downPaymentEnabled || false,
+      downPaymentType: data.downPaymentType || "value",
+      downPaymentPercentage: data.downPaymentPercentage,
       downPaymentValue: data.downPaymentValue || 0,
       downPaymentWallet: data.downPaymentWallet || "",
       downPaymentDueDate: data.downPaymentDueDate || "",
@@ -625,6 +629,8 @@ export function useProposalForm({
                   : (proposal.status as ProposalStatus)) || "in_progress",
               // Payment options
               downPaymentEnabled: proposal.downPaymentEnabled || false,
+              downPaymentType: proposal.downPaymentType || "value",
+              downPaymentPercentage: proposal.downPaymentPercentage,
               downPaymentValue: proposal.downPaymentValue || 0,
               downPaymentWallet: proposal.downPaymentWallet || "",
               downPaymentDueDate: proposal.downPaymentDueDate || "",
@@ -1092,19 +1098,50 @@ export function useProposalForm({
   );
 
   // Calculate installment value based on total (including extra expense) minus down payment
+  const calculateDownPaymentValue = React.useCallback(() => {
+    if (!formData.downPaymentEnabled) return 0;
+    if (formData.downPaymentType === "percentage") {
+      const total = calculateTotal();
+      return (total * (formData.downPaymentPercentage || 0)) / 100;
+    }
+    return formData.downPaymentValue || 0;
+  }, [
+    formData.downPaymentEnabled,
+    formData.downPaymentType,
+    formData.downPaymentPercentage,
+    formData.downPaymentValue,
+    calculateTotal,
+  ]);
+
+  // Keep downPaymentValue synced when using percentage mode (for persistence/backward compat)
+  React.useEffect(() => {
+    if (formData.downPaymentType !== "percentage") return;
+    const computedDownPayment = calculateDownPaymentValue();
+    if (computedDownPayment !== (formData.downPaymentValue || 0)) {
+      setFormData((prev) => ({
+        ...prev,
+        downPaymentValue: computedDownPayment,
+      }));
+    }
+  }, [
+    formData.downPaymentType,
+    formData.downPaymentPercentage,
+    formData.downPaymentEnabled,
+    calculateTotal,
+    calculateDownPaymentValue,
+    formData.downPaymentValue,
+  ]);
+
   const calculateInstallmentValue = React.useCallback(() => {
     const total = calculateTotal();
-    const downPayment = formData.downPaymentEnabled
-      ? formData.downPaymentValue || 0
-      : 0;
+    const downPayment = calculateDownPaymentValue();
     const remaining = Math.max(0, total - downPayment);
     const count = Math.max(1, formData.installmentsCount || 1);
     return remaining / count;
   }, [
-    formData.downPaymentEnabled,
-    formData.downPaymentValue,
     formData.installmentsCount,
     calculateTotal,
+    calculateDownPaymentValue,
   ]);
 
   // Auto-update installment value when dependencies change
@@ -1121,6 +1158,8 @@ export function useProposalForm({
   }, [
     formData.installmentsEnabled,
     formData.downPaymentEnabled,
+    formData.downPaymentType,
+    formData.downPaymentPercentage,
     formData.downPaymentValue,
     formData.installmentsCount,
     calculateInstallmentValue,
@@ -1133,6 +1172,15 @@ export function useProposalForm({
     >,
   ) => {
     const { name, value, type } = e.target;
+
+    if (name === "downPaymentPercentage") {
+      setFormData((prev) => ({
+        ...prev,
+        downPaymentPercentage: value === "" ? undefined : Number(value),
+      }));
+      return;
+    }
+
     const numericFields = [
       "discount",
       "extraExpense",
@@ -1150,6 +1198,29 @@ export function useProposalForm({
 
   const handleSubmit = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
+
+    if (formData.downPaymentEnabled) {
+      if (formData.downPaymentType === "percentage") {
+        const percentage = Number(formData.downPaymentPercentage || 0);
+        if (!formData.downPaymentPercentage || percentage <= 0) {
+          toast.error("Percentual da entrada deve ser maior que 0.");
+          return false;
+        }
+      } else if (!formData.downPaymentValue || formData.downPaymentValue <= 0) {
+        toast.error("Valor da entrada deve ser maior que 0.");
+        return false;
+      }
+    }
+
+    if (formData.downPaymentEnabled && !formData.downPaymentDueDate) {
+      toast.error("Data da entrada é obrigatória.");
+      return false;
+    }
+
+    if (formData.installmentsEnabled && !formData.firstInstallmentDate) {
+      toast.error("Data de vencimento da primeira parcela é obrigatória.");
+      return false;
+    }
 
     if (!proposalId) {
       const canCreate = await canCreateProposal();
@@ -1528,6 +1599,8 @@ export function useProposalForm({
         isExtra: p.isExtra,
       })),
       downPaymentEnabled: formData.downPaymentEnabled || false,
+      downPaymentType: formData.downPaymentType || "value",
+      downPaymentPercentage: formData.downPaymentPercentage,
       downPaymentValue: formData.downPaymentValue || 0,
       downPaymentWallet: formData.downPaymentWallet || "",
       downPaymentDueDate: formData.downPaymentDueDate || "",
@@ -1563,6 +1636,8 @@ export function useProposalForm({
           isExtra: p.isExtra,
         })),
         downPaymentEnabled: initialData.downPaymentEnabled || false,
+        downPaymentType: initialData.downPaymentType || "value",
+        downPaymentPercentage: initialData.downPaymentPercentage,
         downPaymentValue: initialData.downPaymentValue || 0,
         downPaymentWallet: initialData.downPaymentWallet || "",
         downPaymentDueDate: initialData.downPaymentDueDate || "",
@@ -1613,6 +1688,8 @@ export function useProposalForm({
         products: initialForm.products || [], // Full product objects preserved in snapshot
         status: initialForm.status || "in_progress",
         downPaymentEnabled: initialForm.downPaymentEnabled || false,
+        downPaymentType: initialForm.downPaymentType || "value",
+        downPaymentPercentage: initialForm.downPaymentPercentage,
         downPaymentValue: initialForm.downPaymentValue || 0,
         downPaymentWallet: initialForm.downPaymentWallet || "",
         downPaymentDueDate: initialForm.downPaymentDueDate || "",

@@ -203,6 +203,11 @@ body {
   will-change: transform, opacity;
 }
 
+/* Uniform field spacing: works with Label or any text wrapper as first child */
+.field-gap > :first-child {
+  margin-bottom: 0.75rem;
+}
+
 .animation-delay-2000 {
   animation-delay: 2s;
 }

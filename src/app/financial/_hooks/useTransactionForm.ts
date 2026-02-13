@@ -38,6 +38,8 @@ export interface TransactionFormData {
   firstInstallmentDate: string;
   installmentsWallet: string;
   downPaymentEnabled: boolean;
+  downPaymentType: "value" | "percentage";
+  downPaymentPercentage: string;
   downPaymentValue: string;
   downPaymentWallet: string;
   downPaymentDueDate: string;
@@ -63,6 +65,8 @@ const initialFormData: TransactionFormData = {
   firstInstallmentDate: "",
   installmentsWallet: "",
   downPaymentEnabled: false,
+  downPaymentType: "value",
+  downPaymentPercentage: "",
   downPaymentValue: "",
   downPaymentWallet: "",
   downPaymentDueDate: "",
@@ -76,6 +80,8 @@ const getTotalFields = (data: TransactionFormData) => ({
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
+  downPaymentType: data.downPaymentType,
+  downPaymentPercentage: data.downPaymentPercentage,
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
@@ -88,6 +94,8 @@ const getInstallmentFields = (data: TransactionFormData) => ({
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
+  downPaymentType: data.downPaymentType,
+  downPaymentPercentage: data.downPaymentPercentage,
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
@@ -145,6 +153,24 @@ export function useTransactionForm(): UseTransactionFormReturn {
 
   const { wallets } = useWalletsData();
 
+  const getDownPaymentAmount = React.useCallback(
+    (data: TransactionFormData) => {
+      if (!data.downPaymentEnabled) return 0;
+
+      if (data.downPaymentType === "percentage") {
+        const baseTotal =
+          data.paymentMode === "installmentValue"
+            ? parseFloat(data.installmentValue || "0") *
+              (data.installmentCount || 1)
+            : parseFloat(data.amount || "0");
+        return (baseTotal * parseFloat(data.downPaymentPercentage || "0")) / 100;
+      }
+
+      return parseFloat(data.downPaymentValue || "0");
+    },
+    [],
+  );
+
   // Dual Buffer for creation too
   const [modeBuffers, setModeBuffers] = React.useState<{
     total: Partial<TransactionFormData>;
@@ -185,9 +211,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         // Total -> Installment
         // Default: Split remaining total (after down payment) by installment count
         const total = parseFloat(formData.amount || "0");
-        const downPayment = formData.downPaymentEnabled
-          ? parseFloat(formData.downPaymentValue || "0")
-          : 0;
+        const downPayment = getDownPaymentAmount(formData);
         const count = formData.installmentCount || 1;
         const remaining = Math.max(0, total - downPayment);
         const installmentVal =
@@ -200,6 +224,8 @@ export function useTransactionForm(): UseTransactionFormReturn {
           isInstallment: true,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.wallet, // Default to main wallet
           downPaymentDueDate: formData.date,
@@ -209,9 +235,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         // Default: Sum installments + down payment
         const instVal = parseFloat(formData.installmentValue || "0");
         const count = formData.installmentCount || 1;
-        const downPayment = formData.downPaymentEnabled
-          ? parseFloat(formData.downPaymentValue || "0")
-          : 0;
+        const downPayment = getDownPaymentAmount(formData);
         const total = instVal * count + downPayment;
 
         computedValues = {
@@ -222,6 +246,8 @@ export function useTransactionForm(): UseTransactionFormReturn {
           isInstallment: true,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.downPaymentWallet,
           downPaymentDueDate: formData.downPaymentDueDate,
@@ -257,6 +283,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
               targetBuffer.downPaymentEnabled ??
               computedValues.downPaymentEnabled ??
               false,
+            downPaymentType:
+              targetBuffer.downPaymentType ??
+              computedValues.downPaymentType ??
+              "value",
+            downPaymentPercentage:
+              targetBuffer.downPaymentPercentage ??
+              computedValues.downPaymentPercentage ??
+              "",
             downPaymentValue:
               targetBuffer.downPaymentValue ??
               computedValues.downPaymentValue ??
@@ -298,6 +332,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
               targetBuffer.downPaymentEnabled ??
               computedValues.downPaymentEnabled ??
               false,
+            downPaymentType:
+              targetBuffer.downPaymentType ??
+              computedValues.downPaymentType ??
+              "value",
+            downPaymentPercentage:
+              targetBuffer.downPaymentPercentage ??
+              computedValues.downPaymentPercentage ??
+              "",
             downPaymentValue:
               targetBuffer.downPaymentValue ??
               computedValues.downPaymentValue ??
@@ -418,6 +460,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
       let installmentGroupId: string | undefined = undefined;
       let walletToUse: string;
       let dueDateToUse: string | undefined;
+      const downPaymentAmount = getDownPaymentAmount(formData);
 
       // Logic to determine initial creation values
       if (formData.paymentMode === "installmentValue") {
@@ -429,9 +472,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
       } else {
         // Total mode
         const totalAmount = parseFloat(formData.amount);
-        const downPayment = formData.downPaymentEnabled
-          ? parseFloat(formData.downPaymentValue || "0")
-          : 0;
+        const downPayment = downPaymentAmount;
 
         let remainingAmount = totalAmount;
 
@@ -451,7 +492,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
       if (
         (formData.isInstallment && formData.installmentCount >= 1) ||
         (formData.downPaymentEnabled &&
-          parseFloat(formData.downPaymentValue || "0") > 0)
+          downPaymentAmount > 0)
       ) {
         installmentGroupId = `installment_${Date.now()}`;
       }
@@ -459,14 +500,14 @@ export function useTransactionForm(): UseTransactionFormReturn {
       // 1. Create Down Payment (if any)
       if (
         formData.downPaymentEnabled &&
-        parseFloat(formData.downPaymentValue || "0") > 0 &&
+        downPaymentAmount > 0 &&
         installmentGroupId
       ) {
         await TransactionService.createTransaction({
           tenantId: tenant.id,
           type: formData.type,
           description: formData.description.trim(),
-          amount: parseFloat(formData.downPaymentValue || "0"),
+          amount: downPaymentAmount,
           date: formData.date,
           dueDate: formData.downPaymentDueDate || formData.date,
           status: formData.status,
@@ -476,6 +517,11 @@ export function useTransactionForm(): UseTransactionFormReturn {
           wallet: formData.downPaymentWallet || walletToUse,
           isInstallment: false,
           isDownPayment: true,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage:
+            formData.downPaymentType === "percentage"
+              ? parseFloat(formData.downPaymentPercentage || "0")
+              : 0,
           installmentNumber: 0,
           installmentCount: formData.installmentCount + 1,
           installmentGroupId,
@@ -521,9 +567,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
 
         if (group.length > 0) {
           const totalAmount = parseFloat(formData.amount);
-          const downPayment = formData.downPaymentEnabled
-            ? parseFloat(formData.downPaymentValue || "0")
-            : 0;
+          const downPayment = downPaymentAmount;
           const targetTotalForInstallments = totalAmount - downPayment;
 
           const count = group.length;

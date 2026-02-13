@@ -97,7 +97,7 @@ export function WalletSelect({
     if (!isLoading && wallets.length === 0) {
       return (
         <>
-          <Label>
+          <Label className="mb-0">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </Label>
@@ -130,8 +130,8 @@ export function WalletSelect({
 
     return (
       <>
-        <div className="flex items-center justify-between">
-          <Label>
+        <div className="relative min-h-5">
+          <Label className="mb-0 pr-24">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
           </Label>
@@ -140,7 +140,7 @@ export function WalletSelect({
             size="sm"
             type="button"
             onClick={() => setIsDialogOpen(true)}
-            className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+            className="absolute right-0 top-1/2 -translate-y-1/2 h-6 px-2 text-xs text-muted-foreground hover:text-primary"
           >
             <Plus className="w-3 h-3 mr-1" /> Nova Carteira
           </Button>
@@ -167,7 +167,7 @@ export function WalletSelect({
   }, [isLoading, wallets, label, required, value, onChange, error, props]);
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("field-gap", className)}>
       {content}
 
       {error && wallets.length === 0 && !isLoading && (

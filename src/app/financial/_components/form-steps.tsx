@@ -273,6 +273,22 @@ export function PaymentStep({
   isProposalTransaction = false,
   onPaymentModeChange,
 }: PaymentStepProps) {
+  const getDownPaymentAmount = () => {
+    if (!formData.downPaymentEnabled) return 0;
+
+    if (formData.downPaymentType === "percentage") {
+      const baseTotal =
+        formData.paymentMode === "installmentValue"
+          ? parseFloat(formData.installmentValue || "0") *
+            (formData.installmentCount || 1)
+          : parseFloat(formData.amount || "0");
+
+      return (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100;
+    }
+
+    return parseFloat(formData.downPaymentValue || "0");
+  };
+
   // Calculate total based on mode
   const calculateTotal = (): number => {
     if (formData.paymentMode === "total") {
@@ -280,9 +296,7 @@ export function PaymentStep({
     } else {
       // installmentValue mode
       const installmentValue = parseFloat(formData.installmentValue || "0");
-      const downPayment = formData.downPaymentEnabled
-        ? parseFloat(formData.downPaymentValue || "0")
-        : 0;
+      const downPayment = getDownPaymentAmount();
       return installmentValue * (formData.installmentCount || 1) + downPayment;
     }
   };
@@ -290,9 +304,7 @@ export function PaymentStep({
   // Calculate installment value when in total mode (now accounts for down payment)
   const getInstallmentValueFromTotal = (): string => {
     const total = parseFloat(formData.amount || "0");
-    const downPayment = formData.downPaymentEnabled
-      ? parseFloat(formData.downPaymentValue || "0")
-      : 0;
+    const downPayment = getDownPaymentAmount();
     const remaining = total - downPayment;
     const count = formData.installmentCount || 1;
     if (remaining <= 0 || count <= 0) return "0,00";
@@ -316,6 +328,8 @@ export function PaymentStep({
       [field]: value,
       ...(field === "downPaymentEnabled" && !value
         ? {
+            downPaymentType: "value",
+            downPaymentPercentage: "",
             downPaymentValue: "",
             downPaymentWallet: "",
             downPaymentDueDate: "",
@@ -464,7 +478,7 @@ export function PaymentStep({
           )}
 
           {/* Wallet Select */}
-          <div className="space-y-2">
+          <div className="field-gap">
             <WalletSelect
               label="Carteira / Método"
               name="wallet"
@@ -528,24 +542,26 @@ export function PaymentStep({
               {formData.downPaymentEnabled && (
                 <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between h-7">
+                    <div className="field-gap">
+                      <div className="min-h-5">
                         <Label
-                          htmlFor="downPaymentValueTotal"
+                          htmlFor="downPaymentTypeTotal"
                           className="text-sm font-medium"
                         >
-                          Valor da Entrada
+                          Tipo da Entrada
                         </Label>
                       </div>
-                      <CurrencyInput
-                        id="downPaymentValueTotal"
-                        name="downPaymentValue"
-                        value={formData.downPaymentValue || ""}
+                      <Select
+                        id="downPaymentTypeTotal"
+                        name="downPaymentType"
+                        value={formData.downPaymentType || "value"}
                         onChange={onChange}
-                        placeholder="0,00"
-                      />
+                      >
+                        <option value="value">Valor</option>
+                        <option value="percentage">Porcentagem</option>
+                      </Select>
                     </div>
-                    <div className="space-y-2">
+                    <div className="field-gap">
                       <WalletSelect
                         label="Carteira"
                         name="downPaymentWallet"
@@ -555,19 +571,94 @@ export function PaymentStep({
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="downPaymentDueDateTotal"
-                      className="text-sm font-medium"
-                    >
-                      Data da Entrada
-                    </Label>
-                    <DatePicker
-                      id="downPaymentDueDateTotal"
-                      name="downPaymentDueDate"
-                      value={formData.downPaymentDueDate || ""}
-                      onChange={onChange}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                    <div className="field-gap">
+                      <div className="min-h-5">
+                        <Label
+                          htmlFor={
+                            formData.downPaymentType === "percentage"
+                              ? "downPaymentPercentageTotal"
+                              : "downPaymentValueTotal"
+                          }
+                          className={`text-sm font-medium ${
+                            formData.downPaymentType === "percentage"
+                              ? errors.downPaymentPercentage
+                                ? "text-destructive"
+                                : ""
+                              : errors.downPaymentValue
+                                ? "text-destructive"
+                                : ""
+                          }`}
+                        >
+                          {formData.downPaymentType === "percentage"
+                            ? "Porcentagem da Entrada"
+                            : "Valor da Entrada"}
+                        </Label>
+                      </div>
+                      {formData.downPaymentType === "percentage" ? (
+                        <div className="space-y-4">
+                          <Input
+                            id="downPaymentPercentageTotal"
+                            name="downPaymentPercentage"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.01"
+                            value={formData.downPaymentPercentage || ""}
+                            onChange={onChange}
+                            placeholder="0"
+                            suffix={<span className="text-sm">%</span>}
+                            className={`w-full ${errors.downPaymentPercentage ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          />
+                          {errors.downPaymentPercentage && (
+                            <p className="text-xs text-destructive mt-1">
+                              {errors.downPaymentPercentage}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Valor calculado: {formatCurrency(getDownPaymentAmount())}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <CurrencyInput
+                            id="downPaymentValueTotal"
+                            name="downPaymentValue"
+                            value={formData.downPaymentValue || ""}
+                            onChange={onChange}
+                            placeholder="0,00"
+                            className={errors.downPaymentValue ? "border-destructive focus-visible:ring-destructive" : ""}
+                          />
+                          {errors.downPaymentValue && (
+                            <p className="text-xs text-destructive mt-1">
+                              {errors.downPaymentValue}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="field-gap">
+                      <div className="min-h-5">
+                        <Label
+                          htmlFor="downPaymentDueDateTotal"
+                          className={`text-sm font-medium ${errors.downPaymentDueDate ? "text-destructive" : ""}`}
+                        >
+                          Data da Entrada
+                        </Label>
+                      </div>
+                      <DatePicker
+                        id="downPaymentDueDateTotal"
+                        name="downPaymentDueDate"
+                        value={formData.downPaymentDueDate || ""}
+                        onChange={onChange}
+                        className={errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                      />
+                      {errors.downPaymentDueDate && (
+                        <p className="text-xs text-destructive mt-1">
+                          {errors.downPaymentDueDate}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -675,8 +766,7 @@ export function PaymentStep({
 
           {/* Payment Summary - shows when both down payment and installments are configured */}
           {formData.downPaymentEnabled &&
-            formData.downPaymentValue &&
-            parseFloat(formData.downPaymentValue) > 0 &&
+            getDownPaymentAmount() > 0 &&
             formData.isInstallment && (
               <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
                 <div className="flex items-center gap-2 mb-3">
@@ -695,9 +785,10 @@ export function PaymentStep({
                   <div className="flex justify-between items-center py-1">
                     <span className="text-blue-500">• Entrada:</span>
                     <span className="font-semibold text-blue-500">
-                      {formatCurrency(
-                        parseFloat(formData.downPaymentValue || "0"),
-                      )}
+                      {formatCurrency(getDownPaymentAmount())}
+                      {formData.downPaymentType === "percentage"
+                        ? ` (${parseFloat(formData.downPaymentPercentage || "0").toFixed(2)}%)`
+                        : ""}
                     </span>
                   </div>
                   <div className="flex justify-between items-center py-1">
@@ -758,24 +849,26 @@ export function PaymentStep({
             {formData.downPaymentEnabled && (
               <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between h-7">
+                  <div className="field-gap">
+                    <div className="min-h-5">
                       <Label
-                        htmlFor="downPaymentValueAdvanced"
+                        htmlFor="downPaymentTypeAdvanced"
                         className="text-sm font-medium"
                       >
-                        Valor da Entrada
+                        Tipo da Entrada
                       </Label>
                     </div>
-                    <CurrencyInput
-                      id="downPaymentValueAdvanced"
-                      name="downPaymentValue"
-                      value={formData.downPaymentValue || ""}
+                    <Select
+                      id="downPaymentTypeAdvanced"
+                      name="downPaymentType"
+                      value={formData.downPaymentType || "value"}
                       onChange={onChange}
-                      placeholder="0,00"
-                    />
+                    >
+                      <option value="value">Valor</option>
+                      <option value="percentage">Porcentagem</option>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
+                  <div className="field-gap">
                     <WalletSelect
                       label="Carteira"
                       name="downPaymentWallet"
@@ -785,19 +878,94 @@ export function PaymentStep({
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="downPaymentDueDateAdvanced"
-                    className="text-sm font-medium"
-                  >
-                    Data da Entrada
-                  </Label>
-                  <DatePicker
-                    id="downPaymentDueDateAdvanced"
-                    name="downPaymentDueDate"
-                    value={formData.downPaymentDueDate || ""}
-                    onChange={onChange}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                  <div className="field-gap">
+                    <div className="min-h-5">
+                      <Label
+                        htmlFor={
+                          formData.downPaymentType === "percentage"
+                            ? "downPaymentPercentageAdvanced"
+                            : "downPaymentValueAdvanced"
+                        }
+                        className={`text-sm font-medium ${
+                          formData.downPaymentType === "percentage"
+                            ? errors.downPaymentPercentage
+                              ? "text-destructive"
+                              : ""
+                            : errors.downPaymentValue
+                              ? "text-destructive"
+                              : ""
+                        }`}
+                      >
+                        {formData.downPaymentType === "percentage"
+                          ? "Porcentagem da Entrada"
+                          : "Valor da Entrada"}
+                      </Label>
+                    </div>
+                    {formData.downPaymentType === "percentage" ? (
+                      <div className="space-y-4">
+                        <Input
+                          id="downPaymentPercentageAdvanced"
+                          name="downPaymentPercentage"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value={formData.downPaymentPercentage || ""}
+                          onChange={onChange}
+                          placeholder="0"
+                          suffix={<span className="text-sm">%</span>}
+                          className={`w-full ${errors.downPaymentPercentage ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                        />
+                        {errors.downPaymentPercentage && (
+                          <p className="text-xs text-destructive mt-1">
+                            {errors.downPaymentPercentage}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Valor calculado: {formatCurrency(getDownPaymentAmount())}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <CurrencyInput
+                          id="downPaymentValueAdvanced"
+                          name="downPaymentValue"
+                          value={formData.downPaymentValue || ""}
+                          onChange={onChange}
+                          placeholder="0,00"
+                          className={errors.downPaymentValue ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                        {errors.downPaymentValue && (
+                          <p className="text-xs text-destructive mt-1">
+                            {errors.downPaymentValue}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="field-gap">
+                    <div className="min-h-5">
+                      <Label
+                        htmlFor="downPaymentDueDateAdvanced"
+                        className={`text-sm font-medium ${errors.downPaymentDueDate ? "text-destructive" : ""}`}
+                      >
+                        Data da Entrada
+                      </Label>
+                    </div>
+                    <DatePicker
+                      id="downPaymentDueDateAdvanced"
+                      name="downPaymentDueDate"
+                      value={formData.downPaymentDueDate || ""}
+                      onChange={onChange}
+                      className={errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                    {errors.downPaymentDueDate && (
+                      <p className="text-xs text-destructive mt-1">
+                        {errors.downPaymentDueDate}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -856,10 +1024,12 @@ export function PaymentStep({
               <div className="ml-4 pl-4 border-l-2 border-primary/20 space-y-5">
                 {/* Installment Configuration */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="installmentCountAdvanced">
-                      Número de Parcelas
-                    </Label>
+                  <div className="field-gap">
+                    <div className="min-h-5">
+                      <Label htmlFor="installmentCountAdvanced">
+                        Número de Parcelas
+                      </Label>
+                    </div>
                     <Input
                       id="installmentCountAdvanced"
                       name="installmentCount"
@@ -878,8 +1048,10 @@ export function PaymentStep({
                       }}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="installmentValue">Valor por Parcela</Label>
+                  <div className="field-gap">
+                    <div className="min-h-5">
+                      <Label htmlFor="installmentValue">Valor por Parcela</Label>
+                    </div>
                     <CurrencyInput
                       id="installmentValue"
                       name="installmentValue"
@@ -906,21 +1078,34 @@ export function PaymentStep({
 
                 {/* First Installment Date */}
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <div className="flex-1">
-                    <Label htmlFor="firstInstallmentDate">
-                      Vencimento da 1ª Parcela
-                    </Label>
+                  <Calendar
+                    className={`w-4 h-4 ${errors.firstInstallmentDate ? "text-destructive" : "text-muted-foreground"}`}
+                  />
+                  <div className="flex-1 field-gap">
+                    <div className="min-h-5">
+                      <Label
+                        htmlFor="firstInstallmentDate"
+                        className={errors.firstInstallmentDate ? "text-destructive" : ""}
+                      >
+                        Vencimento da 1ª Parcela
+                      </Label>
+                    </div>
                     <DatePicker
                       id="firstInstallmentDate"
                       name="firstInstallmentDate"
                       value={formData.firstInstallmentDate || ""}
                       onChange={onChange}
-                      className="mt-1"
+                      className={errors.firstInstallmentDate ? "border-destructive focus-visible:ring-destructive" : ""}
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Demais parcelas: +30 dias cada
-                    </p>
+                    {errors.firstInstallmentDate ? (
+                      <p className="text-xs text-destructive mt-1">
+                        {errors.firstInstallmentDate}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Demais parcelas: +30 dias cada
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1003,6 +1188,21 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const isIncome = formData.type === "income";
 
+  const getDownPaymentAmount = () => {
+    if (!formData.downPaymentEnabled) return 0;
+
+    if (formData.downPaymentType === "percentage") {
+      const baseTotal =
+        formData.paymentMode === "installmentValue"
+          ? parseFloat(formData.installmentValue || "0") *
+            (formData.installmentCount || 1)
+          : parseFloat(formData.amount || "0");
+      return (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100;
+    }
+
+    return parseFloat(formData.downPaymentValue || "0");
+  };
+
   // Calculate total based on payment mode
   const calculateDisplayTotal = () => {
     if (totalOverride !== undefined) return totalOverride;
@@ -1010,9 +1210,7 @@ export function ReviewStep({
     if (formData.paymentMode === "installmentValue") {
       const installmentValue = parseFloat(formData.installmentValue || "0");
       const installmentCount = formData.installmentCount || 1;
-      const downPayment = formData.downPaymentEnabled
-        ? parseFloat(formData.downPaymentValue || "0")
-        : 0;
+      const downPayment = getDownPaymentAmount();
       return installmentValue * installmentCount + downPayment;
     }
 
@@ -1029,9 +1227,7 @@ export function ReviewStep({
 
     // Total mode
     const total = parseFloat(formData.amount || "0");
-    const downPayment = formData.downPaymentEnabled
-      ? parseFloat(formData.downPaymentValue || "0")
-      : 0;
+    const downPayment = getDownPaymentAmount();
     const remaining = total - downPayment;
 
     // Avoid division by zero
@@ -1141,9 +1337,10 @@ export function ReviewStep({
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-blue-500">
-                      {formatCurrency(
-                        parseFloat(formData.downPaymentValue || "0"),
-                      )}
+                      {formatCurrency(getDownPaymentAmount())}
+                      {formData.downPaymentType === "percentage"
+                        ? ` (${parseFloat(formData.downPaymentPercentage || "0").toFixed(2)}%)`
+                        : ""}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formData.downPaymentDueDate
