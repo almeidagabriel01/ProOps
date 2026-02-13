@@ -18,9 +18,7 @@ export function useNotifications() {
   // Subscribe em tempo real às notificações
   useEffect(() => {
     if (!tenant) {
-      if (isLoading) {
-        setTimeout(() => setIsLoading(false), 0);
-      }
+      setIsLoading(false);
       return;
     }
 
@@ -108,7 +106,7 @@ export function useNotifications() {
     return () => {
       unsubscribe();
     };
-  }, [tenant, isLoading]);
+  }, [tenant]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
