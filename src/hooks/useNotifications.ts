@@ -33,50 +33,7 @@ export function useNotifications() {
       setUnreadCount(notifs.filter((n) => !n.isRead).length);
 
       const newNotifs = notifs.filter((n) => !previousIds.has(n.id) && !n.isRead);
-      const notifsToProcess = isInitialLoad ? notifs.filter((n) => !n.isRead) : newNotifs;
 
-      const proposalDueNotifs = notifsToProcess.filter(
-        (n) => n.type === NotificationType.PROPOSAL_EXPIRING,
-      );
-
-      const transactionDueNotifs = notifsToProcess.filter(
-        (n) => n.type === NotificationType.TRANSACTION_DUE_REMINDER,
-      );
-
-      if (proposalDueNotifs.length > 0) {
-        const shouldShowProposalToast = await NotificationService.claimDailyDueToast(
-          "proposal_expiring",
-        );
-
-        if (shouldShowProposalToast) {
-          toast.warn("Há propostas próximas do vencimento ou vencidas.", {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-        }
-      }
-
-      if (transactionDueNotifs.length > 0) {
-        const shouldShowTransactionToast =
-          await NotificationService.claimDailyDueToast(
-            "transaction_due_reminder",
-          );
-
-        if (shouldShowTransactionToast) {
-          toast.warn("Há lançamentos próximos do vencimento ou vencidos.", {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-        }
-      }
 
       if (!isInitialLoad) {
         const otherNotifs = newNotifs.filter(
