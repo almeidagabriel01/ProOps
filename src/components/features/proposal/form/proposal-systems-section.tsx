@@ -598,27 +598,29 @@ function SystemCard({
               {/* Lista de Produtos do Ambiente */}
               <div className="p-3 space-y-2">
                 {scopeProducts.length > 0 ? (
-                  scopeProducts.map((product, idx) => {
-                    // UPDATED: use contextual status from proposal product, default to active
-                    const isActive = product.status !== "inactive";
-                    return (
-                      <ProductRow
-                        key={`${product.productId}-${idx}`}
-                        product={product}
-                        isActive={isActive}
-                        onUpdateQuantity={(pid, delta) =>
-                          onUpdateQuantity(pid, delta, currentInstanceId)
-                        }
-                        onUpdateMarkup={(pid, markup) =>
-                          onUpdateMarkup(pid, markup, currentInstanceId)
-                        }
-                        onRemoveProduct={(pid) =>
-                          onRemoveProduct(pid, currentInstanceId)
-                        }
-                        onToggleStatus={onToggleStatus}
-                      />
-                    );
-                  })
+                  scopeProducts
+                    .sort((a, b) => a.productName.localeCompare(b.productName))
+                    .map((product, idx) => {
+                      // UPDATED: use contextual status from proposal product, default to active
+                      const isActive = product.status !== "inactive";
+                      return (
+                        <ProductRow
+                          key={`${product.productId}-${idx}`}
+                          product={product}
+                          isActive={isActive}
+                          onUpdateQuantity={(pid, delta) =>
+                            onUpdateQuantity(pid, delta, currentInstanceId)
+                          }
+                          onUpdateMarkup={(pid, markup) =>
+                            onUpdateMarkup(pid, markup, currentInstanceId)
+                          }
+                          onRemoveProduct={(pid) =>
+                            onRemoveProduct(pid, currentInstanceId)
+                          }
+                          onToggleStatus={onToggleStatus}
+                        />
+                      );
+                    })
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     Nenhum produto neste ambiente
