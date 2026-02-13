@@ -463,18 +463,17 @@ function SystemCard({
         <div className="flex items-center gap-10 shrink-0 ml-4">
           <div className="flex flex-col items-end gap-1">
             <span
-              className="text-sm font-bold"
-              style={{ color: primaryColor }}
+              className="text-sm font-medium text-muted-foreground mr-2"
               title="Soma do valor de custo dos produtos (sem markup)"
             >
-              Custo: R$ {sistemaTotal.toFixed(2)}
+              Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
             </span>
             <span
               className="text-sm font-bold"
               style={{ color: primaryColor }}
               title="Soma do valor final dos produtos (com markup)"
             >
-              Venda: R$ {sistemaTotalWithMarkup.toFixed(2)}
+              Valor Final (c/ Lucro): R$ {sistemaTotalWithMarkup.toFixed(2)}
             </span>
           </div>
 
