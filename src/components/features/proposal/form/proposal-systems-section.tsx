@@ -14,7 +14,16 @@ import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { Package, Plus, Minus, Cpu, Trash2 } from "lucide-react";
+import {
+  Package,
+  Plus,
+  Minus,
+  Cpu,
+  Trash2,
+  Search,
+  X,
+  Check,
+} from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -403,7 +412,7 @@ function SystemCard({
 }: SystemCardProps) {
   return (
     <div
-      className="rounded-lg overflow-hidden shadow-sm"
+      className="rounded-lg shadow-sm"
       style={{
         border: `2px solid ${primaryColor}`,
         backgroundColor: `${primaryColor}08`,
@@ -411,7 +420,7 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex items-start justify-between"
+        className="p-4 flex items-start justify-between rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -517,7 +526,7 @@ function SystemCard({
       </div>
 
       {/* Body: Ambientes Sub-containers */}
-      <div className="p-4 space-y-6 bg-background">
+      <div className="p-4 space-y-6 bg-background rounded-b-lg">
         {(sistema.ambientes && sistema.ambientes.length > 0
           ? sistema.ambientes
           : [
@@ -537,10 +546,10 @@ function SystemCard({
           return (
             <div
               key={currentInstanceId}
-              className="rounded-lg border bg-card/50 overflow-hidden"
+              className="rounded-lg border bg-card/50"
             >
               {/* Sub-Header Ambiente */}
-              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between">
+              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between rounded-t-lg">
                 <div className="flex items-center gap-2">
                   <span
                     className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
@@ -598,27 +607,29 @@ function SystemCard({
               {/* Lista de Produtos do Ambiente */}
               <div className="p-3 space-y-2">
                 {scopeProducts.length > 0 ? (
-                  scopeProducts.map((product, idx) => {
-                    // UPDATED: use contextual status from proposal product, default to active
-                    const isActive = product.status !== "inactive";
-                    return (
-                      <ProductRow
-                        key={`${product.productId}-${idx}`}
-                        product={product}
-                        isActive={isActive}
-                        onUpdateQuantity={(pid, delta) =>
-                          onUpdateQuantity(pid, delta, currentInstanceId)
-                        }
-                        onUpdateMarkup={(pid, markup) =>
-                          onUpdateMarkup(pid, markup, currentInstanceId)
-                        }
-                        onRemoveProduct={(pid) =>
-                          onRemoveProduct(pid, currentInstanceId)
-                        }
-                        onToggleStatus={onToggleStatus}
-                      />
-                    );
-                  })
+                  scopeProducts
+                    .sort((a, b) => a.productName.localeCompare(b.productName))
+                    .map((product, idx) => {
+                      // UPDATED: use contextual status from proposal product, default to active
+                      const isActive = product.status !== "inactive";
+                      return (
+                        <ProductRow
+                          key={`${product.productId}-${idx}`}
+                          product={product}
+                          isActive={isActive}
+                          onUpdateQuantity={(pid, delta) =>
+                            onUpdateQuantity(pid, delta, currentInstanceId)
+                          }
+                          onUpdateMarkup={(pid, markup) =>
+                            onUpdateMarkup(pid, markup, currentInstanceId)
+                          }
+                          onRemoveProduct={(pid) =>
+                            onRemoveProduct(pid, currentInstanceId)
+                          }
+                          onToggleStatus={onToggleStatus}
+                        />
+                      );
+                    })
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     Nenhum produto neste ambiente
@@ -936,114 +947,137 @@ function ExtraProductsGrid({
   onAddProduct,
   onToggleStatus,
 }: ExtraProductsGridProps) {
-  const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const availableProducts = products.filter(
-    (p) => !sistemaProducts.some((sp) => sp.productId === p.id),
-  );
+  // Click outside to close
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const handleStatusToggle = async (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    if (!onToggleStatus || updatingIds.has(product.id)) return;
+  const availableProducts = products
+    .filter((p) => !sistemaProducts.some((sp) => sp.productId === p.id))
+    .filter((p) => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        p.name.toLowerCase().includes(term) ||
+        p.category?.toLowerCase().includes(term)
+      );
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-    const isActive = !product.status || product.status === "active";
-    setUpdatingIds((prev) => new Set(prev).add(product.id));
-    try {
-      await onToggleStatus(product.id, isActive ? "inactive" : "active");
-    } finally {
-      setUpdatingIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(product.id);
-        return newSet;
-      });
-    }
+  const handleSelect = (product: Product) => {
+    onAddProduct(product);
+    setSearchTerm("");
+    // Keep it open for multi-select
+    // setIsOpen(false);
+    inputRef.current?.focus();
   };
-
-  if (availableProducts.length === 0) {
-    return (
-      <div
-        className="mt-4 p-4 rounded-lg"
-        style={{
-          backgroundColor: `${primaryColor}08`,
-          border: `2px dashed ${primaryColor}40`,
-        }}
-      >
-        <p className="text-sm text-muted-foreground italic text-center py-2">
-          Todos os produtos disponíveis já foram adicionados a este sistema.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div
-      className="mt-4 p-4 rounded-lg"
+      className="mt-4 p-4 rounded-lg relative"
       style={{
         backgroundColor: `${primaryColor}08`,
         border: `2px dashed ${primaryColor}40`,
       }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Plus className="w-4 h-4" style={{ color: primaryColor }} />
-        <span className="text-sm font-semibold" style={{ color: primaryColor }}>
-          Adicionar Produto Extra a este Sistema
-        </span>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Plus className="w-4 h-4" style={{ color: primaryColor }} />
+          <span
+            className="text-sm font-semibold"
+            style={{ color: primaryColor }}
+          >
+            Adicionar Produto Extra
+          </span>
+        </div>
+        {availableProducts.length === 0 && !searchTerm && (
+          <span className="text-xs text-muted-foreground italic">
+            Todos os produtos adicionados
+          </span>
+        )}
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {availableProducts.slice(0, 9).map((product) => {
-          const isActive = !product.status || product.status === "active";
-          const isUpdating = updatingIds.has(product.id);
 
-          return (
-            <div
-              key={product.id}
-              className={`group relative flex items-center gap-2 p-2 text-left rounded-lg border bg-background transition-all hover:border-primary/50 hover:shadow-sm cursor-pointer ${
-                !isActive ? "opacity-60 hover:opacity-100" : ""
-              }`}
-              onClick={() => onAddProduct(product)}
+      <div className="relative" ref={containerRef}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Buscar produto para adicionar..."
+            className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+          />
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                inputRef.current?.focus();
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
-              {/* Toggle - subtle on left */}
-              {onToggleStatus && (
-                <div
-                  className="shrink-0 flex items-center gap-1"
-                  onClick={(e) => handleStatusToggle(e, product)}
-                  title={isActive ? "Ocultar do PDF" : "Mostrar no PDF"}
-                >
-                  <span className="text-[9px] text-muted-foreground">
-                    {isActive ? "Ativo" : "Inativo"}
-                  </span>
-                  <Switch
-                    checked={isActive}
-                    disabled={isUpdating}
-                    className="scale-[0.55]"
-                  />
-                </div>
-              )}
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-              {/* Product info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <p
-                    className={`text-xs font-medium truncate ${!isActive ? "text-muted-foreground" : ""}`}
-                  >
-                    {product.name}
-                  </p>
-                  {!isActive && (
-                    <span className="text-[8px] text-amber-600 dark:text-amber-400 px-1 py-0.5 bg-amber-500/10 rounded shrink-0">
-                      PDF
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  R$ {parseFloat(product.price).toFixed(2)}
-                </p>
+        {/* Dropdown Results */}
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
+            {availableProducts.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {searchTerm
+                  ? "Nenhum produto encontrado"
+                  : "Todos os produtos já foram adicionados"}
               </div>
-
-              {/* Add icon */}
-              <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0" />
-            </div>
-          );
-        })}
+            ) : (
+              <div className="p-1">
+                {availableProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => handleSelect(product)}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors group"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-primary transition-colors">
+                        <Package className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">
+                          {product.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                          <span>{product.category || "Sem categoria"}</span>
+                          <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                          <span>R$ {parseFloat(product.price).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0 ml-2" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -210,8 +210,6 @@ export function SistemaEditor({
       status: "active",
     };
     updateActiveProducts([...currentProducts, newProd]);
-    setShowProductList(false);
-    setProductSearch("");
   };
 
   const handleRemoveProduct = (productId: string) => {
@@ -252,13 +250,15 @@ export function SistemaEditor({
   };
 
   // Filtered products for search
-  const filteredProducts = products.filter(
-    (p) =>
-      !activeConfig?.products.some((sp) => sp.productId === p.id) &&
-      (productSearch === "" ||
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.category?.toLowerCase().includes(productSearch.toLowerCase())),
-  );
+  const filteredProducts = products
+    .filter(
+      (p) =>
+        !activeConfig?.products.some((sp) => sp.productId === p.id) &&
+        (productSearch === "" ||
+          p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+          p.category?.toLowerCase().includes(productSearch.toLowerCase())),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleUpdateAmbienteDescription = (desc: string) => {
     if (!activeAmbienteId) return;
@@ -574,88 +574,92 @@ export function SistemaEditor({
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     <AnimatePresence initial={false}>
-                      {activeConfig.products.map((item) => (
-                        <motion.div
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          key={item.productId}
-                          className="group flex items-center justify-between p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-all hover:border-primary/20"
-                        >
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <div className="h-12 w-12 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
-                              <Package className="h-6 w-6" />
+                      {activeConfig.products
+                        .sort((a, b) =>
+                          a.productName.localeCompare(b.productName),
+                        )
+                        .map((item) => (
+                          <motion.div
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            key={item.productId}
+                            className="group flex items-center justify-between p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-all hover:border-primary/20"
+                          >
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <div className="h-12 w-12 rounded-lg bg-primary/5 flex items-center justify-center text-primary shrink-0">
+                                <Package className="h-6 w-6" />
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="font-semibold text-foreground truncate pr-4">
+                                  {item.productName}
+                                </h4>
+                                <p className="text-xs text-muted-foreground">
+                                  Produto vinculado
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <h4 className="font-semibold text-foreground truncate pr-4">
-                                {item.productName}
-                              </h4>
-                              <p className="text-xs text-muted-foreground">
-                                Produto vinculado
-                              </p>
-                            </div>
-                          </div>
 
-                          <div className="flex items-center gap-6">
-                            {/* Status Control */}
-                            <Select
-                              value={item.status || "active"}
-                              onChange={(e) =>
-                                handleUpdateStatus(
-                                  item.productId,
-                                  e.target.value as "active" | "inactive",
-                                )
-                              }
-                              inputSize="sm"
-                              className={cn(
-                                "w-[100px] border-none shadow-none focus:ring-0",
-                              )}
-                            >
-                              <option value="active">Ativo</option>
-                              <option value="inactive">Inativo</option>
-                            </Select>
+                            <div className="flex items-center gap-6">
+                              {/* Status Control */}
+                              <Select
+                                value={item.status || "active"}
+                                onChange={(e) =>
+                                  handleUpdateStatus(
+                                    item.productId,
+                                    e.target.value as "active" | "inactive",
+                                  )
+                                }
+                                inputSize="sm"
+                                className={cn(
+                                  "w-[100px] border-none shadow-none focus:ring-0",
+                                )}
+                              >
+                                <option value="active">Ativo</option>
+                                <option value="inactive">Inativo</option>
+                              </Select>
 
-                            {/* Quantity Control */}
-                            <div className="flex items-center bg-muted/50 rounded-lg border p-1 shadow-sm">
+                              {/* Quantity Control */}
+                              <div className="flex items-center bg-muted/50 rounded-lg border p-1 shadow-sm">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-md hover:bg-background hover:text-destructive transition-colors"
+                                  onClick={() =>
+                                    handleUpdateQuantity(item.productId, -1)
+                                  }
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </Button>
+                                <span className="w-10 text-center font-mono font-medium text-sm">
+                                  {item.quantity}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-md hover:bg-background hover:text-primary transition-colors"
+                                  onClick={() =>
+                                    handleUpdateQuantity(item.productId, 1)
+                                  }
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-md hover:bg-background hover:text-destructive transition-colors"
+                                className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
                                 onClick={() =>
-                                  handleUpdateQuantity(item.productId, -1)
+                                  handleRemoveProduct(item.productId)
                                 }
                               >
-                                <Minus className="w-3.5 h-3.5" />
-                              </Button>
-                              <span className="w-10 text-center font-mono font-medium text-sm">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-md hover:bg-background hover:text-primary transition-colors"
-                                onClick={() =>
-                                  handleUpdateQuantity(item.productId, 1)
-                                }
-                              >
-                                <Plus className="w-3.5 h-3.5" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>
-
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-                              onClick={() =>
-                                handleRemoveProduct(item.productId)
-                              }
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </motion.div>
-                      ))}
+                          </motion.div>
+                        ))}
                     </AnimatePresence>
                   </div>
                 )}
