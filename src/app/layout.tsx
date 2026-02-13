@@ -42,7 +42,7 @@ export default function RootLayout({
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
     pathname === "/403" ||
-    pathname === "/subscription-blocked" ||
+    pathname.startsWith("/subscription-blocked") ||
     pathname.startsWith("/share/"); // Public shared proposal pages
 
   return (

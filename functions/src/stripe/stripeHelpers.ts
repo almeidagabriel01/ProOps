@@ -15,27 +15,45 @@ export async function updateUserPlan(
   userId: string,
   planTier: string,
   stripeSubscriptionId: string,
-  interval?: string
+  interval?: string,
+  currentPeriodEnd?: Date,
+  cancelAtPeriodEnd?: boolean,
 ): Promise<void> {
   const planId = await getPlanIdByTier(planTier);
   const billingInterval = interval === "year" ? "yearly" : "monthly";
+  const userRef = db.collection("users").doc(userId);
+
+  const updatePayload: Record<string, unknown> = {
+    billingInterval: billingInterval,
+    stripeSubscriptionId: stripeSubscriptionId,
+    planUpdatedAt: FieldValue.serverTimestamp(),
+    role: "admin",
+    subscriptionStatus: "active",
+    cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
+    "subscription.status": "ACTIVE",
+    "subscription.cancelAtPeriodEnd": cancelAtPeriodEnd ?? false,
+    "subscription.updatedAt": FieldValue.serverTimestamp(),
+  };
 
   if (planId) {
-    const userRef = db.collection("users").doc(userId);
-    await userRef.update({
-      planId: planId,
-      billingInterval: billingInterval,
-      stripeSubscriptionId: stripeSubscriptionId,
-      planUpdatedAt: FieldValue.serverTimestamp(),
-      role: "admin",
-      "subscription.status": "ACTIVE",
-      "subscription.updatedAt": FieldValue.serverTimestamp(),
-    });
+    updatePayload.planId = planId;
+  }
+
+  if (currentPeriodEnd) {
+    updatePayload.currentPeriodEnd = currentPeriodEnd.toISOString();
+    updatePayload["subscription.currentPeriodEnd"] = currentPeriodEnd;
+  }
+
+  await userRef.update(updatePayload);
+
+  if (planId) {
     console.log(
       `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`
     );
   } else {
-    console.error(`Plan not found for tier: ${planTier}`);
+    console.warn(
+      `Plan not found for tier: ${planTier}. Core subscription fields were still updated for user ${userId}.`
+    );
   }
 }
 

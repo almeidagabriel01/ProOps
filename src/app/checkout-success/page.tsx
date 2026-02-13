@@ -4,11 +4,12 @@ import { useEffect, useState, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
+import { Button } from "@/components/ui/button";
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const { user, isLoading: authLoading, refreshUser } = useAuth();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading"
@@ -17,6 +18,16 @@ function CheckoutSuccessContent() {
   const hasProcessed = useRef(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      const returnUrl = encodeURIComponent(
+        `${window.location.pathname}${window.location.search}`,
+      );
+      router.push(`/login?redirect=${returnUrl}`);
+      return;
+    }
+
     const confirmAndRedirect = async () => {
       // Prevent double execution
       if (hasProcessed.current) return;
@@ -50,13 +61,11 @@ function CheckoutSuccessContent() {
       } catch (error) {
         console.error("Error confirming checkout:", error);
         setStatus("error");
-        // Redirect to home on error, as free users shouldn't access ERP
-        setTimeout(() => router.push("/"), 3000);
       }
     };
 
     confirmAndRedirect();
-  }, [searchParams, refreshUser, router]);
+  }, [searchParams, refreshUser, router, authLoading, user]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -100,9 +109,17 @@ function CheckoutSuccessContent() {
               <AlertCircle className="w-10 h-10 text-red-500" />
             </div>
             <h1 className="text-2xl font-bold mb-2 text-red-500">Erro</h1>
-            <p className="text-muted-foreground">
-              Não foi possível confirmar sua assinatura. Redirecionando...
+            <p className="text-muted-foreground mb-5">
+              Não foi possível confirmar automaticamente sua assinatura.
             </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => window.location.reload()}>
+                Tentar novamente
+              </Button>
+              <Button variant="outline" onClick={() => router.push("/dashboard")}> 
+                Ir para dashboard
+              </Button>
+            </div>
           </>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { auth } from "./firebase";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 /**
  * Get API base URL from environment.
@@ -35,7 +36,25 @@ export const callApi = async <T = unknown>(
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
   body?: unknown,
 ): Promise<T> => {
-  const user = auth.currentUser;
+  const getAuthenticatedUser = async (): Promise<FirebaseUser | null> => {
+    if (auth.currentUser) return auth.currentUser;
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        unsubscribe();
+        resolve(null);
+      }, 4000);
+
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (!firebaseUser) return;
+        clearTimeout(timeout);
+        unsubscribe();
+        resolve(firebaseUser);
+      });
+    });
+  };
+
+  const user = await getAuthenticatedUser();
   if (!user) {
     throw new Error("User not authenticated");
   }
