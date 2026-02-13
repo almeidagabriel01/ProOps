@@ -3,7 +3,14 @@
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, CreditCard, Mail, Loader2, LogOut } from "lucide-react";
+import {
+  AlertTriangle,
+  CreditCard,
+  Mail,
+  Loader2,
+  LogOut,
+  ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -124,8 +131,17 @@ export default function SubscriptionBlockedPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <Button
+            onClick={() => router.push("/subscription-blocked/plans")}
+            className="w-full"
+          >
+            <ArrowRight className="h-4 w-4 mr-2" />
+            Ver Planos
+          </Button>
+
+          <Button
             onClick={handleManageBilling}
             disabled={isRedirecting}
+            variant="outline"
             className="w-full"
           >
             {isRedirecting ? (

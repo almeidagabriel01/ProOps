@@ -39,6 +39,8 @@ export interface EditTransactionFormData {
   firstInstallmentDate: string;
   installmentsWallet: string;
   downPaymentEnabled: boolean;
+  downPaymentType: "value" | "percentage";
+  downPaymentPercentage: string;
   downPaymentValue: string;
   downPaymentWallet: string;
   downPaymentDueDate: string;
@@ -52,6 +54,8 @@ const getTotalFields = (data: EditTransactionFormData) => ({
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
+  downPaymentType: data.downPaymentType,
+  downPaymentPercentage: data.downPaymentPercentage,
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
@@ -65,6 +69,8 @@ const getInstallmentFields = (data: EditTransactionFormData) => ({
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
+  downPaymentType: data.downPaymentType,
+  downPaymentPercentage: data.downPaymentPercentage,
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
@@ -108,6 +114,8 @@ export function useEditTransaction() {
     firstInstallmentDate: "",
     installmentsWallet: "",
     downPaymentEnabled: false,
+    downPaymentType: "value",
+    downPaymentPercentage: "",
     downPaymentValue: "",
     downPaymentWallet: "",
     downPaymentDueDate: "",
@@ -121,6 +129,24 @@ export function useEditTransaction() {
     total: {},
     installmentValue: {},
   });
+
+  const getDownPaymentAmount = React.useCallback(
+    (data: EditTransactionFormData) => {
+      if (!data.downPaymentEnabled) return 0;
+
+      if (data.downPaymentType === "percentage") {
+        const baseTotal =
+          data.paymentMode === "installmentValue"
+            ? parseFloat(data.installmentValue || "0") *
+              (data.installmentCount || 1)
+            : parseFloat(data.amount || "0");
+        return (baseTotal * parseFloat(data.downPaymentPercentage || "0")) / 100;
+      }
+
+      return parseFloat(data.downPaymentValue || "0");
+    },
+    [],
+  );
 
   const fetchTransaction = React.useCallback(async () => {
     if (!transactionId) return;
@@ -238,6 +264,13 @@ export function useEditTransaction() {
 
         // Down Payment Logic
         downPaymentEnabled: !!downPaymentItem,
+        downPaymentType:
+          (downPaymentItem?.downPaymentType as "value" | "percentage") ||
+          "value",
+        downPaymentPercentage:
+          downPaymentItem?.downPaymentType === "percentage"
+            ? String(downPaymentItem?.downPaymentPercentage || "")
+            : "",
         downPaymentValue: downPaymentItem
           ? downPaymentItem.amount.toFixed(2)
           : "",
@@ -303,9 +336,7 @@ export function useEditTransaction() {
       if (newMode === "installmentValue") {
         // Total -> Installment
         const total = parseFloat(formData.amount || "0");
-        const downPayment = formData.downPaymentEnabled
-          ? parseFloat(formData.downPaymentValue || "0")
-          : 0;
+        const downPayment = getDownPaymentAmount(formData);
         const count = formData.installmentCount || 1;
         const remaining = Math.max(0, total - downPayment);
         const installmentVal =
@@ -318,6 +349,8 @@ export function useEditTransaction() {
           isInstallment: true,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.downPaymentWallet, // Preserve existing value
           downPaymentDueDate: formData.date,
@@ -326,9 +359,7 @@ export function useEditTransaction() {
         // Installment -> Total
         const instVal = parseFloat(formData.installmentValue || "0");
         const count = formData.installmentCount || 1;
-        const downPayment = formData.downPaymentEnabled
-          ? parseFloat(formData.downPaymentValue || "0")
-          : 0;
+        const downPayment = getDownPaymentAmount(formData);
         const total = instVal * count + downPayment;
 
         computedValues = {
@@ -339,6 +370,8 @@ export function useEditTransaction() {
           isInstallment: true,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.downPaymentWallet,
           downPaymentDueDate: formData.downPaymentDueDate,
@@ -374,6 +407,14 @@ export function useEditTransaction() {
               targetBuffer.downPaymentEnabled ??
               computedValues.downPaymentEnabled ??
               false,
+            downPaymentType:
+              targetBuffer.downPaymentType ??
+              computedValues.downPaymentType ??
+              "value",
+            downPaymentPercentage:
+              targetBuffer.downPaymentPercentage ??
+              computedValues.downPaymentPercentage ??
+              "",
             downPaymentValue:
               targetBuffer.downPaymentValue ??
               computedValues.downPaymentValue ??
@@ -415,6 +456,14 @@ export function useEditTransaction() {
               targetBuffer.downPaymentEnabled ??
               computedValues.downPaymentEnabled ??
               false,
+            downPaymentType:
+              targetBuffer.downPaymentType ??
+              computedValues.downPaymentType ??
+              "value",
+            downPaymentPercentage:
+              targetBuffer.downPaymentPercentage ??
+              computedValues.downPaymentPercentage ??
+              "",
             downPaymentValue:
               targetBuffer.downPaymentValue ??
               computedValues.downPaymentValue ??
@@ -505,7 +554,7 @@ export function useEditTransaction() {
     // 2. Adjust for Count Changes (Add/Remove)
     const targetCount = parseInt(formData.installmentCount.toString(), 10);
     const currentInstallments = workingList.filter((t) => !t.isDownPayment);
-    const downPaymentItem = workingList.find((t) => t.isDownPayment);
+    const existingDownPaymentItem = workingList.find((t) => t.isDownPayment);
 
     const effectiveTargetCount = isNaN(targetCount)
       ? currentInstallments.length
@@ -520,7 +569,7 @@ export function useEditTransaction() {
       // Grow
       resultList = [...currentInstallments];
       let last = resultList[resultList.length - 1];
-      if (!last && downPaymentItem) last = downPaymentItem;
+      if (!last && existingDownPaymentItem) last = existingDownPaymentItem;
 
       if (last) {
         for (
@@ -557,17 +606,44 @@ export function useEditTransaction() {
       resultList = [...currentInstallments];
     }
 
-    // Re-add down payment if exists
-    if (downPaymentItem) {
-      resultList = [downPaymentItem, ...resultList];
-    }
-
     // 3. RECACLULATE AMOUNTS with PRECISION LOGIC
     const isTotalMode = formData.paymentMode === "total";
     const totalAmount = parseFloat(formData.amount || "0");
-    const downPaymentVal = formData.downPaymentEnabled
-      ? parseFloat(formData.downPaymentValue || "0")
-      : 0;
+    const downPaymentVal = getDownPaymentAmount(formData);
+
+    // Synchronize down payment entry for non-proposal groups
+    const shouldHaveDownPayment = formData.downPaymentEnabled && downPaymentVal > 0;
+    let downPaymentItem = resultList.find((t) => t.isDownPayment);
+
+    if (!shouldHaveDownPayment && downPaymentItem) {
+      resultList = resultList.filter((t) => !t.isDownPayment);
+      downPaymentItem = undefined;
+    }
+
+    if (shouldHaveDownPayment && !downPaymentItem) {
+      const firstInstallment = resultList.find((t) => !t.isDownPayment);
+      const baseDate = formData.downPaymentDueDate || formData.date || firstInstallment?.date || transaction.date;
+      const baseDueDate =
+        formData.downPaymentDueDate ||
+        firstInstallment?.dueDate ||
+        transaction.dueDate ||
+        transaction.date;
+
+      downPaymentItem = {
+        ...(firstInstallment || transaction),
+        id: "temp-downpayment",
+        isDownPayment: true,
+        isInstallment: false,
+        installmentNumber: 0,
+        installmentCount: effectiveTargetCount + 1,
+        date: baseDate,
+        dueDate: baseDueDate,
+        wallet: formData.downPaymentWallet || formData.wallet,
+        amount: downPaymentVal,
+      };
+
+      resultList = [downPaymentItem, ...resultList];
+    }
 
     const installmentsToUpdate = resultList.filter((t) => !t.isDownPayment);
     const count = installmentsToUpdate.length;
@@ -579,6 +655,8 @@ export function useEditTransaction() {
         resultList[idx] = {
           ...resultList[idx],
           amount: downPaymentVal,
+          date: formData.downPaymentDueDate || resultList[idx].date,
+          dueDate: formData.downPaymentDueDate || resultList[idx].dueDate,
           wallet: formData.downPaymentWallet, // decoupled: no fallback to main wallet
         };
       }
@@ -627,7 +705,7 @@ export function useEditTransaction() {
       ...t,
       installmentCount: effectiveTargetCount,
     }));
-  }, [transaction, formData, relatedInstallments]);
+  }, [transaction, formData, relatedInstallments, getDownPaymentAmount]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -723,6 +801,11 @@ export function useEditTransaction() {
           type: formData.type,
           isInstallment: formData.isInstallment,
           isDownPayment: inst.isDownPayment,
+          downPaymentType: inst.isDownPayment ? formData.downPaymentType : undefined,
+          downPaymentPercentage:
+            inst.isDownPayment && formData.downPaymentType === "percentage"
+              ? parseFloat(formData.downPaymentPercentage || "0")
+              : undefined,
           installmentGroupId: transaction.installmentGroupId,
         };
 
@@ -732,8 +815,8 @@ export function useEditTransaction() {
               ...basePayload,
               tenantId: transaction.tenantId,
               installmentGroupId: transaction.installmentGroupId,
-              isInstallment: true,
-              isDownPayment: false,
+              isInstallment: !!inst.isInstallment,
+              isDownPayment: !!inst.isDownPayment,
             } as unknown as Omit<Transaction, "id">),
           );
 

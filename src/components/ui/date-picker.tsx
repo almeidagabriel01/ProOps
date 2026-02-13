@@ -366,6 +366,19 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
     const handleToggle = () => {
       if (disabled) return;
       if (!isOpen) {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const estimatedHeight = 380;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const placeAbove = spaceBelow < 300 && rect.top > 450;
+
+          setCoords({
+            top: placeAbove
+              ? rect.top - estimatedHeight - 8
+              : rect.bottom + 8,
+            left: rect.left,
+          });
+        }
         setView("days");
       }
       setIsOpen((prev) => !prev);
@@ -442,8 +455,8 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
             <div
               ref={popoverRef}
               className={cn(
-                "fixed z-[9999] w-[310px] rounded-2xl border-2 border-border/60 bg-card shadow-2xl",
-                "animate-in fade-in-0 zoom-in-95 duration-150",
+                "fixed z-9999 w-[310px] rounded-2xl border-2 border-border/60 bg-card shadow-2xl",
+                "animate-in fade-in-0 duration-150",
                 "overflow-hidden",
                 // "pointer-events-auto", // Ensure interaction even if body has pointer-events: none
               )}

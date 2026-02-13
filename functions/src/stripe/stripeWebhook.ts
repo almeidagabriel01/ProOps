@@ -51,11 +51,17 @@ async function handleCheckoutCompleted(
   const billingInterval = metadata.billingInterval;
 
   if (userId && planTier && subscriptionId) {
+    const stripe = getStripe();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
     await updateUserPlan(
       userId,
       planTier,
       subscriptionId,
-      billingInterval === "yearly" ? "year" : "month"
+      billingInterval === "yearly" ? "year" : "month",
+      currentPeriodEnd,
+      subscription.cancel_at_period_end,
     );
   } else {
     console.error("Missing metadata in checkout session:", {
@@ -148,7 +154,14 @@ async function handleSubscriptionUpdated(
     console.log(`User ${userId} subscription status synced to ${status}`);
 
     if (planTier) {
-      await updateUserPlan(userId, planTier, subscription.id, interval);
+      await updateUserPlan(
+        userId,
+        planTier,
+        subscription.id,
+        interval,
+        currentPeriodEnd,
+        subscription.cancel_at_period_end,
+      );
     }
   }
 }

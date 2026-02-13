@@ -30,6 +30,8 @@ export type Transaction = {
   category?: string;
   wallet?: string; // Payment method: NuBank, PicPay, Boleto, etc.
   isDownPayment?: boolean; // True if this is a down payment entry
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: number;
   isInstallment?: boolean;
   installmentCount?: number; // Total number of installments
   installmentNumber?: number; // Current installment (1, 2, 3...)
@@ -103,6 +105,8 @@ export const TransactionService = {
           category: transaction.category,
           wallet: transaction.wallet,
           isDownPayment: transaction.isDownPayment,
+          downPaymentType: transaction.downPaymentType,
+          downPaymentPercentage: transaction.downPaymentPercentage,
           isInstallment: transaction.isInstallment,
           installmentCount: transaction.installmentCount,
           installmentNumber: transaction.installmentNumber,

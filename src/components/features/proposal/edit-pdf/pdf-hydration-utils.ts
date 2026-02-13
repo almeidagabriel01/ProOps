@@ -9,10 +9,17 @@ export const generatePaymentTerms = (proposal: Proposal): string => {
       currency: "BRL",
     }).format(val);
 
+  const downPaymentType = proposal.downPaymentType || "value";
+  const downPaymentPercentage = proposal.downPaymentPercentage || 0;
+  const downPaymentValue =
+    downPaymentType === "percentage"
+      ? ((proposal.totalValue || 0) * downPaymentPercentage) / 100
+      : proposal.downPaymentValue || 0;
+
   // 1. Down Payment
-  if (proposal.downPaymentEnabled && (proposal.downPaymentValue || 0) > 0) {
+  if (proposal.downPaymentEnabled && downPaymentValue > 0) {
     const total = proposal.totalValue || 0;
-    const downVal = proposal.downPaymentValue || 0;
+    const downVal = downPaymentValue;
     const percentage = total > 0 ? Math.round((downVal / total) * 100) : 0;
     lines.push(
       `• Entrada: ${formatCurrency(downVal)} (${percentage}%) na aprovação`,

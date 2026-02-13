@@ -2,7 +2,10 @@ import { formatCurrency } from "@/utils/format-utils";
 
 interface PdfPaymentTermsProps {
   contentStyles: Record<string, React.CSSProperties>;
+  proposalTotalValue?: number;
   downPaymentEnabled?: boolean;
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: number;
   downPaymentValue?: number;
   downPaymentDueDate?: string;
   installmentsEnabled?: boolean;
@@ -13,7 +16,10 @@ interface PdfPaymentTermsProps {
 
 export function PdfPaymentTerms({
   contentStyles,
+  proposalTotalValue,
   downPaymentEnabled,
+  downPaymentType,
+  downPaymentPercentage,
   downPaymentValue,
   downPaymentDueDate,
   installmentsEnabled,
@@ -77,21 +83,26 @@ export function PdfPaymentTerms({
     }
   };
 
-  const hasDownPayment =
-    downPaymentEnabled && downPaymentValue && downPaymentValue > 0;
+  const effectiveDownPaymentValue =
+    downPaymentType === "percentage"
+      ? (downPaymentValue || 0)
+      : downPaymentValue || 0;
+
+  const hasDownPayment = downPaymentEnabled && effectiveDownPaymentValue > 0;
   const hasInstallments =
     installmentsEnabled && installmentsCount && installmentsCount >= 1;
 
   if (!hasDownPayment && !hasInstallments) return null;
 
-  // Calculate fields for summary
-  const totalValue =
-    (hasDownPayment ? downPaymentValue! : 0) +
+  const inferredTotalValue =
+    (hasDownPayment ? effectiveDownPaymentValue : 0) +
     (hasInstallments ? (installmentValue || 0) * installmentsCount! : 0);
+  const totalValue = Math.max(proposalTotalValue || 0, inferredTotalValue);
+  const remainingValue = Math.max(0, totalValue - effectiveDownPaymentValue);
 
-  const downPaymentPercentage =
+  const downPaymentShare =
     hasDownPayment && totalValue > 0
-      ? ((downPaymentValue! / totalValue) * 100).toFixed(0)
+      ? ((effectiveDownPaymentValue / totalValue) * 100).toFixed(0)
       : "0";
 
   // Extract primary color from contentStyles or default to black
@@ -116,7 +127,7 @@ export function PdfPaymentTerms({
           <div className="flex-1">Forma</div>
           <div className="w-20">Parcela</div>
           <div className="w-24">Vencimento</div>
-          <div className="w-20 text-right">Valor</div>
+          <div className="w-28 text-right">Valor</div>
         </div>
 
         {/* Rows */}
@@ -126,13 +137,29 @@ export function PdfPaymentTerms({
             <div className="flex items-center py-0.5">
               <div className="flex-1 text-gray-700">Pix/Boleto</div>
               <div className="w-20 text-gray-500">
-                {hasInstallments ? `1/${installmentsCount! + 1}` : "1/1"} Ent.
+                Entrada
               </div>
               <div className="w-24 text-gray-500">
                 {formatDate(downPaymentDueDate)}
               </div>
-              <div className="w-20 text-right font-medium text-gray-800">
-                {formatCurrency(downPaymentValue)}
+              <div className="w-28 text-right font-medium text-gray-800 whitespace-nowrap">
+                <div>{formatCurrency(effectiveDownPaymentValue)}</div>
+                {downPaymentType === "percentage" && downPaymentPercentage ? (
+                  <div className="text-[10px] text-gray-500 leading-none mt-0.5">
+                    ({downPaymentPercentage.toFixed(2)}%)
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
+          {!hasInstallments && hasDownPayment && remainingValue > 0 && (
+            <div className="flex items-center py-0.5">
+              <div className="flex-1 text-gray-700">Pix/Boleto</div>
+              <div className="w-20 text-gray-500">Saldo</div>
+              <div className="w-24 text-gray-500">-</div>
+              <div className="w-28 text-right font-medium text-gray-800 whitespace-nowrap">
+                {formatCurrency(remainingValue)}
               </div>
             </div>
           )}
@@ -141,23 +168,17 @@ export function PdfPaymentTerms({
           {hasInstallments &&
             Array.from({ length: installmentsCount! }).map((_, index) => {
               const installmentNum = index + 1;
-              const displayNum = hasDownPayment
-                ? installmentNum + 1
-                : installmentNum;
-              const totalNum = hasDownPayment
-                ? installmentsCount! + 1
-                : installmentsCount!;
 
               return (
                 <div key={index} className="flex items-center py-0.5">
                   <div className="flex-1 text-gray-700">Pix/Boleto</div>
                   <div className="w-20 text-gray-500">
-                    {displayNum}/{totalNum}
+                    {installmentNum}/{installmentsCount!}
                   </div>
                   <div className="w-24 text-gray-500">
                     {calculateDate(firstInstallmentDate, index)}
                   </div>
-                  <div className="w-20 text-right font-medium text-gray-800">
+                  <div className="w-28 text-right font-medium text-gray-800 whitespace-nowrap">
                     {formatCurrency(installmentValue || 0)}
                   </div>
                 </div>
@@ -185,12 +206,17 @@ export function PdfPaymentTerms({
           Forma de pagamento:
         </div>
         <div className="text-xs text-gray-600 leading-tight">
-          {hasDownPayment ? (
+          {hasDownPayment && hasInstallments ? (
             <>
-              Entrada de <strong>{downPaymentPercentage}%</strong> e
+              Entrada de <strong>{downPaymentShare}%</strong> e
               parcelamento do restante (
-              <strong>{100 - parseFloat(downPaymentPercentage)}%</strong>) em{" "}
+              <strong>{100 - parseFloat(downPaymentShare)}%</strong>) em{" "}
               <strong>{installmentsCount} vezes</strong>.
+            </>
+          ) : hasDownPayment ? (
+            <>
+              Entrada de <strong>{downPaymentShare}%</strong> e saldo de{" "}
+              <strong>{100 - parseFloat(downPaymentShare)}%</strong> à vista.
             </>
           ) : (
             <>

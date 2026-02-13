@@ -95,6 +95,8 @@ export interface Proposal {
   attachments?: ProposalAttachment[];
   // Payment options
   downPaymentEnabled?: boolean;
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: number;
   downPaymentValue?: number;
   downPaymentWallet?: string; // Internal use only - not shown in PDF
   downPaymentDueDate?: string; // YYYY-MM-DD

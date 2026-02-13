@@ -7,7 +7,7 @@ import {
   getPriceIdForAddon,
   getAppUrl,
 } from "../../stripe/stripeConfig";
-import { updateSubscriptionStatus } from "../../stripe/stripeHelpers";
+import { updateSubscriptionStatus, updateUserPlan } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
 
@@ -362,6 +362,90 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     return res.json({ url: session.url });
   } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return res.status(500).json({ message });
+  }
+};
+
+export const confirmCheckoutSession = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user!.uid;
+    const { sessionId } = req.body as { sessionId?: string };
+
+    if (!sessionId) {
+      return res.status(400).json({ message: "sessionId is required" });
+    }
+
+    const stripe = getStripe();
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["subscription"],
+    });
+
+    if (!session) {
+      return res.status(404).json({ message: "Checkout session not found" });
+    }
+
+    if (session.mode !== "subscription") {
+      return res.status(400).json({ message: "Invalid checkout session mode" });
+    }
+
+    const metadataUserId = session.metadata?.userId;
+    if (metadataUserId && metadataUserId !== userId) {
+      return res.status(403).json({ message: "Session does not belong to authenticated user" });
+    }
+
+    let subscription =
+      typeof session.subscription === "string"
+        ? await stripe.subscriptions.retrieve(session.subscription)
+        : session.subscription;
+
+    if (!subscription) {
+      return res.status(400).json({ message: "No subscription found for session" });
+    }
+
+    const planTier = session.metadata?.planTier;
+    const interval = subscription.items.data[0]?.price.recurring?.interval;
+
+    if (planTier) {
+      await updateUserPlan(
+        userId,
+        planTier,
+        subscription.id,
+        interval,
+        new Date(subscription.current_period_end * 1000),
+        subscription.cancel_at_period_end,
+      );
+    } else {
+      await db.collection("users").doc(userId).update({
+        stripeSubscriptionId: subscription.id,
+        role: "admin",
+        currentPeriodEnd: new Date(
+          subscription.current_period_end * 1000,
+        ).toISOString(),
+        subscriptionStatus: "active",
+      });
+    }
+
+    const status = mapStripeSubscriptionStatus(subscription.status);
+    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+
+    await updateSubscriptionStatus(
+      userId,
+      status,
+      "Checkout Confirm",
+      currentPeriodEnd,
+      subscription.cancel_at_period_end,
+    );
+
+    return res.json({
+      success: true,
+      subscriptionId: subscription.id,
+      planTier: planTier || undefined,
+      status,
+    });
+  } catch (error: unknown) {
+    console.error("Confirm Checkout Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return res.status(500).json({ message });
   }

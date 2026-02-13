@@ -35,6 +35,7 @@ interface ConfirmResponse {
   success: boolean;
   subscriptionId?: string;
   planTier?: string;
+  status?: string;
 }
 
 interface AddonCheckoutRequest {
@@ -174,11 +175,13 @@ export const StripeService = {
   },
 
   confirmCheckout: async (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _data: ConfirmRequest,
+    data: ConfirmRequest,
   ): Promise<ConfirmResponse> => {
-    // NOTE: Checkout confirmation usually happens via Webhook or just on success page.
-    return { success: true };
+    return callApi<ConfirmResponse>(
+      "/v1/stripe/confirm-checkout",
+      "POST",
+      data,
+    );
   },
 
   createAddonCheckout: async (

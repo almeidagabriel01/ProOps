@@ -99,6 +99,17 @@ export async function updateProposal(
     selectedSistemas.length > 0 ? transformSistemas(selectedSistemas) : [];
 
   const productsForUpdate = sanitizeProducts(selectedProducts);
+  const safeTotal = productsForUpdate.reduce((sum, p) => sum + p.total, 0);
+  const discountAmount = (safeTotal * (formData.discount || 0)) / 100;
+  const computedTotalValue =
+    safeTotal - discountAmount + (formData.extraExpense || 0);
+
+  const downPaymentType = formData.downPaymentType || "value";
+  const downPaymentPercentage = formData.downPaymentPercentage || 0;
+  const effectiveDownPaymentValue =
+    downPaymentType === "percentage"
+      ? (computedTotalValue * downPaymentPercentage) / 100
+      : formData.downPaymentValue || 0;
 
   // Ensure empty fields are explicitly saved as empty strings, not null/undefined
   // This prevents Firestore from skipping the field or keeping old values
@@ -123,7 +134,9 @@ export async function updateProposal(
     status: (formData.status as ProposalStatus) || "in_progress",
     // Payment options
     downPaymentEnabled: formData.downPaymentEnabled || false,
-    downPaymentValue: formData.downPaymentValue || 0,
+    downPaymentType,
+    downPaymentPercentage,
+    downPaymentValue: effectiveDownPaymentValue,
     downPaymentWallet: formData.downPaymentWallet || "",
     downPaymentDueDate: formData.downPaymentDueDate || "",
     installmentsEnabled: formData.installmentsEnabled || false,
@@ -153,6 +166,12 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
   const safeTotal = calculateTotal();
   const totalValue =
     typeof safeTotal === "number" && !isNaN(safeTotal) ? safeTotal : 0;
+  const downPaymentType = formData.downPaymentType || "value";
+  const downPaymentPercentage = formData.downPaymentPercentage || 0;
+  const effectiveDownPaymentValue =
+    downPaymentType === "percentage"
+      ? (totalValue * downPaymentPercentage) / 100
+      : formData.downPaymentValue || 0;
 
   // Ensure empty fields are explicitly saved as empty strings, not null/undefined
   // This prevents Firestore from skipping the field or keeping old values
@@ -181,7 +200,9 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     status: (formData.status as ProposalStatus) || "in_progress",
     // Payment options
     downPaymentEnabled: formData.downPaymentEnabled || false,
-    downPaymentValue: formData.downPaymentValue || 0,
+    downPaymentType,
+    downPaymentPercentage,
+    downPaymentValue: effectiveDownPaymentValue,
     downPaymentWallet: formData.downPaymentWallet || "",
     downPaymentDueDate: formData.downPaymentDueDate || "",
     installmentsEnabled: formData.installmentsEnabled || false,

@@ -84,9 +84,12 @@ export function StepWizard({
     if (step >= 0 && step < totalSteps) {
       // If moving forward and validators exist, validate current step
       if (step > currentStep && stepValidators) {
-        const validator = stepValidators[currentStep];
+        const validationStart = allowClickAhead ? 0 : currentStep;
 
-        if (validator) {
+        for (let idx = validationStart; idx < step; idx++) {
+          const validator = stepValidators[idx];
+          if (!validator) continue;
+
           try {
             const isValid = await validator();
             if (!isValid) {

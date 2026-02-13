@@ -154,6 +154,14 @@ export default function NewTransactionPage() {
     } else {
       // Installment value mode: installmentValue and installmentsWallet are required
       if (formData.isInstallment) {
+        if (formData.paymentMode === "installmentValue" && !formData.firstInstallmentDate) {
+          setFieldError(
+            "firstInstallmentDate",
+            "Data de vencimento da primeira parcela é obrigatória",
+          );
+          isValid = false;
+        }
+
         if (
           !formData.installmentValue ||
           parseFloat(formData.installmentValue) <= 0
@@ -175,7 +183,24 @@ export default function NewTransactionPage() {
           isValid = false;
         }
         if (formData.downPaymentEnabled) {
-          if (
+          if (!formData.downPaymentDueDate) {
+            setFieldError(
+              "downPaymentDueDate",
+              "Data da entrada é obrigatória",
+            );
+            isValid = false;
+          }
+
+          if (formData.downPaymentType === "percentage") {
+            const percentage = parseFloat(formData.downPaymentPercentage || "0");
+            if (!formData.downPaymentPercentage || percentage <= 0) {
+              setFieldError(
+                "downPaymentPercentage",
+                "Percentual da entrada deve ser maior que 0",
+              );
+              isValid = false;
+            }
+          } else if (
             !formData.downPaymentValue ||
             parseFloat(formData.downPaymentValue) <= 0
           ) {
