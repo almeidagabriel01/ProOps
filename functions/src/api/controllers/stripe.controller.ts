@@ -115,14 +115,14 @@ export const cancelAddon = async (req: Request, res: Response) => {
       cancelAtPeriodEnd: true,
       cancelScheduledAt: new Date().toISOString(),
       currentPeriodEnd: new Date(
-        subscription.current_period_end * 1000,
+        (subscription as any).current_period_end * 1000,
       ).toISOString(),
     });
 
     return res.json({
       success: true,
       message: "Add-on will be cancelled at the end of the billing period",
-      cancelAt: new Date(subscription.current_period_end * 1000).toISOString(),
+      cancelAt: new Date((subscription as any).current_period_end * 1000).toISOString(),
     });
   } catch (error: unknown) {
     console.error("Cancel Addon Error:", error);
@@ -181,7 +181,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
 
     // Update user document with cancellation info
     const currentPeriodEnd = new Date(
-      subscription.current_period_end * 1000,
+      (subscription as any).current_period_end * 1000,
     ).toISOString();
 
     await userRef.update({
@@ -413,7 +413,7 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         planTier,
         subscription.id,
         interval,
-        new Date(subscription.current_period_end * 1000),
+        new Date((subscription as any).current_period_end * 1000),
         subscription.cancel_at_period_end,
       );
     } else {
@@ -421,14 +421,14 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         stripeSubscriptionId: subscription.id,
         role: "admin",
         currentPeriodEnd: new Date(
-          subscription.current_period_end * 1000,
+          (subscription as any).current_period_end * 1000,
         ).toISOString(),
         subscriptionStatus: "active",
       });
     }
 
     const status = mapStripeSubscriptionStatus(subscription.status);
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     await updateSubscriptionStatus(
       userId,
@@ -698,7 +698,7 @@ export const syncSubscription = async (req: Request, res: Response) => {
 
     const status = mapStripeSubscriptionStatus(subscription.status);
 
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     await updateSubscriptionStatus(
       userId,
@@ -782,7 +782,7 @@ export const syncAllSubscriptions = async (req: Request, res: Response) => {
         );
 
         const status = mapStripeSubscriptionStatus(subscription.status);
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
         if (!dryRun) {
           await updateSubscriptionStatus(
