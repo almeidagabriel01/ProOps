@@ -7,6 +7,8 @@ import {
 } from "@/services/transaction-service";
 import { ProposalService, Proposal } from "@/services/proposal-service";
 import { ClientService, Client } from "@/services/client-service";
+import { WalletService } from "@/services/wallet-service"; // Import WalletService
+import { Wallet } from "@/types"; // Import Wallet type
 import { useTenant } from "@/providers/tenant-provider";
 import type { BarChartDataItem } from "@/components/charts/simple-bar-chart";
 
@@ -30,9 +32,15 @@ interface DashboardData {
   proposals: Proposal[];
   clients: Client[];
   financialSummary: FinancialSummary;
+  wallets: Wallet[];
 
   // Computed
   chartData: BarChartDataItem[];
+  currentMonthStats: {
+    expensesByCategory: Record<string, number>;
+    incomeByWallet: Record<string, number>;
+    expensesByWallet: Record<string, number>;
+  };
   proposalStats: ProposalStats;
   overdueTransactions: Transaction[];
   upcomingDue: Transaction[];
@@ -49,6 +57,7 @@ const initialState: DashboardData = {
   transactions: [],
   proposals: [],
   clients: [],
+  wallets: [],
   financialSummary: {
     totalIncome: 0,
     totalExpense: 0,
@@ -56,6 +65,11 @@ const initialState: DashboardData = {
     pendingExpense: 0,
   },
   chartData: [],
+  currentMonthStats: {
+    expensesByCategory: {},
+    incomeByWallet: {},
+    expensesByWallet: {},
+  },
   proposalStats: { approved: 0, pending: 0, total: 0, conversionRate: 0 },
   overdueTransactions: [],
   upcomingDue: [],
@@ -72,6 +86,7 @@ export function useDashboardData(): DashboardData {
     transactions: [] as Transaction[],
     proposals: [] as Proposal[],
     clients: [] as Client[],
+    wallets: [] as Wallet[],
     financialSummary: initialState.financialSummary,
   });
   const [isDataLoading, setIsDataLoading] = React.useState(true);
@@ -95,16 +110,23 @@ export function useDashboardData(): DashboardData {
     const fetchData = async () => {
       setIsDataLoading(true);
       try {
-        const [transactions, proposals, clients, financialSummary] =
+        const [transactions, proposals, clients, financialSummary, wallets] =
           await Promise.all([
             TransactionService.getTransactions(tenant.id),
             ProposalService.getProposals(tenant.id),
             ClientService.getClients(tenant.id),
             TransactionService.getSummary(tenant.id),
+            WalletService.getWallets(tenant.id),
           ]);
 
         if (!cancelled) {
-          setRawData({ transactions, proposals, clients, financialSummary });
+          setRawData({
+            transactions,
+            proposals,
+            clients,
+            financialSummary,
+            wallets,
+          });
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -123,7 +145,8 @@ export function useDashboardData(): DashboardData {
 
   // Compute all derived values
   const computed = React.useMemo(() => {
-    const { transactions, proposals, clients, financialSummary } = rawData;
+    const { transactions, proposals, clients, financialSummary, wallets } =
+      rawData;
     const now = new Date();
 
     // Chart data - last 6 months
@@ -151,6 +174,38 @@ export function useDashboardData(): DashboardData {
       }
     });
     const chartData = Object.values(months);
+
+    // Current Month Stats (Breakdown)
+    const currentMonthExpensesByCategory: Record<string, number> = {};
+    const currentMonthIncomeByWallet: Record<string, number> = {};
+    const currentMonthExpensesByWallet: Record<string, number> = {};
+
+    transactions.forEach((t) => {
+      if (t.status !== "paid") return;
+      const date = new Date(t.date);
+      const isCurrentMonth =
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear();
+
+      if (isCurrentMonth) {
+        // Expenses by Category
+        if (t.type === "expense") {
+          const category = t.category || "Sem Categoria";
+          currentMonthExpensesByCategory[category] =
+            (currentMonthExpensesByCategory[category] || 0) + t.amount;
+        }
+
+        // By Wallet
+        const walletName = t.wallet || "Sem Carteira";
+        if (t.type === "income") {
+          currentMonthIncomeByWallet[walletName] =
+            (currentMonthIncomeByWallet[walletName] || 0) + t.amount;
+        } else {
+          currentMonthExpensesByWallet[walletName] =
+            (currentMonthExpensesByWallet[walletName] || 0) + t.amount;
+        }
+      }
+    });
 
     // Proposal stats
     const approved = proposals.filter((p) => p.status === "approved").length;
@@ -183,7 +238,13 @@ export function useDashboardData(): DashboardData {
     }).length;
 
     return {
+      wallets,
       chartData,
+      currentMonthStats: {
+        expensesByCategory: currentMonthExpensesByCategory,
+        incomeByWallet: currentMonthIncomeByWallet,
+        expensesByWallet: currentMonthExpensesByWallet,
+      },
       proposalStats: { approved, pending, total, conversionRate },
       overdueTransactions,
       upcomingDue,
