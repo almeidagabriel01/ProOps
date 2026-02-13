@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Wallet } from "@/types";
+import { normalize } from "@/utils/text";
 import {
   CreateWalletInput,
   UpdateWalletInput,
@@ -34,6 +35,8 @@ import {
 import { WalletType } from "@/types";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Loader2 } from "lucide-react";
+
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Infinite scroll wrapper for wallet grid */
 function WalletGridInfinite({
@@ -157,11 +160,11 @@ export default function WalletsPage() {
 
     // Filter by search term
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = normalize(searchTerm);
       filtered = filtered.filter(
         (w) =>
-          w.name.toLowerCase().includes(term) ||
-          w.description?.toLowerCase().includes(term),
+          normalize(w.name).includes(term) ||
+          normalize(w.description || "").includes(term),
       );
     }
 
@@ -440,7 +443,25 @@ export default function WalletsPage() {
         />
 
         {/* Wallets Grid */}
-        {wallets.length === 0 ? (
+        {dataLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-3 mb-4">
+                    <Skeleton className="w-10 h-10" />
+                    <div className="flex-1">
+                      <Skeleton className="h-5 w-24 mb-1" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-16 mb-1" />
+                  <Skeleton className="h-8 w-28" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : wallets.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

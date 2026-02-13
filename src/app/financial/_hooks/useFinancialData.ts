@@ -12,6 +12,7 @@ import { WalletService } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Wallet } from "@/types";
+import { normalize } from "@/utils/text";
 
 type DateLike =
   | string
@@ -384,13 +385,13 @@ export function useFinancialData(): UseFinancialDataReturn {
 
     // Filter by search term
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = normalize(searchTerm);
       filtered = filtered.filter(
         (t) =>
-          t.description.toLowerCase().includes(term) ||
-          t.clientName?.toLowerCase().includes(term) ||
-          t.category?.toLowerCase().includes(term) ||
-          t.wallet?.toLowerCase().includes(term),
+          normalize(t.description).includes(term) ||
+          normalize(t.clientName || "").includes(term) ||
+          normalize(t.category || "").includes(term) ||
+          normalize(t.wallet || "").includes(term),
       );
     }
 
@@ -461,21 +462,22 @@ export function useFinancialData(): UseFinancialDataReturn {
 
       // 4. Filter by Search
       if (term) {
+        const normalizedTerm = normalize(term);
         const matches =
-          t.description.toLowerCase().includes(term) ||
-          t.clientName?.toLowerCase().includes(term) ||
-          t.category?.toLowerCase().includes(term) ||
-          t.wallet?.toLowerCase().includes(term);
+          normalize(t.description).includes(normalizedTerm) ||
+          normalize(t.clientName || "").includes(normalizedTerm) ||
+          normalize(t.category || "").includes(normalizedTerm) ||
+          normalize(t.wallet || "").includes(normalizedTerm);
         if (!matches) return;
       }
 
       // 5. Filter by Date
       let dateVal: string | undefined = t.date;
       if (filterDateType === "dueDate") {
-        if(!t.dueDate) return;
+        if (!t.dueDate) return;
         dateVal = t.dueDate;
       }
-      
+
       const dateStr = getDateString(dateVal);
       if (!dateStr) return;
 

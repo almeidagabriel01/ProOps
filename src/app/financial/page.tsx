@@ -19,6 +19,7 @@ import {
   TransactionFilters,
   TransactionListByDueDate,
 } from "./_components";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSort } from "@/hooks/use-sort";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Loader2 } from "lucide-react";
@@ -193,8 +194,6 @@ export default function FinancialPage() {
     refreshData,
   } = useFinancialData();
 
-  const isLoading = tenantLoading || dataLoading || isPlanLoading;
-
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [transactionToDelete, setTransactionToDelete] =
@@ -357,7 +356,8 @@ export default function FinancialPage() {
   }, [totalWalletBalance]);
 
   // Show loading first - before checking plan access to avoid flash
-  if (isLoading) {
+  // Show loading first - before checking plan access to avoid flash
+  if (tenantLoading || isPlanLoading) {
     return <FinancialSkeleton />;
   }
 
@@ -483,7 +483,27 @@ export default function FinancialPage() {
       />
 
       {/* Transactions List */}
-      {transactions.length === 0 ? (
+      {dataLoading ? (
+        <div className="grid gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-10 h-10" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16 ml-auto" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : transactions.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
