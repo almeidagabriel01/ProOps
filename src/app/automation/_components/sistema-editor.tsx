@@ -210,8 +210,6 @@ export function SistemaEditor({
       status: "active",
     };
     updateActiveProducts([...currentProducts, newProd]);
-    setShowProductList(false);
-    setProductSearch("");
   };
 
   const handleRemoveProduct = (productId: string) => {
