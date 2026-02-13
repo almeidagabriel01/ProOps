@@ -144,9 +144,40 @@ export const NotificationService = {
         orderBy("createdAt", "desc"),
       );
 
-      return onSnapshot(
+      let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+      const stopPolling = () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+      };
+
+      const fetchByApi = async () => {
+        try {
+          const notifications = await NotificationService.getNotifications({
+            limit: 50,
+          });
+          callback(notifications);
+        } catch (error) {
+          console.error("Error in notifications polling fallback:", error);
+        }
+      };
+
+      const startPollingFallback = () => {
+        if (pollingInterval) return;
+
+        void fetchByApi();
+        pollingInterval = setInterval(() => {
+          void fetchByApi();
+        }, 10000);
+      };
+
+      const unsubscribeSnapshot = onSnapshot(
         q,
         (snapshot) => {
+          stopPolling();
+
           const notifications: Notification[] = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
@@ -155,12 +186,40 @@ export const NotificationService = {
         },
         (error) => {
           console.error("Error in notifications subscription:", error);
+          startPollingFallback();
         },
       );
+
+      return () => {
+        stopPolling();
+        unsubscribeSnapshot();
+      };
     } catch (error) {
       console.error("Error subscribing to notifications:", error);
-      // Retornar função vazia de unsubscribe em caso de erro
-      return () => {};
+      let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+      const fetchByApi = async () => {
+        try {
+          const notifications = await NotificationService.getNotifications({
+            limit: 50,
+          });
+          callback(notifications);
+        } catch (pollError) {
+          console.error("Error in notifications startup fallback:", pollError);
+        }
+      };
+
+      void fetchByApi();
+      pollingInterval = setInterval(() => {
+        void fetchByApi();
+      }, 10000);
+
+      return () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+      };
     }
   },
 };
