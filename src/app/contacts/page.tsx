@@ -22,6 +22,8 @@ import {
   Building2,
 } from "lucide-react";
 import { ContactsSkeleton } from "./_components/contacts-skeleton";
+import { ContactsTableSkeleton } from "./_components/contacts-table-skeleton";
+import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
@@ -208,12 +210,12 @@ export default function CustomersPage() {
 
     // Filter by search term
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = normalize(searchTerm);
       result = result.filter(
         (client) =>
-          client.name.toLowerCase().includes(term) ||
-          client.email?.toLowerCase().includes(term) ||
-          client.phone?.includes(term),
+          normalize(client.name).includes(term) ||
+          normalize(client.email || "").includes(term) ||
+          normalize(client.phone || "").includes(term),
       );
     }
 
@@ -224,7 +226,8 @@ export default function CustomersPage() {
     return (allClients ?? []).find((c) => c.id === deleteId);
   }, [allClients, deleteId]);
 
-  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
+  // isPageLoading now only for initial tenant load to avoid full page blink
+  const isPageLoading = tenantLoading;
 
   const columns: DataTableColumn<Client>[] = React.useMemo(
     () => [
@@ -380,14 +383,14 @@ export default function CustomersPage() {
     </>
   );
 
-  if (isPageLoading) {
-    return (
-      <>
-        <ContactsSkeleton />
-        {renderDialogs()}
-      </>
-    );
-  }
+  // if (isPageLoading) {
+  //   return (
+  //     <>
+  //       <ContactsSkeleton />
+  //       {renderDialogs()}
+  //     </>
+  //   );
+  // }
 
   return (
     <>
@@ -412,13 +415,19 @@ export default function CustomersPage() {
         </div>
 
         {hasAnyClients !== false && (
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
             <div className="max-w-md flex-1">
               <Input
                 placeholder="Buscar por nome, email ou telefone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                icon={<Search className="w-4 h-4" />}
+                icon={
+                  isFiltering && isLoadingAll ? (
+                    <Spinner className="w-4 h-4" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )
+                }
               />
             </div>
             <div className="flex gap-2">
@@ -451,7 +460,9 @@ export default function CustomersPage() {
           </div>
         )}
 
-        {hasAnyClients === false ? (
+        {isPageLoading ? (
+          <ContactsSkeleton />
+        ) : hasAnyClients === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -496,6 +507,8 @@ export default function CustomersPage() {
             sortConfig={sortConfig}
             minWidth="900px"
           />
+        ) : isFiltering && isLoadingAll ? (
+          <ContactsTableSkeleton />
         ) : (
           <DataTable
             columns={columns}

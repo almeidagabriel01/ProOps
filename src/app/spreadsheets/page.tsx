@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { normalize } from "@/utils/text";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
@@ -50,7 +51,7 @@ export default function SpreadsheetsPage() {
     sortConfig,
   } = useSort(allSpreadsheets ?? []);
 
-  const isPageLoading = tenantLoading || (isFiltering && isLoadingAll);
+  const isPageLoading = tenantLoading;
 
   // Check if we have any spreadsheets (for empty state)
   useEffect(() => {
@@ -162,7 +163,7 @@ export default function SpreadsheetsPage() {
 
   const filteredSpreadsheets = isFiltering
     ? sortedSpreadsheets.filter((sheet) =>
-        sheet.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        normalize(sheet.name).includes(normalize(searchTerm)),
       )
     : [];
 
@@ -228,13 +229,13 @@ export default function SpreadsheetsPage() {
     },
   ];
 
-  if (isPageLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Spinner className="w-8 h-8" />
-      </div>
-    );
-  }
+  // if (isPageLoading) {
+  //   return (
+  //     <div className="flex h-full items-center justify-center">
+  //       <Spinner className="w-8 h-8" />
+  //     </div>
+  //   );
+  // }
 
   return (
     <>
@@ -268,12 +269,23 @@ export default function SpreadsheetsPage() {
               placeholder="Buscar planilhas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
+              icon={
+                isFiltering && isLoadingAll ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )
+              }
             />
           </div>
         )}
 
-        {hasAnySheets === false ? (
+        {isPageLoading ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <Spinner className="w-8 h-8 text-primary" />
+            <p className="text-muted-foreground mt-4">Carregando...</p>
+          </div>
+        ) : hasAnySheets === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

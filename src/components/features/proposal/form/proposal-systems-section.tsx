@@ -14,16 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import {
-  Package,
-  Plus,
-  Minus,
-  Cpu,
-  Trash2,
-  Search,
-  X,
-  Check,
-} from "lucide-react";
+import { Package, Plus, Minus, Cpu, Trash2, Search, X } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -642,7 +633,6 @@ function SystemCard({
                   sistemaProducts={scopeProducts}
                   primaryColor={primaryColor}
                   onAddProduct={(p) => onAddExtraProduct(p, currentInstanceId)}
-                  onToggleStatus={onToggleStatus}
                 />
               </div>
             </div>
@@ -934,10 +924,6 @@ interface ExtraProductsGridProps {
   sistemaProducts: ProposalProduct[];
   primaryColor: string;
   onAddProduct: (product: Product) => void;
-  onToggleStatus?: (
-    productId: string,
-    newStatus: "active" | "inactive",
-  ) => Promise<void>;
 }
 
 function ExtraProductsGrid({
@@ -945,7 +931,6 @@ function ExtraProductsGrid({
   sistemaProducts,
   primaryColor,
   onAddProduct,
-  onToggleStatus,
 }: ExtraProductsGridProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
