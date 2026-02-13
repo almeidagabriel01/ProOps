@@ -196,8 +196,7 @@ function buildContentItems(
       productsForSistema = products.filter(
         (p) =>
           p.systemInstanceId?.startsWith(`${sistema.sistemaId}-`) &&
-          !p._shouldHide &&
-          !p._isGhost,
+          !p._isGhost, // Removed !p._shouldHide to include inactive products in subtotal
       );
 
       // Fallback for legacy (no instanceId)
@@ -210,7 +209,7 @@ function buildContentItems(
         ];
 
         productsForSistema = products.filter(
-          (p) => allIds.includes(p.productId) && !p._shouldHide && !p._isGhost,
+          (p) => allIds.includes(p.productId) && !p._isGhost,
         );
       }
 
@@ -303,19 +302,26 @@ function buildContentItems(
           },
         );
 
+        // Filter out hidden products for height calculation and rendering
+        const visibleSortedProducts = sortedProducts.filter(
+          (p) => !p._shouldHide,
+        );
+
         // Calculate height for this environment
         let envHeight = 0;
-        if (sortedProducts.length > 0) {
+        if (visibleSortedProducts.length > 0) {
           // Ambiente header height (approx 40px)
           envHeight += 40;
           // Products height
           envHeight +=
-            calculateSistemaBlockHeight(sortedProducts, settings) - 60 - 100; // Subtract footer/header base from helper
+            calculateSistemaBlockHeight(visibleSortedProducts, settings) -
+            60 -
+            100; // Subtract footer/header base from helper
         }
 
         return {
           env,
-          products: sortedProducts,
+          products: visibleSortedProducts, // Only return visible products for rendering
           height: envHeight,
         };
       })

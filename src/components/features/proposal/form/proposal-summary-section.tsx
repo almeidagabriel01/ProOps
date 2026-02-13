@@ -299,37 +299,25 @@ export function ProposalSummarySection({
 
                 return (
                   <>
-                    {/* Cost row (without markup) - only visible in UI, not PDF */}
+                    {/* Cost row (without markup) - VISIBLE AGAIN with clear label */}
                     {(() => {
                       const totalCost = selectedProducts.reduce((sum, p) => {
                         return sum + p.unitPrice * p.quantity;
                       }, 0);
                       return (
-                        <tr className="no-pdf-export border-t">
+                        <tr className="no-pdf-export border-t bg-muted/20">
                           <td
                             colSpan={3}
-                            className="p-3 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap text-sm"
+                            className="p-3 text-right text-muted-foreground whitespace-nowrap text-sm"
                           >
-                            Custo (sem markup):
+                            Custo dos Produtos (Bruto):
                           </td>
-                          <td className="p-3 text-right font-medium text-gray-600 dark:text-gray-400 whitespace-nowrap text-sm">
+                          <td className="p-3 text-right font-medium text-muted-foreground whitespace-nowrap text-sm">
                             R$ {totalCost.toFixed(2)}
                           </td>
                         </tr>
                       );
                     })()}
-
-                    <tr className="border-t">
-                      <td
-                        colSpan={3}
-                        className="p-3 text-right whitespace-nowrap"
-                      >
-                        Subtotal:
-                      </td>
-                      <td className="p-3 text-right font-medium whitespace-nowrap">
-                        R$ {subtotal.toFixed(2)}
-                      </td>
-                    </tr>
 
                     {/* Profit row - only visible in UI, not PDF */}
                     {totalProfit > 0 && (
@@ -345,6 +333,18 @@ export function ProposalSummarySection({
                         </td>
                       </tr>
                     )}
+
+                    <tr className="border-t">
+                      <td
+                        colSpan={3}
+                        className="p-3 text-right whitespace-nowrap font-medium"
+                      >
+                        Subtotal (Preço de Venda):
+                      </td>
+                      <td className="p-3 text-right font-bold whitespace-nowrap text-lg">
+                        R$ {subtotal.toFixed(2)}
+                      </td>
+                    </tr>
 
                     {(formData.discount || 0) > 0 && (
                       <tr>
@@ -459,34 +459,30 @@ export function ProposalSummarySection({
               </span>
             </div>
             <div className="text-sm space-y-1.5 text-muted-foreground">
-              {formData.downPaymentEnabled &&
-                effectiveDownPaymentValue > 0 && (
-                  <p>
-                    • Entrada:{" "}
-                    <span className="font-semibold text-foreground">
-                      R${" "}
-                      {effectiveDownPaymentValue.toLocaleString(
-                        "pt-BR",
-                        {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        },
-                      )}
-                      {downPaymentType === "percentage"
-                        ? ` (${downPaymentPercentage.toFixed(2)}%)`
-                        : ""}
+              {formData.downPaymentEnabled && effectiveDownPaymentValue > 0 && (
+                <p>
+                  • Entrada:{" "}
+                  <span className="font-semibold text-foreground">
+                    R${" "}
+                    {effectiveDownPaymentValue.toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    {downPaymentType === "percentage"
+                      ? ` (${downPaymentPercentage.toFixed(2)}%)`
+                      : ""}
+                  </span>
+                  {formData.downPaymentDueDate && (
+                    <span className="text-xs ml-2">
+                      (venc:{" "}
+                      {new Date(
+                        formData.downPaymentDueDate + "T12:00:00",
+                      ).toLocaleDateString("pt-BR")}
+                      )
                     </span>
-                    {formData.downPaymentDueDate && (
-                      <span className="text-xs ml-2">
-                        (venc:{" "}
-                        {new Date(
-                          formData.downPaymentDueDate + "T12:00:00",
-                        ).toLocaleDateString("pt-BR")}
-                        )
-                      </span>
-                    )}
-                  </p>
-                )}
+                  )}
+                </p>
+              )}
               {formData.installmentsEnabled ? (
                 <p>
                   • Parcelas:{" "}
