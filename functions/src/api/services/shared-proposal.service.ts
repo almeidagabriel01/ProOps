@@ -49,18 +49,6 @@ export class SharedProposalService {
       : "http://localhost:3000/";
   }
 
-  private static getBaseAppUrl(): string {
-    const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-
-    if (configuredUrl) {
-      return configuredUrl;
-    }
-
-    return process.env.NODE_ENV === "production"
-      ? "https://proops.com.br/"
-      : "http://localhost:3000/";
-  }
-
   /**
    * Cria um link compartilhável para uma proposta
    */
@@ -168,24 +156,34 @@ export class SharedProposalService {
 
       // Atualizar documento com informação de visualização
       const docRef = db.collection(this.COLLECTION).doc(sharedProposalId);
-      await docRef.update({
-        viewedAt: new Date().toISOString(),
-        viewerInfo: FieldValue.arrayUnion(viewerInfo),
-      });
 
-      // Buscar informações da proposta para criar notificação
-      const proposalDoc = await db
-        .collection("proposals")
-        .doc(proposalId)
-        .get();
+      let resolvedProposalTitle = proposalTitle;
+      let resolvedTenantId = tenantId;
 
-      if (proposalDoc.exists) {
-        const proposalData = proposalDoc.data();
-        const proposalTitle = proposalData?.title || "Proposta sem título";
+      if (!resolvedProposalTitle || !resolvedTenantId) {
+        const proposalDoc = await db.collection("proposals").doc(proposalId).get();
+        if (proposalDoc.exists) {
+          const proposalData = proposalDoc.data();
+          resolvedProposalTitle = resolvedProposalTitle || proposalData?.title || "Proposta sem título";
+          resolvedTenantId = resolvedTenantId || proposalData?.tenantId;
+        }
+      }
 
-        // Criar notificação para o admin
-        await NotificationService.createNotification({
-          tenantId,
+      if (!resolvedTenantId) {
+        console.error("Error recording view: missing tenantId for notification", {
+          sharedProposalId,
+          proposalId,
+        });
+        return;
+      }
+
+      await Promise.all([
+        docRef.update({
+          viewedAt: new Date().toISOString(),
+          viewerInfo: FieldValue.arrayUnion(viewerInfo),
+        }),
+        NotificationService.createNotification({
+          tenantId: resolvedTenantId,
           type: "proposal_viewed",
           title: "Proposta Visualizada",
           message: `A proposta "${resolvedProposalTitle || "Proposta sem título"}" foi visualizada por um cliente`,
