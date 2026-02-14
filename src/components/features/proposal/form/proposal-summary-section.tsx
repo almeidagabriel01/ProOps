@@ -58,9 +58,7 @@ export function ProposalSummarySection({
   const discount = calculateDiscount();
   const totalValue = calculateTotal();
   const extraExpense = formData.extraExpense || 0;
-  // Calculate discount percentage safely
-  const discountPercentage =
-    subtotal > 0 ? Math.round((discount / subtotal) * 100) : 0;
+
   // The original code used formData.discount which seems to be the percentage value directly from input
   const discountInputValue = formData.discount || 0;
 

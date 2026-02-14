@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+
 import { Product } from "@/services/product-service";
 import { ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
