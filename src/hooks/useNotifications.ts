@@ -87,7 +87,7 @@ export function useNotifications() {
 
     try {
       setIsMarkingAllAsRead(true);
-      await NotificationService.markAllAsRead();
+      await NotificationService.markAllAsRead(tenant?.id);
       // Atualização local otimista
       setNotifications((prev) =>
         prev.map((n) => ({
@@ -102,7 +102,7 @@ export function useNotifications() {
     } finally {
       setIsMarkingAllAsRead(false);
     }
-  }, [isMarkingAllAsRead]);
+  }, [isMarkingAllAsRead, tenant]);
 
   const clearNotification = useCallback(async (notificationId: string) => {
     if (clearingIds.includes(notificationId)) return;
@@ -127,7 +127,7 @@ export function useNotifications() {
 
     try {
       setIsClearingAll(true);
-      await NotificationService.clearAllNotifications();
+      await NotificationService.clearAllNotifications(tenant?.id);
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
@@ -135,7 +135,7 @@ export function useNotifications() {
     } finally {
       setIsClearingAll(false);
     }
-  }, [isClearingAll]);
+  }, [isClearingAll, tenant]);
 
   return {
     notifications,

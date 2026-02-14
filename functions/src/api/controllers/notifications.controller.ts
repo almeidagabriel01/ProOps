@@ -65,10 +65,13 @@ export const markAsRead = async (req: Request, res: Response) => {
     }
 
     // Resolver tenant do usuário
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
 
     // Marcar como lida (serviço valida ownership)
-    await NotificationService.markAsRead(id, tenantId);
+    await NotificationService.markAsRead(id, tenantId, isSuperAdmin);
 
     return res.status(200).json({
       success: true,
@@ -124,9 +127,17 @@ export const getUnreadCount = async (req: Request, res: Response) => {
 export const markAllAsRead = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
+    const targetTenantId = req.query.targetTenantId as string;
 
     // Resolver tenant do usuário
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    let { tenantId, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
+
+    if (isSuperAdmin && targetTenantId) {
+      tenantId = targetTenantId;
+    }
 
     // Marcar todas como lidas
     await NotificationService.markAllAsRead(tenantId);
@@ -158,9 +169,12 @@ export const deleteNotification = async (req: Request, res: Response) => {
         .json({ message: "ID da notificação é obrigatório" });
     }
 
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
 
-    await NotificationService.deleteNotification(id, tenantId);
+    await NotificationService.deleteNotification(id, tenantId, isSuperAdmin);
 
     return res.status(200).json({
       success: true,
@@ -190,7 +204,16 @@ export const deleteNotification = async (req: Request, res: Response) => {
 export const clearAllNotifications = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    const targetTenantId = req.query.targetTenantId as string;
+
+    let { tenantId, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
+
+    if (isSuperAdmin && targetTenantId) {
+      tenantId = targetTenantId;
+    }
 
     await NotificationService.clearAllNotifications(tenantId);
 
