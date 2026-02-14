@@ -49,15 +49,27 @@ export const checkDueDates = onSchedule(
         // Verificar se dueDate está dentro do intervalo (já venceu ou vence em até 3 dias)
         if (dueDate > limitDateStr) continue;
 
-        // Verificar se já existe lembrete não-lido para esta transação
-        const alreadyNotified = await NotificationService.findExistingReminder(
+        // Verificar se já existe lembrete não-lido de hoje ou de dias anteriores
+        const activeReminderIds = await NotificationService.findActiveReminders(
           tenantId,
           "transaction_due_reminder",
           doc.id,
           "transactionId",
         );
 
-        if (alreadyNotified) continue;
+        // Se houver lembretes antigos não lidos, remova-os para evitar duplicação/acumulo
+        if (activeReminderIds.length > 0) {
+          for (const notificationId of activeReminderIds) {
+            // isSuperAdmin = true para bypassar validações de tenant se necessário (embora aqui seja server-side)
+            // Mas usamos deleteNotification que já lida com a docRef diretamente.
+            // Para simplificar e garantir limpeza, deletamos.
+            await NotificationService.deleteNotification(
+              notificationId,
+              tenantId,
+              true,
+            );
+          }
+        }
 
         // Determinar se já venceu ou está próximo
         const isOverdue = dueDate < today;
@@ -134,16 +146,24 @@ export const checkDueDates = onSchedule(
           // Verificar se validUntil está dentro do intervalo
           if (validUntil > limitDateStr) continue;
 
-          // Verificar se já existe lembrete não-lido para esta proposta
-          const alreadyNotified =
-            await NotificationService.findExistingReminder(
-              tenantId,
-              "proposal_expiring",
-              doc.id,
-              "proposalId",
-            );
+          // Verificar se já existe lembrete não-lido
+          const activeReminderIds = await NotificationService.findActiveReminders(
+            tenantId,
+            "proposal_expiring",
+            doc.id,
+            "proposalId",
+          );
 
-          if (alreadyNotified) continue;
+          // Remover lembretes antigos para atualizar o texto/status (ex: vence amanhã -> vence hoje)
+          if (activeReminderIds.length > 0) {
+            for (const notificationId of activeReminderIds) {
+              await NotificationService.deleteNotification(
+                notificationId,
+                tenantId,
+                true,
+              );
+            }
+          }
 
           const isExpired = validUntil < today;
           const title = data.title || "Sem título";

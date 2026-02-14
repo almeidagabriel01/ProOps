@@ -254,6 +254,32 @@ export class NotificationService {
   }
 
   /**
+   * Encontra lembretes ativos (não lidos) para um recurso específico.
+   * Usado para desduplicação (remover antigos antes de criar novos).
+   */
+  static async findActiveReminders(
+    tenantId: string,
+    type: NotificationType,
+    resourceId: string,
+    resourceField: "transactionId" | "proposalId",
+  ): Promise<string[]> {
+    try {
+      const snapshot = await db
+        .collection(this.COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .where("type", "==", type)
+        .where(resourceField, "==", resourceId)
+        .where("isRead", "==", false)
+        .get();
+
+      return snapshot.docs.map((doc) => doc.id);
+    } catch (error) {
+      console.error("Error finding active reminders:", error);
+      return [];
+    }
+  }
+
+  /**
    * Verifica se já existe uma notificação do mesmo tipo para o mesmo recurso no dia atual.
    * Usado para evitar duplicação no mesmo dia, mas permitir novo lembrete no dia seguinte.
    */
