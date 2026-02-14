@@ -114,6 +114,7 @@ export class NotificationService {
   static async markAsRead(
     notificationId: string,
     tenantId: string,
+    isSuperAdmin: boolean = false,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -126,7 +127,7 @@ export class NotificationService {
       const data = doc.data() as Notification;
 
       // Validar que a notificação pertence ao tenant
-      if (data.tenantId !== tenantId) {
+      if (data.tenantId !== tenantId && !isSuperAdmin) {
         throw new Error("Unauthorized: Notification does not belong to tenant");
       }
 
@@ -146,6 +147,7 @@ export class NotificationService {
   static async deleteNotification(
     notificationId: string,
     tenantId: string,
+    isSuperAdmin: boolean = false,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -156,7 +158,7 @@ export class NotificationService {
       }
 
       const data = doc.data() as Notification;
-      if (data.tenantId !== tenantId) {
+      if (data.tenantId !== tenantId && !isSuperAdmin) {
         throw new Error("Unauthorized: Notification does not belong to tenant");
       }
 

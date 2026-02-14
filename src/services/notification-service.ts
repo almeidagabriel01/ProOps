@@ -73,9 +73,13 @@ export const NotificationService = {
   /**
    * Marca todas as notificações como lidas
    */
-  markAllAsRead: async (): Promise<void> => {
+  markAllAsRead: async (tenantId?: string): Promise<void> => {
     try {
-      await callApi("/v1/notifications/mark-all-read", "PUT");
+      const params = new URLSearchParams();
+      if (tenantId) params.append("targetTenantId", tenantId);
+
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      await callApi(`/v1/notifications/mark-all-read${queryString}`, "PUT");
     } catch (error) {
       console.error("Error marking all as read:", error);
       throw error;
@@ -97,9 +101,13 @@ export const NotificationService = {
   /**
    * Remove todas as notificações
    */
-  clearAllNotifications: async (): Promise<void> => {
+  clearAllNotifications: async (tenantId?: string): Promise<void> => {
     try {
-      await callApi("/v1/notifications/clear-all", "DELETE");
+      const params = new URLSearchParams();
+      if (tenantId) params.append("targetTenantId", tenantId);
+
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      await callApi(`/v1/notifications/clear-all${queryString}`, "DELETE");
     } catch (error) {
       console.error("Error clearing all notifications:", error);
       throw error;
