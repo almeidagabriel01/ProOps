@@ -47,6 +47,7 @@ function getNotificationLink(notification: Notification): string | undefined {
 
 export function NotificationBell() {
   const router = useRouter();
+  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
   const {
     notifications,
     unreadCount,
@@ -69,7 +70,18 @@ export function NotificationBell() {
 
     if (linkHref) {
       router.push(linkHref);
+      return;
     }
+
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(notification.id)) {
+        next.delete(notification.id);
+      } else {
+        next.add(notification.id);
+      }
+      return next;
+    });
   };
 
   const formatTime = (timestamp: string) => {
@@ -179,6 +191,8 @@ export function NotificationBell() {
                 notification.type as NotificationType,
               );
               const linkHref = getNotificationLink(notification);
+              const isExpanded = expandedIds.has(notification.id);
+              const canExpand = notification.message.length > 120;
 
               const content = (
                 <div className="flex gap-3 p-3 hover:bg-muted/50 transition-colors">
@@ -204,9 +218,34 @@ export function NotificationBell() {
                             <div className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0 mt-1.5" />
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+                        <p
+                          className={`text-sm text-muted-foreground mt-0.5 whitespace-pre-wrap break-words ${
+                            isExpanded ? "" : "line-clamp-2"
+                          }`}
+                        >
                           {notification.message}
                         </p>
+                        {!linkHref && canExpand && (
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground hover:text-foreground mt-1"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setExpandedIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(notification.id)) {
+                                  next.delete(notification.id);
+                                } else {
+                                  next.add(notification.id);
+                                }
+                                return next;
+                              });
+                            }}
+                          >
+                            {isExpanded ? "Ver menos" : "Ver mensagem completa"}
+                          </button>
+                        )}
                         <p className="text-xs text-muted-foreground mt-1">
                           {formatTime(notification.createdAt)}
                         </p>

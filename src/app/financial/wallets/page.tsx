@@ -1,322 +1,52 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { usePagePermission } from "@/hooks/usePagePermission";
-import { Wallet } from "@/types";
-import { normalize } from "@/utils/text";
-import {
-  CreateWalletInput,
-  UpdateWalletInput,
-} from "@/services/wallet-service";
-import {
-  Plus,
-  Wallet as WalletIcon,
-  ArrowRightLeft,
-  TrendingUp,
-  Layers,
-} from "lucide-react";
+import { Plus, Wallet as WalletIcon } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
-import { useWalletsData } from "./_hooks/useWalletsData";
-import { useTenant } from "@/providers/tenant-provider";
+import { WalletsSkeleton, WalletFilters } from "./_components";
+import { useWalletsCtrl } from "./_hooks/use-wallets-ctrl";
+import { WalletsSummaryCards } from "./_components/wallets-summary-cards";
+import { WalletsGrid, WalletsGridSkeleton } from "./_components/wallets-grid";
+import { WalletsDialogs } from "./_components/wallets-dialogs";
 import {
-  WalletCard,
-  WalletFormDialog,
-  TransferDialog,
-  AdjustBalanceDialog,
-  DeleteWalletDialog,
-  ArchiveWalletDialog,
-  WalletsSkeleton,
-  WalletFilters,
-  WalletHistoryDialog,
-} from "./_components";
-import { WalletType } from "@/types";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { Loader2 } from "lucide-react";
-
-import { Skeleton } from "@/components/ui/skeleton";
-
-/** Infinite scroll wrapper for wallet grid */
-function WalletGridInfinite({
-  filteredWallets,
-  canEdit,
-  canDelete,
-  onEdit,
-  onDelete,
-  onTransfer,
-  onAdjust,
-  onArchive,
-  onSetDefault,
-  onViewHistory,
-}: {
-  filteredWallets: Wallet[];
-  canEdit: boolean;
-  canDelete: boolean;
-  onEdit: (w: Wallet) => void;
-  onDelete: (w: Wallet) => void;
-  onTransfer: (w: Wallet) => void;
-  onAdjust: (w: Wallet) => void;
-  onArchive: (w: Wallet) => void;
-  onSetDefault: (w: Wallet) => void;
-  onViewHistory: (w: Wallet) => void;
-}) {
-  const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
-    filteredWallets,
-    6,
-  );
-
-  return (
-    <div className="flex flex-col gap-4 flex-1">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {displayedItems.map((wallet) => (
-          <WalletCard
-            key={wallet.id}
-            wallet={wallet}
-            canEdit={canEdit}
-            canDelete={canDelete}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onTransfer={onTransfer}
-            onAdjust={onAdjust}
-            onArchive={onArchive}
-            onSetDefault={onSetDefault}
-            onViewHistory={onViewHistory}
-          />
-        ))}
-      </div>
-      {hasMore && (
-        <div
-          ref={sentinelRef}
-          className="flex items-center justify-center py-4"
-        >
-          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-        </div>
-      )}
-    </div>
-  );
-}
+  WalletsEmptyState,
+  WalletsNoResults,
+} from "./_components/wallets-empty-states";
 
 export default function WalletsPage() {
-  const { isLoading: tenantLoading } = useTenant();
-  const { canCreate, canEdit, canDelete } = usePagePermission("financial");
+  const { state, actions } = useWalletsCtrl();
+
   const {
-    wallets,
-    summary,
-    isLoading: dataLoading,
     hasFinancial,
-    isPlanLoading,
-    createWallet,
-    updateWallet,
-    deleteWallet,
-    transferBalance,
-    adjustBalance,
-    setWalletAsDefault,
-  } = useWalletsData();
-
-  const isLoading = tenantLoading || dataLoading;
-
-  // Dialog states
-  const [formDialogOpen, setFormDialogOpen] = React.useState(false);
-  const [transferDialogOpen, setTransferDialogOpen] = React.useState(false);
-  const [adjustDialogOpen, setAdjustDialogOpen] = React.useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [archiveDialogOpen, setArchiveDialogOpen] = React.useState(false);
-  const [selectedWallet, setSelectedWallet] = React.useState<Wallet | null>(
-    null,
-  );
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const [isArchiving, setIsArchiving] = React.useState(false);
-  const [isTransferring, setIsTransferring] = React.useState(false);
-  const [settingDefaultId, setSettingDefaultId] = React.useState<string | null>(
-    null,
-  );
-  const [historyDialogOpen, setHistoryDialogOpen] = React.useState(false);
-  const [walletForHistory, setWalletForHistory] = React.useState<Wallet | null>(
-    null,
-  );
-
-  // Filter states
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [filterType, setFilterType] = React.useState<WalletType | "all">("all");
-  const [filterStatus, setFilterStatus] = React.useState<
-    "active" | "archived" | "all"
-  >("active");
-
-  // Filtered wallets
-  const filteredWallets = React.useMemo(() => {
-    let filtered = wallets;
-
-    // Filter by status
-    if (filterStatus !== "all") {
-      filtered = filtered.filter((w) => w.status === filterStatus);
-    }
-
-    // Filter by type
-    if (filterType !== "all") {
-      filtered = filtered.filter((w) => w.type === filterType);
-    }
-
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const term = normalize(searchTerm);
-      filtered = filtered.filter(
-        (w) =>
-          normalize(w.name).includes(term) ||
-          normalize(w.description || "").includes(term),
-      );
-    }
-
-    return filtered;
-  }, [wallets, searchTerm, filterType, filterStatus]);
-
-  // Include isPlanLoading in isLoading to show skeleton while loading plan data
-  const showSkeleton =
-    isLoading || isPlanLoading || isTransferring || settingDefaultId !== null;
-
-  // Handlers
-  const handleCreateWallet = () => {
-    setSelectedWallet(null);
-    setFormDialogOpen(true);
-  };
-
-  const handleEditWallet = (wallet: Wallet) => {
-    setSelectedWallet(wallet);
-    setFormDialogOpen(true);
-  };
-
-  const handleOpenTransfer = (wallet?: Wallet) => {
-    setSelectedWallet(wallet || null);
-    setTransferDialogOpen(true);
-  };
-
-  const handleOpenAdjust = (wallet: Wallet) => {
-    setSelectedWallet(wallet);
-    setAdjustDialogOpen(true);
-  };
-
-  const handleOpenDelete = (wallet: Wallet) => {
-    setSelectedWallet(wallet);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleFormSubmit = async (
-    data: CreateWalletInput | UpdateWalletInput,
-  ) => {
-    if (selectedWallet) {
-      return await updateWallet(selectedWallet.id, data as UpdateWalletInput);
-    }
-    const result = await createWallet(data as CreateWalletInput);
-    return result !== null;
-  };
-
-  const handleTransferSubmit = async (
-    data: Parameters<typeof transferBalance>[0],
-  ) => {
-    setIsTransferring(true);
-    const result = await transferBalance(data);
-    setIsTransferring(false);
-    return result;
-  };
-
-  const handleAdjustSubmit = async (
-    walletId: string,
-    data: Parameters<typeof adjustBalance>[1],
-  ) => {
-    return await adjustBalance(walletId, data);
-  };
-
-  const handleConfirmDelete = async (force: boolean) => {
-    if (!selectedWallet) return;
-
-    setIsDeleting(true);
-    await deleteWallet(selectedWallet.id, force);
-    setIsDeleting(false);
-    setDeleteDialogOpen(false);
-    setSelectedWallet(null);
-  };
-
-  const handleOpenArchive = (wallet: Wallet) => {
-    setSelectedWallet(wallet);
-    setArchiveDialogOpen(true);
-  };
-
-  const handleConfirmArchive = async () => {
-    if (!selectedWallet) return;
-
-    setIsArchiving(true);
-    const newStatus =
-      selectedWallet.status === "archived" ? "active" : "archived";
-    await updateWallet(selectedWallet.id, { status: newStatus });
-    setIsArchiving(false);
-    setArchiveDialogOpen(false);
-    setSelectedWallet(null);
-  };
-
-  const handleSetDefault = async (wallet: Wallet) => {
-    setSettingDefaultId(wallet.id);
-    await setWalletAsDefault(wallet.id);
-    setSettingDefaultId(null);
-  };
-
-  const activeWallets = wallets.filter((w) => w.status === "active");
-
-  // Dialogs component to ensure stability
-  const renderDialogs = () => (
-    <>
-      <WalletFormDialog
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        wallet={selectedWallet}
-        onSubmit={handleFormSubmit}
-      />
-
-      <TransferDialog
-        open={transferDialogOpen}
-        onOpenChange={setTransferDialogOpen}
-        wallets={wallets}
-        selectedWallet={selectedWallet}
-        onSubmit={handleTransferSubmit}
-      />
-
-      <AdjustBalanceDialog
-        open={adjustDialogOpen}
-        onOpenChange={setAdjustDialogOpen}
-        wallet={selectedWallet}
-        onSubmit={handleAdjustSubmit}
-      />
-
-      <DeleteWalletDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        wallet={selectedWallet}
-        onConfirm={handleConfirmDelete}
-        isDeleting={isDeleting}
-      />
-
-      <ArchiveWalletDialog
-        open={archiveDialogOpen}
-        onOpenChange={setArchiveDialogOpen}
-        wallet={selectedWallet}
-        isLoading={isArchiving}
-        onConfirm={handleConfirmArchive}
-      />
-
-      <WalletHistoryDialog
-        wallet={walletForHistory}
-        open={historyDialogOpen}
-        onOpenChange={setHistoryDialogOpen}
-      />
-    </>
-  );
+    showSkeleton,
+    summary,
+    wallets,
+    filteredWallets,
+    activeWallets,
+    canCreate,
+    canEdit,
+    canDelete,
+    searchTerm,
+    filterType,
+    filterStatus,
+    // States needed for loading checks or specific UI logic
+    isTransferring,
+    settingDefaultId,
+  } = state;
 
   // Show loading first - before checking plan access to avoid flash
-  if (showSkeleton) {
+  if (showSkeleton && !isTransferring && settingDefaultId === null) {
+    // Note: isTransferring and settingDefaultId are technically 'loading' states but we might want to show the UI with a spinner instead of a full skeleton.
+    // However, the original code used `showSkeleton` for all these.
+    // Let's stick to the original behavior or slightly improved:
+    // If it's initial load -> Skeleton. If it's an action -> maybe invalidating UI or overlays.
+    // The original code returned Skeleton if `showSkeleton` was true.
     return (
       <>
         <WalletsSkeleton />
-        {renderDialogs()}
+        <WalletsDialogs state={state} actions={actions} wallets={wallets} />
       </>
     );
   }
@@ -329,7 +59,7 @@ export default function WalletsPage() {
           feature="Carteiras"
           description="O módulo de Carteiras permite gerenciar suas contas bancárias, dinheiro em espécie e carteiras digitais. Faça upgrade para o plano Profissional ou adquira o módulo Financeiro para acessar."
         />
-        {renderDialogs()}
+        <WalletsDialogs state={state} actions={actions} wallets={wallets} />
       </>
     );
   }
@@ -364,7 +94,11 @@ export default function WalletsPage() {
             </div>
 
             {canCreate && (
-              <Button size="lg" className="gap-2" onClick={handleCreateWallet}>
+              <Button
+                size="lg"
+                className="gap-2"
+                onClick={actions.handleCreateWallet}
+              >
                 <Plus className="w-5 h-5" />
                 Nova Carteira
               </Button>
@@ -373,146 +107,48 @@ export default function WalletsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Layers className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Carteiras Ativas
-                  </p>
-                  <p className="text-2xl font-bold">{summary.activeWallets}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/10">
-                  <TrendingUp className="w-5 h-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Saldo Consolidado
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(summary.totalBalance)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10">
-                  <ArrowRightLeft className="w-5 h-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Transferências
-                  </p>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto text-lg font-semibold"
-                    onClick={() => handleOpenTransfer()}
-                    disabled={activeWallets.length < 2}
-                  >
-                    Transferir
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <WalletsSummaryCards
+          summary={summary}
+          activeWallets={activeWallets}
+          onOpenTransfer={actions.handleOpenTransfer}
+        />
 
         {/* Filters */}
         <WalletFilters
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={actions.setSearchTerm}
           filterType={filterType}
-          onTypeChange={setFilterType}
+          onTypeChange={actions.setFilterType}
           filterStatus={filterStatus}
-          onStatusChange={setFilterStatus}
+          onStatusChange={actions.setFilterStatus}
         />
 
         {/* Wallets Grid */}
-        {dataLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i}>
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-3 mb-4">
-                    <Skeleton className="w-10 h-10" />
-                    <div className="flex-1">
-                      <Skeleton className="h-5 w-24 mb-1" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-4 w-16 mb-1" />
-                  <Skeleton className="h-8 w-28" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {showSkeleton ? (
+          <WalletsGridSkeleton />
         ) : wallets.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <WalletIcon className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">
-                Nenhuma carteira cadastrada
-              </h3>
-              <p className="text-muted-foreground text-center mb-6 max-w-md">
-                Comece criando sua primeira carteira para gerenciar seu
-                dinheiro.
-              </p>
-              {canCreate && (
-                <Button className="gap-2" onClick={handleCreateWallet}>
-                  <Plus className="w-4 h-4" />
-                  Criar Primeira Carteira
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <WalletsEmptyState
+            canCreate={canCreate}
+            onCreate={actions.handleCreateWallet}
+          />
         ) : filteredWallets.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <WalletIcon className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                Nenhum resultado encontrado
-              </h3>
-              <p className="text-muted-foreground text-center">
-                Tente buscar por outro termo ou remova os filtros.
-              </p>
-            </CardContent>
-          </Card>
+          <WalletsNoResults />
         ) : (
-          <WalletGridInfinite
+          <WalletsGrid
             filteredWallets={filteredWallets}
             canEdit={canEdit}
             canDelete={canDelete}
-            onEdit={handleEditWallet}
-            onDelete={handleOpenDelete}
-            onTransfer={handleOpenTransfer}
-            onAdjust={handleOpenAdjust}
-            onArchive={handleOpenArchive}
-            onSetDefault={handleSetDefault}
-            onViewHistory={(wallet) => {
-              setWalletForHistory(wallet);
-              setHistoryDialogOpen(true);
-            }}
+            onEdit={actions.handleEditWallet}
+            onDelete={actions.handleOpenDelete}
+            onTransfer={actions.handleOpenTransfer}
+            onAdjust={actions.handleOpenAdjust}
+            onArchive={actions.handleOpenArchive}
+            onSetDefault={actions.handleSetDefault}
+            onViewHistory={actions.handleViewHistory}
           />
         )}
       </div>
-      {renderDialogs()}
+      <WalletsDialogs state={state} actions={actions} wallets={wallets} />
     </>
   );
 }

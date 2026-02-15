@@ -53,7 +53,7 @@ async function handleCheckoutCompleted(
   if (userId && planTier && subscriptionId) {
     const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     await updateUserPlan(
       userId,
@@ -89,7 +89,7 @@ async function handleSubscriptionUpdated(
       return;
     }
 
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     // Map Stripe status to add-on status
     let addonStatus: "active" | "past_due" | "cancelled";
@@ -142,7 +142,7 @@ async function handleSubscriptionUpdated(
         status = "INACTIVE";
     }
 
-    const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     await updateSubscriptionStatus(
       userId,
@@ -170,7 +170,7 @@ async function handleInvoicePaymentFailed(
   invoice: Stripe.Invoice
 ): Promise<void> {
   const customerId = invoice.customer as string;
-  const subscriptionId = invoice.subscription as string;
+const subscriptionId = (invoice as any).subscription as string;
 
   console.log(`Invoice payment failed for customer ${customerId}`);
 

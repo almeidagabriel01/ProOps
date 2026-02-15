@@ -20,6 +20,8 @@ import {
   QuickActionsCard,
   ProposalStatsCard,
   ClientsStatsCard,
+  WalletsGrid, // Import WalletsGrid
+  MonthStats, // Import MonthStats
 } from "./_components";
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
@@ -39,6 +41,8 @@ export default function DashboardPage() {
     recentTransactions,
     recentProposals,
     balance,
+    wallets,
+    currentMonthStats,
     isLoading,
   } = useDashboardData();
 
@@ -47,12 +51,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
               {getGreeting()}, {tenantOwner?.name || user?.name || "Usuário"}!
             </span>{" "}
             <span className="text-foreground">👋</span>
@@ -67,13 +71,12 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
-        {/* Optional: Add a date range picker or export button here later */}
       </div>
 
-      {/* Quick Actions - Moving to top for better UX */}
+      {/* Quick Actions */}
       <QuickActionsCard />
 
-      {/* Financial Summary Cards */}
+      {/* Financial Summary */}
       <FinancialMetricCards
         financialSummary={financialSummary}
         balance={balance}
@@ -85,10 +88,13 @@ export default function DashboardPage() {
         upcomingDueCount={upcomingDue.length}
       />
 
-      {/* Chart + Stats */}
+      {/* Wallets Grid - NEW */}
+      <WalletsGrid wallets={wallets} />
+
+      {/* Charts & Monthly Breakdown */}
       <div className="grid lg:grid-cols-7 gap-6">
-        {/* Chart (4 columns) */}
-        <Card className="lg:col-span-4 flex flex-col shadow-md bg-gradient-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50">
+        {/* Fluxo de Caixa (Chart) */}
+        <Card className="lg:col-span-4 flex flex-col shadow-md bg-linear-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -118,17 +124,22 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Stats (3 columns) */}
-        <div className="lg:col-span-3 space-y-6 flex flex-col">
-          <div className="flex-1">
-            <ProposalStatsCard stats={proposalStats} />
-          </div>
-          <div className="flex-1">
-            <ClientsStatsCard
-              totalClients={clients.length}
-              newClientsThisMonth={newClientsThisMonth}
-            />
-          </div>
+        {/* Monthly Stats - NEW */}
+        <div className="lg:col-span-3 space-y-6 flex flex-col justify-center h-full">
+          <MonthStats currentMonthStats={currentMonthStats} />
+        </div>
+      </div>
+
+      {/* Other Stats */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="flex-1">
+          <ProposalStatsCard stats={proposalStats} />
+        </div>
+        <div className="flex-1">
+          <ClientsStatsCard
+            totalClients={clients.length}
+            newClientsThisMonth={newClientsThisMonth}
+          />
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
-import { NotificationService } from "./api/services/notification.service";
+import { FieldValue } from "firebase-admin/firestore";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -49,16 +49,6 @@ export const checkDueDates = onSchedule(
         // Verificar se dueDate está dentro do intervalo (já venceu ou vence em até 3 dias)
         if (dueDate > limitDateStr) continue;
 
-        // Verificar se já existe lembrete não-lido para esta transação
-        const alreadyNotified = await NotificationService.findExistingReminder(
-          tenantId,
-          "transaction_due_reminder",
-          doc.id,
-          "transactionId",
-        );
-
-        if (alreadyNotified) continue;
-
         // Determinar se já venceu ou está próximo
         const isOverdue = dueDate < today;
         const description = data.description || "Sem descrição";
@@ -98,11 +88,13 @@ export const checkDueDates = onSchedule(
             : `"${description}"${amount ? ` (${amount})` : ""} vence em ${formattedDueDate}. Lembre-se de atualizar o status.`;
         }
 
-        await NotificationService.createNotification({
+        await upsertDueReminderNotification({
           tenantId,
           type: "transaction_due_reminder",
           title,
           message,
+          resourceId: doc.id,
+          resourceField: "transactionId",
           transactionId: doc.id,
         });
 
@@ -134,24 +126,13 @@ export const checkDueDates = onSchedule(
           // Verificar se validUntil está dentro do intervalo
           if (validUntil > limitDateStr) continue;
 
-          // Verificar se já existe lembrete não-lido para esta proposta
-          const alreadyNotified =
-            await NotificationService.findExistingReminder(
-              tenantId,
-              "proposal_expiring",
-              doc.id,
-              "proposalId",
-            );
-
-          if (alreadyNotified) continue;
-
           const isExpired = validUntil < today;
           const title = data.title || "Sem título";
           const clientName = data.clientName || "";
 
           const formattedValidUntil = formatDateBR(validUntil);
 
-          await NotificationService.createNotification({
+          await upsertDueReminderNotification({
             tenantId,
             type: "proposal_expiring",
             title: isExpired
@@ -160,6 +141,8 @@ export const checkDueDates = onSchedule(
             message: isExpired
               ? `"${title}"${clientName ? ` (${clientName})` : ""} expirou em ${formattedValidUntil}. Verifique o status.`
               : `"${title}"${clientName ? ` (${clientName})` : ""} válida até ${formattedValidUntil}. Lembre-se de acompanhar.`,
+            resourceId: doc.id,
+            resourceField: "proposalId",
             proposalId: doc.id,
           });
 
@@ -185,4 +168,44 @@ export const checkDueDates = onSchedule(
 function formatDateBR(dateStr: string): string {
   const [year, month, day] = dateStr.split("-");
   return `${day}/${month}/${year}`;
+}
+
+async function upsertDueReminderNotification(data: {
+  tenantId: string;
+  type: "transaction_due_reminder" | "proposal_expiring";
+  title: string;
+  message: string;
+  resourceId: string;
+  resourceField: "transactionId" | "proposalId";
+  proposalId?: string;
+  transactionId?: string;
+}): Promise<void> {
+  const {
+    tenantId,
+    type,
+    title,
+    message,
+    resourceId,
+    resourceField,
+    proposalId,
+    transactionId,
+  } = data;
+
+  const stableDocId = `due_${tenantId}_${type}_${resourceField}_${resourceId}`;
+  const notificationRef = db.collection("notifications").doc(stableDocId);
+
+  await notificationRef.set(
+    {
+      tenantId,
+      type,
+      title,
+      message,
+      isRead: false,
+      readAt: FieldValue.delete(),
+      createdAt: new Date().toISOString(),
+      ...(proposalId ? { proposalId } : {}),
+      ...(transactionId ? { transactionId } : {}),
+    },
+    { merge: true },
+  );
 }

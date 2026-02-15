@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { useAuth } from "@/providers/auth-provider";
 import { toast } from "react-toastify";
 
 export function useNotifications() {
@@ -14,10 +15,13 @@ export function useNotifications() {
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { tenant } = useTenant();
+  const { user } = useAuth();
 
   // Subscribe em tempo real às notificações
   useEffect(() => {
-    if (!tenant) {
+    const isSuperAdmin = user?.role?.toLowerCase() === "superadmin";
+
+    if (!tenant && !isSuperAdmin) {
       setIsLoading(false);
       return;
     }
@@ -28,55 +32,14 @@ export function useNotifications() {
     let isInitialLoad = true;
     let previousIds = new Set<string>();
 
-    const unsubscribe = NotificationService.subscribe(tenant.id, async (notifs) => {
+    const tenantId = tenant?.id;
+
+    const unsubscribe = NotificationService.subscribe(tenantId, async (notifs) => {
       setNotifications(notifs);
       setUnreadCount(notifs.filter((n) => !n.isRead).length);
 
       const newNotifs = notifs.filter((n) => !previousIds.has(n.id) && !n.isRead);
-      const notifsToProcess = isInitialLoad ? notifs.filter((n) => !n.isRead) : newNotifs;
 
-      const proposalDueNotifs = notifsToProcess.filter(
-        (n) => n.type === NotificationType.PROPOSAL_EXPIRING,
-      );
-
-      const transactionDueNotifs = notifsToProcess.filter(
-        (n) => n.type === NotificationType.TRANSACTION_DUE_REMINDER,
-      );
-
-      if (proposalDueNotifs.length > 0) {
-        const shouldShowProposalToast = await NotificationService.claimDailyDueToast(
-          "proposal_expiring",
-        );
-
-        if (shouldShowProposalToast) {
-          toast.warn("Há propostas próximas do vencimento ou vencidas.", {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-        }
-      }
-
-      if (transactionDueNotifs.length > 0) {
-        const shouldShowTransactionToast =
-          await NotificationService.claimDailyDueToast(
-            "transaction_due_reminder",
-          );
-
-        if (shouldShowTransactionToast) {
-          toast.warn("Há lançamentos próximos do vencimento ou vencidos.", {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
-        }
-      }
 
       if (!isInitialLoad) {
         const otherNotifs = newNotifs.filter(
@@ -101,12 +64,13 @@ export function useNotifications() {
       previousIds = new Set(notifs.map((n) => n.id));
       isInitialLoad = false;
       setIsLoading(false);
-    });
+    }, isSuperAdmin);
+
 
     return () => {
       unsubscribe();
     };
-  }, [tenant]);
+  }, [tenant, user]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
@@ -130,7 +94,7 @@ export function useNotifications() {
 
     try {
       setIsMarkingAllAsRead(true);
-      await NotificationService.markAllAsRead();
+      await NotificationService.markAllAsRead(tenant?.id);
       // Atualização local otimista
       setNotifications((prev) =>
         prev.map((n) => ({
@@ -145,7 +109,7 @@ export function useNotifications() {
     } finally {
       setIsMarkingAllAsRead(false);
     }
-  }, [isMarkingAllAsRead]);
+  }, [isMarkingAllAsRead, tenant]);
 
   const clearNotification = useCallback(async (notificationId: string) => {
     if (clearingIds.includes(notificationId)) return;
@@ -170,7 +134,7 @@ export function useNotifications() {
 
     try {
       setIsClearingAll(true);
-      await NotificationService.clearAllNotifications();
+      await NotificationService.clearAllNotifications(tenant?.id);
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
@@ -178,7 +142,7 @@ export function useNotifications() {
     } finally {
       setIsClearingAll(false);
     }
-  }, [isClearingAll]);
+  }, [isClearingAll, tenant]);
 
   return {
     notifications,

@@ -82,15 +82,22 @@ export class NotificationService {
       limit?: number;
       offset?: number;
       unreadOnly?: boolean;
+      isSuperAdmin?: boolean;
     } = {},
   ): Promise<Notification[]> {
     try {
-      const { limit = 20, offset = 0, unreadOnly = false } = options;
+      const { limit = 20, offset = 0, unreadOnly = false, isSuperAdmin = false } = options;
 
-      let query = db
-        .collection(this.COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .orderBy("createdAt", "desc");
+      let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
+
+      if (isSuperAdmin) {
+        // Super Admin vê notificações do tenant atual E do sistema
+        query = query.where("tenantId", "in", [tenantId, "system"]);
+      } else {
+        query = query.where("tenantId", "==", tenantId);
+      }
+        
+      query = query.orderBy("createdAt", "desc");
 
       if (unreadOnly) {
         query = query.where("isRead", "==", false);
@@ -114,6 +121,7 @@ export class NotificationService {
   static async markAsRead(
     notificationId: string,
     tenantId: string,
+    isSuperAdmin: boolean = false,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -126,7 +134,8 @@ export class NotificationService {
       const data = doc.data() as Notification;
 
       // Validar que a notificação pertence ao tenant
-      if (data.tenantId !== tenantId) {
+      // Se for notificação de sistema (sem tenantId fixo) ou superadmin, permite
+      if (data.tenantId !== tenantId && !isSuperAdmin && data.type !== 'system') {
         throw new Error("Unauthorized: Notification does not belong to tenant");
       }
 
@@ -146,6 +155,7 @@ export class NotificationService {
   static async deleteNotification(
     notificationId: string,
     tenantId: string,
+    isSuperAdmin: boolean = false,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -156,7 +166,7 @@ export class NotificationService {
       }
 
       const data = doc.data() as Notification;
-      if (data.tenantId !== tenantId) {
+      if (data.tenantId !== tenantId && !isSuperAdmin) {
         throw new Error("Unauthorized: Notification does not belong to tenant");
       }
 
@@ -248,6 +258,32 @@ export class NotificationService {
     } catch (error) {
       console.error("Error clearing all notifications:", error);
       throw new Error("Failed to clear all notifications");
+    }
+  }
+
+  /**
+   * Encontra lembretes ativos (não lidos) para um recurso específico.
+   * Usado para desduplicação (remover antigos antes de criar novos).
+   */
+  static async findActiveReminders(
+    tenantId: string,
+    type: NotificationType,
+    resourceId: string,
+    resourceField: "transactionId" | "proposalId",
+  ): Promise<string[]> {
+    try {
+      const snapshot = await db
+        .collection(this.COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .where("type", "==", type)
+        .where(resourceField, "==", resourceId)
+        .where("isRead", "==", false)
+        .get();
+
+      return snapshot.docs.map((doc) => doc.id);
+    } catch (error) {
+      console.error("Error finding active reminders:", error);
+      return [];
     }
   }
 
