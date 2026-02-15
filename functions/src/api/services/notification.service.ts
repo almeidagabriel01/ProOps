@@ -82,15 +82,22 @@ export class NotificationService {
       limit?: number;
       offset?: number;
       unreadOnly?: boolean;
+      isSuperAdmin?: boolean;
     } = {},
   ): Promise<Notification[]> {
     try {
-      const { limit = 20, offset = 0, unreadOnly = false } = options;
+      const { limit = 20, offset = 0, unreadOnly = false, isSuperAdmin = false } = options;
 
-      let query = db
-        .collection(this.COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .orderBy("createdAt", "desc");
+      let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
+
+      if (isSuperAdmin) {
+        // Super Admin vê notificações do tenant atual E do sistema
+        query = query.where("tenantId", "in", [tenantId, "system"]);
+      } else {
+        query = query.where("tenantId", "==", tenantId);
+      }
+        
+      query = query.orderBy("createdAt", "desc");
 
       if (unreadOnly) {
         query = query.where("isRead", "==", false);
@@ -127,7 +134,8 @@ export class NotificationService {
       const data = doc.data() as Notification;
 
       // Validar que a notificação pertence ao tenant
-      if (data.tenantId !== tenantId && !isSuperAdmin) {
+      // Se for notificação de sistema (sem tenantId fixo) ou superadmin, permite
+      if (data.tenantId !== tenantId && !isSuperAdmin && data.type !== 'system') {
         throw new Error("Unauthorized: Notification does not belong to tenant");
       }
 

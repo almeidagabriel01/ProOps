@@ -140,15 +140,39 @@ export const NotificationService = {
    * @param callback Função chamada quando há mudanças
    * @returns Função para cancelar subscription
    */
+  /**
+   * Subscreve a notificações em tempo real
+   * @param tenantId ID do tenant
+   * @param isSuperAdmin Se o usuário é super admin (para ouvir 'system')
+   * @param callback Função chamada quando há mudanças
+   * @returns Função para cancelar subscription
+   */
   subscribe: (
-    tenantId: string,
+    tenantId: string | undefined,
     callback: (notifications: Notification[]) => void,
+    isSuperAdmin: boolean = false,
   ): Unsubscribe => {
     try {
+      const tenantIds = isSuperAdmin
+        ? tenantId
+          ? [tenantId, "system"]
+          : ["system"]
+        : tenantId
+          ? [tenantId]
+          : [];
+
+      if (tenantIds.length === 0) {
+        callback([]);
+        return () => {};
+      }
+
       const notificationsRef = collection(db, "notifications");
+      
+      // Se for super admin, ouve tenantId OU system (usando 'in')
+      // Se for usuário normal, APENAS tenantId
       const q = query(
         notificationsRef,
-        where("tenantId", "==", tenantId),
+        where("tenantId", "in", tenantIds),
         orderBy("createdAt", "desc"),
       );
 
@@ -194,6 +218,12 @@ export const NotificationService = {
         },
         (error) => {
           console.error("Error in notifications subscription:", error);
+          // Se der erro de permissão (ex: tenant normal tentando ler system), 
+          // tenta fallback apenas para o tenant dele se a query falhou
+          if (isSuperAdmin && error.code === 'permission-denied') {
+             console.warn("SuperAdmin permission denied on 'system' check. Falling back to tenant only.");
+             // Aqui poderiamos tentar refazer a query sem 'system', mas o fallback via API deve resolver
+          }
           startPollingFallback();
         },
       );

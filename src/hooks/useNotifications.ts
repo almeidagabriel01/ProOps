@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { useAuth } from "@/providers/auth-provider";
 import { toast } from "react-toastify";
 
 export function useNotifications() {
@@ -14,10 +15,13 @@ export function useNotifications() {
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { tenant } = useTenant();
+  const { user } = useAuth();
 
   // Subscribe em tempo real às notificações
   useEffect(() => {
-    if (!tenant) {
+    const isSuperAdmin = user?.role?.toLowerCase() === "superadmin";
+
+    if (!tenant && !isSuperAdmin) {
       setIsLoading(false);
       return;
     }
@@ -28,7 +32,9 @@ export function useNotifications() {
     let isInitialLoad = true;
     let previousIds = new Set<string>();
 
-    const unsubscribe = NotificationService.subscribe(tenant.id, async (notifs) => {
+    const tenantId = tenant?.id;
+
+    const unsubscribe = NotificationService.subscribe(tenantId, async (notifs) => {
       setNotifications(notifs);
       setUnreadCount(notifs.filter((n) => !n.isRead).length);
 
@@ -58,12 +64,13 @@ export function useNotifications() {
       previousIds = new Set(notifs.map((n) => n.id));
       isInitialLoad = false;
       setIsLoading(false);
-    });
+    }, isSuperAdmin);
+
 
     return () => {
       unsubscribe();
     };
-  }, [tenant]);
+  }, [tenant, user]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {

@@ -18,7 +18,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
 
     // Resolver tenant do usuário
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     // Parâmetros de paginação
     const limit = parseInt(req.query.limit as string) || 20;
@@ -30,6 +30,7 @@ export const getNotifications = async (req: Request, res: Response) => {
       limit,
       offset,
       unreadOnly,
+      isSuperAdmin,
     });
 
     return res.status(200).json({
