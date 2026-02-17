@@ -88,7 +88,8 @@ export const resolveUserAndTenant = async (
     if (!userSnap.exists) throw new Error("User not found");
     userData = userSnap.data() as UserDoc;
     role = (userData.role || "").toUpperCase();
-    tenantId = userData.tenantId || userData.companyId;
+    // @ts-ignore - Handle typo in production DB
+    tenantId = userData.tenantId || userData.tentantId || userData.companyId;
   }
 
   isSuperAdmin = role === "SUPERADMIN";

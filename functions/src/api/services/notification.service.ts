@@ -228,33 +228,42 @@ export class NotificationService {
    */
   static async clearAllNotifications(tenantId: string): Promise<void> {
     try {
-      const snapshot = await db
-        .collection(this.COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .get();
+      console.log(`[NotificationService] Clearing all notifications for tenant: ${tenantId}`);
+      const BATCH_SIZE = 400; // Firestore limit is 500 operations per batch
+      let hasMore = true;
+      let totalDeleted = 0;
 
-      if (snapshot.empty) return;
+      while (hasMore) {
+        // Fetch a batch of notifications
+        const snapshot = await db
+          .collection(this.COLLECTION)
+          .where("tenantId", "==", tenantId)
+          .limit(BATCH_SIZE)
+          .get();
 
-      const batches: FirebaseFirestore.WriteBatch[] = [];
-      let currentBatch = db.batch();
-      let opCount = 0;
-
-      snapshot.docs.forEach((doc) => {
-        currentBatch.delete(doc.ref);
-        opCount++;
-
-        if (opCount === 450) {
-          batches.push(currentBatch);
-          currentBatch = db.batch();
-          opCount = 0;
+        if (snapshot.empty) {
+          console.log(`[NotificationService] No more notifications to delete. Total deleted: ${totalDeleted}`);
+          hasMore = false;
+          break;
         }
-      });
+        
+        console.log(`[NotificationService] Found batch of ${snapshot.size} notifications. Deleting...`);
 
-      if (opCount > 0) {
-        batches.push(currentBatch);
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        totalDeleted += snapshot.size;
+
+        // If we fetched less than the limit, we're done
+        if (snapshot.size < BATCH_SIZE) {
+          hasMore = false;
+        }
+        
+        console.log(`[NotificationService] Deleted batch. Total so far: ${totalDeleted}`);
       }
-
-      await Promise.all(batches.map((batch) => batch.commit()));
     } catch (error) {
       console.error("Error clearing all notifications:", error);
       throw new Error("Failed to clear all notifications");

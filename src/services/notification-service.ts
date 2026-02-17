@@ -21,6 +21,7 @@ export const NotificationService = {
       limit?: number;
       offset?: number;
       unreadOnly?: boolean;
+      targetTenantId?: string;
     } = {},
   ): Promise<Notification[]> => {
     try {
@@ -28,6 +29,7 @@ export const NotificationService = {
       if (options.limit) params.append("limit", options.limit.toString());
       if (options.offset) params.append("offset", options.offset.toString());
       if (options.unreadOnly) params.append("unreadOnly", "true");
+      if (options.targetTenantId) params.append("targetTenantId", options.targetTenantId);
 
       const response = await callApi<{
         success: boolean;
@@ -137,12 +139,6 @@ export const NotificationService = {
   /**
    * Subscreve a notificações em tempo real
    * @param tenantId ID do tenant
-   * @param callback Função chamada quando há mudanças
-   * @returns Função para cancelar subscription
-   */
-  /**
-   * Subscreve a notificações em tempo real
-   * @param tenantId ID do tenant
    * @param isSuperAdmin Se o usuário é super admin (para ouvir 'system')
    * @param callback Função chamada quando há mudanças
    * @returns Função para cancelar subscription
@@ -155,8 +151,8 @@ export const NotificationService = {
     try {
       const tenantIds = isSuperAdmin
         ? tenantId
-          ? [tenantId, "system"]
-          : ["system"]
+          ? [tenantId] // Se tem tenantId, Super Admin só ouve esse tenant (sem system)
+          : ["system"] // Se não tem tenantId (painel geral), ouve system
         : tenantId
           ? [tenantId]
           : [];
@@ -240,6 +236,7 @@ export const NotificationService = {
         try {
           const notifications = await NotificationService.getNotifications({
             limit: 50,
+            targetTenantId: tenantId,
           });
           callback(notifications);
         } catch (pollError) {

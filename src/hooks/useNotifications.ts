@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { useTenant } from "@/providers/tenant-provider";
@@ -16,6 +16,10 @@ export function useNotifications() {
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { tenant } = useTenant();
   const { user } = useAuth();
+
+  // Track IDs that were deleted locally but might still be returned by the server
+  // This prevents the "flicker" where a deleted notification reappears briefly
+  const optimisticDeletedIds = useRef<Set<string>>(new Set());
 
   // Subscribe em tempo real às notificações
   useEffect(() => {
@@ -34,38 +38,57 @@ export function useNotifications() {
 
     const tenantId = tenant?.id;
 
-    const unsubscribe = NotificationService.subscribe(tenantId, async (notifs) => {
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter((n) => !n.isRead).length);
+    const unsubscribe = NotificationService.subscribe(
+      tenantId,
+      async (serverNotifs) => {
+        // 1. Clean up optimisticDeletedIds:
+        // If an ID is in our ignore list BUT NOT in the server list, it means it was truly deleted
+        // so we can stop tracking it.
+        const serverIds = new Set(serverNotifs.map((n) => n.id));
+        optimisticDeletedIds.current.forEach((id) => {
+          if (!serverIds.has(id)) {
+            optimisticDeletedIds.current.delete(id);
+          }
+        });
 
-      const newNotifs = notifs.filter((n) => !previousIds.has(n.id) && !n.isRead);
-
-
-      if (!isInitialLoad) {
-        const otherNotifs = newNotifs.filter(
-          (n) =>
-            n.type !== NotificationType.PROPOSAL_EXPIRING &&
-            n.type !== NotificationType.TRANSACTION_DUE_REMINDER,
+        // 2. Filter out notifications that we have locally deleted
+        const notifs = serverNotifs.filter(
+          (n) => !optimisticDeletedIds.current.has(n.id),
         );
 
-        otherNotifs.forEach((n) => {
-          toast.info(n.title || "Nova notificação", {
-            position: "top-center",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
+        setNotifications(notifs);
+        setUnreadCount(notifs.filter((n) => !n.isRead).length);
+
+        const newNotifs = notifs.filter(
+          (n) => !previousIds.has(n.id) && !n.isRead,
+        );
+
+        if (!isInitialLoad) {
+          const otherNotifs = newNotifs.filter(
+            (n) =>
+              n.type !== NotificationType.PROPOSAL_EXPIRING &&
+              n.type !== NotificationType.TRANSACTION_DUE_REMINDER,
+          );
+
+          otherNotifs.forEach((n) => {
+            toast.info(n.title || "Nova notificação", {
+              position: "top-center",
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            });
           });
-        });
-      }
+        }
 
-      // Update tracking set
-      previousIds = new Set(notifs.map((n) => n.id));
-      isInitialLoad = false;
-      setIsLoading(false);
-    }, isSuperAdmin);
-
+        // Update tracking set
+        previousIds = new Set(notifs.map((n) => n.id));
+        isInitialLoad = false;
+        setIsLoading(false);
+      },
+      isSuperAdmin,
+    );
 
     return () => {
       unsubscribe();
@@ -111,38 +134,59 @@ export function useNotifications() {
     }
   }, [isMarkingAllAsRead, tenant]);
 
-  const clearNotification = useCallback(async (notificationId: string) => {
-    if (clearingIds.includes(notificationId)) return;
+  const clearNotification = useCallback(
+    async (notificationId: string) => {
+      if (clearingIds.includes(notificationId)) return;
 
-    try {
-      setClearingIds((prev) => [...prev, notificationId]);
-      const targetNotification = notifications.find((n) => n.id === notificationId);
-      await NotificationService.deleteNotification(notificationId);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      if (targetNotification && !targetNotification.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+      try {
+        setClearingIds((prev) => [...prev, notificationId]);
+
+        // Add to optimistic ignore list immediately
+        optimisticDeletedIds.current.add(notificationId);
+
+        const targetNotification = notifications.find(
+          (n) => n.id === notificationId,
+        );
+        await NotificationService.deleteNotification(notificationId);
+
+        // Optimistic update
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        if (targetNotification && !targetNotification.isRead) {
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
+      } catch (error) {
+        console.error("Error clearing notification:", error);
+        // Rollback optimistic add if error (optional, but good practice)
+        optimisticDeletedIds.current.delete(notificationId);
+      } finally {
+        setClearingIds((prev) => prev.filter((id) => id !== notificationId));
       }
-    } catch (error) {
-      console.error("Error clearing notification:", error);
-    } finally {
-      setClearingIds((prev) => prev.filter((id) => id !== notificationId));
-    }
-  }, [clearingIds, notifications]);
+    },
+    [clearingIds, notifications],
+  );
 
   const clearAllNotifications = useCallback(async () => {
     if (isClearingAll) return;
 
     try {
       setIsClearingAll(true);
+
+      // Add ALL current notifications to ignore list
+      notifications.forEach((n) => optimisticDeletedIds.current.add(n.id));
+
       await NotificationService.clearAllNotifications(tenant?.id);
+
+      // Optimistic update
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
       console.error("Error clearing all notifications:", error);
+      // We could try to clear the set here, but it's tricky to know which ones failed.
+      // Simplest is to leave them, they will reappear if the next sync brings them back.
     } finally {
       setIsClearingAll(false);
     }
-  }, [isClearingAll, tenant]);
+  }, [isClearingAll, tenant, notifications]);
 
   return {
     notifications,

@@ -18,19 +18,29 @@ export const getNotifications = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
 
     // Resolver tenant do usuário
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
+    const { tenantId: userTenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
+    const targetTenantId = req.query.targetTenantId as string;
 
     // Parâmetros de paginação
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
     const unreadOnly = req.query.unreadOnly === "true";
 
+    let effectiveTenantId = userTenantId;
+    let includeSystem = isSuperAdmin;
+
+    // Se é Super Admin e está vendo outro tenant, usa o ID desse tenant e NÃO mostra notificações do sistema
+    if (isSuperAdmin && targetTenantId && targetTenantId !== userTenantId) {
+      effectiveTenantId = targetTenantId;
+      includeSystem = false;
+    }
+
     // Buscar notificações
-    const notifications = await NotificationService.getNotifications(tenantId, {
+    const notifications = await NotificationService.getNotifications(effectiveTenantId, {
       limit,
       offset,
       unreadOnly,
-      isSuperAdmin,
+      isSuperAdmin: includeSystem,
     });
 
     return res.status(200).json({
@@ -214,6 +224,13 @@ export const clearAllNotifications = async (req: Request, res: Response) => {
 
     if (isSuperAdmin && targetTenantId) {
       tenantId = targetTenantId;
+    }
+
+    console.log(`[clearAllNotifications] User: ${userId}, Tenant: ${tenantId}, IsSuperAdmin: ${isSuperAdmin}, TargetTenant: ${targetTenantId}`);
+
+    if (!tenantId) {
+      console.warn(`[clearAllNotifications] Missing tenantId for user ${userId}`);
+      return res.status(400).json({ message: "Tenant ID não identificado" });
     }
 
     await NotificationService.clearAllNotifications(tenantId);

@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-toastify";
 import { Wallet, WalletTransaction } from "@/types";
 import {
@@ -27,7 +27,7 @@ interface UseWalletsDataReturn {
   transferBalance: (data: TransferInput) => Promise<boolean>;
   adjustBalance: (
     walletId: string,
-    data: AdjustBalanceInput
+    data: AdjustBalanceInput,
   ) => Promise<boolean>;
   setWalletAsDefault: (walletId: string) => Promise<boolean>;
   refreshData: () => Promise<void>;
@@ -37,18 +37,26 @@ interface UseWalletsDataReturn {
 export function useWalletsData(): UseWalletsDataReturn {
   const { tenant } = useTenant();
   const { hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
-  const [wallets, setWallets] = React.useState<Wallet[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [summary, setSummary] = React.useState<WalletSummary>({
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [summary, setSummary] = useState<WalletSummary>({
     totalBalance: 0,
     walletCount: 0,
     activeWallets: 0,
   });
 
-  const fetchData = React.useCallback(async () => {
+  // Track if we have already loaded data once to avoid flickering
+  const hasLoadedRef = useRef(false);
+
+  const fetchData = useCallback(async () => {
     if (!tenant || (!hasFinancial && !isPlanLoading)) return;
 
-    setIsLoading(true);
+    // Only show loading state if we haven't loaded data yet
+    // This prevents the flickering when navigating back or when deps change
+    if (!hasLoadedRef.current) {
+      setIsLoading(true);
+    }
+
     try {
       const [walletsData, summaryData] = await Promise.all([
         WalletService.getWallets(tenant.id),
@@ -56,6 +64,7 @@ export function useWalletsData(): UseWalletsDataReturn {
       ]);
       setWallets(walletsData);
       setSummary(summaryData);
+      hasLoadedRef.current = true;
     } catch (error) {
       console.error("Failed to fetch wallets", error);
     } finally {
@@ -63,11 +72,11 @@ export function useWalletsData(): UseWalletsDataReturn {
     }
   }, [tenant, hasFinancial, isPlanLoading]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const createWallet = React.useCallback(
+  const createWallet = useCallback(
     async (data: CreateWalletInput): Promise<string | null> => {
       try {
         const result = await WalletService.createWallet({
@@ -85,10 +94,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return null;
       }
     },
-    [fetchData, tenant?.id]
+    [fetchData, tenant?.id],
   );
 
-  const updateWallet = React.useCallback(
+  const updateWallet = useCallback(
     async (walletId: string, data: UpdateWalletInput): Promise<boolean> => {
       try {
         await WalletService.updateWallet(walletId, data);
@@ -103,10 +112,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return false;
       }
     },
-    [fetchData]
+    [fetchData],
   );
 
-  const deleteWallet = React.useCallback(
+  const deleteWallet = useCallback(
     async (walletId: string, force = false): Promise<boolean> => {
       try {
         await WalletService.deleteWallet(walletId, force);
@@ -121,10 +130,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return false;
       }
     },
-    [fetchData]
+    [fetchData],
   );
 
-  const transferBalance = React.useCallback(
+  const transferBalance = useCallback(
     async (data: TransferInput): Promise<boolean> => {
       try {
         await WalletService.transferBalance(data);
@@ -139,10 +148,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return false;
       }
     },
-    [fetchData]
+    [fetchData],
   );
 
-  const adjustBalance = React.useCallback(
+  const adjustBalance = useCallback(
     async (walletId: string, data: AdjustBalanceInput): Promise<boolean> => {
       try {
         await WalletService.adjustBalance(walletId, data);
@@ -150,7 +159,7 @@ export function useWalletsData(): UseWalletsDataReturn {
         toast.success(
           data.amount > 0
             ? "Saldo adicionado com sucesso!"
-            : "Saldo removido com sucesso!"
+            : "Saldo removido com sucesso!",
         );
         return true;
       } catch (error: unknown) {
@@ -161,10 +170,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return false;
       }
     },
-    [fetchData]
+    [fetchData],
   );
 
-  const getWalletTransactions = React.useCallback(
+  const getWalletTransactions = useCallback(
     async (walletId: string): Promise<WalletTransaction[]> => {
       if (!tenant?.id) return [];
       try {
@@ -175,10 +184,10 @@ export function useWalletsData(): UseWalletsDataReturn {
         return [];
       }
     },
-    [tenant?.id]
+    [tenant?.id],
   );
 
-  const setWalletAsDefault = React.useCallback(
+  const setWalletAsDefault = useCallback(
     async (walletId: string): Promise<boolean> => {
       try {
         // Clear any existing default wallet
@@ -204,7 +213,7 @@ export function useWalletsData(): UseWalletsDataReturn {
         return false;
       }
     },
-    [fetchData, wallets]
+    [fetchData, wallets],
   );
 
   return {

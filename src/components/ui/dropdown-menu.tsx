@@ -35,6 +35,10 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      // Se o elemento não está mais no DOM, provavelmente foi removido por uma ação do usuário (ex: botão de excluir)
+      // Nesse caso, não devemos fechar o dropdown (evita "flicker")
+      if (!target.isConnected) return;
+
       const isInsideContainer = containerRef.current?.contains(target);
       const isInsidePortal = portalContentRef.current?.contains(target);
       if (!isInsideContainer && !isInsidePortal) {

@@ -283,7 +283,9 @@ export function PaymentStep({
             (formData.installmentCount || 1)
           : parseFloat(formData.amount || "0");
 
-      return (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100;
+      return (
+        (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100
+      );
     }
 
     return parseFloat(formData.downPaymentValue || "0");
@@ -508,9 +510,14 @@ export function PaymentStep({
               }
             `}
             >
-              <label
-                htmlFor="downPaymentEnabledTotal"
+              <div
                 className="flex items-center gap-3 cursor-pointer"
+                onClick={() =>
+                  handlePaymentToggle(
+                    "downPaymentEnabled",
+                    !formData.downPaymentEnabled,
+                  )
+                }
               >
                 <div
                   className={`
@@ -526,18 +533,20 @@ export function PaymentStep({
                     Valor à vista antes das parcelas
                   </p>
                 </div>
-                <Checkbox
-                  id="downPaymentEnabledTotal"
-                  checked={formData.downPaymentEnabled || false}
-                  onCheckedChange={(checked) =>
-                    handlePaymentToggle(
-                      "downPaymentEnabled",
-                      checked as boolean,
-                    )
-                  }
-                  className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 cursor-pointer"
-                />
-              </label>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    id="downPaymentEnabledTotal"
+                    checked={formData.downPaymentEnabled || false}
+                    onCheckedChange={(checked) =>
+                      handlePaymentToggle(
+                        "downPaymentEnabled",
+                        checked as boolean,
+                      )
+                    }
+                    className="data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500 cursor-pointer"
+                  />
+                </div>
+              </div>
 
               {formData.downPaymentEnabled && (
                 <div className="space-y-3 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
@@ -616,7 +625,8 @@ export function PaymentStep({
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            Valor calculado: {formatCurrency(getDownPaymentAmount())}
+                            Valor calculado:{" "}
+                            {formatCurrency(getDownPaymentAmount())}
                           </p>
                         </div>
                       ) : (
@@ -627,7 +637,11 @@ export function PaymentStep({
                             value={formData.downPaymentValue || ""}
                             onChange={onChange}
                             placeholder="0,00"
-                            className={errors.downPaymentValue ? "border-destructive focus-visible:ring-destructive" : ""}
+                            className={
+                              errors.downPaymentValue
+                                ? "border-destructive focus-visible:ring-destructive"
+                                : ""
+                            }
                           />
                           {errors.downPaymentValue && (
                             <p className="text-xs text-destructive mt-1">
@@ -651,7 +665,11 @@ export function PaymentStep({
                         name="downPaymentDueDate"
                         value={formData.downPaymentDueDate || ""}
                         onChange={onChange}
-                        className={errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                        className={
+                          errors.downPaymentDueDate
+                            ? "border-destructive focus-visible:ring-destructive"
+                            : ""
+                        }
                       />
                       {errors.downPaymentDueDate && (
                         <p className="text-xs text-destructive mt-1">
@@ -676,9 +694,18 @@ export function PaymentStep({
             }
           `}
           >
-            <label
-              htmlFor="isInstallment"
+            <div
               className="flex items-center gap-3 cursor-pointer"
+              onClick={() =>
+                onChange({
+                  target: {
+                    name: "isInstallment",
+                    type: "checkbox",
+                    checked: !formData.isInstallment,
+                  },
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any)
+              }
             >
               <div
                 className={`
@@ -694,23 +721,25 @@ export function PaymentStep({
                   Divida em múltiplas parcelas
                 </p>
               </div>
-              <Checkbox
-                id="isInstallment"
-                checked={formData.isInstallment}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    target: {
-                      name: "isInstallment",
-                      type: "checkbox",
-                      checked: checked === true,
-                    },
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  } as any)
-                }
-                disabled={isProposalTransaction}
-                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary cursor-pointer"
-              />
-            </label>
+              <div onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  id="isInstallment"
+                  checked={formData.isInstallment}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      target: {
+                        name: "isInstallment",
+                        type: "checkbox",
+                        checked: checked === true,
+                      },
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } as any)
+                  }
+                  disabled={isProposalTransaction}
+                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary cursor-pointer"
+                />
+              </div>
+            </div>
 
             {formData.isInstallment && (
               <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
@@ -923,7 +952,8 @@ export function PaymentStep({
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          Valor calculado: {formatCurrency(getDownPaymentAmount())}
+                          Valor calculado:{" "}
+                          {formatCurrency(getDownPaymentAmount())}
                         </p>
                       </div>
                     ) : (
@@ -934,7 +964,11 @@ export function PaymentStep({
                           value={formData.downPaymentValue || ""}
                           onChange={onChange}
                           placeholder="0,00"
-                          className={errors.downPaymentValue ? "border-destructive focus-visible:ring-destructive" : ""}
+                          className={
+                            errors.downPaymentValue
+                              ? "border-destructive focus-visible:ring-destructive"
+                              : ""
+                          }
                         />
                         {errors.downPaymentValue && (
                           <p className="text-xs text-destructive mt-1">
@@ -958,7 +992,11 @@ export function PaymentStep({
                       name="downPaymentDueDate"
                       value={formData.downPaymentDueDate || ""}
                       onChange={onChange}
-                      className={errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                      className={
+                        errors.downPaymentDueDate
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
                     {errors.downPaymentDueDate && (
                       <p className="text-xs text-destructive mt-1">
@@ -1050,7 +1088,9 @@ export function PaymentStep({
                   </div>
                   <div className="field-gap">
                     <div className="min-h-5">
-                      <Label htmlFor="installmentValue">Valor por Parcela</Label>
+                      <Label htmlFor="installmentValue">
+                        Valor por Parcela
+                      </Label>
                     </div>
                     <CurrencyInput
                       id="installmentValue"
@@ -1085,7 +1125,9 @@ export function PaymentStep({
                     <div className="min-h-5">
                       <Label
                         htmlFor="firstInstallmentDate"
-                        className={errors.firstInstallmentDate ? "text-destructive" : ""}
+                        className={
+                          errors.firstInstallmentDate ? "text-destructive" : ""
+                        }
                       >
                         Vencimento da 1ª Parcela
                       </Label>
@@ -1095,7 +1137,11 @@ export function PaymentStep({
                       name="firstInstallmentDate"
                       value={formData.firstInstallmentDate || ""}
                       onChange={onChange}
-                      className={errors.firstInstallmentDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                      className={
+                        errors.firstInstallmentDate
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
                     {errors.firstInstallmentDate ? (
                       <p className="text-xs text-destructive mt-1">
@@ -1197,7 +1243,9 @@ export function ReviewStep({
           ? parseFloat(formData.installmentValue || "0") *
             (formData.installmentCount || 1)
           : parseFloat(formData.amount || "0");
-      return (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100;
+      return (
+        (baseTotal * parseFloat(formData.downPaymentPercentage || "0")) / 100
+      );
     }
 
     return parseFloat(formData.downPaymentValue || "0");

@@ -1,19 +1,33 @@
 import { Request, Response } from "express";
-import { CreateTransactionDTO, validateTransactionData } from "../helpers/transaction-validation";
+import {
+  CreateTransactionDTO,
+  validateTransactionData,
+} from "../helpers/transaction-validation";
 import { TransactionService } from "../services/transaction.service";
 
 export const createTransaction = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const data = req.body as CreateTransactionDTO;
-    
+
     // Validation
     const validation = validateTransactionData(data);
     if (!validation.isValid) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const result = await TransactionService.createTransaction(userId, req.user, data);
+    // Safety Lock: Prevent ghost installments
+    if (!data.isInstallment) {
+      data.installmentCount = 1;
+      delete data.installmentNumber;
+      delete data.installmentGroupId;
+    }
+
+    const result = await TransactionService.createTransaction(
+      userId,
+      req.user,
+      data,
+    );
 
     return res.status(201).json({
       success: true,
@@ -38,7 +52,19 @@ export const updateTransaction = async (req: Request, res: Response) => {
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
-    await TransactionService.updateTransaction(userId, req.user, id, updateData);
+    // Safety Lock: Prevent ghost installments on update
+    if (updateData.isInstallment === false) {
+      updateData.installmentCount = 1;
+      updateData.installmentNumber = null;
+      updateData.installmentGroupId = null;
+    }
+
+    await TransactionService.updateTransaction(
+      userId,
+      req.user,
+      id,
+      updateData,
+    );
 
     return res.json({ success: true, message: "Atualizado com sucesso." });
   } catch (error: unknown) {
@@ -51,7 +77,7 @@ export const updateTransaction = async (req: Request, res: Response) => {
 
 export const updateTransactionsStatusBatch = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const userId = req.user!.uid;
@@ -68,7 +94,12 @@ export const updateTransactionsStatusBatch = async (
       return res.status(400).json({ message: "Status inválido." });
     }
 
-    const count = await TransactionService.updateStatusBatch(userId, req.user, ids, newStatus);
+    const count = await TransactionService.updateStatusBatch(
+      userId,
+      req.user,
+      ids,
+      newStatus,
+    );
 
     return res.json({
       success: true,

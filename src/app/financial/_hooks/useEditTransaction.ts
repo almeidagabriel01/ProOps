@@ -140,7 +140,9 @@ export function useEditTransaction() {
             ? parseFloat(data.installmentValue || "0") *
               (data.installmentCount || 1)
             : parseFloat(data.amount || "0");
-        return (baseTotal * parseFloat(data.downPaymentPercentage || "0")) / 100;
+        return (
+          (baseTotal * parseFloat(data.downPaymentPercentage || "0")) / 100
+        );
       }
 
       return parseFloat(data.downPaymentValue || "0");
@@ -552,7 +554,9 @@ export function useEditTransaction() {
     }
 
     // 2. Adjust for Count Changes (Add/Remove)
-    const targetCount = parseInt(formData.installmentCount.toString(), 10);
+    const targetCount = formData.isInstallment
+      ? parseInt(formData.installmentCount.toString(), 10)
+      : 1;
     const currentInstallments = workingList.filter((t) => !t.isDownPayment);
     const existingDownPaymentItem = workingList.find((t) => t.isDownPayment);
 
@@ -612,7 +616,8 @@ export function useEditTransaction() {
     const downPaymentVal = getDownPaymentAmount(formData);
 
     // Synchronize down payment entry for non-proposal groups
-    const shouldHaveDownPayment = formData.downPaymentEnabled && downPaymentVal > 0;
+    const shouldHaveDownPayment =
+      formData.downPaymentEnabled && downPaymentVal > 0;
     let downPaymentItem = resultList.find((t) => t.isDownPayment);
 
     if (!shouldHaveDownPayment && downPaymentItem) {
@@ -622,7 +627,11 @@ export function useEditTransaction() {
 
     if (shouldHaveDownPayment && !downPaymentItem) {
       const firstInstallment = resultList.find((t) => !t.isDownPayment);
-      const baseDate = formData.downPaymentDueDate || formData.date || firstInstallment?.date || transaction.date;
+      const baseDate =
+        formData.downPaymentDueDate ||
+        formData.date ||
+        firstInstallment?.date ||
+        transaction.date;
       const baseDueDate =
         formData.downPaymentDueDate ||
         firstInstallment?.dueDate ||
@@ -701,10 +710,24 @@ export function useEditTransaction() {
       });
     }
 
-    return resultList.map((t) => ({
-      ...t,
-      installmentCount: effectiveTargetCount,
-    }));
+    // 4. Enforce Sequential Numbering
+    let regularIndex = 0;
+    return resultList.map((t) => {
+      let instNum = t.installmentNumber;
+
+      if (t.isDownPayment) {
+        instNum = 0;
+      } else {
+        regularIndex++;
+        instNum = regularIndex;
+      }
+
+      return {
+        ...t,
+        installmentCount: effectiveTargetCount,
+        installmentNumber: instNum,
+      };
+    });
   }, [transaction, formData, relatedInstallments, getDownPaymentAmount]);
 
   const handleChange = (
@@ -738,7 +761,7 @@ export function useEditTransaction() {
 
     setIsSaving(true);
     try {
-      const runWithRetry = async <T,>(
+      const runWithRetry = async <T>(
         operation: () => Promise<T>,
         maxAttempts = 4,
       ): Promise<T> => {
@@ -782,6 +805,16 @@ export function useEditTransaction() {
         }
       }
 
+      // Determine Effective Group ID
+      let effectiveGroupId = transaction.installmentGroupId;
+
+      if (!formData.isInstallment) {
+        effectiveGroupId = undefined; // Single transaction, no group
+      } else if (!effectiveGroupId) {
+        // Converting Single -> Installments: Generate NEW Group ID
+        effectiveGroupId = `installment_${Date.now()}`;
+      }
+
       const persistedIds = new Set<string>();
 
       for (const inst of previewInstallments) {
@@ -801,12 +834,14 @@ export function useEditTransaction() {
           type: formData.type,
           isInstallment: formData.isInstallment,
           isDownPayment: inst.isDownPayment,
-          downPaymentType: inst.isDownPayment ? formData.downPaymentType : undefined,
+          downPaymentType: inst.isDownPayment
+            ? formData.downPaymentType
+            : undefined,
           downPaymentPercentage:
             inst.isDownPayment && formData.downPaymentType === "percentage"
               ? parseFloat(formData.downPaymentPercentage || "0")
               : undefined,
-          installmentGroupId: transaction.installmentGroupId,
+          installmentGroupId: effectiveGroupId,
         };
 
         if (inst.id.startsWith("temp-")) {
@@ -814,8 +849,7 @@ export function useEditTransaction() {
             TransactionService.createTransaction({
               ...basePayload,
               tenantId: transaction.tenantId,
-              installmentGroupId: transaction.installmentGroupId,
-              isInstallment: !!inst.isInstallment,
+              installmentGroupId: effectiveGroupId,
               isDownPayment: !!inst.isDownPayment,
             } as unknown as Omit<Transaction, "id">),
           );
@@ -842,7 +876,9 @@ export function useEditTransaction() {
           .map((t) => t.id);
 
         for (const staleId of staleIds) {
-          await runWithRetry(() => TransactionService.deleteTransaction(staleId));
+          await runWithRetry(() =>
+            TransactionService.deleteTransaction(staleId),
+          );
         }
       }
 
