@@ -32,6 +32,7 @@ import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleto
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
+import { WalletsSkeleton } from "@/app/financial/wallets/_components/wallets-skeleton";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
@@ -128,6 +129,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "addons";
     } else if (pathname?.startsWith("/profile")) {
       skeletonType = "profile";
+    } else if (pathname === "/financial/wallets") {
+      skeletonType = "wallets";
     } else if (pathname?.startsWith("/financial")) {
       skeletonType = "financial";
     } else if (pathname?.startsWith("/products")) {
@@ -203,6 +206,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
           return <AddonsSkeleton />;
         case "financial":
           return <FinancialSkeleton />;
+        case "wallets":
+          return <WalletsSkeleton />;
         case "team":
           return <TeamSkeleton />;
         case "admin":
