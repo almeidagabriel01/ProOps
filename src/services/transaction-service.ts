@@ -41,6 +41,14 @@ export type Transaction = {
   updatedAt: string;
   isPartialPayment?: boolean;
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
+  // Open Finance Fields
+  externalId?: string; // Unique ID from the bank/provider
+  isConciliated?: boolean;
+  conciliatedAt?: string;
+  rawDescription?: string; // Original text from bank statement
+  // Payment Initiation Fields
+  paymentInitiationId?: string;
+  paymentStatus?: string; // "pending", "processing", "competed", "failed"
 };
 
 const COLLECTION_NAME = "transactions";
@@ -135,6 +143,20 @@ export const TransactionService = {
       return { id, ...updates };
     } catch (error) {
       console.error("Error updating transaction:", error);
+      throw error;
+    }
+  },
+
+  conciliateTransaction: async (id: string) => {
+    try {
+      const now = new Date().toISOString();
+      await callApi(`v1/transactions/${id}`, "PUT", {
+        isConciliated: true,
+        conciliatedAt: now,
+      });
+      return true;
+    } catch (error) {
+      console.error("Error conciliating transaction:", error);
       throw error;
     }
   },

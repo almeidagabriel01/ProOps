@@ -88,8 +88,8 @@ interface UseFinancialDataReturn {
   setSearchTerm: (term: string) => void;
   filterType: TransactionType | "all";
   setFilterType: (type: TransactionType | "all") => void;
-  filterStatus: TransactionStatus | "all";
-  setFilterStatus: (status: TransactionStatus | "all") => void;
+  filterStatus: TransactionStatus | "all" | "conciliate";
+  setFilterStatus: (status: TransactionStatus | "all" | "conciliate") => void;
   filterWallet: string;
   setFilterWallet: (wallet: string) => void;
   filterStartDate: string;
@@ -127,6 +127,7 @@ interface UseFinancialDataReturn {
     date: string,
   ) => Promise<void>;
   refreshData: (background?: boolean) => Promise<void>;
+  conciliateTransaction: (transaction: Transaction) => Promise<boolean>;
 }
 
 export function useFinancialData(): UseFinancialDataReturn {
@@ -139,7 +140,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     "all",
   );
   const [filterStatus, setFilterStatus] = React.useState<
-    TransactionStatus | "all"
+    TransactionStatus | "all" | "conciliate"
   >("all");
   const [filterWallet, setFilterWallet] = React.useState<string>("");
   const [filterStartDate, setFilterStartDate] = React.useState<string>("");
@@ -313,7 +314,13 @@ export function useFinancialData(): UseFinancialDataReturn {
 
     // Filter by status
     if (filterStatus !== "all") {
-      filtered = filtered.filter((t) => t.status === filterStatus);
+      if (filterStatus === "conciliate") {
+        filtered = filtered.filter(
+          (t) => t.externalId && !t.isConciliated
+        );
+      } else {
+        filtered = filtered.filter((t) => t.status === filterStatus);
+      }
     }
 
     // Filter by wallet
@@ -844,6 +851,34 @@ export function useFinancialData(): UseFinancialDataReturn {
     [fetchData],
   );
 
+  // Conciliate transaction
+  const conciliateTransaction = React.useCallback(
+    async (transaction: Transaction): Promise<boolean> => {
+      try {
+        await TransactionService.conciliateTransaction(transaction.id);
+
+        // Optimistic update
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.id === transaction.id ? { ...t, isConciliated: true } : t,
+          ),
+        );
+
+        toast.success("Lançamento conciliado com sucesso!");
+
+        // Refresh truth from server (background)
+        await fetchData(true);
+
+        return true;
+      } catch (error) {
+        console.error("Error conciliating transaction:", error);
+        toast.error("Erro ao conciliar lançamento");
+        return false;
+      }
+    },
+    [fetchData],
+  );
+
   return {
     transactions,
     summary,
@@ -878,5 +913,6 @@ export function useFinancialData(): UseFinancialDataReturn {
     updateGroupStatus,
     registerPartialPayment,
     refreshData: (background?: boolean) => fetchData(background),
+    conciliateTransaction,
   };
 }

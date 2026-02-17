@@ -25,6 +25,11 @@ export interface CreateWalletInput {
   description?: string;
   isDefault?: boolean;
   targetTenantId?: string; // For super admin to create for a specific tenant
+  // Open Finance
+  connectedAccountId?: string;
+  externalAccountId?: string;
+  bankName?: string;
+  bankImageUrl?: string;
 }
 
 export interface UpdateWalletInput {
@@ -35,6 +40,11 @@ export interface UpdateWalletInput {
   description?: string;
   isDefault?: boolean;
   status?: Wallet["status"];
+  // Open Finance
+  connectedAccountId?: string;
+  externalAccountId?: string;
+  bankName?: string;
+  bankImageUrl?: string;
 }
 
 export interface TransferInput {

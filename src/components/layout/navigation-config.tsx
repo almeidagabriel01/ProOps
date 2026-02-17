@@ -9,6 +9,7 @@ import {
   Bot,
   ReceiptText,
   UsersRound,
+  Landmark,
 } from "lucide-react";
 
 export type MenuItem = {
@@ -69,6 +70,11 @@ export const menuItems: MenuItem[] = [
         icon: WalletCards,
         label: "Carteiras",
         href: "/financial/wallets",
+      },
+      {
+        icon: Landmark,
+        label: "Contas Conectadas",
+        href: "/financial/connected-accounts",
       },
     ],
   },

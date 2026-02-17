@@ -27,8 +27,9 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
+    "@types/express": "^4.17.25",
     "firebase-tools": "^15.6.0",
+    "picomatch": "^4.0.3",
     "typescript": "^5.3.0"
   },
   "private": true

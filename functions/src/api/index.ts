@@ -6,7 +6,7 @@ import { CORS_OPTIONS } from "../deploymentConfig";
 import { proxyImage } from "./controllers/proxy.controller";
 
 import { coreRoutes } from "./routes/core.routes";
-import { financeRoutes } from "./routes/finance.routes";
+import { financeRoutes, publicFinanceRoutes } from "./routes/finance.routes";
 import { adminRoutes } from "./routes/admin.routes";
 import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
@@ -35,18 +35,25 @@ app.get("/v1/aux/proxy-image", proxyImage);
 // Public Stripe Routes (Plans)
 app.use("/v1/stripe", publicStripeRoutes);
 
+// Public Finance Routes (Webhooks)
+app.use("/v1", publicFinanceRoutes);
+
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
 
 // Placeholder for routes - will be imported dynamically or added here
 // app.use("/products", productRoutes);
 
+import { pluggyRoutes } from "./routes/pluggy.routes";
+
 // Routes
+app.use("/v1/pluggy", pluggyRoutes); // Moved up to avoid shadowing
 app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1/stripe", stripeRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
+
 app.use("/v1", sharedProposalsRoutes); // Rota pública para /v1/share/:token
 app.use("/v1/notifications", notificationsRoutes); // Rotas de notificações
 
@@ -56,6 +63,8 @@ app.get("/authenticated", (req: express.Request, res: express.Response) => {
     user: req.user,
   });
 });
+
+// Pluggy routes verified
 
 export const api = onRequest(
   {

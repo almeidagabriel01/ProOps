@@ -556,9 +556,11 @@ export function useEditTransaction() {
     const currentInstallments = workingList.filter((t) => !t.isDownPayment);
     const existingDownPaymentItem = workingList.find((t) => t.isDownPayment);
 
-    const effectiveTargetCount = isNaN(targetCount)
-      ? currentInstallments.length
-      : targetCount;
+    const effectiveTargetCount = !formData.isInstallment
+      ? 1
+      : isNaN(targetCount)
+        ? currentInstallments.length
+        : targetCount;
 
     let resultList: Transaction[] = [];
 
@@ -704,6 +706,7 @@ export function useEditTransaction() {
     return resultList.map((t) => ({
       ...t,
       installmentCount: effectiveTargetCount,
+      isInstallment: formData.isInstallment,
     }));
   }, [transaction, formData, relatedInstallments, getDownPaymentAmount]);
 

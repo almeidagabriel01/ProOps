@@ -26,6 +26,8 @@ import {
   FileText,
   Edit2,
   Split,
+  FileCheck,
+  Wallet,
 } from "lucide-react";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
@@ -36,6 +38,7 @@ import { toast } from "react-toastify";
 import { TransactionInstallmentsList } from "./transaction-installments-list";
 import { EditBlockDialog } from "./edit-block-dialog";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
+import { PaymentInitiationDialog } from "./payment-initiation-dialog";
 import { TransactionService } from "@/services/transaction-service";
 import { useRouter } from "next/navigation";
 
@@ -64,6 +67,7 @@ interface TransactionCardProps {
     date: string,
   ) => Promise<void>;
   onReload?: () => Promise<void>;
+  onConciliate?: (transaction: Transaction) => Promise<boolean>;
   defaultExpanded?: boolean;
   isSelected?: boolean;
   onToggleSelection?: (id: string) => void;
@@ -96,6 +100,7 @@ export function TransactionCard({
   onUpdateBatch,
   onRegisterPartialPayment,
   onReload,
+  onConciliate,
   defaultExpanded = false,
   isSelected = false,
   onToggleSelection,
@@ -105,6 +110,7 @@ export function TransactionCard({
   onToggleExpand,
 }: TransactionCardProps) {
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [isConciliating, setIsConciliating] = React.useState(false);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
 
   // Local state purely for fallback if not controlled
@@ -132,6 +138,7 @@ export function TransactionCard({
     React.useState(false);
   const [partialPaymentTransaction, setPartialPaymentTransaction] =
     React.useState<Transaction | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = React.useState(false);
   const router = useRouter();
 
   // ... rest of implementation until Edit button
@@ -704,6 +711,124 @@ export function TransactionCard({
             </div>
 
             <div className="text-right flex items-center gap-4">
+              {/* Conciliation Button */}
+              {/* Payment Initiation Button (PIS) */}
+              {transaction.type === "expense" &&
+                (transaction.status === "pending" ||
+                  transaction.status === "overdue") &&
+                !transaction.isConciliated && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:border-blue-800 dark:hover:bg-blue-950/30"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPaymentDialog(true);
+                      }}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      <span className="hidden sm:inline">Pagar</span>
+                    </Button>
+
+                    {/* DEBUG: Webhook Simulator */}
+                    {transaction.status === "pending" &&
+                      transaction.paymentInitiationId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-xs text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                          title="Simular Webhook (Debug)"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!transaction.paymentInitiationId) return;
+
+                            try {
+                              const res = await fetch(
+                                `${process.env.NEXT_PUBLIC_API_URL}/v1/webhooks/open-finance`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    event: "PAYMENT_UPDATED",
+                                    data: {
+                                      paymentId:
+                                        transaction.paymentInitiationId,
+                                      status: "COMPLETED",
+                                    },
+                                  }),
+                                },
+                              );
+                              if (res.ok) {
+                                toast.success(
+                                  "Webhook disparado! Atualizando...",
+                                );
+                                if (onReload) {
+                                  await onReload();
+                                } else {
+                                  router.refresh();
+                                }
+                              } else {
+                                toast.error("Erro ao disparar webhook.");
+                              }
+                            } catch (err) {
+                              console.error(err);
+                              toast.error("Erro de conexão.");
+                            }
+                          }}
+                        >
+                          ⚡
+                        </Button>
+                      )}
+
+                    {showPaymentDialog && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <PaymentInitiationDialog
+                          isOpen={showPaymentDialog}
+                          onClose={() => setShowPaymentDialog(false)}
+                          transaction={transaction}
+                          tenantId={transaction.tenantId}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+
+              {transaction.externalId &&
+                !transaction.isConciliated &&
+                onConciliate && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-2 border-orange-500/50 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/30"
+                    disabled={isConciliating}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setIsConciliating(true);
+                      await onConciliate(transaction);
+                      setIsConciliating(false);
+                    }}
+                  >
+                    {isConciliating ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FileCheck className="w-4 h-4" />
+                    )}
+                    <span className="hidden sm:inline">Conciliar</span>
+                  </Button>
+                )}
+
+              {transaction.externalId && transaction.isConciliated && (
+                <div
+                  className="flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                  title="Conciliado com Open Finance"
+                >
+                  <FileCheck className="w-4 h-4" />
+                </div>
+              )}
+
               <div>
                 <div className={`font-bold ${typeInfo.color}`}>
                   {isEditingAmount ? (

@@ -14,7 +14,11 @@ import {
   AlertCircle,
   Layers,
   Calendar,
+  FileCheck,
+  Settings2,
 } from "lucide-react";
+import { ReconciliationRulesDialog } from "./reconciliation-rules-dialog";
+
 import {
   TransactionType,
   TransactionStatus,
@@ -28,8 +32,8 @@ interface TransactionFiltersProps {
   onSearchChange: (term: string) => void;
   filterType: TransactionType | "all";
   onFilterChange: (type: TransactionType | "all") => void;
-  filterStatus: TransactionStatus | "all";
-  onStatusChange: (status: TransactionStatus | "all") => void;
+  filterStatus: TransactionStatus | "all" | "conciliate";
+  onStatusChange: (status: TransactionStatus | "all" | "conciliate") => void;
   filterWallet: string;
   onWalletChange: (wallet: string) => void;
   filterStartDate?: string;
@@ -160,6 +164,15 @@ export function TransactionFilters({
             <AlertCircle className="w-4 h-4" />
             Atrasado
           </Button>
+          <Button
+            variant={filterStatus === "conciliate" ? "default" : "outline"}
+            size="sm"
+            onClick={() => onStatusChange("conciliate")}
+            className="gap-1"
+          >
+            <FileCheck className="w-4 h-4" />
+            Conciliação
+          </Button>
         </div>
 
         <Select
@@ -252,6 +265,9 @@ export function TransactionFilters({
               <Calendar className="w-4 h-4" />
               Por Vencimento
             </Button>
+          </div>
+          <div className="ml-2 border-l pl-2">
+            <ReconciliationRulesDialog />
           </div>
         </div>
       </div>

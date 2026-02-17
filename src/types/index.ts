@@ -268,6 +268,11 @@ export type Wallet = {
   status: "active" | "archived";
   createdAt: string;
   updatedAt: string;
+  // Open Finance Fields
+  connectedAccountId?: string; // Reference to ConnectedAccount
+  externalAccountId?: string; // ID from provider (e.g., Pluggy accountId)
+  bankName?: string;
+  bankImageUrl?: string;
 };
 
 export type WalletTransactionType =
@@ -305,6 +310,26 @@ export const WALLET_TYPE_ICONS: Record<WalletType, string> = {
   digital: "Smartphone",
   credit_card: "CreditCard",
   other: "Wallet",
+};
+
+// ============================================
+// OPEN FINANCE TYPES
+// ============================================
+
+export type ConnectedAccountStatus = "active" | "disconnected" | "action_required";
+
+export type ConnectedAccount = {
+  id: string;
+  tenantId: string;
+  provider: "pluggy" | "belvo" | "mock";
+  providerItemId: string; // The ID of the connection/item in the provider
+  accessToken?: string; // Store securely
+  status: ConnectedAccountStatus;
+  lastSyncAt?: string;
+  bankName?: string;
+  bankImageUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 // Re-export PDF display settings

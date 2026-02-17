@@ -203,6 +203,18 @@ service cloud.firestore {
       allow write: if false; // Managed by Stripe Webhooks
     }
 
+    // CONNECTED ACCOUNTS (Open Finance)
+    match /connected_accounts/{accountId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
+    }
+
+    // RECONCILIATION RULES
+    match /reconciliation_rules/{ruleId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
+    }
+
     // ============================================
     // SYSTEM COLLECTIONS
     // ============================================

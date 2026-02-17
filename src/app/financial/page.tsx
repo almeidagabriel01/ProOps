@@ -42,6 +42,7 @@ function TransactionListInfinite({
   getExpansionKey,
   toggleExpand,
   refreshData,
+  onConciliate,
 }: {
   filteredTransactions: Transaction[];
   transactions: Transaction[];
@@ -63,6 +64,7 @@ function TransactionListInfinite({
   getExpansionKey: (t: Transaction) => string;
   toggleExpand: (key: string, isOpen: boolean) => void;
   refreshData: (bg?: boolean) => Promise<void>;
+  onConciliate: (transaction: Transaction) => Promise<boolean>;
 }) {
   const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
     filteredTransactions,
@@ -116,6 +118,7 @@ function TransactionListInfinite({
                 toggleExpand(getExpansionKey(transaction), isOpen)
               }
               onReload={() => refreshData(true)}
+              onConciliate={onConciliate}
             />
           );
         }
@@ -142,6 +145,7 @@ function TransactionListInfinite({
               toggleExpand(getExpansionKey(transaction), isOpen)
             }
             onReload={() => refreshData(true)}
+            onConciliate={onConciliate}
           />
         );
       })}
@@ -192,6 +196,7 @@ export default function FinancialPage() {
     registerPartialPayment,
     transactions,
     refreshData,
+    conciliateTransaction,
   } = useFinancialData();
 
   // Delete confirmation dialog state
@@ -551,6 +556,7 @@ export default function FinancialPage() {
           onToggleSelectAll={toggleSelectAll}
           onSort={requestSort}
           sortConfig={sortConfig}
+          onConciliate={conciliateTransaction}
         />
       ) : (
         <TransactionListInfinite
@@ -570,6 +576,7 @@ export default function FinancialPage() {
           getExpansionKey={getExpansionKey}
           toggleExpand={toggleExpand}
           refreshData={refreshData}
+          onConciliate={conciliateTransaction}
         />
       )}
 

@@ -28,6 +28,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronsUpDown,
+  FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -51,6 +52,7 @@ interface TransactionListByDueDateProps {
   onToggleSelectAll: () => void;
   onSort?: (key: string) => void;
   sortConfig?: { key: string | null; direction: "asc" | "desc" | null };
+  onConciliate?: (transaction: Transaction) => Promise<boolean>;
 }
 
 const statusOptions: {
@@ -74,6 +76,7 @@ export function TransactionListByDueDate({
   onToggleSelectAll,
   onSort,
   sortConfig,
+  onConciliate,
 }: TransactionListByDueDateProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
 
@@ -298,6 +301,30 @@ export function TransactionListByDueDate({
                         <Eye className="w-3 h-3" />
                       </Button>
                     </Link>
+                    {/* Conciliate Button */}
+                    {transaction.externalId &&
+                      !transaction.isConciliated &&
+                      onConciliate && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-orange-600 hover:text-orange-700 dark:text-orange-400"
+                          title="Conciliar"
+                          onClick={() => onConciliate(transaction)}
+                        >
+                          <FileCheck className="w-3 h-3" />
+                        </Button>
+                      )}
+
+                    {transaction.externalId && transaction.isConciliated && (
+                      <div
+                        className="h-6 w-6 flex items-center justify-center text-green-600 dark:text-green-400"
+                        title="Conciliado"
+                      >
+                        <FileCheck className="w-3 h-3" />
+                      </div>
+                    )}
+
                     {canDelete && (
                       <Button
                         variant="ghost"

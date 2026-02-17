@@ -6,6 +6,7 @@ import {
   addMonths,
 } from "../../lib/finance-helpers";
 import { CreateTransactionDTO } from "../helpers/transaction-validation";
+import { ReconciliationService } from "./reconciliation.service";
 
 const COLLECTION_NAME = "transactions";
 
@@ -29,100 +30,107 @@ export class TransactionService {
     // Prepare data
     const now = Timestamp.now();
     
+    // Apply reconciliation rules
+    // This allows auto-categorization based on description even for manual entries
+    const reconciliatedData = await ReconciliationService.applyRules(tenantId, { ...data });
+    
+    // Use the categorized data
+    const finalData = reconciliatedData;
+    
     return await db.runTransaction(async (t) => {
       const transactionsToCreate: Record<string, unknown>[] = [];
       const walletAdjustments = new Map<string, number>();
 
       const shouldGenerateInstallments =
-        data.isInstallment &&
-        (data.installmentCount || 0) > 1 &&
-        (!data.installmentNumber || data.installmentNumber === 1);
+        finalData.isInstallment &&
+        (finalData.installmentCount || 0) > 1 &&
+        (!finalData.installmentNumber || finalData.installmentNumber === 1);
 
       if (shouldGenerateInstallments) {
-        const count = data.installmentCount!;
-        const groupId = data.installmentGroupId || `gen_${now.toMillis()}`;
-        const baseAmount = data.amount;
+        const count = finalData.installmentCount!;
+        const groupId = finalData.installmentGroupId || `gen_${now.toMillis()}`;
+        const baseAmount = finalData.amount;
 
         for (let i = 0; i < count; i++) {
           const isFirst = i === 0;
-          const currentStatus = isFirst ? data.status : "pending";
+          const currentStatus = isFirst ? finalData.status : "pending";
 
           // Date (launch date) stays the same for all installments
-          const currentDate = data.date;
+          const currentDate = finalData.date;
 
           // DueDate (vencimento) increments by month for each installment
           // If no dueDate provided, use date as base
-          const baseDueDate = data.dueDate || data.date;
+          const baseDueDate = finalData.dueDate || finalData.date;
           const currentDueDate = addMonths(baseDueDate, i);
 
           transactionsToCreate.push({
             tenantId,
-            type: data.type,
+            type: finalData.type,
             description: isFirst
-              ? data.description
-              : `${data.description} (${i + 1}/${count})`,
+              ? finalData.description
+              : `${finalData.description} (${i + 1}/${count})`,
             amount: baseAmount,
             date: currentDate,
             dueDate: currentDueDate,
 
             status: currentStatus,
-            clientId: data.clientId || null,
-            clientName: data.clientName || null,
-            proposalId: data.proposalId || null,
-            category: data.category || null,
-            wallet: data.wallet || null,
+            clientId: finalData.clientId || null,
+            clientName: finalData.clientName || null,
+            proposalId: finalData.proposalId || null,
+            category: finalData.category || null,
+            wallet: finalData.wallet || null,
             isInstallment: true,
-            downPaymentType: data.downPaymentType || null,
-            downPaymentPercentage: data.downPaymentPercentage || null,
+            downPaymentType: finalData.downPaymentType || null,
+            downPaymentPercentage: finalData.downPaymentPercentage || null,
             installmentCount: count,
             installmentNumber: i + 1,
             installmentGroupId: groupId,
-            notes: data.notes || null,
+            notes: finalData.notes || null,
             createdAt: now,
             updatedAt: now,
             createdById: userId,
           });
 
-          if (currentStatus === "paid" && data.wallet) {
-            const sign = data.type === "income" ? 1 : -1;
+          if (currentStatus === "paid" && finalData.wallet) {
+            const sign = finalData.type === "income" ? 1 : -1;
             const adj = sign * baseAmount;
             walletAdjustments.set(
-              data.wallet,
-              (walletAdjustments.get(data.wallet) || 0) + adj
+              finalData.wallet,
+              (walletAdjustments.get(finalData.wallet) || 0) + adj
             );
           }
         }
       } else {
         transactionsToCreate.push({
           tenantId,
-          type: data.type,
-          description: data.description.trim(),
-          amount: data.amount,
-          date: data.date,
-          dueDate: data.dueDate || null,
-          status: data.status,
-          clientId: data.clientId || null,
-          clientName: data.clientName || null,
-          proposalId: data.proposalId || null,
-          category: data.category || null,
-          wallet: data.wallet || null,
-          isDownPayment: !!data.isDownPayment,
-          downPaymentType: data.downPaymentType || null,
-          downPaymentPercentage: data.downPaymentPercentage || null,
-          isInstallment: !!data.isInstallment,
-          installmentCount: data.installmentCount || null,
-          installmentNumber: data.installmentNumber || null,
-          installmentGroupId: data.installmentGroupId || null,
-          notes: data.notes || null,
+          type: finalData.type,
+          description: finalData.description.trim(),
+          amount: finalData.amount,
+          date: finalData.date,
+          dueDate: finalData.dueDate || null,
+          status: finalData.status,
+          clientId: finalData.clientId || null,
+          clientName: finalData.clientName || null,
+          proposalId: finalData.proposalId || null,
+          category: finalData.category || null,
+          wallet: finalData.wallet || null,
+          isDownPayment: !!finalData.isDownPayment,
+          downPaymentType: finalData.downPaymentType || null,
+          downPaymentPercentage: finalData.downPaymentPercentage || null,
+          isInstallment: !!finalData.isInstallment,
+          installmentCount: finalData.isInstallment ? (finalData.installmentCount || null) : null,
+          installmentNumber: finalData.isInstallment ? (finalData.installmentNumber || null) : null,
+          installmentGroupId: finalData.isInstallment ? (finalData.installmentGroupId || null) : null,
+          notes: finalData.notes || null,
           createdAt: now,
           updatedAt: now,
           createdById: userId,
         });
 
-        if (data.status === "paid" && data.wallet) {
-          const sign = data.type === "income" ? 1 : -1;
-          const adj = sign * data.amount;
-          walletAdjustments.set(data.wallet, adj);
+        if (finalData.status === "paid" && finalData.wallet) {
+          const sign = finalData.type === "income" ? 1 : -1;
+          const adj = sign * finalData.amount;
+          walletAdjustments.set(finalData.wallet, adj);
         }
       }
 
@@ -175,6 +183,14 @@ export class TransactionService {
       "canEdit",
       user
     );
+
+    // Sanitize update data: if disabling installments, clear related fields
+    if (updateData.isInstallment === false) {
+      // Use 'as any' to allow setting null if type definition is strict, though Firestore allows it
+      (updateData as any).installmentCount = null;
+      (updateData as any).installmentNumber = null;
+      (updateData as any).installmentGroupId = null;
+    }
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
