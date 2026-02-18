@@ -12,6 +12,9 @@ import {
   updateUserPlan,
   mapStripeSubscriptionStatus,
   runStripeSync,
+  addWhatsAppOverageToSubscription,
+  upsertTenantStripeBillingData,
+  WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
@@ -340,7 +343,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       customer: customerId,
       line_items: [
         { price: priceId, quantity: 1 },
-        { price: "price_1T20T7GrkF9UfsqcEtdBX9fY" }, // WhatsApp Overage Metered Price
+        { price: WHATSAPP_OVERAGE_PRICE_ID }, // WhatsApp Overage Metered Price
       ],
       success_url: `${appOrigin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/subscribe`,
@@ -423,44 +426,34 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         });
     }
 
+    const overageItemId = await addWhatsAppOverageToSubscription(subscription.id);
+    if (overageItemId) {
+      subscription = await stripe.subscriptions.retrieve(subscription.id);
+    }
+
     const status = mapStripeSubscriptionStatus(subscription.status);
     const currentPeriodEnd = new Date(
       (subscription as any).current_period_end * 1000,
     );
 
-    // Save WhatsApp Subscription Item ID
     const whatsappItem = subscription.items.data.find(
-      (item) => item.price.id === "price_1T20T7GrkF9UfsqcEtdBX9fY",
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
+    const userSnap = await db.collection("users").doc(userId).get();
+    const userData = userSnap.data();
+    const tenantId = userData?.tenantId || userData?.companyId || `tenant_${userId}`;
+    const sessionCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id || userData?.stripeId;
 
-    if (whatsappItem) {
-      const userSnap = await db.collection("users").doc(userId).get();
-      const userData = userSnap.data();
-      const tenantId =
-        userData?.tenantId || userData?.companyId || `tenant_${userId}`;
-
-      if (tenantId) {
-        // Try companies first, then tenants if needed, or just company as per typical structure
-        // Based on admin.controller.ts, companies seems to be the place.
-        const companyRef = db.collection("companies").doc(tenantId);
-        const companySnap = await companyRef.get();
-        if (companySnap.exists) {
-          await companyRef.update({
-            whatsappSubscriptionItemId: whatsappItem.id,
-          });
-        }
-        // Also update user/tenant doc if we aren't sure where it strictly belongs,
-        // but user asked "Salvar no Firestore dentro do tenant".
-        // If tenants collection exists, use it.
-        const tenantRef = db.collection("tenants").doc(tenantId);
-        const tenantSnap = await tenantRef.get();
-        if (tenantSnap.exists) {
-          await tenantRef.update({
-            whatsappSubscriptionItemId: whatsappItem.id,
-          });
-        }
-      }
-    }
+    await upsertTenantStripeBillingData({
+      tenantId,
+      stripeCustomerId: sessionCustomerId,
+      stripeSubscriptionId: subscription.id,
+      whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+      whatsappOverageSubscriptionItemId: whatsappItem?.id,
+    });
 
     await updateSubscriptionStatus(
       userId,

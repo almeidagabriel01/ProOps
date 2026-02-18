@@ -9,6 +9,56 @@ import {
 import { checkUserLimit } from "../../lib/billing-helpers";
 import { UserDoc, resolveUserAndTenant } from "../../lib/auth-helpers";
 
+function normalizePhoneNumber(value: unknown): string {
+  return String(value || "").replace(/\D/g, "");
+}
+
+async function upsertPhoneNumberIndexTx(
+  transaction: FirebaseFirestore.Transaction,
+  params: {
+    userId: string;
+    tenantId: string;
+    newPhoneNumber?: unknown;
+    previousPhoneNumber?: unknown;
+    now: FirebaseFirestore.Timestamp;
+  },
+) {
+  const { userId, tenantId, newPhoneNumber, previousPhoneNumber, now } = params;
+  const nextPhone = normalizePhoneNumber(newPhoneNumber);
+  const prevPhone = normalizePhoneNumber(previousPhoneNumber);
+
+  if (!nextPhone && !prevPhone) return;
+
+  if (nextPhone) {
+    const indexRef = db.collection("phoneNumberIndex").doc(nextPhone);
+    const indexSnap = await transaction.get(indexRef);
+    const indexData = indexSnap.data() as { userId?: string } | undefined;
+
+    if (indexSnap.exists && indexData?.userId && indexData.userId !== userId) {
+      throw new Error("PHONE_ALREADY_LINKED");
+    }
+
+    transaction.set(
+      indexRef,
+      {
+        userId,
+        tenantId,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+  }
+
+  if (prevPhone && prevPhone !== nextPhone) {
+    const prevRef = db.collection("phoneNumberIndex").doc(prevPhone);
+    const prevSnap = await transaction.get(prevRef);
+    const prevData = prevSnap.data() as { userId?: string } | undefined;
+    if (prevSnap.exists && prevData?.userId === userId) {
+      transaction.delete(prevRef);
+    }
+  }
+}
+
 export const createMember = async (req: Request, res: Response) => {
   try {
     const loggedUserId = req.user!.uid;
@@ -115,6 +165,7 @@ export const createMember = async (req: Request, res: Response) => {
         transaction.set(memberRef, {
           name: input.name.trim(),
           email: input.email.toLowerCase().trim(),
+          phoneNumber: normalizePhoneNumber(input.phoneNumber) || null,
           photoUrl: null,
           role: "MEMBER",
           masterId: masterId,
@@ -123,6 +174,13 @@ export const createMember = async (req: Request, res: Response) => {
           companyId: tenantId, // Standardize
           createdAt: now,
           updatedAt: now,
+        });
+
+        await upsertPhoneNumberIndexTx(transaction, {
+          userId: memberId,
+          tenantId,
+          newPhoneNumber: input.phoneNumber,
+          now,
         });
 
         const permissionsInput = input.permissions || {};
@@ -170,6 +228,9 @@ export const createMember = async (req: Request, res: Response) => {
         // Safe to ignore rollback failure
         console.error("Rollback failed", e);
       }
+      if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+        return res.status(409).json({ message: "Telefone já vinculado" });
+      }
       return res
         .status(500)
         .json({ message: "Erro ao salvar dados do usuário." });
@@ -185,7 +246,7 @@ export const updateMember = async (req: Request, res: Response) => {
   try {
     const masterId = req.user!.uid;
     const { id } = req.params;
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
 
     if (!id) return res.status(400).json({ message: "ID obrigatório." });
 
@@ -240,8 +301,36 @@ export const updateMember = async (req: Request, res: Response) => {
     };
     if (name) firestoreUpdates.name = name;
     if (email) firestoreUpdates.email = email;
+    if (phoneNumber !== undefined) {
+      firestoreUpdates.phoneNumber = normalizePhoneNumber(phoneNumber);
+    }
 
-    await db.collection("users").doc(id).update(firestoreUpdates);
+    try {
+      await db.runTransaction(async (transaction) => {
+        const now = Timestamp.now();
+        const memberRef = db.collection("users").doc(id);
+
+        if (phoneNumber !== undefined) {
+          await upsertPhoneNumberIndexTx(transaction, {
+            userId: id,
+            tenantId: (memberData?.tenantId || memberData?.companyId || "").trim(),
+            newPhoneNumber: phoneNumber,
+            previousPhoneNumber: memberData?.phoneNumber,
+            now,
+          });
+        }
+
+        transaction.update(memberRef, {
+          ...firestoreUpdates,
+          updatedAt: now,
+        });
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+        return res.status(409).json({ message: "Telefone já vinculado" });
+      }
+      throw err;
+    }
 
     return res.json({
       success: true,
@@ -310,8 +399,17 @@ export const deleteMember = async (req: Request, res: Response) => {
     await db.runTransaction(async (t) => {
       const companyRef = db.collection("companies").doc(tenantId!);
       const companySnap = await t.get(companyRef);
+      const memberPhone = normalizePhoneNumber(memberData?.phoneNumber);
 
       t.delete(db.collection("users").doc(id));
+      if (memberPhone) {
+        const phoneRef = db.collection("phoneNumberIndex").doc(memberPhone);
+        const phoneSnap = await t.get(phoneRef);
+        const phoneData = phoneSnap.data() as { userId?: string } | undefined;
+        if (phoneSnap.exists && phoneData?.userId === id) {
+          t.delete(phoneRef);
+        }
+      }
       t.update(db.collection("users").doc(actualMasterId), {
         "usage.users": FieldValue.increment(-1),
       });

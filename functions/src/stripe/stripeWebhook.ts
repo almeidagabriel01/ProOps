@@ -8,6 +8,9 @@ import {
   updateSubscriptionStatus,
   updateAddonStatus,
   AddonType,
+  addWhatsAppOverageToSubscription,
+  upsertTenantStripeBillingData,
+  WHATSAPP_OVERAGE_PRICE_ID,
 } from "./stripeHelpers";
 import { db } from "../init";
 import Stripe from "stripe";
@@ -52,7 +55,11 @@ async function handleCheckoutCompleted(
 
   if (userId && planTier && subscriptionId) {
     const stripe = getStripe();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    let subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const overageItemId = await addWhatsAppOverageToSubscription(subscriptionId);
+    if (overageItemId) {
+      subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    }
     const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
     await updateUserPlan(
@@ -63,6 +70,26 @@ async function handleCheckoutCompleted(
       currentPeriodEnd,
       subscription.cancel_at_period_end,
     );
+
+    const userSnap = await db.collection("users").doc(userId).get();
+    const userData = userSnap.data() as { tenantId?: string; companyId?: string } | undefined;
+    const tenantId =
+      metadata.tenantId || userData?.tenantId || userData?.companyId || `tenant_${userId}`;
+    const whatsappItem = subscription.items.data.find(
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+    );
+    const subscriptionCustomerId =
+      typeof subscription.customer === "string"
+        ? subscription.customer
+        : subscription.customer?.id;
+
+    await upsertTenantStripeBillingData({
+      tenantId,
+      stripeCustomerId: subscriptionCustomerId,
+      stripeSubscriptionId: subscription.id,
+      whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+      whatsappOverageSubscriptionItemId: whatsappItem?.id,
+    });
   } else {
     console.error("Missing metadata in checkout session:", {
       userId,
@@ -123,6 +150,11 @@ async function handleSubscriptionUpdated(
   const interval = subscription.items.data[0]?.price.recurring?.interval;
 
   if (userId) {
+    const overageItemId = await addWhatsAppOverageToSubscription(subscription.id);
+    if (overageItemId) {
+      subscription = await getStripe().subscriptions.retrieve(subscription.id);
+    }
+
     let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
     switch (subscription.status) {
       case "active":
@@ -163,6 +195,26 @@ async function handleSubscriptionUpdated(
         subscription.cancel_at_period_end,
       );
     }
+
+    const userSnap = await db.collection("users").doc(userId).get();
+    const userData = userSnap.data() as { tenantId?: string; companyId?: string } | undefined;
+    const tenantId =
+      metadata.tenantId || userData?.tenantId || userData?.companyId || `tenant_${userId}`;
+    const whatsappItem = subscription.items.data.find(
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+    );
+    const subscriptionCustomerId =
+      typeof subscription.customer === "string"
+        ? subscription.customer
+        : subscription.customer?.id;
+
+    await upsertTenantStripeBillingData({
+      tenantId,
+      stripeCustomerId: subscriptionCustomerId,
+      stripeSubscriptionId: subscription.id,
+      whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+      whatsappOverageSubscriptionItemId: whatsappItem?.id,
+    });
   }
 }
 

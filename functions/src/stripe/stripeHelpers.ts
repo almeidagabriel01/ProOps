@@ -2,6 +2,8 @@ import { db } from "../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 
+export const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
+
 export async function getPlanIdByTier(tier: string): Promise<string | null> {
   const plansRef = db.collection("plans");
   const snapshot = await plansRef.where("tier", "==", tier).get();
@@ -310,14 +312,13 @@ export async function addWhatsAppOverageToSubscription(
   subscriptionId: string,
 ): Promise<string | null> {
   const stripe = getStripe();
-  const overagePriceId = "price_1T20T7GrkF9UfsqcEtdBX9fY";
 
   try {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
     // Check if already exists
     const existingItem = subscription.items.data.find(
-      (item) => item.price.id === overagePriceId,
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
 
     if (existingItem) {
@@ -333,13 +334,13 @@ export async function addWhatsAppOverageToSubscription(
       {
         items: [
           ...subscription.items.data.map((item) => ({ id: item.id })), // Keep existing items
-          { price: overagePriceId },
+          { price: WHATSAPP_OVERAGE_PRICE_ID },
         ],
       },
     );
 
     const newItem = updatedSubscription.items.data.find(
-      (item) => item.price.id === overagePriceId,
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
 
     if (newItem) {
@@ -357,4 +358,36 @@ export async function addWhatsAppOverageToSubscription(
     );
     throw error;
   }
+}
+
+export async function upsertTenantStripeBillingData(input: {
+  tenantId: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  whatsappOveragePriceId?: string;
+  whatsappOverageSubscriptionItemId?: string;
+}): Promise<void> {
+  const tenantId = String(input.tenantId || "").trim();
+  if (!tenantId) return;
+
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const updatePayload: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (input.stripeCustomerId) {
+    updatePayload.stripeCustomerId = input.stripeCustomerId;
+  }
+  if (input.stripeSubscriptionId) {
+    updatePayload.stripeSubscriptionId = input.stripeSubscriptionId;
+  }
+  if (input.whatsappOveragePriceId) {
+    updatePayload.whatsappOveragePriceId = input.whatsappOveragePriceId;
+  }
+  if (input.whatsappOverageSubscriptionItemId) {
+    updatePayload.whatsappOverageSubscriptionItemId =
+      input.whatsappOverageSubscriptionItemId;
+  }
+
+  await tenantRef.set(updatePayload, { merge: true });
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storage } from "@/lib/firebase"; // Keep Client SDK for storage if needed, or switch later
-import { ref, getDownloadURL } from "firebase/storage";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { jsPDF } from "jspdf";
 import crypto from "crypto";
 
 // ============================================
@@ -61,6 +61,8 @@ interface SessionData {
 // ============================================
 
 const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const PDF_URL_VALIDITY_MS = 60 * 60 * 1000; // 1 hour
+const PDF_GENERATION_LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 
 // ============================================
 // HELPER FUNCTIONS
@@ -114,6 +116,10 @@ function formatCurrency(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function normalizePhoneNumber(value: unknown): string {
+  return String(value || "").replace(/\D/g, "");
 }
 
 function toNumber(value: unknown): number {
@@ -172,10 +178,10 @@ function normalizeTransactionType(
 
 type ProposalListItem = {
   id: string;
+  title: string;
   clientName: string;
-  title?: string;
   totalValue: number;
-  status: string;
+  updatedAt: Date | null;
 };
 
 type NormalizedTransaction = {
@@ -184,52 +190,88 @@ type NormalizedTransaction = {
   amount: number;
 };
 
-async function getLatestProposalsForTenant(
+async function queryProposalsForTenant(
+  firestore: FirebaseFirestore.Firestore,
   tenantId: string,
   limitN = 10,
 ): Promise<ProposalListItem[]> {
-  const base = db.collection("proposals").where("tenantId", "==", tenantId);
+  const proposalsRef = firestore.collection("proposals");
 
-  const runQuery = async (sortField?: "createdAt" | "updatedAt") => {
+  const runQuery = async (
+    field: "tenantId" | "companyId",
+  ): Promise<{
+    usedField: "tenantId" | "companyId";
+    snap: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>;
+  } | null> => {
     try {
-      const q = sortField
-        ? base.orderBy(sortField, "desc").limit(limitN)
-        : base.limit(limitN);
-      return await q.get();
+      const snap = await proposalsRef
+        .where(field, "==", tenantId)
+        .orderBy("updatedAt", "desc")
+        .limit(limitN)
+        .get();
+      return { usedField: field, snap };
     } catch (error) {
-      console.warn(
-        `[WhatsApp] Failed proposals query (sort=${sortField || "none"})`,
-        error,
-      );
-      return null;
+      console.warn(`[WhatsApp] proposals query failed (${field})`, error);
+      try {
+        const fallbackSnap = await proposalsRef
+          .where(field, "==", tenantId)
+          .limit(limitN)
+          .get();
+        return { usedField: field, snap: fallbackSnap };
+      } catch (fallbackError) {
+        console.warn(
+          `[WhatsApp] proposals query fallback failed (${field})`,
+          fallbackError,
+        );
+        return null;
+      }
     }
   };
 
-  const snap =
-    (await runQuery("createdAt")) ||
-    (await runQuery("updatedAt")) ||
-    (await runQuery());
-
-  if (!snap || snap.empty) {
-    return [];
+  const tenantResult = await runQuery("tenantId");
+  if (tenantResult && !tenantResult.snap.empty) {
+    console.log("[WhatsApp] proposals found", {
+      tenantId,
+      count: tenantResult.snap.size,
+      usedField: tenantResult.usedField,
+    });
+    return tenantResult.snap.docs.map((doc) => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        title: String(data.title || "Proposta"),
+        clientName: String(data.clientName || "").trim(),
+        totalValue: toNumber(data.totalValue ?? data.total ?? data.value),
+        updatedAt: toDate(data.updatedAt),
+      };
+    });
   }
 
-  return snap.docs.map((doc) => {
-    const data = doc.data() as any;
-    const clientName =
-      String(data.clientName || "").trim() ||
-      String(data.client?.name || "").trim() ||
-      String(data.title || "").trim() ||
-      "Sem cliente";
-    const totalValue = toNumber(data.totalValue ?? data.total ?? data.value);
-    return {
-      id: doc.id,
-      clientName,
-      title: data.title ? String(data.title) : undefined,
-      totalValue,
-      status: String(data.status || "unknown"),
-    };
+  const companyResult = await runQuery("companyId");
+  if (companyResult && !companyResult.snap.empty) {
+    console.log("[WhatsApp] proposals found", {
+      tenantId,
+      count: companyResult.snap.size,
+      usedField: companyResult.usedField,
+    });
+    return companyResult.snap.docs.map((doc) => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        title: String(data.title || "Proposta"),
+        clientName: String(data.clientName || "").trim(),
+        totalValue: toNumber(data.totalValue ?? data.total ?? data.value),
+        updatedAt: toDate(data.updatedAt),
+      };
+    });
+  }
+
+  console.log("[WhatsApp] proposals found", {
+    tenantId,
+    count: 0,
+    usedField: "companyId",
   });
+  return [];
 }
 
 async function getProposalByIdForTenant(
@@ -245,9 +287,341 @@ async function getProposalByIdForTenant(
   if (!docSnap.exists) return null;
 
   const data = docSnap.data() as any;
-  if (!data || data.tenantId !== tenantId) return null;
+  if (!data) return null;
+  if (data.tenantId !== tenantId && data.companyId !== tenantId) return null;
 
   return { id: docSnap.id, ...data };
+}
+
+function buildProposalPdfStoragePath(tenantId: string, proposalId: string): string {
+  return `proposals/${tenantId}/${proposalId}/proposal.pdf`;
+}
+
+function parseStoragePathFromUrl(value: string): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  if (raw.startsWith("proposals/")) return raw;
+
+  if (raw.startsWith("gs://")) {
+    const noProtocol = raw.slice(5);
+    const firstSlash = noProtocol.indexOf("/");
+    if (firstSlash > 0 && firstSlash < noProtocol.length - 1) {
+      return noProtocol.slice(firstSlash + 1);
+    }
+  }
+
+  try {
+    const url = new URL(raw);
+    const decodedPathname = decodeURIComponent(url.pathname);
+
+    if (
+      url.hostname.includes("firebasestorage.googleapis.com") ||
+      url.hostname.includes("firebasestorage.app")
+    ) {
+      const marker = "/o/";
+      const markerIndex = decodedPathname.indexOf(marker);
+      if (markerIndex >= 0) {
+        return decodedPathname.slice(markerIndex + marker.length);
+      }
+    }
+
+    if (url.hostname.includes("storage.googleapis.com")) {
+      const parts = decodedPathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.slice(1).join("/");
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function isUrlAccessible(url: string): Promise<boolean> {
+  const trimmedUrl = String(url || "").trim();
+  if (!trimmedUrl) return false;
+
+  try {
+    const response = await fetch(trimmedUrl, { method: "HEAD" });
+    if (response.ok) return true;
+    if (response.status !== 405) return false;
+  } catch {
+    return false;
+  }
+
+  try {
+    const response = await fetch(trimmedUrl, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+    });
+    return response.ok || response.status === 206;
+  } catch {
+    return false;
+  }
+}
+
+async function generateSimpleProposalPdfBuffer(
+  proposal: { id: string; [key: string]: unknown },
+): Promise<Buffer> {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const marginX = 48;
+  let y = 64;
+
+  const proposalTitle = String(proposal.title || `Proposta ${proposal.id}`);
+  const clientName = String(proposal.clientName || "Cliente nao informado");
+  const proposalCode = String(proposal.code || proposal.id);
+  const status = String(proposal.status || "N/A");
+  const totalValue = toNumber(proposal.totalValue ?? proposal.total ?? proposal.value);
+  const validUntil = toDate(proposal.validUntil);
+  const notes = String(proposal.customNotes || "").trim();
+
+  doc.setFontSize(20);
+  doc.text("Proposta Comercial", marginX, y);
+  y += 34;
+
+  doc.setFontSize(12);
+  doc.text(`Titulo: ${proposalTitle}`, marginX, y);
+  y += 22;
+  doc.text(`Cliente: ${clientName}`, marginX, y);
+  y += 22;
+  doc.text(`Codigo: ${proposalCode}`, marginX, y);
+  y += 22;
+  doc.text(`Status: ${status}`, marginX, y);
+  y += 22;
+  doc.text(`Valor total: ${formatCurrency(totalValue)}`, marginX, y);
+  y += 22;
+  doc.text(
+    `Validade: ${validUntil ? validUntil.toLocaleDateString("pt-BR") : "Nao informado"}`,
+    marginX,
+    y,
+  );
+  y += 30;
+  doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, marginX, y);
+  y += 30;
+
+  if (notes) {
+    doc.setFontSize(11);
+    doc.text("Observacoes:", marginX, y);
+    y += 18;
+    const wrappedNotes = doc.splitTextToSize(notes, 500);
+    doc.text(wrappedNotes, marginX, y);
+  }
+
+  const arrayBuffer = doc.output("arraybuffer");
+  return Buffer.from(arrayBuffer);
+}
+
+async function generateProposalPdfBuffer(
+  proposal: { id: string; [key: string]: unknown },
+): Promise<Buffer> {
+  const configuredRenderer = String(process.env.PDF_RENDERER || "jspdf")
+    .trim()
+    .toLowerCase();
+
+  if (configuredRenderer === "puppeteer") {
+    console.warn(
+      "[WhatsApp] PDF_RENDERER=puppeteer is not implemented yet. Falling back to jspdf.",
+    );
+  }
+
+  return generateSimpleProposalPdfBuffer(proposal);
+}
+
+async function getOrGenerateProposalPdf(
+  tenantId: string,
+  proposalId: string,
+): Promise<{ pdfUrl: string; pdfPath: string }> {
+  const proposal = await getProposalByIdForTenant(tenantId, proposalId);
+  if (!proposal) {
+    throw new Error("PROPOSAL_NOT_FOUND");
+  }
+
+  const bucket = getStorage().bucket();
+  const standardPath = buildProposalPdfStoragePath(tenantId, proposal.id);
+  const attachments = Array.isArray(proposal.attachments) ? proposal.attachments : [];
+  const attachmentPdfUrl = attachments
+    .map((attachment) => {
+      const typedAttachment = attachment as { name?: unknown; type?: unknown; url?: unknown };
+      const name = String(typedAttachment.name || "").toLowerCase();
+      const type = String(typedAttachment.type || "").toLowerCase();
+      if (type === "pdf" || name.endsWith(".pdf")) {
+        return String(typedAttachment.url || "").trim();
+      }
+      return "";
+    })
+    .find((url) => Boolean(url));
+  const existingPdfUrl =
+    typeof proposal.pdfUrl === "string" ? proposal.pdfUrl.trim() : "";
+  const existingPdfPath =
+    typeof proposal.pdfPath === "string" ? proposal.pdfPath.trim() : "";
+  const preferredExistingUrl = existingPdfUrl || attachmentPdfUrl || "";
+  const proposalRef = db.collection("proposals").doc(proposal.id);
+
+  if (preferredExistingUrl && (await isUrlAccessible(preferredExistingUrl))) {
+    const resolvedPath =
+      existingPdfPath ||
+      parseStoragePathFromUrl(preferredExistingUrl) ||
+      standardPath;
+    await proposalRef.update({
+      pdfPath: resolvedPath,
+      pdfUrl: preferredExistingUrl,
+    });
+    console.log("[WhatsApp] PDF found existing", {
+      proposalId: proposal.id,
+      tenantId,
+      pdfPath: resolvedPath,
+    });
+    return { pdfUrl: preferredExistingUrl, pdfPath: resolvedPath };
+  }
+
+  const pathCandidates = Array.from(
+    new Set(
+      [
+        existingPdfPath,
+        parseStoragePathFromUrl(existingPdfUrl),
+        parseStoragePathFromUrl(attachmentPdfUrl || ""),
+        standardPath,
+      ].filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
+  );
+
+  for (const pathCandidate of pathCandidates) {
+    const file = bucket.file(pathCandidate);
+    const [exists] = await file.exists();
+    if (!exists) continue;
+
+    const [signedUrl] = await file.getSignedUrl({
+      action: "read",
+      expires: Date.now() + PDF_URL_VALIDITY_MS,
+    });
+
+    await proposalRef.update({
+      pdfPath: pathCandidate,
+      pdfUrl: signedUrl,
+    });
+
+    console.log("[WhatsApp] PDF found existing", {
+      proposalId: proposal.id,
+      tenantId,
+      pdfPath: pathCandidate,
+    });
+    return { pdfUrl: signedUrl, pdfPath: pathCandidate };
+  }
+
+  const lockOwner = `wa-${proposal.id}-${Date.now()}`;
+  const lockAcquired = await db.runTransaction(async (transaction) => {
+    const proposalSnap = await transaction.get(proposalRef);
+    if (!proposalSnap.exists) {
+      throw new Error("PROPOSAL_NOT_FOUND");
+    }
+
+    const data = proposalSnap.data() as
+      | {
+          pdfGenerationLock?: { lockedAt?: unknown; lockedBy?: unknown };
+        }
+      | undefined;
+    const lock = data?.pdfGenerationLock;
+    const lockDate = toDate(lock?.lockedAt);
+    const lockIsStale =
+      !lockDate || Date.now() - lockDate.getTime() > PDF_GENERATION_LOCK_TIMEOUT_MS;
+    const isLockedByOther =
+      !!lock &&
+      !lockIsStale &&
+      String(lock.lockedBy || "").trim() &&
+      String(lock.lockedBy || "").trim() !== lockOwner;
+
+    if (isLockedByOther) {
+      return false;
+    }
+
+    transaction.update(proposalRef, {
+      pdfGenerationLock: {
+        lockedAt: FieldValue.serverTimestamp(),
+        lockedBy: lockOwner,
+      },
+    });
+    return true;
+  });
+
+  if (!lockAcquired) {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const refreshed = await proposalRef.get();
+      const refreshedData = refreshed.data() as
+        | { pdfPath?: unknown; pdfUrl?: unknown }
+        | undefined;
+      const refreshedPath = String(refreshedData?.pdfPath || "").trim();
+      const refreshedUrl = String(refreshedData?.pdfUrl || "").trim();
+
+      if (refreshedPath) {
+        const waitingFile = bucket.file(refreshedPath);
+        const [exists] = await waitingFile.exists();
+        if (exists) {
+          const [signedUrl] = await waitingFile.getSignedUrl({
+            action: "read",
+            expires: Date.now() + PDF_URL_VALIDITY_MS,
+          });
+          await proposalRef.update({ pdfUrl: signedUrl });
+          console.log("[WhatsApp] PDF found existing", {
+            proposalId: proposal.id,
+            tenantId,
+            pdfPath: refreshedPath,
+          });
+          return { pdfUrl: signedUrl, pdfPath: refreshedPath };
+        }
+      }
+
+      if (refreshedUrl && (await isUrlAccessible(refreshedUrl))) {
+        const resolvedPath = parseStoragePathFromUrl(refreshedUrl) || standardPath;
+        return { pdfUrl: refreshedUrl, pdfPath: resolvedPath };
+      }
+    }
+
+    throw new Error("PDF_GENERATION_IN_PROGRESS");
+  }
+
+  const pdfPath = standardPath;
+  const file = bucket.file(pdfPath);
+
+  try {
+    const generatedPdfBuffer = await generateProposalPdfBuffer(proposal);
+
+    await file.save(generatedPdfBuffer, {
+      contentType: "application/pdf",
+      metadata: {
+        cacheControl: "private, max-age=3600",
+      },
+    });
+
+    const [pdfUrl] = await file.getSignedUrl({
+      action: "read",
+      expires: Date.now() + PDF_URL_VALIDITY_MS,
+    });
+
+    await proposalRef.update({
+      pdfPath,
+      pdfUrl,
+      pdfGeneratedAt: FieldValue.serverTimestamp(),
+      pdfGenerationLock: FieldValue.delete(),
+    });
+
+    console.log("[WhatsApp] PDF generated", {
+      proposalId: proposal.id,
+      tenantId,
+      pdfPath,
+    });
+
+    return { pdfUrl, pdfPath };
+  } catch (error) {
+    await proposalRef.update({
+      pdfGenerationLock: FieldValue.delete(),
+    });
+    throw error;
+  }
 }
 
 async function getTransactionsFromCollection(
@@ -329,23 +703,56 @@ async function getTodaysTransactions(
   return [];
 }
 
+async function queryWalletsForTenant(
+  firestore: FirebaseFirestore.Firestore,
+  tenantId: string,
+): Promise<{ totalBalance: number; count: number }> {
+  const walletsRef = firestore.collection("wallets");
+
+  const runQuery = async (field: "tenantId" | "companyId") => {
+    try {
+      return await walletsRef.where(field, "==", tenantId).get();
+    } catch (error) {
+      console.warn(`[WhatsApp] wallets query failed (${field})`, error);
+      return null;
+    }
+  };
+
+  const tenantSnap = await runQuery("tenantId");
+  const companySnap =
+    tenantSnap && !tenantSnap.empty ? null : await runQuery("companyId");
+  const snap = tenantSnap && !tenantSnap.empty ? tenantSnap : companySnap;
+
+  if (!snap || snap.empty) {
+    console.log("[WhatsApp] wallets found", { tenantId, count: 0, totalBalance: 0 });
+    return { totalBalance: 0, count: 0 };
+  }
+
+  const allDocs = snap.docs;
+  const activeDocs = allDocs.filter((doc) => {
+    const data = doc.data() as any;
+    return !data.status || data.status === "active";
+  });
+  const docsToSum = activeDocs.length > 0 ? activeDocs : allDocs;
+
+  const totalBalance = docsToSum.reduce((acc, doc) => {
+    const data = doc.data() as any;
+    return acc + toNumber(data.balance ?? data.amount);
+  }, 0);
+
+  console.log("[WhatsApp] wallets found", {
+    tenantId,
+    count: docsToSum.length,
+    totalBalance,
+  });
+
+  return { totalBalance, count: docsToSum.length };
+}
+
 async function getWalletSummary(tenantId: string): Promise<{ totalBalance: number }> {
   try {
-    const snap = await db
-      .collection("wallets")
-      .where("tenantId", "==", tenantId)
-      .get();
-
-    if (snap.empty) {
-      return { totalBalance: 0 };
-    }
-
-    const totalBalance = snap.docs.reduce((acc, doc) => {
-      const data = doc.data() as any;
-      return acc + toNumber(data.balance ?? data.amount);
-    }, 0);
-
-    return { totalBalance };
+    const result = await queryWalletsForTenant(db, tenantId);
+    return { totalBalance: result.totalBalance };
   } catch (error) {
     console.error("[WhatsApp] Error fetching wallet summary:", error);
     return { totalBalance: 0 };
@@ -696,6 +1103,7 @@ export async function POST(req: NextRequest) {
       ) {
         const message = body.entry[0].changes[0].value.messages[0];
         const from = message.from;
+        const phone = normalizePhoneNumber(from);
         const text = message.text?.body || "";
 
         // 1. Check Rate Limit (Before DB user lookup to save reads if spammed)
@@ -708,31 +1116,54 @@ export async function POST(req: NextRequest) {
           return new NextResponse("OK", { status: 200 });
         }
 
-        // 2. Authenticate User
-        // Use Admin SDK directly to avoid permission issues with Client SDK in UserService
-        const usersRef = db.collection("users");
-
-        // query for phone number. Note: key might be phoneNumber or phone depending on schema.
-        // Based on create-test-user.js, it is "phoneNumber".
-        const userSnap = await usersRef
-          .where("phoneNumber", "==", from)
-          .limit(1)
-          .get();
-
-        let user: any = null;
-        if (!userSnap.empty) {
-          user = { id: userSnap.docs[0].id, ...userSnap.docs[0].data() };
-        }
-
-        if (!user || user.status === "inactive" || !user.tenantId) {
-          await sendWhatsAppMessage(
-            from,
-            "Seu número não está vinculado a uma conta ativa ou empresa. Entre em contato com o administrador.",
-          );
+        // 2. Authenticate User via deterministic phone index
+        if (!phone) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
           return new NextResponse("OK", { status: 200 });
         }
 
-        const tenantId = user.tenantId;
+        const phoneIndexSnap = await db.collection("phoneNumberIndex").doc(phone).get();
+        if (!phoneIndexSnap.exists) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        const phoneIndexData = phoneIndexSnap.data() as
+          | { userId?: string; tenantId?: string }
+          | undefined;
+        const indexedUserId = String(phoneIndexData?.userId || "").trim();
+        const indexedTenantId = String(phoneIndexData?.tenantId || "").trim();
+
+        if (!indexedUserId || !indexedTenantId) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        const userDoc = await db.collection("users").doc(indexedUserId).get();
+        if (!userDoc.exists) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        const user = { id: userDoc.id, ...userDoc.data() } as any;
+        if (user.status === "inactive") {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        if (user.tenantId && user.tenantId !== indexedTenantId) {
+          console.warn("[WhatsApp] phone index tenant mismatch", {
+            phone,
+            userId: user.id,
+            userTenantId: user.tenantId,
+            indexTenantId: indexedTenantId,
+          });
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return new NextResponse("OK", { status: 200 });
+        }
+
+        const tenantId = indexedTenantId;
+        console.log("[WhatsApp] resolved phone", { phone, userId: user.id, tenantId });
 
         // 3. FEATURE FLAG CHECK & TENANT LIMITS
         const tenantRef = db.collection("tenants").doc(tenantId);
@@ -908,7 +1339,7 @@ async function handleListProposals(
   await logAction(to, userId, "list_proposals");
 
   try {
-    const proposals = await getLatestProposalsForTenant(tenantId, 10);
+    const proposals = await queryProposalsForTenant(db, tenantId, 10);
 
     if (proposals.length === 0) {
       await sendWhatsAppMessage(to, "Nenhuma proposta encontrada.");
@@ -921,18 +1352,12 @@ async function handleListProposals(
 
     proposals.forEach((p, index) => {
       const value = p.totalValue ? formatCurrency(p.totalValue) : "R$ 0,00";
-      const statusMap: Record<string, string> = {
-        draft: "📝 Rascunho",
-        sent: "📩 Enviada",
-        approved: "✅ Aprovada",
-        rejected: "❌ Recusada",
-        in_progress: "🕒 Em andamento",
-      };
-      const status = statusMap[p.status] || p.status;
       const displayIndex = index + 1;
+      const title = String(p.title || "Proposta");
+      const client = String(p.clientName || "Sem cliente");
 
       proposalsShown.push({ id: p.id, index: displayIndex });
-      msg += `${displayIndex}️⃣ *#${p.id.slice(0, 5)}...* – ${p.clientName} – ${value} – ${status}\n`;
+      msg += `${displayIndex}️⃣ *#${p.id.slice(0, 5)}...* – ${title} – ${client} – ${value}\n`;
     });
 
     msg += "\nDigite o número da proposta para receber o PDF.";
@@ -969,52 +1394,42 @@ async function handleSendPdf(
       return;
     }
 
-    let pdfUrl: string | null = null;
+    const { pdfUrl, pdfPath } = await getOrGenerateProposalPdf(tenantId, proposal.id);
+    const caption = `Segue o PDF da proposta ${String(proposal.title || proposal.id)}`;
+    const supportsDocumentSend = process.env.WHATSAPP_SUPPORTS_DOCUMENT !== "false";
 
-    const attachments = Array.isArray(proposal.attachments)
-      ? proposal.attachments
-      : [];
-
-    const pdFile = attachments.find((a: any) => {
-      const name = String(a?.name || "").toLowerCase();
-      const type = String(a?.type || "").toLowerCase();
-      return type === "pdf" || name.endsWith(".pdf");
-    });
-
-    if (pdFile?.url) {
-      pdfUrl = String(pdFile.url);
-    }
-
-    if (!pdfUrl) {
+    if (supportsDocumentSend) {
       try {
-        const path = `tenants/${tenantId}/proposals/${proposal.id}/proposal.pdf`;
-        const pdfRef = ref(storage, path);
-        pdfUrl = await getDownloadURL(pdfRef);
-      } catch {
-        console.log("PDF not found in standard path");
+        await sendWhatsAppPdf(to, pdfUrl, caption);
+      } catch (documentError) {
+        console.warn("[WhatsApp] Document send failed, using link fallback", {
+          proposalId: proposal.id,
+          tenantId,
+          pdfPath,
+          error: documentError instanceof Error ? documentError.message : String(documentError),
+        });
+        await sendWhatsAppMessage(to, `${caption}\n${pdfUrl}`);
       }
+    } else {
+      await sendWhatsAppMessage(to, `${caption}\n${pdfUrl}`);
     }
 
-    if (pdfUrl) {
-      await sendWhatsAppPdf(
-        to,
-        pdfUrl,
-        `Segue o PDF da proposta ${String(proposal.title || proposal.id)}`,
-      );
-      await logAction(to, userId, "send_pdf_success", {
-        proposalId: proposal.id,
-      });
-    } else {
-      await sendWhatsAppMessage(
-        to,
-        "O PDF desta proposta ainda não foi gerado ou anexado.",
-      );
-    }
+    await logAction(to, userId, "send_pdf_success", {
+      proposalId: proposal.id,
+      pdfPath,
+    });
 
     await updateSession(to, { lastAction: "idle", proposalsShown: [] });
   } catch (error) {
     console.error("[WhatsApp] Error in handleSendPdf:", error);
-    await sendWhatsAppMessage(to, "Não encontrei a proposta.");
+    if (error instanceof Error && error.message === "PDF_GENERATION_IN_PROGRESS") {
+      await sendWhatsAppMessage(
+        to,
+        "O PDF está sendo gerado por outra solicitação. Tente novamente em alguns segundos.",
+      );
+    } else {
+      await sendWhatsAppMessage(to, "Não encontrei a proposta.");
+    }
     await updateSession(to, { lastAction: "idle", proposalsShown: [] });
   }
 }
