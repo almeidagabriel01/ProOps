@@ -3,9 +3,10 @@ import { FieldValue } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { NotificationService } from "./notification.service";
 
-/**
- * Interface para Proposta Compartilhada
- */
+const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
+const SHARED_LINK_EXPIRATION_DAYS = 30;
+const DEFAULT_PROPOSAL_TITLE = "Proposta sem t\u00edtulo";
+
 export interface SharedProposal {
   id: string;
   proposalId: string;
@@ -30,13 +31,7 @@ export interface ShareLinkResponse {
   expiresAt: string;
 }
 
-/**
- * Service para gerenciar links compartilháveis de propostas
- */
 export class SharedProposalService {
-  private static COLLECTION = "shared_proposals";
-  private static EXPIRATION_DAYS = 30;
-
   private static getBaseAppUrl(): string {
     const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
 
@@ -49,23 +44,56 @@ export class SharedProposalService {
       : "http://localhost:3000/";
   }
 
-  /**
-   * Cria um link compartilhável para uma proposta
-   */
+  private static getExpirationDate(): Date {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + SHARED_LINK_EXPIRATION_DAYS);
+    return expiresAt;
+  }
+
+  private static buildShareUrl(token: string): string {
+    return new URL(`/share/${token}`, this.getBaseAppUrl()).toString();
+  }
+
+  private static assertNotExpired(expiresAtIso: string): void {
+    const expiresAt = new Date(expiresAtIso);
+    if (expiresAt < new Date()) {
+      throw new Error("EXPIRED_LINK");
+    }
+  }
+
+  private static async resolveProposalInfo(
+    proposalId: string,
+    proposalTitle?: string,
+    tenantId?: string,
+  ): Promise<{ proposalTitle: string; tenantId?: string }> {
+    let resolvedProposalTitle = proposalTitle;
+    let resolvedTenantId = tenantId;
+
+    if (!resolvedProposalTitle || !resolvedTenantId) {
+      const proposalDoc = await db.collection("proposals").doc(proposalId).get();
+      if (proposalDoc.exists) {
+        const proposalData = proposalDoc.data();
+        resolvedProposalTitle =
+          resolvedProposalTitle || proposalData?.title || DEFAULT_PROPOSAL_TITLE;
+        resolvedTenantId = resolvedTenantId || proposalData?.tenantId;
+      }
+    }
+
+    return {
+      proposalTitle: resolvedProposalTitle || DEFAULT_PROPOSAL_TITLE,
+      tenantId: resolvedTenantId,
+    };
+  }
+
   static async createShareLink(
     proposalId: string,
     tenantId: string,
     userId: string,
   ): Promise<ShareLinkResponse> {
     try {
-      // Gerar token único UUID v4
       const token = uuidv4();
+      const expiresAt = this.getExpirationDate();
 
-      // Calcular data de expiração (30 dias)
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + this.EXPIRATION_DAYS);
-
-      // Criar documento no Firestore
       const sharedProposal: Omit<SharedProposal, "id"> = {
         proposalId,
         tenantId,
@@ -76,16 +104,10 @@ export class SharedProposalService {
         viewerInfo: [],
       };
 
-      await db.collection(this.COLLECTION).add(sharedProposal);
-
-      // Construir URL compartilhável
-      const shareUrl = new URL(
-        `/share/${token}`,
-        this.getBaseAppUrl(),
-      ).toString();
+      await db.collection(SHARED_PROPOSALS_COLLECTION).add(sharedProposal);
 
       return {
-        shareUrl,
+        shareUrl: this.buildShareUrl(token),
         token,
         expiresAt: expiresAt.toISOString(),
       };
@@ -95,15 +117,10 @@ export class SharedProposalService {
     }
   }
 
-  /**
-   * Busca uma proposta compartilhada por token
-   */
-  static async getSharedProposal(
-    token: string,
-  ): Promise<SharedProposal | null> {
+  static async getSharedProposal(token: string): Promise<SharedProposal | null> {
     try {
       const snapshot = await db
-        .collection(this.COLLECTION)
+        .collection(SHARED_PROPOSALS_COLLECTION)
         .where("token", "==", token)
         .limit(1)
         .get();
@@ -114,12 +131,7 @@ export class SharedProposalService {
 
       const doc = snapshot.docs[0];
       const data = doc.data() as Omit<SharedProposal, "id">;
-
-      // Verificar expiração
-      const expiresAt = new Date(data.expiresAt);
-      if (expiresAt < new Date()) {
-        throw new Error("EXPIRED_LINK");
-      }
+      this.assertNotExpired(data.expiresAt);
 
       return {
         id: doc.id,
@@ -134,9 +146,6 @@ export class SharedProposalService {
     }
   }
 
-  /**
-   * Registra a visualização de uma proposta compartilhada
-   */
   static async recordView(
     sharedProposalId: string,
     tenantId: string,
@@ -154,22 +163,10 @@ export class SharedProposalService {
         timestamp: new Date().toISOString(),
       };
 
-      // Atualizar documento com informação de visualização
-      const docRef = db.collection(this.COLLECTION).doc(sharedProposalId);
+      const docRef = db.collection(SHARED_PROPOSALS_COLLECTION).doc(sharedProposalId);
+      const resolved = await this.resolveProposalInfo(proposalId, proposalTitle, tenantId);
 
-      let resolvedProposalTitle = proposalTitle;
-      let resolvedTenantId = tenantId;
-
-      if (!resolvedProposalTitle || !resolvedTenantId) {
-        const proposalDoc = await db.collection("proposals").doc(proposalId).get();
-        if (proposalDoc.exists) {
-          const proposalData = proposalDoc.data();
-          resolvedProposalTitle = resolvedProposalTitle || proposalData?.title || "Proposta sem título";
-          resolvedTenantId = resolvedTenantId || proposalData?.tenantId;
-        }
-      }
-
-      if (!resolvedTenantId) {
+      if (!resolved.tenantId) {
         console.error("Error recording view: missing tenantId for notification", {
           sharedProposalId,
           proposalId,
@@ -183,34 +180,27 @@ export class SharedProposalService {
           viewerInfo: FieldValue.arrayUnion(viewerInfo),
         }),
         NotificationService.createNotification({
-          tenantId: resolvedTenantId,
+          tenantId: resolved.tenantId,
           type: "proposal_viewed",
           title: "Proposta Visualizada",
-          message: `A proposta "${resolvedProposalTitle || "Proposta sem título"}" foi visualizada por um cliente`,
+          message: `A proposta "${resolved.proposalTitle}" foi visualizada por um cliente`,
           proposalId,
           sharedProposalId,
         }),
       ]);
     } catch (error) {
       console.error("Error recording view:", error);
-      // Não lançar erro para não bloquear visualização do PDF
     }
   }
 
-  /**
-   * Anonimiza IP para compliance com LGPD
-   * Remove os últimos octetos do IPv4
-   */
   private static anonymizeIP(ip?: string): string | undefined {
     if (!ip) return undefined;
 
-    // IPv4: manter apenas os 2 primeiros octetos
     const ipv4Match = ip.match(/^(\d+\.\d+)\.\d+\.\d+$/);
     if (ipv4Match) {
       return `${ipv4Match[1]}.XXX.XXX`;
     }
 
-    // IPv6: manter apenas prefixo
     if (ip.includes(":")) {
       const parts = ip.split(":");
       return `${parts[0]}:${parts[1]}:XXXX:XXXX`;
@@ -219,18 +209,14 @@ export class SharedProposalService {
     return "XXX.XXX.XXX.XXX";
   }
 
-  /**
-   * Sanitiza user-agent para guardar apenas informações essenciais
-   */
   private static sanitizeUserAgent(userAgent?: string): string | undefined {
     if (!userAgent) return undefined;
 
-    // Extrair apenas browser e OS básico (remover versões específicas)
     const simplified = userAgent
-      .replace(/\(.*?\)/g, "") // Remove conteúdo entre parênteses
-      .replace(/\d+\.\d+(\.\d+)*/g, "") // Remove versões numéricas
+      .replace(/\(.*?\)/g, "")
+      .replace(/\d+\.\d+(\.\d+)*/g, "")
       .trim();
 
-    return simplified.substring(0, 100); // Limitar tamanho
+    return simplified.substring(0, 100);
   }
 }

@@ -1,118 +1,162 @@
 import { formatCurrency } from "@/utils/format-utils";
-
+import { PdfDisplaySettings } from "@/types/pdf-display-settings";
 import {
-  PdfDisplaySettings,
-  defaultPdfDisplaySettings,
-} from "@/types/pdf-display-settings";
-import { PdfExtraBadge } from "./pdf-extra-badge";
+  PdfAmbienteTag,
+  PdfSistemaProductCard,
+} from "./pdf-sistema-primitives";
+import {
+  PdfSistema,
+  PdfProduct,
+  PdfSistemaBlockProps,
+  resolvePdfDisplaySettings,
+  resolveSistemaAmbientes,
+} from "./pdf-sistema-types";
 
-interface PdfProduct {
-  productId: string;
-  productName: string;
-  productImage?: string;
-  productImages?: string[];
-  productDescription?: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  isExtra?: boolean;
-  systemInstanceId?: string;
-  _isInactive?: boolean; // Metadata flag for visual hiding
-}
-
-interface PdfSistema {
-  sistemaId: string;
-  sistemaName: string;
-  // Legacy fields (optional for backward compat)
-  ambienteId?: string;
-  ambienteName?: string;
-  description?: string;
-  ambientes?: {
-    ambienteId: string;
-    ambienteName: string;
-    description?: string;
-  }[];
-}
-
-interface PdfSistemaBlockProps {
-  sistema: PdfSistema;
-  products: PdfProduct[];
-  primaryColor: string;
-  pdfDisplaySettings?: PdfDisplaySettings;
-}
-
-function PdfProductTitle({
-  productName,
-  isExtra,
+function PdfSistemaHead({
+  sistema,
+  primaryColor,
+  titleClassName,
+  titleLineHeight,
+  tagScale,
+  iconSizeClass,
+  iconClass,
+  iconColumnWidth,
+  iconPaddingRight,
 }: {
-  productName: string;
-  isExtra?: boolean;
+  sistema: PdfSistema;
+  primaryColor: string;
+  titleClassName: string;
+  titleLineHeight: string;
+  tagScale: number;
+  iconSizeClass: string;
+  iconClass: string;
+  iconColumnWidth: string;
+  iconPaddingRight: string;
 }) {
+  const ambientes = resolveSistemaAmbientes(sistema);
+
   return (
     <table
       style={{
-        display: "inline-table",
+        width: "100%",
         borderCollapse: "collapse",
-        tableLayout: "auto",
-        maxWidth: "100%",
-        verticalAlign: "top",
+        margin: 0,
+        padding: 0,
       }}
     >
       <tbody>
         <tr>
-          <td style={{ padding: 0, verticalAlign: "top" }}>
-            <span
-              data-pdf-item-title-text="1"
-              style={{
-                display: "inline-block",
-                fontWeight: 600,
-                color: "#111827",
-                fontSize: "14px",
-                lineHeight: "20px",
-                whiteSpace: "normal",
-                overflowWrap: "break-word",
-                wordBreak: "break-word",
-              }}
+          <td
+            valign="top"
+            style={{
+              width: iconColumnWidth,
+              verticalAlign: "top",
+              padding: 0,
+              paddingRight: iconPaddingRight,
+              margin: 0,
+            }}
+          >
+            <div
+              data-pdf-system-icon="1"
+              className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
+              style={{ backgroundColor: primaryColor }}
             >
-              {productName}
-            </span>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={iconClass}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
+              </svg>
+            </div>
           </td>
-          {isExtra && (
-            <td
-              data-pdf-padding-top="2px"
+          <td
+            valign="top"
+            style={{
+              verticalAlign: "top",
+              padding: 0,
+              margin: 0,
+            }}
+          >
+            <table
+              data-pdf-system-head="1"
               style={{
-                padding: 0,
-                paddingLeft: "8px",
-                paddingTop: "2px",
-                verticalAlign: "top",
-                whiteSpace: "nowrap",
+                borderCollapse: "collapse",
+                width: "auto",
               }}
             >
-              <PdfExtraBadge />
-            </td>
-          )}
+              <tbody>
+                <tr>
+                  <td style={{ padding: 0 }}>
+                    <h2
+                      data-pdf-system-title="1"
+                      className={titleClassName}
+                      style={{
+                        color: primaryColor,
+                        margin: 0,
+                        lineHeight: titleLineHeight,
+                      }}
+                    >
+                      {sistema.sistemaName}
+                    </h2>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    data-pdf-padding-top="10px"
+                    style={{ padding: 0, paddingTop: "10px" }}
+                  >
+                    <div
+                      data-pdf-ambiente-list="1"
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      {ambientes.map((amb, i) => (
+                        <PdfAmbienteTag
+                          key={`${amb.ambienteId}-${i}`}
+                          ambienteName={amb.ambienteName}
+                          primaryColor={primaryColor}
+                          scale={tagScale}
+                        />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {sistema.description && (
+              <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                {sistema.description}
+              </p>
+            )}
+          </td>
         </tr>
       </tbody>
     </table>
   );
 }
 
-/**
- * Renders a complete system block with header, products, and subtotal
- * Used for automation niche proposals
- */
 export function PdfSistemaBlock({
   sistema,
   products,
   primaryColor,
   pdfDisplaySettings,
 }: PdfSistemaBlockProps) {
-  // Merge with defaults
-  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
-  const sistemaSubtotal = products.reduce(
-    (sum: number, p: PdfProduct) => sum + p.total,
-    0,
-  );
+  const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
+  const ambientes = resolveSistemaAmbientes(sistema);
+  const sistemaSubtotal = products.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">
@@ -120,7 +164,6 @@ export function PdfSistemaBlock({
         className="rounded-xl border-2 overflow-hidden"
         style={{ borderColor: primaryColor }}
       >
-        {/* Header - Compact - TABLE LAYOUT */}
         <div
           className="p-4"
           style={{
@@ -128,159 +171,35 @@ export function PdfSistemaBlock({
             borderBottom: `2px solid ${primaryColor}30`,
           }}
         >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              margin: 0,
-              padding: 0,
-            }}
-          >
-            <tbody>
-              <tr>
-                {/* Icon Column */}
-                <td
-                  valign="top"
-                  style={{
-                    width: "48px",
-                    verticalAlign: "top",
-                    padding: 0,
-                    paddingRight: "12px",
-                    margin: 0,
-                  }}
-                >
-                  <div
-                    data-pdf-system-icon="1"
-                    className="w-12 h-12 rounded-lg flex items-center justify-center shadow-md shrink-0"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-6 h-6 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                      />
-                    </svg>
-                  </div>
-                </td>
-                {/* Content Column */}
-                <td
-                  valign="top"
-                  style={{
-                    verticalAlign: "top",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
-                  <table
-                    data-pdf-system-head="1"
-                    style={{
-                      borderCollapse: "collapse",
-                      width: "auto",
-                    }}
-                  >
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: 0 }}>
-                          <h2
-                            data-pdf-system-title="1"
-                            className="text-xl font-bold"
-                            style={{
-                              color: primaryColor,
-                              margin: 0,
-                              lineHeight: "24px",
-                            }}
-                          >
-                            {sistema.sistemaName}
-                          </h2>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td
-                          data-pdf-padding-top="10px"
-                          style={{ padding: 0, paddingTop: "10px" }}
-                        >
-                          <div
-                            data-pdf-ambiente-list="1"
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            {(sistema.ambientes && sistema.ambientes.length > 0
-                              ? sistema.ambientes
-                              : [
-                                  {
-                                    ambienteName: sistema.ambienteName || "Ambiente",
-                                    ambienteId: sistema.ambienteId,
-                                  },
-                                ]
-                            ).map((amb, i) => (
-                              <PdfAmbienteTag
-                                key={`${amb.ambienteId}-${i}`}
-                                ambienteName={amb.ambienteName}
-                                primaryColor={primaryColor}
-                                scale={0.8}
-                              />
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {sistema.description && (
-                    <p className="text-xs text-gray-600 mt-2 leading-relaxed">
-                      {sistema.description}
-                    </p>
-                  )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <PdfSistemaHead
+            sistema={sistema}
+            primaryColor={primaryColor}
+            titleClassName="text-xl font-bold"
+            titleLineHeight="24px"
+            tagScale={0.8}
+            iconSizeClass="w-12 h-12"
+            iconClass="w-6 h-6 text-white"
+            iconColumnWidth="48px"
+            iconPaddingRight="12px"
+          />
         </div>
 
-        {/* Body: Ambientes & Products - Horizontal Compact Layout */}
         <div className="bg-white">
-          {(sistema.ambientes && sistema.ambientes.length > 0
-            ? sistema.ambientes
-            : [
-                {
-                  ambienteName: sistema.ambienteName || "Ambiente",
-                  ambienteId: sistema.ambienteId,
-                  description: undefined,
-                },
-              ]
-          ).map((amb, index) => {
+          {ambientes.map((amb, index) => {
             const currentInstanceId = `${sistema.sistemaId}-${amb.ambienteId}`;
-
-            // Filter products for this specific environment instance
             let scopeProducts = products.filter(
               (p) => p.systemInstanceId === currentInstanceId,
             );
 
-            // Fallback for legacy: if no products matches instanceId and this is the only environment, show all
-            if (
-              scopeProducts.length === 0 &&
-              (!sistema.ambientes || sistema.ambientes.length === 0)
-            ) {
+            if (scopeProducts.length === 0 && (!sistema.ambientes || sistema.ambientes.length === 0)) {
               scopeProducts = products;
             }
 
-            if (scopeProducts.length === 0) return null;
+            const activeProducts = scopeProducts.filter((product) => !product._isInactive);
+            if (activeProducts.length === 0) return null;
 
             return (
               <div key={currentInstanceId}>
-                {/* Ambiente Header (Sub-container) - Compact */}
                 <PdfAmbienteHeader
                   ambienteName={amb.ambienteName || "Ambiente"}
                   primaryColor={primaryColor}
@@ -289,159 +208,20 @@ export function PdfSistemaBlock({
                 />
 
                 <div className="px-4 pb-3 space-y-2">
-                  {scopeProducts
-                    .filter((product: PdfProduct) => !product._isInactive)
-                    .map((product: PdfProduct, idx: number) => {
-                      const allImages = product.productImages?.length
-                        ? product.productImages
-                        : product.productImage
-                          ? [product.productImage]
-                          : [];
-
-                      return (
-                        <div
-                          key={`${product.productId}-${idx}`}
-                          className="px-3 pb-3 pt-2 rounded-lg border break-inside-avoid"
-                          style={{
-                            backgroundColor: product.isExtra
-                              ? "#eff6ff"
-                              : idx % 2 === 0
-                                ? "#f9fafb"
-                                : "#ffffff",
-                            borderColor: product.isExtra
-                              ? "#bfdbfe"
-                              : "#e5e7eb",
-                          }}
-                        >
-                          {/* PROFESSIONAL LAYOUT: Top to Bottom */}
-                          <div className="space-y-2">
-                            {/* Header Row: Title + Price */}
-                            <table
-                              data-pdf-item-row="1"
-                              data-pdf-item-id={product.productId}
-                              style={{
-                                width: "100%",
-                                borderCollapse: "collapse",
-                                tableLayout: "fixed",
-                              }}
-                            >
-                              <tbody>
-                                <tr>
-                                  <td
-                                    data-pdf-item-title="1"
-                                    style={{
-                                      verticalAlign: "top",
-                                      width: "100%",
-                                      minWidth: 0,
-                                    }}
-                                  >
-                                    <PdfProductTitle
-                                      productName={product.productName}
-                                      isExtra={product.isExtra}
-                                    />
-                                  </td>
-                                  <td
-                                    className="text-right shrink-0"
-                                    data-pdf-item-qty="1"
-                                    style={{
-                                      verticalAlign: "top",
-                                      paddingLeft: "12px",
-                                      whiteSpace: "nowrap",
-                                      textAlign: "right",
-                                      minWidth: "68px",
-                                      width: "68px",
-                                      lineHeight: "1",
-                                      marginTop: "0",
-                                      paddingTop: "0",
-                                    }}
-                                  >
-                                    {settings.showProductPrices ? (
-                                      <div
-                                        className="space-y-0"
-                                        style={{
-                                          display: "inline-flex",
-                                          flexDirection: "column",
-                                          alignItems: "flex-end",
-                                          justifyContent: "center",
-                                          lineHeight: "1.2",
-                                        }}
-                                      >
-                                        <span className="text-[10px] text-gray-500 block">
-                                          {product.quantity}x{" "}
-                                          {formatCurrency(product.unitPrice)}
-                                        </span>
-                                        <span
-                                          className="font-semibold text-sm"
-                                          style={{ color: primaryColor }}
-                                        >
-                                          {formatCurrency(product.total)}
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="font-medium text-xs text-gray-600"
-                                        style={{
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          justifyContent: "flex-end",
-                                          gap: "4px",
-                                          minHeight: "20px",
-                                          lineHeight: "1",
-                                          whiteSpace: "nowrap",
-                                        }}
-                                      >
-                                        <span>Qtd:</span>
-                                        <span>{product.quantity}</span>
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-
-                            {/* Images Gallery - Grid Layout (max 4 per row) */}
-                            {settings.showProductImages &&
-                              allImages.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                  {allImages.map(
-                                    (imgSrc: string, imgIdx: number) => (
-                                      <div
-                                        key={imgIdx}
-                                        className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
-                                        style={{
-                                          flexBasis: "calc(25% - 4.5px)",
-                                          maxWidth: "84px",
-                                        }}
-                                      >
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                          src={imgSrc}
-                                          alt=""
-                                          className="w-full h-full object-contain p-0.5"
-                                        />
-                                      </div>
-                                    ),
-                                  )}
-                                </div>
-                              )}
-
-                            {/* Description */}
-                            {settings.showProductDescriptions &&
-                              product.productDescription && (
-                                <p className="text-[10px] text-gray-600 leading-relaxed pt-1">
-                                  {product.productDescription}
-                                </p>
-                              )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {activeProducts.map((product, idx) => (
+                    <PdfSistemaProductCard
+                      key={`${product.productId}-${idx}`}
+                      product={product}
+                      primaryColor={primaryColor}
+                      settings={settings}
+                      evenBackground={idx % 2 === 0}
+                    />
+                  ))}
                 </div>
               </div>
             );
           })}
 
-          {/* Subtotal - conditionally rendered */}
           {settings.showSubtotals && (
             <div
               className="flex justify-between items-center px-4 pb-3 pt-2"
@@ -450,10 +230,7 @@ export function PdfSistemaBlock({
               <span className="font-semibold text-gray-700 text-sm">
                 Subtotal do Sistema:
               </span>
-              <span
-                className="text-lg font-bold"
-                style={{ color: primaryColor }}
-              >
+              <span className="text-lg font-bold" style={{ color: primaryColor }}>
                 {formatCurrency(sistemaSubtotal)}
               </span>
             </div>
@@ -464,9 +241,6 @@ export function PdfSistemaBlock({
   );
 }
 
-/**
- * Renders just the sistema header (for page-break splitting)
- */
 export function PdfSistemaHeader({
   sistema,
   primaryColor,
@@ -480,7 +254,6 @@ export function PdfSistemaHeader({
         className="rounded-t-xl border-2 border-b-0 overflow-hidden"
         style={{ borderColor: primaryColor }}
       >
-        {/* Header - TABLE LAYOUT */}
         <div
           className="p-5"
           style={{
@@ -488,223 +261,27 @@ export function PdfSistemaHeader({
             borderBottom: `2px solid ${primaryColor}30`,
           }}
         >
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              margin: 0,
-              padding: 0,
-            }}
-          >
-            <tbody>
-              <tr>
-                {/* Icon Column */}
-                <td
-                  valign="top"
-                  style={{
-                    width: "56px",
-                    verticalAlign: "top",
-                    padding: 0,
-                    paddingRight: "16px",
-                    margin: 0,
-                  }}
-                >
-                  <div
-                    data-pdf-system-icon="1"
-                    className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg shrink-0"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-7 h-7 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                      />
-                    </svg>
-                  </div>
-                </td>
-                {/* Content Column */}
-                <td
-                  valign="top"
-                  style={{
-                    verticalAlign: "top",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
-                  <table
-                    data-pdf-system-head="1"
-                    style={{
-                      borderCollapse: "collapse",
-                      width: "auto",
-                    }}
-                  >
-                    <tbody>
-                      <tr>
-                        <td style={{ padding: 0 }}>
-                          <h2
-                            data-pdf-system-title="1"
-                            className="text-2xl font-bold"
-                            style={{
-                              color: primaryColor,
-                              margin: 0,
-                              lineHeight: "28px",
-                            }}
-                          >
-                            {sistema.sistemaName}
-                          </h2>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td
-                          data-pdf-padding-top="10px"
-                          style={{ padding: 0, paddingTop: "10px" }}
-                        >
-                          <div
-                            data-pdf-ambiente-list="1"
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            {(sistema.ambientes && sistema.ambientes.length > 0
-                              ? sistema.ambientes
-                              : [
-                                  {
-                                    ambienteName: sistema.ambienteName || "Ambiente",
-                                    ambienteId: sistema.ambienteId,
-                                  },
-                                ]
-                            ).map((amb, i) => (
-                              <PdfAmbienteTag
-                                key={`${amb.ambienteId}-${i}`}
-                                ambienteName={amb.ambienteName}
-                                primaryColor={primaryColor}
-                                scale={1.0}
-                              />
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {sistema.description && (
-                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-                      {sistema.description}
-                    </p>
-                  )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <PdfSistemaHead
+            sistema={sistema}
+            primaryColor={primaryColor}
+            titleClassName="text-2xl font-bold"
+            titleLineHeight="28px"
+            tagScale={1}
+            iconSizeClass="w-14 h-14"
+            iconClass="w-7 h-7 text-white"
+            iconColumnWidth="56px"
+            iconPaddingRight="16px"
+          />
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Reusable environment tag component using SVG for perfect rendering in PDF
- */
-function PdfAmbienteTag({
-  ambienteName,
-  primaryColor,
-  scale = 1.0,
-}: {
-  ambienteName: string;
-  primaryColor: string;
-  scale?: number;
-}) {
-  const text = ambienteName.toUpperCase();
-  const height = Math.round(20 * scale);
-  const paddingX = Math.round(10 * scale);
-  const gap = Math.round(4 * scale);
-  const fontSize = Math.round(10 * scale);
-  const iconSize = Math.round(10 * scale);
-  const radius = Math.round(height / 2);
-  const rightSafetyGap = Math.max(6, Math.round(4 * scale));
-  const textWidth = Math.max(fontSize, Math.ceil(text.length * fontSize * 0.72));
-  const width = paddingX * 2 + iconSize + gap + textWidth + rightSafetyGap;
-  const iconX = paddingX;
-  const iconY = Number(((height - iconSize) / 2).toFixed(2));
-  const textX = iconX + iconSize + gap;
-  const textY = Number((height / 2 + fontSize * 0.36).toFixed(2));
-  const iconScale = iconSize / 12;
-
-  return (
-    <span
-      data-pdf-ambiente-pill="1"
-      style={{
-        display: "inline-block",
-        width: `${width}px`,
-        height: `${height}px`,
-        lineHeight: "0",
-        verticalAlign: "top",
-        boxSizing: "border-box",
-        margin: "0",
-      }}
-    >
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        xmlns="http://www.w3.org/2000/svg"
-        style={{
-          display: "block",
-          width: `${width}px`,
-          height: `${height}px`,
-        }}
-      >
-        <rect
-          x="0.5"
-          y="0.5"
-          width={width - 1}
-          height={height - 1}
-          rx={radius}
-          ry={radius}
-          fill="#ffffff"
-          stroke={`${primaryColor}59`}
-        />
-        <g transform={`translate(${iconX}, ${iconY}) scale(${iconScale})`}>
-          <path
-            d="M6 1C4.065 1 2.5 2.565 2.5 4.5C2.5 7.125 6 11 6 11S9.5 7.125 9.5 4.5C9.5 2.565 7.935 1 6 1ZM6 5.75C5.31 5.75 4.75 5.19 4.75 4.5C4.75 3.81 5.31 3.25 6 3.25C6.69 3.25 7.25 3.81 7.25 4.5C7.25 5.19 6.69 5.75 6 5.75Z"
-            fill={primaryColor}
-          />
-        </g>
-        <text
-          x={textX}
-          y={textY}
-          textAnchor="start"
-          fontSize={fontSize}
-          fontWeight="700"
-          fill={primaryColor}
-          fontFamily="Arial, sans-serif"
-        >
-          {text}
-        </text>
-      </svg>
-    </span>
-  );
-}
-
-/**
- * Renders a single product within a sistema (for page-break splitting)
- */
 export function PdfSistemaProduct({
   product,
   primaryColor,
   isFirst = false,
-
   pdfDisplaySettings,
 }: {
   product: PdfProduct;
@@ -713,12 +290,7 @@ export function PdfSistemaProduct({
   isLast?: boolean;
   pdfDisplaySettings?: PdfDisplaySettings;
 }) {
-  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
-  const allImages = product.productImages?.length
-    ? product.productImages
-    : product.productImage
-      ? [product.productImage]
-      : [];
+  const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
 
   return (
     <div
@@ -726,137 +298,17 @@ export function PdfSistemaProduct({
       style={{ borderColor: primaryColor }}
     >
       <div className="px-4 pb-2">
-        <div
-          className="px-3 pb-3 pt-2 rounded-lg border break-inside-avoid"
-          style={{
-            backgroundColor: product.isExtra ? "#eff6ff" : "#f9fafb",
-            borderColor: product.isExtra ? "#bfdbfe" : "#e5e7eb",
-          }}
-        >
-          {/* PROFESSIONAL LAYOUT: Top to Bottom */}
-          <div className="space-y-2">
-            {/* Header Row: Title + Price */}
-            <table
-              data-pdf-item-row="1"
-              data-pdf-item-id={product.productId}
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                tableLayout: "fixed",
-              }}
-            >
-              <tbody>
-                <tr>
-                  <td
-                    data-pdf-item-title="1"
-                    style={{
-                      verticalAlign: "top",
-                      width: "100%",
-                      minWidth: 0,
-                    }}
-                  >
-                    <PdfProductTitle
-                      productName={product.productName}
-                      isExtra={product.isExtra}
-                    />
-                  </td>
-                  <td
-                    className="text-right shrink-0"
-                    data-pdf-item-qty="1"
-                    style={{
-                      verticalAlign: "top",
-                      paddingLeft: "12px",
-                      whiteSpace: "nowrap",
-                      textAlign: "right",
-                      minWidth: "68px",
-                      width: "68px",
-                      lineHeight: "1",
-                      marginTop: "0",
-                      paddingTop: "0",
-                    }}
-                  >
-                    {settings.showProductPrices ? (
-                      <div
-                        className="space-y-0"
-                        style={{
-                          display: "inline-flex",
-                          flexDirection: "column",
-                          alignItems: "flex-end",
-                          justifyContent: "center",
-                          lineHeight: "1.2",
-                        }}
-                      >
-                        <span className="text-[10px] text-gray-500 block">
-                          {product.quantity}x {formatCurrency(product.unitPrice)}
-                        </span>
-                        <span
-                          className="font-semibold text-sm"
-                          style={{ color: primaryColor }}
-                        >
-                          {formatCurrency(product.total)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span
-                        className="font-medium text-xs text-gray-600"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "flex-end",
-                          gap: "4px",
-                          minHeight: "20px",
-                          lineHeight: "1",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        <span>Qtd:</span>
-                        <span>{product.quantity}</span>
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Images Gallery - Grid Layout (max 4 per row) */}
-            {settings.showProductImages && allImages.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {allImages.map((imgSrc: string, imgIdx: number) => (
-                  <div
-                    key={imgIdx}
-                    className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
-                    style={{
-                      flexBasis: "calc(25% - 4.5px)",
-                      maxWidth: "84px",
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imgSrc}
-                      alt=""
-                      className="w-full h-full object-contain p-0.5"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Description */}
-            {settings.showProductDescriptions && product.productDescription && (
-              <p className="text-[10px] text-gray-600 leading-relaxed pt-1">
-                {product.productDescription}
-              </p>
-            )}
-          </div>
-        </div>
+        <PdfSistemaProductCard
+          product={product}
+          primaryColor={primaryColor}
+          settings={settings}
+          evenBackground
+        />
       </div>
     </div>
   );
 }
 
-/**
- * Renders the sistema footer/subtotal (for page-break splitting)
- */
 export function PdfSistemaFooter({
   sistemaSubtotal,
   primaryColor,
@@ -866,7 +318,7 @@ export function PdfSistemaFooter({
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
 }) {
-  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
+  const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   return (
     <div
       className="rounded-b-xl border-2 border-t-0 overflow-hidden mb-4"
@@ -890,9 +342,7 @@ export function PdfSistemaFooter({
     </div>
   );
 }
-/**
- * Renders just the ambiente header (for page-break splitting)
- */
+
 export function PdfAmbienteHeader({
   ambienteName,
   primaryColor,
@@ -916,27 +366,15 @@ export function PdfAmbienteHeader({
       }}
     >
       <div className="flex items-center w-full">
-        {/* Left divider */}
-        <div
-          className="h-px flex-1"
-          style={{ backgroundColor: `${primaryColor}20` }}
-        />
-
-        {/* HEADER BADGE: SVG Implementation - Centered */}
+        <div className="h-px flex-1" style={{ backgroundColor: `${primaryColor}20` }} />
         <PdfAmbienteTag
           ambienteName={ambienteName}
           primaryColor={primaryColor}
-          scale={1.2} // Slightly larger for section headers
+          scale={1.2}
         />
-
-        {/* Right divider */}
-        <div
-          className="h-px flex-1"
-          style={{ backgroundColor: `${primaryColor}20` }}
-        />
+        <div className="h-px flex-1" style={{ backgroundColor: `${primaryColor}20` }} />
       </div>
 
-      {/* Description below header */}
       {description && (
         <p className="text-xs text-gray-500 mt-1 text-center italic">
           {description}
@@ -945,5 +383,3 @@ export function PdfAmbienteHeader({
     </div>
   );
 }
-
-
