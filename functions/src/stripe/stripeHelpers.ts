@@ -49,11 +49,11 @@ export async function updateUserPlan(
 
   if (planId) {
     console.log(
-      `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`
+      `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`,
     );
   } else {
     console.warn(
-      `Plan not found for tier: ${planTier}. Core subscription fields were still updated for user ${userId}.`
+      `Plan not found for tier: ${planTier}. Core subscription fields were still updated for user ${userId}.`,
     );
   }
 }
@@ -90,8 +90,14 @@ export function mapStripeSubscriptionStatus(status: string): StripeSyncStatus {
 }
 
 function toClientSubscriptionStatus(
-  status: SubscriptionStatus
-): "active" | "trialing" | "past_due" | "canceled" | "payment_failed" | "inactive" {
+  status: SubscriptionStatus,
+):
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "payment_failed"
+  | "inactive" {
   switch (status) {
     case "ACTIVE":
       return "active";
@@ -114,7 +120,7 @@ export async function updateSubscriptionStatus(
   status: SubscriptionStatus,
   reason?: string,
   currentPeriodEnd?: Date,
-  cancelAtPeriodEnd?: boolean
+  cancelAtPeriodEnd?: boolean,
 ): Promise<void> {
   const userRef = db.collection("users").doc(userId);
   await userRef.update({
@@ -137,7 +143,7 @@ export type AddonType = "financial" | "pdf_editor_partial" | "pdf_editor_full";
 export async function saveAddon(
   tenantId: string,
   addonType: AddonType,
-  stripeSubscriptionId: string
+  stripeSubscriptionId: string,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -154,7 +160,7 @@ export async function saveAddon(
 
 export async function cancelAddon(
   tenantId: string,
-  addonType: AddonType
+  addonType: AddonType,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -170,7 +176,7 @@ export async function updateAddonStatus(
   tenantId: string,
   addonType: AddonType,
   status: "active" | "past_due" | "cancelled",
-  currentPeriodEnd?: Date
+  currentPeriodEnd?: Date,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -190,7 +196,7 @@ export async function updateAddonStatus(
   await db.collection("addons").doc(addonId).update(updateData);
 
   console.log(
-    `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`
+    `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`,
   );
 }
 
@@ -208,7 +214,7 @@ export interface SyncResult {
 export async function runStripeSync(
   limit: number,
   startAfterId?: string,
-  dryRun: boolean = false
+  dryRun: boolean = false,
 ): Promise<SyncResult> {
   let usersQuery: FirebaseFirestore.Query = db
     .collection("users")
@@ -249,13 +255,12 @@ export async function runStripeSync(
     eligible += 1;
 
     try {
-      const subscription = await stripe.subscriptions.retrieve(
-        stripeSubscriptionId
-      );
+      const subscription =
+        await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
       const status = mapStripeSubscriptionStatus(subscription.status);
       const currentPeriodEnd = new Date(
-        (subscription as any).current_period_end * 1000
+        (subscription as any).current_period_end * 1000,
       );
 
       const oldStatus = userData.subscription?.status || "UNKNOWN";
@@ -274,7 +279,7 @@ export async function runStripeSync(
           status,
           "Batch sync",
           currentPeriodEnd,
-          subscription.cancel_at_period_end
+          subscription.cancel_at_period_end,
         );
       }
 
@@ -299,4 +304,57 @@ export async function runStripeSync(
     errors,
     changes,
   };
+}
+
+export async function addWhatsAppOverageToSubscription(
+  subscriptionId: string,
+): Promise<string | null> {
+  const stripe = getStripe();
+  const overagePriceId = "price_1T20T7GrkF9UfsqcEtdBX9fY";
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    // Check if already exists
+    const existingItem = subscription.items.data.find(
+      (item) => item.price.id === overagePriceId,
+    );
+
+    if (existingItem) {
+      console.log(
+        `[addWhatsAppOverage] Item already exists in subscription ${subscriptionId}`,
+      );
+      return existingItem.id;
+    }
+
+    // Add item
+    const updatedSubscription = await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          ...subscription.items.data.map((item) => ({ id: item.id })), // Keep existing items
+          { price: overagePriceId },
+        ],
+      },
+    );
+
+    const newItem = updatedSubscription.items.data.find(
+      (item) => item.price.id === overagePriceId,
+    );
+
+    if (newItem) {
+      console.log(
+        `[addWhatsAppOverage] Added item ${newItem.id} to subscription ${subscriptionId}`,
+      );
+      return newItem.id;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      `[addWhatsAppOverage] Error adding item to subscription ${subscriptionId}:`,
+      error,
+    );
+    throw error;
+  }
 }

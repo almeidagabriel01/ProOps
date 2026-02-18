@@ -447,32 +447,32 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
-        interface BillingUserData {
-          tenantId?: string;
-          companyId?: string;
-          companyName?: string;
-          createdAt?: string;
-          planId?: string;
-          name?: string;
-          displayName?: string;
-          email?: string;
-          subscriptionStatus?: string;
-          currentPeriodEnd?: unknown;
-          cancelAtPeriodEnd?: boolean;
-          subscription?: {
-            status?: string;
-            currentPeriodEnd?: unknown;
-            cancelAtPeriodEnd?: boolean;
-            cancel_at_period_end?: boolean;
-          };
-          usage?: {
-            users?: number;
-            proposals?: number;
-            clients?: number;
-            products?: number;
-          };
-          [key: string]: unknown;
-        }
+    interface BillingUserData {
+      tenantId?: string;
+      companyId?: string;
+      companyName?: string;
+      createdAt?: string;
+      planId?: string;
+      name?: string;
+      displayName?: string;
+      email?: string;
+      subscriptionStatus?: string;
+      currentPeriodEnd?: unknown;
+      cancelAtPeriodEnd?: boolean;
+      subscription?: {
+        status?: string;
+        currentPeriodEnd?: unknown;
+        cancelAtPeriodEnd?: boolean;
+        cancel_at_period_end?: boolean;
+      };
+      usage?: {
+        users?: number;
+        proposals?: number;
+        clients?: number;
+        products?: number;
+      };
+      [key: string]: unknown;
+    }
 
     const userId = req.user!.uid;
     const { isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
@@ -539,14 +539,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
       const periodEnd =
         parsePeriodEnd(userData.currentPeriodEnd) ||
-        parsePeriodEnd(
-          userData.subscription?.currentPeriodEnd,
-        );
+        parsePeriodEnd(userData.subscription?.currentPeriodEnd);
 
       const cancelAtPeriodEnd = Boolean(
         userData.cancelAtPeriodEnd ||
-          userData.subscription?.cancelAtPeriodEnd ||
-          userData.subscription?.cancel_at_period_end,
+        userData.subscription?.cancelAtPeriodEnd ||
+        userData.subscription?.cancel_at_period_end,
       );
 
       if (cancelAtPeriodEnd && periodEnd && periodEnd.getTime() <= Date.now()) {
@@ -663,12 +661,10 @@ export const updateCredentials = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar credenciais.",
-        });
+      return res.status(403).json({
+        message:
+          "Permissão negada. Apenas super admins podem alterar credenciais.",
+      });
     }
 
     // Update Auth
@@ -714,12 +710,9 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar planos.",
-        });
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem alterar planos.",
+      });
     }
 
     // Update Plan
@@ -755,12 +748,10 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar assinaturas.",
-        });
+      return res.status(403).json({
+        message:
+          "Permissão negada. Apenas super admins podem alterar assinaturas.",
+      });
     }
 
     // Allowed fields to update
@@ -795,6 +786,44 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar assinatura";
+    return res.status(500).json({ message });
+  }
+};
+
+import { reportWhatsAppOverage } from "../../services/whatsappBilling";
+
+export const testWhatsAppBilling = async (req: Request, res: Response) => {
+  try {
+    const loggedUserId = req.user!.uid;
+    const { tenantId, month } = req.body;
+
+    // Verify Super Admin
+    const loggedUserSnap = await db.collection("users").doc(loggedUserId).get();
+    const loggedUserData = loggedUserSnap.data() as UserDoc | undefined;
+    const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem testar billing.",
+      });
+    }
+
+    if (!tenantId || !month) {
+      return res
+        .status(400)
+        .json({ message: "tenantId e month são obrigatórios" });
+    }
+
+    const result = await reportWhatsAppOverage(tenantId, month);
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
     return res.status(500).json({ message });
   }
 };
