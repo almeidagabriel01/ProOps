@@ -16,43 +16,36 @@ export async function reportWhatsAppOverage(
       `[reportWhatsAppOverage] Starting for tenant ${tenantId}, month ${month}`,
     );
 
-    // 1. Get Tenant to find Stripe Customer ID
-    // We need to check both "tenants" collection (if exists) or "companies"
-    // Based on previous code, companies seems to be the one, or tenants.
-    // Let's check where stripeId is usually stored.
-    // In admin.controller.ts, createCheckoutSession uses req.user.stripeId.
-    // But here we might be running as a cron or admin action.
-    // We need to find the OWNER of the tenant to get the stripeId, OR the tenant itself has it.
-    // admin.controller.ts: check checkManualSubscriptions.ts or similar if available,
-    // but typically the subscription is attached to the User (Owner).
+    // 1. Resolve Stripe IDs from tenant first (source of truth), fallback to owner user.
+    const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+    const tenantData = tenantSnap.data() as
+      | {
+          stripeCustomerId?: string;
+          stripeSubscriptionId?: string;
+        }
+      | undefined;
+    let stripeCustomerId = String(tenantData?.stripeCustomerId || "").trim();
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId || "",
+    ).trim();
 
-    // Let's try to find the user who is the master/owner of this tenant.
-    // Or maybe the tenant doc has stripeSubscriptionId / stripeCustomerId?
-    // In createCheckoutSession, it updates `users` collection.
-    // So we need to find the user who owns this tenant.
+    if (!stripeCustomerId) {
+      const usersSnap = await db
+        .collection("users")
+        .where("tenantId", "==", tenantId)
+        .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
+        .limit(1)
+        .get();
 
-    // Strategy: Look for the user with role 'MASTER' or 'admin' for this tenantId.
-    const usersSnap = await db
-      .collection("users")
-      .where("tenantId", "==", tenantId)
-      .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
-      .limit(1)
-      .get();
-
-    if (usersSnap.empty) {
-      console.error(
-        `[reportWhatsAppOverage] No master user found for tenant ${tenantId}`,
-      );
-      return { success: false, message: "Master user not found for tenant" };
+      if (!usersSnap.empty) {
+        const userData = usersSnap.docs[0].data() as { stripeId?: string } | undefined;
+        stripeCustomerId = String(userData?.stripeId || "").trim();
+      }
     }
-
-    const userDoc = usersSnap.docs[0];
-    const userData = userDoc.data();
-    const stripeCustomerId = userData.stripeId;
 
     if (!stripeCustomerId) {
       console.error(
-        `[reportWhatsAppOverage] No stripeId found for user ${userDoc.id} (tenant ${tenantId})`,
+        `[reportWhatsAppOverage] No stripeCustomerId found for tenant ${tenantId}`,
       );
       return { success: false, message: "Stripe Customer ID not found" };
     }
@@ -84,7 +77,7 @@ export async function reportWhatsAppOverage(
 
     // 3. Report to Stripe
     const stripe = getStripe();
-    const idempotencyKey = `${tenantId}-${month}-${overageMessages}`;
+    const idempotencyKey = `${tenantId}:${month}:whatsapp_overage`;
 
     console.log(
       `[reportWhatsAppOverage] Reporting ${overageMessages} messages for customer ${stripeCustomerId}`,
@@ -104,7 +97,9 @@ export async function reportWhatsAppOverage(
     await usageRef.update({
       stripeReported: true,
       stripeEventId: event.identifier,
-      reportedAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripeReportedAt: admin.firestore.FieldValue.serverTimestamp(),
+      stripeReportIdempotencyKey: idempotencyKey,
+      stripeSubscriptionId: stripeSubscriptionId || null,
     });
 
     console.log(

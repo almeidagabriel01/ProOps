@@ -19,6 +19,10 @@ export type Tenant = {
   whatsappPlan?: "none" | "basic" | "pro";
   whatsappMonthlyLimit?: number;
   whatsappAllowOverage?: boolean;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  whatsappOveragePriceId?: string;
+  whatsappOverageSubscriptionItemId?: string;
 };
 
 export type User = {
