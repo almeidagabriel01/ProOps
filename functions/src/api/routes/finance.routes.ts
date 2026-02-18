@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createTransaction,
   updateTransaction,
+  updateTransactionWithInstallments,
   updateTransactionsStatusBatch,
   deleteTransaction,
 } from "../controllers/transactions.controller";
@@ -19,6 +20,7 @@ const router = Router();
 router.post("/transactions", createTransaction);
 router.post("/transactions/status-batch", updateTransactionsStatusBatch);
 router.put("/transactions/:id", updateTransaction);
+router.put("/transactions/:id/installments", updateTransactionWithInstallments);
 router.delete("/transactions/:id", deleteTransaction);
 
 // Wallets

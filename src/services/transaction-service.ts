@@ -43,6 +43,35 @@ export type Transaction = {
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
 };
 
+export type UpdateFinancialEntryWithInstallmentsPayload = {
+  type: TransactionType;
+  description: string;
+  amount: string;
+  date: string;
+  dueDate: string;
+  status: TransactionStatus;
+  clientId?: string;
+  clientName?: string;
+  category?: string;
+  wallet?: string;
+  notes?: string;
+  isInstallment: boolean;
+  installmentCount: number;
+  paymentMode: "total" | "installmentValue";
+  installmentValue: string;
+  firstInstallmentDate: string;
+  installmentsWallet: string;
+  downPaymentEnabled: boolean;
+  downPaymentType: "value" | "percentage";
+  downPaymentPercentage: string;
+  downPaymentValue: string;
+  downPaymentWallet: string;
+  downPaymentDueDate: string;
+  expectedUpdatedAt?: string | number;
+  targetTenantId?: string;
+  extraTransactionIds?: string[];
+};
+
 const COLLECTION_NAME = "transactions";
 
 export const TransactionService = {
@@ -135,6 +164,19 @@ export const TransactionService = {
       return { id, ...updates };
     } catch (error) {
       console.error("Error updating transaction:", error);
+      throw error;
+    }
+  },
+
+  updateFinancialEntryWithInstallments: async (
+    id: string,
+    payload: UpdateFinancialEntryWithInstallmentsPayload,
+  ) => {
+    try {
+      await callApi(`v1/transactions/${id}/installments`, "PUT", payload);
+      return true;
+    } catch (error) {
+      console.error("Error updating entry with installments:", error);
       throw error;
     }
   },

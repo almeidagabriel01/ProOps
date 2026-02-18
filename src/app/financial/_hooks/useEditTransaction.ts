@@ -8,6 +8,7 @@ import {
   Transaction,
   TransactionType,
   TransactionStatus,
+  UpdateFinancialEntryWithInstallmentsPayload,
 } from "@/services/transaction-service";
 
 interface ExtendedTransaction extends Transaction {
@@ -17,6 +18,37 @@ interface ExtendedTransaction extends Transaction {
   downPaymentDate?: string;
   firstInstallmentDate?: string;
 }
+const isDownPaymentLike = (t: Transaction): boolean =>
+  !!t.isDownPayment || (t.installmentNumber || 0) === 0;
+
+const dateOnly = (value?: string): string => {
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+};
+
+const sameClient = (a: Transaction, b: Transaction): boolean => {
+  const aClientId = a.clientId || "";
+  const bClientId = b.clientId || "";
+  if (aClientId && bClientId) return aClientId === bClientId;
+  return (a.clientName || "").trim() === (b.clientName || "").trim();
+};
+
+const isLikelyOrphanDownPaymentForGroup = (
+  candidate: Transaction,
+  anchor: Transaction,
+): boolean => {
+  if (!isDownPaymentLike(candidate)) return false;
+  if (candidate.installmentGroupId || candidate.proposalGroupId) return false;
+  if (candidate.id === anchor.id) return false;
+  if ((candidate.description || "").trim() !== (anchor.description || "").trim())
+    return false;
+  if (candidate.type !== anchor.type) return false;
+  if (!sameClient(candidate, anchor)) return false;
+  const candidateDate = dateOnly(candidate.date || candidate.dueDate);
+  const anchorDate = dateOnly(anchor.date || anchor.dueDate);
+  if (candidateDate && anchorDate && candidateDate !== anchorDate) return false;
+  return true;
+};
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { shiftDateByTransform } from "@/utils/date-utils";
 
@@ -94,6 +126,9 @@ export function useEditTransaction() {
   const [relatedInstallments, setRelatedInstallments] = React.useState<
     Transaction[]
   >([]);
+  const [extraTransactionIds, setExtraTransactionIds] = React.useState<string[]>(
+    [],
+  );
 
   const [formData, setFormData] = React.useState<EditTransactionFormData>({
     type: "income",
@@ -190,13 +225,32 @@ export function useEditTransaction() {
             (a: Transaction, b: Transaction) =>
               (a.installmentNumber || 0) - (b.installmentNumber || 0),
           );
+
+          // Include likely orphan down payment (legacy inconsistent data) so backend can reattach it atomically.
+          const allTenantTransactions = await TransactionService.getTransactions(
+            safeData.tenantId,
+          );
+          const orphanCandidates = allTenantTransactions.filter((t) =>
+            isLikelyOrphanDownPaymentForGroup(t, safeData),
+          );
+          if (orphanCandidates.length === 1) {
+            groupTransactions = [...groupTransactions, orphanCandidates[0]].sort(
+              (a: Transaction, b: Transaction) =>
+                (a.installmentNumber || 0) - (b.installmentNumber || 0),
+            );
+            setExtraTransactionIds([orphanCandidates[0].id]);
+          } else {
+            setExtraTransactionIds([]);
+          }
           setRelatedInstallments(groupTransactions);
         } catch (error) {
           console.error("Error fetching related installments:", error);
           setRelatedInstallments([]);
+          setExtraTransactionIds([]);
         }
       } else {
         setRelatedInstallments([]);
+        setExtraTransactionIds([]);
       }
 
       // DERIVE FORM STATE FROM GROUP (if exists) OR SINGLE TRANSACTION
@@ -761,126 +815,42 @@ export function useEditTransaction() {
 
     setIsSaving(true);
     try {
-      const runWithRetry = async <T>(
-        operation: () => Promise<T>,
-        maxAttempts = 4,
-      ): Promise<T> => {
-        let lastError: unknown;
-
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            return await operation();
-          } catch (error) {
-            lastError = error;
-            const message =
-              error instanceof Error ? error.message.toLowerCase() : "";
-            const isContentionError =
-              message.includes("aborted") ||
-              message.includes("cross-transaction contention");
-
-            if (!isContentionError || attempt === maxAttempts) {
-              throw error;
-            }
-
-            const backoffMs = 150 * attempt;
-            await new Promise((resolve) => setTimeout(resolve, backoffMs));
-          }
-        }
-
-        throw lastError;
+      const payload: UpdateFinancialEntryWithInstallmentsPayload = {
+        type: formData.type,
+        description: formData.description.trim(),
+        amount: formData.amount,
+        date: formData.date,
+        dueDate: formData.dueDate,
+        status: formData.status,
+        clientId: formData.clientId,
+        clientName: formData.clientName,
+        category: formData.category,
+        wallet: formData.wallet,
+        notes: formData.notes,
+        isInstallment: formData.isInstallment,
+        installmentCount: formData.installmentCount,
+        paymentMode: formData.paymentMode,
+        installmentValue: formData.installmentValue,
+        firstInstallmentDate: formData.firstInstallmentDate,
+        installmentsWallet:
+          formData.paymentMode === "total"
+            ? formData.wallet
+            : formData.installmentsWallet,
+        downPaymentEnabled: formData.downPaymentEnabled,
+        downPaymentType: formData.downPaymentType,
+        downPaymentPercentage: formData.downPaymentPercentage,
+        downPaymentValue: formData.downPaymentValue,
+        downPaymentWallet: formData.downPaymentWallet,
+        downPaymentDueDate: formData.downPaymentDueDate,
+        expectedUpdatedAt: transaction.updatedAt,
+        targetTenantId: transaction.tenantId,
+        extraTransactionIds,
       };
 
-      const previewRealIds = new Set(
-        previewInstallments
-          .filter((t) => !t.id.startsWith("temp-"))
-          .map((t) => t.id),
+      await TransactionService.updateFinancialEntryWithInstallments(
+        transaction.id,
+        payload,
       );
-      const deletedIds = relatedInstallments
-        .filter((t) => !previewRealIds.has(t.id))
-        .map((t) => t.id);
-
-      if (deletedIds.length > 0) {
-        for (const id of deletedIds) {
-          await runWithRetry(() => TransactionService.deleteTransaction(id));
-        }
-      }
-
-      // Determine Effective Group ID
-      let effectiveGroupId = transaction.installmentGroupId;
-
-      if (!formData.isInstallment) {
-        effectiveGroupId = undefined; // Single transaction, no group
-      } else if (!effectiveGroupId) {
-        // Converting Single -> Installments: Generate NEW Group ID
-        effectiveGroupId = `installment_${Date.now()}`;
-      }
-
-      const persistedIds = new Set<string>();
-
-      for (const inst of previewInstallments) {
-        const basePayload = {
-          date: inst.date,
-          dueDate: inst.dueDate,
-          installmentCount: inst.installmentCount,
-          installmentNumber: inst.installmentNumber,
-          amount: parseFloat(inst.amount.toFixed(2)),
-          status: inst.status,
-          wallet: inst.wallet,
-          description: formData.description.trim(),
-          category: formData.category,
-          clientId: formData.clientId,
-          clientName: formData.clientName,
-          notes: formData.notes,
-          type: formData.type,
-          isInstallment: formData.isInstallment,
-          isDownPayment: inst.isDownPayment,
-          downPaymentType: inst.isDownPayment
-            ? formData.downPaymentType
-            : undefined,
-          downPaymentPercentage:
-            inst.isDownPayment && formData.downPaymentType === "percentage"
-              ? parseFloat(formData.downPaymentPercentage || "0")
-              : undefined,
-          installmentGroupId: effectiveGroupId,
-        };
-
-        if (inst.id.startsWith("temp-")) {
-          const created = await runWithRetry(() =>
-            TransactionService.createTransaction({
-              ...basePayload,
-              tenantId: transaction.tenantId,
-              installmentGroupId: effectiveGroupId,
-              isDownPayment: !!inst.isDownPayment,
-            } as unknown as Omit<Transaction, "id">),
-          );
-
-          if (created?.id) persistedIds.add(created.id);
-        } else {
-          await runWithRetry(() =>
-            TransactionService.updateTransaction(inst.id, basePayload),
-          );
-          persistedIds.add(inst.id);
-        }
-      }
-
-      if (transaction.installmentGroupId) {
-        const latestGroup = await runWithRetry(() =>
-          TransactionService.getInstallmentsByGroupId(
-            transaction.installmentGroupId!,
-            transaction.tenantId,
-          ),
-        );
-
-        const staleIds = latestGroup
-          .filter((t) => !persistedIds.has(t.id))
-          .map((t) => t.id);
-
-        for (const staleId of staleIds) {
-          await runWithRetry(() =>
-            TransactionService.deleteTransaction(staleId),
-          );
-        }
-      }
 
       toast.success("Lançamento atualizado com sucesso!");
       router.push("/financial");

@@ -24,6 +24,21 @@ import { useSort } from "@/hooks/use-sort";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Loader2 } from "lucide-react";
 
+const isDownPaymentLike = (t: Transaction): boolean =>
+  !!t.isDownPayment || (t.installmentNumber || 0) === 0;
+
+const dateOnly = (value?: string): string => {
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+};
+
+const sameClient = (a: Transaction, b: Transaction): boolean => {
+  const aClientId = a.clientId || "";
+  const bClientId = b.clientId || "";
+  if (aClientId && bClientId) return aClientId === bClientId;
+  return (a.clientName || "").trim() === (b.clientName || "").trim();
+};
+
 /** Infinite scroll wrapper for grouped transaction cards */
 function TransactionListInfinite({
   filteredTransactions,
@@ -81,9 +96,26 @@ function TransactionListInfinite({
               t.proposalGroupId === groupId || t.installmentGroupId === groupId,
           );
 
+          const orphanDownPayments = transactions.filter(
+            (t) =>
+              !t.installmentGroupId &&
+              !t.proposalGroupId &&
+              isDownPaymentLike(t) &&
+              !transaction.proposalGroupId &&
+              t.type === transaction.type &&
+              (t.description || "").trim() ===
+                (transaction.description || "").trim() &&
+              sameClient(t, transaction) &&
+              dateOnly(t.date || t.dueDate) ===
+                dateOnly(transaction.date || transaction.dueDate),
+          );
+          if (orphanDownPayments.length === 1) {
+            groupMembers.push(orphanDownPayments[0]);
+          }
+
           groupMembers.sort((a, b) => {
-            if (a.isDownPayment && !b.isDownPayment) return -1;
-            if (!a.isDownPayment && b.isDownPayment) return 1;
+            if (isDownPaymentLike(a) && !isDownPaymentLike(b)) return -1;
+            if (!isDownPaymentLike(a) && isDownPaymentLike(b)) return 1;
             if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
               return (a.installmentNumber || 0) - (b.installmentNumber || 0);
             }

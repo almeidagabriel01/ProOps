@@ -23,6 +23,38 @@ type DateLike =
   | null
   | undefined;
 
+const isDownPaymentLike = (t: Transaction): boolean =>
+  !!t.isDownPayment || (t.installmentNumber || 0) === 0;
+
+const dateOnly = (value?: string): string => {
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+};
+
+const sameClient = (a: Transaction, b: Transaction): boolean => {
+  const aClientId = a.clientId || "";
+  const bClientId = b.clientId || "";
+  if (aClientId && bClientId) return aClientId === bClientId;
+  return (a.clientName || "").trim() === (b.clientName || "").trim();
+};
+
+const matchesGroupByHeuristic = (
+  orphan: Transaction,
+  grouped: Transaction[],
+): boolean => {
+  if (!isDownPaymentLike(orphan)) return false;
+  const matchingGroups = grouped.filter(
+    (g) =>
+      !!g.installmentGroupId &&
+      !g.proposalGroupId &&
+      g.type === orphan.type &&
+      (g.description || "").trim() === (orphan.description || "").trim() &&
+      sameClient(g, orphan) &&
+      dateOnly(g.date || g.dueDate) === dateOnly(orphan.date || orphan.dueDate),
+  );
+  return matchingGroups.length === 1;
+};
+
 // Helper to get YYYY-MM-DD string in Local Time matching user perception
 function getDateString(val: DateLike): string {
   if (!val) return "";
@@ -262,7 +294,7 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         // CASE 2: Transaction is part of an installment group (without proposal group)
         // This includes both regular installments AND down payments (isDownPayment = true)
-        if ((t.isInstallment || t.isDownPayment) && t.installmentGroupId) {
+        if (t.installmentGroupId) {
           if (processedInstallmentGroups.has(t.installmentGroupId)) return;
 
           // Find all belonging to this group (both installments and down payments)
@@ -270,10 +302,12 @@ export function useFinancialData(): UseFinancialDataReturn {
             (g) => g.installmentGroupId === t.installmentGroupId,
           );
 
-          // Sort group: down payment first (installmentNumber 0), then by installment number
+          // Sort group: down payment first (explicit flag or installmentNumber 0), then by installment number
           group.sort((a, b) => {
-            if (a.isDownPayment && !b.isDownPayment) return -1;
-            if (!a.isDownPayment && b.isDownPayment) return 1;
+            const aIsDown = isDownPaymentLike(a);
+            const bIsDown = isDownPaymentLike(b);
+            if (aIsDown && !bIsDown) return -1;
+            if (!aIsDown && bIsDown) return 1;
             return (a.installmentNumber || 0) - (b.installmentNumber || 0);
           });
 
@@ -287,7 +321,7 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // If for some reason we didn't find one (empty group?), skip
           if (active) {
-            const stableAnchor = group.find((g) => g.isDownPayment) || group[0];
+            const stableAnchor = group.find((g) => isDownPaymentLike(g)) || group[0];
             const representative: Transaction = {
               ...active,
               createdAt: stableAnchor?.createdAt || active.createdAt,
@@ -300,6 +334,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         }
 
         // CASE 3: Regular transaction (not part of any group)
+        if (
+          !t.installmentGroupId &&
+          !t.proposalGroupId &&
+          isDownPaymentLike(t) &&
+          matchesGroupByHeuristic(t, effectiveTransactions)
+        ) {
+          return;
+        }
         effectiveTransactions.push(t);
       });
     }
@@ -328,7 +370,6 @@ export function useFinancialData(): UseFinancialDataReturn {
         if (
           viewMode === "grouped" &&
           filterDateType === "dueDate" &&
-          t.isInstallment &&
           t.installmentGroupId
         ) {
           // Get all installments in this group
@@ -551,7 +592,6 @@ export function useFinancialData(): UseFinancialDataReturn {
       try {
         // If it's an installment, delete all in the group
         if (
-          (transaction.isInstallment || transaction.isDownPayment) &&
           transaction.installmentGroupId
         ) {
           const groupTransactions = transactions.filter(
@@ -705,7 +745,6 @@ export function useFinancialData(): UseFinancialDataReturn {
 
         // Check if this is an installment group
         const hasInstallmentGroup =
-          transaction.isInstallment &&
           transaction.installmentGroupId &&
           updateAll;
 
