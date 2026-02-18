@@ -20,7 +20,7 @@ export function getStripe(): Stripe {
     if (!secretKey) {
       throw new Error(
         "STRIPE_SECRET_KEY is not defined. " +
-          "Set it via .env file or environment variables."
+          "Set it via .env file or environment variables.",
       );
     }
 
@@ -43,7 +43,7 @@ export function getWebhookSecret(): string {
   if (!secret) {
     throw new Error(
       "STRIPE_WEBHOOK_SECRET is not defined. " +
-        "Set it via .env file or environment variables."
+        "Set it via .env file or environment variables.",
     );
   }
 
@@ -88,6 +88,9 @@ export function getPriceConfig(): StripePriceConfig {
       pdf_editor_full: {
         monthly: process.env.STRIPE_ADDON_PDF_FULL_MONTHLY || "",
       },
+      whatsapp_overage: {
+        monthly: "price_1T20T7GrkF9UfsqcEtdBX9fY",
+      },
     },
   };
 }
@@ -97,7 +100,7 @@ export function getPriceConfig(): StripePriceConfig {
  */
 export function getPriceIdForTier(
   tier: string,
-  interval: BillingInterval = "monthly"
+  interval: BillingInterval = "monthly",
 ): string | null {
   const config = getPriceConfig();
   return config.plans[tier]?.[interval] || null;
