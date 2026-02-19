@@ -411,109 +411,112 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex items-start justify-between rounded-t-lg"
+        className="p-4 flex flex-col gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Cpu className="w-5 h-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            {/* Sistema Name - Primary Title */}
-            <h4
-              className="font-bold text-xl text-foreground truncate"
-              style={{ color: primaryColor }}
+        <div className="flex items-start justify-between w-full">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
+              style={{ backgroundColor: primaryColor }}
             >
-              {sistema.sistemaName}
-            </h4>
-            {/* Ambiente Tags - Render all linked environments */}
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {(sistema.ambientes && sistema.ambientes.length > 0
-                ? sistema.ambientes
-                : [
-                    {
-                      ambienteName: sistema.ambienteName || "Ambiente",
-                      ambienteId: sistema.ambienteId,
-                    },
-                  ]
-              ).map((amb, i) => (
-                <span
-                  key={`${amb.ambienteId}-${i}`}
-                  className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                  style={{
-                    backgroundColor: `${primaryColor}20`,
-                    color: primaryColor,
-                    border: `1px solid ${primaryColor}40`,
-                  }}
-                >
-                  📍 {amb.ambienteName}
-                </span>
-              ))}
+              <Cpu className="w-5 h-5" />
             </div>
-            {sistema.description && (
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed wrap-break-word">
-                {sistema.description}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-10 shrink-0 ml-4">
-          <div className="flex flex-col items-end gap-1">
-            <span
-              className="text-sm font-medium text-muted-foreground mr-2"
-              title="Soma do valor de custo dos produtos (sem markup)"
-            >
-              Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
-            </span>
-            <span
-              className="text-sm font-bold"
-              style={{ color: primaryColor }}
-              title="Soma do valor final dos produtos (com markup)"
-            >
-              Valor Final (c/ Lucro): R$ {sistemaTotalWithMarkup.toFixed(2)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  title="Remover sistema"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja remover o sistema{" "}
-                    <strong>{sistema.sistemaName}</strong> (
-                    {sistema.ambienteName}
-                    ) desta proposta?
-                    <br />
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive hover:bg-destructive/90"
-                    onClick={onRemove}
+            <div className="min-w-0 flex-1">
+              {/* Sistema Name - Primary Title */}
+              <h4
+                className="font-bold text-xl text-foreground truncate"
+                style={{ color: primaryColor }}
+              >
+                {sistema.sistemaName}
+              </h4>
+              {/* Ambiente Tags - Render all linked environments */}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {(sistema.ambientes && sistema.ambientes.length > 0
+                  ? sistema.ambientes
+                  : [
+                      {
+                        ambienteName: sistema.ambienteName || "Ambiente",
+                        ambienteId: sistema.ambienteId,
+                      },
+                    ]
+                ).map((amb, i) => (
+                  <span
+                    key={`${amb.ambienteId}-${i}`}
+                    className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: `${primaryColor}20`,
+                      color: primaryColor,
+                      border: `1px solid ${primaryColor}40`,
+                    }}
                   >
-                    Remover Sistema
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                    📍 {amb.ambienteName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-10 shrink-0 ml-4">
+            <div className="flex flex-col items-end gap-1">
+              <span
+                className="text-sm font-medium text-muted-foreground mr-2"
+                title="Soma do valor de custo dos produtos (sem markup)"
+              >
+                Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
+              </span>
+              <span
+                className="text-sm font-bold"
+                style={{ color: primaryColor }}
+                title="Soma do valor final dos produtos (com markup)"
+              >
+                Valor Final (c/ Lucro): R$ {sistemaTotalWithMarkup.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title="Remover sistema"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remover Sistema</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja remover o sistema{" "}
+                      <strong>{sistema.sistemaName}</strong> (
+                      {sistema.ambienteName}
+                      ) desta proposta?
+                      <br />
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive hover:bg-destructive/90"
+                      onClick={onRemove}
+                    >
+                      Remover Sistema
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
+
+        {sistema.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed break-words w-full max-w-none px-1">
+            {sistema.description}
+          </p>
+        )}
       </div>
 
       {/* Body: Ambientes Sub-containers */}
@@ -540,10 +543,10 @@ function SystemCard({
               className="rounded-lg border bg-card/50"
             >
               {/* Sub-Header Ambiente */}
-              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between rounded-t-lg">
-                <div className="flex items-center gap-2">
+              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between gap-4 rounded-t-lg">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span
-                    className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                    className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
                     style={{
                       backgroundColor: `${primaryColor}20`,
                       color: primaryColor,
@@ -552,7 +555,7 @@ function SystemCard({
                     📍 {amb.ambienteName}
                   </span>
                   {amb.description && (
-                    <span className="text-xs text-muted-foreground italic">
+                    <span className="text-xs text-muted-foreground italic leading-tight">
                       - {amb.description}
                     </span>
                   )}
