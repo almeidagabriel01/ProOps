@@ -320,6 +320,8 @@ export function useProposalFormCore({
     initialSistemasRef,
     initialFormDataRef,
     setIsLoading,
+    mergedAmbientes,
+    mergedSistemas,
   });
   const {
     selectedProducts,

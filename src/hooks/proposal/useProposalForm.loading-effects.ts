@@ -34,6 +34,9 @@ interface UseProposalFormLoadingEffectsContext {
   initialSistemasRef: React.MutableRefObject<string | null>;
   initialFormDataRef: React.MutableRefObject<string | null>;
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  // Transactional Data passed from parent to avoid refetching
+  mergedAmbientes: Ambiente[];
+  mergedSistemas: Sistema[];
 }
 
 export function useProposalFormLoadingEffects(
@@ -58,25 +61,101 @@ export function useProposalFormLoadingEffects(
     initialSistemasRef,
     initialFormDataRef,
     setIsLoading,
+    mergedAmbientes,
+    mergedSistemas,
   } = ctx;
+
+  const isFetchingRef = React.useRef(false);
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Helper to sync selected systems with fresh master data
+  const syncSystemsWithMasterData = React.useCallback(
+    (freshAmbientes: Ambiente[], freshSistemas: Sistema[]) => {
+      setSelectedSistemas((prevSistemas) =>
+        prevSistemas.map((s) => {
+          const currentAmbientes =
+            s.ambientes && s.ambientes.length > 0
+              ? s.ambientes
+              : [
+                  {
+                    ambienteId: s.ambienteId || "",
+                    ambienteName: s.ambienteName || "",
+                    description: s.description || "",
+                    products: s.products || [],
+                  },
+                ];
+
+          const updatedAmbientes = currentAmbientes.map((env) => {
+            const masterAmbiente =
+              freshAmbientes.find((a) => a.id === env.ambienteId) ||
+              freshAmbientes.find((a) => a.name === env.ambienteName);
+            const masterSistema =
+              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+              freshSistemas.find((sys) => sys.name === s.sistemaName);
+            const systemEnvConfig = masterSistema?.ambientes?.find(
+              (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
+            );
+
+            return {
+              ...env,
+              ambienteName: masterAmbiente?.name || env.ambienteName,
+              description:
+                (systemEnvConfig || masterAmbiente)
+                  ? (systemEnvConfig?.description || masterAmbiente?.description || "")
+                  : (env.description || ""),
+            };
+          });
+
+          const masterSistema =
+            freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+            freshSistemas.find((sys) => sys.name === s.sistemaName);
+          const primaryEnv = updatedAmbientes[0];
+
+          return {
+            ...s,
+            sistemaName: masterSistema?.name || s.sistemaName,
+            description: masterSistema ? (masterSistema.description || "") : s.description,
+            ambientes: updatedAmbientes,
+            ambienteName: primaryEnv?.ambienteName || s.ambienteName,
+            ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+          };
+        }),
+      );
+    },
+    [setSelectedSistemas],
+  );
 
   React.useEffect(() => {
     const loadInitData = async () => {
       if (!tenant?.id) return;
       try {
+        // Parallel fetch for speed
         const [ambs, siss] = await Promise.all([
           AmbienteService.getAmbientes(tenant.id),
           SistemaService.getSistemas(tenant.id),
         ]);
+        
+        if (!isMountedRef.current) return;
+
         setLocalAmbientes(ambs);
         setLocalSistemas(siss);
+        
+        // Apply updates to any systems already loaded (e.g. from fast proposal fetch)
+        syncSystemsWithMasterData(ambs, siss);
       } catch (e) {
         console.error("Error loading initial master data", e);
-        toast.error("Erro ao carregar dados de ambientes e sistemas");
+        // Do not block UI with error toast here, fail silently or log
       }
     };
     loadInitData();
-  }, [tenant, setLocalAmbientes, setLocalSistemas]);
+  }, [tenant, setLocalAmbientes, setLocalSistemas, syncSystemsWithMasterData]);
 
   React.useEffect(() => {
     const fetchInitialData = async () => {
@@ -107,6 +186,34 @@ export function useProposalFormLoadingEffects(
       }));
     }
   }, [tenant, proposalId, setFormData]);
+
+  const refreshMasterData = React.useCallback(async () => {
+    if (!tenant?.id || isFetchingRef.current) return;
+
+    try {
+      isFetchingRef.current = true;
+      const [freshAmbientes, freshSistemas] = await Promise.all([
+        AmbienteService.getAmbientes(tenant.id),
+        SistemaService.getSistemas(tenant.id),
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      if (freshAmbientes.length === 0 && freshSistemas.length === 0) {
+          return;
+      }
+
+      setLocalAmbientes(freshAmbientes);
+      setLocalSistemas(freshSistemas);
+      
+      syncSystemsWithMasterData(freshAmbientes, freshSistemas);
+
+    } catch (err) {
+      console.error("Silent refresh failed", err);
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [tenant, setLocalAmbientes, setLocalSistemas, syncSystemsWithMasterData]);
 
   React.useEffect(() => {
     const fetchProposal = async () => {
@@ -192,34 +299,21 @@ export function useProposalFormLoadingEffects(
         setFormData(loadedFormData);
 
         if (proposal.sistemas && proposal.sistemas.length > 0) {
-          let freshAmbientes: Ambiente[] = [];
-          let freshSistemas: Sistema[] = [];
-
-          if (tenant) {
-            try {
-              [freshAmbientes, freshSistemas] = await Promise.all([
-                AmbienteService.getAmbientes(tenant.id),
-                SistemaService.getSistemas(tenant.id),
-              ]);
-              setLocalAmbientes(freshAmbientes);
-              setLocalSistemas(freshSistemas);
-            } catch (err) {
-              console.error("Error fetching fresh aux data", err);
-              toast.error("Erro ao atualizar dados de ambientes e sistemas");
-            }
-          }
+          // Use available merged data immediately if present (Optimistic Load)
+          const availableAmbientes = mergedAmbientes.length > 0 ? mergedAmbientes : [];
+          const availableSistemas = mergedSistemas.length > 0 ? mergedSistemas : [];
 
           const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => {
             const primaryAmbienteId = s.ambientes?.[0]?.ambienteId || s.ambienteId;
             const primaryAmbienteName = s.ambientes?.[0]?.ambienteName || s.ambienteName;
 
             const masterAmbiente =
-              freshAmbientes.find((a) => a.id === primaryAmbienteId) ||
-              freshAmbientes.find((a) => a.name === primaryAmbienteName);
+              availableAmbientes.find((a) => a.id === primaryAmbienteId) ||
+              availableAmbientes.find((a) => a.name === primaryAmbienteName);
 
             const masterSistema =
-              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
-              freshSistemas.find((sys) => sys.name === s.sistemaName);
+              availableSistemas.find((sys) => sys.id === s.sistemaId) ||
+              availableSistemas.find((sys) => sys.name === s.sistemaName);
 
             const productIds = s.ambientes?.[0]?.productIds || s.productIds || [];
             const systemEnvConfig = masterSistema?.ambientes?.find(
@@ -237,13 +331,13 @@ export function useProposalFormLoadingEffects(
             return {
               sistemaId: masterSistema?.id || (s.sistemaId as string) || "",
               sistemaName: masterSistema?.name || (s.sistemaName as string) || "",
-              description: (s.description as string) || "",
+              description: masterSistema ? (masterSistema.description || "") : ((s.description as string) || ""),
               ambientes:
                 s.ambientes && s.ambientes.length > 0
                   ? s.ambientes.map((env: ProposalAmbienteInstance) => {
                       const envMasterAmbiente =
-                        freshAmbientes.find((a) => a.id === env.ambienteId) ||
-                        freshAmbientes.find((a) => a.name === env.ambienteName);
+                        availableAmbientes.find((a) => a.id === env.ambienteId) ||
+                        availableAmbientes.find((a) => a.name === env.ambienteName);
 
                       const envProductIds: string[] = env.productIds || [];
                       const envProducts = syncedProducts
@@ -273,7 +367,9 @@ export function useProposalFormLoadingEffects(
                             : "") ||
                           "",
                         description:
-                          env.description || envMasterAmbiente?.description || "",
+                          envMasterAmbiente
+                            ? (envMasterAmbiente.description || "")
+                            : (env.description || ""),
                         products: envProducts,
                       };
                     })
@@ -283,10 +379,9 @@ export function useProposalFormLoadingEffects(
                         ambienteName:
                           masterAmbiente?.name || primaryAmbienteName || "",
                         description:
-                          systemEnvConfig?.description ||
-                          masterAmbiente?.description ||
-                          s.ambientes?.[0]?.description ||
-                          "",
+                          (systemEnvConfig || masterAmbiente)
+                            ? (systemEnvConfig?.description || masterAmbiente?.description || "")
+                            : (s.ambientes?.[0]?.description || ""),
                         products: sistemaProducts,
                       },
                     ],
@@ -304,12 +399,19 @@ export function useProposalFormLoadingEffects(
           );
           setSystemProductIds(sysProductIds);
           initialSistemasRef.current = JSON.stringify(sistemas);
+        } else {
+             // systems empty
         }
 
         initialFormDataRef.current = buildFullFormSnapshot(loadedFormData);
         if (!initialSistemasRef.current) {
           initialSistemasRef.current = JSON.stringify([]);
         }
+
+        // Fire and forget: trigger refresh to update descriptions if they were stale
+        // This ensures that if we loaded with stale or empty merged data, it gets updated shortly
+        refreshMasterData();
+
       } catch (error) {
         console.error("Error loading proposal", error);
         toast.error("Erro ao carregar proposta");
@@ -336,75 +438,12 @@ export function useProposalFormLoadingEffects(
     initialFormDataRef,
     initialIsNewClientRef,
     initialSistemasRef,
+    mergedAmbientes,
+    mergedSistemas,
+    refreshMasterData,
   ]);
 
-  const refreshMasterData = React.useCallback(async () => {
-    if (!tenant?.id) return;
 
-    try {
-      const [freshAmbientes, freshSistemas] = await Promise.all([
-        AmbienteService.getAmbientes(tenant.id),
-        SistemaService.getSistemas(tenant.id),
-      ]);
-
-      setLocalAmbientes(freshAmbientes);
-      setLocalSistemas(freshSistemas);
-
-      setSelectedSistemas((prevSistemas) =>
-        prevSistemas.map((s) => {
-          const currentAmbientes =
-            s.ambientes && s.ambientes.length > 0
-              ? s.ambientes
-              : [
-                  {
-                    ambienteId: s.ambienteId || "",
-                    ambienteName: s.ambienteName || "",
-                    description: s.description || "",
-                    products: s.products || [],
-                  },
-                ];
-
-          const updatedAmbientes = currentAmbientes.map((env) => {
-            const masterAmbiente =
-              freshAmbientes.find((a) => a.id === env.ambienteId) ||
-              freshAmbientes.find((a) => a.name === env.ambienteName);
-            const masterSistema =
-              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
-              freshSistemas.find((sys) => sys.name === s.sistemaName);
-            const systemEnvConfig = masterSistema?.ambientes?.find(
-              (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
-            );
-
-            return {
-              ...env,
-              ambienteName: masterAmbiente?.name || env.ambienteName,
-              description:
-                systemEnvConfig?.description ||
-                masterAmbiente?.description ||
-                env.description ||
-                "",
-            };
-          });
-
-          const masterSistema =
-            freshSistemas.find((sys) => sys.id === s.sistemaId) ||
-            freshSistemas.find((sys) => sys.name === s.sistemaName);
-          const primaryEnv = updatedAmbientes[0];
-
-          return {
-            ...s,
-            sistemaName: masterSistema?.name || s.sistemaName,
-            description: masterSistema?.description || s.description,
-            ambientes: updatedAmbientes,
-            ambienteName: primaryEnv?.ambienteName || s.ambienteName,
-            ambienteId: primaryEnv?.ambienteId || s.ambienteId,
-          };
-        }),
-      );
-    } catch (err) {
-      console.error("Silent refresh failed", err);
-    }
-  }, [tenant, setLocalAmbientes, setLocalSistemas, setSelectedSistemas]);
 
   React.useEffect(() => {
     const onFocus = () => {
@@ -421,3 +460,4 @@ export function useProposalFormLoadingEffects(
     };
   }, [refreshMasterData]);
 }
+
