@@ -1,14 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore } from "@/lib/firebase-admin";
+import { Request, Response } from "express";
+import crypto from "crypto";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { jsPDF } from "jspdf";
-import crypto from "crypto";
-
-// ============================================
-// INIT ADMIN DB
-// ============================================
-const db = getAdminFirestore();
+import { db } from "../../init";
 
 // ============================================
 // TYPES
@@ -68,11 +63,8 @@ const PDF_GENERATION_LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Verifies the X-Hub-Signature-256 header.
- */
 function verifyWhatsAppSignature(
-  rawBody: string,
+  rawBody: string | Buffer,
   signature: string | null,
   appSecret: string,
 ): boolean {
@@ -103,12 +95,12 @@ function verifyWhatsAppSignature(
 
 async function sendWhatsAppMessage(to: string, body: string) {
   console.log(`[WhatsApp] Sending to ${to}: ${body}`);
-  // Temporary logging for verification
-  // Removed
+  // Implement actual sending logic using WhatsApp Business API if needed
 }
 
 async function sendWhatsAppPdf(to: string, link: string, caption: string) {
   console.log(`[WhatsApp] Sending PDF to ${to}: ${link}`);
+  // Implement actual sending logic using WhatsApp Business API if needed
 }
 
 function formatCurrency(value: number): string {
@@ -293,7 +285,10 @@ async function getProposalByIdForTenant(
   return { id: docSnap.id, ...data };
 }
 
-function buildProposalPdfStoragePath(tenantId: string, proposalId: string): string {
+function buildProposalPdfStoragePath(
+  tenantId: string,
+  proposalId: string,
+): string {
   return `proposals/${tenantId}/${proposalId}/proposal.pdf`;
 }
 
@@ -362,9 +357,10 @@ async function isUrlAccessible(url: string): Promise<boolean> {
   }
 }
 
-async function generateSimpleProposalPdfBuffer(
-  proposal: { id: string; [key: string]: unknown },
-): Promise<Buffer> {
+async function generateSimpleProposalPdfBuffer(proposal: {
+  id: string;
+  [key: string]: unknown;
+}): Promise<Buffer> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const marginX = 48;
   let y = 64;
@@ -373,7 +369,9 @@ async function generateSimpleProposalPdfBuffer(
   const clientName = String(proposal.clientName || "Cliente nao informado");
   const proposalCode = String(proposal.code || proposal.id);
   const status = String(proposal.status || "N/A");
-  const totalValue = toNumber(proposal.totalValue ?? proposal.total ?? proposal.value);
+  const totalValue = toNumber(
+    proposal.totalValue ?? proposal.total ?? proposal.value,
+  );
   const validUntil = toDate(proposal.validUntil);
   const notes = String(proposal.customNotes || "").trim();
 
@@ -413,9 +411,10 @@ async function generateSimpleProposalPdfBuffer(
   return Buffer.from(arrayBuffer);
 }
 
-async function generateProposalPdfBuffer(
-  proposal: { id: string; [key: string]: unknown },
-): Promise<Buffer> {
+async function generateProposalPdfBuffer(proposal: {
+  id: string;
+  [key: string]: unknown;
+}): Promise<Buffer> {
   const configuredRenderer = String(process.env.PDF_RENDERER || "jspdf")
     .trim()
     .toLowerCase();
@@ -440,10 +439,16 @@ async function getOrGenerateProposalPdf(
 
   const bucket = getStorage().bucket();
   const standardPath = buildProposalPdfStoragePath(tenantId, proposal.id);
-  const attachments = Array.isArray(proposal.attachments) ? proposal.attachments : [];
+  const attachments = Array.isArray(proposal.attachments)
+    ? proposal.attachments
+    : [];
   const attachmentPdfUrl = attachments
     .map((attachment) => {
-      const typedAttachment = attachment as { name?: unknown; type?: unknown; url?: unknown };
+      const typedAttachment = attachment as {
+        name?: unknown;
+        type?: unknown;
+        url?: unknown;
+      };
       const name = String(typedAttachment.name || "").toLowerCase();
       const type = String(typedAttachment.type || "").toLowerCase();
       if (type === "pdf" || name.endsWith(".pdf")) {
@@ -483,9 +488,7 @@ async function getOrGenerateProposalPdf(
         parseStoragePathFromUrl(existingPdfUrl),
         parseStoragePathFromUrl(attachmentPdfUrl || ""),
         standardPath,
-      ].filter(
-        (value): value is string => Boolean(value),
-      ),
+      ].filter((value): value is string => Boolean(value)),
     ),
   );
 
@@ -527,7 +530,8 @@ async function getOrGenerateProposalPdf(
     const lock = data?.pdfGenerationLock;
     const lockDate = toDate(lock?.lockedAt);
     const lockIsStale =
-      !lockDate || Date.now() - lockDate.getTime() > PDF_GENERATION_LOCK_TIMEOUT_MS;
+      !lockDate ||
+      Date.now() - lockDate.getTime() > PDF_GENERATION_LOCK_TIMEOUT_MS;
     const isLockedByOther =
       !!lock &&
       !lockIsStale &&
@@ -576,7 +580,8 @@ async function getOrGenerateProposalPdf(
       }
 
       if (refreshedUrl && (await isUrlAccessible(refreshedUrl))) {
-        const resolvedPath = parseStoragePathFromUrl(refreshedUrl) || standardPath;
+        const resolvedPath =
+          parseStoragePathFromUrl(refreshedUrl) || standardPath;
         return { pdfUrl: refreshedUrl, pdfPath: resolvedPath };
       }
     }
@@ -650,7 +655,9 @@ async function getTransactionsFromCollection(
       error,
     );
     try {
-      const fallback = await collectionRef.where("tenantId", "==", tenantId).get();
+      const fallback = await collectionRef
+        .where("tenantId", "==", tenantId)
+        .get();
       docs = fallback.docs.filter((doc) => {
         const data = doc.data() as any;
         const createdAt = toDate(data.createdAt);
@@ -724,7 +731,11 @@ async function queryWalletsForTenant(
   const snap = tenantSnap && !tenantSnap.empty ? tenantSnap : companySnap;
 
   if (!snap || snap.empty) {
-    console.log("[WhatsApp] wallets found", { tenantId, count: 0, totalBalance: 0 });
+    console.log("[WhatsApp] wallets found", {
+      tenantId,
+      count: 0,
+      totalBalance: 0,
+    });
     return { totalBalance: 0, count: 0 };
   }
 
@@ -749,7 +760,9 @@ async function queryWalletsForTenant(
   return { totalBalance, count: docsToSum.length };
 }
 
-async function getWalletSummary(tenantId: string): Promise<{ totalBalance: number }> {
+async function getWalletSummary(
+  tenantId: string,
+): Promise<{ totalBalance: number }> {
   try {
     const result = await queryWalletsForTenant(db, tenantId);
     return { totalBalance: result.totalBalance };
@@ -772,8 +785,6 @@ async function getOrCreateSession(
 
   if (sessionSnap.exists) {
     const data = sessionSnap.data() as SessionData;
-    // Check expiration (Firestore Timestamp to millis)
-    // Admin SDK Timestamp has toMillis()
     let expiresAt = 0;
     if (data.expiresAt instanceof Timestamp) {
       expiresAt = data.expiresAt.toMillis();
@@ -782,7 +793,6 @@ async function getOrCreateSession(
     }
 
     if (now > expiresAt) {
-      // Expired: Reset
       return {
         phoneNumber,
         userId,
@@ -794,7 +804,6 @@ async function getOrCreateSession(
     return data;
   }
 
-  // Create new
   const newSession: SessionData = {
     phoneNumber,
     userId,
@@ -849,12 +858,7 @@ async function logAction(
 const RATE_LIMIT_MINUTE = Number(process.env.WHATSAPP_MINUTE_LIMIT) || 10;
 const RATE_LIMIT_DAY = Number(process.env.WHATSAPP_DAILY_LIMIT) || 200;
 const MONTHLY_LIMIT = Number(process.env.WHATSAPP_MONTHLY_LIMIT) || 2000;
-const COST_PER_MSG = Number(process.env.WHATSAPP_COST_PER_MESSAGE) || 0.35;
 
-/**
- * Checks and updates the rate limit for a phone number.
- * Returns true if allowed, false if blocked.
- */
 async function checkRateLimit(phoneNumber: string): Promise<boolean> {
   const now = new Date();
   const ref = db.collection("whatsappRateLimit").doc(phoneNumber);
@@ -869,7 +873,6 @@ async function checkRateLimit(phoneNumber: string): Promise<boolean> {
         dayCount: 0,
       };
 
-  // Convert timestamps to millis for logic
   const minStart =
     data.minuteWindowStart instanceof Timestamp
       ? data.minuteWindowStart.toMillis()
@@ -879,28 +882,22 @@ async function checkRateLimit(phoneNumber: string): Promise<boolean> {
       ? data.dayWindowStart.toMillis()
       : now.getTime();
 
-  // Minute Window Logic
   if (now.getTime() - minStart > 60 * 1000) {
-    // Reset window
     data.minuteWindowStart = Timestamp.fromDate(now);
     data.minuteCount = 1;
   } else {
     data.minuteCount = (data.minuteCount || 0) + 1;
   }
 
-  // Day Window Logic
   if (now.getTime() - dayStart > 24 * 60 * 60 * 1000) {
-    // Reset window
     data.dayWindowStart = Timestamp.fromDate(now);
     data.dayCount = 1;
   } else {
     data.dayCount = (data.dayCount || 0) + 1;
   }
 
-  // Update DB immediately
   await ref.set(data, { merge: true });
 
-  // Check Limits
   if (data.minuteCount > RATE_LIMIT_MINUTE) {
     console.log(`Rate limit exceeded (minute) for ${phoneNumber}`);
     return false;
@@ -919,10 +916,6 @@ function getCurrentMonthKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/**
- * Checks if the tenant has exceeded their monthly quota.
- * Returns true if allowed, false if blocked.
- */
 async function checkUsage(
   companyId: string,
   limitOverride?: number,
@@ -936,13 +929,11 @@ async function checkUsage(
     .doc(currentMonth);
   const snap = await ref.get();
 
-  // Use tenant limit if present, otherwise default to global limit
   const limit = limitOverride ?? MONTHLY_LIMIT;
 
   if (snap.exists) {
     const data = snap.data()!;
 
-    // If overage is allowed, we don't block
     if (allowOverage) {
       return true;
     }
@@ -952,21 +943,15 @@ async function checkUsage(
     }
   }
 
-  // If no doc for this month exists, usage is 0, so allowed.
   return true;
 }
 
-/**
- * Increments the usage usage for the tenant and calculates costs.
- * Checks for thresholds (80%, 100%) and sends alerts if needed.
- */
 async function incrementUsage(
   companyId: string,
   limitOverride?: number,
   userPhoneNumber?: string,
 ) {
   const currentMonth = getCurrentMonthKey();
-  // New Path: whatsappUsage/{tenantId}/months/{YYYY-MM}
   const ref = db
     .collection("whatsappUsage")
     .doc(companyId)
@@ -980,8 +965,6 @@ async function incrementUsage(
   let alertToSend: string | null = null;
 
   if (!snap.exists) {
-    // Start of new month (or first ever message for this month)
-    // No reset needed, just create new doc.
     newData = {
       companyId,
       month: currentMonth,
@@ -996,8 +979,6 @@ async function incrementUsage(
     };
   } else {
     const data = snap.data()!;
-
-    // Increment
     const newTotal = (data.totalMessages || 0) + 1;
 
     let overageMessages = 0;
@@ -1008,18 +989,14 @@ async function incrementUsage(
       includedMessages = limit;
     }
 
-    // Preserve existing flags
     let eightyPercentAlertSent = data.eightyPercentAlertSent === true;
     let limitReachedAlertSent = data.limitReachedAlertSent === true;
 
-    // Check Alerts
-    // 1. 80% Alert
     if (newTotal >= limit * 0.8 && !eightyPercentAlertSent) {
       alertToSend = `⚠️ Alerta de Uso: Você atingiu 80% do seu limite mensal de WhatsApp (${newTotal}/${limit}). Fique atento!`;
       eightyPercentAlertSent = true;
     }
 
-    // 2. 100% Alert (Start of Overage)
     if (newTotal > limit && !limitReachedAlertSent) {
       alertToSend = `🚫 Seu limite mensal foi atingido (${limit} mensagens). O uso excedente será cobrado no próximo ciclo.`;
       limitReachedAlertSent = true;
@@ -1043,287 +1020,6 @@ async function incrementUsage(
     await logAction(userPhoneNumber, "system", "usage_alert_sent", {
       message: alertToSend,
     });
-  }
-}
-
-// ============================================
-// ROUTE HANDLER
-// ============================================
-
-export async function GET(req: NextRequest) {
-  const searchParams = req.nextUrl.searchParams;
-  const mode = searchParams.get("hub.mode");
-  const token = searchParams.get("hub.verify_token");
-  const challenge = searchParams.get("hub.challenge");
-
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
-
-  if (!VERIFY_TOKEN) {
-    console.error("WHATSAPP_VERIFY_TOKEN is not defined");
-    return new NextResponse("Internal Server Error", { status: 500 });
-  }
-
-  if (mode && token) {
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("WEBHOOK_VERIFIED");
-      return new NextResponse(challenge, { status: 200 });
-    } else {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-  }
-
-  return new NextResponse("Hello WhatsApp", { status: 200 });
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
-
-    if (!APP_SECRET) {
-      console.error("WHATSAPP_APP_SECRET is not defined");
-      return new NextResponse("Server Configuration Error", { status: 500 });
-    }
-
-    const signature = req.headers.get("x-hub-signature-256");
-    const rawBody = await req.text();
-
-    if (!verifyWhatsAppSignature(rawBody, signature, APP_SECRET)) {
-      console.log("Invalid WhatsApp signature");
-      return new NextResponse("Invalid signature", { status: 401 });
-    }
-
-    const body = JSON.parse(rawBody) as WebhookPayload;
-
-    if (body.object === "whatsapp_business_account") {
-      if (
-        body.entry &&
-        body.entry[0].changes &&
-        body.entry[0].changes[0].value.messages &&
-        body.entry[0].changes[0].value.messages[0]
-      ) {
-        const message = body.entry[0].changes[0].value.messages[0];
-        const from = message.from;
-        const phone = normalizePhoneNumber(from);
-        const text = message.text?.body || "";
-
-        // 1. Check Rate Limit (Before DB user lookup to save reads if spammed)
-        const isRateLimitOk = await checkRateLimit(from);
-        if (!isRateLimitOk) {
-          await sendWhatsAppMessage(
-            from,
-            "⏳ Limite temporário de uso atingido. Tente novamente em alguns minutos.",
-          );
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        // 2. Authenticate User via deterministic phone index
-        if (!phone) {
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const phoneIndexSnap = await db.collection("phoneNumberIndex").doc(phone).get();
-        if (!phoneIndexSnap.exists) {
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const phoneIndexData = phoneIndexSnap.data() as
-          | { userId?: string; tenantId?: string }
-          | undefined;
-        const indexedUserId = String(phoneIndexData?.userId || "").trim();
-        const indexedTenantId = String(phoneIndexData?.tenantId || "").trim();
-
-        if (!indexedUserId || !indexedTenantId) {
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const userDoc = await db.collection("users").doc(indexedUserId).get();
-        if (!userDoc.exists) {
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const user = { id: userDoc.id, ...userDoc.data() } as any;
-        if (user.status === "inactive") {
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        if (user.tenantId && user.tenantId !== indexedTenantId) {
-          console.warn("[WhatsApp] phone index tenant mismatch", {
-            phone,
-            userId: user.id,
-            userTenantId: user.tenantId,
-            indexTenantId: indexedTenantId,
-          });
-          await sendWhatsAppMessage(from, "Seu número não está vinculado");
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const tenantId = indexedTenantId;
-        console.log("[WhatsApp] resolved phone", { phone, userId: user.id, tenantId });
-
-        // 3. FEATURE FLAG CHECK & TENANT LIMITS
-        const tenantRef = db.collection("tenants").doc(tenantId);
-        const tenantSnap = await tenantRef.get();
-
-        if (!tenantSnap.exists) {
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const tenantData = tenantSnap.data()!;
-
-        // Check if Enabled
-
-        if (tenantData.whatsappEnabled !== true) {
-          await sendWhatsAppMessage(
-            from,
-            "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
-          );
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        // Check Monthly Usage with specific limit using Overage Logic
-        const limit = tenantData.whatsappMonthlyLimit || MONTHLY_LIMIT;
-        const allowOverage = tenantData.whatsappAllowOverage === true;
-
-        const isUsageOk = await checkUsage(tenantId, limit, allowOverage);
-
-        if (!isUsageOk) {
-          await sendWhatsAppMessage(
-            from,
-            "⚠️ O limite mensal de uso do WhatsApp foi atingido. Entre em contato com o administrador.",
-          );
-          return new NextResponse("OK", { status: 200 });
-        }
-
-        const normalizedText = text.toLowerCase().trim();
-
-        // 4. Get/Create Session
-        const session = await getOrCreateSession(from, user.id);
-
-        let actionProcessed = false;
-
-        // 5. Logic Router
-
-        // A. List Proposals
-        if (
-          ["ver propostas", "minhas propostas", "listar propostas"].some((t) =>
-            normalizedText.includes(t),
-          )
-        ) {
-          await handleListProposals(from, tenantId, user.id);
-          actionProcessed = true;
-        }
-
-        // B. Contextual Selection (Number or #ID)
-        else if (/^#?(\d+)$/.test(normalizedText)) {
-          const inputId = normalizedText.replace("#", "").trim();
-
-          let handled = false;
-          // If session is waiting for selection and input is a small integer (1-10)
-          if (
-            session.lastAction === "awaiting_proposal_selection" &&
-            session.proposalsShown
-          ) {
-            const index = parseInt(inputId);
-            const selected = session.proposalsShown.find(
-              (p) => p.index === index,
-            );
-
-            if (selected) {
-              await handleSendPdf(from, tenantId, selected.id, user.id);
-              handled = true;
-            }
-          }
-
-          if (!handled) {
-            // Fallback: Try as direct ID
-            await handleSendPdf(from, tenantId, inputId, user.id);
-          }
-          actionProcessed = true;
-        }
-
-        // C. Financial Summary
-        else if (
-          ["financeiro de hoje", "resumo de hoje", "movimento do dia"].some(
-            (t) => normalizedText.includes(t),
-          )
-        ) {
-          // Role Check
-          if (!["admin", "superadmin"].includes(user.role)) {
-            await sendWhatsAppMessage(
-              from,
-              "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
-            );
-            await logAction(from, user.id, "unauthorized_access_attempt", {
-              target: "financial_summary",
-            });
-          } else {
-            await handleFinancialDaySummary(from, tenantId, user.id);
-          }
-          actionProcessed = true;
-        }
-
-        // D. Balance
-        else if (
-          ["saldo", "saldo atual", "quanto tenho", "caixa"].some((t) =>
-            normalizedText.includes(t),
-          )
-        ) {
-          // Role Check
-          if (!["admin", "superadmin"].includes(user.role)) {
-            await sendWhatsAppMessage(
-              from,
-              "Você não tem permissão para acessar o saldo pelo WhatsApp.",
-            );
-            await logAction(from, user.id, "unauthorized_access_attempt", {
-              target: "balance",
-            });
-          } else {
-            await handleCurrentBalance(from, tenantId, user.id);
-          }
-          actionProcessed = true;
-        }
-
-        // E. Fallback / Greeting
-        else {
-          if (
-            ["cadastrar", "editar", "criar", "alterar", "excluir"].some((t) =>
-              normalizedText.includes(t),
-            )
-          ) {
-            await sendWhatsAppMessage(
-              from,
-              "Essa operação não pode ser realizada pelo WhatsApp. Acesse o sistema para continuar.",
-            );
-          } else {
-            await sendWhatsAppMessage(
-              from,
-              "Olá! Sou seu assistente ERP. Posso ajudar com:\n\n1️⃣ 'Ver propostas'\n2️⃣ 'Financeiro de hoje'\n3️⃣ 'Saldo atual'\n\nOu digite o número da proposta (#ID) para PDF.",
-            );
-            // Ensure session is reset/idle if they say something random
-            await updateSession(from, {
-              lastAction: "idle",
-              proposalsShown: [],
-            });
-          }
-          actionProcessed = true; // Still counts as usage since we replied
-        }
-
-        // 6. Increment Usage if something was processed/replied
-        if (actionProcessed) {
-          await incrementUsage(tenantId, limit, from);
-        }
-      }
-    }
-
-    return new NextResponse("OK", { status: 200 });
-  } catch (error) {
-    console.error("Error processing webhook:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
 
@@ -1386,7 +1082,10 @@ async function handleSendPdf(
   });
 
   try {
-    const proposal = await getProposalByIdForTenant(tenantId, proposalIdOrFragment);
+    const proposal = await getProposalByIdForTenant(
+      tenantId,
+      proposalIdOrFragment,
+    );
 
     if (!proposal) {
       await sendWhatsAppMessage(to, "Não encontrei a proposta.");
@@ -1394,9 +1093,13 @@ async function handleSendPdf(
       return;
     }
 
-    const { pdfUrl, pdfPath } = await getOrGenerateProposalPdf(tenantId, proposal.id);
+    const { pdfUrl, pdfPath } = await getOrGenerateProposalPdf(
+      tenantId,
+      proposal.id,
+    );
     const caption = `Segue o PDF da proposta ${String(proposal.title || proposal.id)}`;
-    const supportsDocumentSend = process.env.WHATSAPP_SUPPORTS_DOCUMENT !== "false";
+    const supportsDocumentSend =
+      process.env.WHATSAPP_SUPPORTS_DOCUMENT !== "false";
 
     if (supportsDocumentSend) {
       try {
@@ -1406,7 +1109,10 @@ async function handleSendPdf(
           proposalId: proposal.id,
           tenantId,
           pdfPath,
-          error: documentError instanceof Error ? documentError.message : String(documentError),
+          error:
+            documentError instanceof Error
+              ? documentError.message
+              : String(documentError),
         });
         await sendWhatsAppMessage(to, `${caption}\n${pdfUrl}`);
       }
@@ -1422,7 +1128,10 @@ async function handleSendPdf(
     await updateSession(to, { lastAction: "idle", proposalsShown: [] });
   } catch (error) {
     console.error("[WhatsApp] Error in handleSendPdf:", error);
-    if (error instanceof Error && error.message === "PDF_GENERATION_IN_PROGRESS") {
+    if (
+      error instanceof Error &&
+      error.message === "PDF_GENERATION_IN_PROGRESS"
+    ) {
       await sendWhatsAppMessage(
         to,
         "O PDF está sendo gerado por outra solicitação. Tente novamente em alguns segundos.",
@@ -1496,3 +1205,273 @@ async function handleCurrentBalance(
     await sendWhatsAppMessage(to, "Saldo indisponível no momento.");
   }
 }
+
+// ============================================
+// ROUTE CONTROLLERS
+// ============================================
+
+export const verifyChallenge = async (req: Request, res: Response) => {
+  const mode = req.query["hub.mode"] as string;
+  const token = req.query["hub.verify_token"] as string;
+  const challenge = req.query["hub.challenge"] as string;
+
+  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+
+  if (!VERIFY_TOKEN) {
+    console.error("WHATSAPP_VERIFY_TOKEN is not defined");
+    return res.status(500).send("Internal Server Error");
+  }
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("WEBHOOK_VERIFIED");
+      return res.status(200).send(challenge);
+    } else {
+      return res.status(403).send("Forbidden");
+    }
+  }
+
+  return res.status(200).send("Hello WhatsApp");
+};
+
+export const handleWebhook = async (req: Request, res: Response) => {
+  try {
+    const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
+
+    if (!APP_SECRET) {
+      console.error("WHATSAPP_APP_SECRET is not defined");
+      return res.status(500).send("Server Configuration Error");
+    }
+
+    const signature = req.headers["x-hub-signature-256"] as string;
+
+    // We expect express middleware to populate req.rawBody
+    const rawBodyBuffer = (req as any).rawBody;
+    const rawBodyString = rawBodyBuffer
+      ? rawBodyBuffer.toString("utf8")
+      : JSON.stringify(req.body);
+
+    if (
+      !verifyWhatsAppSignature(
+        rawBodyBuffer || rawBodyString,
+        signature,
+        APP_SECRET,
+      )
+    ) {
+      console.log("Invalid WhatsApp signature");
+      return res.status(401).send("Invalid signature");
+    }
+
+    const body = req.body as WebhookPayload;
+
+    if (body.object === "whatsapp_business_account") {
+      if (
+        body.entry &&
+        body.entry[0].changes &&
+        body.entry[0].changes[0].value.messages &&
+        body.entry[0].changes[0].value.messages[0]
+      ) {
+        const message = body.entry[0].changes[0].value.messages[0];
+        const from = message.from;
+        const phone = normalizePhoneNumber(from);
+        const text = message.text?.body || "";
+
+        const isRateLimitOk = await checkRateLimit(from);
+        if (!isRateLimitOk) {
+          await sendWhatsAppMessage(
+            from,
+            "⏳ Limite temporário de uso atingido. Tente novamente em alguns minutos.",
+          );
+          return res.status(200).send("OK");
+        }
+
+        if (!phone) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        const phoneIndexSnap = await db
+          .collection("phoneNumberIndex")
+          .doc(phone)
+          .get();
+        if (!phoneIndexSnap.exists) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        const phoneIndexData = phoneIndexSnap.data() as
+          | { userId?: string; tenantId?: string }
+          | undefined;
+        const indexedUserId = String(phoneIndexData?.userId || "").trim();
+        const indexedTenantId = String(phoneIndexData?.tenantId || "").trim();
+
+        if (!indexedUserId || !indexedTenantId) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        const userDoc = await db.collection("users").doc(indexedUserId).get();
+        if (!userDoc.exists) {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        const user = { id: userDoc.id, ...userDoc.data() } as any;
+        if (user.status === "inactive") {
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        if (user.tenantId && user.tenantId !== indexedTenantId) {
+          console.warn("[WhatsApp] phone index tenant mismatch", {
+            phone,
+            userId: user.id,
+            userTenantId: user.tenantId,
+            indexTenantId: indexedTenantId,
+          });
+          await sendWhatsAppMessage(from, "Seu número não está vinculado");
+          return res.status(200).send("OK");
+        }
+
+        const tenantId = indexedTenantId;
+        console.log("[WhatsApp] resolved phone", {
+          phone,
+          userId: user.id,
+          tenantId,
+        });
+
+        const tenantRef = db.collection("tenants").doc(tenantId);
+        const tenantSnap = await tenantRef.get();
+
+        if (!tenantSnap.exists) {
+          return res.status(200).send("OK");
+        }
+
+        const tenantData = tenantSnap.data()!;
+
+        if (tenantData.whatsappEnabled !== true) {
+          await sendWhatsAppMessage(
+            from,
+            "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
+          );
+          return res.status(200).send("OK");
+        }
+
+        const limit = tenantData.whatsappMonthlyLimit || MONTHLY_LIMIT;
+        const allowOverage = tenantData.whatsappAllowOverage === true;
+
+        const isUsageOk = await checkUsage(tenantId, limit, allowOverage);
+
+        if (!isUsageOk) {
+          await sendWhatsAppMessage(
+            from,
+            "⚠️ O limite mensal de uso do WhatsApp foi atingido. Entre em contato com o administrador.",
+          );
+          return res.status(200).send("OK");
+        }
+
+        const normalizedText = text.toLowerCase().trim();
+
+        const session = await getOrCreateSession(from, user.id);
+
+        let actionProcessed = false;
+
+        if (
+          ["ver propostas", "minhas propostas", "listar propostas"].some((t) =>
+            normalizedText.includes(t),
+          )
+        ) {
+          await handleListProposals(from, tenantId, user.id);
+          actionProcessed = true;
+        } else if (/^#?(\d+)$/.test(normalizedText)) {
+          const inputId = normalizedText.replace("#", "").trim();
+
+          let handled = false;
+          if (
+            session.lastAction === "awaiting_proposal_selection" &&
+            session.proposalsShown
+          ) {
+            const index = parseInt(inputId);
+            const selected = session.proposalsShown.find(
+              (p) => p.index === index,
+            );
+
+            if (selected) {
+              await handleSendPdf(from, tenantId, selected.id, user.id);
+              handled = true;
+            }
+          }
+
+          if (!handled) {
+            await handleSendPdf(from, tenantId, inputId, user.id);
+          }
+          actionProcessed = true;
+        } else if (
+          ["financeiro de hoje", "resumo de hoje", "movimento do dia"].some(
+            (t) => normalizedText.includes(t),
+          )
+        ) {
+          if (!["admin", "superadmin"].includes(user.role)) {
+            await sendWhatsAppMessage(
+              from,
+              "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
+            );
+            await logAction(from, user.id, "unauthorized_access_attempt", {
+              target: "financial_summary",
+            });
+          } else {
+            await handleFinancialDaySummary(from, tenantId, user.id);
+          }
+          actionProcessed = true;
+        } else if (
+          ["saldo", "saldo atual", "quanto tenho", "caixa"].some((t) =>
+            normalizedText.includes(t),
+          )
+        ) {
+          if (!["admin", "superadmin"].includes(user.role)) {
+            await sendWhatsAppMessage(
+              from,
+              "Você não tem permissão para acessar o saldo pelo WhatsApp.",
+            );
+            await logAction(from, user.id, "unauthorized_access_attempt", {
+              target: "balance",
+            });
+          } else {
+            await handleCurrentBalance(from, tenantId, user.id);
+          }
+          actionProcessed = true;
+        } else {
+          if (
+            ["cadastrar", "editar", "criar", "alterar", "excluir"].some((t) =>
+              normalizedText.includes(t),
+            )
+          ) {
+            await sendWhatsAppMessage(
+              from,
+              "Essa operação não pode ser realizada pelo WhatsApp. Acesse o sistema para continuar.",
+            );
+          } else {
+            await sendWhatsAppMessage(
+              from,
+              "Olá! Sou seu assistente ERP. Posso ajudar com:\n\n1️⃣ 'Ver propostas'\n2️⃣ 'Financeiro de hoje'\n3️⃣ 'Saldo atual'\n\nOu digite o número da proposta (#ID) para PDF.",
+            );
+            await updateSession(from, {
+              lastAction: "idle",
+              proposalsShown: [],
+            });
+          }
+          actionProcessed = true;
+        }
+
+        if (actionProcessed) {
+          await incrementUsage(tenantId, limit, from);
+        }
+      }
+    }
+
+    return res.status(200).send("OK");
+  } catch (error) {
+    console.error("Error processing webhook:", error);
+    return res.status(500).send("Internal Server Error");
+  }
+};

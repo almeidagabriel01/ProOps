@@ -24,6 +24,7 @@ export { api } from "./api";
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
 export { checkDueDates } from "./checkDueDates";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
+export { reportWhatsappOverage } from "./reportWhatsappOverage";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

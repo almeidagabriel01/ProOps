@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
-import { FieldValue } from "firebase-admin/firestore";
-import { getAdminFirestore } from "@/lib/firebase-admin";
-
-export const dynamic = "force-dynamic";
+import { Request, Response } from "express";
+import { getStripe } from "../../stripe/stripeConfig";
+import { db } from "../../init";
+import * as admin from "firebase-admin";
 
 const WHATSAPP_OVERAGE_EVENT_NAME = "whatsapp_messages";
 
@@ -15,37 +13,29 @@ function getPreviousMonthKey(baseDate = new Date()): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function getStripeClient(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY is not configured");
-  }
-  return new Stripe(secretKey, {
-    apiVersion: "2024-11-20.acacia" as Stripe.LatestApiVersion,
-    typescript: true,
-  });
-}
-
-export async function POST(req: NextRequest) {
+export const reportWhatsappOverageManual = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const expectedSecret = process.env.CRON_SECRET;
-    const headerSecret = req.headers.get("X-Cron-Secret");
+    const headerSecret = req.headers["x-cron-secret"];
     if (!expectedSecret || headerSecret !== expectedSecret) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return res.status(401).send("Unauthorized");
     }
 
-    const body = (await req.json().catch(() => ({}))) as { month?: string };
-    const monthFromQuery = req.nextUrl.searchParams.get("month");
-    const month = String(body.month || monthFromQuery || getPreviousMonthKey()).trim();
+    const body = req.body || {};
+    const monthFromQuery = req.query.month;
+    const month = String(
+      body.month || monthFromQuery || getPreviousMonthKey(),
+    ).trim();
     if (!/^\d{4}-\d{2}$/.test(month)) {
-      return NextResponse.json(
-        { message: "Invalid month format. Expected YYYY-MM." },
-        { status: 400 },
-      );
+      return res
+        .status(400)
+        .json({ message: "Invalid month format. Expected YYYY-MM." });
     }
 
-    const db = getAdminFirestore();
-    const stripe = getStripeClient();
+    const stripe = getStripe();
     const tenantsSnap = await db
       .collection("tenants")
       .where("whatsappEnabled", "==", true)
@@ -89,7 +79,9 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const stripeCustomerId = String(tenantData?.stripeCustomerId || "").trim();
+        const stripeCustomerId = String(
+          tenantData?.stripeCustomerId || "",
+        ).trim();
         if (!stripeCustomerId) {
           errors.push({
             tenantId,
@@ -112,22 +104,23 @@ export async function POST(req: NextRequest) {
           {
             stripeReported: true,
             stripeEventId: event.identifier,
-            stripeReportedAt: FieldValue.serverTimestamp(),
+            stripeReportedAt: admin.firestore.FieldValue.serverTimestamp(),
             stripeReportIdempotencyKey: idempotencyKey,
             stripeSubscriptionId: tenantData?.stripeSubscriptionId || null,
-            updatedAt: FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true },
         );
 
         charged += 1;
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
         errors.push({ tenantId, message });
       }
     }
 
-    return NextResponse.json({
+    return res.json({
       month,
       processed,
       charged,
@@ -135,10 +128,7 @@ export async function POST(req: NextRequest) {
       errors,
     });
   } catch (error) {
-    console.error("[Cron] whatsapp overage report failed", error);
-    return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
-    );
+    console.error("[Cron api] whatsapp overage report failed", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
-}
+};
