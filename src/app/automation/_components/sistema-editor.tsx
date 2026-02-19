@@ -88,19 +88,38 @@ export function SistemaEditor({
     SistemaAmbienteTemplate[]
   >(sistema?.ambientes || []);
 
-  // Update local state when prop changes (for re-opening or id switch)
-  React.useEffect(() => {
-    if (sistema) {
-      setName(sistema.name);
-      setDescription(sistema.description || "");
+  // Track which system ID we are currently editing to prevent overwriting local state
+  // when parent refreshes data but we are still on the same system.
+  const [currentSystemId, setCurrentSystemId] = React.useState<string | null>(
+    null,
+  );
 
-      const loadedAmbientes = sistema.ambientes || [];
-      setConfigAmbientes(loadedAmbientes);
+  // Update local state ONLY when the system ID changes (or we switch between new/edit)
+  React.useEffect(() => {
+    const incomingId = sistema?.id || "new";
+
+    if (incomingId !== currentSystemId) {
+      if (sistema) {
+        setName(sistema.name);
+        setDescription(sistema.description || "");
+        const loadedAmbientes = sistema.ambientes || [];
+        setConfigAmbientes(loadedAmbientes);
+      } else {
+        // Reset for new system
+        setName("");
+        setDescription("");
+        setConfigAmbientes([]);
+      }
+      setCurrentSystemId(incomingId);
     }
-  }, [sistema]);
+  }, [sistema, currentSystemId]);
 
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
+
+  // Track pending environment creation to ensure data consistency
+  const [pendingAmbienteCreationId, setPendingAmbienteCreationId] =
+    React.useState<string | null>(null);
 
   // Initialize Active Environment
   const [activeAmbienteId, setActiveAmbienteId] = React.useState<string | null>(
@@ -112,6 +131,26 @@ export function SistemaEditor({
       setActiveAmbienteId(initialAmbienteId);
     }
   }, [initialAmbienteId]);
+
+  // Effect to handle pending environment creation
+  React.useEffect(() => {
+    if (pendingAmbienteCreationId) {
+      // check if it exists in allAmbientes
+      const exists = allAmbientes.some(
+        (a) => a.id === pendingAmbienteCreationId,
+      );
+      if (exists) {
+        // Now it's safe to add to config and close loader
+        addAmbiente(pendingAmbienteCreationId);
+        setIsSubmittingAmbiente(false);
+        setIsCreatingAmbiente(false);
+        setNewAmbienteName(""); // Clear input
+        setPendingAmbienteCreationId(null); // Clear pending state
+        toast.success("Ambiente criado e adicionado!");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAmbientes, pendingAmbienteCreationId]);
 
   // Search State for Products
   const [productSearch, setProductSearch] = React.useState("");
@@ -224,19 +263,21 @@ export function SistemaEditor({
       // without parent help, but we can proceed to add it to our config.
       // The parent refresh (via onAmbienteCreated) will update allAmbientes prop eventually.
 
-      // Wait a small tick to ensuring parent update or just rely on state update
+      // Notify parent to refresh list
+      if (onAmbienteCreated) {
+        onAmbienteCreated();
+      }
 
-      // Add to config
-      addAmbiente(newAmbiente.id);
+      // Instead of adding immediately, we set a pending ID.
+      // The useEffect will pick this up when allAmbientes is updated.
+      setPendingAmbienteCreationId(newAmbiente.id);
 
-      toast.success("Ambiente criado e adicionado!");
-      setIsCreatingAmbiente(false);
-      setNewAmbienteName("");
+      // We do NOT close the dialog or stop loading here.
+      // Waiting for data consistency.
     } catch (error) {
       console.error("Error creating ambiente:", error);
       toast.error("Erro ao criar ambiente");
-    } finally {
-      setIsSubmittingAmbiente(false);
+      setIsSubmittingAmbiente(false); // Only stop loading on error
     }
   };
 

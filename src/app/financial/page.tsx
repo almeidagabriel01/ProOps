@@ -224,6 +224,7 @@ export default function FinancialPage() {
     registerPartialPayment,
     transactions,
     refreshData,
+    wallets,
   } = useFinancialData();
 
   // Delete confirmation dialog state
@@ -429,7 +430,7 @@ export default function FinancialPage() {
   };
 
   return (
-    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]">
+    <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
       {/* Header with Balance */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -573,6 +574,7 @@ export default function FinancialPage() {
         // In byDueDate mode, use compact list view
         <TransactionListByDueDate
           transactions={sortedTransactions}
+          allTransactions={transactions}
           canEdit={canEdit}
           canDelete={canDelete}
           onDelete={openDeleteDialog}
@@ -583,6 +585,9 @@ export default function FinancialPage() {
           onToggleSelectAll={toggleSelectAll}
           onSort={requestSort}
           sortConfig={sortConfig}
+          onRegisterPartialPayment={registerPartialPayment}
+          onReload={() => refreshData(true)}
+          wallets={wallets}
         />
       ) : (
         <TransactionListInfinite
