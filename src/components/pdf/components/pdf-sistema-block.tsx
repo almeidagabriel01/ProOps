@@ -36,115 +36,117 @@ function PdfSistemaHead({
   const ambientes = resolveSistemaAmbientes(sistema);
 
   return (
-    <table
-      style={{
-        width: "100%",
-        borderCollapse: "collapse",
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      <tbody>
-        <tr>
-          <td
-            valign="top"
-            style={{
-              width: iconColumnWidth,
-              verticalAlign: "top",
-              padding: 0,
-              paddingRight: iconPaddingRight,
-              margin: 0,
-            }}
-          >
-            <div
-              data-pdf-system-icon="1"
-              className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
-              style={{ backgroundColor: primaryColor }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={iconClass}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                />
-              </svg>
-            </div>
-          </td>
-          <td
-            valign="top"
-            style={{
-              verticalAlign: "top",
-              padding: 0,
-              margin: 0,
-            }}
-          >
-            <table
-              data-pdf-system-head="1"
+    <div>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          margin: 0,
+          padding: 0,
+        }}
+      >
+        <tbody>
+          <tr>
+            <td
+              valign="top"
               style={{
-                borderCollapse: "collapse",
-                width: "auto",
+                width: iconColumnWidth,
+                verticalAlign: "top",
+                padding: 0,
+                paddingRight: iconPaddingRight,
+                margin: 0,
               }}
             >
-              <tbody>
-                <tr>
-                  <td style={{ padding: 0 }}>
-                    <h2
-                      data-pdf-system-title="1"
-                      className={titleClassName}
-                      style={{
-                        color: primaryColor,
-                        margin: 0,
-                        lineHeight: titleLineHeight,
-                      }}
+              <div
+                data-pdf-system-icon="1"
+                className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
+                style={{ backgroundColor: primaryColor }}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={iconClass}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
+                </svg>
+              </div>
+            </td>
+            <td
+              valign="top"
+              style={{
+                verticalAlign: "top",
+                padding: 0,
+                margin: 0,
+              }}
+            >
+              <table
+                data-pdf-system-head="1"
+                style={{
+                  borderCollapse: "collapse",
+                  width: "auto",
+                }}
+              >
+                <tbody>
+                  <tr>
+                    <td style={{ padding: 0 }}>
+                      <h2
+                        data-pdf-system-title="1"
+                        className={titleClassName}
+                        style={{
+                          color: primaryColor,
+                          margin: 0,
+                          lineHeight: titleLineHeight,
+                        }}
+                      >
+                        {sistema.sistemaName}
+                      </h2>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      data-pdf-padding-top="10px"
+                      style={{ padding: 0, paddingTop: "10px" }}
                     >
-                      {sistema.sistemaName}
-                    </h2>
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    data-pdf-padding-top="10px"
-                    style={{ padding: 0, paddingTop: "10px" }}
-                  >
-                    <div
-                      data-pdf-ambiente-list="1"
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      {ambientes.map((amb, i) => (
-                        <PdfAmbienteTag
-                          key={`${amb.ambienteId}-${i}`}
-                          ambienteName={amb.ambienteName}
-                          primaryColor={primaryColor}
-                          scale={tagScale}
-                        />
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                      <div
+                        data-pdf-ambiente-list="1"
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        {ambientes.map((amb, i) => (
+                          <PdfAmbienteTag
+                            key={`${amb.ambienteId}-${i}`}
+                            ambienteName={amb.ambienteName}
+                            primaryColor={primaryColor}
+                            scale={tagScale}
+                          />
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-            {sistema.description && (
-              <p className="text-xs text-gray-600 mt-2 leading-relaxed">
-                {sistema.description}
-              </p>
-            )}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      {sistema.description && (
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+          {sistema.description}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -191,11 +193,16 @@ export function PdfSistemaBlock({
               (p) => p.systemInstanceId === currentInstanceId,
             );
 
-            if (scopeProducts.length === 0 && (!sistema.ambientes || sistema.ambientes.length === 0)) {
+            if (
+              scopeProducts.length === 0 &&
+              (!sistema.ambientes || sistema.ambientes.length === 0)
+            ) {
               scopeProducts = products;
             }
 
-            const activeProducts = scopeProducts.filter((product) => !product._isInactive);
+            const activeProducts = scopeProducts.filter(
+              (product) => !product._isInactive,
+            );
             if (activeProducts.length === 0) return null;
 
             return (
@@ -230,7 +237,10 @@ export function PdfSistemaBlock({
               <span className="font-semibold text-gray-700 text-sm">
                 Subtotal do Sistema:
               </span>
-              <span className="text-lg font-bold" style={{ color: primaryColor }}>
+              <span
+                className="text-lg font-bold"
+                style={{ color: primaryColor }}
+              >
                 {formatCurrency(sistemaSubtotal)}
               </span>
             </div>
@@ -366,13 +376,19 @@ export function PdfAmbienteHeader({
       }}
     >
       <div className="flex items-center w-full">
-        <div className="h-px flex-1" style={{ backgroundColor: `${primaryColor}20` }} />
+        <div
+          className="h-px flex-1"
+          style={{ backgroundColor: `${primaryColor}20` }}
+        />
         <PdfAmbienteTag
           ambienteName={ambienteName}
           primaryColor={primaryColor}
           scale={1.2}
         />
-        <div className="h-px flex-1" style={{ backgroundColor: `${primaryColor}20` }} />
+        <div
+          className="h-px flex-1"
+          style={{ backgroundColor: `${primaryColor}20` }}
+        />
       </div>
 
       {description && (
