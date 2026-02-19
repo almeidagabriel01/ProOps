@@ -1,13 +1,7 @@
 import React from "react";
+import { pdfFontOptionsWithId } from "@/services/pdf/pdf-fonts";
 
-export const fontOptions = [
-  { value: "'Inter', sans-serif", label: "Inter (Moderna)" },
-  { value: "'Playfair Display', serif", label: "Playfair Display (Elegante)" },
-  { value: "Georgia, serif", label: "Georgia (Clássica)" },
-  { value: "'Roboto', sans-serif", label: "Roboto (Clean)" },
-  { value: "'Lato', sans-serif", label: "Lato (Profissional)" },
-  { value: "'Montserrat', sans-serif", label: "Montserrat (Moderna)" },
-];
+export const fontOptions = pdfFontOptionsWithId;
 
 export const themeOptions = [
   {
@@ -295,3 +289,4 @@ export const PdfThemeDecorations: React.FC<{
       return null;
   }
 };
+

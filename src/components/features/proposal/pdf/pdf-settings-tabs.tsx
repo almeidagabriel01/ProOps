@@ -7,15 +7,9 @@ import { Select } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Palette, Layout, Type as TypeIcon } from "lucide-react";
 import { ProposalPdfSettings } from "@/types";
+import { pdfFontOptionsWithId } from "@/services/pdf/pdf-fonts";
 
-export const fontOptions = [
-  { value: "'Inter', sans-serif", label: "Inter (Moderna)" },
-  { value: "'Playfair Display', serif", label: "Playfair Display (Elegante)" },
-  { value: "Georgia, serif", label: "Georgia (Clássica)" },
-  { value: "'Roboto', sans-serif", label: "Roboto (Clean)" },
-  { value: "'Lato', sans-serif", label: "Lato (Profissional)" },
-  { value: "Arial, sans-serif", label: "Arial (Simples)" },
-];
+export const fontOptions = pdfFontOptionsWithId;
 
 export const themeOptions = [
   {
@@ -198,7 +192,7 @@ export function PdfSettingsTabs({
             }
           >
             {fontOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.id} value={opt.value}>
                 {opt.label}
               </option>
             ))}
@@ -222,3 +216,5 @@ export function PdfSettingsTabs({
     </Tabs>
   );
 }
+
+

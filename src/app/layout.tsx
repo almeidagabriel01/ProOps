@@ -1,7 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Geist, Geist_Mono } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Inter,
+  Lato,
+  Montserrat,
+  Playfair_Display,
+  Roboto,
+} from "next/font/google";
 import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
 import { ToastContainer } from "react-toastify";
@@ -23,6 +31,41 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const interPdf = Inter({
+  variable: "--font-pdf-inter",
+  subsets: ["latin"],
+  display: "block",
+  weight: ["400", "500", "600", "700"],
+});
+
+const robotoPdf = Roboto({
+  variable: "--font-pdf-roboto",
+  subsets: ["latin"],
+  display: "block",
+  weight: ["400", "500", "700"],
+});
+
+const latoPdf = Lato({
+  variable: "--font-pdf-lato",
+  subsets: ["latin"],
+  display: "block",
+  weight: ["400", "700"],
+});
+
+const montserratPdf = Montserrat({
+  variable: "--font-pdf-montserrat",
+  subsets: ["latin"],
+  display: "block",
+  weight: ["400", "500", "600", "700"],
+});
+
+const playfairPdf = Playfair_Display({
+  variable: "--font-pdf-playfair",
+  subsets: ["latin"],
+  display: "block",
+  weight: ["400", "500", "600", "700"],
 });
 
 export default function RootLayout({
@@ -48,7 +91,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
         <ThemeProvider>
           {isLandingPage ? (

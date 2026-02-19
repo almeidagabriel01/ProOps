@@ -8,7 +8,6 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { ProposalService } from "@/services/proposal-service";
 import { Proposal } from "@/types/proposal";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
-import { PAGE_WIDTH_PX, PAGE_HEIGHT_PX } from "@/utils/pdf-layout";
 import {
   PdfSection,
   CoverElement,
@@ -19,6 +18,12 @@ import {
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
 import { generatePaymentTerms, hydrateSections } from "./pdf-hydration-utils";
+import {
+  DEFAULT_PDF_FONT_FAMILY,
+  normalizePdfFontFamily,
+} from "@/services/pdf/pdf-fonts";
+import { savePdfBlob } from "@/services/pdf/render-to-pdf";
+import { renderProposalToPdfOffscreen } from "@/services/pdf/render-proposal-offscreen";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -71,7 +76,9 @@ export function useEditPdfPage() {
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#2563eb",
   );
-  const [fontFamily, setFontFamily] = useState("'Inter', sans-serif");
+  const [fontFamily, setFontFamily] = useState<string>(
+    DEFAULT_PDF_FONT_FAMILY,
+  );
 
   // Editable sections
   const [sections, setSections] = useState<PdfSection[]>([]);
@@ -205,7 +212,7 @@ export function useEditPdfPage() {
               } else {
                 setPrimaryColor(tenant.primaryColor || "#2563eb");
               }
-              if (s.fontFamily) setFontFamily(s.fontFamily);
+              if (s.fontFamily) setFontFamily(normalizePdfFontFamily(s.fontFamily));
               if (s.theme) setTheme(s.theme as ThemeType);
 
               if (s.coverImage) setCoverImage(s.coverImage);
@@ -260,7 +267,7 @@ export function useEditPdfPage() {
               } else {
                 setPrimaryColor(tenant.primaryColor || "#2563eb");
               }
-              if (s.fontFamily) setFontFamily(s.fontFamily);
+              if (s.fontFamily) setFontFamily(normalizePdfFontFamily(s.fontFamily));
               if (s.theme) setTheme(s.theme as ThemeType);
 
               if (s.coverImage) setCoverImage(s.coverImage);
@@ -312,7 +319,7 @@ export function useEditPdfPage() {
                 setTemplate(t);
                 setCoverTitle(p.title || "");
                 setPrimaryColor(t.primaryColor);
-                setFontFamily(t.fontFamily);
+                setFontFamily(normalizePdfFontFamily(t.fontFamily));
                 setTheme(t.theme as ThemeType);
                 if (t.coverImage) setCoverImage(t.coverImage);
 
@@ -433,180 +440,40 @@ export function useEditPdfPage() {
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
+      const result = await renderProposalToPdfOffscreen({
+        proposal: proposal as Proposal,
+        template,
+        tenant,
+        showCover: true,
+        customSettings: {
+          theme: theme as
+            | "modern"
+            | "classic"
+            | "minimal"
+            | "tech"
+            | "elegant"
+            | "bold"
+            | "livre",
+          primaryColor,
+          fontFamily,
+          coverTitle,
+          coverImage,
+          coverLogo,
+          coverImageOpacity,
+          coverImageFit,
+          coverImagePosition,
+          sections,
+          coverElements,
+          repeatHeader,
+          logoStyle,
+        },
+        rootHint: "pdf-edit-offscreen-root",
+        proposalTitle: proposal?.title,
+        tenantId: tenant?.id || proposal?.tenantId,
+        sourceLabel: "edit-preview",
+      });
 
-      // Select all specific page containers
-      const pageElements = document.querySelectorAll(".pdf-page-container");
-      if (!pageElements || pageElements.length === 0) {
-        alert("Erro: Páginas não encontradas");
-        return;
-      }
-
-      await document.fonts.ready;
-
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = 210;
-      const pageHeight = 297;
-
-      const container = document.createElement("div");
-      container.style.position = "absolute";
-      container.style.top = "-9999px";
-      container.style.left = "-9999px";
-      container.style.width = `${PAGE_WIDTH_PX}px`;
-      container.style.height = `${PAGE_HEIGHT_PX}px`;
-      document.body.appendChild(container);
-
-      try {
-        for (let i = 0; i < pageElements.length; i++) {
-          const originalPage = pageElements[i] as HTMLElement;
-          const clonedPage = originalPage.cloneNode(true) as HTMLElement;
-
-          clonedPage.style.transform = "none";
-          clonedPage.style.margin = "0";
-          clonedPage.style.boxShadow = "none";
-          clonedPage.style.width = `${PAGE_WIDTH_PX}px`;
-          clonedPage.style.height = `${PAGE_HEIGHT_PX}px`;
-
-          container.innerHTML = "";
-          container.appendChild(clonedPage);
-
-          const canvas = await html2canvas(clonedPage, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            backgroundColor: "#ffffff",
-            width: PAGE_WIDTH_PX,
-            height: PAGE_HEIGHT_PX,
-            windowWidth: PAGE_WIDTH_PX,
-            windowHeight: PAGE_HEIGHT_PX,
-            onclone: (clonedDoc) => {
-              console.log("🔧 [PDF DEBUG] Starting onclone fixes...");
-
-              const allElements = clonedDoc.querySelectorAll("*");
-              allElements.forEach((el) => {
-                const element = el as HTMLElement;
-                const cs = window.getComputedStyle(element);
-
-                const hasModernColor = (value: string) => {
-                  return (
-                    value &&
-                    (value.includes("lab(") ||
-                      value.includes("oklab(") ||
-                      value.includes("lch(") ||
-                      value.includes("oklch(") ||
-                      value.includes("color("))
-                  );
-                };
-
-                if (hasModernColor(cs.backgroundColor)) {
-                  element.style.backgroundColor = "#ffffff";
-                }
-                if (hasModernColor(cs.color)) {
-                  element.style.color = "#000000";
-                }
-                if (hasModernColor(cs.borderColor)) {
-                  element.style.borderColor = "transparent";
-                }
-                if (hasModernColor(cs.boxShadow)) {
-                  element.style.boxShadow = "none";
-                }
-              });
-
-              // FIX 1: EXTRA TAG ALIGNMENT - Find by searching for the exact image
-              console.log("🔧 [PDF DEBUG] Looking for EXTRA tag images...");
-              const extraImages =
-                clonedDoc.querySelectorAll('img[alt="EXTRA"]');
-              console.log(
-                `🔧 [PDF DEBUG] Found ${extraImages.length} EXTRA tag images`,
-              );
-
-              extraImages.forEach((img, index) => {
-                console.log(
-                  `🔧 [PDF DEBUG] Processing EXTRA image ${index + 1}`,
-                );
-                const imgEl = img as HTMLElement;
-                const tdParent = imgEl.closest("td");
-                const trParent = imgEl.closest("tr");
-
-                if (tdParent && trParent) {
-                  console.log(
-                    `🔧 [PDF DEBUG] Found TD and TR parents for EXTRA ${index + 1}`,
-                  );
-                  // Force the entire row to have middle alignment
-                  trParent.style.verticalAlign = "middle";
-
-                  // Find all TDs in this row and force middle alignment
-                  const allTdsInRow = trParent.querySelectorAll("td");
-                  allTdsInRow.forEach((td) => {
-                    const tdEl = td as HTMLElement;
-                    tdEl.style.verticalAlign = "middle";
-                    tdEl.style.lineHeight = "normal";
-                  });
-
-                  // Force the image itself
-                  imgEl.style.verticalAlign = "middle";
-                  imgEl.style.display = "block";
-                  console.log(
-                    `🔧 [PDF DEBUG] Applied middle alignment to EXTRA ${index + 1}`,
-                  );
-                } else {
-                  console.log(
-                    `🔧 [PDF DEBUG] WARNING: Could not find TD/TR parent for EXTRA ${index + 1}`,
-                  );
-                }
-              });
-
-              // FIX 2: SISTEMA TITLE SPACING - Find by looking for the spacer div
-              console.log(
-                "🔧 [PDF DEBUG] Looking for sistema title spacers...",
-              );
-              const spacerDivs = clonedDoc.querySelectorAll(
-                'div[style*="height: 12px"]',
-              );
-              console.log(
-                `🔧 [PDF DEBUG] Found ${spacerDivs.length} spacer divs`,
-              );
-
-              spacerDivs.forEach((div, index) => {
-                const divEl = div as HTMLElement;
-                console.log(`🔧 [PDF DEBUG] Processing spacer ${index + 1}`);
-                // Force the spacer to be visible
-                divEl.style.height = "12px";
-                divEl.style.minHeight = "12px";
-                divEl.style.display = "block";
-                divEl.style.width = "100%";
-                divEl.style.clear = "both";
-                divEl.style.fontSize = "0";
-                divEl.style.lineHeight = "0";
-                // Add a non-breaking space to force it to occupy space
-                if (!divEl.innerHTML || divEl.innerHTML.trim() === "") {
-                  divEl.innerHTML = "&nbsp;";
-                }
-                console.log(
-                  `🔧 [PDF DEBUG] Applied spacing to spacer ${index + 1}`,
-                );
-              });
-
-              console.log("🔧 [PDF DEBUG] Onclone fixes completed");
-            },
-          });
-
-          const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
-          if (i > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(imgData, "JPEG", 0, 0, pageWidth, pageHeight);
-        }
-      } finally {
-        document.body.removeChild(container);
-      }
-
-      pdf.save(
-        `proposta-${proposal?.title?.toLowerCase().replace(/\s+/g, "-") || "comercial"}.pdf`,
-      );
+      savePdfBlob(result.blob, result.filename);
     } catch (error) {
       console.error(error);
       alert("Erro ao gerar PDF");
@@ -744,3 +611,6 @@ export function useEditPdfPage() {
     isSavingDefault,
   };
 }
+
+
+

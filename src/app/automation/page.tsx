@@ -101,7 +101,8 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
   const { batchSize, enabled, resetKey } = options;
   const [visibleCount, setVisibleCount] = React.useState(batchSize);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [sentinelElement, setSentinelElement] = React.useState<HTMLDivElement | null>(null);
+  const [sentinelElement, setSentinelElement] =
+    React.useState<HTMLDivElement | null>(null);
   const observerRef = React.useRef<IntersectionObserver | null>(null);
   const hasUserInteractedRef = React.useRef(false);
   const wasIntersectingRef = React.useRef(false);
@@ -262,8 +263,10 @@ export default function AutomationAdminPage() {
   // Delete State
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [sistemaSort, setSistemaSort] = React.useState<SortOption>("alphabetical");
-  const [ambienteSort, setAmbienteSort] = React.useState<SortOption>("alphabetical");
+  const [sistemaSort, setSistemaSort] =
+    React.useState<SortOption>("alphabetical");
+  const [ambienteSort, setAmbienteSort] =
+    React.useState<SortOption>("alphabetical");
 
   const sortedSistemas = React.useMemo(() => {
     return sortItems(sistemas, sistemaSort);
@@ -362,6 +365,7 @@ export default function AutomationAdminPage() {
             }
             loadData(true);
           }}
+          onAmbienteCreated={() => loadData(true)}
         />
       </motion.div>
     );
@@ -449,7 +453,9 @@ export default function AutomationAdminPage() {
                       }
                       inputSize="sm"
                     >
-                      <option value="alphabetical">Ordem alfabética (A-Z)</option>
+                      <option value="alphabetical">
+                        Ordem alfabética (A-Z)
+                      </option>
                       <option value="createdDesc">
                         Mais recentes primeiro
                       </option>
@@ -500,7 +506,9 @@ export default function AutomationAdminPage() {
                       }
                       inputSize="sm"
                     >
-                      <option value="alphabetical">Ordem alfabética (A-Z)</option>
+                      <option value="alphabetical">
+                        Ordem alfabética (A-Z)
+                      </option>
                       <option value="createdDesc">
                         Mais recentes primeiro
                       </option>

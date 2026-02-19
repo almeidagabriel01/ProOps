@@ -14,11 +14,9 @@ import { ProposalPdfSettings, ProposalSection } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Download, FileDown, Loader2 } from "lucide-react";
-import { PdfCoverPage } from "./pdf/pdf-cover-page";
 import { PdfSettingsTabs, usePdfGenerator } from "./pdf";
-import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enriched-products";
-import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import { DEFAULT_PDF_FONT_FAMILY } from "@/services/pdf/pdf-fonts";
 
 interface PdfGeneratorProps {
   proposal: Partial<Proposal>;
@@ -36,32 +34,13 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
   const [settings, setSettings] = React.useState<ProposalPdfSettings>({
     primaryColor: tenant?.primaryColor || "#2563eb",
     secondaryColor: "#64748b",
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: DEFAULT_PDF_FONT_FAMILY,
     includeLogo: true,
     includeHeader: true,
     includeFooter: true,
     margins: "normal",
     logoStyle: "original",
   });
-
-  const { isGenerating, handleGenerate } = usePdfGenerator({
-    proposal,
-    setIsOpen,
-  });
-
-  // Enrich products (filters out inactive ones) for the PDF version
-  const { products: enrichedProducts } = useEnrichedProducts(
-    proposal as Proposal,
-    tenant?.id,
-    { filterInactive: true },
-  );
-  const pdfProposal = React.useMemo(
-    () => ({
-      ...proposal,
-      products: enrichedProducts,
-    }),
-    [proposal, enrichedProducts],
-  );
 
   const pdfSections: PdfSection[] = React.useMemo(() => {
     return sections.map(
@@ -74,56 +53,23 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
     );
   }, [sections]);
 
+  const { isGenerating, handleGenerate } = usePdfGenerator({
+    proposal,
+    tenant,
+    customSettings: {
+      sections: pdfSections,
+      primaryColor: settings.primaryColor,
+      fontFamily: settings.fontFamily,
+      theme: coverTheme,
+      pageNumberStart: includeCover ? 2 : 1,
+      logoStyle: settings.logoStyle,
+    },
+    showCover: includeCover,
+    setIsOpen,
+  });
+
   return (
     <>
-      {/* Hidden Cover Page for PDF generation */}
-      {includeCover && (
-        <div className="fixed -left-[9999px] top-0">
-          <div id="pdf-cover-page" style={{ width: "794px", height: "1123px" }}>
-            <PdfCoverPage
-              proposal={proposal as Proposal}
-              theme={coverTheme}
-              primaryColor={settings.primaryColor}
-              coverImage=""
-              coverImageOpacity={30}
-              coverImageFit="cover"
-              coverImagePosition="center"
-              coverLogo=""
-              tenant={tenant}
-              coverTitle={proposal.title || ""}
-              fontFamily={settings.fontFamily}
-              logoStyle={settings.logoStyle}
-              validUntil={proposal.validUntil}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Hidden Preview for Filtered PDF Generation */}
-      <div className="fixed -left-[9999px] top-0">
-        <div
-          id="proposal-pdf-source"
-          className="flex flex-col"
-          style={{ width: "794px" }}
-        >
-          <ProposalPdfViewer
-            proposal={pdfProposal as Proposal}
-            tenant={tenant}
-            showCover={false} // Cover is handled separately
-            noMargins={true} // Ensure no margins between pages
-            customSettings={{
-              sections: pdfSections,
-              primaryColor: settings.primaryColor,
-              fontFamily: settings.fontFamily,
-              theme: coverTheme,
-              pageNumberStart: includeCover ? 2 : 1,
-              logoStyle: settings.logoStyle,
-            }}
-            className="shadow-none mb-0"
-          />
-        </div>
-      </div>
-
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
           <Button className="gap-2">
@@ -153,7 +99,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
               Cancelar
             </Button>
             <Button
-              onClick={() => handleGenerate()}
+              onClick={() => handleGenerate(undefined, "download")}
               disabled={isGenerating}
               className="gap-2"
             >

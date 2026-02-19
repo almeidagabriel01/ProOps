@@ -8,6 +8,7 @@ import {
   Transaction,
   TransactionType,
   TransactionStatus,
+  UpdateFinancialEntryWithInstallmentsPayload,
 } from "@/services/transaction-service";
 
 interface ExtendedTransaction extends Transaction {
@@ -17,8 +18,38 @@ interface ExtendedTransaction extends Transaction {
   downPaymentDate?: string;
   firstInstallmentDate?: string;
 }
+const isDownPaymentLike = (t: Transaction): boolean =>
+  !!t.isDownPayment || (t.installmentNumber || 0) === 0;
+
+const dateOnly = (value?: string): string => {
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+};
+
+const sameClient = (a: Transaction, b: Transaction): boolean => {
+  const aClientId = a.clientId || "";
+  const bClientId = b.clientId || "";
+  if (aClientId && bClientId) return aClientId === bClientId;
+  return (a.clientName || "").trim() === (b.clientName || "").trim();
+};
+
+const isLikelyOrphanDownPaymentForGroup = (
+  candidate: Transaction,
+  anchor: Transaction,
+): boolean => {
+  if (!isDownPaymentLike(candidate)) return false;
+  if (candidate.installmentGroupId || candidate.proposalGroupId) return false;
+  if (candidate.id === anchor.id) return false;
+  if ((candidate.description || "").trim() !== (anchor.description || "").trim())
+    return false;
+  if (candidate.type !== anchor.type) return false;
+  if (!sameClient(candidate, anchor)) return false;
+  const candidateDate = dateOnly(candidate.date || candidate.dueDate);
+  const anchorDate = dateOnly(anchor.date || anchor.dueDate);
+  if (candidateDate && anchorDate && candidateDate !== anchorDate) return false;
+  return true;
+};
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { shiftDateByTransform } from "@/utils/date-utils";
 
 export interface EditTransactionFormData {
   type: TransactionType;
@@ -94,6 +125,9 @@ export function useEditTransaction() {
   const [relatedInstallments, setRelatedInstallments] = React.useState<
     Transaction[]
   >([]);
+  const [extraTransactionIds, setExtraTransactionIds] = React.useState<string[]>(
+    [],
+  );
 
   const [formData, setFormData] = React.useState<EditTransactionFormData>({
     type: "income",
@@ -190,13 +224,32 @@ export function useEditTransaction() {
             (a: Transaction, b: Transaction) =>
               (a.installmentNumber || 0) - (b.installmentNumber || 0),
           );
+
+          // Include likely orphan down payment (legacy inconsistent data) so backend can reattach it atomically.
+          const allTenantTransactions = await TransactionService.getTransactions(
+            safeData.tenantId,
+          );
+          const orphanCandidates = allTenantTransactions.filter((t) =>
+            isLikelyOrphanDownPaymentForGroup(t, safeData),
+          );
+          if (orphanCandidates.length === 1) {
+            groupTransactions = [...groupTransactions, orphanCandidates[0]].sort(
+              (a: Transaction, b: Transaction) =>
+                (a.installmentNumber || 0) - (b.installmentNumber || 0),
+            );
+            setExtraTransactionIds([orphanCandidates[0].id]);
+          } else {
+            setExtraTransactionIds([]);
+          }
           setRelatedInstallments(groupTransactions);
         } catch (error) {
           console.error("Error fetching related installments:", error);
           setRelatedInstallments([]);
+          setExtraTransactionIds([]);
         }
       } else {
         setRelatedInstallments([]);
+        setExtraTransactionIds([]);
       }
 
       // DERIVE FORM STATE FROM GROUP (if exists) OR SINGLE TRANSACTION
@@ -487,249 +540,6 @@ export function useEditTransaction() {
     }));
   };
 
-  const addMonths = (dateStr: string, months: number): string => {
-    if (!dateStr) return "";
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const dateObj = new Date(year, month - 1, day);
-    dateObj.setMonth(dateObj.getMonth() + months);
-    const y = dateObj.getFullYear();
-    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-    const d = String(dateObj.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  };
-
-  const previewInstallments = React.useMemo(() => {
-    if (!transaction) return [];
-
-    const baseList =
-      relatedInstallments.length > 0 ? relatedInstallments : [transaction];
-    const dateShifted = formData.date !== transaction.date;
-
-    const firstRegularOriginal = baseList.find((t) => !t.isDownPayment);
-
-    const targetStartDate =
-      formData.paymentMode === "installmentValue"
-        ? formData.firstInstallmentDate
-        : formData.dueDate;
-
-    const baseInstallmentNumber = firstRegularOriginal?.installmentNumber || 1;
-
-    // 1. First pass: Apply basic updates and collect list
-    const workingList = baseList.map((inst) => {
-      let newDate = inst.date;
-      let newDueDate = inst.dueDate;
-
-      if (dateShifted) {
-        newDate = shiftDateByTransform(
-          inst.date,
-          transaction.date,
-          formData.date,
-        );
-      }
-
-      if (!inst.isDownPayment && targetStartDate) {
-        const currentNum = inst.installmentNumber || 1;
-        const offset = currentNum - baseInstallmentNumber;
-        newDueDate = addMonths(targetStartDate, offset);
-      }
-
-      if (inst.isDownPayment && formData.downPaymentDueDate) {
-        newDueDate = formData.downPaymentDueDate;
-      }
-
-      return {
-        ...inst,
-        date: newDate,
-        dueDate: newDueDate,
-        status: inst.status,
-      } as Transaction;
-    });
-
-    workingList.sort(
-      (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
-    );
-
-    if (transaction.proposalGroupId) {
-      return workingList;
-    }
-
-    // 2. Adjust for Count Changes (Add/Remove)
-    const targetCount = formData.isInstallment
-      ? parseInt(formData.installmentCount.toString(), 10)
-      : 1;
-    const currentInstallments = workingList.filter((t) => !t.isDownPayment);
-    const existingDownPaymentItem = workingList.find((t) => t.isDownPayment);
-
-    const effectiveTargetCount = isNaN(targetCount)
-      ? currentInstallments.length
-      : targetCount;
-
-    let resultList: Transaction[] = [];
-
-    if (effectiveTargetCount < currentInstallments.length) {
-      // Shrink
-      resultList = currentInstallments.slice(0, effectiveTargetCount);
-    } else if (effectiveTargetCount > currentInstallments.length) {
-      // Grow
-      resultList = [...currentInstallments];
-      let last = resultList[resultList.length - 1];
-      if (!last && existingDownPaymentItem) last = existingDownPaymentItem;
-
-      if (last) {
-        for (
-          let i = currentInstallments.length + 1;
-          i <= effectiveTargetCount;
-          i++
-        ) {
-          const newDate = addMonths(last.date, 1);
-          const newDueDate = last.dueDate
-            ? addMonths(last.dueDate, 1)
-            : undefined;
-
-          const newItem: Transaction = {
-            ...last,
-            id: `temp-${i}`,
-            installmentNumber: i,
-            installmentCount: effectiveTargetCount,
-            date: newDate,
-            dueDate: newDueDate,
-            amount: 0,
-            wallet: "",
-            status: "pending",
-            notes: "",
-            clientId: undefined,
-            clientName: "",
-            isDownPayment: false,
-            parentTransactionId: last.parentTransactionId || undefined,
-          };
-          resultList.push(newItem);
-          last = newItem;
-        }
-      }
-    } else {
-      resultList = [...currentInstallments];
-    }
-
-    // 3. RECACLULATE AMOUNTS with PRECISION LOGIC
-    const isTotalMode = formData.paymentMode === "total";
-    const totalAmount = parseFloat(formData.amount || "0");
-    const downPaymentVal = getDownPaymentAmount(formData);
-
-    // Synchronize down payment entry for non-proposal groups
-    const shouldHaveDownPayment =
-      formData.downPaymentEnabled && downPaymentVal > 0;
-    let downPaymentItem = resultList.find((t) => t.isDownPayment);
-
-    if (!shouldHaveDownPayment && downPaymentItem) {
-      resultList = resultList.filter((t) => !t.isDownPayment);
-      downPaymentItem = undefined;
-    }
-
-    if (shouldHaveDownPayment && !downPaymentItem) {
-      const firstInstallment = resultList.find((t) => !t.isDownPayment);
-      const baseDate =
-        formData.downPaymentDueDate ||
-        formData.date ||
-        firstInstallment?.date ||
-        transaction.date;
-      const baseDueDate =
-        formData.downPaymentDueDate ||
-        firstInstallment?.dueDate ||
-        transaction.dueDate ||
-        transaction.date;
-
-      downPaymentItem = {
-        ...(firstInstallment || transaction),
-        id: "temp-downpayment",
-        isDownPayment: true,
-        isInstallment: false,
-        installmentNumber: 0,
-        installmentCount: effectiveTargetCount + 1,
-        date: baseDate,
-        dueDate: baseDueDate,
-        wallet: formData.downPaymentWallet || formData.wallet,
-        amount: downPaymentVal,
-      };
-
-      resultList = [downPaymentItem, ...resultList];
-    }
-
-    const installmentsToUpdate = resultList.filter((t) => !t.isDownPayment);
-    const count = installmentsToUpdate.length;
-
-    // Apply Down Payment updates
-    if (downPaymentItem) {
-      const idx = resultList.indexOf(downPaymentItem);
-      if (idx >= 0) {
-        resultList[idx] = {
-          ...resultList[idx],
-          amount: downPaymentVal,
-          date: formData.downPaymentDueDate || resultList[idx].date,
-          dueDate: formData.downPaymentDueDate || resultList[idx].dueDate,
-          wallet: formData.downPaymentWallet, // decoupled: no fallback to main wallet
-        };
-      }
-    }
-
-    if (isTotalMode && count > 0) {
-      const remainingForInstallments = totalAmount - downPaymentVal;
-      const baseAmount =
-        Math.floor((remainingForInstallments / count) * 100) / 100;
-      const totalBase = baseAmount * count;
-      const remainder = Math.round(
-        (remainingForInstallments - totalBase) * 100,
-      );
-
-      installmentsToUpdate.forEach((inst, index) => {
-        const addCent = index < remainder;
-        const finalAmount = baseAmount + (addCent ? 0.01 : 0);
-
-        const mainIdx = resultList.indexOf(inst);
-        if (mainIdx >= 0) {
-          resultList[mainIdx] = {
-            ...resultList[mainIdx],
-            amount: finalAmount,
-            wallet: formData.wallet,
-          };
-        }
-      });
-    } else if (!isTotalMode && count > 0) {
-      // Installment Value Mode
-      const val = parseFloat(formData.installmentValue || "0");
-      const wallet = formData.installmentsWallet || formData.wallet;
-
-      installmentsToUpdate.forEach((inst) => {
-        const mainIdx = resultList.indexOf(inst);
-        if (mainIdx >= 0) {
-          resultList[mainIdx] = {
-            ...resultList[mainIdx],
-            amount: val,
-            wallet: wallet,
-          };
-        }
-      });
-    }
-
-    // 4. Enforce Sequential Numbering
-    let regularIndex = 0;
-    return resultList.map((t) => {
-      let instNum = t.installmentNumber;
-
-      if (t.isDownPayment) {
-        instNum = 0;
-      } else {
-        regularIndex++;
-        instNum = regularIndex;
-      }
-
-      return {
-        ...t,
-        installmentCount: effectiveTargetCount,
-        installmentNumber: instNum,
-      };
-    });
-  }, [transaction, formData, relatedInstallments, getDownPaymentAmount]);
-
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -761,126 +571,42 @@ export function useEditTransaction() {
 
     setIsSaving(true);
     try {
-      const runWithRetry = async <T>(
-        operation: () => Promise<T>,
-        maxAttempts = 4,
-      ): Promise<T> => {
-        let lastError: unknown;
-
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            return await operation();
-          } catch (error) {
-            lastError = error;
-            const message =
-              error instanceof Error ? error.message.toLowerCase() : "";
-            const isContentionError =
-              message.includes("aborted") ||
-              message.includes("cross-transaction contention");
-
-            if (!isContentionError || attempt === maxAttempts) {
-              throw error;
-            }
-
-            const backoffMs = 150 * attempt;
-            await new Promise((resolve) => setTimeout(resolve, backoffMs));
-          }
-        }
-
-        throw lastError;
+      const payload: UpdateFinancialEntryWithInstallmentsPayload = {
+        type: formData.type,
+        description: formData.description.trim(),
+        amount: formData.amount,
+        date: formData.date,
+        dueDate: formData.dueDate,
+        status: formData.status,
+        clientId: formData.clientId,
+        clientName: formData.clientName,
+        category: formData.category,
+        wallet: formData.wallet,
+        notes: formData.notes,
+        isInstallment: formData.isInstallment,
+        installmentCount: formData.installmentCount,
+        paymentMode: formData.paymentMode,
+        installmentValue: formData.installmentValue,
+        firstInstallmentDate: formData.firstInstallmentDate,
+        installmentsWallet:
+          formData.paymentMode === "total"
+            ? formData.wallet
+            : formData.installmentsWallet,
+        downPaymentEnabled: formData.downPaymentEnabled,
+        downPaymentType: formData.downPaymentType,
+        downPaymentPercentage: formData.downPaymentPercentage,
+        downPaymentValue: formData.downPaymentValue,
+        downPaymentWallet: formData.downPaymentWallet,
+        downPaymentDueDate: formData.downPaymentDueDate,
+        expectedUpdatedAt: transaction.updatedAt,
+        targetTenantId: transaction.tenantId,
+        extraTransactionIds,
       };
 
-      const previewRealIds = new Set(
-        previewInstallments
-          .filter((t) => !t.id.startsWith("temp-"))
-          .map((t) => t.id),
+      await TransactionService.updateFinancialEntryWithInstallments(
+        transaction.id,
+        payload,
       );
-      const deletedIds = relatedInstallments
-        .filter((t) => !previewRealIds.has(t.id))
-        .map((t) => t.id);
-
-      if (deletedIds.length > 0) {
-        for (const id of deletedIds) {
-          await runWithRetry(() => TransactionService.deleteTransaction(id));
-        }
-      }
-
-      // Determine Effective Group ID
-      let effectiveGroupId = transaction.installmentGroupId;
-
-      if (!formData.isInstallment) {
-        effectiveGroupId = undefined; // Single transaction, no group
-      } else if (!effectiveGroupId) {
-        // Converting Single -> Installments: Generate NEW Group ID
-        effectiveGroupId = `installment_${Date.now()}`;
-      }
-
-      const persistedIds = new Set<string>();
-
-      for (const inst of previewInstallments) {
-        const basePayload = {
-          date: inst.date,
-          dueDate: inst.dueDate,
-          installmentCount: inst.installmentCount,
-          installmentNumber: inst.installmentNumber,
-          amount: parseFloat(inst.amount.toFixed(2)),
-          status: inst.status,
-          wallet: inst.wallet,
-          description: formData.description.trim(),
-          category: formData.category,
-          clientId: formData.clientId,
-          clientName: formData.clientName,
-          notes: formData.notes,
-          type: formData.type,
-          isInstallment: formData.isInstallment,
-          isDownPayment: inst.isDownPayment,
-          downPaymentType: inst.isDownPayment
-            ? formData.downPaymentType
-            : undefined,
-          downPaymentPercentage:
-            inst.isDownPayment && formData.downPaymentType === "percentage"
-              ? parseFloat(formData.downPaymentPercentage || "0")
-              : undefined,
-          installmentGroupId: effectiveGroupId,
-        };
-
-        if (inst.id.startsWith("temp-")) {
-          const created = await runWithRetry(() =>
-            TransactionService.createTransaction({
-              ...basePayload,
-              tenantId: transaction.tenantId,
-              installmentGroupId: effectiveGroupId,
-              isDownPayment: !!inst.isDownPayment,
-            } as unknown as Omit<Transaction, "id">),
-          );
-
-          if (created?.id) persistedIds.add(created.id);
-        } else {
-          await runWithRetry(() =>
-            TransactionService.updateTransaction(inst.id, basePayload),
-          );
-          persistedIds.add(inst.id);
-        }
-      }
-
-      if (transaction.installmentGroupId) {
-        const latestGroup = await runWithRetry(() =>
-          TransactionService.getInstallmentsByGroupId(
-            transaction.installmentGroupId!,
-            transaction.tenantId,
-          ),
-        );
-
-        const staleIds = latestGroup
-          .filter((t) => !persistedIds.has(t.id))
-          .map((t) => t.id);
-
-        for (const staleId of staleIds) {
-          await runWithRetry(() =>
-            TransactionService.deleteTransaction(staleId),
-          );
-        }
-      }
 
       toast.success("Lançamento atualizado com sucesso!");
       router.push("/financial");
@@ -915,3 +641,4 @@ export function useEditTransaction() {
     refetch: fetchTransaction,
   };
 }
+

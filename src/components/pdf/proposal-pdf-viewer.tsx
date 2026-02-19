@@ -26,6 +26,10 @@ import {
   ThemeType,
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { normalizeCoverElements } from "@/components/features/proposal/pdf-section-editor";
+import {
+  DEFAULT_PDF_FONT_FAMILY,
+  normalizePdfFontFamily,
+} from "@/services/pdf/pdf-fonts";
 
 interface ProposalPdfViewerProps {
   proposal: Proposal;
@@ -86,11 +90,12 @@ export function ProposalPdfViewer({
     tenant?.primaryColor ||
     "#2563eb";
 
-  const fontFamily =
+  const fontFamily = normalizePdfFontFamily(
     customSettings?.fontFamily ||
-    savedPdfSettings?.fontFamily ||
-    template?.fontFamily ||
-    "'Inter', sans-serif";
+      savedPdfSettings?.fontFamily ||
+      template?.fontFamily ||
+      DEFAULT_PDF_FONT_FAMILY,
+  );
 
   const coverTitle =
     customSettings?.coverTitle ||

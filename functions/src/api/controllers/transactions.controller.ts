@@ -75,6 +75,33 @@ export const updateTransaction = async (req: Request, res: Response) => {
   }
 };
 
+export const updateTransactionWithInstallments = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = req.user!.uid;
+    const { id } = req.params;
+    const payload = req.body;
+
+    if (!id) return res.status(400).json({ message: "ID inválido." });
+
+    await TransactionService.updateFinancialEntryWithInstallments(
+      userId,
+      req.user,
+      id,
+      payload,
+    );
+
+    return res.json({ success: true, message: "Atualizado com sucesso." });
+  } catch (error: unknown) {
+    console.error("updateTransactionWithInstallments Error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao atualizar.";
+    return res.status(500).json({ message });
+  }
+};
+
 export const updateTransactionsStatusBatch = async (
   req: Request,
   res: Response,

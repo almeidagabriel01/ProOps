@@ -1,4 +1,5 @@
 import { ProposalTemplate } from "@/types"; // We will duplicate type eventually or keep borrowing it
+import { DEFAULT_PDF_FONT_FAMILY } from "@/services/pdf/pdf-fonts";
 
 export const ProposalDefaults = {
     createDefaultTemplate: (tenantId: string, tenantName: string, primaryColor: string): ProposalTemplate => {
@@ -14,7 +15,7 @@ export const ProposalDefaults = {
             footerText: `Agradecemos a oportunidade e ficamos à disposição para esclarecer quaisquer dúvidas.\n\nAtenciosamente,\nEquipe ${tenantName}`,
             theme: 'modern',
             primaryColor: primaryColor || '#2563eb',
-            fontFamily: "'Inter', sans-serif"
+            fontFamily: DEFAULT_PDF_FONT_FAMILY
         }
     }
 }

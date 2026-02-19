@@ -233,16 +233,6 @@ export function TransactionFilters({
           </span>
           <div className="flex items-center gap-1">
             <Button
-              variant={viewMode === "grouped" ? "default" : "outline"}
-              size="sm"
-              onClick={() => onViewModeChange?.("grouped")}
-              className="gap-1"
-              title="Lançamentos agrupados por parcelas e propostas"
-            >
-              <Layers className="w-4 h-4" />
-              Agrupados
-            </Button>
-            <Button
               variant={viewMode === "byDueDate" ? "default" : "outline"}
               size="sm"
               onClick={() => onViewModeChange?.("byDueDate")}
@@ -251,6 +241,16 @@ export function TransactionFilters({
             >
               <Calendar className="w-4 h-4" />
               Por Vencimento
+            </Button>
+            <Button
+              variant={viewMode === "grouped" ? "default" : "outline"}
+              size="sm"
+              onClick={() => onViewModeChange?.("grouped")}
+              className="gap-1"
+              title="Lançamentos agrupados por parcelas e propostas"
+            >
+              <Layers className="w-4 h-4" />
+              Agrupados
             </Button>
           </div>
         </div>

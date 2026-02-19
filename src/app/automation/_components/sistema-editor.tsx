@@ -9,6 +9,7 @@ import {
 } from "@/types/automation";
 import { Product, ProductService } from "@/services/product-service";
 import { SistemaService } from "@/services/sistema-service";
+import { AmbienteService } from "@/services/ambiente-service"; // Added import
 import { useTenant } from "@/providers/tenant-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"; // Added imports
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
@@ -49,6 +58,7 @@ interface SistemaEditorProps {
   initialAmbienteId?: string | null;
   onBack: () => void;
   onSave: (id?: string) => void;
+  onAmbienteCreated?: () => void; // Added prop
 }
 
 export function SistemaEditor({
@@ -57,6 +67,7 @@ export function SistemaEditor({
   initialAmbienteId,
   onBack,
   onSave,
+  onAmbienteCreated,
 }: SistemaEditorProps) {
   const { tenant } = useTenant();
   const [isSaving, setIsSaving] = React.useState(false);
@@ -67,24 +78,48 @@ export function SistemaEditor({
     sistema?.description || "",
   );
 
+  // New Environment Creation State
+  const [isCreatingAmbiente, setIsCreatingAmbiente] = React.useState(false);
+  const [newAmbienteName, setNewAmbienteName] = React.useState("");
+  const [isSubmittingAmbiente, setIsSubmittingAmbiente] = React.useState(false);
+
   // The core configuration state
   const [configAmbientes, setConfigAmbientes] = React.useState<
     SistemaAmbienteTemplate[]
   >(sistema?.ambientes || []);
 
-  // Update local state when prop changes (for re-opening or id switch)
-  React.useEffect(() => {
-    if (sistema) {
-      setName(sistema.name);
-      setDescription(sistema.description || "");
+  // Track which system ID we are currently editing to prevent overwriting local state
+  // when parent refreshes data but we are still on the same system.
+  const [currentSystemId, setCurrentSystemId] = React.useState<string | null>(
+    null,
+  );
 
-      const loadedAmbientes = sistema.ambientes || [];
-      setConfigAmbientes(loadedAmbientes);
+  // Update local state ONLY when the system ID changes (or we switch between new/edit)
+  React.useEffect(() => {
+    const incomingId = sistema?.id || "new";
+
+    if (incomingId !== currentSystemId) {
+      if (sistema) {
+        setName(sistema.name);
+        setDescription(sistema.description || "");
+        const loadedAmbientes = sistema.ambientes || [];
+        setConfigAmbientes(loadedAmbientes);
+      } else {
+        // Reset for new system
+        setName("");
+        setDescription("");
+        setConfigAmbientes([]);
+      }
+      setCurrentSystemId(incomingId);
     }
-  }, [sistema]);
+  }, [sistema, currentSystemId]);
 
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
+
+  // Track pending environment creation to ensure data consistency
+  const [pendingAmbienteCreationId, setPendingAmbienteCreationId] =
+    React.useState<string | null>(null);
 
   // Initialize Active Environment
   const [activeAmbienteId, setActiveAmbienteId] = React.useState<string | null>(
@@ -96,6 +131,26 @@ export function SistemaEditor({
       setActiveAmbienteId(initialAmbienteId);
     }
   }, [initialAmbienteId]);
+
+  // Effect to handle pending environment creation
+  React.useEffect(() => {
+    if (pendingAmbienteCreationId) {
+      // check if it exists in allAmbientes
+      const exists = allAmbientes.some(
+        (a) => a.id === pendingAmbienteCreationId,
+      );
+      if (exists) {
+        // Now it's safe to add to config and close loader
+        addAmbiente(pendingAmbienteCreationId);
+        setIsSubmittingAmbiente(false);
+        setIsCreatingAmbiente(false);
+        setNewAmbienteName(""); // Clear input
+        setPendingAmbienteCreationId(null); // Clear pending state
+        toast.success("Ambiente criado e adicionado!");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allAmbientes, pendingAmbienteCreationId]);
 
   // Search State for Products
   const [productSearch, setProductSearch] = React.useState("");
@@ -167,7 +222,6 @@ export function SistemaEditor({
   };
 
   // Environment Management
-  // Environment Management
   const addAmbiente = (ambienteId: string) => {
     if (configAmbientes.some((a) => a.ambienteId === ambienteId)) return;
 
@@ -184,10 +238,56 @@ export function SistemaEditor({
     if (activeAmbienteId === ambienteId) setActiveAmbienteId(null);
   };
 
+  const handleCreateAmbiente = async () => {
+    if (!tenant?.id || !newAmbienteName.trim()) return;
+
+    setIsSubmittingAmbiente(true);
+    try {
+      const nextOrder = await AmbienteService.getNextOrder(tenant.id);
+      const newAmbiente = await AmbienteService.createAmbiente({
+        tenantId: tenant.id,
+        name: newAmbienteName.trim(),
+        icon: "Home",
+        order: nextOrder,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Notify parent to refresh list
+      if (onAmbienteCreated) {
+        onAmbienteCreated();
+      }
+
+      // Add to current system configuration immediately
+      // We need to wait for the refresh or optimistically update.
+      // Since allAmbientes comes from parent, we can't update it directly here easily
+      // without parent help, but we can proceed to add it to our config.
+      // The parent refresh (via onAmbienteCreated) will update allAmbientes prop eventually.
+
+      // Notify parent to refresh list
+      if (onAmbienteCreated) {
+        onAmbienteCreated();
+      }
+
+      // Instead of adding immediately, we set a pending ID.
+      // The useEffect will pick this up when allAmbientes is updated.
+      setPendingAmbienteCreationId(newAmbiente.id);
+
+      // We do NOT close the dialog or stop loading here.
+      // Waiting for data consistency.
+    } catch (error) {
+      console.error("Error creating ambiente:", error);
+      toast.error("Erro ao criar ambiente");
+      setIsSubmittingAmbiente(false); // Only stop loading on error
+    }
+  };
+
   // Product Management (Active Ambiente)
   const activeConfig = configAmbientes.find(
     (a) => a.ambienteId === activeAmbienteId,
   );
+  // Note: If we just created the environment, it might not be in allAmbientes yet
+  // until the parent refreshes. This could cause the name to be undefined momentarily.
+  // Ideally, onAmbienteCreated triggers a re-fetch in parent which updates allAmbientes.
   const activeAmbienteDef = allAmbientes.find((a) => a.id === activeAmbienteId);
 
   const updateActiveProducts = (newProducts: AmbienteProduct[]) => {
@@ -356,10 +456,17 @@ export function SistemaEditor({
                   className="w-56 max-h-80 overflow-y-auto"
                 >
                   <DropdownMenuLabel>Ambientes Globais</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="text-primary font-medium focus:text-primary focus:bg-primary/10 cursor-pointer"
+                    onClick={() => setIsCreatingAmbiente(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Criar Novo Ambiente
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {allAmbientes.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      Cadastre ambientes na tela anterior
+                      Cadastre ambientes na tela anterior ou crie um novo.
                     </div>
                   ) : (
                     allAmbientes.map((amb) => {
@@ -425,7 +532,7 @@ export function SistemaEditor({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">
-                            {def?.name || "Ambiente Removido"}
+                            {def?.name || "Ambiente Removido/Novo"}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {conf.products.length} produtos
@@ -468,7 +575,7 @@ export function SistemaEditor({
                       <Package className="w-5 h-5 text-primary" />
                       Produtos:{" "}
                       <span className="text-muted-foreground font-normal">
-                        {activeAmbienteDef?.name}
+                        {activeAmbienteDef?.name || "Ambiente recém-criado"}
                       </span>
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -495,7 +602,7 @@ export function SistemaEditor({
                     onChange={(e) =>
                       handleUpdateAmbienteDescription(e.target.value)
                     }
-                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name}...`}
+                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name || "este ambiente"}...`}
                     className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-all"
                   />
                 </div>
@@ -681,6 +788,52 @@ export function SistemaEditor({
           )}
         </div>
       </div>
+
+      {/* New Environment Dialog */}
+      <Dialog open={isCreatingAmbiente} onOpenChange={setIsCreatingAmbiente}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Criar Novo Ambiente</DialogTitle>
+            <DialogDescription>
+              Crie um novo ambiente global para utilizar neste e em outros
+              sistemas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 py-4">
+            <div className="grid flex-1 gap-2">
+              <Label htmlFor="new-ambiente-name" className="sr-only">
+                Nome do Ambiente
+              </Label>
+              <Input
+                id="new-ambiente-name"
+                placeholder="Ex: Sala de Cinema, Varanda Gourmet"
+                value={newAmbienteName}
+                onChange={(e) => setNewAmbienteName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateAmbiente();
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsCreatingAmbiente(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateAmbiente}
+              disabled={!newAmbienteName.trim() || isSubmittingAmbiente}
+            >
+              {isSubmittingAmbiente && <Spinner className="mr-2 h-4 w-4" />}
+              Criar Ambiente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

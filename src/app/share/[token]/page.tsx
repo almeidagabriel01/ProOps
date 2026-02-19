@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { Loader2, AlertCircle, FileText } from "lucide-react";
+import { Loader2, AlertCircle, FileText, FileDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SharedProposalService } from "@/services/shared-proposal-service";
@@ -12,6 +12,7 @@ import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
+import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 
 export default function SharedProposalPage() {
   const params = useParams();
@@ -22,6 +23,16 @@ export default function SharedProposalPage() {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const { isGenerating, handleGenerate } = usePdfGenerator({
+    proposal: proposal || {},
+    template,
+    tenant,
+    customSettings:
+      (proposal?.pdfSettings as Parameters<typeof ProposalPdfViewer>[0]["customSettings"]) ??
+      undefined,
+    showCover: true,
+    setIsOpen: () => undefined,
+  });
 
   React.useEffect(() => {
     const loadSharedProposal = async () => {
@@ -151,6 +162,19 @@ export default function SharedProposalPage() {
               {proposal.clientName}
             </p>
           </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm"
+            onClick={() => handleGenerate(undefined, "shared")}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            Baixar PDF
+          </button>
         </div>
       </header>
 
@@ -159,16 +183,18 @@ export default function SharedProposalPage() {
         <div className="w-full max-w-[210mm]">
           <Card className="overflow-hidden">
             <CardContent className="p-0 bg-gray-50/50">
-              <ProposalPdfViewer
-                proposal={proposal}
-                tenant={tenant}
-                template={template}
-                customSettings={
-                  (proposal.pdfSettings as Parameters<
-                    typeof ProposalPdfViewer
-                  >[0]["customSettings"]) ?? undefined
-                }
-              />
+              <div id="shared-proposal-preview-content">
+                <ProposalPdfViewer
+                  proposal={proposal}
+                  tenant={tenant}
+                  template={template}
+                  customSettings={
+                    (proposal.pdfSettings as Parameters<
+                      typeof ProposalPdfViewer
+                    >[0]["customSettings"]) ?? undefined
+                  }
+                />
+              </div>
             </CardContent>
           </Card>
         </div>

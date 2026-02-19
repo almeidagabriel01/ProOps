@@ -9,6 +9,113 @@ import { CreateTransactionDTO } from "../helpers/transaction-validation";
 
 const COLLECTION_NAME = "transactions";
 
+interface UpdateFinancialEntryWithInstallmentsDTO {
+  description?: string;
+  type?: "income" | "expense";
+  category?: string;
+  clientId?: string | null;
+  clientName?: string | null;
+  notes?: string | null;
+  status?: "paid" | "pending" | "overdue";
+  amount?: string | number;
+  date?: string;
+  dueDate?: string;
+  isInstallment?: boolean;
+  installmentCount?: number;
+  paymentMode?: "total" | "installmentValue";
+  installmentValue?: string | number;
+  firstInstallmentDate?: string;
+  wallet?: string | null;
+  installmentsWallet?: string | null;
+  downPaymentEnabled?: boolean;
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: string | number;
+  downPaymentValue?: string | number;
+  downPaymentWallet?: string | null;
+  downPaymentDueDate?: string;
+  expectedUpdatedAt?: string | number;
+  targetTenantId?: string;
+  extraTransactionIds?: string[];
+}
+
+type TransactionDoc = {
+  id: string;
+  ref: FirebaseFirestore.DocumentReference;
+  data: Record<string, any>;
+};
+
+function roundCurrency(value: number): number {
+  return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? parseFloat(value)
+        : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toDateOnly(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.trim()) {
+    return value.includes("T") ? value.split("T")[0] : value;
+  }
+  return fallback;
+}
+
+function timestampToMillis(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  const asObj = value as {
+    toMillis?: () => number;
+    seconds?: number;
+    nanoseconds?: number;
+    _seconds?: number;
+    _nanoseconds?: number;
+  };
+  if (typeof asObj?.toMillis === "function") {
+    return asObj.toMillis();
+  }
+  const sec =
+    typeof asObj?.seconds === "number"
+      ? asObj.seconds
+      : typeof asObj?._seconds === "number"
+        ? asObj._seconds
+        : undefined;
+  const nanos =
+    typeof asObj?.nanoseconds === "number"
+      ? asObj.nanoseconds
+      : typeof asObj?._nanoseconds === "number"
+        ? asObj._nanoseconds
+        : 0;
+  if (typeof sec === "number") {
+    return sec * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  return 0;
+}
+
+function getImpact(data: Record<string, any>): number {
+  if (data?.status !== "paid" || !data?.wallet) return 0;
+  const sign = data.type === "income" ? 1 : -1;
+  return sign * (toNumber(data.amount, 0) || 0);
+}
+
+function isDownPaymentLikeDoc(data: Record<string, any>): boolean {
+  return !!data?.isDownPayment || toNumber(data?.installmentNumber, -1) === 0;
+}
+
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 export class TransactionService {
   /**
    * Creates a transaction or multiple installments.
@@ -157,6 +264,359 @@ export class TransactionService {
         transactionId: createdIds[0],
         count: transactionsToCreate.length,
       };
+    });
+  }
+
+  /**
+   * Updates a financial entry with installments/down payment as a single source of truth.
+   * Everything is recalculated and persisted atomically in one Firestore transaction.
+   */
+  static async updateFinancialEntryWithInstallments(
+    userId: string,
+    user: any,
+    id: string,
+    payload: UpdateFinancialEntryWithInstallmentsDTO
+  ) {
+    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
+      userId,
+      "canEdit",
+      user
+    );
+
+    await db.runTransaction(async (t) => {
+      const now = Timestamp.now();
+      const anchorRef = db.collection(COLLECTION_NAME).doc(id);
+      const anchorSnap = await t.get(anchorRef);
+
+      if (!anchorSnap.exists) throw new Error("Transação não encontrada.");
+      const anchorData = anchorSnap.data() as Record<string, any>;
+      if (!anchorData) throw new Error("Dados da transação inválidos.");
+
+      const txTenantId = anchorData.tenantId as string;
+      if (!txTenantId) throw new Error("Transação sem tenantId.");
+      if (!isSuperAdmin && txTenantId !== userTenantId) throw new Error("Acesso negado.");
+      if (payload.targetTenantId && payload.targetTenantId !== txTenantId) {
+        throw new Error("Tenant alvo não corresponde à transação.");
+      }
+
+      const expectedUpdatedAtMillis = timestampToMillis(payload.expectedUpdatedAt);
+      if (expectedUpdatedAtMillis > 0) {
+        const currentUpdatedAtMillis = timestampToMillis(anchorData.updatedAt);
+        if (
+          currentUpdatedAtMillis > 0 &&
+          currentUpdatedAtMillis > expectedUpdatedAtMillis + 1
+        ) {
+          throw new Error("Conflito de atualização. Recarregue os dados e tente novamente.");
+        }
+      }
+
+      let effectiveGroupId = (anchorData.installmentGroupId as string | null) || null;
+
+      const wantInstallments = payload.isInstallment !== false;
+      const requestedInstallmentCount = Math.max(
+        1,
+        Math.floor(
+          toNumber(
+            payload.installmentCount,
+            toNumber(anchorData.installmentCount, 1)
+          )
+        )
+      );
+      const targetInstallmentCount = wantInstallments ? requestedInstallmentCount : 1;
+
+      const downPaymentEnabled = !!payload.downPaymentEnabled;
+      const paymentMode = payload.paymentMode === "installmentValue" ? "installmentValue" : "total";
+      const installmentValue = roundCurrency(
+        toNumber(payload.installmentValue, toNumber(anchorData.amount, 0))
+      );
+      const totalAmount = roundCurrency(
+        toNumber(payload.amount, toNumber(anchorData.amount, 0))
+      );
+
+      const downPaymentType = payload.downPaymentType === "percentage" ? "percentage" : "value";
+      const downPaymentAmountRaw =
+        downPaymentType === "percentage"
+          ? (paymentMode === "installmentValue"
+              ? installmentValue * targetInstallmentCount
+              : totalAmount) * (toNumber(payload.downPaymentPercentage, 0) / 100)
+          : toNumber(payload.downPaymentValue, 0);
+      const downPaymentAmount = roundCurrency(Math.max(0, downPaymentAmountRaw));
+      const shouldHaveDownPayment =
+        wantInstallments && downPaymentEnabled && downPaymentAmount > 0;
+
+      // If converting single transaction to grouped structure, create a stable group id.
+      if (!effectiveGroupId && (targetInstallmentCount > 1 || shouldHaveDownPayment)) {
+        effectiveGroupId = `installment_${now.toMillis()}`;
+      }
+
+      const allDocs: TransactionDoc[] = [];
+      const pushedIds = new Set<string>();
+      const pushDoc = (doc: TransactionDoc) => {
+        if (pushedIds.has(doc.id)) return;
+        pushedIds.add(doc.id);
+        allDocs.push(doc);
+      };
+
+      const extraIds = Array.from(new Set((payload.extraTransactionIds || []).filter(Boolean)));
+      for (const extraId of extraIds) {
+        const extraRef = db.collection(COLLECTION_NAME).doc(extraId);
+        const extraSnap = await t.get(extraRef);
+        if (!extraSnap.exists) continue;
+        const extraData = extraSnap.data() as Record<string, any>;
+        if (!extraData) continue;
+        if (extraData.tenantId !== txTenantId) continue;
+        pushDoc({ id: extraSnap.id, ref: extraRef, data: extraData });
+      }
+
+      if (effectiveGroupId) {
+        const groupQuery = db
+          .collection(COLLECTION_NAME)
+          .where("tenantId", "==", txTenantId)
+          .where("installmentGroupId", "==", effectiveGroupId);
+        const groupSnap = await t.get(groupQuery);
+        groupSnap.docs.forEach((docSnap) => {
+          pushDoc({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() as Record<string, any> });
+        });
+      } else {
+        pushDoc({ id: anchorSnap.id, ref: anchorRef, data: anchorData });
+      }
+
+      if (!allDocs.find((doc) => doc.id === id)) {
+        pushDoc({ id: anchorSnap.id, ref: anchorRef, data: anchorData });
+      }
+
+      const downPaymentCandidates = allDocs
+        .filter((doc) => isDownPaymentLikeDoc(doc.data))
+        .sort((a, b) => {
+          const aUpdated = timestampToMillis(a.data.updatedAt);
+          const bUpdated = timestampToMillis(b.data.updatedAt);
+          if (aUpdated !== bUpdated) return bUpdated - aUpdated;
+          return timestampToMillis(b.data.createdAt) - timestampToMillis(a.data.createdAt);
+        });
+      const existingDownPayment = downPaymentCandidates[0] || null;
+      const extraDownPayments = downPaymentCandidates.slice(1);
+
+      const existingInstallments = allDocs
+        .filter((doc) => !isDownPaymentLikeDoc(doc.data))
+        .sort((a, b) => {
+          const numberDiff =
+            toNumber(a.data.installmentNumber, Number.MAX_SAFE_INTEGER) -
+            toNumber(b.data.installmentNumber, Number.MAX_SAFE_INTEGER);
+          if (numberDiff !== 0) return numberDiff;
+          return timestampToMillis(a.data.createdAt) - timestampToMillis(b.data.createdAt);
+        });
+
+      const firstInstallment = existingInstallments[0]?.data || anchorData;
+      const launchDate = toDateOnly(payload.date, toDateOnly(anchorData.date, now.toDate().toISOString().split("T")[0]));
+      const baseInstallmentDueDate = toDateOnly(
+        paymentMode === "installmentValue" ? payload.firstInstallmentDate : payload.dueDate,
+        toDateOnly(firstInstallment?.dueDate || firstInstallment?.date, launchDate)
+      );
+      const downPaymentDueDate = toDateOnly(
+        payload.downPaymentDueDate,
+        toDateOnly(existingDownPayment?.data?.dueDate || launchDate, launchDate)
+      );
+
+      const installmentsWalletInput =
+        paymentMode === "installmentValue"
+          ? normalizeOptionalString(payload.installmentsWallet) ??
+            normalizeOptionalString(payload.wallet)
+          : normalizeOptionalString(payload.wallet) ??
+            normalizeOptionalString(payload.installmentsWallet);
+
+      const installmentsWallet =
+        installmentsWalletInput ??
+        normalizeOptionalString(firstInstallment?.wallet) ??
+        null;
+      const downPaymentWallet =
+        normalizeOptionalString(payload.downPaymentWallet) ??
+        normalizeOptionalString(existingDownPayment?.data?.wallet) ??
+        installmentsWallet ??
+        null;
+
+      const description = (payload.description ?? anchorData.description ?? "").toString().trim();
+      const type = (payload.type ?? anchorData.type) as "income" | "expense";
+      const category = payload.category ?? anchorData.category ?? null;
+      const clientId = payload.clientId ?? anchorData.clientId ?? null;
+      const clientName = payload.clientName ?? anchorData.clientName ?? null;
+      const notes = payload.notes ?? anchorData.notes ?? null;
+      const proposalId = anchorData.proposalId || null;
+      const proposalGroupId = anchorData.proposalGroupId || null;
+
+      const installmentAmounts: number[] = [];
+      if (paymentMode === "installmentValue") {
+        for (let i = 0; i < targetInstallmentCount; i++) {
+          installmentAmounts.push(installmentValue);
+        }
+      } else {
+        const remaining = roundCurrency(Math.max(0, totalAmount - (shouldHaveDownPayment ? downPaymentAmount : 0)));
+        const base = Math.floor((remaining / targetInstallmentCount) * 100) / 100;
+        const baseTotal = roundCurrency(base * targetInstallmentCount);
+        const remainderCents = Math.round((remaining - baseTotal) * 100);
+        for (let i = 0; i < targetInstallmentCount; i++) {
+          installmentAmounts.push(roundCurrency(base + (i < remainderCents ? 0.01 : 0)));
+        }
+      }
+
+      const toCreate: Array<Record<string, any>> = [];
+      const toUpdate: Array<{ doc: TransactionDoc; next: Record<string, any> }> = [];
+      const toDelete: TransactionDoc[] = [...extraDownPayments];
+
+      for (let i = 0; i < targetInstallmentCount; i++) {
+        const existing = existingInstallments[i] || null;
+        const nextInstallment = {
+          tenantId: txTenantId,
+          type,
+          description,
+          amount: installmentAmounts[i] ?? 0,
+          date: launchDate,
+          dueDate: addMonths(baseInstallmentDueDate, i),
+          status: existing?.data?.status || (i === 0 ? payload.status || anchorData.status || "pending" : "pending"),
+          clientId,
+          clientName,
+          proposalId,
+          proposalGroupId,
+          category,
+          wallet: installmentsWallet,
+          isDownPayment: false,
+          downPaymentType: null,
+          downPaymentPercentage: null,
+          isInstallment: wantInstallments,
+          installmentCount: targetInstallmentCount,
+          installmentNumber: i + 1,
+          installmentGroupId: effectiveGroupId,
+          notes,
+          updatedAt: now,
+        };
+
+        if (existing) {
+          toUpdate.push({
+            doc: existing,
+            next: nextInstallment,
+          });
+        } else {
+          toCreate.push({
+            ...nextInstallment,
+            createdAt: now,
+            createdById: userId,
+          });
+        }
+      }
+
+      if (existingInstallments.length > targetInstallmentCount) {
+        toDelete.push(...existingInstallments.slice(targetInstallmentCount));
+      }
+
+      if (shouldHaveDownPayment) {
+        const nextDownPayment = {
+          tenantId: txTenantId,
+          type,
+          description,
+          amount: downPaymentAmount,
+          date: downPaymentDueDate,
+          dueDate: downPaymentDueDate,
+          status: existingDownPayment?.data?.status || payload.status || anchorData.status || "pending",
+          clientId,
+          clientName,
+          proposalId,
+          proposalGroupId,
+          category,
+          wallet: downPaymentWallet,
+          isDownPayment: true,
+          downPaymentType,
+          downPaymentPercentage:
+            downPaymentType === "percentage" ? toNumber(payload.downPaymentPercentage, 0) : null,
+          isInstallment: false,
+          installmentCount: targetInstallmentCount,
+          installmentNumber: 0,
+          installmentGroupId: effectiveGroupId,
+          notes,
+          updatedAt: now,
+        };
+
+        if (existingDownPayment) {
+          toUpdate.push({ doc: existingDownPayment, next: nextDownPayment });
+        } else {
+          toCreate.push({
+            ...nextDownPayment,
+            createdAt: now,
+            createdById: userId,
+          });
+        }
+      } else if (existingDownPayment) {
+        toDelete.push(existingDownPayment);
+      }
+
+      const walletAdjustments = new Map<string, number>();
+      const addWalletAdjustment = (wallet: string | null | undefined, delta: number) => {
+        if (!wallet || delta === 0) return;
+        walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + delta);
+      };
+
+      for (const op of toUpdate) {
+        const oldImpact = getImpact(op.doc.data);
+        const newImpact = getImpact(op.next);
+        addWalletAdjustment(op.doc.data.wallet as string | undefined, -oldImpact);
+        addWalletAdjustment(op.next.wallet as string | undefined, newImpact);
+      }
+      for (const op of toCreate) {
+        const newImpact = getImpact(op);
+        addWalletAdjustment(op.wallet as string | undefined, newImpact);
+      }
+      for (const op of toDelete) {
+        const oldImpact = getImpact(op.data);
+        addWalletAdjustment(op.data.wallet as string | undefined, -oldImpact);
+      }
+
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [wallet, delta] of walletAdjustments.entries()) {
+        if (delta === 0) continue;
+        const walletInfo = await resolveWalletRef(t, db, txTenantId, wallet);
+        if (walletInfo) walletRefs.set(wallet, walletInfo.ref);
+      }
+
+      let proposalRef: FirebaseFirestore.DocumentReference | null = null;
+      if (proposalId) {
+        proposalRef = db.collection("proposals").doc(proposalId);
+        const proposalSnap = await t.get(proposalRef);
+        if (!proposalSnap.exists) {
+          proposalRef = null;
+        } else {
+          const proposalTenantId = proposalSnap.data()?.tenantId;
+          if (proposalTenantId && proposalTenantId !== txTenantId) {
+            proposalRef = null;
+          }
+        }
+      }
+
+      for (const [wallet, delta] of walletAdjustments.entries()) {
+        if (delta === 0) continue;
+        const walletRef = walletRefs.get(wallet);
+        if (!walletRef) continue;
+        t.update(walletRef, {
+          balance: FieldValue.increment(delta),
+          updatedAt: now,
+        });
+      }
+
+      for (const op of toUpdate) {
+        t.update(op.doc.ref, op.next);
+      }
+      for (const op of toCreate) {
+        const ref = db.collection(COLLECTION_NAME).doc();
+        t.set(ref, op);
+      }
+      for (const op of toDelete) {
+        t.delete(op.ref);
+      }
+
+      if (proposalRef) {
+        t.update(proposalRef, {
+          installmentsWallet: installmentsWallet,
+          downPaymentWallet: shouldHaveDownPayment ? downPaymentWallet : null,
+          updatedAt: now,
+        });
+      }
     });
   }
 

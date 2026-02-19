@@ -81,7 +81,6 @@ const statusOptions: {
 import { ProposalService } from "@/services/proposal-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
-import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
 import {
@@ -92,7 +91,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-import { ProposalDefaults } from "@/lib/proposal-defaults";
 
 function PdfDownloader({
   proposal,
@@ -107,53 +105,22 @@ function PdfDownloader({
 }) {
   const { handleGenerate, isGenerating } = usePdfGenerator({
     proposal: proposal || {},
-
+    tenant,
+    showCover: true,
     setIsOpen: (v) => !v && onClose(),
   });
-
-  const template = React.useMemo(() => {
-    if (!tenant) return null;
-    return ProposalDefaults.createDefaultTemplate(
-      tenant.id,
-      tenant.name,
-      tenant.primaryColor || "#2563eb",
-    );
-  }, [tenant]);
 
   React.useEffect(() => {
     if (isOpen && proposal && !isGenerating) {
       // Small timeout to ensure rendering is complete
       const timer = setTimeout(() => {
-        handleGenerate("proposal-pdf-source-root");
+        handleGenerate(undefined, "download");
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [isOpen, proposal, isGenerating, handleGenerate]);
 
-  if (!proposal) return null;
-
-  return (
-    <div
-      id="proposal-pdf-source-root"
-      style={{
-        position: "fixed",
-        top: "-10000px",
-        left: "-10000px",
-        zIndex: -1,
-        // Ensure container has width/height context for children
-        width: "210mm",
-        height: "auto",
-      }}
-    >
-      <ProposalPdfViewer
-        proposal={proposal}
-        template={template}
-        tenant={tenant}
-        showCover={true}
-        noMargins={true}
-      />
-    </div>
-  );
+  return null;
 }
 
 export default function ProposalsPage() {

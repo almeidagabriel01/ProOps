@@ -128,7 +128,7 @@ export function PdfStyleTab({
             onChange={(e) => setFontFamily(e.target.value)}
           >
             {fontOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.id} value={opt.value}>
                 {opt.label}
               </option>
             ))}
