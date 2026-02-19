@@ -159,6 +159,7 @@ interface UseFinancialDataReturn {
     date: string,
   ) => Promise<void>;
   refreshData: (background?: boolean) => Promise<void>;
+  wallets: Wallet[];
 }
 
 export function useFinancialData(): UseFinancialDataReturn {
@@ -172,7 +173,7 @@ export function useFinancialData(): UseFinancialDataReturn {
   );
   const [filterStatus, setFilterStatus] = React.useState<
     TransactionStatus | "all"
-  >("all");
+  >("pending");
   const [filterWallet, setFilterWallet] = React.useState<string>("");
   const [filterStartDate, setFilterStartDate] = React.useState<string>("");
   const [filterEndDate, setFilterEndDate] = React.useState<string>("");
@@ -181,7 +182,7 @@ export function useFinancialData(): UseFinancialDataReturn {
   >("dueDate");
   const [sortBy, setSortBy] = React.useState<"date" | "created">("created");
   const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
-    "grouped",
+    "byDueDate",
   );
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -917,5 +918,6 @@ export function useFinancialData(): UseFinancialDataReturn {
     updateGroupStatus,
     registerPartialPayment,
     refreshData: (background?: boolean) => fetchData(background),
+    wallets,
   };
 }
