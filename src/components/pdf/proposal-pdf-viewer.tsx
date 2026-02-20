@@ -38,6 +38,7 @@ interface ProposalPdfViewerProps {
   className?: string;
   showCover?: boolean;
   noMargins?: boolean;
+  skipCatalogEnrichment?: boolean;
   // Overrides for live preview
   customSettings?: {
     theme?: ThemeType;
@@ -63,12 +64,14 @@ export function ProposalPdfViewer({
   tenant,
   customSettings,
   showCover = true,
+  skipCatalogEnrichment = false,
 }: ProposalPdfViewerProps) {
   const proposalData = proposal as unknown as DomainProposal;
 
   // Use enriched products hook (filter out inactive products for PDF)
-  const { products } = useEnrichedProducts(proposal, tenant?.id, {
+  const { products, isLoading } = useEnrichedProducts(proposal, tenant?.id, {
     filterInactive: true,
+    skipCatalogEnrichment,
   });
 
   // Extract settings from proposal if not provided in customSettings
@@ -202,6 +205,10 @@ export function ProposalPdfViewer({
 
   return (
     <>
+      <span
+        data-pdf-products-ready={isLoading ? "0" : "1"}
+        style={{ display: "none" }}
+      />
       {showCover && (
         <PdfCoverPage
           theme={theme}

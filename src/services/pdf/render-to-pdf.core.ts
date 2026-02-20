@@ -35,6 +35,7 @@ import {
   sanitizeUnsupportedColorsInClone,
   toKebabCase,
 } from "./render-to-pdf.capture-utils";
+import { getPdfDebugEnabled } from "./render-to-pdf.helpers";
 import {
   CaptureDomPreparation,
   CloneCapturePreparationStats,
@@ -46,7 +47,10 @@ import {
   LayoutSnapshot,
   OriginalImageSnapshot,
 } from "./render-to-pdf.types";
-export function isCrossOriginHttpUrlForDocument(doc: Document, rawUrl: string): boolean {
+export function isCrossOriginHttpUrlForDocument(
+  doc: Document,
+  rawUrl: string,
+): boolean {
   const view = doc.defaultView;
   if (!view) return false;
   try {
@@ -58,7 +62,10 @@ export function isCrossOriginHttpUrlForDocument(doc: Document, rawUrl: string): 
   }
 }
 
-export function countDirectRemoteImageRequestsInClone(root: HTMLElement, clonedDoc: Document): number {
+export function countDirectRemoteImageRequestsInClone(
+  root: HTMLElement,
+  clonedDoc: Document,
+): number {
   const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
   const imageCount = images.filter((image) => {
     const effective = getImageEffectiveSrc(image);
@@ -75,9 +82,13 @@ export function countDirectRemoteImageRequestsInClone(root: HTMLElement, clonedD
   let backgroundCount = 0;
   let inlineStyleCount = 0;
   nodes.forEach((node) => {
-    const computedBackgroundImage = (clonedDoc.defaultView?.getComputedStyle(node).backgroundImage || "").trim();
+    const computedBackgroundImage = (
+      clonedDoc.defaultView?.getComputedStyle(node).backgroundImage || ""
+    ).trim();
     if (computedBackgroundImage.includes("url(")) {
-      const matches = computedBackgroundImage.matchAll(/url\((['"]?)(.*?)\1\)/gi);
+      const matches = computedBackgroundImage.matchAll(
+        /url\((['"]?)(.*?)\1\)/gi,
+      );
       for (const match of matches) {
         const rawUrl = (match[2] || "").trim();
         if (
@@ -107,7 +118,9 @@ export function countDirectRemoteImageRequestsInClone(root: HTMLElement, clonedD
   return imageCount + srcsetCount + backgroundCount + inlineStyleCount;
 }
 
-export async function waitForCloneImageReady(image: HTMLImageElement): Promise<boolean> {
+export async function waitForCloneImageReady(
+  image: HTMLImageElement,
+): Promise<boolean> {
   if (isImageLoaded(image)) return true;
   try {
     if (typeof image.decode === "function") {
@@ -134,7 +147,10 @@ export async function prepareCloneForCapture(
   captureTargetSelector: string,
   log?: DebugLogger,
 ): Promise<CloneCapturePreparationStats> {
-  const root = clonedDoc.querySelector<HTMLElement>(captureTargetSelector) || clonedDoc.body;
+  const debugEnabled = getPdfDebugEnabled();
+  const root =
+    clonedDoc.querySelector<HTMLElement>(captureTargetSelector) ||
+    clonedDoc.body;
   if (!root) {
     return {
       captureTargetSelector,
@@ -179,25 +195,28 @@ export async function prepareCloneForCapture(
       backgroundImage,
       flags: {
         ...buildUnsupportedColorFunctionFlags(background),
-        imageHasUnsupported: hasUnsupportedColorFunctionInValue(backgroundImage),
+        imageHasUnsupported:
+          hasUnsupportedColorFunctionInValue(backgroundImage),
       },
     };
   };
 
-  const preSanitizeHtml = snapshotBackground(cloneHtml);
-  const preSanitizeBody = snapshotBackground(cloneBody);
-  const preSanitizeRoot = snapshotBackground(root);
-  log?.("clone background diagnostics before sanitize", {
-    html: preSanitizeHtml,
-    body: preSanitizeBody,
-    captureRoot: preSanitizeRoot,
-    explicitRequiredFields: {
-      cloneBodyBackground: preSanitizeBody.background,
-      cloneBodyBackgroundImage: preSanitizeBody.backgroundImage,
-      cloneHtmlBackground: preSanitizeHtml.background,
-      captureRootBackground: preSanitizeRoot.background,
-    },
-  });
+  if (debugEnabled) {
+    const preSanitizeHtml = snapshotBackground(cloneHtml);
+    const preSanitizeBody = snapshotBackground(cloneBody);
+    const preSanitizeRoot = snapshotBackground(root);
+    log?.("clone background diagnostics before sanitize", {
+      html: preSanitizeHtml,
+      body: preSanitizeBody,
+      captureRoot: preSanitizeRoot,
+      explicitRequiredFields: {
+        cloneBodyBackground: preSanitizeBody.background,
+        cloneBodyBackgroundImage: preSanitizeBody.backgroundImage,
+        cloneHtmlBackground: preSanitizeHtml.background,
+        captureRootBackground: preSanitizeRoot.background,
+      },
+    });
+  }
 
   const applyRootBackgroundFailsafe = (element: HTMLElement | null) => {
     if (!element) return;
@@ -207,20 +226,27 @@ export async function prepareCloneForCapture(
   };
   applyRootBackgroundFailsafe(cloneHtml);
   applyRootBackgroundFailsafe(cloneBody);
-  applyRootBackgroundFailsafe(root);
 
   const colorStats = sanitizeUnsupportedColorsInClone(clonedDoc, root);
-  const captureTargetRect = getElementRectSnapshot(root);
-  const captureTargetPages = getPageRectDiagnostics(root);
-  const visibleNodeCount = cloneView ? countVisibleNodes(root, cloneView) : 0;
-  const captureTargetSnippet = (root.outerHTML || "").slice(0, 200);
+  const captureTargetRect = debugEnabled ? getElementRectSnapshot(root) : null;
+  const captureTargetPages = debugEnabled ? getPageRectDiagnostics(root) : [];
+  const visibleNodeCount =
+    debugEnabled && cloneView ? countVisibleNodes(root, cloneView) : 0;
+  const captureTargetSnippet = debugEnabled
+    ? (root.outerHTML || "").slice(0, 200)
+    : "";
 
-  let remainingUnsupportedColorCount = colorStats.remainingUnsupportedColorCount;
-  if (cloneView) {
+  let remainingUnsupportedColorCount =
+    colorStats.remainingUnsupportedColorCount;
+  if (debugEnabled && cloneView) {
     const postSanitizeHtml = snapshotBackground(cloneHtml);
     const postSanitizeBody = snapshotBackground(cloneBody);
     const postSanitizeRoot = snapshotBackground(root);
-    const unsupportedEntries = collectUnsupportedColorEntriesInClone(root, cloneView, 10);
+    const unsupportedEntries = collectUnsupportedColorEntriesInClone(
+      root,
+      cloneView,
+      10,
+    );
     remainingUnsupportedColorCount = unsupportedEntries.totalCount;
 
     log?.("clone background diagnostics after sanitize", {
@@ -239,7 +265,9 @@ export async function prepareCloneForCapture(
   }
 
   const preloadLinks = Array.from(
-    clonedDoc.querySelectorAll<HTMLLinkElement>('link[rel="preload"][as="image"][href]'),
+    clonedDoc.querySelectorAll<HTMLLinkElement>(
+      'link[rel="preload"][as="image"][href]',
+    ),
   );
   preloadLinks.forEach((link) => {
     const href = link.getAttribute("href") || "";
@@ -248,7 +276,9 @@ export async function prepareCloneForCapture(
     }
   });
 
-  const pictureSources = Array.from(clonedDoc.querySelectorAll<HTMLSourceElement>("picture source"));
+  const pictureSources = Array.from(
+    clonedDoc.querySelectorAll<HTMLSourceElement>("picture source"),
+  );
   pictureSources.forEach((source) => {
     source.removeAttribute("srcset");
     source.removeAttribute("sizes");
@@ -257,7 +287,8 @@ export async function prepareCloneForCapture(
   const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
   let proxiedImagesCount = 0;
   images.forEach((image, index) => {
-    const effectiveSource = getImageEffectiveSrc(image) || image.getAttribute("src") || "";
+    const effectiveSource =
+      getImageEffectiveSrc(image) || image.getAttribute("src") || "";
     image.removeAttribute("srcset");
     image.removeAttribute("sizes");
     image.crossOrigin = "anonymous";
@@ -265,7 +296,10 @@ export async function prepareCloneForCapture(
     image.loading = "eager";
     image.decoding = "sync";
 
-    if (!effectiveSource || !isCrossOriginHttpUrlForDocument(clonedDoc, effectiveSource)) {
+    if (
+      !effectiveSource ||
+      !isCrossOriginHttpUrlForDocument(clonedDoc, effectiveSource)
+    ) {
       return;
     }
 
@@ -274,20 +308,35 @@ export async function prepareCloneForCapture(
     proxiedImagesCount += 1;
   });
 
-  const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  // Heavily optimized: instead of checking getComputedStyle for every single DOM node,
+  // we only query elements that explicitly have an inline style containing "url("
+  // or rely on CSS stylesheets if any. In this system, remote backgrounds are injected via inline styles.
+  const inlineBackgroundNodes = Array.from(
+    root.querySelectorAll<HTMLElement>('[style*="url("]'),
+  );
   let proxiedBackgroundImagesCount = 0;
-  nodes.forEach((node) => {
+  inlineBackgroundNodes.forEach((node) => {
+    const rawStyle = node.getAttribute("style") || "";
+    if (!rawStyle.includes("url(")) return;
+
+    // Fallback to computed if it contains a URL just to be safe, but only on targeted nodes
     const computedBackgroundImage =
       clonedDoc.defaultView?.getComputedStyle(node).backgroundImage || "";
     if (!computedBackgroundImage.includes("url(")) return;
-    const replaced = replaceBackgroundUrlsWithProxy(computedBackgroundImage, options);
+
+    const replaced = replaceBackgroundUrlsWithProxy(
+      computedBackgroundImage,
+      options,
+    );
     if (replaced.replacedCount <= 0) return;
     node.style.setProperty("background-image", replaced.value, "important");
     proxiedBackgroundImagesCount += replaced.replacedCount;
   });
 
   const inlineWithHttp = Array.from(
-    root.querySelectorAll<HTMLElement>('[style*="http://"], [style*="https://"]'),
+    root.querySelectorAll<HTMLElement>(
+      '[style*="http://"], [style*="https://"]',
+    ),
   );
   inlineWithHttp.forEach((node) => {
     const current = node.style.getPropertyValue("background-image");
@@ -299,16 +348,22 @@ export async function prepareCloneForCapture(
   });
 
   const forcedProxyImages = Array.from(
-    root.querySelectorAll<HTMLImageElement>('img[src^="http://"], img[src^="https://"], img[srcset*="http"]'),
+    root.querySelectorAll<HTMLImageElement>(
+      'img[src^="http://"], img[src^="https://"], img[srcset*="http"]',
+    ),
   );
   forcedProxyImages.forEach((image, index) => {
-    const rawSrc = image.getAttribute("src") || image.currentSrc || image.src || "";
+    const rawSrc =
+      image.getAttribute("src") || image.currentSrc || image.src || "";
     if (
       rawSrc &&
       isCrossOriginHttpUrlForDocument(clonedDoc, rawSrc) &&
       !rawSrc.includes("/v1/aux/proxy-image")
     ) {
-      image.src = buildProxyImageUrl(rawSrc, { ...options, index: images.length + index });
+      image.src = buildProxyImageUrl(rawSrc, {
+        ...options,
+        index: images.length + index,
+      });
       proxiedImagesCount += 1;
     }
     image.removeAttribute("srcset");
@@ -320,12 +375,17 @@ export async function prepareCloneForCapture(
   });
 
   const startedAt = performance.now();
-  const settled = await Promise.all(images.map((image) => waitForCloneImageReady(image)));
+  const settled = await Promise.all(
+    images.map((image) => waitForCloneImageReady(image)),
+  );
   const imageWaitMs = Math.round(performance.now() - startedAt);
   const decodedImages = settled.filter(Boolean).length;
   const failedImages = settled.length - decodedImages;
 
-  const directRemoteImageRequestsCount = countDirectRemoteImageRequestsInClone(root, clonedDoc);
+  const directRemoteImageRequestsCount = countDirectRemoteImageRequestsInClone(
+    root,
+    clonedDoc,
+  );
   return {
     captureTargetSelector,
     captureTargetSnippet,
@@ -341,7 +401,8 @@ export async function prepareCloneForCapture(
     unsupportedColorHitsByProperty: colorStats.unsupportedColorHitsByProperty,
     unsupportedColorElementsCount: colorStats.unsupportedColorElementsCount,
     bgModernFlaggedCount: colorStats.bgModernFlaggedCount,
-    globalOverridesApplied: colorStats.globalOverridesApplied || globalOverridesApplied,
+    globalOverridesApplied:
+      colorStats.globalOverridesApplied || globalOverridesApplied,
     normalizedColorsCount: colorStats.normalizedColorsCount,
     remainingUnsupportedColorCount,
     imageWaitMs,
@@ -349,12 +410,17 @@ export async function prepareCloneForCapture(
 }
 
 export function countDirectRemoteImageRequests(container: HTMLElement): number {
-  const imageCount = Array.from(container.querySelectorAll<HTMLImageElement>("img")).filter((img) => {
+  const imageCount = Array.from(
+    container.querySelectorAll<HTMLImageElement>("img"),
+  ).filter((img) => {
     const effective = getImageEffectiveSrc(img);
     return isCrossOriginHttpUrl(effective);
   }).length;
 
-  const nodes = [container, ...Array.from(container.querySelectorAll<HTMLElement>("*"))];
+  const nodes = [
+    container,
+    ...Array.from(container.querySelectorAll<HTMLElement>("*")),
+  ];
   let backgroundCount = 0;
   nodes.forEach((node) => {
     const backgroundImage = window.getComputedStyle(node).backgroundImage || "";
@@ -424,7 +490,8 @@ export function normalizeUnsupportedColorsForCapture(
 
     COLOR_STYLE_FIELDS.forEach((field) => {
       const value = computed[field];
-      if (typeof value !== "string" || !hasUnsupportedColorFunction(value)) return;
+      if (typeof value !== "string" || !hasUnsupportedColorFunction(value))
+        return;
 
       const cssField = toKebabCase(field);
       const resolved = resolveToRgb(value);
@@ -434,7 +501,11 @@ export function normalizeUnsupportedColorsForCapture(
       const previousPriority = node.style.getPropertyPriority(cssField);
       cleanupTasks.push(() => {
         if (previousValue) {
-          node.style.setProperty(cssField, previousValue, previousPriority || "");
+          node.style.setProperty(
+            cssField,
+            previousValue,
+            previousPriority || "",
+          );
         } else {
           node.style.removeProperty(cssField);
         }
@@ -446,11 +517,17 @@ export function normalizeUnsupportedColorsForCapture(
 
     const backgroundImage = computed.backgroundImage || "";
     if (hasUnsupportedColorFunction(backgroundImage)) {
-      const previousBackgroundImage = node.style.getPropertyValue("background-image");
-      const previousBackgroundImagePriority = node.style.getPropertyPriority("background-image");
-      const previousBackgroundColor = node.style.getPropertyValue("background-color");
-      const previousBackgroundColorPriority = node.style.getPropertyPriority("background-color");
-      const fallbackBackground = resolveToRgb(computed.backgroundColor || "") || "rgba(255, 255, 255, 1)";
+      const previousBackgroundImage =
+        node.style.getPropertyValue("background-image");
+      const previousBackgroundImagePriority =
+        node.style.getPropertyPriority("background-image");
+      const previousBackgroundColor =
+        node.style.getPropertyValue("background-color");
+      const previousBackgroundColorPriority =
+        node.style.getPropertyPriority("background-color");
+      const fallbackBackground =
+        resolveToRgb(computed.backgroundColor || "") ||
+        "rgba(255, 255, 255, 1)";
 
       cleanupTasks.push(() => {
         if (previousBackgroundImage) {
@@ -475,7 +552,11 @@ export function normalizeUnsupportedColorsForCapture(
       });
 
       node.style.setProperty("background-image", "none", "important");
-      node.style.setProperty("background-color", fallbackBackground, "important");
+      node.style.setProperty(
+        "background-color",
+        fallbackBackground,
+        "important",
+      );
       normalizedColorsCount += 1;
     }
   });
@@ -514,7 +595,9 @@ export function createOriginalImageSnapshot(
   rootElement: HTMLElement,
   maxImages = 5,
 ): OriginalImageSnapshot[] {
-  const images = Array.from(rootElement.querySelectorAll<HTMLImageElement>("img")).slice(0, maxImages);
+  const images = Array.from(
+    rootElement.querySelectorAll<HTMLImageElement>("img"),
+  ).slice(0, maxImages);
   return images.map((image, index) => ({
     index,
     src: image.src || "",
@@ -533,7 +616,9 @@ export function assertOriginalImagesIntact(
 ): void {
   if (before.length === 0) return;
 
-  const after = Array.from(rootElement.querySelectorAll<HTMLImageElement>("img"))
+  const after = Array.from(
+    rootElement.querySelectorAll<HTMLImageElement>("img"),
+  )
     .slice(0, before.length)
     .map((image, index) => ({
       index,
@@ -572,7 +657,9 @@ export function restoreOriginalImagesFromSnapshot(
 ): void {
   if (before.length === 0) return;
 
-  const images = Array.from(rootElement.querySelectorAll<HTMLImageElement>("img")).slice(0, before.length);
+  const images = Array.from(
+    rootElement.querySelectorAll<HTMLImageElement>("img"),
+  ).slice(0, before.length);
   images.forEach((image, index) => {
     const snapshot = before[index];
     if (!snapshot) return;
@@ -580,7 +667,8 @@ export function restoreOriginalImagesFromSnapshot(
     if (image.src !== snapshot.src) image.src = snapshot.src;
     if (image.srcset !== snapshot.srcset) image.srcset = snapshot.srcset;
     if (image.sizes !== snapshot.sizes) image.sizes = snapshot.sizes;
-    if (image.loading !== snapshot.loading) image.loading = snapshot.loading as HTMLImageElement["loading"];
+    if (image.loading !== snapshot.loading)
+      image.loading = snapshot.loading as HTMLImageElement["loading"];
     if (image.decoding !== snapshot.decoding)
       image.decoding = snapshot.decoding as HTMLImageElement["decoding"];
     if ((image.crossOrigin || null) !== snapshot.crossOrigin) {
@@ -609,7 +697,10 @@ export function isImageLoaded(image: HTMLImageElement): boolean {
   return image.src.startsWith("data:image");
 }
 
-export function getImageDebugEntry(image: HTMLImageElement, index: number): ImageDebugEntry {
+export function getImageDebugEntry(
+  image: HTMLImageElement,
+  index: number,
+): ImageDebugEntry {
   const effectiveSrc = getImageEffectiveSrc(image);
   const captureSource = getImageCaptureSource(image);
   return {
@@ -631,7 +722,10 @@ export async function waitForRaf(): Promise<void> {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-export async function waitWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+export async function waitWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       reject(new Error("timeout"));
@@ -648,8 +742,13 @@ export async function waitWithTimeout<T>(promise: Promise<T>, timeoutMs: number)
   });
 }
 
-export async function ensureSourceImagesReady(rootElement: HTMLElement, log: DebugLogger): Promise<void> {
-  const sourceImages = Array.from(rootElement.querySelectorAll<HTMLImageElement>("img"));
+export async function ensureSourceImagesReady(
+  rootElement: HTMLElement,
+  log: DebugLogger,
+): Promise<void> {
+  const sourceImages = Array.from(
+    rootElement.querySelectorAll<HTMLImageElement>("img"),
+  );
   if (sourceImages.length === 0) return;
 
   await Promise.all(
@@ -670,18 +769,29 @@ export async function ensureSourceImagesReady(rootElement: HTMLElement, log: Deb
           );
         }
       } catch {
-        log("source image decode failed", { src: image.src, currentSrc: image.currentSrc });
+        log("source image decode failed", {
+          src: image.src,
+          currentSrc: image.currentSrc,
+        });
       }
     }),
   );
 }
 
-export function collectReferenceTextWidths(root: HTMLElement, max = 3): number[] {
+export function collectReferenceTextWidths(
+  root: HTMLElement,
+  max = 3,
+): number[] {
   const candidates = findDebugTextTargets(root, max);
-  return candidates.map((element) => Number(element.getBoundingClientRect().width.toFixed(2)));
+  return candidates.map((element) =>
+    Number(element.getBoundingClientRect().width.toFixed(2)),
+  );
 }
 
-export async function waitForLayoutStability(root: HTMLElement, log: DebugLogger): Promise<void> {
+export async function waitForLayoutStability(
+  root: HTMLElement,
+  log: DebugLogger,
+): Promise<void> {
   const maxAttempts = 10;
   let previous: LayoutSnapshot | null = null;
   let previousWidths: number[] | null = null;
@@ -692,7 +802,8 @@ export async function waitForLayoutStability(root: HTMLElement, log: DebugLogger
     const current = createLayoutSnapshot(root, 5);
     const currentWidths = collectReferenceTextWidths(root, 3);
 
-    const isStableLayout = previous && areLayoutSnapshotsStable(previous, current);
+    const isStableLayout =
+      previous && areLayoutSnapshotsStable(previous, current);
     const isStableTextWidths =
       previousWidths && areNumberArraysStable(previousWidths, currentWidths);
 
@@ -882,10 +993,15 @@ export function deepCloneWithComputedStyles(
     cloneImage.removeAttribute("srcset");
     cloneImage.sizes = "";
     normalizeImageForCapture(cloneImage);
-    cloneImage.setAttribute("data-pdf-original-src", sourceImage.src || srcToUse);
+    cloneImage.setAttribute(
+      "data-pdf-original-src",
+      sourceImage.src || srcToUse,
+    );
     cloneImage.setAttribute("data-pdf-original-current-src", srcToUse);
-    if (sourceImage.srcset) cloneImage.setAttribute("data-pdf-original-srcset", sourceImage.srcset);
-    if (sourceImage.sizes) cloneImage.setAttribute("data-pdf-original-sizes", sourceImage.sizes);
+    if (sourceImage.srcset)
+      cloneImage.setAttribute("data-pdf-original-srcset", sourceImage.srcset);
+    if (sourceImage.sizes)
+      cloneImage.setAttribute("data-pdf-original-sizes", sourceImage.sizes);
   }
 
   Array.from(node.childNodes).forEach((childNode) => {
@@ -910,7 +1026,9 @@ export function applyCaptureLayoutFixes(
   void cleanupTasks;
 }
 
-export function prepareDomForPdfCapture(root: HTMLElement): CaptureDomPreparation {
+export function prepareDomForPdfCapture(
+  root: HTMLElement,
+): CaptureDomPreparation {
   const cleanupTasks: Array<() => void> = [];
   root.classList.add(CAPTURE_MODE_CLASS);
   cleanupTasks.push(() => root.classList.remove(CAPTURE_MODE_CLASS));
@@ -963,7 +1081,8 @@ export function prepareDomForPdfCapture(root: HTMLElement): CaptureDomPreparatio
       if (paddingBottom)
         el.style.setProperty("padding-bottom", paddingBottom, "important");
       const paddingTop = el.getAttribute("data-pdf-padding-top");
-      if (paddingTop) el.style.setProperty("padding-top", paddingTop, "important");
+      if (paddingTop)
+        el.style.setProperty("padding-top", paddingTop, "important");
       const height = el.getAttribute("data-pdf-height");
       if (height) {
         el.style.setProperty("height", height, "important");
@@ -1040,7 +1159,10 @@ export function addCaptureModeStyle(doc: Document): HTMLStyleElement {
 
 export function collectFontRequirements(root: HTMLElement): FontRequirement[] {
   const requirements = new Map<string, FontRequirement>();
-  const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  const elements = [
+    root,
+    ...Array.from(root.querySelectorAll<HTMLElement>("*")),
+  ];
 
   elements.forEach((element) => {
     const computed = window.getComputedStyle(element);
@@ -1064,6 +1186,7 @@ export async function loadAndStabilizeFonts(
   doc: Document,
   requirements: FontRequirement[],
   log: DebugLogger,
+  fastMode = false,
 ): Promise<{ elapsedMs: number; fontsTimeout: boolean }> {
   const startedAt = performance.now();
   const fontSet = doc.fonts;
@@ -1077,6 +1200,16 @@ export async function loadAndStabilizeFonts(
       fontSet.load(`${entry.style} ${entry.weight} 16px "${entry.family}"`),
     ),
   );
+
+  if (fastMode) {
+    const elapsedMs = Math.round(performance.now() - startedAt);
+    log("font stabilization (fast mode)", {
+      elapsedMs,
+      fontsTimeout: false,
+      requirementsCount: requirements.length,
+    });
+    return { elapsedMs, fontsTimeout: false };
+  }
 
   const probe = doc.createElement("span");
   probe.textContent = "mmmmmmmmmWWWWWW000000";
@@ -1153,17 +1286,27 @@ export async function proxyAndLoadImages(
   log: DebugLogger,
 ): Promise<ImageLoadResult> {
   const startedAt = performance.now();
-  const images = Array.from(container.querySelectorAll<HTMLImageElement>("img"));
+  const images = Array.from(
+    container.querySelectorAll<HTMLImageElement>("img"),
+  );
   const before = images.map((img, index) => getImageDebugEntry(img, index));
   const cleanupTasks: Array<() => void> = [];
 
-  const backgroundNodes = [container, ...Array.from(container.querySelectorAll<HTMLElement>("*"))];
+  const backgroundNodes = [
+    container,
+    ...Array.from(container.querySelectorAll<HTMLElement>("*")),
+  ];
   let proxiedBackgroundImagesCount = 0;
   backgroundNodes.forEach((node) => {
-    const computedBackgroundImage = window.getComputedStyle(node).backgroundImage || "";
-    if (!computedBackgroundImage || !computedBackgroundImage.includes("url(")) return;
+    const computedBackgroundImage =
+      window.getComputedStyle(node).backgroundImage || "";
+    if (!computedBackgroundImage || !computedBackgroundImage.includes("url("))
+      return;
 
-    const replaced = replaceBackgroundUrlsWithProxy(computedBackgroundImage, options);
+    const replaced = replaceBackgroundUrlsWithProxy(
+      computedBackgroundImage,
+      options,
+    );
     if (replaced.replacedCount <= 0) return;
 
     proxiedBackgroundImagesCount += replaced.replacedCount;
@@ -1171,7 +1314,11 @@ export async function proxyAndLoadImages(
     const previousPriority = node.style.getPropertyPriority("background-image");
     cleanupTasks.push(() => {
       if (previousValue) {
-        node.style.setProperty("background-image", previousValue, previousPriority || "");
+        node.style.setProperty(
+          "background-image",
+          previousValue,
+          previousPriority || "",
+        );
       } else {
         node.style.removeProperty("background-image");
       }
@@ -1180,7 +1327,8 @@ export async function proxyAndLoadImages(
   });
 
   if (images.length === 0) {
-    const directRemoteImageRequestsCount = countDirectRemoteImageRequests(container);
+    const directRemoteImageRequestsCount =
+      countDirectRemoteImageRequests(container);
     return {
       totalImages: 0,
       decodedImages: 0,
@@ -1299,7 +1447,10 @@ export async function proxyAndLoadImages(
           );
         }
       } catch (error) {
-        status = error instanceof Error && error.message === "timeout" ? "timeout" : "error";
+        status =
+          error instanceof Error && error.message === "timeout"
+            ? "timeout"
+            : "error";
       }
 
       if (isImageLoaded(image)) {
@@ -1310,14 +1461,16 @@ export async function proxyAndLoadImages(
       }
 
       const entry = getImageDebugEntry(image, index);
-      entry.decodeStatus = status === "ok" && isImageLoaded(image) ? "ok" : status;
+      entry.decodeStatus =
+        status === "ok" && isImageLoaded(image) ? "ok" : status;
       log("image decode status", entry);
     }),
   );
 
   const after = images.map((img, index) => getImageDebugEntry(img, index));
   const waitMs = Math.round(performance.now() - startedAt);
-  const directRemoteImageRequestsCount = countDirectRemoteImageRequests(container);
+  const directRemoteImageRequestsCount =
+    countDirectRemoteImageRequests(container);
 
   return {
     totalImages: images.length,
@@ -1350,12 +1503,11 @@ export async function hashBuffer(buffer: ArrayBuffer): Promise<string> {
 export function getRootDescriptor(rootElement: HTMLElement): string {
   if (rootElement.id) return `#${rootElement.id}`;
   const className = rootElement.className?.toString().trim();
-  if (className) return `${rootElement.tagName.toLowerCase()}.${className.split(/\s+/)[0]}`;
+  if (className)
+    return `${rootElement.tagName.toLowerCase()}.${className.split(/\s+/)[0]}`;
   return rootElement.tagName.toLowerCase();
 }
 
 export function getRootImageCount(rootElement: HTMLElement): number {
   return rootElement.querySelectorAll("img").length;
 }
-
-

@@ -310,7 +310,7 @@ export default function ViewProposalPage() {
 
           <Button
             onClick={handleGeneratePdf}
-            disabled={isGenerating}
+            disabled={isGenerating || !proposal}
             className="gap-2"
           >
             {isGenerating ? (

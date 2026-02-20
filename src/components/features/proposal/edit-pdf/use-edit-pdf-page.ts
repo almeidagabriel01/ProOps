@@ -23,7 +23,7 @@ import {
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
 import { savePdfBlob } from "@/services/pdf/render-to-pdf";
-import { renderProposalToPdfOffscreen } from "@/services/pdf/render-proposal-offscreen";
+import { generateProposalPdf } from "@/services/pdf/generate-proposal-pdf";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -440,11 +440,10 @@ export function useEditPdfPage() {
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-      const result = await renderProposalToPdfOffscreen({
+      const result = await generateProposalPdf({
         proposal: proposal as Proposal,
         template,
         tenant,
-        showCover: true,
         customSettings: {
           theme: theme as
             | "modern"
@@ -467,10 +466,12 @@ export function useEditPdfPage() {
           repeatHeader,
           logoStyle,
         },
+        showCover: true,
         rootHint: "pdf-edit-offscreen-root",
         proposalTitle: proposal?.title,
         tenantId: tenant?.id || proposal?.tenantId,
         sourceLabel: "edit-preview",
+        canonicalSource: false,
       });
 
       savePdfBlob(result.blob, result.filename);

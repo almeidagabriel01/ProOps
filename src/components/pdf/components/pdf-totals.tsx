@@ -28,6 +28,10 @@ export function PdfTotals({
   const subtotal = products.reduce((sum, p) => sum + p.total, 0);
   const discountAmt = (subtotal * (discount || 0)) / 100;
   const total = subtotal - discountAmt + (extraExpense || 0);
+  const totalBorderColor =
+    (contentStyles.total?.borderTopColor as string) ||
+    (contentStyles.headerBorder?.borderColor as string) ||
+    "rgba(0, 0, 0, 0.28)";
 
   return (
     <div
@@ -63,8 +67,13 @@ export function PdfTotals({
           </div>
         )}
         <div
-          className="flex items-baseline justify-between text-xl font-bold pt-3 border-t"
-          style={contentStyles.total}
+          className="flex items-baseline justify-between text-xl font-bold pt-3"
+          style={{
+            ...contentStyles.total,
+            borderTopWidth: "1px",
+            borderTopStyle: "solid",
+            borderTopColor: totalBorderColor,
+          }}
         >
           <span>Total:</span>
           <span>{formatCurrency(total)}</span>

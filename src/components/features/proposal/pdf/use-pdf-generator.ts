@@ -3,28 +3,14 @@
 import { useState } from "react";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
-import { CoverElement, PdfSection } from "@/components/features/proposal/pdf-section-editor";
-import { ThemeType } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { toast } from "react-toastify";
-import { renderToPdf, savePdfBlob } from "@/services/pdf/render-to-pdf";
-import { renderProposalToPdfOffscreen } from "@/services/pdf/render-proposal-offscreen";
+import { savePdfBlob } from "@/services/pdf/render-to-pdf";
+import {
+  generateProposalPdf,
+  ProposalPdfCustomSettings,
+} from "@/services/pdf/generate-proposal-pdf";
 
-interface PdfViewerSettings {
-  theme?: ThemeType;
-  primaryColor?: string;
-  fontFamily?: string;
-  coverTitle?: string;
-  coverImage?: string;
-  coverLogo?: string;
-  coverImageOpacity?: number;
-  coverImageFit?: "cover" | "contain";
-  coverImagePosition?: string;
-  sections?: PdfSection[];
-  coverElements?: CoverElement[];
-  repeatHeader?: boolean;
-  pageNumberStart?: number;
-  logoStyle?: "original" | "rounded" | "circle";
-}
+type PdfViewerSettings = ProposalPdfCustomSettings;
 
 interface UsePdfGeneratorProps {
   proposal: Partial<Proposal>;
@@ -51,40 +37,29 @@ export function usePdfGenerator({
   ) => {
     setIsGenerating(true);
     try {
-      let result = null;
+      const hasProposalPayload = Boolean(
+        proposal &&
+          (proposal.id ||
+            (proposal.products && proposal.products.length > 0) ||
+            proposal.title),
+      );
 
-      if (proposal?.id && tenant) {
-        result = await renderProposalToPdfOffscreen({
-          proposal: proposal as Proposal,
-          template,
-          tenant,
-          customSettings,
-          showCover,
-          rootHint: rootElementId || "pdf-offscreen-content",
-          proposalTitle: proposal?.title,
-          tenantId: proposal?.tenantId,
-          sourceLabel,
-        });
-      } else {
-        const sourceRoot = rootElementId
-          ? document.getElementById(rootElementId)
-          : document.body;
-
-        if (!sourceRoot) {
-          toast.error("Erro ao localizar conteudo para gerar o PDF.");
-          return;
-        }
-
-        result = await renderToPdf({
-          rootElement: sourceRoot,
-          rootHint: rootElementId || "document.body",
-          proposalTitle: proposal?.title,
-          tenantId: proposal?.tenantId,
-          sourceLabel,
-        });
+      if (!hasProposalPayload) {
+        toast.error("Erro ao localizar dados da proposta para gerar o PDF.");
+        return;
       }
 
-      if (!result) return;
+      const result = await generateProposalPdf({
+        proposal,
+        template,
+        tenant,
+        customSettings,
+        showCover,
+        rootHint: rootElementId || "pdf-offscreen-content",
+        proposalTitle: proposal?.title,
+        tenantId: proposal?.tenantId,
+        sourceLabel,
+      });
 
       savePdfBlob(result.blob, result.filename);
       setIsOpen(false);

@@ -3,7 +3,11 @@ import { useState, useEffect } from "react";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProductService } from "@/services/product-service";
 
-export function useEnrichedProducts(proposal: Proposal | null | undefined, tenantId?: string, options?: { filterInactive?: boolean }) {
+export function useEnrichedProducts(
+  proposal: Proposal | null | undefined,
+  tenantId?: string,
+  options?: { filterInactive?: boolean; skipCatalogEnrichment?: boolean },
+) {
   const [enrichedProducts, setEnrichedProducts] = useState<ProposalProduct[]>(
     proposal?.products || []
   );
@@ -11,7 +15,11 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
 
   useEffect(() => {
     const loadProductImages = async () => {
-      if (!tenantId || !proposal?.products?.length) {
+      if (
+        options?.skipCatalogEnrichment ||
+        !tenantId ||
+        !proposal?.products?.length
+      ) {
         setEnrichedProducts(proposal?.products || []);
         setIsLoading(false);
         return;
@@ -72,7 +80,12 @@ export function useEnrichedProducts(proposal: Proposal | null | undefined, tenan
     };
 
     loadProductImages();
-  }, [tenantId, proposal?.products, options?.filterInactive]);
+  }, [
+    tenantId,
+    proposal?.products,
+    options?.filterInactive,
+    options?.skipCatalogEnrichment,
+  ]);
 
   return { products: enrichedProducts, isLoading };
 }
