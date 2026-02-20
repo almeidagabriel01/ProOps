@@ -1,5 +1,5 @@
-const { initializeApp, cert, getApps } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const BASE_URL =
   process.env.WHATSAPP_OVERAGE_CRON_URL ||
@@ -15,7 +15,7 @@ function getPreviousMonthKey(baseDate = new Date()) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function getRequiredEnv(name) {
+function getRequiredEnv(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing env: ${name}`);
   return value;
@@ -26,7 +26,10 @@ function initAdmin() {
 
   const projectId = getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
   const clientEmail = getRequiredEnv("FIREBASE_CLIENT_EMAIL");
-  const privateKey = getRequiredEnv("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = getRequiredEnv("FIREBASE_PRIVATE_KEY").replace(
+    /\\n/g,
+    "\n",
+  );
 
   initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
@@ -96,7 +99,9 @@ async function run() {
   });
 
   if (!hasReported || !hasEventId) {
-    throw new Error("Validation failed: stripeReported/stripeEventId not updated.");
+    throw new Error(
+      "Validation failed: stripeReported/stripeEventId not updated.",
+    );
   }
 
   console.log("[TEST] Success");

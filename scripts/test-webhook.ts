@@ -1,11 +1,10 @@
-const fetch = require("node-fetch");
-const crypto = require("crypto");
+import crypto from "crypto";
 
 const BASE_URL = "http://localhost:3000/api/whatsapp";
 const PHONE_NUMBER = "5511999999999";
 const APP_SECRET = "test_secret";
 
-async function sendWebhook(text, phoneNumber = PHONE_NUMBER) {
+async function sendWebhook(text: string, phoneNumber = PHONE_NUMBER) {
   const payload = {
     object: "whatsapp_business_account",
     entry: [

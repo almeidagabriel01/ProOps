@@ -83,8 +83,8 @@ export async function GET(req: Request) {
 
       // Calculate costs if not stored (or trust stored)
       // Stored: includedCost, overageCost, estimatedCost
-      let estimatedCost = usage?.estimatedCost || 0;
-      let overageCost = usage?.overageCost || 0;
+      const estimatedCost = usage?.estimatedCost || 0;
+      const overageCost = usage?.overageCost || 0;
 
       // Recalculate if missing (legacy/migration safety)
       // const COST_PER_MSG = 0.35; // Don't hardcode if possible, or fetch from env/config
@@ -112,7 +112,7 @@ export async function GET(req: Request) {
     });
 
     // Sort by Overage Cost descending (prioritize high revenue/problematic), then Usage %
-    results.sort((a, b: any) => {
+    results.sort((a, b) => {
       if (b.overageCost !== a.overageCost) {
         return b.overageCost - a.overageCost;
       }

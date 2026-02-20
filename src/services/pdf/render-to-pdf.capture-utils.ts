@@ -4,6 +4,7 @@ import {
   MODERN_BG_STYLE_ATTRIBUTE,
   MODERN_COLOR_FUNCTION_RE,
 } from "./render-to-pdf.constants";
+import { getPdfDebugEnabled } from "./render-to-pdf.helpers";
 export function containsModernColor(value: string): boolean {
   return /(lab|oklch|oklab|lch|color)\(/i.test(value);
 }
@@ -72,7 +73,12 @@ export function isCrossOriginHttpUrl(rawUrl: string): boolean {
 
 export function buildProxyImageUrl(
   rawUrl: string,
-  options: { apiBaseUrl: string; tenantId?: string; disableCache: boolean; index?: number },
+  options: {
+    apiBaseUrl: string;
+    tenantId?: string;
+    disableCache: boolean;
+    index?: number;
+  },
 ): string {
   if (rawUrl.includes("/v1/aux/proxy-image")) {
     return rawUrl;
@@ -154,7 +160,10 @@ export function buildUnsupportedColorFunctionFlags(value: string): {
   };
 }
 
-export function incrementHitCounter(counter: Record<string, number>, key: string): void {
+export function incrementHitCounter(
+  counter: Record<string, number>,
+  key: string,
+): void {
   counter[key] = (counter[key] || 0) + 1;
 }
 
@@ -167,7 +176,9 @@ export function resolveCssPropertyInClone(
   if (!rawValue) return null;
   resolver.style.setProperty(propertyName, "");
   resolver.style.setProperty(propertyName, rawValue);
-  const resolved = view.getComputedStyle(resolver).getPropertyValue(propertyName);
+  const resolved = view
+    .getComputedStyle(resolver)
+    .getPropertyValue(propertyName);
   if (!resolved) return null;
   if (hasUnsupportedColorFunctionInValue(resolved)) return null;
   return resolved.trim();
@@ -177,7 +188,9 @@ export function getCloneElementNodes(root: Element): Element[] {
   return [root, ...Array.from(root.querySelectorAll("*"))];
 }
 
-export function getInlineStyleDeclaration(node: Element): CSSStyleDeclaration | null {
+export function getInlineStyleDeclaration(
+  node: Element,
+): CSSStyleDeclaration | null {
   const maybeStyle = node as Element & { style?: CSSStyleDeclaration };
   return maybeStyle.style || null;
 }
@@ -193,7 +206,11 @@ export function getElementClassNameForDiagnostics(node: Element): string {
 }
 
 export function getSafeColorFallback(propertyName: string): string {
-  if (propertyName === "color" || propertyName === "fill" || propertyName === "stroke") {
+  if (
+    propertyName === "color" ||
+    propertyName === "fill" ||
+    propertyName === "stroke"
+  ) {
     return "rgb(0, 0, 0)";
   }
   return "transparent";
@@ -221,7 +238,12 @@ export function sanitizeInlineStylePropertiesInClone(
       return;
     }
 
-    const resolved = resolveCssPropertyInClone(resolver, view, propertyName, value);
+    const resolved = resolveCssPropertyInClone(
+      resolver,
+      view,
+      propertyName,
+      value,
+    );
     if (resolved) {
       inlineStyle.setProperty(propertyName, resolved, "important");
       normalizedCount += 1;
@@ -230,7 +252,11 @@ export function sanitizeInlineStylePropertiesInClone(
 
     if (propertyName.includes("background")) {
       inlineStyle.setProperty("background", "none", "important");
-      inlineStyle.setProperty("background-color", "rgb(255, 255, 255)", "important");
+      inlineStyle.setProperty(
+        "background-color",
+        "rgb(255, 255, 255)",
+        "important",
+      );
       normalizedCount += 1;
       return;
     }
@@ -245,7 +271,11 @@ export function sanitizeInlineStylePropertiesInClone(
       return;
     }
 
-    inlineStyle.setProperty(propertyName, getSafeColorFallback(propertyName), "important");
+    inlineStyle.setProperty(
+      propertyName,
+      getSafeColorFallback(propertyName),
+      "important",
+    );
     normalizedCount += 1;
   });
 
@@ -268,22 +298,32 @@ export function sanitizeUnsupportedColorAttributesInClone(
     "lighting-color": "rgb(0, 0, 0)",
   };
 
-  Object.entries(colorAttributeFallbacks).forEach(([attributeName, fallbackValue]) => {
-    const rawValue = node.getAttribute(attributeName) || "";
-    if (!hasUnsupportedColorFunctionInValue(rawValue)) return;
-    node.setAttribute(attributeName, fallbackValue);
-    inlineStyle?.setProperty(attributeName, fallbackValue, "important");
-    normalizedCount += 1;
-  });
+  Object.entries(colorAttributeFallbacks).forEach(
+    ([attributeName, fallbackValue]) => {
+      const rawValue = node.getAttribute(attributeName) || "";
+      if (!hasUnsupportedColorFunctionInValue(rawValue)) return;
+      node.setAttribute(attributeName, fallbackValue);
+      inlineStyle?.setProperty(attributeName, fallbackValue, "important");
+      normalizedCount += 1;
+    },
+  );
 
   if (inlineStyle) {
-    normalizedCount += sanitizeInlineStylePropertiesInClone(inlineStyle, resolver, view);
+    normalizedCount += sanitizeInlineStylePropertiesInClone(
+      inlineStyle,
+      resolver,
+      view,
+    );
   }
 
   return normalizedCount;
 }
 
-export function countUnsupportedColorValuesInClone(root: HTMLElement, view: Window): number {
+export function countUnsupportedColorValuesInClone(
+  root: HTMLElement,
+  view: Window,
+): number {
+  if (!getPdfDebugEnabled()) return 0;
   const nodes = getCloneElementNodes(root);
   let count = 0;
   nodes.forEach((node) => {
@@ -300,7 +340,8 @@ export function countUnsupportedColorValuesInClone(root: HTMLElement, view: Wind
       count += 1;
     }
 
-    const computedBackgroundImage = computed.getPropertyValue("background-image");
+    const computedBackgroundImage =
+      computed.getPropertyValue("background-image");
     if (hasUnsupportedColorFunctionInValue(computedBackgroundImage)) {
       count += 1;
     }
@@ -326,14 +367,19 @@ export function countUnsupportedColorValuesInClone(root: HTMLElement, view: Wind
       count += 1;
     }
 
-    ["color", "fill", "stroke", "stop-color", "flood-color", "lighting-color"].forEach(
-      (attributeName) => {
-        const attributeValue = node.getAttribute(attributeName) || "";
-        if (hasUnsupportedColorFunctionInValue(attributeValue)) {
-          count += 1;
-        }
-      },
-    );
+    [
+      "color",
+      "fill",
+      "stroke",
+      "stop-color",
+      "flood-color",
+      "lighting-color",
+    ].forEach((attributeName) => {
+      const attributeValue = node.getAttribute(attributeName) || "";
+      if (hasUnsupportedColorFunctionInValue(attributeValue)) {
+        count += 1;
+      }
+    });
   });
   return count;
 }
@@ -342,7 +388,18 @@ export function collectUnsupportedColorEntriesInClone(
   root: HTMLElement,
   view: Window,
   limit = 10,
-): { totalCount: number; samples: Array<{ tag: string; className: string; property: string; value: string }> } {
+): {
+  totalCount: number;
+  samples: Array<{
+    tag: string;
+    className: string;
+    property: string;
+    value: string;
+  }>;
+} {
+  if (!getPdfDebugEnabled()) {
+    return { totalCount: 0, samples: [] };
+  }
   const nodes = getCloneElementNodes(root);
   const propertiesToCheck = [
     ...COLOR_SANITIZE_PROPERTIES,
@@ -351,7 +408,12 @@ export function collectUnsupportedColorEntriesInClone(
     "border",
   ];
   let totalCount = 0;
-  const samples: Array<{ tag: string; className: string; property: string; value: string }> = [];
+  const samples: Array<{
+    tag: string;
+    className: string;
+    property: string;
+    value: string;
+  }> = [];
 
   nodes.forEach((node) => {
     const computed = view.getComputedStyle(node);
@@ -416,14 +478,23 @@ export function sanitizeUnsupportedColorsInClone(
   nodes.forEach((node) => {
     const computed = view.getComputedStyle(node);
     const inlineStyle = getInlineStyleDeclaration(node);
-    normalizedColorsCount += sanitizeUnsupportedColorAttributesInClone(node, resolver, view);
+    normalizedColorsCount += sanitizeUnsupportedColorAttributesInClone(
+      node,
+      resolver,
+      view,
+    );
     COLOR_SANITIZE_PROPERTIES.forEach((propertyName) => {
       const value = computed.getPropertyValue(propertyName);
       if (!hasUnsupportedColorFunctionInValue(value)) return;
 
       incrementHitCounter(unsupportedColorHitsByProperty, propertyName);
       affectedElements.add(node);
-      const resolved = resolveCssPropertyInClone(resolver, view, propertyName, value);
+      const resolved = resolveCssPropertyInClone(
+        resolver,
+        view,
+        propertyName,
+        value,
+      );
 
       if (resolved) {
         inlineStyle?.setProperty(propertyName, resolved, "important");
@@ -448,7 +519,11 @@ export function sanitizeUnsupportedColorsInClone(
         "background-color",
         computed.getPropertyValue("background-color"),
       );
-      inlineStyle?.setProperty("background-color", fallbackBg || "rgb(255, 255, 255)", "important");
+      inlineStyle?.setProperty(
+        "background-color",
+        fallbackBg || "rgb(255, 255, 255)",
+        "important",
+      );
       normalizedColorsCount += 1;
     }
 
@@ -463,7 +538,11 @@ export function sanitizeUnsupportedColorsInClone(
         "background-color",
         computed.getPropertyValue("background-color"),
       );
-      inlineStyle?.setProperty("background-color", fallbackBg || "rgb(255, 255, 255)", "important");
+      inlineStyle?.setProperty(
+        "background-color",
+        fallbackBg || "rgb(255, 255, 255)",
+        "important",
+      );
       normalizedColorsCount += 1;
     }
 
@@ -471,7 +550,11 @@ export function sanitizeUnsupportedColorsInClone(
     if (hasUnsupportedColorFunctionInValue(backgroundImage)) {
       incrementHitCounter(unsupportedColorHitsByProperty, "background-image");
       affectedElements.add(node);
-      if (node !== root && node !== clonedDoc.body && node !== clonedDoc.documentElement) {
+      if (
+        node !== root &&
+        node !== clonedDoc.body &&
+        node !== clonedDoc.documentElement
+      ) {
         node.setAttribute(MODERN_BG_ATTRIBUTE, "1");
         bgModernFlaggedCount += 1;
       }
@@ -485,7 +568,11 @@ export function sanitizeUnsupportedColorsInClone(
       if (fallbackBg) {
         inlineStyle?.setProperty("background-color", fallbackBg, "important");
       } else {
-        inlineStyle?.setProperty("background-color", "rgb(255, 255, 255)", "important");
+        inlineStyle?.setProperty(
+          "background-color",
+          "rgb(255, 255, 255)",
+          "important",
+        );
       }
       normalizedColorsCount += 1;
     }
@@ -541,7 +628,10 @@ export function sanitizeUnsupportedColorsInClone(
     clonedDoc.head.appendChild(fallbackStyle);
   }
 
-  const remainingUnsupportedColorCount = countUnsupportedColorValuesInClone(root, view);
+  const remainingUnsupportedColorCount = countUnsupportedColorValuesInClone(
+    root,
+    view,
+  );
   resolver.remove();
 
   return {
@@ -553,5 +643,3 @@ export function sanitizeUnsupportedColorsInClone(
     remainingUnsupportedColorCount,
   };
 }
-
-

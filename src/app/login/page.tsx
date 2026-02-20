@@ -18,7 +18,6 @@ import {
   Upload,
   CheckCircle,
   Mail,
-  Phone,
 } from "lucide-react";
 import Link from "next/link";
 import { AppSkeleton } from "@/components/layout/app-skeleton";

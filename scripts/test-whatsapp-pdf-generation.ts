@@ -1,15 +1,16 @@
-const crypto = require("crypto");
-const { initializeApp, cert, getApps } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const { getStorage } = require("firebase-admin/storage");
+import crypto from "crypto";
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
-const BASE_URL = process.env.WHATSAPP_WEBHOOK_URL || "http://localhost:3000/api/whatsapp";
+const BASE_URL =
+  process.env.WHATSAPP_WEBHOOK_URL || "http://localhost:3000/api/whatsapp";
 const APP_SECRET = process.env.WHATSAPP_APP_SECRET || "test_secret";
 const PHONE_NUMBER = process.env.WHATSAPP_TEST_PHONE;
 const TENANT_ID = process.env.WHATSAPP_TEST_TENANT_ID;
 const PROPOSAL_ID = process.env.WHATSAPP_TEST_PROPOSAL_ID;
 
-function getRequiredEnv(name) {
+function getRequiredEnv(name: string) {
   const value = process.env[name];
   if (!value) {
     throw new Error(`Missing env: ${name}`);
@@ -22,7 +23,10 @@ function initAdmin() {
 
   const projectId = getRequiredEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
   const clientEmail = getRequiredEnv("FIREBASE_CLIENT_EMAIL");
-  const privateKey = getRequiredEnv("FIREBASE_PRIVATE_KEY").replace(/\\n/g, "\n");
+  const privateKey = getRequiredEnv("FIREBASE_PRIVATE_KEY").replace(
+    /\\n/g,
+    "\n",
+  );
   const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
 
   initializeApp({
@@ -31,7 +35,7 @@ function initAdmin() {
   });
 }
 
-async function sendWebhook(text, phoneNumber = PHONE_NUMBER) {
+async function sendWebhook(text: string, phoneNumber = PHONE_NUMBER) {
   const payload = {
     object: "whatsapp_business_account",
     entry: [
@@ -45,7 +49,9 @@ async function sendWebhook(text, phoneNumber = PHONE_NUMBER) {
                 display_phone_number: "15555555555",
                 phone_number_id: "PHONE_NUMBER_ID",
               },
-              contacts: [{ profile: { name: "Test User" }, wa_id: phoneNumber }],
+              contacts: [
+                { profile: { name: "Test User" }, wa_id: phoneNumber },
+              ],
               messages: [
                 {
                   from: phoneNumber,
@@ -114,7 +120,9 @@ async function run() {
     }
   }
 
-  console.log("[TEST] Trigger webhook to list proposals and send proposal by id");
+  console.log(
+    "[TEST] Trigger webhook to list proposals and send proposal by id",
+  );
   await sendWebhook("Listar propostas");
   await sendWebhook(`#${PROPOSAL_ID}`);
 
@@ -124,8 +132,10 @@ async function run() {
   const proposalSnap = await proposalRef.get();
   const proposal = proposalSnap.data() || {};
 
-  const hasPdfPath = typeof proposal.pdfPath === "string" && proposal.pdfPath.length > 0;
-  const hasPdfUrl = typeof proposal.pdfUrl === "string" && proposal.pdfUrl.length > 0;
+  const hasPdfPath =
+    typeof proposal.pdfPath === "string" && proposal.pdfPath.length > 0;
+  const hasPdfUrl =
+    typeof proposal.pdfUrl === "string" && proposal.pdfUrl.length > 0;
   const hasGeneratedAt = Boolean(proposal.pdfGeneratedAt);
 
   console.log("[TEST] Validation");
@@ -135,7 +145,9 @@ async function run() {
   console.log(" - proposal.pdfGeneratedAt exists:", hasGeneratedAt);
 
   if (!fileExists || !hasPdfPath || !hasPdfUrl || !hasGeneratedAt) {
-    throw new Error("Validation failed. Expected storage file and proposal PDF fields.");
+    throw new Error(
+      "Validation failed. Expected storage file and proposal PDF fields.",
+    );
   }
 
   console.log("[TEST] Success");
