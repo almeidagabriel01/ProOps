@@ -1,7 +1,7 @@
 export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 export const DEFAULT_SCALE = 2;
-export const FORCED_HTML2CANVAS_SCALE = 2;
+export const FORCED_HTML2CANVAS_SCALE = 1.5;
 export const FONT_READY_TIMEOUT_MS = 8000;
 export const IMAGE_DECODE_TIMEOUT_MS = 10000;
 
@@ -16,7 +16,8 @@ export const CAPTURE_FONT_VARIABLES = [
   "--font-pdf-montserrat",
   "--font-pdf-playfair",
 ] as const;
-export const MODERN_COLOR_FUNCTION_RE = /\b(?:lab|oklab|lch|oklch|color-mix)\(/i;
+export const MODERN_COLOR_FUNCTION_RE =
+  /\b(?:lab|oklab|lch|oklch|color-mix)\(/i;
 export const MODERN_BG_ATTRIBUTE = "data-pdf-bg-modern";
 export const MODERN_BG_STYLE_ATTRIBUTE = "data-pdf-modern-bg-style";
 export const COLOR_SANITIZE_PROPERTIES = [

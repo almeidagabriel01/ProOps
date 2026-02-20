@@ -1,5 +1,6 @@
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { FormGroup, FormItem } from "@/components/ui/form-components";
 import { StepNavigation } from "@/components/ui/step-wizard";
 
@@ -8,6 +9,8 @@ interface MemberInfoStepProps {
   setName: (value: string) => void;
   email: string;
   setEmail: (value: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (value: string) => void;
   password: string;
   setPassword: (value: string) => void;
   errors: Record<string, string>;
@@ -21,6 +24,8 @@ export function MemberInfoStep({
   setName,
   email,
   setEmail,
+  phoneNumber,
+  setPhoneNumber,
   password,
   setPassword,
   errors,
@@ -89,6 +94,20 @@ export function MemberInfoStep({
               />
             </FormItem>
           </FormGroup>
+
+          <FormItem
+            label="WhatsApp / Telefone"
+            htmlFor="member-phone"
+            error={errors.phoneNumber}
+          >
+            <PhoneInput
+              id="member-phone"
+              name="member_phone_new"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              autoComplete="off"
+            />
+          </FormItem>
 
           <FormItem
             label="Senha Inicial"

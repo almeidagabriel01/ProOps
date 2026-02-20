@@ -96,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           photoURL: userData.photoURL || firebaseUser.photoURL || undefined,
           role: userData.role || "admin",
           tenantId: userData.tenantId || "default-tenant",
+          phoneNumber: userData.phoneNumber || undefined,
           planId: userData.planId || undefined,
           stripeCustomerId: userData.stripeCustomerId || undefined,
           stripeSubscriptionId:

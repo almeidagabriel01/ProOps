@@ -10,6 +10,7 @@ import { financeRoutes } from "./routes/finance.routes";
 import { adminRoutes } from "./routes/admin.routes";
 import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
+import { internalRoutes } from "./routes/internal.routes";
 import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 
@@ -22,7 +23,13 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req: any, res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // Public routes (no authentication required)
 app.get("/health", (req: express.Request, res: express.Response) => {
@@ -31,6 +38,10 @@ app.get("/health", (req: express.Request, res: express.Response) => {
 
 // Proxy image - must be public for PDF generation
 app.get("/v1/aux/proxy-image", proxyImage);
+
+// Public Webhooks
+import { whatsappRoutes } from "./routes/whatsapp.routes";
+app.use("/webhooks/whatsapp", whatsappRoutes);
 
 // Public Stripe Routes (Plans)
 app.use("/v1/stripe", publicStripeRoutes);
@@ -47,6 +58,7 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", adminRoutes);
 app.use("/v1/stripe", stripeRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
+app.use("/internal", internalRoutes);
 app.use("/v1", sharedProposalsRoutes); // Rota pública para /v1/share/:token
 app.use("/v1/notifications", notificationsRoutes); // Rotas de notificações
 

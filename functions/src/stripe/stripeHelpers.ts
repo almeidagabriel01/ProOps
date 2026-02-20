@@ -2,6 +2,8 @@ import { db } from "../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 
+export const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
+
 export async function getPlanIdByTier(tier: string): Promise<string | null> {
   const plansRef = db.collection("plans");
   const snapshot = await plansRef.where("tier", "==", tier).get();
@@ -47,13 +49,48 @@ export async function updateUserPlan(
 
   await userRef.update(updatePayload);
 
+  try {
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
+    if (userData) {
+      const tenantId =
+        userData.tenantId || userData.companyId || `tenant_${userId}`;
+      let isWhatsappEnabled = false;
+
+      if (planTier === "pro" || planTier === "enterprise") {
+        isWhatsappEnabled = true;
+      } else {
+        const addonDoc = await db
+          .collection("addons")
+          .doc(`${tenantId}_whatsapp_addon`)
+          .get();
+        if (addonDoc.exists && addonDoc.data()?.status === "active") {
+          isWhatsappEnabled = true;
+        }
+      }
+
+      const tenantRef = db.collection("tenants").doc(tenantId);
+      const tenantSnap = await tenantRef.get();
+      if (tenantSnap.exists) {
+        await tenantRef.update({
+          whatsappEnabled: isWhatsappEnabled,
+        });
+      }
+    }
+  } catch (err) {
+    console.error(
+      `Failed to sync whatsappEnabled for user ${userId} during plan update`,
+      err,
+    );
+  }
+
   if (planId) {
     console.log(
-      `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`
+      `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`,
     );
   } else {
     console.warn(
-      `Plan not found for tier: ${planTier}. Core subscription fields were still updated for user ${userId}.`
+      `Plan not found for tier: ${planTier}. Core subscription fields were still updated for user ${userId}.`,
     );
   }
 }
@@ -90,8 +127,14 @@ export function mapStripeSubscriptionStatus(status: string): StripeSyncStatus {
 }
 
 function toClientSubscriptionStatus(
-  status: SubscriptionStatus
-): "active" | "trialing" | "past_due" | "canceled" | "payment_failed" | "inactive" {
+  status: SubscriptionStatus,
+):
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "payment_failed"
+  | "inactive" {
   switch (status) {
     case "ACTIVE":
       return "active";
@@ -114,7 +157,7 @@ export async function updateSubscriptionStatus(
   status: SubscriptionStatus,
   reason?: string,
   currentPeriodEnd?: Date,
-  cancelAtPeriodEnd?: boolean
+  cancelAtPeriodEnd?: boolean,
 ): Promise<void> {
   const userRef = db.collection("users").doc(userId);
   await userRef.update({
@@ -132,12 +175,16 @@ export async function updateSubscriptionStatus(
   console.log(`Updated subscription status for user ${userId} to ${status}`);
 }
 
-export type AddonType = "financial" | "pdf_editor_partial" | "pdf_editor_full";
+export type AddonType =
+  | "financial"
+  | "pdf_editor_partial"
+  | "pdf_editor_full"
+  | "whatsapp_addon";
 
 export async function saveAddon(
   tenantId: string,
   addonType: AddonType,
-  stripeSubscriptionId: string
+  stripeSubscriptionId: string,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -149,12 +196,18 @@ export async function saveAddon(
     purchasedAt: FieldValue.serverTimestamp(),
   });
 
+  if (addonType === "whatsapp_addon") {
+    await db.collection("tenants").doc(tenantId).update({
+      whatsappEnabled: true,
+    });
+  }
+
   console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
 }
 
 export async function cancelAddon(
   tenantId: string,
-  addonType: AddonType
+  addonType: AddonType,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -163,6 +216,33 @@ export async function cancelAddon(
     expiresAt: FieldValue.serverTimestamp(),
   });
 
+  if (addonType === "whatsapp_addon") {
+    // Check if their current plan entitles them to whatsapp anyway
+    // If we cancel the addon but they are 'pro' or 'enterprise', we shouldn't disable it
+    // To be safe, we disable and let the plan sync logic re-enable if needed, or query here.
+    const usersSnap = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
+      .limit(1)
+      .get();
+    let keepEnabled = false;
+    if (!usersSnap.empty) {
+      const userData = usersSnap.docs[0].data();
+      const planTier = userData.planId; // The tier string or plan document ID
+      // To properly verify, we should check the tier.
+      if (planTier === "pro" || planTier === "enterprise") {
+        keepEnabled = true;
+      }
+    }
+
+    if (!keepEnabled) {
+      await db.collection("tenants").doc(tenantId).update({
+        whatsappEnabled: false,
+      });
+    }
+  }
+
   console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
 }
 
@@ -170,7 +250,7 @@ export async function updateAddonStatus(
   tenantId: string,
   addonType: AddonType,
   status: "active" | "past_due" | "cancelled",
-  currentPeriodEnd?: Date
+  currentPeriodEnd?: Date,
 ): Promise<void> {
   const addonId = `${tenantId}_${addonType}`;
 
@@ -189,8 +269,38 @@ export async function updateAddonStatus(
 
   await db.collection("addons").doc(addonId).update(updateData);
 
+  if (addonType === "whatsapp_addon") {
+    if (status === "active") {
+      await db
+        .collection("tenants")
+        .doc(tenantId)
+        .update({ whatsappEnabled: true });
+    } else if (status === "cancelled") {
+      const usersSnap = await db
+        .collection("users")
+        .where("tenantId", "==", tenantId)
+        .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
+        .limit(1)
+        .get();
+      let keepEnabled = false;
+      if (!usersSnap.empty) {
+        const userData = usersSnap.docs[0].data();
+        const planTier = userData.planId;
+        if (planTier === "pro" || planTier === "enterprise") {
+          keepEnabled = true;
+        }
+      }
+      if (!keepEnabled) {
+        await db
+          .collection("tenants")
+          .doc(tenantId)
+          .update({ whatsappEnabled: false });
+      }
+    }
+  }
+
   console.log(
-    `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`
+    `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`,
   );
 }
 
@@ -208,7 +318,7 @@ export interface SyncResult {
 export async function runStripeSync(
   limit: number,
   startAfterId?: string,
-  dryRun: boolean = false
+  dryRun: boolean = false,
 ): Promise<SyncResult> {
   let usersQuery: FirebaseFirestore.Query = db
     .collection("users")
@@ -249,13 +359,12 @@ export async function runStripeSync(
     eligible += 1;
 
     try {
-      const subscription = await stripe.subscriptions.retrieve(
-        stripeSubscriptionId
-      );
+      const subscription =
+        await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
       const status = mapStripeSubscriptionStatus(subscription.status);
       const currentPeriodEnd = new Date(
-        (subscription as any).current_period_end * 1000
+        (subscription as any).current_period_end * 1000,
       );
 
       const oldStatus = userData.subscription?.status || "UNKNOWN";
@@ -274,7 +383,7 @@ export async function runStripeSync(
           status,
           "Batch sync",
           currentPeriodEnd,
-          subscription.cancel_at_period_end
+          subscription.cancel_at_period_end,
         );
       }
 
@@ -299,4 +408,88 @@ export async function runStripeSync(
     errors,
     changes,
   };
+}
+
+export async function addWhatsAppOverageToSubscription(
+  subscriptionId: string,
+): Promise<string | null> {
+  const stripe = getStripe();
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    // Check if already exists
+    const existingItem = subscription.items.data.find(
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+    );
+
+    if (existingItem) {
+      console.log(
+        `[addWhatsAppOverage] Item already exists in subscription ${subscriptionId}`,
+      );
+      return existingItem.id;
+    }
+
+    // Add item
+    const updatedSubscription = await stripe.subscriptions.update(
+      subscriptionId,
+      {
+        items: [
+          ...subscription.items.data.map((item) => ({ id: item.id })), // Keep existing items
+          { price: WHATSAPP_OVERAGE_PRICE_ID },
+        ],
+      },
+    );
+
+    const newItem = updatedSubscription.items.data.find(
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+    );
+
+    if (newItem) {
+      console.log(
+        `[addWhatsAppOverage] Added item ${newItem.id} to subscription ${subscriptionId}`,
+      );
+      return newItem.id;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      `[addWhatsAppOverage] Error adding item to subscription ${subscriptionId}:`,
+      error,
+    );
+    throw error;
+  }
+}
+
+export async function upsertTenantStripeBillingData(input: {
+  tenantId: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  whatsappOveragePriceId?: string;
+  whatsappOverageSubscriptionItemId?: string;
+}): Promise<void> {
+  const tenantId = String(input.tenantId || "").trim();
+  if (!tenantId) return;
+
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const updatePayload: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (input.stripeCustomerId) {
+    updatePayload.stripeCustomerId = input.stripeCustomerId;
+  }
+  if (input.stripeSubscriptionId) {
+    updatePayload.stripeSubscriptionId = input.stripeSubscriptionId;
+  }
+  if (input.whatsappOveragePriceId) {
+    updatePayload.whatsappOveragePriceId = input.whatsappOveragePriceId;
+  }
+  if (input.whatsappOverageSubscriptionItemId) {
+    updatePayload.whatsappOverageSubscriptionItemId =
+      input.whatsappOverageSubscriptionItemId;
+  }
+
+  await tenantRef.set(updatePayload, { merge: true });
 }

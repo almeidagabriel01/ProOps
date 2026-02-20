@@ -9,6 +9,67 @@ import {
 import { checkUserLimit } from "../../lib/billing-helpers";
 import { UserDoc, resolveUserAndTenant } from "../../lib/auth-helpers";
 
+export function normalizePhoneNumber(value: unknown): string {
+  if (!value) return "";
+  let digits = String(value).replace(/\D/g, "");
+
+  if (digits.length === 10 || digits.length === 11) {
+    digits = "55" + digits;
+  }
+
+  if (digits.length === 12 && digits.startsWith("55")) {
+    digits = `${digits.substring(0, 4)}9${digits.substring(4)}`;
+  }
+
+  return digits;
+}
+
+export async function upsertPhoneNumberIndexTx(
+  transaction: FirebaseFirestore.Transaction,
+  params: {
+    userId: string;
+    tenantId: string;
+    newPhoneNumber?: unknown;
+    previousPhoneNumber?: unknown;
+    now: FirebaseFirestore.Timestamp;
+  },
+) {
+  const { userId, tenantId, newPhoneNumber, previousPhoneNumber, now } = params;
+  const nextPhone = normalizePhoneNumber(newPhoneNumber);
+  const prevPhone = normalizePhoneNumber(previousPhoneNumber);
+
+  if (!nextPhone && !prevPhone) return;
+
+  if (nextPhone) {
+    const indexRef = db.collection("phoneNumberIndex").doc(nextPhone);
+    const indexSnap = await transaction.get(indexRef);
+    const indexData = indexSnap.data() as { userId?: string } | undefined;
+
+    if (indexSnap.exists && indexData?.userId && indexData.userId !== userId) {
+      throw new Error("PHONE_ALREADY_LINKED");
+    }
+
+    transaction.set(
+      indexRef,
+      {
+        userId,
+        tenantId,
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+  }
+
+  if (prevPhone && prevPhone !== nextPhone) {
+    const prevRef = db.collection("phoneNumberIndex").doc(prevPhone);
+    const prevSnap = await transaction.get(prevRef);
+    const prevData = prevSnap.data() as { userId?: string } | undefined;
+    if (prevSnap.exists && prevData?.userId === userId) {
+      transaction.delete(prevRef);
+    }
+  }
+}
+
 export const createMember = async (req: Request, res: Response) => {
   try {
     const loggedUserId = req.user!.uid;
@@ -115,6 +176,7 @@ export const createMember = async (req: Request, res: Response) => {
         transaction.set(memberRef, {
           name: input.name.trim(),
           email: input.email.toLowerCase().trim(),
+          phoneNumber: normalizePhoneNumber(input.phoneNumber) || null,
           photoUrl: null,
           role: "MEMBER",
           masterId: masterId,
@@ -123,6 +185,13 @@ export const createMember = async (req: Request, res: Response) => {
           companyId: tenantId, // Standardize
           createdAt: now,
           updatedAt: now,
+        });
+
+        await upsertPhoneNumberIndexTx(transaction, {
+          userId: memberId,
+          tenantId,
+          newPhoneNumber: input.phoneNumber,
+          now,
         });
 
         const permissionsInput = input.permissions || {};
@@ -170,6 +239,9 @@ export const createMember = async (req: Request, res: Response) => {
         // Safe to ignore rollback failure
         console.error("Rollback failed", e);
       }
+      if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+        return res.status(409).json({ message: "Telefone já vinculado" });
+      }
       return res
         .status(500)
         .json({ message: "Erro ao salvar dados do usuário." });
@@ -185,7 +257,7 @@ export const updateMember = async (req: Request, res: Response) => {
   try {
     const masterId = req.user!.uid;
     const { id } = req.params;
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
 
     if (!id) return res.status(400).json({ message: "ID obrigatório." });
 
@@ -240,8 +312,40 @@ export const updateMember = async (req: Request, res: Response) => {
     };
     if (name) firestoreUpdates.name = name;
     if (email) firestoreUpdates.email = email;
+    if (phoneNumber !== undefined) {
+      firestoreUpdates.phoneNumber = normalizePhoneNumber(phoneNumber);
+    }
 
-    await db.collection("users").doc(id).update(firestoreUpdates);
+    try {
+      await db.runTransaction(async (transaction) => {
+        const now = Timestamp.now();
+        const memberRef = db.collection("users").doc(id);
+
+        if (phoneNumber !== undefined) {
+          await upsertPhoneNumberIndexTx(transaction, {
+            userId: id,
+            tenantId: (
+              memberData?.tenantId ||
+              memberData?.companyId ||
+              ""
+            ).trim(),
+            newPhoneNumber: phoneNumber,
+            previousPhoneNumber: memberData?.phoneNumber,
+            now,
+          });
+        }
+
+        transaction.update(memberRef, {
+          ...firestoreUpdates,
+          updatedAt: now,
+        });
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+        return res.status(409).json({ message: "Telefone já vinculado" });
+      }
+      throw err;
+    }
 
     return res.json({
       success: true,
@@ -310,8 +414,17 @@ export const deleteMember = async (req: Request, res: Response) => {
     await db.runTransaction(async (t) => {
       const companyRef = db.collection("companies").doc(tenantId!);
       const companySnap = await t.get(companyRef);
+      const memberPhone = normalizePhoneNumber(memberData?.phoneNumber);
 
       t.delete(db.collection("users").doc(id));
+      if (memberPhone) {
+        const phoneRef = db.collection("phoneNumberIndex").doc(memberPhone);
+        const phoneSnap = await t.get(phoneRef);
+        const phoneData = phoneSnap.data() as { userId?: string } | undefined;
+        if (phoneSnap.exists && phoneData?.userId === id) {
+          t.delete(phoneRef);
+        }
+      }
       t.update(db.collection("users").doc(actualMasterId), {
         "usage.users": FieldValue.increment(-1),
       });
@@ -447,32 +560,32 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
-        interface BillingUserData {
-          tenantId?: string;
-          companyId?: string;
-          companyName?: string;
-          createdAt?: string;
-          planId?: string;
-          name?: string;
-          displayName?: string;
-          email?: string;
-          subscriptionStatus?: string;
-          currentPeriodEnd?: unknown;
-          cancelAtPeriodEnd?: boolean;
-          subscription?: {
-            status?: string;
-            currentPeriodEnd?: unknown;
-            cancelAtPeriodEnd?: boolean;
-            cancel_at_period_end?: boolean;
-          };
-          usage?: {
-            users?: number;
-            proposals?: number;
-            clients?: number;
-            products?: number;
-          };
-          [key: string]: unknown;
-        }
+    interface BillingUserData {
+      tenantId?: string;
+      companyId?: string;
+      companyName?: string;
+      createdAt?: string;
+      planId?: string;
+      name?: string;
+      displayName?: string;
+      email?: string;
+      subscriptionStatus?: string;
+      currentPeriodEnd?: unknown;
+      cancelAtPeriodEnd?: boolean;
+      subscription?: {
+        status?: string;
+        currentPeriodEnd?: unknown;
+        cancelAtPeriodEnd?: boolean;
+        cancel_at_period_end?: boolean;
+      };
+      usage?: {
+        users?: number;
+        proposals?: number;
+        clients?: number;
+        products?: number;
+      };
+      [key: string]: unknown;
+    }
 
     const userId = req.user!.uid;
     const { isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
@@ -539,14 +652,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
       const periodEnd =
         parsePeriodEnd(userData.currentPeriodEnd) ||
-        parsePeriodEnd(
-          userData.subscription?.currentPeriodEnd,
-        );
+        parsePeriodEnd(userData.subscription?.currentPeriodEnd);
 
       const cancelAtPeriodEnd = Boolean(
         userData.cancelAtPeriodEnd ||
-          userData.subscription?.cancelAtPeriodEnd ||
-          userData.subscription?.cancel_at_period_end,
+        userData.subscription?.cancelAtPeriodEnd ||
+        userData.subscription?.cancel_at_period_end,
       );
 
       if (cancelAtPeriodEnd && periodEnd && periodEnd.getTime() <= Date.now()) {
@@ -574,6 +685,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           logoUrl?: string;
           primaryColor?: string;
           niche?: string;
+          whatsappEnabled?: boolean;
         }
         let tenantData: TenantData = {};
         if (tenantId) {
@@ -619,11 +731,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             logoUrl: tenantData.logoUrl,
             primaryColor: tenantData.primaryColor,
             niche: tenantData.niche,
+            whatsappEnabled: tenantData.whatsappEnabled,
           },
           admin: {
             id: userDoc.id,
             name: userData.name || userData.displayName || "",
             email: userData.email || "",
+            phoneNumber: userData.phoneNumber,
             subscriptionStatus: userData.subscriptionStatus,
             currentPeriodEnd: userData.currentPeriodEnd,
             subscription: userData.subscription,
@@ -651,7 +765,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 export const updateCredentials = async (req: Request, res: Response) => {
   try {
     const loggedUserId = req.user!.uid;
-    const { userId, email, password } = req.body;
+    const { userId, email, password, phoneNumber } = req.body;
 
     if (!userId) {
       return res.status(400).json({ message: "ID do usuário é obrigatório" });
@@ -663,12 +777,10 @@ export const updateCredentials = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar credenciais.",
-        });
+      return res.status(403).json({
+        message:
+          "Permissão negada. Apenas super admins podem alterar credenciais.",
+      });
     }
 
     // Update Auth
@@ -681,8 +793,41 @@ export const updateCredentials = async (req: Request, res: Response) => {
     }
 
     // Update Firestore User
-    if (email) {
-      await db.collection("users").doc(userId).update({ email });
+    const firestoreUpdate: any = {};
+    if (email) firestoreUpdate.email = email;
+    if (phoneNumber !== undefined) {
+      firestoreUpdate.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
+    }
+
+    if (Object.keys(firestoreUpdate).length > 0) {
+      if (phoneNumber !== undefined) {
+        try {
+          await db.runTransaction(async (transaction) => {
+            const userRef = db.collection("users").doc(userId);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
+
+            await upsertPhoneNumberIndexTx(transaction, {
+              userId,
+              tenantId: userData?.tenantId || userData?.companyId || "",
+              newPhoneNumber: phoneNumber,
+              previousPhoneNumber: userData?.phoneNumber,
+              now: Timestamp.now(),
+            });
+
+            transaction.update(userRef, firestoreUpdate);
+          });
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+            return res
+              .status(409)
+              .json({ message: "Telefone já vinculado a outro usuário." });
+          }
+          throw err;
+        }
+      } else {
+        await db.collection("users").doc(userId).update(firestoreUpdate);
+      }
     }
 
     return res.json({
@@ -714,12 +859,9 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar planos.",
-        });
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem alterar planos.",
+      });
     }
 
     // Update Plan
@@ -755,12 +897,10 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
 
     if (!isSuperAdmin) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "Permissão negada. Apenas super admins podem alterar assinaturas.",
-        });
+      return res.status(403).json({
+        message:
+          "Permissão negada. Apenas super admins podem alterar assinaturas.",
+      });
     }
 
     // Allowed fields to update
@@ -795,6 +935,44 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar assinatura";
+    return res.status(500).json({ message });
+  }
+};
+
+import { reportWhatsAppOverage } from "../../services/whatsappBilling";
+
+export const testWhatsAppBilling = async (req: Request, res: Response) => {
+  try {
+    const loggedUserId = req.user!.uid;
+    const { tenantId, month } = req.body;
+
+    // Verify Super Admin
+    const loggedUserSnap = await db.collection("users").doc(loggedUserId).get();
+    const loggedUserData = loggedUserSnap.data() as UserDoc | undefined;
+    const isSuperAdmin = loggedUserData?.role?.toUpperCase() === "SUPERADMIN";
+
+    if (!isSuperAdmin) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem testar billing.",
+      });
+    }
+
+    if (!tenantId || !month) {
+      return res
+        .status(400)
+        .json({ message: "tenantId e month são obrigatórios" });
+    }
+
+    const result = await reportWhatsAppOverage(tenantId, month);
+
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
     return res.status(500).json({ message });
   }
 };

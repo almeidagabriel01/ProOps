@@ -16,11 +16,29 @@ export interface PhoneInputProps extends Omit<
  * Phone input with Brazilian formatting mask: (XX) XXXXX-XXXX
  */
 const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
-  ({ className, value, onChange, name, ...props }, ref) => {
+  (
+    {
+      className,
+      value,
+      onChange,
+      name,
+      placeholder = "(00) 00000-0000",
+      ...props
+    },
+    ref,
+  ) => {
     // Format phone number as user types
     const formatPhone = (val: string): string => {
       // Remove all non-digits
-      const digits = val.replace(/\D/g, "");
+      let digits = val.replace(/\D/g, "");
+
+      // If the backend returns the number with '55' country code, strip it for the mask
+      if (
+        digits.startsWith("55") &&
+        (digits.length === 12 || digits.length === 13)
+      ) {
+        digits = digits.substring(2);
+      }
 
       // Apply mask: (XX) XXXXX-XXXX
       if (digits.length === 0) return "";
@@ -66,18 +84,19 @@ const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
             "focus:ring-4 focus:ring-primary/10",
             "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",
-            className
+            className,
           )}
           ref={ref}
           name={name}
           value={formatPhone(value || "")}
           onChange={handleChange}
           maxLength={16}
+          placeholder={placeholder}
           {...props}
         />
       </div>
     );
-  }
+  },
 );
 PhoneInput.displayName = "PhoneInput";
 

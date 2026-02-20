@@ -36,6 +36,7 @@ interface CreateMemberData {
   name: string;
   email: string;
   password?: string;
+  phoneNumber?: string;
   permissions: MemberPermissions;
   targetMasterId?: string; // For super admin to create member for a specific master
 }
@@ -113,7 +114,7 @@ export function useCreateMember(): UseCreateMemberReturn {
         const result = await callApi<CreateMemberResult>(
           "v1/admin/members",
           "POST",
-          data
+          data,
         );
 
         // Success!
@@ -144,7 +145,7 @@ export function useCreateMember(): UseCreateMemberReturn {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   return {
@@ -166,7 +167,7 @@ export function useCreateMember(): UseCreateMemberReturn {
  */
 export function getDefaultPermissions(
   roleType: "viewer" | "editor" | "admin" = "viewer",
-  hasFinancial: boolean = true
+  hasFinancial: boolean = true,
 ): MemberPermissions {
   // Dashboard is view-only (no create/edit/delete functionality)
   const basePermissions: MemberPermissions = {

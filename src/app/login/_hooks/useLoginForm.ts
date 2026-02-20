@@ -22,6 +22,8 @@ interface UseLoginFormReturn {
   // Register fields - User
   name: string;
   setName: (value: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (value: string) => void;
 
   // Register fields - Company
   companyName: string;
@@ -61,13 +63,14 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // Register fields - User
   const [name, setName] = React.useState("");
+  const [phoneNumber, setPhoneNumber] = React.useState("");
 
   // Register fields - Company/Tenant
   const [companyName, setCompanyName] = React.useState("");
   const [companyColor, setCompanyColor] = React.useState("#8b5cf6");
   const [companyLogo, setCompanyLogo] = React.useState("");
   const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>(
-    "automacao_residencial"
+    "automacao_residencial",
   );
 
   const [error, setError] = React.useState("");
@@ -130,7 +133,7 @@ export function useLoginForm(): UseLoginFormReturn {
       const perms = user?.permissions || {};
       const userRole = user?.role;
       const isAdmin = ["admin", "superadmin", "MASTER"].includes(
-        userRole || ""
+        userRole || "",
       );
 
       const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
@@ -146,7 +149,7 @@ export function useLoginForm(): UseLoginFormReturn {
           "profile",
         ];
         const firstAllowed = pages.find(
-          (page) => perms[page]?.canView === true || page === "profile"
+          (page) => perms[page]?.canView === true || page === "profile",
         );
 
         if (firstAllowed) {
@@ -227,7 +230,7 @@ export function useLoginForm(): UseLoginFormReturn {
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         setError(
-          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
@@ -273,7 +276,7 @@ export function useLoginForm(): UseLoginFormReturn {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
       );
       const firebaseUser = userCredential.user;
 
@@ -300,9 +303,20 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: new Date().toISOString(),
       });
 
-      // Small delay to ensure Firestore writes propagate before redirect
-      // This helps prevent race conditions when the checkout page loads
+      // Small delay to ensure Firestore writes propagate before calling profile logic
       await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (phoneNumber && phoneNumber.trim().length > 0) {
+        try {
+          const { UserService } = await import("@/services/user-service");
+          await UserService.updateProfile({ phoneNumber });
+        } catch (err) {
+          console.error(
+            "Failed to update phone number index on registration:",
+            err,
+          );
+        }
+      }
     } catch (err: unknown) {
       const error = err as { code?: string };
       console.error("Registration error:", err);
@@ -325,6 +339,8 @@ export function useLoginForm(): UseLoginFormReturn {
     setPassword,
     name,
     setName,
+    phoneNumber,
+    setPhoneNumber,
     companyName,
     setCompanyName,
     companyColor,

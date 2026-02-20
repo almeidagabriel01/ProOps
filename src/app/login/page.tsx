@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 function LoginContent() {
   const {
@@ -47,6 +48,8 @@ function LoginContent() {
     setPassword,
     name,
     setName,
+    phoneNumber,
+    setPhoneNumber,
     companyName,
     setCompanyName,
     companyColor,
@@ -288,6 +291,20 @@ function LoginContent() {
                         {registerErrors.name}
                       </p>
                     )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label
+                      htmlFor="reg-phone"
+                      className="flex items-center gap-1"
+                    >
+                      WhatsApp / Telefone
+                    </Label>
+                    <PhoneInput
+                      id="reg-phone"
+                      name="reg-phone"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                    />
                   </div>
                   <CredentialFields
                     email={email}

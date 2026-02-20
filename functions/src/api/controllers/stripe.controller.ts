@@ -12,6 +12,9 @@ import {
   updateUserPlan,
   mapStripeSubscriptionStatus,
   runStripeSync,
+  addWhatsAppOverageToSubscription,
+  upsertTenantStripeBillingData,
+  WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
@@ -106,7 +109,9 @@ export const cancelAddon = async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: "Add-on will be cancelled at the end of the billing period",
-      cancelAt: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      cancelAt: new Date(
+        (subscription as any).current_period_end * 1000,
+      ).toISOString(),
     });
   } catch (error: unknown) {
     console.error("Cancel Addon Error:", error);
@@ -336,7 +341,10 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        { price: priceId, quantity: 1 },
+        { price: WHATSAPP_OVERAGE_PRICE_ID }, // WhatsApp Overage Metered Price
+      ],
       success_url: `${appOrigin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/subscribe`,
       metadata: { userId, planTier, billingInterval: validInterval },
@@ -376,7 +384,9 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
 
     const metadataUserId = session.metadata?.userId;
     if (metadataUserId && metadataUserId !== userId) {
-      return res.status(403).json({ message: "Session does not belong to authenticated user" });
+      return res
+        .status(403)
+        .json({ message: "Session does not belong to authenticated user" });
     }
 
     let subscription =
@@ -385,7 +395,9 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         : session.subscription;
 
     if (!subscription) {
-      return res.status(400).json({ message: "No subscription found for session" });
+      return res
+        .status(400)
+        .json({ message: "No subscription found for session" });
     }
 
     const planTier = session.metadata?.planTier;
@@ -401,18 +413,47 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         subscription.cancel_at_period_end,
       );
     } else {
-      await db.collection("users").doc(userId).update({
-        stripeSubscriptionId: subscription.id,
-        role: "admin",
-        currentPeriodEnd: new Date(
-          (subscription as any).current_period_end * 1000,
-        ).toISOString(),
-        subscriptionStatus: "active",
-      });
+      await db
+        .collection("users")
+        .doc(userId)
+        .update({
+          stripeSubscriptionId: subscription.id,
+          role: "admin",
+          currentPeriodEnd: new Date(
+            (subscription as any).current_period_end * 1000,
+          ).toISOString(),
+          subscriptionStatus: "active",
+        });
+    }
+
+    const overageItemId = await addWhatsAppOverageToSubscription(subscription.id);
+    if (overageItemId) {
+      subscription = await stripe.subscriptions.retrieve(subscription.id);
     }
 
     const status = mapStripeSubscriptionStatus(subscription.status);
-    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+    const currentPeriodEnd = new Date(
+      (subscription as any).current_period_end * 1000,
+    );
+
+    const whatsappItem = subscription.items.data.find(
+      (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+    );
+    const userSnap = await db.collection("users").doc(userId).get();
+    const userData = userSnap.data();
+    const tenantId = userData?.tenantId || userData?.companyId || `tenant_${userId}`;
+    const sessionCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id || userData?.stripeId;
+
+    await upsertTenantStripeBillingData({
+      tenantId,
+      stripeCustomerId: sessionCustomerId,
+      stripeSubscriptionId: subscription.id,
+      whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+      whatsappOverageSubscriptionItemId: whatsappItem?.id,
+    });
 
     await updateSubscriptionStatus(
       userId,
@@ -682,7 +723,9 @@ export const syncSubscription = async (req: Request, res: Response) => {
 
     const status = mapStripeSubscriptionStatus(subscription.status);
 
-    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+    const currentPeriodEnd = new Date(
+      (subscription as any).current_period_end * 1000,
+    );
 
     await updateSubscriptionStatus(
       userId,
@@ -709,7 +752,9 @@ export const syncSubscription = async (req: Request, res: Response) => {
 export const syncAllSubscriptions = async (req: Request, res: Response) => {
   try {
     if (!(await hasSuperAdminRole(req))) {
-      return res.status(403).json({ message: "Only superadmin can run batch sync" });
+      return res
+        .status(403)
+        .json({ message: "Only superadmin can run batch sync" });
     }
 
     const body = (req.body || {}) as {
@@ -721,7 +766,8 @@ export const syncAllSubscriptions = async (req: Request, res: Response) => {
     const dryRun = body.dryRun !== false;
     const limit = Math.min(Math.max(Number(body.limit) || 100, 1), 500);
     const startAfterId =
-      typeof body.startAfterId === "string" && body.startAfterId.trim().length > 0
+      typeof body.startAfterId === "string" &&
+      body.startAfterId.trim().length > 0
         ? body.startAfterId.trim()
         : undefined;
 
@@ -732,7 +778,6 @@ export const syncAllSubscriptions = async (req: Request, res: Response) => {
       dryRun,
       ...result,
     });
-
   } catch (error) {
     console.error("Batch sync subscriptions error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

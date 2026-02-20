@@ -15,6 +15,14 @@ export type Tenant = {
   niche: TenantNiche;
   createdAt?: string;
   proposalDefaults?: Record<string, unknown>;
+  whatsappEnabled?: boolean;
+  whatsappPlan?: "none" | "basic" | "pro";
+  whatsappMonthlyLimit?: number;
+  whatsappAllowOverage?: boolean;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  whatsappOveragePriceId?: string;
+  whatsappOverageSubscriptionItemId?: string;
 };
 
 export type User = {
@@ -22,7 +30,9 @@ export type User = {
   tenantId?: string; // Optional for free users
   name: string;
   email: string;
+  phoneNumber?: string; // WhatsApp number
   photoURL?: string;
+  status?: "active" | "inactive";
   password?: string; // Kept for types compatibility, but Firebase Auth handles passwords
   role: "admin" | "user" | "superadmin" | "free" | "member";
   planId?: string; // Reference to user's subscription plan

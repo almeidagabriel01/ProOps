@@ -23,6 +23,8 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
     setEmail,
     password,
     setPassword,
+    phoneNumber,
+    setPhoneNumber,
     selectedRole,
     customPermissions,
     setCustomPermissions,
@@ -77,6 +79,8 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
               setName={setName}
               email={email}
               setEmail={setEmail}
+              phoneNumber={phoneNumber}
+              setPhoneNumber={setPhoneNumber}
               password={password}
               setPassword={setPassword}
               errors={errors}

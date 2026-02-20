@@ -8,6 +8,7 @@ export interface TeamMember {
   email: string;
   role: string;
   createdAt: string;
+  phoneNumber?: string;
   permissions: Record<string, Permission>;
 }
 

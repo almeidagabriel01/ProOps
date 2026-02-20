@@ -18,8 +18,13 @@ import {
   TextDebugSample,
   TextLayoutSample,
 } from "./render-to-pdf.types";
+import { getPdfDebugEnabled } from "./render-to-pdf.helpers";
 
-export function collectTextLayoutSamples(root: HTMLElement, limit = 5): TextLayoutSample[] {
+export function collectTextLayoutSamples(
+  root: HTMLElement,
+  limit = 5,
+): TextLayoutSample[] {
+  if (!getPdfDebugEnabled()) return [];
   const doc = root.ownerDocument;
   const view = doc.defaultView || window;
   const candidates = Array.from(
@@ -49,7 +54,10 @@ export function collectTextLayoutSamples(root: HTMLElement, limit = 5): TextLayo
   });
 }
 
-export function createLayoutSnapshot(root: HTMLElement, limit = 5): LayoutSnapshot {
+export function createLayoutSnapshot(
+  root: HTMLElement,
+  limit = 5,
+): LayoutSnapshot {
   return {
     scrollHeight: root.scrollHeight,
     scrollWidth: root.scrollWidth,
@@ -57,7 +65,10 @@ export function createLayoutSnapshot(root: HTMLElement, limit = 5): LayoutSnapsh
   };
 }
 
-export function areLayoutSnapshotsStable(previous: LayoutSnapshot, current: LayoutSnapshot): boolean {
+export function areLayoutSnapshotsStable(
+  previous: LayoutSnapshot,
+  current: LayoutSnapshot,
+): boolean {
   if (previous.scrollHeight !== current.scrollHeight) return false;
   if (previous.scrollWidth !== current.scrollWidth) return false;
   if (previous.samples.length !== current.samples.length) return false;
@@ -121,7 +132,10 @@ function buildTextDebugKey(element: HTMLElement): string {
   return `${element.tagName.toLowerCase()}|${text}`;
 }
 
-function getAncestorTransforms(element: HTMLElement, stopAt: HTMLElement): TextDebugAncestorTransform[] {
+function getAncestorTransforms(
+  element: HTMLElement,
+  stopAt: HTMLElement,
+): TextDebugAncestorTransform[] {
   const output: TextDebugAncestorTransform[] = [];
   const doc = element.ownerDocument;
   const view = doc.defaultView || window;
@@ -145,9 +159,15 @@ function getAncestorTransforms(element: HTMLElement, stopAt: HTMLElement): TextD
   return output;
 }
 
-export function findDebugTextTargets(root: HTMLElement, limit = 3): HTMLElement[] {
+export function findDebugTextTargets(
+  root: HTMLElement,
+  limit = 3,
+): HTMLElement[] {
+  if (!getPdfDebugEnabled()) return [];
   const candidates = Array.from(
-    root.querySelectorAll<HTMLElement>("p, div, span, td, th, h1, h2, h3, h4, h5, h6"),
+    root.querySelectorAll<HTMLElement>(
+      "p, div, span, td, th, h1, h2, h3, h4, h5, h6",
+    ),
   ).filter((element) => {
     const text = normalizeDebugText(element.textContent || "");
     return text.length >= 24 && !element.querySelector("img, svg, canvas");
@@ -160,16 +180,26 @@ export function collectTextDebugSamples(
   root: HTMLElement,
   selectedKeys?: string[],
 ): TextDebugSample[] {
+  if (!getPdfDebugEnabled()) return [];
   const doc = root.ownerDocument;
   const view = doc.defaultView || window;
   const allCandidates = Array.from(
-    root.querySelectorAll<HTMLElement>("p, div, span, td, th, h1, h2, h3, h4, h5, h6"),
-  ).filter((element) => normalizeDebugText(element.textContent || "").length >= 24);
+    root.querySelectorAll<HTMLElement>(
+      "p, div, span, td, th, h1, h2, h3, h4, h5, h6",
+    ),
+  ).filter(
+    (element) => normalizeDebugText(element.textContent || "").length >= 24,
+  );
 
   const selectedElements =
     selectedKeys && selectedKeys.length > 0
       ? selectedKeys
-          .map((key) => allCandidates.find((element) => buildTextDebugKey(element) === key) || null)
+          .map(
+            (key) =>
+              allCandidates.find(
+                (element) => buildTextDebugKey(element) === key,
+              ) || null,
+          )
           .filter((element): element is HTMLElement => Boolean(element))
       : findDebugTextTargets(root, 3);
 
@@ -178,7 +208,10 @@ export function collectTextDebugSamples(
     return {
       key: buildTextDebugKey(element),
       text: normalizeDebugText(element.textContent || ""),
-      textShort: (normalizeDebugText(element.textContent || "") || "").slice(0, 140),
+      textShort: (normalizeDebugText(element.textContent || "") || "").slice(
+        0,
+        140,
+      ),
       tag: element.tagName.toLowerCase(),
       className: element.className || "",
       transform: computed.transform || "none",
@@ -207,11 +240,14 @@ export function summarizeTextDebugDiffs(
   capture: TextDebugSample[],
 ): Array<Record<string, unknown>> {
   return source.map((sourceSample) => {
-    const captureSample = capture.find((entry) => entry.key === sourceSample.key) || null;
+    const captureSample =
+      capture.find((entry) => entry.key === sourceSample.key) || null;
     const compare = (field: keyof TextDebugComputedStyle) => {
       const sourceValue = sourceSample.computed[field];
       const captureValue = captureSample?.computed[field] || "";
-      return sourceValue === captureValue ? null : { source: sourceValue, capture: captureValue };
+      return sourceValue === captureValue
+        ? null
+        : { source: sourceValue, capture: captureValue };
     };
 
     return {
@@ -233,7 +269,10 @@ export function summarizeTextDebugDiffs(
       transform:
         sourceSample.transform === (captureSample?.transform || "")
           ? null
-          : { source: sourceSample.transform, capture: captureSample?.transform || "" },
+          : {
+              source: sourceSample.transform,
+              capture: captureSample?.transform || "",
+            },
       zoom:
         sourceSample.zoom === (captureSample?.zoom || "")
           ? null
@@ -321,8 +360,13 @@ function extractFontFaceCssFromDocument(doc: Document): string {
   return blocks.join("\n");
 }
 
-function applyCaptureFontVariables(sourceDoc: Document, captureDoc: Document): void {
-  const sourceStyle = sourceDoc.defaultView?.getComputedStyle(sourceDoc.documentElement);
+function applyCaptureFontVariables(
+  sourceDoc: Document,
+  captureDoc: Document,
+): void {
+  const sourceStyle = sourceDoc.defaultView?.getComputedStyle(
+    sourceDoc.documentElement,
+  );
   if (!sourceStyle) return;
   CAPTURE_FONT_VARIABLES.forEach((variableName) => {
     const value = sourceStyle.getPropertyValue(variableName).trim();
@@ -352,10 +396,14 @@ export function areNumberArraysStable(
   epsilon = 0.2,
 ): boolean {
   if (previous.length !== current.length) return false;
-  return previous.every((value, index) => Math.abs(value - current[index]) <= epsilon);
+  return previous.every(
+    (value, index) => Math.abs(value - current[index]) <= epsilon,
+  );
 }
 
-export function getElementRectSnapshot(element: HTMLElement | null): ElementRectSnapshot | null {
+export function getElementRectSnapshot(
+  element: HTMLElement | null,
+): ElementRectSnapshot | null {
   if (!element) return null;
   const rect = element.getBoundingClientRect();
   return {
@@ -381,7 +429,9 @@ export function getPageRectDiagnostics(root: HTMLElement): Array<{
   scrollWidth: number;
   scrollHeight: number;
 }> {
-  const pages = Array.from(root.querySelectorAll<HTMLElement>("[data-page-index]"));
+  const pages = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-page-index]"),
+  );
   return pages.map((pageElement) => ({
     pageIndex: pageElement.getAttribute("data-page-index") || "",
     rect: getElementRectSnapshot(pageElement),
@@ -391,6 +441,7 @@ export function getPageRectDiagnostics(root: HTMLElement): Array<{
 }
 
 export function countVisibleNodes(root: HTMLElement, view: Window): number {
+  if (!getPdfDebugEnabled()) return 0;
   const nodes = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   let visibleCount = 0;
   nodes.forEach((node) => {
@@ -406,7 +457,11 @@ export function countVisibleNodes(root: HTMLElement, view: Window): number {
 
 export function inspectCanvasBlank(canvas: HTMLCanvasElement): {
   isBlankCanvas: boolean;
-  samples: Array<{ x: number; y: number; rgba: [number, number, number, number] }>;
+  samples: Array<{
+    x: number;
+    y: number;
+    rgba: [number, number, number, number];
+  }>;
 } {
   const probeCanvas = document.createElement("canvas");
   probeCanvas.width = canvas.width;
@@ -415,13 +470,20 @@ export function inspectCanvasBlank(canvas: HTMLCanvasElement): {
   const samplePoints = [
     { x: 1, y: 1 },
     { x: Math.floor(canvas.width / 2), y: Math.floor(canvas.height / 2) },
-    { x: Math.max(1, Math.floor(canvas.width / 2)), y: Math.max(1, canvas.height - 2) },
+    {
+      x: Math.max(1, Math.floor(canvas.width / 2)),
+      y: Math.max(1, canvas.height - 2),
+    },
   ];
 
   if (!probeCtx || canvas.width <= 0 || canvas.height <= 0) {
     return {
       isBlankCanvas: true,
-      samples: samplePoints.map((point) => ({ x: point.x, y: point.y, rgba: [0, 0, 0, 0] })),
+      samples: samplePoints.map((point) => ({
+        x: point.x,
+        y: point.y,
+        rgba: [0, 0, 0, 0],
+      })),
     };
   }
 
@@ -431,7 +493,16 @@ export function inspectCanvasBlank(canvas: HTMLCanvasElement): {
     const x = Math.min(Math.max(0, point.x), canvas.width - 1);
     const y = Math.min(Math.max(0, point.y), canvas.height - 1);
     const data = probeCtx.getImageData(x, y, 1, 1).data;
-    return { x, y, rgba: [data[0], data[1], data[2], data[3]] as [number, number, number, number] };
+    return {
+      x,
+      y,
+      rgba: [data[0], data[1], data[2], data[3]] as [
+        number,
+        number,
+        number,
+        number,
+      ],
+    };
   });
 
   const isBlankCanvas = samples.every((sample) => {
@@ -478,7 +549,9 @@ function findTitleTextElement(
 
   if (titleElement) {
     const structuralText = Array.from(
-      titleElement.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, span, p, div"),
+      titleElement.querySelectorAll<HTMLElement>(
+        "h1, h2, h3, h4, h5, h6, span, p, div",
+      ),
     ).find((element) => !element.querySelector("img, svg, canvas"));
     if (structuralText) return structuralText;
   }
@@ -495,18 +568,26 @@ export function collectProductLayoutDiagnostics(
   root: HTMLElement,
   maxItems = PRODUCT_LAYOUT_DEBUG_MAX_ITEMS,
 ): ProductRowDiagnostic[] {
-  const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-pdf-item-row]")).slice(0, maxItems);
+  if (!getPdfDebugEnabled()) return [];
+  const rows = Array.from(
+    root.querySelectorAll<HTMLElement>("[data-pdf-item-row]"),
+  ).slice(0, maxItems);
 
   return rows.map((rowElement, index) => {
     const titleWrapperElement = findTitleElement(rowElement);
-    const titleTextElement = findTitleTextElement(rowElement, titleWrapperElement);
+    const titleTextElement = findTitleTextElement(
+      rowElement,
+      titleWrapperElement,
+    );
     const qtyElement = findQtyElement(rowElement);
     const extraTagElement = findExtraTagElement(rowElement);
 
     return {
       key: rowElement.getAttribute("data-pdf-item-id") || `row-${index + 1}`,
       found: Boolean(titleTextElement && rowElement),
-      titleWrapperText: normalizeDebugText(titleWrapperElement?.textContent || ""),
+      titleWrapperText: normalizeDebugText(
+        titleWrapperElement?.textContent || "",
+      ),
       titleText: normalizeDebugText(titleTextElement?.textContent || ""),
       qtyText: normalizeDebugText(qtyElement?.textContent || ""),
       extraTagText: normalizeDebugText(extraTagElement?.textContent || ""),
@@ -516,10 +597,19 @@ export function collectProductLayoutDiagnostics(
       qtyRect: getElementRectSnapshot(qtyElement),
       extraTagRect: getElementRectSnapshot(extraTagElement),
       rowComputed: getElementStyleSnapshot(rowElement, ROW_DEBUG_STYLE_FIELDS),
-      titleWrapperComputed: getElementStyleSnapshot(titleWrapperElement, TITLE_DEBUG_STYLE_FIELDS),
-      titleTextComputed: getElementStyleSnapshot(titleTextElement, TITLE_TEXT_DEBUG_STYLE_FIELDS),
+      titleWrapperComputed: getElementStyleSnapshot(
+        titleWrapperElement,
+        TITLE_DEBUG_STYLE_FIELDS,
+      ),
+      titleTextComputed: getElementStyleSnapshot(
+        titleTextElement,
+        TITLE_TEXT_DEBUG_STYLE_FIELDS,
+      ),
       qtyComputed: getElementStyleSnapshot(qtyElement, QTY_DEBUG_STYLE_FIELDS),
-      extraTagComputed: getElementStyleSnapshot(extraTagElement, EXTRA_TAG_DEBUG_STYLE_FIELDS),
+      extraTagComputed: getElementStyleSnapshot(
+        extraTagElement,
+        EXTRA_TAG_DEBUG_STYLE_FIELDS,
+      ),
     };
   });
 }
@@ -529,14 +619,16 @@ export function summarizeProductLayoutDiagnostics(
   capture: ProductRowDiagnostic[],
 ): Array<Record<string, unknown>> {
   return source.map((sourceEntry) => {
-    const captureEntry = capture.find((entry) => entry.key === sourceEntry.key) || null;
+    const captureEntry =
+      capture.find((entry) => entry.key === sourceEntry.key) || null;
 
     const compareRect = (
       sourceRect: ElementRectSnapshot | null,
       captureRect: ElementRectSnapshot | null,
     ): Record<string, unknown> | null => {
       if (!sourceRect && !captureRect) return null;
-      if (!sourceRect || !captureRect) return { source: sourceRect, capture: captureRect };
+      if (!sourceRect || !captureRect)
+        return { source: sourceRect, capture: captureRect };
 
       return {
         width: Number((captureRect.width - sourceRect.width).toFixed(2)),
@@ -555,9 +647,13 @@ export function summarizeProductLayoutDiagnostics(
       captureStyles: ElementStyleSnapshot | null,
     ): Record<string, unknown> | null => {
       if (!sourceStyles && !captureStyles) return null;
-      if (!sourceStyles || !captureStyles) return { source: sourceStyles, capture: captureStyles };
+      if (!sourceStyles || !captureStyles)
+        return { source: sourceStyles, capture: captureStyles };
 
-      const keys = new Set([...Object.keys(sourceStyles), ...Object.keys(captureStyles)]);
+      const keys = new Set([
+        ...Object.keys(sourceStyles),
+        ...Object.keys(captureStyles),
+      ]);
       const diff: Record<string, unknown> = {};
       keys.forEach((key) => {
         const sourceValue = sourceStyles[key] || "";
@@ -569,7 +665,9 @@ export function summarizeProductLayoutDiagnostics(
       return diff;
     };
 
-    const isWithinOnePixel = (rectDelta: Record<string, unknown> | null): boolean | null => {
+    const isWithinOnePixel = (
+      rectDelta: Record<string, unknown> | null,
+    ): boolean | null => {
       if (!rectDelta) return null;
       const numericValues = ["width", "height", "x", "y"].map((key) => {
         const value = rectDelta[key];
@@ -582,9 +680,18 @@ export function summarizeProductLayoutDiagnostics(
       sourceEntry.titleWrapperRect,
       captureEntry?.titleWrapperRect || null,
     );
-    const titleTextRectDelta = compareRect(sourceEntry.titleTextRect, captureEntry?.titleTextRect || null);
-    const extraTagRectDelta = compareRect(sourceEntry.extraTagRect, captureEntry?.extraTagRect || null);
-    const rowStyleDiff = compareStyles(sourceEntry.rowComputed, captureEntry?.rowComputed || null);
+    const titleTextRectDelta = compareRect(
+      sourceEntry.titleTextRect,
+      captureEntry?.titleTextRect || null,
+    );
+    const extraTagRectDelta = compareRect(
+      sourceEntry.extraTagRect,
+      captureEntry?.extraTagRect || null,
+    );
+    const rowStyleDiff = compareStyles(
+      sourceEntry.rowComputed,
+      captureEntry?.rowComputed || null,
+    );
     const titleWrapperStyleDiff = compareStyles(
       sourceEntry.titleWrapperComputed,
       captureEntry?.titleWrapperComputed || null,
@@ -597,8 +704,14 @@ export function summarizeProductLayoutDiagnostics(
       sourceEntry.extraTagComputed,
       captureEntry?.extraTagComputed || null,
     );
-    const qtyRectDelta = compareRect(sourceEntry.qtyRect, captureEntry?.qtyRect || null);
-    const rowRectDelta = compareRect(sourceEntry.rowRect, captureEntry?.rowRect || null);
+    const qtyRectDelta = compareRect(
+      sourceEntry.qtyRect,
+      captureEntry?.qtyRect || null,
+    );
+    const rowRectDelta = compareRect(
+      sourceEntry.rowRect,
+      captureEntry?.rowRect || null,
+    );
 
     const isQtyWithinRow = (
       rowRect: ElementRectSnapshot | null,
@@ -627,11 +740,17 @@ export function summarizeProductLayoutDiagnostics(
       rowStyleDiff,
       titleWrapperStyleDiff,
       titleTextStyleDiff,
-      qtyStyleDiff: compareStyles(sourceEntry.qtyComputed, captureEntry?.qtyComputed || null),
+      qtyStyleDiff: compareStyles(
+        sourceEntry.qtyComputed,
+        captureEntry?.qtyComputed || null,
+      ),
       extraTagStyleDiff,
       qtyWithinRow: {
         source: isQtyWithinRow(sourceEntry.rowRect, sourceEntry.qtyRect),
-        capture: isQtyWithinRow(captureEntry?.rowRect || null, captureEntry?.qtyRect || null),
+        capture: isQtyWithinRow(
+          captureEntry?.rowRect || null,
+          captureEntry?.qtyRect || null,
+        ),
       },
       within1px: {
         titleWrapperRect: isWithinOnePixel(titleWrapperRectDelta),

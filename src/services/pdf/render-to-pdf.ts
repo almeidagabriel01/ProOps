@@ -46,7 +46,10 @@ import {
   waitForRaf,
 } from "./render-to-pdf.core";
 
-export type { RenderToPdfOptions, RenderToPdfResult } from "./render-to-pdf.types";
+export type {
+  RenderToPdfOptions,
+  RenderToPdfResult,
+} from "./render-to-pdf.types";
 export async function renderToPdf({
   rootElement,
   rootHint,
@@ -78,7 +81,8 @@ export async function renderToPdf({
   );
   const sourceLayoutSnapshot = createLayoutSnapshot(rootElement, 5);
   const sourceTextDebugSamples = collectTextDebugSamples(rootElement);
-  const sourceProductLayoutDiagnostics = collectProductLayoutDiagnostics(rootElement);
+  const sourceProductLayoutDiagnostics =
+    collectProductLayoutDiagnostics(rootElement);
 
   log("start", {
     sourceLabel,
@@ -107,7 +111,8 @@ export async function renderToPdf({
 
   let prepared: CaptureDomPreparation | null = null;
   let captureStyle: HTMLStyleElement | null = null;
-  const previousCaptureTargetAttribute = rootElement.getAttribute(CAPTURE_TARGET_ATTR);
+  const previousCaptureTargetAttribute =
+    rootElement.getAttribute(CAPTURE_TARGET_ATTR);
   rootElement.setAttribute(CAPTURE_TARGET_ATTR, "1");
 
   try {
@@ -118,7 +123,11 @@ export async function renderToPdf({
     await waitForRaf();
 
     const fontRequirements = collectFontRequirements(rootElement);
-    const fontResult = await loadAndStabilizeFonts(document, fontRequirements, log);
+    const fontResult = await loadAndStabilizeFonts(
+      document,
+      fontRequirements,
+      log,
+    );
 
     await waitForLayoutStability(rootElement, log);
     log("capture target diagnostics (original)", {
@@ -126,14 +135,16 @@ export async function renderToPdf({
       captureTargetSnippet: (rootElement.outerHTML || "").slice(0, 200),
       rootRect: getElementRectSnapshot(rootElement),
       pageMetrics: getPageRectDiagnostics(rootElement),
-      pageCountInTarget: rootElement.querySelectorAll("[data-page-index]").length,
+      pageCountInTarget:
+        rootElement.querySelectorAll("[data-page-index]").length,
     });
     const captureLayoutSnapshot = createLayoutSnapshot(rootElement, 5);
     const captureTextDebugSamples = collectTextDebugSamples(
       rootElement,
       sourceTextDebugSamples.map((sample) => sample.key),
     );
-    const captureProductLayoutDiagnostics = collectProductLayoutDiagnostics(rootElement);
+    const captureProductLayoutDiagnostics =
+      collectProductLayoutDiagnostics(rootElement);
     log("capture layout snapshot", {
       sourceLabel,
       rootHint: rootHint || rootDescriptor,
@@ -152,7 +163,10 @@ export async function renderToPdf({
     log("source vs capture text diff", {
       sourceLabel,
       rootHint: rootHint || rootDescriptor,
-      diff: summarizeTextDebugDiffs(sourceTextDebugSamples, captureTextDebugSamples),
+      diff: summarizeTextDebugDiffs(
+        sourceTextDebugSamples,
+        captureTextDebugSamples,
+      ),
     });
     log("capture product row diagnostics", {
       sourceLabel,
@@ -211,7 +225,8 @@ export async function renderToPdf({
     const captureProxyOptions = {
       apiBaseUrl: getApiBaseUrl(apiBaseUrl),
       tenantId,
-      disableCache: process.env.NODE_ENV !== "production" && getPdfDebugEnabled(),
+      disableCache:
+        process.env.NODE_ENV !== "production" && getPdfDebugEnabled(),
     };
     const aggregateUnsupportedColorHitsByProperty: Record<string, number> = {};
     let aggregateUnsupportedColorElementsCount = 0;
@@ -236,33 +251,48 @@ export async function renderToPdf({
         canvas = await html2canvas(pageElement, {
           ...html2CanvasOptions,
           onclone: async (clonedDoc) => {
+            // Speed up Chrome text measurement
+            const overrideStyle = clonedDoc.createElement("style");
+            overrideStyle.innerHTML =
+              "* { text-rendering: geometricPrecision !important; font-variant-ligatures: none !important; }";
+            clonedDoc.head.appendChild(overrideStyle);
             const cloneStats = await prepareCloneForCapture(
               clonedDoc,
               captureProxyOptions,
               captureTargetSelector,
               log,
             );
-            Object.entries(cloneStats.unsupportedColorHitsByProperty).forEach(([propertyName, count]) => {
-              aggregateUnsupportedColorHitsByProperty[propertyName] =
-                (aggregateUnsupportedColorHitsByProperty[propertyName] || 0) + count;
-            });
-            aggregateUnsupportedColorElementsCount += cloneStats.unsupportedColorElementsCount;
+            Object.entries(cloneStats.unsupportedColorHitsByProperty).forEach(
+              ([propertyName, count]) => {
+                aggregateUnsupportedColorHitsByProperty[propertyName] =
+                  (aggregateUnsupportedColorHitsByProperty[propertyName] || 0) +
+                  count;
+              },
+            );
+            aggregateUnsupportedColorElementsCount +=
+              cloneStats.unsupportedColorElementsCount;
             aggregateBgModernFlaggedCount += cloneStats.bgModernFlaggedCount;
             aggregateGlobalOverridesApplied =
-              aggregateGlobalOverridesApplied || cloneStats.globalOverridesApplied;
+              aggregateGlobalOverridesApplied ||
+              cloneStats.globalOverridesApplied;
             aggregateNormalizedColorsCount += cloneStats.normalizedColorsCount;
-            aggregateRemainingUnsupportedColorCount += cloneStats.remainingUnsupportedColorCount;
+            aggregateRemainingUnsupportedColorCount +=
+              cloneStats.remainingUnsupportedColorCount;
             aggregateTotalImages += cloneStats.totalImages;
             aggregateDecodedImages += cloneStats.decodedImages;
             aggregateFailedImages += cloneStats.failedImages;
             aggregateProxiedImagesCount += cloneStats.proxiedImagesCount;
-            aggregateProxiedBackgroundImagesCount += cloneStats.proxiedBackgroundImagesCount;
-            aggregateDirectRemoteImageRequestsCount += cloneStats.directRemoteImageRequestsCount;
+            aggregateProxiedBackgroundImagesCount +=
+              cloneStats.proxiedBackgroundImagesCount;
+            aggregateDirectRemoteImageRequestsCount +=
+              cloneStats.directRemoteImageRequestsCount;
             aggregateImageWaitMs += cloneStats.imageWaitMs;
             latestCloneErrorDiagnostics = {
               pageIndex,
-              remainingUnsupportedColorCount: cloneStats.remainingUnsupportedColorCount,
-              unsupportedColorHitsByProperty: cloneStats.unsupportedColorHitsByProperty,
+              remainingUnsupportedColorCount:
+                cloneStats.remainingUnsupportedColorCount,
+              unsupportedColorHitsByProperty:
+                cloneStats.unsupportedColorHitsByProperty,
             };
             log("clone capture diagnostics", {
               pageIndex,
@@ -272,29 +302,38 @@ export async function renderToPdf({
               captureTargetPages: cloneStats.captureTargetPages,
               pageCountInTarget: cloneStats.captureTargetPages.length,
               visibleNodeCount: cloneStats.visibleNodeCount,
-              unsupportedColorHitsByProperty: cloneStats.unsupportedColorHitsByProperty,
-              unsupportedColorElementsCount: cloneStats.unsupportedColorElementsCount,
+              unsupportedColorHitsByProperty:
+                cloneStats.unsupportedColorHitsByProperty,
+              unsupportedColorElementsCount:
+                cloneStats.unsupportedColorElementsCount,
               bgModernFlaggedCount: cloneStats.bgModernFlaggedCount,
               globalOverridesApplied: cloneStats.globalOverridesApplied,
               normalizedColorsCount: cloneStats.normalizedColorsCount,
-              remainingUnsupportedColorCount: cloneStats.remainingUnsupportedColorCount,
+              remainingUnsupportedColorCount:
+                cloneStats.remainingUnsupportedColorCount,
               proxiedImagesCount: cloneStats.proxiedImagesCount,
-              proxiedBackgroundImagesCount: cloneStats.proxiedBackgroundImagesCount,
-              directRemoteImageRequestsCount: cloneStats.directRemoteImageRequestsCount,
+              proxiedBackgroundImagesCount:
+                cloneStats.proxiedBackgroundImagesCount,
+              directRemoteImageRequestsCount:
+                cloneStats.directRemoteImageRequestsCount,
             });
           },
         });
       } catch (error) {
         const originalView = pageElement.ownerDocument.defaultView;
-        const originalComputed = originalView ? originalView.getComputedStyle(pageElement) : null;
+        const originalComputed = originalView
+          ? originalView.getComputedStyle(pageElement)
+          : null;
         log("html2canvas error diagnostics", {
           pageIndex,
           errorMessage: error instanceof Error ? error.message : String(error),
           note: "html2canvas parseBackgroundColor value is not directly exposed; logging nearest CSS candidates",
           originalPageElementStyles: {
             background: originalComputed?.getPropertyValue("background") || "",
-            backgroundImage: originalComputed?.getPropertyValue("background-image") || "",
-            backgroundColor: originalComputed?.getPropertyValue("background-color") || "",
+            backgroundImage:
+              originalComputed?.getPropertyValue("background-image") || "",
+            backgroundColor:
+              originalComputed?.getPropertyValue("background-color") || "",
             border: originalComputed?.getPropertyValue("border") || "",
           },
           cloneDiagnostics: latestCloneErrorDiagnostics,
@@ -389,7 +428,10 @@ export async function renderToPdf({
     if (previousCaptureTargetAttribute === null) {
       rootElement.removeAttribute(CAPTURE_TARGET_ATTR);
     } else {
-      rootElement.setAttribute(CAPTURE_TARGET_ATTR, previousCaptureTargetAttribute);
+      rootElement.setAttribute(
+        CAPTURE_TARGET_ATTR,
+        previousCaptureTargetAttribute,
+      );
     }
     captureStyle?.remove();
     prepared?.cleanup();

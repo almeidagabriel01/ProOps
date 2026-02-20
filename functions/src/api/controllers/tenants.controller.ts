@@ -48,6 +48,10 @@ export const updateTenant = async (req: Request, res: Response) => {
       "logoUrl",
       "proposalDefaults",
     ];
+
+    if (isSuperAdmin) {
+      allowedFields.push("whatsappEnabled");
+    }
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),
     };

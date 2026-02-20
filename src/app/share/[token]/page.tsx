@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useParams } from "next/navigation";
-import { Loader2, AlertCircle, FileText, FileDown } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  FileText,
+  FileDown,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SharedProposalService } from "@/services/shared-proposal-service";
@@ -23,16 +30,51 @@ export default function SharedProposalPage() {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [previewZoom, setPreviewZoom] = React.useState(1);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = React.useState(0);
+
   const { isGenerating, handleGenerate } = usePdfGenerator({
     proposal: proposal || {},
     template,
     tenant,
     customSettings:
-      (proposal?.pdfSettings as Parameters<typeof ProposalPdfViewer>[0]["customSettings"]) ??
-      undefined,
+      (proposal?.pdfSettings as Parameters<
+        typeof ProposalPdfViewer
+      >[0]["customSettings"]) ?? undefined,
     showCover: true,
     setIsOpen: () => undefined,
   });
+
+  React.useEffect(() => {
+    // Auto-fit PDF on mobile screens initially and on resize
+    const handleResize = () => {
+      if (window.innerWidth < 850) {
+        // Leave some margin (32px) around the 794px A4 width
+        const scale = Math.max(0.2, (window.innerWidth - 32) / 794);
+        setPreviewZoom(scale);
+      } else {
+        setPreviewZoom(1);
+      }
+    };
+
+    // Set initial size
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (!contentRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContentHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(contentRef.current);
+    return () => observer.disconnect();
+  }, [proposal, template]);
 
   React.useEffect(() => {
     const loadSharedProposal = async () => {
@@ -135,36 +177,80 @@ export default function SharedProposalPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header simplificado com branding do tenant */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {tenant?.logoUrl && (
-              <Image
-                src={tenant.logoUrl}
-                alt={tenant.name}
-                width={40}
-                height={40}
-                className="h-10 w-auto object-contain"
-              />
-            )}
-            <div>
-              <h1 className="text-lg font-semibold">
-                {tenant?.name || "Proposta"}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Visualização de Proposta
-              </p>
+      <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
+          <div className="flex items-center justify-between w-full md:w-auto gap-3">
+            <div className="flex items-center gap-3 overflow-hidden">
+              {tenant?.logoUrl && (
+                <Image
+                  src={tenant.logoUrl}
+                  alt={tenant.name}
+                  width={40}
+                  height={40}
+                  className="h-10 w-auto object-contain shrink-0 rounded-md"
+                />
+              )}
+              <div className="min-w-0 pr-2">
+                <h1 className="text-base md:text-lg font-bold truncate leading-tight text-foreground">
+                  {tenant?.name || "Proposta"}
+                </h1>
+                <p className="text-xs md:text-sm text-muted-foreground truncate">
+                  Visualização de Proposta
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              className="md:hidden shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md shadow-md flex-none transition-all cursor-pointer hover:opacity-90 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+              style={
+                tenant?.primaryColor
+                  ? {
+                      backgroundColor: tenant.primaryColor,
+                      color: "#ffffff",
+                      borderColor: tenant.primaryColor,
+                    }
+                  : {
+                      backgroundColor: "hsl(var(--primary))",
+                      color: "hsl(var(--primary-foreground))",
+                    }
+              }
+              onClick={() => handleGenerate(undefined, "shared")}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              Baixar PDF
+            </button>
           </div>
-          <div className="text-right">
-            <p className="font-medium">{proposal.title}</p>
-            <p className="text-sm text-muted-foreground">
+
+          <div className="w-full md:flex-1 md:text-right flex flex-col md:items-end justify-center min-w-0 border-t md:border-t-0 pt-3 md:pt-0 md:pr-4">
+            <p className="font-semibold text-sm md:text-base leading-snug w-full truncate text-foreground">
+              {proposal.title}
+            </p>
+            <p className="text-xs md:text-sm text-muted-foreground w-full truncate">
               {proposal.clientName}
             </p>
           </div>
+
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm"
+            className="hidden md:inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold transition-all shadow-sm border border-transparent cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+            style={
+              tenant?.primaryColor
+                ? {
+                    backgroundColor: tenant.primaryColor,
+                    color: "#ffffff",
+                    borderColor: tenant.primaryColor,
+                  }
+                : {
+                    backgroundColor: "hsl(var(--primary))",
+                    color: "hsl(var(--primary-foreground))",
+                  }
+            }
             onClick={() => handleGenerate(undefined, "shared")}
             disabled={isGenerating}
           >
@@ -178,25 +264,62 @@ export default function SharedProposalPage() {
         </div>
       </header>
 
-      {/* PDF Viewer */}
-      <main className="container mx-auto px-4 py-8 flex justify-center">
-        <div className="w-full max-w-[210mm]">
-          <Card className="overflow-hidden">
-            <CardContent className="p-0 bg-gray-50/50">
-              <div id="shared-proposal-preview-content">
-                <ProposalPdfViewer
-                  proposal={proposal}
-                  tenant={tenant}
-                  template={template}
-                  customSettings={
-                    (proposal.pdfSettings as Parameters<
-                      typeof ProposalPdfViewer
-                    >[0]["customSettings"]) ?? undefined
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
+      {/* PDF View Area */}
+      <main className="flex-1 w-full bg-muted/20 overflow-hidden flex flex-col relative">
+        <div className="container mx-auto px-4 py-4 w-full flex justify-center">
+          <div className="w-full max-w-[794px] flex items-center justify-between bg-card border rounded-lg p-2 shadow-sm z-10">
+            <span className="text-sm font-medium text-muted-foreground px-2">
+              Visualização da Proposta
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors cursor-pointer"
+                onClick={() => setPreviewZoom((z) => Math.max(0.2, z - 0.1))}
+                title="Diminuir zoom"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs text-muted-foreground w-12 text-center select-none block">
+                {Math.round(previewZoom * 100)}%
+              </span>
+              <button
+                type="button"
+                className="p-1.5 hover:bg-muted rounded-md text-muted-foreground transition-colors cursor-pointer"
+                onClick={() => setPreviewZoom((z) => Math.min(2, z + 0.1))}
+                title="Aumentar zoom"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full flex-1 overflow-auto px-4 sm:px-8 pb-32 pt-4 flex justify-center">
+          <div
+            id="shared-proposal-preview-content"
+            ref={contentRef}
+            className="mx-auto shadow-2xl border bg-white origin-top transition-transform duration-200"
+            style={{
+              width: "794px",
+              minHeight: "1123px", // A4 Ratio
+              transform: `scale(${previewZoom})`,
+              marginBottom: contentHeight
+                ? `-${contentHeight * (1 - previewZoom)}px`
+                : undefined,
+            }}
+          >
+            <ProposalPdfViewer
+              proposal={proposal}
+              tenant={tenant}
+              template={template}
+              customSettings={
+                (proposal.pdfSettings as Parameters<
+                  typeof ProposalPdfViewer
+                >[0]["customSettings"]) ?? undefined
+              }
+            />
+          </div>
         </div>
       </main>
     </div>

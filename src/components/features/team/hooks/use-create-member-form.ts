@@ -1,4 +1,4 @@
-import * as React from "react";
+import React, { useState } from "react";
 import {
   useCreateMember,
   getDefaultPermissions,
@@ -16,12 +16,13 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
   const { tenantOwner } = useTenant();
   const upgradeModal = useUpgradeModal();
 
-  const [name, setName] = React.useState("");
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [selectedRole, setSelectedRole] = React.useState<string>("viewer");
-  const [customPermissions, setCustomPermissions] = React.useState(
-    getDefaultPermissions("viewer")
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("viewer");
+  const [customPermissions, setCustomPermissions] = useState(
+    getDefaultPermissions("viewer"),
   );
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = React.useState(false);
@@ -29,7 +30,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
   const handleRoleSelect = (roleId: string) => {
     setSelectedRole(roleId);
     setCustomPermissions(
-      getDefaultPermissions(roleId as keyof typeof roleConfig)
+      getDefaultPermissions(roleId as keyof typeof roleConfig),
     );
   };
 
@@ -38,6 +39,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
       name,
       email,
       password: password || undefined,
+      phoneNumber: phoneNumber || undefined,
       permissions: customPermissions,
       targetMasterId: tenantOwner?.id, // Pass master ID for super admin support
     });
@@ -46,6 +48,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
       setName("");
       setEmail("");
       setPassword("");
+      setPhoneNumber("");
       setSelectedRole("viewer");
       setCustomPermissions(getDefaultPermissions("viewer"));
       onSuccess();
@@ -57,7 +60,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
       upgradeModal.showUpgradeModal(
         "Limite de Equipe Atingido",
         "Você atingiu o limite de membros do seu plano atual. Faça upgrade para adicionar mais pessoas à sua equipe.",
-        "pro"
+        "pro",
       );
     }
   };
@@ -127,6 +130,8 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
     setEmail,
     password,
     setPassword,
+    phoneNumber,
+    setPhoneNumber,
     selectedRole,
     customPermissions,
     setCustomPermissions,
