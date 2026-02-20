@@ -648,75 +648,60 @@ export class TransactionService {
         throw new Error("Acesso negado.");
 
       // Calc Impact logic
-      let oldImpact = 0;
-      if (currentData?.status === "paid" && currentData?.wallet) {
-        oldImpact =
-          (currentData.type === "income" ? 1 : -1) * (currentData.amount || 0);
-      }
+      const getWalletImpacts = (data: any) => {
+        const impacts = new Map<string, number>();
+        const addImpact = (wallet: string | null | undefined, amount: number, type: string) => {
+          if (!wallet) return;
+          const delta = (type === "income" ? 1 : -1) * (amount || 0);
+          impacts.set(wallet, (impacts.get(wallet) || 0) + delta);
+        };
+        
+        if (data?.status === "paid" && data?.wallet) {
+           addImpact(data.wallet, data.amount, data.type);
+        }
+        
+        if (data?.extraCosts && Array.isArray(data.extraCosts)) {
+           for (const ec of data.extraCosts) {
+             if (ec.status === "paid" && (ec.wallet || data.wallet)) {
+               addImpact(ec.wallet || data.wallet, ec.amount, data.type);
+             }
+           }
+        }
+        return impacts;
+      };
 
+      const oldImpacts = getWalletImpacts(currentData);
       const newData = { ...currentData, ...updateData };
-      let newImpact = 0;
-      if (newData.status === "paid" && newData.wallet) {
-        newImpact =
-          (newData.type === "income" ? 1 : -1) * (newData.amount || 0);
+      const newImpacts = getWalletImpacts(newData);
+
+      const walletAdjustments = new Map<string, number>();
+      for (const [wallet, amount] of oldImpacts.entries()) {
+         walletAdjustments.set(wallet, -amount);
+      }
+      for (const [wallet, amount] of newImpacts.entries()) {
+         walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + amount);
       }
 
       // Use the transaction's tenantId for wallet lookup
       const txTenantId = currentData?.tenantId || tenantId;
-
-      const shouldAdjustWallets =
-        oldImpact !== newImpact || currentData?.wallet !== newData.wallet;
-
       const now = Timestamp.now();
 
-      let oldWalletInfo = null;
-      let newWalletInfo = null;
-      let sameWalletInfo = null;
-
       // Firestore transaction rule requires all reads before writes.
-      if (shouldAdjustWallets) {
-        if (currentData?.wallet !== newData.wallet) {
-          if (oldImpact !== 0 && currentData?.wallet) {
-            oldWalletInfo = await resolveWalletRef(
-              t,
-              db,
-              txTenantId,
-              currentData.wallet
-            );
-          }
-          if (newImpact !== 0 && newData.wallet) {
-            newWalletInfo = await resolveWalletRef(t, db, txTenantId, newData.wallet);
-          }
-        } else {
-          const diff = newImpact - oldImpact;
-          if (diff !== 0 && newData.wallet) {
-            sameWalletInfo = await resolveWalletRef(t, db, txTenantId, newData.wallet);
-          }
-        }
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [wallet, adjustment] of walletAdjustments.entries()) {
+        if (adjustment === 0) continue;
+        const walletInfo = await resolveWalletRef(t, db, txTenantId, wallet);
+        if (walletInfo) walletRefs.set(wallet, walletInfo.ref);
       }
 
-      if (shouldAdjustWallets) {
-        if (currentData?.wallet !== newData.wallet) {
-          if (oldWalletInfo) {
-            t.update(oldWalletInfo.ref, {
-              balance: FieldValue.increment(-oldImpact),
-              updatedAt: now,
-            });
-          }
-          if (newWalletInfo) {
-            t.update(newWalletInfo.ref, {
-              balance: FieldValue.increment(newImpact),
-              updatedAt: now,
-            });
-          }
-        } else {
-          const diff = newImpact - oldImpact;
-          if (diff !== 0 && sameWalletInfo) {
-            t.update(sameWalletInfo.ref, {
-              balance: FieldValue.increment(diff),
-              updatedAt: now,
-            });
-          }
+      for (const [wallet, adjustment] of walletAdjustments.entries()) {
+        if (adjustment === 0) continue;
+        const walletRef = walletRefs.get(wallet);
+        if (walletRef) {
+          t.update(walletRef, {
+            balance: FieldValue.increment(adjustment),
+            updatedAt: now,
+          });
         }
       }
 

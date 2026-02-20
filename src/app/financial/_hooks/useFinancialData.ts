@@ -356,12 +356,28 @@ export function useFinancialData(): UseFinancialDataReturn {
 
     // Filter by status
     if (filterStatus !== "all") {
-      filtered = filtered.filter((t) => t.status === filterStatus);
+      filtered = filtered.filter((t) => {
+        if (t.status === filterStatus) return true;
+        if (
+          t.extraCosts &&
+          t.extraCosts.some((ec) => (ec.status || "pending") === filterStatus)
+        )
+          return true;
+        return false;
+      });
     }
 
     // Filter by wallet
     if (filterWallet) {
-      filtered = filtered.filter((t) => t.wallet === filterWallet);
+      filtered = filtered.filter((t) => {
+        if (t.wallet === filterWallet) return true;
+        if (
+          t.extraCosts &&
+          t.extraCosts.some((ec) => (ec.wallet || t.wallet) === filterWallet)
+        )
+          return true;
+        return false;
+      });
     }
 
     // Filter by date range
@@ -433,7 +449,11 @@ export function useFinancialData(): UseFinancialDataReturn {
           normalize(t.description).includes(term) ||
           normalize(t.clientName || "").includes(term) ||
           normalize(t.category || "").includes(term) ||
-          normalize(t.wallet || "").includes(term),
+          normalize(t.wallet || "").includes(term) ||
+          (t.extraCosts && t.extraCosts.some(ec => 
+             normalize(ec.description).includes(term) || 
+             normalize(ec.wallet || "").includes(term)
+          )),
       );
     }
 
@@ -493,27 +513,10 @@ export function useFinancialData(): UseFinancialDataReturn {
     const term = searchTerm.toLowerCase().trim();
 
     transactions.forEach((t) => {
-      // 1. Filter by Wallet
-      if (filterWallet && t.wallet !== filterWallet) return;
-
-      // 2. Filter by Type
+      // 1. Filter by Type
       if (filterType !== "all" && t.type !== filterType) return;
 
-      // 3. Filter by Status
-      if (filterStatus !== "all" && t.status !== filterStatus) return;
-
-      // 4. Filter by Search
-      if (term) {
-        const normalizedTerm = normalize(term);
-        const matches =
-          normalize(t.description).includes(normalizedTerm) ||
-          normalize(t.clientName || "").includes(normalizedTerm) ||
-          normalize(t.category || "").includes(normalizedTerm) ||
-          normalize(t.wallet || "").includes(normalizedTerm);
-        if (!matches) return;
-      }
-
-      // 5. Filter by Date
+      // 2. Filter by Date
       let dateVal: string | undefined = t.date;
       if (filterDateType === "dueDate") {
         if (!t.dueDate) return;
@@ -526,19 +529,66 @@ export function useFinancialData(): UseFinancialDataReturn {
       if (filterStartDate && dateStr < filterStartDate) return;
       if (filterEndDate && dateStr > filterEndDate) return;
 
-      // Accumulate
-      if (t.type === "income") {
-        if (t.status === "paid") {
-          result.totalIncome += t.amount;
-        } else {
-          result.pendingIncome += t.amount;
+      // Accumulate Main Transaction
+      const mainTxMatchesWallet = !filterWallet || t.wallet === filterWallet;
+      const mainTxMatchesStatus = filterStatus === "all" || t.status === filterStatus;
+      
+      let mainTxMatchesSearch = true;
+      if (term) {
+        const normalizedTerm = normalize(term);
+        mainTxMatchesSearch =
+          normalize(t.description).includes(normalizedTerm) ||
+          normalize(t.clientName || "").includes(normalizedTerm) ||
+          normalize(t.category || "").includes(normalizedTerm) ||
+          normalize(t.wallet || "").includes(normalizedTerm);
+      }
+
+      if (mainTxMatchesWallet && mainTxMatchesStatus && mainTxMatchesSearch) {
+        if (t.type === "income") {
+          if (t.status === "paid") {
+            result.totalIncome += t.amount;
+          } else {
+            result.pendingIncome += t.amount;
+          }
+        } else if (t.type === "expense") {
+          if (t.status === "paid") {
+            result.totalExpense += t.amount;
+          } else {
+            result.pendingExpense += t.amount;
+          }
         }
-      } else if (t.type === "expense") {
-        if (t.status === "paid") {
-          result.totalExpense += t.amount;
-        } else {
-          result.pendingExpense += t.amount;
-        }
+      }
+
+      // Accumulate Extra Costs
+      if (t.extraCosts && t.extraCosts.length > 0) {
+        t.extraCosts.forEach((ec) => {
+          const ecWallet = ec.wallet || t.wallet;
+          const ecStatus = ec.status || "pending";
+          
+          if (filterWallet && ecWallet !== filterWallet) return;
+          if (filterStatus !== "all" && ecStatus !== filterStatus) return;
+
+          let ecMatchesSearch = true;
+          if (term) {
+            const normalizedTerm = normalize(term);
+            ecMatchesSearch = normalize(ec.description).includes(normalizedTerm) || normalize(ecWallet || "").includes(normalizedTerm);
+          }
+          if (!ecMatchesSearch) return;
+
+          if (t.type === "income") {
+            if (ecStatus === "paid") {
+              result.totalIncome += ec.amount;
+            } else {
+              result.pendingIncome += ec.amount;
+            }
+          } else if (t.type === "expense") {
+            if (ecStatus === "paid") {
+              result.totalExpense += ec.amount;
+            } else {
+              result.pendingExpense += ec.amount;
+            }
+          }
+        });
       }
     });
 

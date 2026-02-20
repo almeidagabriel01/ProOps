@@ -8,6 +8,7 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Transaction } from "@/services/transaction-service";
 import { Plus, Wallet, Search, X } from "lucide-react";
+import type { Wallet as WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
 import { FinancialSkeleton } from "./_components/financial-skeleton";
@@ -57,6 +58,7 @@ function TransactionListInfinite({
   getExpansionKey,
   toggleExpand,
   refreshData,
+  wallets,
 }: {
   filteredTransactions: Transaction[];
   transactions: Transaction[];
@@ -78,6 +80,7 @@ function TransactionListInfinite({
   getExpansionKey: (t: Transaction) => string;
   toggleExpand: (key: string, isOpen: boolean) => void;
   refreshData: (bg?: boolean) => Promise<void>;
+  wallets: WalletType[];
 }) {
   const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
     filteredTransactions,
@@ -148,6 +151,7 @@ function TransactionListInfinite({
                 toggleExpand(getExpansionKey(transaction), isOpen)
               }
               onReload={() => refreshData(true)}
+              wallets={wallets}
             />
           );
         }
@@ -174,6 +178,7 @@ function TransactionListInfinite({
               toggleExpand(getExpansionKey(transaction), isOpen)
             }
             onReload={() => refreshData(true)}
+            wallets={wallets}
           />
         );
       })}
@@ -607,6 +612,7 @@ export default function FinancialPage() {
           getExpansionKey={getExpansionKey}
           toggleExpand={toggleExpand}
           refreshData={refreshData}
+          wallets={wallets}
         />
       )}
 

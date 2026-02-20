@@ -14,6 +14,15 @@ import {
 export type TransactionType = "income" | "expense";
 export type TransactionStatus = "paid" | "pending" | "overdue";
 
+export type ExtraCost = {
+  id: string;
+  amount: number;
+  description: string;
+  status: TransactionStatus;
+  wallet?: string;
+  createdAt: string;
+};
+
 export type Transaction = {
   id: string;
   tenantId: string;
@@ -41,6 +50,7 @@ export type Transaction = {
   updatedAt: string;
   isPartialPayment?: boolean;
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
+  extraCosts?: ExtraCost[]; // Inline extra costs that don't need their own transaction documents
 };
 
 export type UpdateFinancialEntryWithInstallmentsPayload = {

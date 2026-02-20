@@ -23,6 +23,7 @@ export interface CreateTransactionDTO {
   installmentGroupId?: string;
   
   notes?: string;
+  extraCosts?: any[];
 }
 
 export const validateTransactionData = (data: Partial<CreateTransactionDTO>) => {
