@@ -188,13 +188,13 @@ export function useProductForm(
   const handleAddImage = (file: File | null) => {
     if (!file) return;
 
-    // Get max images from plan (default to 2 for safety)
-    const maxImages = features?.maxImagesPerProduct ?? 2;
+    // Hardcoded max images (1 for all plans)
+    const maxImages = 1;
 
     // Validation: Check plan limit
     const totalImages = imageUrls.length + pendingFiles.length;
     if (totalImages >= maxImages) {
-      setShowImageLimitModal(true);
+      toast.error("É permitido adicionar apenas 1 imagem por produto.");
       return;
     }
 
@@ -373,7 +373,7 @@ export function useProductForm(
     setShowImageLimitModal,
     currentProductCount,
     maxProducts: features?.maxProducts ?? 0,
-    maxImagesPerProduct: features?.maxImagesPerProduct ?? 2,
+    maxImagesPerProduct: 1, // Enforced 1 image per product
     errors,
     setFieldError: setFieldError as (name: string, message: string) => void,
     handleChange,

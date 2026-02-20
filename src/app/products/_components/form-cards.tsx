@@ -243,7 +243,7 @@ export function ImagesCard({
   return (
     <FormCard
       title="Imagens do Produto"
-      description={`Adicione até ${maxImages} imagens (máx 2MB cada)`}
+      description={`Adicione até ${maxImages} imagem (máx 2MB cada)`}
       icon={ImageIcon}
     >
       {images.length > 0 && (

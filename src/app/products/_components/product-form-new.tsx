@@ -8,7 +8,6 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DynamicSelect } from "@/components/features/dynamic-select";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
-import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useProductForm } from "../_hooks/useProductForm";
 import { Product } from "@/services/product-service";
 import {
@@ -78,8 +77,6 @@ export function ProductFormNew({
     isSubmitting,
     showLimitModal,
     setShowLimitModal,
-    showImageLimitModal,
-    setShowImageLimitModal,
     currentProductCount,
     maxProducts,
     maxImagesPerProduct,
@@ -409,7 +406,7 @@ export function ProductFormNew({
               <div>
                 <h3 className="text-lg font-semibold">Imagens do Produto</h3>
                 <p className="text-sm text-muted-foreground">
-                  Adicione até {maxImagesPerProduct} imagens (máx 2MB cada)
+                  Adicione até {maxImagesPerProduct} imagem (máx 2MB cada)
                 </p>
               </div>
             </div>
@@ -546,14 +543,6 @@ export function ProductFormNew({
         resourceType="products"
         currentCount={currentProductCount}
         maxLimit={maxProducts}
-      />
-
-      <UpgradeModal
-        open={showImageLimitModal}
-        onOpenChange={setShowImageLimitModal}
-        feature="Mais imagens por produto"
-        description={`Seu plano permite até ${maxImagesPerProduct} imagens por produto.`}
-        requiredPlan="pro"
       />
     </>
   );
