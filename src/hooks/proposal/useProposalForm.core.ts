@@ -22,6 +22,7 @@ import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
 import { ClientType } from "@/services/client-service";
 import {
   createInitialProposalFormData,
+  buildFullFormSnapshot,
   EMPTY_ARRAY,
 } from "./useProposalForm.helpers";
 import {
@@ -102,11 +103,28 @@ export function useProposalFormCore({
     const defaultWallet = wallets.find((w) => w.isDefault);
     if (!defaultWallet) return;
 
-    setFormData((prev) => ({
-      ...prev,
-      downPaymentWallet: prev.downPaymentWallet || defaultWallet.name,
-      installmentsWallet: prev.installmentsWallet || defaultWallet.name,
-    }));
+    setFormData((prev) => {
+      const downPaymentWallet = prev.downPaymentWallet || defaultWallet.name;
+      const installmentsWallet = prev.installmentsWallet || defaultWallet.name;
+
+      // Update initial snapshot so wallet pre-selection doesn't trigger false dirty
+      if (initialFormDataRef.current && (!prev.downPaymentWallet || !prev.installmentsWallet)) {
+        try {
+          const initialData = JSON.parse(initialFormDataRef.current);
+          if (!initialData.downPaymentWallet) initialData.downPaymentWallet = downPaymentWallet;
+          if (!initialData.installmentsWallet) initialData.installmentsWallet = installmentsWallet;
+          initialFormDataRef.current = buildFullFormSnapshot(initialData);
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      return {
+        ...prev,
+        downPaymentWallet,
+        installmentsWallet,
+      };
+    });
   }, [wallets]);
 
   // Handle ID resolution (temp -> real)

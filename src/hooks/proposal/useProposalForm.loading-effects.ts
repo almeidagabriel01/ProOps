@@ -75,61 +75,81 @@ export function useProposalFormLoadingEffects(
     };
   }, []);
 
-  // Helper to sync selected systems with fresh master data
-  const syncSystemsWithMasterData = React.useCallback(
-    (freshAmbientes: Ambiente[], freshSistemas: Sistema[]) => {
-      setSelectedSistemas((prevSistemas) =>
-        prevSistemas.map((s) => {
-          const currentAmbientes =
-            s.ambientes && s.ambientes.length > 0
-              ? s.ambientes
-              : [
-                  {
-                    ambienteId: s.ambienteId || "",
-                    ambienteName: s.ambienteName || "",
-                    description: s.description || "",
-                    products: s.products || [],
-                  },
-                ];
+  // Pure function to apply master data sync to a list of sistemas
+  const applySyncToSistemas = React.useCallback(
+    (sistemas: ProposalSistema[], freshAmbientes: Ambiente[], freshSistemas: Sistema[]): ProposalSistema[] => {
+      return sistemas.map((s) => {
+        const currentAmbientes =
+          s.ambientes && s.ambientes.length > 0
+            ? s.ambientes
+            : [
+                {
+                  ambienteId: s.ambienteId || "",
+                  ambienteName: s.ambienteName || "",
+                  description: s.description || "",
+                  products: s.products || [],
+                },
+              ];
 
-          const updatedAmbientes = currentAmbientes.map((env) => {
-            const masterAmbiente =
-              freshAmbientes.find((a) => a.id === env.ambienteId) ||
-              freshAmbientes.find((a) => a.name === env.ambienteName);
-            const masterSistema =
-              freshSistemas.find((sys) => sys.id === s.sistemaId) ||
-              freshSistemas.find((sys) => sys.name === s.sistemaName);
-            const systemEnvConfig = masterSistema?.ambientes?.find(
-              (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
-            );
-
-            return {
-              ...env,
-              ambienteName: masterAmbiente?.name || env.ambienteName,
-              description:
-                (systemEnvConfig || masterAmbiente)
-                  ? (systemEnvConfig?.description || masterAmbiente?.description || "")
-                  : (env.description || ""),
-            };
-          });
-
+        const updatedAmbientes = currentAmbientes.map((env) => {
+          const masterAmbiente =
+            freshAmbientes.find((a) => a.id === env.ambienteId) ||
+            freshAmbientes.find((a) => a.name === env.ambienteName);
           const masterSistema =
             freshSistemas.find((sys) => sys.id === s.sistemaId) ||
             freshSistemas.find((sys) => sys.name === s.sistemaName);
-          const primaryEnv = updatedAmbientes[0];
+          const systemEnvConfig = masterSistema?.ambientes?.find(
+            (a) => a.ambienteId === (masterAmbiente?.id || env.ambienteId),
+          );
 
           return {
-            ...s,
-            sistemaName: masterSistema?.name || s.sistemaName,
-            description: masterSistema ? (masterSistema.description || "") : s.description,
-            ambientes: updatedAmbientes,
-            ambienteName: primaryEnv?.ambienteName || s.ambienteName,
-            ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+            ...env,
+            ambienteName: masterAmbiente?.name || env.ambienteName,
+            description:
+              (systemEnvConfig || masterAmbiente)
+                ? (systemEnvConfig?.description || masterAmbiente?.description || "")
+                : (env.description || ""),
           };
-        }),
-      );
+        });
+
+        const masterSistema =
+          freshSistemas.find((sys) => sys.id === s.sistemaId) ||
+          freshSistemas.find((sys) => sys.name === s.sistemaName);
+        const primaryEnv = updatedAmbientes[0];
+
+        return {
+          ...s,
+          sistemaName: masterSistema?.name || s.sistemaName,
+          description: masterSistema ? (masterSistema.description || "") : s.description,
+          ambientes: updatedAmbientes,
+          ambienteName: primaryEnv?.ambienteName || s.ambienteName,
+          ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+        };
+      });
     },
-    [setSelectedSistemas],
+    [],
+  );
+
+  // Helper to sync selected systems with fresh master data
+  const syncSystemsWithMasterData = React.useCallback(
+    (freshAmbientes: Ambiente[], freshSistemas: Sistema[]) => {
+      setSelectedSistemas((prevSistemas) => {
+        const updated = applySyncToSistemas(prevSistemas, freshAmbientes, freshSistemas);
+        return updated;
+      });
+
+      // Also update the initial snapshot so dirty detection doesn't false-fire
+      if (initialSistemasRef.current !== null) {
+        try {
+          const initialSistemas = JSON.parse(initialSistemasRef.current) as ProposalSistema[];
+          const updatedInitial = applySyncToSistemas(initialSistemas, freshAmbientes, freshSistemas);
+          initialSistemasRef.current = JSON.stringify(updatedInitial);
+        } catch {
+          // ignore parse errors
+        }
+      }
+    },
+    [setSelectedSistemas, applySyncToSistemas, initialSistemasRef],
   );
 
   React.useEffect(() => {
