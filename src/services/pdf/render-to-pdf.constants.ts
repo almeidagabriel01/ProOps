@@ -1,9 +1,9 @@
 export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 export const DEFAULT_SCALE = 2;
-export const FORCED_HTML2CANVAS_SCALE = 1.5;
+export const FORCED_HTML2CANVAS_SCALE = 2;
 export const FONT_READY_TIMEOUT_MS = 8000;
-export const IMAGE_DECODE_TIMEOUT_MS = 10000;
+export const IMAGE_DECODE_TIMEOUT_MS = 6000;
 
 export const CAPTURE_MODE_CLASS = "pdf-capture-mode";
 export const CAPTURE_TARGET_ATTR = "data-pdf-capture-target";

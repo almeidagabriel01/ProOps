@@ -5,6 +5,248 @@ import {
   MODERN_COLOR_FUNCTION_RE,
 } from "./render-to-pdf.constants";
 import { getPdfDebugEnabled } from "./render-to-pdf.helpers";
+
+const MODERN_COLOR_RE = /\b(lab|oklch|oklab|lch|color-mix)\s*\(/i;
+const INLINE_MODERN_COLOR_SELECTOR = [
+  '[style*="lab("]',
+  '[style*="oklch("]',
+  '[style*="oklab("]',
+  '[style*="lch("]',
+  '[style*="color-mix("]',
+].join(", ");
+
+function walkStyleRules(
+  rules: CSSRuleList,
+  visit: (rule: CSSStyleRule) => void,
+): void {
+  Array.from(rules).forEach((rule) => {
+    if (rule instanceof CSSStyleRule) {
+      visit(rule);
+      return;
+    }
+
+    const grouped = rule as CSSRule & { cssRules?: CSSRuleList };
+    if (grouped.cssRules) {
+      walkStyleRules(grouped.cssRules, visit);
+    }
+  });
+}
+
+function getDeclarationFallback(propertyName: string): string | null {
+  const lowered = propertyName.toLowerCase();
+  if (lowered === "background-image") return "none";
+  if (lowered.includes("background")) return "rgb(255, 255, 255)";
+  if (lowered.includes("border")) return "rgb(0, 0, 0)";
+  if (lowered === "box-shadow" || lowered === "filter") return "none";
+  if (
+    lowered.includes("color") ||
+    lowered === "fill" ||
+    lowered === "stroke" ||
+    lowered === "stop-color" ||
+    lowered === "flood-color" ||
+    lowered === "lighting-color"
+  ) {
+    return "rgb(0, 0, 0)";
+  }
+  return null;
+}
+
+function resolveDeclarationValue(
+  probe: HTMLElement,
+  view: Window,
+  propertyName: string,
+  rawValue: string,
+): string | null {
+  try {
+    probe.style.removeProperty(propertyName);
+    probe.style.setProperty(propertyName, rawValue);
+    const resolved = view
+      .getComputedStyle(probe)
+      .getPropertyValue(propertyName)
+      .trim();
+    probe.style.removeProperty(propertyName);
+    if (!resolved || MODERN_COLOR_RE.test(resolved)) return null;
+    return resolved;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeModernColorFunctionsInText(value: string): string {
+  if (!value || !MODERN_COLOR_RE.test(value)) return value;
+  return value.replace(
+    /\b(?:lab|oklab|lch|oklch|color-mix)\([^()]*\)/gi,
+    "rgb(0, 0, 0)",
+  );
+}
+
+/**
+ * Fast O(CSS rules) color sanitization for html2canvas.
+ *
+ * Instead of traversing every DOM node and calling getComputedStyle (very expensive
+ * on large proposals), this function:
+ * 1. Scans all stylesheet rules once to find CSS custom properties (--*) that use
+ *    unsupported color functions (lab, oklch, oklab, lch).
+ * 2. Resolves each of these variables to a safe RGB equivalent using a hidden probe element.
+ * 3. Injects a single <style> block on :root that overrides all bad variables at once.
+ *
+ * This is O(number of CSS rules) instead of O(number of DOM nodes × CSS properties),
+ * which is many times faster on proposals with 100+ products.
+ */
+export function injectModernColorFallbacksFromStylesheets(
+  clonedDoc: Document,
+): void {
+  const view = clonedDoc.defaultView;
+  if (!view) return;
+
+  const styleTags = Array.from(clonedDoc.querySelectorAll<HTMLStyleElement>("style"));
+  styleTags.forEach((styleTag) => {
+    if (!styleTag.textContent) return;
+    styleTag.textContent = sanitizeModernColorFunctionsInText(styleTag.textContent);
+  });
+
+  const inlineStyledNodes = Array.from(
+    clonedDoc.querySelectorAll<HTMLElement>('[style*="lab("], [style*="oklch("], [style*="oklab("], [style*="lch("], [style*="color-mix("]'),
+  );
+  inlineStyledNodes.forEach((node) => {
+    const styleAttr = node.getAttribute("style");
+    if (!styleAttr) return;
+    node.setAttribute("style", sanitizeModernColorFunctionsInText(styleAttr));
+  });
+
+  const badVars = new Map<string, string>(); // varName -> safeValue
+  const declarationOverrides = new Map<string, Map<string, string>>(); // selector -> (prop -> safeValue)
+
+  const probe = clonedDoc.createElement("span");
+  probe.style.cssText =
+    "position:fixed;left:-9999px;top:-9999px;width:0;height:0;visibility:hidden;";
+  clonedDoc.body.appendChild(probe);
+
+  const setDeclarationOverride = (
+    selector: string,
+    propertyName: string,
+    safeValue: string,
+  ): void => {
+    const byProperty = declarationOverrides.get(selector) || new Map();
+    byProperty.set(propertyName, safeValue);
+    declarationOverrides.set(selector, byProperty);
+  };
+
+  Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+    try {
+      walkStyleRules(sheet.cssRules, (rule) => {
+        const style = rule.style;
+        const selector = rule.selectorText || "";
+        for (let i = 0; i < style.length; i += 1) {
+          const prop = style.item(i);
+          const rawValue = style.getPropertyValue(prop);
+          if (!MODERN_COLOR_RE.test(rawValue)) continue;
+
+          if (prop.startsWith("--")) {
+            const resolved = resolveDeclarationValue(probe, view, "color", rawValue);
+            if (resolved) {
+              badVars.set(prop, resolved);
+            } else {
+              const isLikelyFg =
+                prop.includes("foreground") ||
+                prop.includes("text") ||
+                prop.includes("fg");
+              const isLikelyBorder =
+                prop.includes("border") ||
+                prop.includes("ring") ||
+                prop.includes("outline");
+              badVars.set(
+                prop,
+                isLikelyFg
+                  ? "rgb(0, 0, 0)"
+                  : isLikelyBorder
+                    ? "rgba(0, 0, 0, 0.3)"
+                    : "transparent",
+              );
+            }
+            continue;
+          }
+
+          const resolved = resolveDeclarationValue(probe, view, prop, rawValue);
+          const sanitizedRaw = sanitizeModernColorFunctionsInText(rawValue);
+          const sanitizedRawUsable =
+            sanitizedRaw &&
+            !hasUnsupportedColorFunctionInValue(sanitizedRaw) &&
+            sanitizedRaw !== rawValue
+              ? sanitizedRaw
+              : "";
+          const fallback =
+            sanitizedRawUsable || resolved || getDeclarationFallback(prop);
+          if (!fallback || !selector) continue;
+          setDeclarationOverride(selector, prop, fallback);
+        }
+      });
+    } catch {
+      // Cross-origin stylesheet — skip
+    }
+  });
+
+  const inlineNodes = Array.from(
+    clonedDoc.querySelectorAll<HTMLElement>(INLINE_MODERN_COLOR_SELECTOR),
+  );
+  inlineNodes.forEach((node) => {
+    const inlineStyle = node.style;
+    const propertyNames: string[] = [];
+    for (let index = 0; index < inlineStyle.length; index += 1) {
+      const propertyName = inlineStyle.item(index);
+      if (propertyName) propertyNames.push(propertyName);
+    }
+    propertyNames.forEach((propertyName) => {
+      const rawValue = inlineStyle.getPropertyValue(propertyName);
+      if (!MODERN_COLOR_RE.test(rawValue)) return;
+      const resolved = resolveDeclarationValue(probe, view, propertyName, rawValue);
+      const sanitizedRaw = sanitizeModernColorFunctionsInText(rawValue);
+      const sanitizedRawUsable =
+        sanitizedRaw &&
+        !hasUnsupportedColorFunctionInValue(sanitizedRaw) &&
+        sanitizedRaw !== rawValue
+          ? sanitizedRaw
+          : "";
+      const fallback =
+        sanitizedRawUsable || resolved || getDeclarationFallback(propertyName);
+      if (!fallback) return;
+      inlineStyle.setProperty(propertyName, fallback, "important");
+    });
+
+    ["fill", "stroke", "stop-color", "flood-color", "lighting-color"].forEach(
+      (attributeName) => {
+        const rawValue = node.getAttribute(attributeName) || "";
+        if (!MODERN_COLOR_RE.test(rawValue)) return;
+        node.setAttribute(attributeName, "rgb(0, 0, 0)");
+      },
+    );
+  });
+
+  probe.remove();
+
+  if (badVars.size === 0 && declarationOverrides.size === 0) return;
+
+  const rules: string[] = [];
+  if (badVars.size > 0) {
+    const variableLines = Array.from(badVars.entries()).map(
+      ([varName, safeValue]) => `  ${varName}: ${safeValue};`,
+    );
+    rules.push(`:root {\n${variableLines.join("\n")}\n}`);
+  }
+  declarationOverrides.forEach((byProperty, selector) => {
+    const propertyLines = Array.from(byProperty.entries()).map(
+      ([propertyName, safeValue]) =>
+        `  ${propertyName}: ${safeValue} !important;`,
+    );
+    rules.push(`${selector} {\n${propertyLines.join("\n")}\n}`);
+  });
+
+  const styleEl = clonedDoc.createElement("style");
+  styleEl.setAttribute("data-pdf-color-fallback", "1");
+  styleEl.textContent = rules.join("\n");
+  clonedDoc.head.appendChild(styleEl);
+}
+
 export function containsModernColor(value: string): boolean {
   return /(lab|oklch|oklab|lch|color)\(/i.test(value);
 }
@@ -512,7 +754,18 @@ export function sanitizeUnsupportedColorsInClone(
     if (hasUnsupportedColorFunctionInValue(computedBackground)) {
       incrementHitCounter(unsupportedColorHitsByProperty, "background");
       affectedElements.add(node);
-      inlineStyle?.setProperty("background", "none", "important");
+      const sanitizedBackground =
+        sanitizeModernColorFunctionsInText(computedBackground);
+      if (
+        sanitizedBackground &&
+        !hasUnsupportedColorFunctionInValue(sanitizedBackground) &&
+        sanitizedBackground !== computedBackground
+      ) {
+        inlineStyle?.setProperty("background", sanitizedBackground, "important");
+        normalizedColorsCount += 1;
+      } else {
+        inlineStyle?.setProperty("background", "none", "important");
+      }
       const fallbackBg = resolveCssPropertyInClone(
         resolver,
         view,
@@ -531,7 +784,18 @@ export function sanitizeUnsupportedColorsInClone(
     if (hasUnsupportedColorFunctionInValue(inlineBackground)) {
       incrementHitCounter(unsupportedColorHitsByProperty, "background");
       affectedElements.add(node);
-      inlineStyle?.setProperty("background", "none", "important");
+      const sanitizedBackground =
+        sanitizeModernColorFunctionsInText(inlineBackground);
+      if (
+        sanitizedBackground &&
+        !hasUnsupportedColorFunctionInValue(sanitizedBackground) &&
+        sanitizedBackground !== inlineBackground
+      ) {
+        inlineStyle?.setProperty("background", sanitizedBackground, "important");
+        normalizedColorsCount += 1;
+      } else {
+        inlineStyle?.setProperty("background", "none", "important");
+      }
       const fallbackBg = resolveCssPropertyInClone(
         resolver,
         view,
@@ -550,15 +814,29 @@ export function sanitizeUnsupportedColorsInClone(
     if (hasUnsupportedColorFunctionInValue(backgroundImage)) {
       incrementHitCounter(unsupportedColorHitsByProperty, "background-image");
       affectedElements.add(node);
-      if (
-        node !== root &&
-        node !== clonedDoc.body &&
-        node !== clonedDoc.documentElement
-      ) {
-        node.setAttribute(MODERN_BG_ATTRIBUTE, "1");
-        bgModernFlaggedCount += 1;
+      const sanitizedBackgroundImage =
+        sanitizeModernColorFunctionsInText(backgroundImage);
+      const hasSanitizedBackgroundImage =
+        sanitizedBackgroundImage &&
+        !hasUnsupportedColorFunctionInValue(sanitizedBackgroundImage) &&
+        sanitizedBackgroundImage !== backgroundImage;
+      if (hasSanitizedBackgroundImage) {
+        inlineStyle?.setProperty(
+          "background-image",
+          sanitizedBackgroundImage,
+          "important",
+        );
+      } else {
+        if (
+          node !== root &&
+          node !== clonedDoc.body &&
+          node !== clonedDoc.documentElement
+        ) {
+          node.setAttribute(MODERN_BG_ATTRIBUTE, "1");
+          bgModernFlaggedCount += 1;
+        }
+        inlineStyle?.setProperty("background-image", "none", "important");
       }
-      inlineStyle?.setProperty("background-image", "none", "important");
       const fallbackBg = resolveCssPropertyInClone(
         resolver,
         view,

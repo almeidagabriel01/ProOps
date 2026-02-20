@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
@@ -42,6 +43,38 @@ function waitForRaf(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+async function waitForElement(
+  root: ParentNode,
+  selector: string,
+  timeoutMs = 2500,
+): Promise<HTMLElement | null> {
+  const startedAt = performance.now();
+  while (performance.now() - startedAt < timeoutMs) {
+    const found = root.querySelector<HTMLElement>(selector);
+    if (found) return found;
+    await waitForRaf();
+  }
+  return null;
+}
+
+async function waitForAttributeValue(
+  root: ParentNode,
+  selector: string,
+  attributeName: string,
+  expectedValue: string,
+  timeoutMs = 5000,
+): Promise<boolean> {
+  const startedAt = performance.now();
+  while (performance.now() - startedAt < timeoutMs) {
+    const found = root.querySelector<HTMLElement>(selector);
+    if (found?.getAttribute(attributeName) === expectedValue) {
+      return true;
+    }
+    await waitForRaf();
+  }
+  return false;
+}
+
 export async function renderProposalToPdfOffscreen({
   proposal,
   template,
@@ -69,8 +102,9 @@ export async function renderProposalToPdfOffscreen({
   let reactRoot: Root | null = null;
   try {
     reactRoot = createRoot(host);
-    reactRoot.render(
-      <div id="pdf-offscreen-content" style={{ width: "794px", minWidth: "794px" }}>
+    flushSync(() => {
+      reactRoot?.render(
+        <div id="pdf-offscreen-content" style={{ width: "794px", minWidth: "794px" }}>
         <ProposalPdfViewer
           proposal={proposal}
           template={template}
@@ -78,18 +112,28 @@ export async function renderProposalToPdfOffscreen({
           customSettings={
             customSettings as Parameters<typeof ProposalPdfViewer>[0]["customSettings"]
           }
-          showCover={showCover}
-        />
-      </div>,
-    );
+            showCover={showCover}
+          />
+        </div>,
+      );
+    });
 
     await waitForRaf();
     await waitForRaf();
 
-    const rootElement = host.querySelector<HTMLElement>("#pdf-offscreen-content");
+    const rootElement = await waitForElement(host, "#pdf-offscreen-content");
     if (!rootElement) {
       throw new Error("Offscreen PDF root not found.");
     }
+    await waitForAttributeValue(
+      host,
+      '[data-pdf-products-ready]',
+      "data-pdf-products-ready",
+      "1",
+      6000,
+    );
+    await waitForRaf();
+    await waitForRaf();
 
     return await renderToPdf({
       rootElement,
