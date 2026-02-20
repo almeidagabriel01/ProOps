@@ -65,6 +65,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
           primaryColor: data.color,
           logoUrl: data.logoUrl,
           niche: data.niche,
+          whatsappEnabled: data.whatsappEnabled,
         });
 
         // Update admin user plan if changed
@@ -73,12 +74,13 @@ export function useTenantManagement(): UseTenantManagementReturn {
         }
 
         // Update admin credentials if provided
-        if (data.email || data.password) {
+        if (data.email || data.password || data.phoneNumber !== undefined) {
           await AdminService.updateAdminCredentials({
             userId: editingData.admin.id,
             tenantId: editingData.tenant.id,
             email: data.email || undefined,
             password: data.password || undefined,
+            phoneNumber: data.phoneNumber || undefined,
           });
         }
 
@@ -115,6 +117,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
             .toLowerCase()
             .replace(/ /g, "-")
             .replace(/[^\w-]+/g, ""),
+          whatsappEnabled: data.whatsappEnabled,
           createdAt: new Date().toISOString(),
         });
 
@@ -150,7 +153,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
             const userCredential = await createUserWithEmailAndPassword(
               secondaryAuth,
               data.email,
-              data.password
+              data.password,
             );
             const user = userCredential.user;
             await setDoc(doc(secondaryDb, "users", user.uid), {
@@ -164,6 +167,15 @@ export function useTenantManagement(): UseTenantManagementReturn {
               isManualSubscription: data.planId !== "free",
               createdAt: new Date().toISOString(),
             });
+
+            // Index new admin phone number
+            if (data.phoneNumber && data.phoneNumber.trim().length > 0) {
+              await AdminService.updateAdminCredentials({
+                userId: user.uid,
+                phoneNumber: data.phoneNumber,
+              });
+            }
+
             await signOut(secondaryAuth);
             if (!getApps().every((app) => app.name !== secondaryAppName))
               await deleteApp(secondaryApp);
@@ -226,7 +238,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
   };
 
   const filteredTenants = tenantsData.filter((item) =>
-    item.tenant.name.toLowerCase().includes(search.toLowerCase())
+    item.tenant.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   return {

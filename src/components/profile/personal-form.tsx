@@ -13,9 +13,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Mail, User as UserIcon, Loader2, Save, Palette } from "lucide-react";
+import { Mail, User as UserIcon, Save, Palette, Loader2 } from "lucide-react";
 import { UserService } from "@/services/user-service";
 import { toast } from "react-toastify";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 interface PersonalFormProps {
   user: User | null;
@@ -23,22 +24,27 @@ interface PersonalFormProps {
 
 export function PersonalForm({ user }: PersonalFormProps) {
   const [name, setName] = useState(user?.name || "");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const hasChanges = name !== user?.name && name.trim().length > 0;
+  const hasChanges =
+    (name !== user?.name && name.trim().length > 0) ||
+    phoneNumber !== (user?.phoneNumber || "");
 
   const handleSave = async () => {
     if (!user || !hasChanges) return;
 
     setIsLoading(true);
     try {
-      await UserService.updateUser(user.id, { name });
-      toast.success("Nome atualizado com sucesso!");
+      await UserService.updateProfile({ name, phoneNumber });
+      toast.success("Perfil atualizado com sucesso!");
       window.location.reload();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao atualizar nome.");
+      toast.error(
+        "Erro ao atualizar o perfil. O telefone pode já estar em uso.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -108,6 +114,17 @@ export function PersonalForm({ user }: PersonalFormProps) {
             />
             <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <Label htmlFor="phoneNumber">WhatsApp / Telefone</Label>
+          <PhoneInput
+            id="phoneNumber"
+            name="phoneNumber"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            disabled={!isEditing}
+          />
         </div>
       </CardContent>
       {isEditing && (

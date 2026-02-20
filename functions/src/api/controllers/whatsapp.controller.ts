@@ -19,6 +19,33 @@ interface WhatsAppMessage {
   type: string;
 }
 
+interface WhatsAppStatus {
+  id: string;
+  status: "sent" | "delivered" | "read" | "failed" | string;
+  timestamp?: string;
+  recipient_id?: string;
+  errors?: Array<{
+    code?: number;
+    title?: string;
+    message?: string;
+    error_data?: {
+      details?: string;
+    };
+  }>;
+}
+
+interface WhatsAppSendApiResponse {
+  messaging_product?: string;
+  contacts?: Array<{
+    input?: string;
+    wa_id?: string;
+  }>;
+  messages?: Array<{
+    id?: string;
+    message_status?: string;
+  }>;
+}
+
 interface WebhookPayload {
   object: string;
   entry: {
@@ -36,7 +63,8 @@ interface WebhookPayload {
           };
           wa_id: string;
         }[];
-        messages: WhatsAppMessage[];
+        messages?: WhatsAppMessage[];
+        statuses?: WhatsAppStatus[];
       };
       field: string;
     }[];
@@ -93,14 +121,241 @@ function verifyWhatsAppSignature(
   return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
 }
 
+// Ensures Brazilian numbers have the 9th digit before sending
+function formatOutboundNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  // Se for BR e tiver 12 digitos (55 + DDD + 8 digitos)
+  if (digits.length === 12 && digits.startsWith("55")) {
+    // 55 (2) + DDD (2) = 4 primeiros digitos. Insere o 9 logo depois
+    return digits.slice(0, 4) + "9" + digits.slice(4);
+  }
+  return digits;
+}
+
+function normalizeEnvValue(value: string | undefined): string {
+  if (!value) return "";
+
+  return value
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .trim();
+}
+
+function normalizeEnvAssignment(value: string): string {
+  const assignmentMatch = value.match(/^[A-Z0-9_]+\s*=\s*(.+)$/i);
+  if (!assignmentMatch) return value;
+  return assignmentMatch[1].trim();
+}
+
+function normalizeWhatsAppAccessToken(rawValue: string | undefined): string {
+  if (!rawValue) return "";
+
+  let normalized = normalizeEnvAssignment(normalizeEnvValue(rawValue));
+
+  if (normalized.startsWith("{") && normalized.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(normalized) as {
+        access_token?: unknown;
+        token?: unknown;
+        WHATSAPP_ACCESS_TOKEN?: unknown;
+      };
+      const jsonToken =
+        parsed.access_token ?? parsed.token ?? parsed.WHATSAPP_ACCESS_TOKEN;
+      if (typeof jsonToken === "string") {
+        normalized = jsonToken;
+      }
+    } catch {
+      // Keep original normalized value if JSON parse fails
+    }
+  }
+
+  normalized = normalizeEnvValue(normalized)
+    .replace(/^Bearer\s+/i, "")
+    .replace(/\s+/g, "");
+
+  return normalized;
+}
+
+function getTokenDiagnostics(rawValue: string | undefined, token: string) {
+  const raw = rawValue || "";
+  return {
+    rawLength: raw.length,
+    normalizedLength: token.length,
+    hasWhitespaceInRaw: /\s/.test(raw),
+    hadBearerPrefixInRaw: /^\s*Bearer\s+/i.test(raw),
+    lookedLikeJsonInRaw: raw.trim().startsWith("{"),
+    tokenFingerprint: token
+      ? crypto.createHash("sha256").update(token).digest("hex").slice(0, 12)
+      : "",
+  };
+}
+
+function logIncomingStatuses(statuses: WhatsAppStatus[]) {
+  for (const statusItem of statuses) {
+    const payload = {
+      messageId: statusItem.id,
+      status: statusItem.status,
+      recipientId: statusItem.recipient_id,
+      timestamp: statusItem.timestamp,
+      errors: statusItem.errors,
+    };
+
+    if (statusItem.status === "failed") {
+      console.error("[WhatsApp] Delivery failed", payload);
+    } else {
+      console.log("[WhatsApp] Delivery update", payload);
+    }
+  }
+}
+
+function getWhatsAppApiConfig(): {
+  token: string;
+  phoneNumberId: string;
+  tokenDiagnostics: ReturnType<typeof getTokenDiagnostics>;
+} | null {
+  const rawToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const token = normalizeWhatsAppAccessToken(rawToken);
+  const phoneNumberId = normalizeEnvAssignment(
+    normalizeEnvValue(process.env.WHATSAPP_PHONE_NUMBER_ID),
+  ).replace(/\s+/g, "");
+  const tokenDiagnostics = getTokenDiagnostics(rawToken, token);
+
+  if (!token || !phoneNumberId) {
+    console.error(
+      "[WhatsApp] Missing WHATSAPP_ACCESS_TOKEN or WHATSAPP_PHONE_NUMBER_ID config",
+    );
+    return null;
+  }
+
+  if (!/^\d+$/.test(phoneNumberId)) {
+    console.error(
+      "[WhatsApp] Invalid WHATSAPP_PHONE_NUMBER_ID format (expected numeric string)",
+    );
+    return null;
+  }
+
+  return { token, phoneNumberId, tokenDiagnostics };
+}
+
 async function sendWhatsAppMessage(to: string, body: string) {
-  console.log(`[WhatsApp] Sending to ${to}: ${body}`);
-  // Implement actual sending logic using WhatsApp Business API if needed
+  const formattedTo = formatOutboundNumber(to);
+  console.log(`[WhatsApp] Sending to ${formattedTo}: ${body}`);
+
+  const config = getWhatsAppApiConfig();
+  if (!config) {
+    return;
+  }
+  const { token, phoneNumberId, tokenDiagnostics } = config;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedTo,
+          type: "text",
+          text: {
+            preview_url: false,
+            body: body,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(
+        `[WhatsApp] Meta API Error sending message to ${formattedTo}:`,
+        errorData,
+        {
+          phoneNumberId,
+          tokenDiagnostics,
+        },
+      );
+    } else {
+      const successData =
+        (await response.json().catch(() => null)) as WhatsAppSendApiResponse | null;
+      const messageId = successData?.messages?.[0]?.id;
+      const messageStatus = successData?.messages?.[0]?.message_status;
+      console.log(
+        `[WhatsApp] Successfully sent text message to ${formattedTo}`,
+        {
+          messageId,
+          messageStatus,
+        },
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[WhatsApp] Exception sending message to ${formattedTo}:`,
+      error,
+    );
+  }
 }
 
 async function sendWhatsAppPdf(to: string, link: string, caption: string) {
-  console.log(`[WhatsApp] Sending PDF to ${to}: ${link}`);
-  // Implement actual sending logic using WhatsApp Business API if needed
+  const formattedTo = formatOutboundNumber(to);
+  console.log(`[WhatsApp] Sending PDF to ${formattedTo}: ${link}`);
+
+  const config = getWhatsAppApiConfig();
+  if (!config) {
+    return;
+  }
+  const { token, phoneNumberId, tokenDiagnostics } = config;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedTo,
+          type: "document",
+          document: {
+            link: link,
+            caption: caption,
+            filename: "proposta.pdf",
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(
+        `[WhatsApp] Meta API Error sending PDF to ${formattedTo}:`,
+        errorData,
+        {
+          phoneNumberId,
+          tokenDiagnostics,
+        },
+      );
+    } else {
+      const successData =
+        (await response.json().catch(() => null)) as WhatsAppSendApiResponse | null;
+      const messageId = successData?.messages?.[0]?.id;
+      const messageStatus = successData?.messages?.[0]?.message_status;
+      console.log(`[WhatsApp] Successfully sent PDF message to ${formattedTo}`, {
+        messageId,
+        messageStatus,
+      });
+    }
+  } catch (error) {
+    console.error(`[WhatsApp] Exception sending PDF to ${formattedTo}:`, error);
+  }
 }
 
 function formatCurrency(value: number): string {
@@ -111,7 +366,18 @@ function formatCurrency(value: number): string {
 }
 
 function normalizePhoneNumber(value: unknown): string {
-  return String(value || "").replace(/\D/g, "");
+  if (!value) return "";
+  let digits = String(value).replace(/\D/g, "");
+
+  if (digits.length === 10 || digits.length === 11) {
+    digits = "55" + digits;
+  }
+
+  if (digits.length === 12 && digits.startsWith("55")) {
+    digits = `${digits.substring(0, 4)}9${digits.substring(4)}`;
+  }
+
+  return digits;
 }
 
 function toNumber(value: unknown): number {
@@ -1265,13 +1531,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
     const body = req.body as WebhookPayload;
 
     if (body.object === "whatsapp_business_account") {
-      if (
-        body.entry &&
-        body.entry[0].changes &&
-        body.entry[0].changes[0].value.messages &&
-        body.entry[0].changes[0].value.messages[0]
-      ) {
-        const message = body.entry[0].changes[0].value.messages[0];
+      const changeValue = body.entry?.[0]?.changes?.[0]?.value;
+
+      if (changeValue?.statuses?.length) {
+        logIncomingStatuses(changeValue.statuses);
+      }
+
+      if (changeValue?.messages?.[0]) {
+        const message = changeValue.messages[0];
         const from = message.from;
         const phone = normalizePhoneNumber(from);
         const text = message.text?.body || "";

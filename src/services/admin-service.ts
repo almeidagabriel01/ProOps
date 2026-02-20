@@ -8,6 +8,7 @@ interface AdminCredentialsData {
   tenantId?: string; // Optional if we just want to update a user by ID
   email?: string;
   password?: string;
+  phoneNumber?: string;
 }
 
 export interface TenantBillingInfo {
@@ -19,11 +20,13 @@ export interface TenantBillingInfo {
     logoUrl?: string;
     primaryColor?: string;
     niche?: string;
+    whatsappEnabled?: boolean;
   };
   admin: {
     id: string;
     name?: string;
     email: string;
+    phoneNumber?: string;
     subscriptionStatus?: string;
     currentPeriodEnd?: string;
     subscription?: {
@@ -57,7 +60,7 @@ export const AdminService = {
   getAllTenantsBilling: async (): Promise<TenantBillingInfo[]> => {
     return await callApi<TenantBillingInfo[]>(
       "/v1/admin/tenants/billing",
-      "GET"
+      "GET",
     );
   },
 
@@ -67,14 +70,14 @@ export const AdminService = {
 
   updateUserSubscription: async (
     userId: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
   ): Promise<void> => {
     await callApi(`/v1/admin/users/${userId}/subscription`, "PUT", data);
   },
 
   updateTenantLimits: async (
     tenantId: string,
-    limits: Record<string, unknown>
+    limits: Record<string, unknown>,
   ): Promise<void> => {
     await callApi(`/v1/admin/tenants/${tenantId}/limits`, "PUT", limits);
   },

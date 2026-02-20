@@ -9,11 +9,22 @@ import {
 import { checkUserLimit } from "../../lib/billing-helpers";
 import { UserDoc, resolveUserAndTenant } from "../../lib/auth-helpers";
 
-function normalizePhoneNumber(value: unknown): string {
-  return String(value || "").replace(/\D/g, "");
+export function normalizePhoneNumber(value: unknown): string {
+  if (!value) return "";
+  let digits = String(value).replace(/\D/g, "");
+
+  if (digits.length === 10 || digits.length === 11) {
+    digits = "55" + digits;
+  }
+
+  if (digits.length === 12 && digits.startsWith("55")) {
+    digits = `${digits.substring(0, 4)}9${digits.substring(4)}`;
+  }
+
+  return digits;
 }
 
-async function upsertPhoneNumberIndexTx(
+export async function upsertPhoneNumberIndexTx(
   transaction: FirebaseFirestore.Transaction,
   params: {
     userId: string;
@@ -313,7 +324,11 @@ export const updateMember = async (req: Request, res: Response) => {
         if (phoneNumber !== undefined) {
           await upsertPhoneNumberIndexTx(transaction, {
             userId: id,
-            tenantId: (memberData?.tenantId || memberData?.companyId || "").trim(),
+            tenantId: (
+              memberData?.tenantId ||
+              memberData?.companyId ||
+              ""
+            ).trim(),
             newPhoneNumber: phoneNumber,
             previousPhoneNumber: memberData?.phoneNumber,
             now,
@@ -670,6 +685,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           logoUrl?: string;
           primaryColor?: string;
           niche?: string;
+          whatsappEnabled?: boolean;
         }
         let tenantData: TenantData = {};
         if (tenantId) {
@@ -715,11 +731,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             logoUrl: tenantData.logoUrl,
             primaryColor: tenantData.primaryColor,
             niche: tenantData.niche,
+            whatsappEnabled: tenantData.whatsappEnabled,
           },
           admin: {
             id: userDoc.id,
             name: userData.name || userData.displayName || "",
             email: userData.email || "",
+            phoneNumber: userData.phoneNumber,
             subscriptionStatus: userData.subscriptionStatus,
             currentPeriodEnd: userData.currentPeriodEnd,
             subscription: userData.subscription,
@@ -747,7 +765,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 export const updateCredentials = async (req: Request, res: Response) => {
   try {
     const loggedUserId = req.user!.uid;
-    const { userId, email, password } = req.body;
+    const { userId, email, password, phoneNumber } = req.body;
 
     if (!userId) {
       return res.status(400).json({ message: "ID do usuário é obrigatório" });
@@ -775,8 +793,41 @@ export const updateCredentials = async (req: Request, res: Response) => {
     }
 
     // Update Firestore User
-    if (email) {
-      await db.collection("users").doc(userId).update({ email });
+    const firestoreUpdate: any = {};
+    if (email) firestoreUpdate.email = email;
+    if (phoneNumber !== undefined) {
+      firestoreUpdate.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
+    }
+
+    if (Object.keys(firestoreUpdate).length > 0) {
+      if (phoneNumber !== undefined) {
+        try {
+          await db.runTransaction(async (transaction) => {
+            const userRef = db.collection("users").doc(userId);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
+
+            await upsertPhoneNumberIndexTx(transaction, {
+              userId,
+              tenantId: userData?.tenantId || userData?.companyId || "",
+              newPhoneNumber: phoneNumber,
+              previousPhoneNumber: userData?.phoneNumber,
+              now: Timestamp.now(),
+            });
+
+            transaction.update(userRef, firestoreUpdate);
+          });
+        } catch (err: unknown) {
+          if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
+            return res
+              .status(409)
+              .json({ message: "Telefone já vinculado a outro usuário." });
+          }
+          throw err;
+        }
+      } else {
+        await db.collection("users").doc(userId).update(firestoreUpdate);
+      }
     }
 
     return res.json({

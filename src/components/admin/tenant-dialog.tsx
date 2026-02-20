@@ -18,8 +18,10 @@ import { TenantNiche, NICHE_LABELS } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "react-toastify";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   getTodayISO,
   parseLocalDate,
@@ -34,6 +36,8 @@ export interface TenantFormData {
   niche: TenantNiche;
   email?: string;
   password?: string;
+  phoneNumber?: string;
+  whatsappEnabled?: boolean;
   planId?: string;
   subscriptionStatus?:
     | "active"
@@ -82,6 +86,8 @@ export function TenantDialog({
     niche: "automacao_residencial" as TenantNiche,
     email: "",
     password: "",
+    phoneNumber: "",
+    whatsappEnabled: false,
     planId: "free",
     subscriptionStatus: "active",
     currentPeriodEnd: "",
@@ -108,6 +114,8 @@ export function TenantDialog({
             "automacao_residencial",
           email: initialData.admin?.email || "",
           password: "",
+          phoneNumber: initialData.admin?.phoneNumber || "",
+          whatsappEnabled: initialData.tenant?.whatsappEnabled || false,
           planId: initialData.planId || "free",
           subscriptionStatus:
             (initialData.admin?.subscription?.status?.toLowerCase() as TenantFormData["subscriptionStatus"]) ||
@@ -125,6 +133,8 @@ export function TenantDialog({
           niche: "automacao_residencial" as TenantNiche,
           email: "",
           password: "",
+          phoneNumber: "",
+          whatsappEnabled: false,
           planId: "free",
           subscriptionStatus: "active", // Default
           currentPeriodEnd: "",
@@ -469,10 +479,16 @@ export function TenantDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, userName: e.target.value })
                     }
-                    placeholder="Nome completo"
+                    placeholder="João Silva"
+                    disabled={isEditing}
                   />
+                  {isEditing && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      O nome de usuário não pode ser alterado por aqui após
+                      criado.
+                    </p>
+                  )}
                 </div>
-
                 <div className="space-y-1">
                   <Label htmlFor="email" className="mb-3 block">
                     Email do Administrador
@@ -486,6 +502,22 @@ export function TenantDialog({
                     }
                     placeholder="admin@empresa.com"
                   />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="phoneNumber" className="mb-3 block">
+                    WhatsApp / Telefone
+                  </Label>
+                  <PhoneInput
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={formData.phoneNumber || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phoneNumber: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Número vinculado à integração do WhatsApp.
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="password" className="mb-3 block">
@@ -523,6 +555,22 @@ export function TenantDialog({
                       ? "Deixe em branco para manter a atual."
                       : "Credencial de acesso ao painel."}
                   </p>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-4 mt-6">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">WhatsApp Ativo</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Habilita os menus de automações e a integração do WhatsApp
+                      Bot para essa empresa.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.whatsappEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, whatsappEnabled: checked })
+                    }
+                  />
                 </div>
               </TabsContent>
             </Tabs>

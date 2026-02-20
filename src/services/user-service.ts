@@ -89,6 +89,19 @@ export const UserService = {
     }
   },
 
+  updateProfile: async (data: {
+    name?: string;
+    phoneNumber?: string;
+  }): Promise<void> => {
+    try {
+      const { callApi } = await import("@/lib/api-client");
+      await callApi("v1/profile", "PUT", data);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
+    }
+  },
+
   /**
    * Get user by Phone Number (for WhatsApp integration)
    */

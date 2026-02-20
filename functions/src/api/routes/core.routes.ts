@@ -38,4 +38,8 @@ router.post("/proposals/:id/share-link", createShareLink); // Nova rota para ger
 // Tenants
 router.put("/tenants/:id", updateTenant);
 
+// Users (Self Profile)
+import { updateProfile } from "../controllers/users.controller";
+router.put("/profile", updateProfile);
+
 export const coreRoutes = router;

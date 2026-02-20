@@ -49,6 +49,41 @@ export async function updateUserPlan(
 
   await userRef.update(updatePayload);
 
+  try {
+    const userSnap = await userRef.get();
+    const userData = userSnap.data();
+    if (userData) {
+      const tenantId =
+        userData.tenantId || userData.companyId || `tenant_${userId}`;
+      let isWhatsappEnabled = false;
+
+      if (planTier === "pro" || planTier === "enterprise") {
+        isWhatsappEnabled = true;
+      } else {
+        const addonDoc = await db
+          .collection("addons")
+          .doc(`${tenantId}_whatsapp_addon`)
+          .get();
+        if (addonDoc.exists && addonDoc.data()?.status === "active") {
+          isWhatsappEnabled = true;
+        }
+      }
+
+      const tenantRef = db.collection("tenants").doc(tenantId);
+      const tenantSnap = await tenantRef.get();
+      if (tenantSnap.exists) {
+        await tenantRef.update({
+          whatsappEnabled: isWhatsappEnabled,
+        });
+      }
+    }
+  } catch (err) {
+    console.error(
+      `Failed to sync whatsappEnabled for user ${userId} during plan update`,
+      err,
+    );
+  }
+
   if (planId) {
     console.log(
       `Updated user ${userId} to plan ${planTier} (${planId}) - ${billingInterval}`,
@@ -140,7 +175,11 @@ export async function updateSubscriptionStatus(
   console.log(`Updated subscription status for user ${userId} to ${status}`);
 }
 
-export type AddonType = "financial" | "pdf_editor_partial" | "pdf_editor_full";
+export type AddonType =
+  | "financial"
+  | "pdf_editor_partial"
+  | "pdf_editor_full"
+  | "whatsapp_addon";
 
 export async function saveAddon(
   tenantId: string,
@@ -157,6 +196,12 @@ export async function saveAddon(
     purchasedAt: FieldValue.serverTimestamp(),
   });
 
+  if (addonType === "whatsapp_addon") {
+    await db.collection("tenants").doc(tenantId).update({
+      whatsappEnabled: true,
+    });
+  }
+
   console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
 }
 
@@ -170,6 +215,33 @@ export async function cancelAddon(
     status: "cancelled",
     expiresAt: FieldValue.serverTimestamp(),
   });
+
+  if (addonType === "whatsapp_addon") {
+    // Check if their current plan entitles them to whatsapp anyway
+    // If we cancel the addon but they are 'pro' or 'enterprise', we shouldn't disable it
+    // To be safe, we disable and let the plan sync logic re-enable if needed, or query here.
+    const usersSnap = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
+      .limit(1)
+      .get();
+    let keepEnabled = false;
+    if (!usersSnap.empty) {
+      const userData = usersSnap.docs[0].data();
+      const planTier = userData.planId; // The tier string or plan document ID
+      // To properly verify, we should check the tier.
+      if (planTier === "pro" || planTier === "enterprise") {
+        keepEnabled = true;
+      }
+    }
+
+    if (!keepEnabled) {
+      await db.collection("tenants").doc(tenantId).update({
+        whatsappEnabled: false,
+      });
+    }
+  }
 
   console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
 }
@@ -196,6 +268,36 @@ export async function updateAddonStatus(
   }
 
   await db.collection("addons").doc(addonId).update(updateData);
+
+  if (addonType === "whatsapp_addon") {
+    if (status === "active") {
+      await db
+        .collection("tenants")
+        .doc(tenantId)
+        .update({ whatsappEnabled: true });
+    } else if (status === "cancelled") {
+      const usersSnap = await db
+        .collection("users")
+        .where("tenantId", "==", tenantId)
+        .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
+        .limit(1)
+        .get();
+      let keepEnabled = false;
+      if (!usersSnap.empty) {
+        const userData = usersSnap.docs[0].data();
+        const planTier = userData.planId;
+        if (planTier === "pro" || planTier === "enterprise") {
+          keepEnabled = true;
+        }
+      }
+      if (!keepEnabled) {
+        await db
+          .collection("tenants")
+          .doc(tenantId)
+          .update({ whatsappEnabled: false });
+      }
+    }
+  }
 
   console.log(
     `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`,
