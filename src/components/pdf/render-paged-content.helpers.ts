@@ -299,11 +299,12 @@ export function buildContentItems(
         if (visibleSortedProducts.length > 0) {
           // Ambiente header height (approx 40px)
           envHeight += 40;
-          // Products height
-          envHeight +=
+          // Products height - 2 products per row, so roughly half the total product height
+          const rawProductHeight =
             calculateSistemaBlockHeight(visibleSortedProducts, settings) -
             60 -
             100; // Subtract footer/header base from helper
+          envHeight += Math.ceil(rawProductHeight / 2);
         }
 
         return {
@@ -344,25 +345,33 @@ export function buildContentItems(
           height: group.env.description ? 60 : 40,
         });
 
-        // Add products (filter out hidden products)
+        // Add products as pairs (2 per row)
         const visibleProducts = group.products.filter(
           (p: Product) => !p._shouldHide && hasVisibleQuantity(p),
         );
-        visibleProducts.forEach((product, idx) => {
-          const productHeight = calculateProductHeight(product, 80, settings);
+        for (let idx = 0; idx < visibleProducts.length; idx += 2) {
+          const left = visibleProducts[idx];
+          const right = visibleProducts[idx + 1];
+          const h1 = calculateProductHeight(left, 80, settings);
+          const h2 = right
+            ? calculateProductHeight(right, 80, settings)
+            : 0;
+          const rowHeight = Math.max(h1, h2);
+
           items.push({
-            type: "sistema-product",
-            id: generateId("sistema-product"),
+            type: "sistema-product-pair",
+            id: generateId("sistema-product-pair"),
             data: {
-              product,
-              sistema, // Parent sistema reference
-              isFirst: idx === 0, // Visual separation if needed
-              isLast: idx === visibleProducts.length - 1,
+              left,
+              right: right || null,
+              sistema,
+              isFirst: idx === 0,
+              isLast: idx + 2 >= visibleProducts.length,
               pdfDisplaySettings: settings,
             },
-            height: productHeight,
+            height: rowHeight,
           });
-        });
+        }
       });
 
       // Add sistema footer

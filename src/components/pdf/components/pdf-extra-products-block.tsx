@@ -32,7 +32,9 @@ export function PdfExtraProductsBlock({
   pdfDisplaySettings,
 }: PdfExtraProductsBlockProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
-  const visibleProducts = products.filter((product) => Number(product.quantity || 0) > 0);
+  const visibleProducts = products.filter(
+    (product) => Number(product.quantity || 0) > 0,
+  );
   const extraSubtotal = visibleProducts.reduce(
     (sum: number, p: PdfProduct) => sum + p.total,
     0,
@@ -121,57 +123,208 @@ export function PdfExtraProductsBlock({
         </div>
 
         {/* Products */}
-        <div className="p-4 space-y-3 bg-white">
-          {visibleProducts.map((product: PdfProduct, idx: number) => (
-            <div
-              key={product.productId}
-              className="flex items-center gap-4 p-4 rounded-lg border"
-              style={{
-                backgroundColor: idx % 2 === 0 ? "#f9fafb" : "#ffffff",
-                borderColor: "#e5e7eb",
-              }}
-            >
-              {/* Product Image - conditionally rendered */}
-              {settings.showProductImages &&
-                (product.productImage ||
-                  (product.productImages &&
-                    product.productImages.length > 0)) && (
-                  <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={product.productImages?.[0] || product.productImage}
-                      alt=""
-                      className="w-full h-full object-contain p-1"
-                    />
-                  </div>
-                )}
-
-              {/* Product Info */}
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 truncate">
-                  {product.productName}
-                </h4>
-                {settings.showProductPrices ? (
-                  <p className="text-sm text-gray-500">
-                    {product.quantity} un. × {formatCurrency(product.unitPrice)}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Qtd: {product.quantity}
-                  </p>
-                )}
-              </div>
-
-              {/* Price - conditionally rendered */}
-              {settings.showProductPrices && (
-                <div className="text-right">
-                  <span className="font-bold text-lg text-gray-700">
-                    {formatCurrency(product.total)}
-                  </span>
-                </div>
+        <div className="p-4 bg-white">
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: "6px",
+              tableLayout: "fixed",
+            }}
+          >
+            <tbody>
+              {Array.from(
+                { length: Math.ceil(visibleProducts.length / 2) },
+                (_, rowIdx) => {
+                  const left = visibleProducts[rowIdx * 2];
+                  const right = visibleProducts[rowIdx * 2 + 1];
+                  return (
+                    <tr key={rowIdx}>
+                      {right ? (
+                        <>
+                          <td
+                            style={{
+                              verticalAlign: "top",
+                              width: "50%",
+                              padding: 0,
+                            }}
+                          >
+                            {left && (
+                              <div
+                                className="flex items-center gap-2 p-3 rounded-lg border"
+                                style={{
+                                  backgroundColor:
+                                    (rowIdx * 2) % 2 === 0
+                                      ? "#f9fafb"
+                                      : "#ffffff",
+                                  borderColor: "#e5e7eb",
+                                }}
+                              >
+                                {settings.showProductImages &&
+                                  (left.productImage ||
+                                    (left.productImages &&
+                                      left.productImages.length > 0)) && (
+                                    <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={
+                                          left.productImages?.[0] ||
+                                          left.productImage
+                                        }
+                                        alt=""
+                                        className="w-full h-full object-contain p-1"
+                                      />
+                                    </div>
+                                  )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 truncate">
+                                    {left.productName}
+                                  </h4>
+                                  {settings.showProductPrices ? (
+                                    <p className="text-sm text-gray-500">
+                                      {left.quantity} un. ×{" "}
+                                      {formatCurrency(left.unitPrice)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">
+                                      Qtd: {left.quantity}
+                                    </p>
+                                  )}
+                                </div>
+                                {settings.showProductPrices && (
+                                  <div className="text-right">
+                                    <span className="font-bold text-lg text-gray-700">
+                                      {formatCurrency(left.total)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              verticalAlign: "top",
+                              width: "50%",
+                              padding: 0,
+                            }}
+                          >
+                            {right && (
+                              <div
+                                className="flex items-center gap-2 p-3 rounded-lg border"
+                                style={{
+                                  backgroundColor:
+                                    (rowIdx * 2 + 1) % 2 === 0
+                                      ? "#f9fafb"
+                                      : "#ffffff",
+                                  borderColor: "#e5e7eb",
+                                }}
+                              >
+                                {settings.showProductImages &&
+                                  (right.productImage ||
+                                    (right.productImages &&
+                                      right.productImages.length > 0)) && (
+                                    <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={
+                                          right.productImages?.[0] ||
+                                          right.productImage
+                                        }
+                                        alt=""
+                                        className="w-full h-full object-contain p-1"
+                                      />
+                                    </div>
+                                  )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-gray-900 truncate">
+                                    {right.productName}
+                                  </h4>
+                                  {settings.showProductPrices ? (
+                                    <p className="text-sm text-gray-500">
+                                      {right.quantity} un. ×{" "}
+                                      {formatCurrency(right.unitPrice)}
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-gray-500">
+                                      Qtd: {right.quantity}
+                                    </p>
+                                  )}
+                                </div>
+                                {settings.showProductPrices && (
+                                  <div className="text-right">
+                                    <span className="font-bold text-lg text-gray-700">
+                                      {formatCurrency(right.total)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <td
+                          colSpan={2}
+                          style={{ verticalAlign: "top", padding: 0 }}
+                        >
+                          {left && (
+                            <div
+                              className="flex items-center gap-2 p-3 rounded-lg border"
+                              style={{
+                                backgroundColor:
+                                  (rowIdx * 2) % 2 === 0
+                                    ? "#f9fafb"
+                                    : "#ffffff",
+                                borderColor: "#e5e7eb",
+                              }}
+                            >
+                              {settings.showProductImages &&
+                                (left.productImage ||
+                                  (left.productImages &&
+                                    left.productImages.length > 0)) && (
+                                  <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={
+                                        left.productImages?.[0] ||
+                                        left.productImage
+                                      }
+                                      alt=""
+                                      className="w-full h-full object-contain p-1"
+                                    />
+                                  </div>
+                                )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 truncate">
+                                  {left.productName}
+                                </h4>
+                                {settings.showProductPrices ? (
+                                  <p className="text-sm text-gray-500">
+                                    {left.quantity} un. ×{" "}
+                                    {formatCurrency(left.unitPrice)}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-gray-500">
+                                    Qtd: {left.quantity}
+                                  </p>
+                                )}
+                              </div>
+                              {settings.showProductPrices && (
+                                <div className="text-right">
+                                  <span className="font-bold text-lg text-gray-700">
+                                    {formatCurrency(left.total)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                },
               )}
-            </div>
-          ))}
+            </tbody>
+          </table>
 
           {/* Subtotal - conditionally rendered */}
           {settings.showSubtotals && (

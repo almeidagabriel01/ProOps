@@ -1,3 +1,4 @@
+export { PdfSistemaProductCard } from "./pdf-sistema-primitives";
 export {
   PdfSistemaBlock,
   PdfSistemaHeader,

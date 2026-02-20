@@ -12,7 +12,6 @@ import {
   PdfSistemaBlock,
   PdfSistemaHeader,
   PdfAmbienteHeader,
-  PdfSistemaProduct,
   PdfSistemaFooter,
   PdfExtraProductsBlock,
   PdfProductRow,
@@ -20,10 +19,9 @@ import {
   PdfSectionRenderer,
   PdfPageHeader,
   PdfPaymentTerms,
+  PdfSistemaProductCard,
 } from "./components";
-import {
-  defaultPdfDisplaySettings,
-} from "@/types/pdf-display-settings";
+import { defaultPdfDisplaySettings } from "@/types/pdf-display-settings";
 
 // Type definitions
 export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
@@ -236,27 +234,92 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
           </div>
         );
 
-      case "sistema-product":
-        const sistemaProductData = item.data as {
-          product: Product;
+      case "sistema-product-pair": {
+        const pairData = item.data as {
+          left: Product;
+          right: Product | null;
           sistema: Sistema;
           isFirst: boolean;
           isLast: boolean;
+          pdfDisplaySettings?: typeof settings;
+        };
+        const pairSettings = {
+          ...defaultPdfDisplaySettings,
+          ...pairData.pdfDisplaySettings,
         };
         return (
           <div
-            key={`sistema-product-${sistemaProductData.sistema.sistemaId}-${sistemaProductData.product.productId}`}
+            key={`sistema-pair-${pairData.sistema.sistemaId}-${pairData.left.productId}`}
             style={{ width: "100%" }}
           >
-            <PdfSistemaProduct
-              product={sistemaProductData.product}
-              primaryColor={primaryColor}
-              isFirst={sistemaProductData.isFirst}
-              isLast={sistemaProductData.isLast}
-              pdfDisplaySettings={settings}
-            />
+            <div
+              className="border-l-2 border-r-2 bg-white"
+              style={{
+                borderColor: primaryColor,
+                padding: pairData.isFirst ? "8px 8px 4px 8px" : "4px 8px",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "separate",
+                  borderSpacing: "4px 0",
+                  tableLayout: "fixed",
+                }}
+              >
+                <tbody>
+                  <tr>
+                    {pairData.right ? (
+                      <>
+                        <td
+                          style={{
+                            verticalAlign: "top",
+                            width: "50%",
+                            padding: 0,
+                          }}
+                        >
+                          <PdfSistemaProductCard
+                            product={pairData.left}
+                            primaryColor={primaryColor}
+                            settings={pairSettings}
+                            evenBackground
+                          />
+                        </td>
+                        <td
+                          style={{
+                            verticalAlign: "top",
+                            width: "50%",
+                            padding: 0,
+                          }}
+                        >
+                          <PdfSistemaProductCard
+                            product={pairData.right}
+                            primaryColor={primaryColor}
+                            settings={pairSettings}
+                            evenBackground={false}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <td
+                        colSpan={2}
+                        style={{ verticalAlign: "top", padding: 0 }}
+                      >
+                        <PdfSistemaProductCard
+                          product={pairData.left}
+                          primaryColor={primaryColor}
+                          settings={pairSettings}
+                          evenBackground
+                        />
+                      </td>
+                    )}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         );
+      }
 
       case "sistema-footer":
         return (
@@ -398,4 +461,3 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
     </>
   );
 };
-

@@ -48,6 +48,7 @@ export type ContentItemType =
   | "totals"
   | "sistema-header"
   | "sistema-product"
+  | "sistema-product-pair"
   | "sistema-footer"
   | "extra-products-header"
   | "ambiente-header"

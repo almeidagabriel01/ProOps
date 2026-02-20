@@ -223,17 +223,75 @@ export function PdfSistemaBlock({
                   description={amb.description}
                 />
 
-                <div className="px-4 pb-3 space-y-2">
-                  {activeProducts.map((product, idx) => (
-                    <PdfSistemaProductCard
-                      key={`${product.productId}-${idx}`}
-                      product={product}
-                      primaryColor={primaryColor}
-                      settings={settings}
-                      evenBackground={idx % 2 === 0}
-                    />
-                  ))}
-                </div>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "separate",
+                    borderSpacing: "8px",
+                    tableLayout: "fixed",
+                    margin: "0 auto",
+                    padding: "0 8px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <tbody>
+                    {Array.from(
+                      { length: Math.ceil(activeProducts.length / 2) },
+                      (_, rowIdx) => {
+                        const left = activeProducts[rowIdx * 2];
+                        const right = activeProducts[rowIdx * 2 + 1];
+                        return (
+                          <tr key={rowIdx}>
+                            {right ? (
+                              <>
+                                <td
+                                  style={{
+                                    verticalAlign: "top",
+                                    width: "50%",
+                                    padding: 0,
+                                  }}
+                                >
+                                  <PdfSistemaProductCard
+                                    product={left}
+                                    primaryColor={primaryColor}
+                                    settings={settings}
+                                    evenBackground={(rowIdx * 2) % 2 === 0}
+                                  />
+                                </td>
+                                <td
+                                  style={{
+                                    verticalAlign: "top",
+                                    width: "50%",
+                                    padding: 0,
+                                  }}
+                                >
+                                  <PdfSistemaProductCard
+                                    product={right}
+                                    primaryColor={primaryColor}
+                                    settings={settings}
+                                    evenBackground={(rowIdx * 2 + 1) % 2 === 0}
+                                  />
+                                </td>
+                              </>
+                            ) : (
+                              <td
+                                colSpan={2}
+                                style={{ verticalAlign: "top", padding: 0 }}
+                              >
+                                <PdfSistemaProductCard
+                                  product={left}
+                                  primaryColor={primaryColor}
+                                  settings={settings}
+                                  evenBackground={(rowIdx * 2) % 2 === 0}
+                                />
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      },
+                    )}
+                  </tbody>
+                </table>
               </div>
             );
           })}
@@ -316,7 +374,7 @@ export function PdfSistemaProduct({
       className={`border-l-2 border-r-2 bg-white ${isFirst ? "pt-3" : ""}`}
       style={{ borderColor: primaryColor }}
     >
-      <div className="px-4 pb-2">
+      <div className="px-2 pb-2">
         <PdfSistemaProductCard
           product={product}
           primaryColor={primaryColor}
