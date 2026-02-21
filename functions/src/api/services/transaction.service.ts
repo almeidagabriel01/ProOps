@@ -100,10 +100,36 @@ function timestampToMillis(value: unknown): number {
   return 0;
 }
 
-function getImpact(data: Record<string, any>): number {
-  if (data?.status !== "paid" || !data?.wallet) return 0;
-  const sign = data.type === "income" ? 1 : -1;
-  return sign * (toNumber(data.amount, 0) || 0);
+function getWalletImpacts(data: Record<string, any>): Map<string, number> {
+  const impacts = new Map<string, number>();
+  if (!data) return impacts;
+
+  const type = data.type; // "income" or "expense"
+  const sign = type === "income" ? 1 : -1;
+
+  const addImpact = (wallet: string | null | undefined, amount: number) => {
+    if (!wallet || amount === 0) return;
+    impacts.set(wallet, (impacts.get(wallet) || 0) + amount);
+  };
+
+  // Main transaction impact
+  if (data.status === "paid" && data.wallet) {
+    addImpact(data.wallet, sign * (toNumber(data.amount, 0) || 0));
+  }
+
+  // Extra Costs impact (add to parent transaction value)
+  if (data.extraCosts && Array.isArray(data.extraCosts)) {
+    for (const ec of data.extraCosts) {
+      if (ec.status === "paid" && (ec.wallet || data.wallet)) {
+        addImpact(
+          ec.wallet || data.wallet,
+          sign * (toNumber(ec.amount, 0) || 0),
+        );
+      }
+    }
+  }
+
+  return impacts;
 }
 
 function isDownPaymentLikeDoc(data: Record<string, any>): boolean {
@@ -124,7 +150,7 @@ export class TransactionService {
   static async createTransaction(
     userId: string,
     user: any, // Decoded ID Token
-    data: CreateTransactionDTO
+    data: CreateTransactionDTO,
   ) {
     const { tenantId: userTenantId, isSuperAdmin } =
       await checkFinancialPermission(userId, "canCreate", user);
@@ -132,10 +158,10 @@ export class TransactionService {
     // Super admin can specify target tenant
     const tenantId =
       data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
-    
+
     // Prepare data
     const now = Timestamp.now();
-    
+
     return await db.runTransaction(async (t) => {
       const transactionsToCreate: Record<string, unknown>[] = [];
       const walletAdjustments = new Map<string, number>();
@@ -162,7 +188,7 @@ export class TransactionService {
           const baseDueDate = data.dueDate || data.date;
           const currentDueDate = addMonths(baseDueDate, i);
 
-          transactionsToCreate.push({
+          const newTx = {
             tenantId,
             type: data.type,
             description: isFirst
@@ -185,22 +211,24 @@ export class TransactionService {
             installmentNumber: i + 1,
             installmentGroupId: groupId,
             notes: data.notes || null,
+            extraCosts: data.extraCosts || [],
             createdAt: now,
             updatedAt: now,
             createdById: userId,
-          });
+          };
 
-          if (currentStatus === "paid" && data.wallet) {
-            const sign = data.type === "income" ? 1 : -1;
-            const adj = sign * baseAmount;
+          transactionsToCreate.push(newTx);
+
+          const impacts = getWalletImpacts(newTx);
+          for (const [wallet, adj] of impacts.entries()) {
             walletAdjustments.set(
-              data.wallet,
-              (walletAdjustments.get(data.wallet) || 0) + adj
+              wallet,
+              (walletAdjustments.get(wallet) || 0) + adj,
             );
           }
         }
       } else {
-        transactionsToCreate.push({
+        const newTx = {
           tenantId,
           type: data.type,
           description: data.description.trim(),
@@ -221,26 +249,34 @@ export class TransactionService {
           installmentNumber: data.installmentNumber || null,
           installmentGroupId: data.installmentGroupId || null,
           notes: data.notes || null,
+          extraCosts: data.extraCosts || [],
           createdAt: now,
           updatedAt: now,
           createdById: userId,
-        });
+        };
 
-        if (data.status === "paid" && data.wallet) {
-          const sign = data.type === "income" ? 1 : -1;
-          const adj = sign * data.amount;
-          walletAdjustments.set(data.wallet, adj);
+        transactionsToCreate.push(newTx);
+
+        const impacts = getWalletImpacts(newTx);
+        for (const [wallet, adj] of impacts.entries()) {
+          walletAdjustments.set(
+            wallet,
+            (walletAdjustments.get(wallet) || 0) + adj,
+          );
         }
       }
 
       // Update Wallets
-      for (const [walletIdentifier, adjustment] of walletAdjustments.entries()) {
+      for (const [
+        walletIdentifier,
+        adjustment,
+      ] of walletAdjustments.entries()) {
         if (adjustment === 0) continue;
         const walletInfo = await resolveWalletRef(
           t,
           db,
           tenantId,
-          walletIdentifier
+          walletIdentifier,
         );
         if (walletInfo) {
           t.update(walletInfo.ref, {
@@ -275,13 +311,10 @@ export class TransactionService {
     userId: string,
     user: any,
     id: string,
-    payload: UpdateFinancialEntryWithInstallmentsDTO
+    payload: UpdateFinancialEntryWithInstallmentsDTO,
   ) {
-    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      user
-    );
+    const { tenantId: userTenantId, isSuperAdmin } =
+      await checkFinancialPermission(userId, "canEdit", user);
 
     await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -294,23 +327,29 @@ export class TransactionService {
 
       const txTenantId = anchorData.tenantId as string;
       if (!txTenantId) throw new Error("Transação sem tenantId.");
-      if (!isSuperAdmin && txTenantId !== userTenantId) throw new Error("Acesso negado.");
+      if (!isSuperAdmin && txTenantId !== userTenantId)
+        throw new Error("Acesso negado.");
       if (payload.targetTenantId && payload.targetTenantId !== txTenantId) {
         throw new Error("Tenant alvo não corresponde à transação.");
       }
 
-      const expectedUpdatedAtMillis = timestampToMillis(payload.expectedUpdatedAt);
+      const expectedUpdatedAtMillis = timestampToMillis(
+        payload.expectedUpdatedAt,
+      );
       if (expectedUpdatedAtMillis > 0) {
         const currentUpdatedAtMillis = timestampToMillis(anchorData.updatedAt);
         if (
           currentUpdatedAtMillis > 0 &&
           currentUpdatedAtMillis > expectedUpdatedAtMillis + 1
         ) {
-          throw new Error("Conflito de atualização. Recarregue os dados e tente novamente.");
+          throw new Error(
+            "Conflito de atualização. Recarregue os dados e tente novamente.",
+          );
         }
       }
 
-      let effectiveGroupId = (anchorData.installmentGroupId as string | null) || null;
+      let effectiveGroupId =
+        (anchorData.installmentGroupId as string | null) || null;
 
       const wantInstallments = payload.isInstallment !== false;
       const requestedInstallmentCount = Math.max(
@@ -318,34 +357,46 @@ export class TransactionService {
         Math.floor(
           toNumber(
             payload.installmentCount,
-            toNumber(anchorData.installmentCount, 1)
-          )
-        )
+            toNumber(anchorData.installmentCount, 1),
+          ),
+        ),
       );
-      const targetInstallmentCount = wantInstallments ? requestedInstallmentCount : 1;
+      const targetInstallmentCount = wantInstallments
+        ? requestedInstallmentCount
+        : 1;
 
       const downPaymentEnabled = !!payload.downPaymentEnabled;
-      const paymentMode = payload.paymentMode === "installmentValue" ? "installmentValue" : "total";
+      const paymentMode =
+        payload.paymentMode === "installmentValue"
+          ? "installmentValue"
+          : "total";
       const installmentValue = roundCurrency(
-        toNumber(payload.installmentValue, toNumber(anchorData.amount, 0))
+        toNumber(payload.installmentValue, toNumber(anchorData.amount, 0)),
       );
       const totalAmount = roundCurrency(
-        toNumber(payload.amount, toNumber(anchorData.amount, 0))
+        toNumber(payload.amount, toNumber(anchorData.amount, 0)),
       );
 
-      const downPaymentType = payload.downPaymentType === "percentage" ? "percentage" : "value";
+      const downPaymentType =
+        payload.downPaymentType === "percentage" ? "percentage" : "value";
       const downPaymentAmountRaw =
         downPaymentType === "percentage"
           ? (paymentMode === "installmentValue"
               ? installmentValue * targetInstallmentCount
-              : totalAmount) * (toNumber(payload.downPaymentPercentage, 0) / 100)
+              : totalAmount) *
+            (toNumber(payload.downPaymentPercentage, 0) / 100)
           : toNumber(payload.downPaymentValue, 0);
-      const downPaymentAmount = roundCurrency(Math.max(0, downPaymentAmountRaw));
+      const downPaymentAmount = roundCurrency(
+        Math.max(0, downPaymentAmountRaw),
+      );
       const shouldHaveDownPayment =
         wantInstallments && downPaymentEnabled && downPaymentAmount > 0;
 
       // If converting single transaction to grouped structure, create a stable group id.
-      if (!effectiveGroupId && (targetInstallmentCount > 1 || shouldHaveDownPayment)) {
+      if (
+        !effectiveGroupId &&
+        (targetInstallmentCount > 1 || shouldHaveDownPayment)
+      ) {
         effectiveGroupId = `installment_${now.toMillis()}`;
       }
 
@@ -357,7 +408,9 @@ export class TransactionService {
         allDocs.push(doc);
       };
 
-      const extraIds = Array.from(new Set((payload.extraTransactionIds || []).filter(Boolean)));
+      const extraIds = Array.from(
+        new Set((payload.extraTransactionIds || []).filter(Boolean)),
+      );
       for (const extraId of extraIds) {
         const extraRef = db.collection(COLLECTION_NAME).doc(extraId);
         const extraSnap = await t.get(extraRef);
@@ -375,7 +428,11 @@ export class TransactionService {
           .where("installmentGroupId", "==", effectiveGroupId);
         const groupSnap = await t.get(groupQuery);
         groupSnap.docs.forEach((docSnap) => {
-          pushDoc({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() as Record<string, any> });
+          pushDoc({
+            id: docSnap.id,
+            ref: docSnap.ref,
+            data: docSnap.data() as Record<string, any>,
+          });
         });
       } else {
         pushDoc({ id: anchorSnap.id, ref: anchorRef, data: anchorData });
@@ -391,7 +448,10 @@ export class TransactionService {
           const aUpdated = timestampToMillis(a.data.updatedAt);
           const bUpdated = timestampToMillis(b.data.updatedAt);
           if (aUpdated !== bUpdated) return bUpdated - aUpdated;
-          return timestampToMillis(b.data.createdAt) - timestampToMillis(a.data.createdAt);
+          return (
+            timestampToMillis(b.data.createdAt) -
+            timestampToMillis(a.data.createdAt)
+          );
         });
       const existingDownPayment = downPaymentCandidates[0] || null;
       const extraDownPayments = downPaymentCandidates.slice(1);
@@ -403,26 +463,40 @@ export class TransactionService {
             toNumber(a.data.installmentNumber, Number.MAX_SAFE_INTEGER) -
             toNumber(b.data.installmentNumber, Number.MAX_SAFE_INTEGER);
           if (numberDiff !== 0) return numberDiff;
-          return timestampToMillis(a.data.createdAt) - timestampToMillis(b.data.createdAt);
+          return (
+            timestampToMillis(a.data.createdAt) -
+            timestampToMillis(b.data.createdAt)
+          );
         });
 
       const firstInstallment = existingInstallments[0]?.data || anchorData;
-      const launchDate = toDateOnly(payload.date, toDateOnly(anchorData.date, now.toDate().toISOString().split("T")[0]));
+      const launchDate = toDateOnly(
+        payload.date,
+        toDateOnly(anchorData.date, now.toDate().toISOString().split("T")[0]),
+      );
       const baseInstallmentDueDate = toDateOnly(
-        paymentMode === "installmentValue" ? payload.firstInstallmentDate : payload.dueDate,
-        toDateOnly(firstInstallment?.dueDate || firstInstallment?.date, launchDate)
+        paymentMode === "installmentValue"
+          ? payload.firstInstallmentDate
+          : payload.dueDate,
+        toDateOnly(
+          firstInstallment?.dueDate || firstInstallment?.date,
+          launchDate,
+        ),
       );
       const downPaymentDueDate = toDateOnly(
         payload.downPaymentDueDate,
-        toDateOnly(existingDownPayment?.data?.dueDate || launchDate, launchDate)
+        toDateOnly(
+          existingDownPayment?.data?.dueDate || launchDate,
+          launchDate,
+        ),
       );
 
       const installmentsWalletInput =
         paymentMode === "installmentValue"
-          ? normalizeOptionalString(payload.installmentsWallet) ??
-            normalizeOptionalString(payload.wallet)
-          : normalizeOptionalString(payload.wallet) ??
-            normalizeOptionalString(payload.installmentsWallet);
+          ? (normalizeOptionalString(payload.installmentsWallet) ??
+            normalizeOptionalString(payload.wallet))
+          : (normalizeOptionalString(payload.wallet) ??
+            normalizeOptionalString(payload.installmentsWallet));
 
       const installmentsWallet =
         installmentsWalletInput ??
@@ -434,7 +508,9 @@ export class TransactionService {
         installmentsWallet ??
         null;
 
-      const description = (payload.description ?? anchorData.description ?? "").toString().trim();
+      const description = (payload.description ?? anchorData.description ?? "")
+        .toString()
+        .trim();
       const type = (payload.type ?? anchorData.type) as "income" | "expense";
       const category = payload.category ?? anchorData.category ?? null;
       const clientId = payload.clientId ?? anchorData.clientId ?? null;
@@ -449,17 +525,28 @@ export class TransactionService {
           installmentAmounts.push(installmentValue);
         }
       } else {
-        const remaining = roundCurrency(Math.max(0, totalAmount - (shouldHaveDownPayment ? downPaymentAmount : 0)));
-        const base = Math.floor((remaining / targetInstallmentCount) * 100) / 100;
+        const remaining = roundCurrency(
+          Math.max(
+            0,
+            totalAmount - (shouldHaveDownPayment ? downPaymentAmount : 0),
+          ),
+        );
+        const base =
+          Math.floor((remaining / targetInstallmentCount) * 100) / 100;
         const baseTotal = roundCurrency(base * targetInstallmentCount);
         const remainderCents = Math.round((remaining - baseTotal) * 100);
         for (let i = 0; i < targetInstallmentCount; i++) {
-          installmentAmounts.push(roundCurrency(base + (i < remainderCents ? 0.01 : 0)));
+          installmentAmounts.push(
+            roundCurrency(base + (i < remainderCents ? 0.01 : 0)),
+          );
         }
       }
 
       const toCreate: Array<Record<string, any>> = [];
-      const toUpdate: Array<{ doc: TransactionDoc; next: Record<string, any> }> = [];
+      const toUpdate: Array<{
+        doc: TransactionDoc;
+        next: Record<string, any>;
+      }> = [];
       const toDelete: TransactionDoc[] = [...extraDownPayments];
 
       for (let i = 0; i < targetInstallmentCount; i++) {
@@ -471,7 +558,11 @@ export class TransactionService {
           amount: installmentAmounts[i] ?? 0,
           date: launchDate,
           dueDate: addMonths(baseInstallmentDueDate, i),
-          status: existing?.data?.status || (i === 0 ? payload.status || anchorData.status || "pending" : "pending"),
+          status:
+            existing?.data?.status ||
+            (i === 0
+              ? payload.status || anchorData.status || "pending"
+              : "pending"),
           clientId,
           clientName,
           proposalId,
@@ -515,7 +606,11 @@ export class TransactionService {
           amount: downPaymentAmount,
           date: downPaymentDueDate,
           dueDate: downPaymentDueDate,
-          status: existingDownPayment?.data?.status || payload.status || anchorData.status || "pending",
+          status:
+            existingDownPayment?.data?.status ||
+            payload.status ||
+            anchorData.status ||
+            "pending",
           clientId,
           clientName,
           proposalId,
@@ -525,7 +620,9 @@ export class TransactionService {
           isDownPayment: true,
           downPaymentType,
           downPaymentPercentage:
-            downPaymentType === "percentage" ? toNumber(payload.downPaymentPercentage, 0) : null,
+            downPaymentType === "percentage"
+              ? toNumber(payload.downPaymentPercentage, 0)
+              : null,
           isInstallment: false,
           installmentCount: targetInstallmentCount,
           installmentNumber: 0,
@@ -548,24 +645,39 @@ export class TransactionService {
       }
 
       const walletAdjustments = new Map<string, number>();
-      const addWalletAdjustment = (wallet: string | null | undefined, delta: number) => {
+      const addWalletAdjustment = (
+        wallet: string | null | undefined,
+        delta: number,
+      ) => {
         if (!wallet || delta === 0) return;
-        walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + delta);
+        walletAdjustments.set(
+          wallet,
+          (walletAdjustments.get(wallet) || 0) + delta,
+        );
       };
 
       for (const op of toUpdate) {
-        const oldImpact = getImpact(op.doc.data);
-        const newImpact = getImpact(op.next);
-        addWalletAdjustment(op.doc.data.wallet as string | undefined, -oldImpact);
-        addWalletAdjustment(op.next.wallet as string | undefined, newImpact);
+        const oldImpacts = getWalletImpacts(op.doc.data);
+        const newImpacts = getWalletImpacts(op.next);
+
+        for (const [wallet, impact] of oldImpacts.entries()) {
+          addWalletAdjustment(wallet, -impact);
+        }
+        for (const [wallet, impact] of newImpacts.entries()) {
+          addWalletAdjustment(wallet, impact);
+        }
       }
       for (const op of toCreate) {
-        const newImpact = getImpact(op);
-        addWalletAdjustment(op.wallet as string | undefined, newImpact);
+        const newImpacts = getWalletImpacts(op);
+        for (const [wallet, impact] of newImpacts.entries()) {
+          addWalletAdjustment(wallet, impact);
+        }
       }
       for (const op of toDelete) {
-        const oldImpact = getImpact(op.data);
-        addWalletAdjustment(op.data.wallet as string | undefined, -oldImpact);
+        const oldImpacts = getWalletImpacts(op.data);
+        for (const [wallet, impact] of oldImpacts.entries()) {
+          addWalletAdjustment(wallet, -impact);
+        }
       }
 
       const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
@@ -628,12 +740,12 @@ export class TransactionService {
     userId: string,
     user: any,
     id: string,
-    updateData: Partial<CreateTransactionDTO>
+    updateData: Partial<CreateTransactionDTO>,
   ) {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
-      user
+      user,
     );
 
     await db.runTransaction(async (t) => {
@@ -650,22 +762,27 @@ export class TransactionService {
       // Calc Impact logic
       const getWalletImpacts = (data: any) => {
         const impacts = new Map<string, number>();
-        const addImpact = (wallet: string | null | undefined, amount: number, type: string) => {
+        const addImpact = (
+          wallet: string | null | undefined,
+          amount: number,
+          type: string,
+        ) => {
           if (!wallet) return;
           const delta = (type === "income" ? 1 : -1) * (amount || 0);
           impacts.set(wallet, (impacts.get(wallet) || 0) + delta);
         };
-        
+
         if (data?.status === "paid" && data?.wallet) {
-           addImpact(data.wallet, data.amount, data.type);
+          addImpact(data.wallet, data.amount, data.type);
         }
-        
+
         if (data?.extraCosts && Array.isArray(data.extraCosts)) {
-           for (const ec of data.extraCosts) {
-             if (ec.status === "paid" && (ec.wallet || data.wallet)) {
-               addImpact(ec.wallet || data.wallet, ec.amount, data.type);
-             }
-           }
+          for (const ec of data.extraCosts) {
+            if (ec.status === "paid" && (ec.wallet || data.wallet)) {
+              // Extra Costs add to the absolute value of the parent transaction
+              addImpact(ec.wallet || data.wallet, ec.amount, data.type);
+            }
+          }
         }
         return impacts;
       };
@@ -676,10 +793,13 @@ export class TransactionService {
 
       const walletAdjustments = new Map<string, number>();
       for (const [wallet, amount] of oldImpacts.entries()) {
-         walletAdjustments.set(wallet, -amount);
+        walletAdjustments.set(wallet, -amount);
       }
       for (const [wallet, amount] of newImpacts.entries()) {
-         walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + amount);
+        walletAdjustments.set(
+          wallet,
+          (walletAdjustments.get(wallet) || 0) + amount,
+        );
       }
 
       // Use the transaction's tenantId for wallet lookup
@@ -711,15 +831,17 @@ export class TransactionService {
         currentData.wallet !== newData.wallet &&
         currentData.proposalId
       ) {
-        const proposalRef = db.collection("proposals").doc(currentData.proposalId);
-        
+        const proposalRef = db
+          .collection("proposals")
+          .doc(currentData.proposalId);
+
         const proposalUpdate: any = {};
         if (currentData.isDownPayment) {
           proposalUpdate.downPaymentWallet = newData.wallet;
         } else {
-           proposalUpdate.installmentsWallet = newData.wallet;
+          proposalUpdate.installmentsWallet = newData.wallet;
         }
-        
+
         t.update(proposalRef, proposalUpdate);
       }
 
@@ -734,13 +856,13 @@ export class TransactionService {
     userId: string,
     user: any,
     ids: string[],
-    newStatus: "paid" | "pending" | "overdue"
+    newStatus: "paid" | "pending" | "overdue",
   ) {
     const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
-      user
+      user,
     );
 
     return await db.runTransaction(async (t) => {
@@ -801,7 +923,12 @@ export class TransactionService {
       const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
       for (const [key, adj] of walletAdjustments.entries()) {
         if (adj.delta === 0) continue;
-        const walletInfo = await resolveWalletRef(t, db, adj.tenantId, adj.wallet);
+        const walletInfo = await resolveWalletRef(
+          t,
+          db,
+          adj.tenantId,
+          adj.wallet,
+        );
         if (walletInfo) {
           walletRefs.set(key, walletInfo.ref);
         }
@@ -823,7 +950,7 @@ export class TransactionService {
           updatedAt: now,
         });
       }
-      
+
       return uniqueIds.length;
     });
   }
@@ -835,7 +962,7 @@ export class TransactionService {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canDelete",
-      user
+      user,
     );
 
     await db.runTransaction(async (t) => {
@@ -849,26 +976,75 @@ export class TransactionService {
 
       // Check if linked to an approved proposal
       if (currentData?.proposalId) {
-        const proposalRef = db.collection("proposals").doc(currentData.proposalId);
+        const proposalRef = db
+          .collection("proposals")
+          .doc(currentData.proposalId);
         const proposalSnap = await t.get(proposalRef);
-        
+
         if (proposalSnap.exists) {
-           const proposalData = proposalSnap.data();
-           if (proposalData?.status === "approved") {
-             throw new Error("Não é possível excluir um lançamento vinculado a uma proposta Aprovada. Reverta o status da proposta para Rascunho antes de excluir.");
-           }
+          const proposalData = proposalSnap.data();
+          if (proposalData?.status === "approved") {
+            throw new Error(
+              "Não é possível excluir um lançamento vinculado a uma proposta Aprovada. Reverta o status da proposta para Rascunho antes de excluir.",
+            );
+          }
         }
       }
 
+      const txTenantId = currentData?.tenantId || tenantId;
+      const walletAdjustments = new Map<string, number>();
+
+      const addImpact = (
+        wallet: string | null | undefined,
+        amount: number,
+        isIncome: boolean,
+      ) => {
+        if (!wallet) return;
+        const delta = (isIncome ? 1 : -1) * (amount || 0);
+        walletAdjustments.set(
+          wallet,
+          (walletAdjustments.get(wallet) || 0) + delta,
+        );
+      };
+
+      // 1. Calculate main transaction impact
       if (currentData?.status === "paid" && currentData?.wallet) {
-        const impact =
-          (currentData.type === "income" ? 1 : -1) * (currentData.amount || 0);
-        // Use transaction's tenantId for wallet lookup
-        const txTenantId = currentData?.tenantId || tenantId;
-        const w = await resolveWalletRef(t, db, txTenantId, currentData.wallet);
-        if (w) {
-          t.update(w.ref, {
-            balance: FieldValue.increment(-impact),
+        addImpact(
+          currentData.wallet,
+          currentData.amount,
+          currentData.type === "income",
+        );
+      }
+
+      // 2. Calculate extra costs impacts
+      if (currentData?.extraCosts && Array.isArray(currentData.extraCosts)) {
+        for (const ec of currentData.extraCosts) {
+          if (ec.status === "paid" && (ec.wallet || currentData.wallet)) {
+            // Extra costs add to the absolute value of the parent transaction
+            addImpact(
+              ec.wallet || currentData.wallet,
+              ec.amount,
+              currentData.type === "income",
+            );
+          }
+        }
+      }
+
+      // 3. Resolve wallet refs (must read before write)
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [wallet, adj] of walletAdjustments.entries()) {
+        if (adj === 0) continue;
+        const w = await resolveWalletRef(t, db, txTenantId, wallet);
+        if (w) walletRefs.set(wallet, w.ref);
+      }
+
+      // 4. Revert impact
+      for (const [wallet, adj] of walletAdjustments.entries()) {
+        if (adj === 0) continue;
+        const walletRef = walletRefs.get(wallet);
+        if (walletRef) {
+          t.update(walletRef, {
+            balance: FieldValue.increment(-adj),
             updatedAt: Timestamp.now(),
           });
         }

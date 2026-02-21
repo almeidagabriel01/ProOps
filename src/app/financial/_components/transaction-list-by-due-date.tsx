@@ -16,6 +16,7 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import { Wallet } from "@/types";
+import { callApi } from "@/lib/api-client";
 import {
   Check,
   Clock,
@@ -37,6 +38,16 @@ import { PartialPaymentDialog } from "./partial-payment-dialog";
 import { TransactionService } from "@/services/transaction-service";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TransactionListByDueDateProps {
   transactions: Transaction[];
@@ -62,6 +73,11 @@ interface TransactionListByDueDateProps {
     amount: number,
     date: string,
   ) => Promise<void>;
+  onUpdateExtraCostStatus?: (
+    parentTxId: string,
+    ecId: string,
+    newStatus: TransactionStatus,
+  ) => Promise<boolean>;
 
   onReload?: () => Promise<void>;
   wallets?: Wallet[];
@@ -91,6 +107,7 @@ export function TransactionListByDueDate({
   onSort,
   sortConfig,
   onRegisterPartialPayment,
+  onUpdateExtraCostStatus,
   onReload,
   wallets = [],
   allTransactions = [],
@@ -100,6 +117,13 @@ export function TransactionListByDueDate({
     field: "status" | "wallet";
   } | null>(null);
   const router = useRouter();
+
+  const [extraCostToDelete, setExtraCostToDelete] = React.useState<{
+    ecId: string;
+    parentTxId: string;
+    label: string;
+  } | null>(null);
+  const [isDeletingExtraCost, setIsDeletingExtraCost] = React.useState(false);
 
   const [expandedGroups, setExpandedGroups] = React.useState<Set<string>>(
     new Set(),
@@ -343,20 +367,84 @@ export function TransactionListByDueDate({
     transaction: Transaction,
     newStatus: TransactionStatus,
   ) => {
+    if ((transaction as any).isExtraCostSync) {
+      if (transaction.status === newStatus) return;
+
+      const parentTx = allTransactions.find(
+        (t) => t.id === transaction.parentTransactionId,
+      );
+      if (!parentTx) {
+        toast.error("Transação de origem não encontrada.");
+        return;
+      }
+
+      setUpdatingState({ id: transaction.id, field: "status" });
+      try {
+        if (onUpdateExtraCostStatus) {
+          await onUpdateExtraCostStatus(parentTx.id, transaction.id, newStatus);
+        } else if (onUpdate) {
+          const updatedExtraCosts = (parentTx.extraCosts || []).map((ec) =>
+            ec.id === transaction.id ? { ...ec, status: newStatus } : ec,
+          );
+          await onUpdate(parentTx, { extraCosts: updatedExtraCosts });
+        }
+      } catch (error) {
+        console.error("Error updating extra cost status:", error);
+        toast.error("Erro ao atualizar acréscimo/custo extra.");
+      } finally {
+        setUpdatingState(null);
+      }
+      return;
+    }
+
     if (!onStatusChange || transaction.status === newStatus) return;
     setUpdatingState({ id: transaction.id, field: "status" });
-    await onStatusChange(transaction, newStatus, false);
-    setUpdatingState(null);
+    try {
+      await onStatusChange(transaction, newStatus, false);
+    } finally {
+      setUpdatingState(null);
+    }
   };
 
   const handleWalletChange = async (
     transaction: Transaction,
     walletId: string,
   ) => {
+    if ((transaction as any).isExtraCostSync) {
+      setUpdatingState({ id: transaction.id, field: "wallet" });
+
+      const parentTx = allTransactions.find(
+        (t) => t.id === transaction.parentTransactionId,
+      );
+      if (!parentTx) {
+        setUpdatingState(null);
+        toast.error("Transação de origem não encontrada.");
+        return;
+      }
+
+      try {
+        const updatedExtraCosts = (parentTx.extraCosts || []).map((ec) =>
+          ec.id === transaction.id ? { ...ec, wallet: walletId } : ec,
+        );
+        if (onUpdate) {
+          await onUpdate(parentTx, { extraCosts: updatedExtraCosts });
+        }
+      } catch (error) {
+        console.error("Error updating extra cost wallet:", error);
+        toast.error("Erro ao atualizar carteira do acréscimo/custo extra.");
+      } finally {
+        setUpdatingState(null);
+      }
+      return;
+    }
+
     if (!onUpdate) return;
     setUpdatingState({ id: transaction.id, field: "wallet" });
-    await onUpdate(transaction, { wallet: walletId });
-    setUpdatingState(null);
+    try {
+      await onUpdate(transaction, { wallet: walletId });
+    } finally {
+      setUpdatingState(null);
+    }
   };
 
   const isAllSelected =
@@ -482,12 +570,13 @@ export function TransactionListByDueDate({
                     <div className="flex items-center gap-2 pl-2">
                       {/* Always show checkbox if not sub-item or if sub-item logic requires it (usually sub-items also selectable? user didn't specify, but "keep checkbox" usually implies for the main item) */}
                       {/* User said: "vquero que mantenha o checkbox mesmo assim, e a setinha informando se esta aberto ou fechado ao lado" */}
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => onToggleSelection(tx.id)}
-                        className="cursor-pointer"
-                        onClick={(e) => e.stopPropagation()} // Prevent row click
-                      />
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => onToggleSelection(tx.id)}
+                          className="cursor-pointer"
+                        />
+                      </div>
 
                       {!isSubItem && hasSubs && (
                         <div className="w-4 flex justify-center">
@@ -509,7 +598,7 @@ export function TransactionListByDueDate({
                         <ArrowDownCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       )}
                       <span className="truncate">{tx.description}</span>
-                      {tx.isInstallment && (
+                      {tx.isInstallment && !tx.isDownPayment && (
                         <span className="text-xs text-muted-foreground shrink-0">
                           ({tx.installmentNumber}/{tx.installmentCount})
                         </span>
@@ -528,6 +617,14 @@ export function TransactionListByDueDate({
                           className="text-[10px] h-4 px-1 shrink-0 border-blue-200 bg-blue-50 text-blue-700"
                         >
                           Parcial
+                        </Badge>
+                      )}
+                      {(tx as any).isExtraCostSync && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-4 px-1 shrink-0 border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-500"
+                        >
+                          {tx.type === "income" ? "Acréscimo" : "Custo Extra"}
                         </Badge>
                       )}
                     </div>
@@ -629,12 +726,18 @@ export function TransactionListByDueDate({
                                 <>
                                   {(() => {
                                     const opt = statusOptions.find(
-                                      (o) => o.value === tx.status,
+                                      (o) =>
+                                        o.value === (tx.status || "pending"),
                                     );
                                     const Icon = opt?.icon || Check;
                                     return <Icon className="h-3 w-3" />;
                                   })()}
-                                  <span>{statusConfig[tx.status].label}</span>
+                                  <span>
+                                    {
+                                      statusConfig[tx.status || "pending"]
+                                        ?.label
+                                    }
+                                  </span>
                                   <ChevronDown className="h-2.5 w-2.5 opacity-50" />
                                 </>
                               )}
@@ -694,17 +797,33 @@ export function TransactionListByDueDate({
                           <Split className="w-3 h-3 rotate-180" />
                         </Button>
                       )}
-                      <Link href={`/financial/${tx.id}/view`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          title="Ver"
+                      {!(tx as any).isExtraCostSync && (
+                        <Link href={`/financial/${tx.id}/view`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Ver"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        </Link>
+                      )}
+                      {(tx as any).isExtraCostSync && (
+                        <Link
+                          href={`/financial/${(tx as any).parentTransactionId}/extra-cost/${tx.id}`}
                         >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                      </Link>
-                      {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Ver Acréscimo/Custo Extra"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        </Link>
+                      )}
+                      {canDelete && !(tx as any).isExtraCostSync && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -713,6 +832,32 @@ export function TransactionListByDueDate({
                           title="Excluir"
                         >
                           <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                      {canDelete && (tx as any).isExtraCostSync && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          disabled={isDeletingExtraCost}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExtraCostToDelete({
+                              ecId: tx.id,
+                              parentTxId: (tx as any).parentTransactionId,
+                              label:
+                                tx.type === "income"
+                                  ? "Acréscimo"
+                                  : "Custo Extra",
+                            });
+                          }}
+                          title="Excluir"
+                        >
+                          {isDeletingExtraCost ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3 h-3" />
+                          )}
                         </Button>
                       )}
                     </div>
@@ -749,6 +894,62 @@ export function TransactionListByDueDate({
           onConfirm={processPartialPayment}
         />
       )}
+
+      <AlertDialog
+        open={!!extraCostToDelete}
+        onOpenChange={(open) => !open && setExtraCostToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Excluir {extraCostToDelete?.label}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este{" "}
+              {extraCostToDelete?.label?.toLowerCase()}? Esta ação não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingExtraCost}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeletingExtraCost}
+              onClick={async () => {
+                if (!extraCostToDelete) return;
+                setIsDeletingExtraCost(true);
+                try {
+                  const parentTx = allTransactions.find(
+                    (t) => t.id === extraCostToDelete.parentTxId,
+                  );
+                  if (!parentTx) {
+                    toast.error("Lançamento de origem não encontrado.");
+                    return;
+                  }
+                  const updatedExtraCosts = (parentTx.extraCosts || []).filter(
+                    (ec) => ec.id !== extraCostToDelete.ecId,
+                  );
+                  if (onUpdate) {
+                    await onUpdate(parentTx, { extraCosts: updatedExtraCosts });
+                  }
+                  toast.success(`${extraCostToDelete.label} removido!`);
+                  if (onReload) await onReload();
+                } catch (err) {
+                  console.error(err);
+                  toast.error("Erro ao excluir.");
+                } finally {
+                  setIsDeletingExtraCost(false);
+                  setExtraCostToDelete(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

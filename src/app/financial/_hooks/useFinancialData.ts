@@ -153,6 +153,11 @@ interface UseFinancialDataReturn {
     transaction: Transaction,
     newStatus: Transaction["status"],
   ) => Promise<boolean>;
+  updateExtraCostStatus: (
+    parentTxId: string,
+    ecId: string,
+    newStatus: TransactionStatus,
+  ) => Promise<boolean>;
   registerPartialPayment: (
     originalTransaction: Transaction,
     amount: number,
@@ -227,7 +232,32 @@ export function useFinancialData(): UseFinancialDataReturn {
     // In "grouped" mode, show grouped as before
     if (viewMode === "byDueDate") {
       // Show all transactions individually, sorted by due date
-      effectiveTransactions = [...transactions];
+      transactions.forEach((t) => {
+        effectiveTransactions.push(t);
+        // Extract extra costs as independent transactions so filtering and visualization works in the "por vencimento" table
+        if (t.extraCosts && t.extraCosts.length > 0) {
+          t.extraCosts.forEach((ec) => {
+            effectiveTransactions.push({
+              ...ec,
+              id: ec.id,
+              tenantId: t.tenantId,
+              type: t.type,
+              description:
+                ec.description ||
+                (t.type === "income" ? "Acréscimo Extra" : "Custo Extra"),
+              date: ec.createdAt || t.date,
+              dueDate: t.dueDate,
+              wallet: ec.wallet || t.wallet,
+              status: ec.status || "pending",
+              createdAt: ec.createdAt || t.createdAt,
+              updatedAt: ec.createdAt || t.updatedAt,
+              amount: ec.amount,
+              isExtraCostSync: true,
+              parentTransactionId: t.id,
+            } as any);
+          });
+        }
+      });
     } else {
       // Original grouped logic
       // 1. Group by proposalGroupId first, then by installmentGroupId
@@ -322,7 +352,8 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // If for some reason we didn't find one (empty group?), skip
           if (active) {
-            const stableAnchor = group.find((g) => isDownPaymentLike(g)) || group[0];
+            const stableAnchor =
+              group.find((g) => isDownPaymentLike(g)) || group[0];
             const representative: Transaction = {
               ...active,
               createdAt: stableAnchor?.createdAt || active.createdAt,
@@ -358,7 +389,9 @@ export function useFinancialData(): UseFinancialDataReturn {
     if (filterStatus !== "all") {
       filtered = filtered.filter((t) => {
         if (t.status === filterStatus) return true;
+        // In byDueDate mode, extra costs are already own rows — don't double-match via parent
         if (
+          viewMode !== "byDueDate" &&
           t.extraCosts &&
           t.extraCosts.some((ec) => (ec.status || "pending") === filterStatus)
         )
@@ -371,7 +404,9 @@ export function useFinancialData(): UseFinancialDataReturn {
     if (filterWallet) {
       filtered = filtered.filter((t) => {
         if (t.wallet === filterWallet) return true;
+        // In byDueDate mode, extra costs are already own rows — don't double-match via parent
         if (
+          viewMode !== "byDueDate" &&
           t.extraCosts &&
           t.extraCosts.some((ec) => (ec.wallet || t.wallet) === filterWallet)
         )
@@ -450,10 +485,12 @@ export function useFinancialData(): UseFinancialDataReturn {
           normalize(t.clientName || "").includes(term) ||
           normalize(t.category || "").includes(term) ||
           normalize(t.wallet || "").includes(term) ||
-          (t.extraCosts && t.extraCosts.some(ec => 
-             normalize(ec.description).includes(term) || 
-             normalize(ec.wallet || "").includes(term)
-          )),
+          (t.extraCosts &&
+            t.extraCosts.some(
+              (ec) =>
+                normalize(ec.description).includes(term) ||
+                normalize(ec.wallet || "").includes(term),
+            )),
       );
     }
 
@@ -531,8 +568,9 @@ export function useFinancialData(): UseFinancialDataReturn {
 
       // Accumulate Main Transaction
       const mainTxMatchesWallet = !filterWallet || t.wallet === filterWallet;
-      const mainTxMatchesStatus = filterStatus === "all" || t.status === filterStatus;
-      
+      const mainTxMatchesStatus =
+        filterStatus === "all" || t.status === filterStatus;
+
       let mainTxMatchesSearch = true;
       if (term) {
         const normalizedTerm = normalize(term);
@@ -564,29 +602,26 @@ export function useFinancialData(): UseFinancialDataReturn {
         t.extraCosts.forEach((ec) => {
           const ecWallet = ec.wallet || t.wallet;
           const ecStatus = ec.status || "pending";
-          
+
           if (filterWallet && ecWallet !== filterWallet) return;
           if (filterStatus !== "all" && ecStatus !== filterStatus) return;
 
           let ecMatchesSearch = true;
           if (term) {
             const normalizedTerm = normalize(term);
-            ecMatchesSearch = normalize(ec.description).includes(normalizedTerm) || normalize(ecWallet || "").includes(normalizedTerm);
+            ecMatchesSearch =
+              normalize(ec.description).includes(normalizedTerm) ||
+              normalize(ecWallet || "").includes(normalizedTerm);
           }
           if (!ecMatchesSearch) return;
 
+          // Extra costs add to the total value of the parent transaction
           if (t.type === "income") {
-            if (ecStatus === "paid") {
-              result.totalIncome += ec.amount;
-            } else {
-              result.pendingIncome += ec.amount;
-            }
-          } else if (t.type === "expense") {
-            if (ecStatus === "paid") {
-              result.totalExpense += ec.amount;
-            } else {
-              result.pendingExpense += ec.amount;
-            }
+            if (ecStatus === "paid") result.totalIncome += ec.amount;
+            else result.pendingIncome += ec.amount;
+          } else {
+            if (ecStatus === "paid") result.totalExpense += ec.amount;
+            else result.pendingExpense += ec.amount;
           }
         });
       }
@@ -614,6 +649,83 @@ export function useFinancialData(): UseFinancialDataReturn {
       .reduce((sum, w) => sum + w.balance, 0);
   }, [wallets, filterWallet]);
 
+  // --- Optimistic Wallet Updaters ---
+  const calculateWalletImpacts = React.useCallback(
+    (tx: Partial<Transaction>) => {
+      const impacts = new Map<string, number>();
+      const addImpact = (
+        wallet: string | null | undefined,
+        amount: number,
+        isIncome: boolean,
+      ) => {
+        if (!wallet) return;
+        const delta = (isIncome ? 1 : -1) * (amount || 0);
+        impacts.set(wallet, (impacts.get(wallet) || 0) + delta);
+      };
+
+      if (tx?.status === "paid" && tx?.wallet) {
+        addImpact(tx.wallet, tx.amount || 0, tx.type === "income");
+      }
+
+      if (tx?.extraCosts && Array.isArray(tx.extraCosts)) {
+        for (const ec of tx.extraCosts) {
+          if (ec.status === "paid" && (ec.wallet || tx.wallet)) {
+            // Extra costs add to the value of the parent transaction (so if parent is income, extra cost is income)
+            addImpact(
+              ec.wallet || tx.wallet,
+              ec.amount || 0,
+              tx.type === "income",
+            );
+          }
+        }
+      }
+      return impacts;
+    },
+    [],
+  );
+
+  const applyOptimisticWalletUpdate = React.useCallback(
+    (oldTx: Transaction | undefined, newTx: Transaction | undefined) => {
+      setWallets((prev) => {
+        const oldImpacts = oldTx ? calculateWalletImpacts(oldTx) : new Map();
+        const newImpacts = newTx ? calculateWalletImpacts(newTx) : new Map();
+        return prev.map((w) => {
+          const oldVal = oldImpacts.get(w.id) || 0;
+          const newVal = newImpacts.get(w.id) || 0;
+          const diff = newVal - oldVal;
+          if (diff === 0) return w;
+          return { ...w, balance: w.balance + diff };
+        });
+      });
+    },
+    [calculateWalletImpacts],
+  );
+
+  const applyOptimisticWalletUpdateBatch = React.useCallback(
+    (updates: { oldTx: Transaction; newTx: Transaction }[]) => {
+      setWallets((prev) => {
+        const netDeltas = new Map<string, number>();
+        updates.forEach(({ oldTx, newTx }) => {
+          const oldImpacts = calculateWalletImpacts(oldTx);
+          const newImpacts = calculateWalletImpacts(newTx);
+          for (const [wId, val] of oldImpacts.entries()) {
+            netDeltas.set(wId, (netDeltas.get(wId) || 0) - val);
+          }
+          for (const [wId, val] of newImpacts.entries()) {
+            netDeltas.set(wId, (netDeltas.get(wId) || 0) + val);
+          }
+        });
+        return prev.map((w) => {
+          const diff = netDeltas.get(w.id) || 0;
+          if (diff === 0) return w;
+          return { ...w, balance: w.balance + diff };
+        });
+      });
+    },
+    [calculateWalletImpacts],
+  );
+  // ----------------------------------
+
   // Delete a single transaction (individual installment)
   const deleteTransaction = React.useCallback(
     async (transaction: Transaction): Promise<boolean> => {
@@ -621,6 +733,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         await TransactionService.deleteTransaction(transaction.id);
 
         // Optimistic update
+        applyOptimisticWalletUpdate(transaction, {
+          ...transaction,
+          status: "pending",
+          extraCosts: transaction.extraCosts?.map((ec) => ({
+            ...ec,
+            status: "pending" as const,
+          })),
+        } as Transaction);
         setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
 
         // Refresh truth from server (background)
@@ -634,7 +754,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [fetchData],
+    [fetchData, applyOptimisticWalletUpdate],
   );
 
   // Delete all installments in a group
@@ -642,9 +762,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     async (transaction: Transaction): Promise<boolean> => {
       try {
         // If it's an installment, delete all in the group
-        if (
-          transaction.installmentGroupId
-        ) {
+        if (transaction.installmentGroupId) {
           const groupTransactions = transactions.filter(
             (t) => t.installmentGroupId === transaction.installmentGroupId,
           );
@@ -657,6 +775,19 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           // Optimistic update
+          applyOptimisticWalletUpdateBatch(
+            groupTransactions.map((t) => ({
+              oldTx: t,
+              newTx: {
+                ...t,
+                status: "pending",
+                extraCosts: t.extraCosts?.map((ec) => ({
+                  ...ec,
+                  status: "pending" as const,
+                })),
+              } as Transaction,
+            })),
+          );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
 
@@ -666,6 +797,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         } else {
           // Single transaction
           await TransactionService.deleteTransaction(transaction.id);
+          applyOptimisticWalletUpdate(transaction, {
+            ...transaction,
+            status: "pending",
+            extraCosts: transaction.extraCosts?.map((ec) => ({
+              ...ec,
+              status: "pending" as const,
+            })),
+          } as Transaction);
           setTransactions((prev) =>
             prev.filter((t) => t.id !== transaction.id),
           );
@@ -682,7 +821,12 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [transactions, fetchData],
+    [
+      transactions,
+      fetchData,
+      applyOptimisticWalletUpdateBatch,
+      applyOptimisticWalletUpdate,
+    ],
   );
 
   // Update single transaction status
@@ -697,6 +841,10 @@ export function useFinancialData(): UseFinancialDataReturn {
         });
 
         // Optimistic update
+        applyOptimisticWalletUpdate(transaction, {
+          ...transaction,
+          status: newStatus,
+        });
         setTransactions((prev) =>
           prev.map((t) =>
             t.id === transaction.id ? { ...t, status: newStatus } : t,
@@ -715,7 +863,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [fetchData],
+    [fetchData, applyOptimisticWalletUpdate],
   );
 
   // Generic update transaction
@@ -728,6 +876,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         await TransactionService.updateTransaction(transaction.id, data);
 
         // Optimistic update
+        applyOptimisticWalletUpdate(transaction, { ...transaction, ...data });
         setTransactions((prev) =>
           prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
         );
@@ -744,7 +893,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [fetchData],
+    [fetchData, applyOptimisticWalletUpdate],
   );
 
   // Batch update transactions
@@ -760,8 +909,16 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         // Optimistic update
+        const updatesMap = new Map(updates.map((u) => [u.id, u.data]));
+        const batchWalletUpdates = transactions
+          .filter((t) => updatesMap.has(t.id))
+          .map((t) => ({
+            oldTx: t,
+            newTx: { ...t, ...updatesMap.get(t.id) } as Transaction,
+          }));
+        applyOptimisticWalletUpdateBatch(batchWalletUpdates);
+
         setTransactions((prev) => {
-          const updatesMap = new Map(updates.map((u) => [u.id, u.data]));
           return prev.map((t) => {
             const update = updatesMap.get(t.id);
             return update ? { ...t, ...update } : t;
@@ -780,7 +937,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [fetchData],
+    [fetchData, applyOptimisticWalletUpdateBatch, transactions],
   );
 
   // Update status for all installments in a group OR single
@@ -795,9 +952,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         const hasProposalGroup = transaction.proposalGroupId && updateAll;
 
         // Check if this is an installment group
-        const hasInstallmentGroup =
-          transaction.installmentGroupId &&
-          updateAll;
+        const hasInstallmentGroup = transaction.installmentGroupId && updateAll;
 
         if (hasProposalGroup) {
           // Update all transactions in the proposal group (down payment + all installments)
@@ -811,6 +966,12 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           // Update local state for all
+          applyOptimisticWalletUpdateBatch(
+            groupTransactions.map((t) => ({
+              oldTx: t,
+              newTx: { ...t, status: newStatus },
+            })),
+          );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
@@ -833,6 +994,12 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           // Update local state for all
+          applyOptimisticWalletUpdateBatch(
+            groupTransactions.map((t) => ({
+              oldTx: t,
+              newTx: { ...t, status: newStatus },
+            })),
+          );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
@@ -844,6 +1011,10 @@ export function useFinancialData(): UseFinancialDataReturn {
         } else {
           // Single transaction (or single installment update)
           await TransactionService.updateTransaction(transaction.id, {
+            status: newStatus,
+          });
+          applyOptimisticWalletUpdate(transaction, {
+            ...transaction,
             status: newStatus,
           });
           setTransactions((prev) =>
@@ -864,7 +1035,55 @@ export function useFinancialData(): UseFinancialDataReturn {
         return false;
       }
     },
-    [transactions, fetchData],
+    [
+      transactions,
+      fetchData,
+      applyOptimisticWalletUpdateBatch,
+      applyOptimisticWalletUpdate,
+    ],
+  );
+
+  const updateExtraCostStatus = React.useCallback(
+    async (
+      parentTxId: string,
+      ecId: string,
+      newStatus: TransactionStatus,
+    ): Promise<boolean> => {
+      try {
+        const parentTx = transactions.find((t) => t.id === parentTxId);
+        if (!parentTx) throw new Error("Parent transaction not found");
+
+        const updatedExtraCosts = (parentTx.extraCosts || []).map((ec) =>
+          ec.id === ecId ? { ...ec, status: newStatus } : ec,
+        );
+
+        await TransactionService.updateTransaction(parentTxId, {
+          extraCosts: updatedExtraCosts,
+        });
+
+        // Optimistic update
+        applyOptimisticWalletUpdate(parentTx, {
+          ...parentTx,
+          extraCosts: updatedExtraCosts,
+        });
+
+        setTransactions((prev) =>
+          prev.map((t) =>
+            t.id === parentTxId ? { ...t, extraCosts: updatedExtraCosts } : t,
+          ),
+        );
+
+        toast.success("Status do acréscimo/custo extra atualizado!");
+
+        await fetchData(true);
+        return true;
+      } catch (error) {
+        console.error("Error updating extra cost status:", error);
+        toast.error("Erro ao atualizar status");
+        return false;
+      }
+    },
+    [transactions, applyOptimisticWalletUpdate, fetchData],
   );
 
   // Register partial payment
@@ -966,6 +1185,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     updateTransaction,
     updateBatchTransactions,
     updateGroupStatus,
+    updateExtraCostStatus,
     registerPartialPayment,
     refreshData: (background?: boolean) => fetchData(background),
     wallets,

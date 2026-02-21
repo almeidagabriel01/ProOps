@@ -141,11 +141,6 @@ export function WalletHistoryDialog({
           TransactionService.getTransactions(wallet.tenantId),
         ]);
 
-        // Filter regular transactions to only those for this wallet (by name) and paid status
-        const walletRegularTransactions = allTransactions.filter(
-          (t: Transaction) => t.wallet === wallet.name && t.status === "paid"
-        );
-
         // Convert wallet transactions to unified format
         const walletItems: HistoryItem[] = walletTransactions.map((wt) => ({
           id: `wt_${wt.id}`,
@@ -161,19 +156,43 @@ export function WalletHistoryDialog({
           balanceAfter: wt.balanceAfter,
         }));
 
-        // Convert regular transactions to unified format
-        const regularItems: HistoryItem[] = walletRegularTransactions.map(
-          (t: Transaction) => ({
-            id: `tx_${t.id}`,
-            type: t.type as "income" | "expense",
-            description: t.description,
-            amount: t.amount,
-            isPositive: t.type === "income",
-            date: t.date, // Original transaction date for display
-            occurredAt: t.updatedAt, // When it was marked as paid (affects wallet)
-            status: t.status,
-          })
-        );
+        // Convert regular transactions and their extra costs to unified format
+        const regularItems: HistoryItem[] = [];
+
+        allTransactions.forEach((t: Transaction) => {
+          // Check Main Transaction
+          if (t.wallet === wallet.name && t.status === "paid") {
+            regularItems.push({
+              id: `tx_${t.id}`,
+              type: t.type as "income" | "expense",
+              description: t.description,
+              amount: t.amount,
+              isPositive: t.type === "income",
+              date: t.date, // Original transaction date for display
+              occurredAt: t.updatedAt, // When it was marked as paid (affects wallet)
+              status: t.status,
+            });
+          }
+
+          // Check Extra Costs
+          if (t.extraCosts && Array.isArray(t.extraCosts)) {
+            t.extraCosts.forEach((ec, index) => {
+              const ecWallet = ec.wallet || t.wallet;
+              if (ecWallet === wallet.name && ec.status === "paid") {
+                regularItems.push({
+                  id: `ec_${t.id}_${index}`,
+                  type: t.type as "income" | "expense", // Matches parent transaction type
+                  description: `Acréscimo: ${ec.description} (${t.description})`,
+                  amount: ec.amount,
+                  isPositive: t.type === "income", // Positive if parent is income
+                  date: t.date, // fallback to parent date
+                  occurredAt: t.updatedAt, // extra costs update with the parent document
+                  status: ec.status,
+                });
+              }
+            });
+          }
+        });
 
         // Combine and sort by occurredAt descending (most recent action first)
         const combined = [...walletItems, ...regularItems].sort((a, b) => {

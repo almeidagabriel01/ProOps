@@ -41,6 +41,8 @@ export function ExtraCostDialog({
   initialData,
   onConfirm,
 }: ExtraCostDialogProps) {
+  const isIncome = transaction.type === "income";
+  const label = isIncome ? "Acréscimo" : "Custo Extra";
   const [amount, setAmount] = React.useState<string>("");
   const [description, setDescription] = React.useState<string>("");
   const [wallet, setWallet] = React.useState<string>("");
@@ -52,11 +54,11 @@ export function ExtraCostDialog({
       if (initialData) {
         setAmount(initialData.amount.toString());
         setDescription(initialData.description || "");
-        setWallet(initialData.wallet || transaction.wallet || "");
+        setWallet(initialData.wallet || "");
       } else {
         setAmount("");
         setDescription("");
-        setWallet(transaction.wallet || "");
+        setWallet("");
       }
       setIsSubmitting(false);
     }
@@ -86,12 +88,12 @@ export function ExtraCostDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {initialData ? "Editar Custo Extra" : "Adicionar Custo Extra"}
+            {initialData ? `Editar ${label}` : `Adicionar ${label}`}
           </DialogTitle>
           <DialogDescription>
             {initialData
-              ? "Edite os detalhes do custo extra."
-              : "Adicione um custo extra a este grupo (ex: taxa de boleto, juros). Ele será adicionado como um item separado e atualizará o valor total."}
+              ? `Edite os detalhes do ${label.toLowerCase()}.`
+              : `Adicione um ${label.toLowerCase()} a este grupo (ex: taxa de boleto, juros). Ele será adicionado como um item separado e atualizará o valor total.`}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
@@ -109,7 +111,7 @@ export function ExtraCostDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="extraAmount" className="flex items-center gap-1">
-              Valor do Custo Extra <span className="text-destructive">*</span>
+              Valor do {label} <span className="text-destructive">*</span>
             </Label>
             <CurrencyInput
               id="extraAmount"
@@ -122,10 +124,10 @@ export function ExtraCostDialog({
 
           <div className="space-y-2">
             <WalletSelect
-              label="Carteira do Custo Extra"
+              label={`Carteira do ${label}`}
               value={wallet}
               onChange={(e) => setWallet(e.target.value)}
-              preSelectDefault
+              preSelectDefault={!initialData}
               required
             />
           </div>

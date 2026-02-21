@@ -48,6 +48,7 @@ function TransactionListInfinite({
   canDelete,
   openDeleteDialog,
   updateGroupStatus,
+  updateExtraCostStatus,
   updateTransaction,
   updateBatchTransactions,
   registerPartialPayment,
@@ -66,6 +67,9 @@ function TransactionListInfinite({
   canDelete: boolean;
   openDeleteDialog: (t: Transaction) => void;
   updateGroupStatus: Parameters<typeof TransactionCard>[0]["onStatusChange"];
+  updateExtraCostStatus: Parameters<
+    typeof TransactionCard
+  >[0]["onUpdateExtraCostStatus"];
   updateTransaction: Parameters<typeof TransactionCard>[0]["onUpdate"];
   updateBatchTransactions: Parameters<
     typeof TransactionCard
@@ -139,6 +143,7 @@ function TransactionListInfinite({
               canDelete={canDelete}
               onDelete={openDeleteDialog}
               onStatusChange={updateGroupStatus}
+              onUpdateExtraCostStatus={updateExtraCostStatus}
               onUpdate={updateTransaction}
               onUpdateBatch={updateBatchTransactions}
               onRegisterPartialPayment={registerPartialPayment}
@@ -166,6 +171,7 @@ function TransactionListInfinite({
             canDelete={canDelete}
             onDelete={openDeleteDialog}
             onStatusChange={updateGroupStatus}
+            onUpdateExtraCostStatus={updateExtraCostStatus}
             onUpdate={updateTransaction}
             onUpdateBatch={updateBatchTransactions}
             onRegisterPartialPayment={registerPartialPayment}
@@ -224,6 +230,7 @@ export default function FinancialPage() {
     totalWalletBalance,
     deleteTransactionGroup,
     updateGroupStatus,
+    updateExtraCostStatus,
     updateTransaction,
     updateBatchTransactions,
     registerPartialPayment,
@@ -287,6 +294,9 @@ export default function FinancialPage() {
     (transaction: Transaction) => {
       // Find all related transactions to this one
       const relatedIds: string[] = [transaction.id];
+      if (transaction.extraCosts) {
+        transaction.extraCosts.forEach((ec) => relatedIds.push(ec.id));
+      }
 
       // Add proposal group members
       if (transaction.proposalGroupId) {
@@ -296,6 +306,9 @@ export default function FinancialPage() {
             t.id !== transaction.id
           ) {
             relatedIds.push(t.id);
+            if (t.extraCosts) {
+              t.extraCosts.forEach((ec) => relatedIds.push(ec.id));
+            }
           }
         });
       }
@@ -307,6 +320,9 @@ export default function FinancialPage() {
             t.id !== transaction.id
           ) {
             relatedIds.push(t.id);
+            if (t.extraCosts) {
+              t.extraCosts.forEach((ec) => relatedIds.push(ec.id));
+            }
           }
         });
       }
@@ -339,16 +355,49 @@ export default function FinancialPage() {
     }
   }, [filteredTransactions, selectedIds]);
 
-  // Handle selection when filters or view mode changes
+  const prevViewMode = React.useRef(viewMode);
+  const prevFilterKey = React.useRef("");
+  const hasInitializedSelection = React.useRef(false);
+
+  // Handle selection when view mode or filters change
   React.useEffect(() => {
-    if (viewMode === "byDueDate") {
-      // Auto-select all filtered transactions in byDueDate mode
+    const currentFilterKey = `${filterType}-${filterStatus}-${filterWallet}-${filterStartDate}-${filterEndDate}-${searchTerm}`;
+    const modeChanged = viewMode !== prevViewMode.current;
+    const filtersChanged = currentFilterKey !== prevFilterKey.current;
+
+    prevViewMode.current = viewMode;
+    prevFilterKey.current = currentFilterKey;
+
+    // Wait until data finishes loading to do the initial selection
+    if (!dataLoading && !hasInitializedSelection.current) {
+      if (filteredTransactions.length > 0) {
+        hasInitializedSelection.current = true;
+        if (viewMode === "byDueDate") {
+          const allIds = filteredTransactions.map((t) => t.id);
+          setSelectedIds(new Set(allIds));
+        }
+      } else if (transactions.length === 0) {
+        // If there really are no transactions after loading, mark as initialized anyway
+        hasInitializedSelection.current = true;
+      }
+      return;
+    }
+
+    if (modeChanged) {
+      if (viewMode === "grouped") {
+        setSelectedIds(new Set()); // Grouped starts empty
+      } else if (viewMode === "byDueDate") {
+        const allIds = filteredTransactions.map((t) => t.id);
+        setSelectedIds(new Set(allIds)); // ByDueDate starts with all selected
+      }
+    } else if (viewMode === "byDueDate" && filtersChanged) {
+      // Re-select all if user actually changed filters
       const allIds = filteredTransactions.map((t) => t.id);
       setSelectedIds(new Set(allIds));
-    } else {
-      setSelectedIds(new Set());
     }
   }, [
+    dataLoading,
+    transactions.length,
     viewMode,
     filterType,
     filterStatus,
@@ -356,7 +405,6 @@ export default function FinancialPage() {
     filterStartDate,
     filterEndDate,
     searchTerm,
-    // Checkboxes should update when the list changes
     filteredTransactions,
   ]);
 
@@ -364,34 +412,54 @@ export default function FinancialPage() {
   const selectionSummary = React.useMemo(() => {
     if (selectedIds.size === 0) return undefined;
 
-    // Use all transactions to include installments that may not be in filteredTransactions
-    const selected = transactions.filter((t) => selectedIds.has(t.id));
-
-    return {
-      count: selected.length,
-      paidIncome: selected
-        .filter((t) => t.type === "income" && t.status === "paid")
-        .reduce((sum, t) => sum + t.amount, 0),
-      paidExpense: selected
-        .filter((t) => t.type === "expense" && t.status === "paid")
-        .reduce((sum, t) => sum + t.amount, 0),
-      pendingIncome: selected
-        .filter((t) => t.type === "income" && t.status !== "paid")
-        .reduce((sum, t) => sum + t.amount, 0),
-      pendingExpense: selected
-        .filter((t) => t.type === "expense" && t.status !== "paid")
-        .reduce((sum, t) => sum + t.amount, 0),
+    const result = {
+      count: 0,
+      paidIncome: 0,
+      paidExpense: 0,
+      pendingIncome: 0,
+      pendingExpense: 0,
     };
+
+    transactions.forEach((t) => {
+      // Main
+      if (selectedIds.has(t.id)) {
+        result.count++;
+        if (t.type === "income") {
+          if (t.status === "paid") result.paidIncome += t.amount;
+          else result.pendingIncome += t.amount;
+        } else {
+          if (t.status === "paid") result.paidExpense += t.amount;
+          else result.pendingExpense += t.amount;
+        }
+      }
+
+      // Extra Costs
+      if (t.extraCosts && t.extraCosts.length > 0) {
+        t.extraCosts.forEach((ec) => {
+          if (selectedIds.has(ec.id)) {
+            result.count++;
+            if (t.type === "income") {
+              if (ec.status === "paid") result.paidIncome += ec.amount;
+              else result.pendingIncome += ec.amount;
+            } else {
+              if (ec.status === "paid") result.paidExpense += ec.amount;
+              else result.pendingExpense += ec.amount;
+            }
+          }
+        });
+      }
+    });
+
+    return result;
   }, [selectedIds, transactions]);
 
   // Use total wallet balance OR calculation from selected items
   const balance = React.useMemo(() => {
-    // User requested that balance NEVER filters/changes with selection
-    // if (selectedIds.size > 0 && selectionSummary) {
-    //   return selectionSummary.paidIncome - selectionSummary.paidExpense;
-    // }
+    if (selectedIds.size > 0 && selectionSummary) {
+      return selectionSummary.paidIncome - selectionSummary.paidExpense;
+    }
     return totalWalletBalance;
-  }, [totalWalletBalance]);
+  }, [totalWalletBalance, selectedIds.size, selectionSummary]);
 
   // Show loading first - before checking plan access to avoid flash
   // Show loading first - before checking plan access to avoid flash
@@ -427,10 +495,7 @@ export default function FinancialPage() {
   const handleViewModeChange = (mode: "grouped" | "byDueDate") => {
     setViewMode(mode);
     if (mode === "byDueDate") {
-      setFilterStatus("pending");
       setFilterDateType("dueDate");
-    } else {
-      setFilterStatus("all");
     }
   };
 
@@ -584,6 +649,7 @@ export default function FinancialPage() {
           canDelete={canDelete}
           onDelete={openDeleteDialog}
           onStatusChange={updateGroupStatus}
+          onUpdateExtraCostStatus={updateExtraCostStatus}
           onUpdate={updateTransaction}
           selectedIds={selectedIds}
           onToggleSelection={toggleSelection}
@@ -602,6 +668,7 @@ export default function FinancialPage() {
           canDelete={canDelete}
           openDeleteDialog={openDeleteDialog}
           updateGroupStatus={updateGroupStatus}
+          updateExtraCostStatus={updateExtraCostStatus}
           updateTransaction={updateTransaction}
           updateBatchTransactions={updateBatchTransactions}
           registerPartialPayment={registerPartialPayment}

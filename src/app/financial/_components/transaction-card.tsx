@@ -32,6 +32,16 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
 import { formatCurrency } from "@/utils/format";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "react-toastify";
 
 import { TransactionInstallmentsList } from "./transaction-installments-list";
@@ -66,6 +76,11 @@ interface TransactionCardProps {
     amount: number,
     date: string,
   ) => Promise<void>;
+  onUpdateExtraCostStatus?: (
+    parentTxId: string,
+    ecId: string,
+    newStatus: TransactionStatus,
+  ) => Promise<boolean>;
   onReload?: () => Promise<void>;
   defaultExpanded?: boolean;
   isSelected?: boolean;
@@ -99,6 +114,7 @@ export function TransactionCard({
   onUpdate,
   onUpdateBatch,
   onRegisterPartialPayment,
+  onUpdateExtraCostStatus,
   onReload,
   defaultExpanded = false,
   isSelected = false,
@@ -109,8 +125,13 @@ export function TransactionCard({
   onToggleExpand,
   wallets = [],
 }: TransactionCardProps) {
+  const extraCostLabel =
+    transaction.type === "income" ? "Acréscimo" : "Custo Extra";
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updatingIds, setUpdatingIds] = React.useState<Set<string>>(new Set());
+  const [extraCostToDelete, setExtraCostToDelete] = React.useState<
+    string | null
+  >(null);
 
   // Local state purely for fallback if not controlled
   const [localIsExpanded, setLocalIsExpanded] = React.useState(defaultExpanded);
@@ -556,7 +577,7 @@ export function TransactionCard({
             ? {
                 ...ec,
                 amount: extraAmount,
-                description: description || "Custo Extra",
+                description: description || extraCostLabel,
                 wallet: wallet,
               }
             : ec,
@@ -566,7 +587,7 @@ export function TransactionCard({
         const newExtraCost = {
           id: crypto.randomUUID(),
           amount: extraAmount,
-          description: description || "Custo Extra",
+          description: description || extraCostLabel,
           status: "pending" as TransactionStatus,
           wallet: wallet,
           createdAt: new Date().toISOString(),
@@ -584,8 +605,8 @@ export function TransactionCard({
 
       toast.success(
         editId
-          ? "Custo extra atualizado!"
-          : "Custo extra adicionado com sucesso!",
+          ? `${extraCostLabel} atualizado!`
+          : `${extraCostLabel} adicionado com sucesso!`,
       );
       if (onReload) await onReload();
       else router.refresh();
@@ -594,8 +615,8 @@ export function TransactionCard({
       console.error(error);
       toast.error(
         editId
-          ? "Erro ao atualizar custo extra."
-          : "Erro ao adicionar custo extra.",
+          ? `Erro ao atualizar ${extraCostLabel.toLowerCase()}.`
+          : `Erro ao adicionar ${extraCostLabel.toLowerCase()}.`,
       );
     } finally {
       setIsUpdating(false);
@@ -606,33 +627,43 @@ export function TransactionCard({
     ecId: string,
     newStatus: TransactionStatus,
   ) => {
-    setIsUpdating(true);
+    setUpdatingIds((prev) => new Set(prev).add(ecId));
     try {
-      const updatedExtraCosts = (transaction.extraCosts || []).map((ec) =>
-        ec.id === ecId ? { ...ec, status: newStatus } : ec,
-      );
-
-      if (onUpdate) {
-        await onUpdate(transaction, { extraCosts: updatedExtraCosts });
+      if (onUpdateExtraCostStatus) {
+        await onUpdateExtraCostStatus(transaction.id, ecId, newStatus);
       } else {
-        await TransactionService.updateTransaction(transaction.id, {
-          extraCosts: updatedExtraCosts,
-        });
+        const updatedExtraCosts = (transaction.extraCosts || []).map((ec) =>
+          ec.id === ecId ? { ...ec, status: newStatus } : ec,
+        );
+
+        if (onUpdate) {
+          await onUpdate(transaction, { extraCosts: updatedExtraCosts });
+        } else {
+          await TransactionService.updateTransaction(transaction.id, {
+            extraCosts: updatedExtraCosts,
+          });
+        }
       }
 
-      toast.success("Status do custo extra atualizado!");
+      toast.success(`Status do ${extraCostLabel.toLowerCase()} atualizado!`);
       if (onReload) await onReload();
       else router.refresh();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao atualizar status do custo extra.");
+      toast.error(
+        `Erro ao atualizar status do ${extraCostLabel.toLowerCase()}.`,
+      );
     } finally {
-      setIsUpdating(false);
+      setUpdatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(ecId);
+        return next;
+      });
     }
   };
 
   const handleDeleteExtraCost = async (ecId: string) => {
-    setIsUpdating(true);
+    setUpdatingIds((prev) => new Set(prev).add(ecId));
     try {
       const updatedExtraCosts = (transaction.extraCosts || []).filter(
         (ec) => ec.id !== ecId,
@@ -646,14 +677,18 @@ export function TransactionCard({
         });
       }
 
-      toast.success("Custo extra removido com sucesso!");
+      toast.success(`${extraCostLabel} removido com sucesso!`);
       if (onReload) await onReload();
       else router.refresh();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao remover custo extra.");
+      toast.error(`Erro ao remover ${extraCostLabel.toLowerCase()}.`);
     } finally {
-      setIsUpdating(false);
+      setUpdatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(ecId);
+        return next;
+      });
     }
   };
 
@@ -1006,7 +1041,7 @@ export function TransactionCard({
                   size="icon"
                   className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
                   onClick={() => setShowExtraCostDialog(true)}
-                  title="Adicionar Custo Extra"
+                  title={`Adicionar ${extraCostLabel}`}
                 >
                   <DollarSign className="w-4 h-4" />
                 </Button>
@@ -1292,7 +1327,10 @@ export function TransactionCard({
                   <div className="flex items-center gap-2 px-1">
                     <DollarSign className="w-4 h-4 text-amber-500" />
                     <span className="text-sm font-medium text-amber-500/80">
-                      Custos Extras ({transaction.extraCosts.length})
+                      {transaction.type === "income"
+                        ? "Acréscimos Extras"
+                        : "Custos Extras"}{" "}
+                      ({transaction.extraCosts.length})
                     </span>
                   </div>
                   <div className="space-y-1.5">
@@ -1302,6 +1340,18 @@ export function TransactionCard({
                         className={`flex items-center justify-between py-2 px-3 bg-amber-500/5 rounded-lg border border-amber-500/20`}
                       >
                         <div className="flex items-center gap-3">
+                          {onToggleSelection && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="mr-1"
+                            >
+                              <Checkbox
+                                checked={selectedIds?.has(ec.id) || false}
+                                onCheckedChange={() => onToggleSelection(ec.id)}
+                                className="cursor-pointer"
+                              />
+                            </div>
+                          )}
                           <div className="p-1.5 rounded-full bg-amber-500/20">
                             <DollarSign className="w-4 h-4 text-amber-500" />
                           </div>
@@ -1339,20 +1389,35 @@ export function TransactionCard({
                                   size="sm"
                                   className="h-7 gap-1.5 rounded-md text-xs font-medium border border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10"
                                   onClick={(e) => e.stopPropagation()}
-                                  disabled={isUpdating}
+                                  disabled={
+                                    isUpdating || updatingIds.has(ec.id)
+                                  }
                                 >
-                                  {(() => {
-                                    const option = statusOptions.find(
-                                      (o) =>
-                                        o.value === (ec.status || "pending"),
-                                    );
-                                    const Icon = option?.icon || Check;
-                                    return <Icon className="h-3 w-3" />;
-                                  })()}
-                                  <span>
-                                    {statusConfig[ec.status || "pending"].label}
-                                  </span>
-                                  <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                                  {updatingIds.has(ec.id) ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      <span>Atualizando...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {(() => {
+                                        const option = statusOptions.find(
+                                          (o) =>
+                                            o.value ===
+                                            (ec.status || "pending"),
+                                        );
+                                        const Icon = option?.icon || Check;
+                                        return <Icon className="h-3 w-3" />;
+                                      })()}
+                                      <span>
+                                        {
+                                          statusConfig[ec.status || "pending"]
+                                            .label
+                                        }
+                                      </span>
+                                      <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                                    </>
+                                  )}
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent
@@ -1404,7 +1469,7 @@ export function TransactionCard({
                                   });
                                   setShowExtraCostDialog(true);
                                 }}
-                                disabled={isUpdating}
+                                disabled={isUpdating || updatingIds.has(ec.id)}
                               >
                                 <Edit className="w-3.5 h-3.5" />
                               </Button>
@@ -1413,10 +1478,16 @@ export function TransactionCard({
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleDeleteExtraCost(ec.id)}
-                                  disabled={isUpdating}
+                                  onClick={() => setExtraCostToDelete(ec.id)}
+                                  disabled={
+                                    isUpdating || updatingIds.has(ec.id)
+                                  }
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  {updatingIds.has(ec.id) ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  )}
                                 </Button>
                               )}
                             </>
@@ -1457,7 +1528,10 @@ export function TransactionCard({
                       <div className="flex items-center gap-2 px-1">
                         <DollarSign className="w-4 h-4 text-amber-500" />
                         <span className="text-sm font-medium text-amber-500/80">
-                          Custos Extras ({transaction.extraCosts.length})
+                          {transaction.type === "income"
+                            ? "Acréscimos Extras"
+                            : "Custos Extras"}{" "}
+                          ({transaction.extraCosts.length})
                         </span>
                       </div>
                       <div className="space-y-1.5">
@@ -1467,6 +1541,20 @@ export function TransactionCard({
                             className={`flex items-center justify-between py-2 px-3 bg-amber-500/5 rounded-lg border border-amber-500/20`}
                           >
                             <div className="flex items-center gap-3">
+                              {onToggleSelection && (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="mr-1"
+                                >
+                                  <Checkbox
+                                    checked={selectedIds?.has(ec.id) || false}
+                                    onCheckedChange={() =>
+                                      onToggleSelection(ec.id)
+                                    }
+                                    className="cursor-pointer"
+                                  />
+                                </div>
+                              )}
                               <div className="p-1.5 rounded-full bg-amber-500/20">
                                 <DollarSign className="w-4 h-4 text-amber-500" />
                               </div>
@@ -1474,8 +1562,19 @@ export function TransactionCard({
                                 <div className="font-medium text-sm text-amber-600 dark:text-amber-500">
                                   {ec.description}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Adicionado em: {formatDate(ec.createdAt)}
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <span>
+                                    Adicionado em: {formatDate(ec.createdAt)}
+                                  </span>
+                                  {ec.wallet && (
+                                    <>
+                                      <span className="opacity-50">•</span>
+                                      <span>
+                                        {wallets.find((w) => w.id === ec.wallet)
+                                          ?.name || ec.wallet}
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1493,24 +1592,36 @@ export function TransactionCard({
                                       size="sm"
                                       className="h-7 gap-1.5 rounded-md text-xs font-medium border border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10"
                                       onClick={(e) => e.stopPropagation()}
-                                      disabled={isUpdating}
+                                      disabled={
+                                        isUpdating || updatingIds.has(ec.id)
+                                      }
                                     >
-                                      {(() => {
-                                        const option = statusOptions.find(
-                                          (o) =>
-                                            o.value ===
-                                            (ec.status || "pending"),
-                                        );
-                                        const Icon = option?.icon || Check;
-                                        return <Icon className="h-3 w-3" />;
-                                      })()}
-                                      <span>
-                                        {
-                                          statusConfig[ec.status || "pending"]
-                                            .label
-                                        }
-                                      </span>
-                                      <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                                      {updatingIds.has(ec.id) ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                          <span>Atualizando...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {(() => {
+                                            const option = statusOptions.find(
+                                              (o) =>
+                                                o.value ===
+                                                (ec.status || "pending"),
+                                            );
+                                            const Icon = option?.icon || Check;
+                                            return <Icon className="h-3 w-3" />;
+                                          })()}
+                                          <span>
+                                            {
+                                              statusConfig[
+                                                ec.status || "pending"
+                                              ].label
+                                            }
+                                          </span>
+                                          <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                                        </>
+                                      )}
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent
@@ -1558,10 +1669,13 @@ export function TransactionCard({
                                         id: ec.id,
                                         amount: ec.amount,
                                         description: ec.description,
+                                        wallet: ec.wallet,
                                       });
                                       setShowExtraCostDialog(true);
                                     }}
-                                    disabled={isUpdating}
+                                    disabled={
+                                      isUpdating || updatingIds.has(ec.id)
+                                    }
                                   >
                                     <Edit className="w-3.5 h-3.5" />
                                   </Button>
@@ -1571,11 +1685,17 @@ export function TransactionCard({
                                       size="icon"
                                       className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                       onClick={() =>
-                                        handleDeleteExtraCost(ec.id)
+                                        setExtraCostToDelete(ec.id)
                                       }
-                                      disabled={isUpdating}
+                                      disabled={
+                                        isUpdating || updatingIds.has(ec.id)
+                                      }
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      {updatingIds.has(ec.id) ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      )}
                                     </Button>
                                   )}
                                 </>
@@ -1615,6 +1735,47 @@ export function TransactionCard({
           onConfirm={processExtraCost}
         />
       )}
+
+      <AlertDialog
+        open={!!extraCostToDelete}
+        onOpenChange={(open) => !open && setExtraCostToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {extraCostLabel}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este {extraCostLabel.toLowerCase()}
+              ? Esta ação não pode ser desfeita e removerá o valor do lançamento
+              principal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={
+                isUpdating ||
+                (extraCostToDelete ? updatingIds.has(extraCostToDelete) : false)
+              }
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={
+                isUpdating ||
+                (extraCostToDelete ? updatingIds.has(extraCostToDelete) : false)
+              }
+              onClick={() => {
+                if (extraCostToDelete) {
+                  handleDeleteExtraCost(extraCostToDelete);
+                  setExtraCostToDelete(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
