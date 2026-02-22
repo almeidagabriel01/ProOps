@@ -139,7 +139,7 @@ export default function RootLayout({
             pauseOnFocusLoss={false}
             draggable={false}
             pauseOnHover
-            theme="dark"
+            theme="light"
           />
         </ThemeProvider>
       </body>
