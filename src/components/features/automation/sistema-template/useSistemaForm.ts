@@ -6,7 +6,7 @@ import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface UseSistemaFormProps {
@@ -20,6 +20,25 @@ interface UseSistemaFormProps {
   managedAmbientes?: Ambiente[];
   onAction?: (action: MasterDataAction) => void;
 }
+
+const buildSistemaTemplateSnapshot = (data: {
+  name: string;
+  description: string;
+  selectedAmbientes: string[];
+  selectedProducts: SistemaProduct[];
+}): string =>
+  JSON.stringify({
+    name: data.name.trim(),
+    description: data.description.trim(),
+    selectedAmbientes: [...data.selectedAmbientes].sort(),
+    selectedProducts: [...data.selectedProducts]
+      .map((product) => ({
+        productId: product.productId,
+        quantity: product.quantity,
+        productName: product.productName || "",
+      }))
+      .sort((a, b) => a.productId.localeCompare(b.productId)),
+  });
 
 export function useSistemaForm({
   isOpen,
@@ -50,6 +69,9 @@ export function useSistemaForm({
   const [showProductList, setShowProductList] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    null,
+  );
 
   const isEditing = !!editingSistema;
   const productListRef = React.useRef<HTMLDivElement>(null);
@@ -91,14 +113,26 @@ export function useSistemaForm({
       setShowProductList(false);
 
       if (editingSistema) {
+        const initialName = editingSistema.name || "";
+        const initialDescription = editingSistema.description || "";
+        const initialAmbientes =
+          editingSistema.availableAmbienteIds ||
+          editingSistema.ambienteIds ||
+          [];
+        const initialProducts = editingSistema.defaultProducts || [];
+
         setName(editingSistema.name);
         setDescription(editingSistema.description);
-        setSelectedAmbientes(
-          editingSistema.availableAmbienteIds ||
-            editingSistema.ambienteIds ||
-            [],
+        setSelectedAmbientes(initialAmbientes);
+        setSelectedProducts(initialProducts);
+        setInitialSnapshot(
+          buildSistemaTemplateSnapshot({
+            name: initialName,
+            description: initialDescription,
+            selectedAmbientes: initialAmbientes,
+            selectedProducts: initialProducts,
+          }),
         );
-        setSelectedProducts(editingSistema.defaultProducts || []);
       } else {
         setName("");
         setDescription("");
@@ -106,6 +140,7 @@ export function useSistemaForm({
           preselectedAmbienteId ? [preselectedAmbienteId] : [],
         );
         setSelectedProducts([]);
+        setInitialSnapshot(null);
       }
     }
   }, [isOpen, editingSistema, preselectedAmbienteId, loadData]);
@@ -172,8 +207,29 @@ export function useSistemaForm({
     );
   };
 
+  const hasChanges = React.useMemo(() => {
+    if (!isEditing || !initialSnapshot) return true;
+
+    return (
+      buildSistemaTemplateSnapshot({
+        name,
+        description,
+        selectedAmbientes,
+        selectedProducts,
+      }) !== initialSnapshot
+    );
+  }, [
+    isEditing,
+    initialSnapshot,
+    name,
+    description,
+    selectedAmbientes,
+    selectedProducts,
+  ]);
+
   const handleSave = async () => {
-    if (!tenant?.id || !name.trim() || isSaving) return;
+    if (!tenant?.id || !name.trim() || isSaving || (isEditing && !hasChanges))
+      return;
 
     setIsSaving(true);
     try {
@@ -256,6 +312,7 @@ export function useSistemaForm({
     isLoading,
     isSaving,
     isEditing,
+    hasChanges,
     productListRef,
 
     // Actions

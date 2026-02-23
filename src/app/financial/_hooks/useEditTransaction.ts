@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter, useParams } from "next/navigation";
 import {
   TransactionService,
@@ -107,6 +107,33 @@ const getInstallmentFields = (data: EditTransactionFormData) => ({
   downPaymentDueDate: data.downPaymentDueDate,
 });
 
+const buildEditTransactionSnapshot = (data: EditTransactionFormData): string =>
+  JSON.stringify({
+    type: data.type,
+    description: data.description,
+    amount: data.amount,
+    date: data.date,
+    dueDate: data.dueDate,
+    status: data.status,
+    clientId: data.clientId || "",
+    clientName: data.clientName,
+    category: data.category,
+    wallet: data.wallet,
+    notes: data.notes,
+    isInstallment: data.isInstallment,
+    installmentCount: data.installmentCount,
+    paymentMode: data.paymentMode,
+    installmentValue: data.installmentValue,
+    firstInstallmentDate: data.firstInstallmentDate,
+    installmentsWallet: data.installmentsWallet,
+    downPaymentEnabled: data.downPaymentEnabled,
+    downPaymentType: data.downPaymentType,
+    downPaymentPercentage: data.downPaymentPercentage,
+    downPaymentValue: data.downPaymentValue,
+    downPaymentWallet: data.downPaymentWallet,
+    downPaymentDueDate: data.downPaymentDueDate,
+  });
+
 export function useEditTransaction() {
   const router = useRouter();
   const params = useParams();
@@ -154,6 +181,9 @@ export function useEditTransaction() {
     downPaymentWallet: "",
     downPaymentDueDate: "",
   });
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    null,
+  );
 
   // Independent buffers for each mode
   const [modeBuffers, setModeBuffers] = React.useState<{
@@ -197,6 +227,7 @@ export function useEditTransaction() {
       }
 
       setIsLoading(true);
+      setInitialSnapshot(null);
 
       const data = await TransactionService.getTransactionById(transactionId);
       // Ensure numeric fields are strings for the form
@@ -284,13 +315,10 @@ export function useEditTransaction() {
           ? 0
           : safeData.amount / (safeData.installmentCount || 1);
 
-      // Initialize form data
-      setFormData((prev) => ({
-        ...prev,
+      const initialFormData: EditTransactionFormData = {
         type: safeData.type,
         description: safeData.description,
         amount: totalAmount.toFixed(2),
-        // Use displayed date (dueDate if expense, date if income/other preferences)
         date: safeData.date ? safeData.date.split("T")[0] : "",
         dueDate:
           hasGroup && firstRegular?.dueDate
@@ -307,17 +335,9 @@ export function useEditTransaction() {
             ? firstRegular.wallet
             : safeData.wallet || "",
         notes: safeData.notes || "",
-
-        // Installment/Recurrence logic
-        // It is an installment if it has a group OR if the single transaction says so
         isInstallment: hasGroup || (safeData.isInstallment ?? false),
         installmentCount: instCount > 0 ? instCount : 1,
-
-        // Payment Mode Logic for Edit
-        // Default to "total" as it's the most common entry point, but could infer based on consistency
         paymentMode: "total",
-
-        // Down Payment Logic
         downPaymentEnabled: !!downPaymentItem,
         downPaymentType:
           (downPaymentItem?.downPaymentType as "value" | "percentage") ||
@@ -333,7 +353,6 @@ export function useEditTransaction() {
         downPaymentDueDate: downPaymentItem?.date
           ? downPaymentItem.date.split("T")[0]
           : "",
-
         installmentValue: instValue.toFixed(2),
         installmentsWallet: firstRegular?.wallet || safeData.wallet || "",
         firstInstallmentDate: firstRegular?.date
@@ -341,7 +360,13 @@ export function useEditTransaction() {
           : safeData.date
             ? safeData.date.split("T")[0]
             : "",
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        ...initialFormData,
       }));
+      setInitialSnapshot(buildEditTransactionSnapshot(initialFormData));
     } catch (error) {
       console.error("Error fetching transaction:", error);
       toast.error("Erro ao carregar lançamento.");
@@ -570,6 +595,10 @@ export function useEditTransaction() {
     if (!transaction) return;
 
     setIsSaving(true);
+    const transactionLabel = formData.description.trim()
+      ? `"${formData.description.trim()}"`
+      : `ID ${transaction.id}`;
+
     try {
       const payload: UpdateFinancialEntryWithInstallmentsPayload = {
         type: formData.type,
@@ -608,15 +637,30 @@ export function useEditTransaction() {
         payload,
       );
 
-      toast.success("Lançamento atualizado com sucesso!");
+      toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
+        title: "Sucesso ao editar",
+      });
       router.push("/financial");
     } catch (error) {
       console.error("Error updating transaction:", error);
-      toast.error("Erro ao atualizar lançamento");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao editar o lancamento.";
+      toast.error(
+        `Nao foi possivel editar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        { title: "Erro ao editar" },
+      );
     } finally {
       setIsSaving(false);
     }
   };
+
+  const hasChanges = React.useMemo(() => {
+    if (!initialSnapshot) return false;
+
+    return buildEditTransactionSnapshot(formData) !== initialSnapshot;
+  }, [formData, initialSnapshot]);
 
   return {
     formData,
@@ -631,6 +675,7 @@ export function useEditTransaction() {
     transactionId,
     isLoading: isLoading || permLoading,
     isSaving,
+    hasChanges,
     canEdit,
     canView,
     isProposalTransaction: !!transaction?.proposalGroupId,

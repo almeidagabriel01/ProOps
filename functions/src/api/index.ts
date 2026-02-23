@@ -12,6 +12,7 @@ import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
 import { internalRoutes } from "./routes/internal.routes";
 import sharedProposalsRoutes from "./routes/shared-proposals.routes";
+import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 
 const app = express();
@@ -60,6 +61,7 @@ app.use("/v1/stripe", stripeRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1", sharedProposalsRoutes); // Rota pública para /v1/share/:token
+app.use("/v1", sharedTransactionsRoutes); // Rota pública para /v1/share/transaction/:token
 app.use("/v1/notifications", notificationsRoutes); // Rotas de notificações
 
 app.get("/authenticated", (req: express.Request, res: express.Response) => {

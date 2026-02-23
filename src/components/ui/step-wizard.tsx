@@ -322,6 +322,7 @@ interface StepNavigationProps {
   onSubmit?: () => void;
   onBeforeNext?: () => boolean | Promise<boolean>;
   isSubmitting?: boolean;
+  submitDisabled?: boolean;
   submitLabel?: string;
   nextLabel?: string;
   prevLabel?: string;
@@ -332,6 +333,7 @@ export function StepNavigation({
   onSubmit,
   onBeforeNext,
   isSubmitting = false,
+  submitDisabled = false,
   submitLabel = "Finalizar",
   nextLabel = "Próximo",
   prevLabel = "Anterior",
@@ -397,7 +399,7 @@ export function StepNavigation({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={isSubmitting || isValidating}
+          disabled={isSubmitting || isValidating || submitDisabled}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
             "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",

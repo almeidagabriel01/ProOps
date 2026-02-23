@@ -328,51 +328,15 @@ export {
 // SPREADSHEET TYPES
 // ============================================
 
-export type CellStyle = {
-  v?: string | number | boolean | null;
-  m?: string;
-  bg?: string;
-  fc?: string;
-  bl?: number;
-  it?: number;
-  fs?: number;
-  cl?: number;
-  ht?: number;
-  vt?: number;
-  // Add other known FortuneSheet cell properties as needed
-  [key: string]: unknown;
-};
+export type SpreadsheetDataFormat = "univer";
 
-export type RowData = (CellStyle | null)[];
-
-export type SheetData = {
-  name: string;
+export type UniverWorkbookData = {
   id?: string;
-  color?: string;
-  status?: number;
-  order?: number;
-  hide?: number;
-  row?: number;
-  column?: number;
-  celldata?: unknown[]; // FortuneSheet specific compressed data
-  data?: RowData[]; // Expanded 2D array data
-  config?: Record<string, unknown>;
-  index?: number;
-  zoomRatio?: number;
-  scrollTop?: number;
-  scrollLeft?: number;
+  name?: string;
+  locale?: string;
+  sheetOrder?: string[];
+  sheets?: Record<string, unknown>;
   [key: string]: unknown;
 };
 
-export interface WorkbookInstance {
-  getCellValue: (r: number, c: number) => CellStyle | string | number | null;
-  setCellValue: (
-    row: number,
-    column: number,
-    value: unknown,
-    options?: Record<string, unknown>,
-  ) => void;
-  getSelection: () => { row: number[]; column: number[] }[] | undefined;
-  setSelection: (range: { row: number[]; column: number[] }[]) => void;
-  getAllSheets: () => SheetData[];
-}
+export type SpreadsheetData = UniverWorkbookData;

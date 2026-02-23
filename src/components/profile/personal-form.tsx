@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mail, User as UserIcon, Save, Palette, Loader2 } from "lucide-react";
 import { UserService } from "@/services/user-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { PhoneInput } from "@/components/ui/phone-input";
 
 interface PersonalFormProps {

@@ -91,6 +91,29 @@ export class SharedProposalService {
     userId: string,
   ): Promise<ShareLinkResponse> {
     try {
+      // Verificar se já existe um link compartilhado para esta proposta
+      const existingSnapshot = await db
+        .collection(SHARED_PROPOSALS_COLLECTION)
+        .where("proposalId", "==", proposalId)
+        .where("tenantId", "==", tenantId)
+        .limit(1)
+        .get();
+
+      if (!existingSnapshot.empty) {
+        const doc = existingSnapshot.docs[0];
+        const data = doc.data() as SharedProposal;
+        
+        // Renovar a data de expiração
+        const expiresAt = this.getExpirationDate();
+        await doc.ref.update({ expiresAt: expiresAt.toISOString() });
+
+        return {
+          shareUrl: this.buildShareUrl(data.token),
+          token: data.token,
+          expiresAt: expiresAt.toISOString(),
+        };
+      }
+
       const token = uuidv4();
       const expiresAt = this.getExpirationDate();
 

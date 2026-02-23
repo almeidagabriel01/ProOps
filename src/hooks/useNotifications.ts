@@ -5,7 +5,7 @@ import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);

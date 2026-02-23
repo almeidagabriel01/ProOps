@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { savePdfBlob } from "@/services/pdf/render-to-pdf";
 import {
   generateProposalPdf,

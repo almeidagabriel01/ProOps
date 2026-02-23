@@ -16,7 +16,7 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import { Wallet } from "@/types";
-import { callApi } from "@/lib/api-client";
+
 import {
   Check,
   Clock,
@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
 import { TransactionService } from "@/services/transaction-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -48,6 +48,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+type SyncTx = Transaction & {
+  isExtraCostSync?: boolean;
+  parentTransactionId?: string;
+};
 
 interface TransactionListByDueDateProps {
   transactions: Transaction[];
@@ -367,7 +372,7 @@ export function TransactionListByDueDate({
     transaction: Transaction,
     newStatus: TransactionStatus,
   ) => {
-    if ((transaction as any).isExtraCostSync) {
+    if ((transaction as SyncTx).isExtraCostSync) {
       if (transaction.status === newStatus) return;
 
       const parentTx = allTransactions.find(
@@ -410,7 +415,7 @@ export function TransactionListByDueDate({
     transaction: Transaction,
     walletId: string,
   ) => {
-    if ((transaction as any).isExtraCostSync) {
+    if ((transaction as SyncTx).isExtraCostSync) {
       setUpdatingState({ id: transaction.id, field: "wallet" });
 
       const parentTx = allTransactions.find(
@@ -619,7 +624,7 @@ export function TransactionListByDueDate({
                           Parcial
                         </Badge>
                       )}
-                      {(tx as any).isExtraCostSync && (
+                      {(tx as SyncTx).isExtraCostSync && (
                         <Badge
                           variant="outline"
                           className="text-[10px] h-4 px-1 shrink-0 border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-500"
@@ -797,7 +802,7 @@ export function TransactionListByDueDate({
                           <Split className="w-3 h-3 rotate-180" />
                         </Button>
                       )}
-                      {!(tx as any).isExtraCostSync && (
+                      {!(tx as SyncTx).isExtraCostSync && (
                         <Link href={`/financial/${tx.id}/view`}>
                           <Button
                             variant="ghost"
@@ -809,9 +814,9 @@ export function TransactionListByDueDate({
                           </Button>
                         </Link>
                       )}
-                      {(tx as any).isExtraCostSync && (
+                      {(tx as SyncTx).isExtraCostSync && (
                         <Link
-                          href={`/financial/${(tx as any).parentTransactionId}/extra-cost/${tx.id}`}
+                          href={`/financial/${(tx as SyncTx).parentTransactionId}/extra-cost/${tx.id}`}
                         >
                           <Button
                             variant="ghost"
@@ -823,7 +828,7 @@ export function TransactionListByDueDate({
                           </Button>
                         </Link>
                       )}
-                      {canDelete && !(tx as any).isExtraCostSync && (
+                      {canDelete && !(tx as SyncTx).isExtraCostSync && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -834,7 +839,7 @@ export function TransactionListByDueDate({
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       )}
-                      {canDelete && (tx as any).isExtraCostSync && (
+                      {canDelete && (tx as SyncTx).isExtraCostSync && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -844,7 +849,8 @@ export function TransactionListByDueDate({
                             e.stopPropagation();
                             setExtraCostToDelete({
                               ecId: tx.id,
-                              parentTxId: (tx as any).parentTransactionId,
+                              parentTxId:
+                                (tx as SyncTx).parentTransactionId || "",
                               label:
                                 tx.type === "income"
                                   ? "Acréscimo"

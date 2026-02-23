@@ -20,7 +20,7 @@ import { ALLOWED_TYPES } from "@/services/storage-service";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   getTodayISO,
@@ -71,6 +71,22 @@ interface TenantDialogProps {
   isSaving?: boolean;
 }
 
+const buildTenantSnapshot = (data: TenantFormData): string =>
+  JSON.stringify({
+    name: data.name.trim(),
+    userName: data.userName.trim(),
+    color: data.color,
+    logoUrl: data.logoUrl || "",
+    niche: data.niche,
+    email: (data.email || "").trim().toLowerCase(),
+    password: data.password || "",
+    phoneNumber: data.phoneNumber || "",
+    whatsappEnabled: data.whatsappEnabled || false,
+    planId: data.planId || "free",
+    subscriptionStatus: data.subscriptionStatus || "active",
+    currentPeriodEnd: data.currentPeriodEnd || "",
+  });
+
 export function TenantDialog({
   isOpen,
   onClose,
@@ -93,6 +109,9 @@ export function TenantDialog({
     currentPeriodEnd: "",
   });
   const [showPassword, setShowPassword] = React.useState(false);
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    null,
+  );
 
   // Reset or Load data when dialog opens
   React.useEffect(() => {
@@ -104,7 +123,7 @@ export function TenantDialog({
       );
 
       if (initialData) {
-        setFormData({
+        const initialFormData: TenantFormData = {
           name: initialData.tenant.name,
           userName: initialData.admin?.name || "",
           color: initialData.tenant.primaryColor || "#3b82f6",
@@ -123,7 +142,9 @@ export function TenantDialog({
               ?.subscriptionStatus as TenantFormData["subscriptionStatus"]) ||
             "active",
           currentPeriodEnd: initialData.admin?.currentPeriodEnd || "",
-        });
+        };
+        setFormData(initialFormData);
+        setInitialSnapshot(buildTenantSnapshot(initialFormData));
       } else {
         setFormData({
           name: "",
@@ -139,6 +160,7 @@ export function TenantDialog({
           subscriptionStatus: "active", // Default
           currentPeriodEnd: "",
         });
+        setInitialSnapshot(null);
       }
     }
   }, [isOpen, initialData]);
@@ -190,8 +212,16 @@ export function TenantDialog({
     }
   }, [formData.currentPeriodEnd, formData.planId, formData.subscriptionStatus]);
 
+  const isEditing = !!initialData;
+  const hasChanges = React.useMemo(() => {
+    if (!isEditing || !initialSnapshot) return true;
+
+    return buildTenantSnapshot(formData) !== initialSnapshot;
+  }, [isEditing, initialSnapshot, formData]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isEditing && !hasChanges) return;
 
     if (!formData.name) {
       toast.error("O nome da empresa é obrigatório.");
@@ -215,8 +245,6 @@ export function TenantDialog({
 
     onSave(formData);
   };
-
-  const isEditing = !!initialData;
 
   return (
     <Dialog
@@ -585,7 +613,7 @@ export function TenantDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving || (isEditing && !hasChanges)}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isEditing ? "Salvar Alterações" : "Criar Empresa"}
             </Button>

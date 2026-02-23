@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { StripeService } from "@/services/stripe-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { Loader2, PlayCircle, FlaskConical, RefreshCcw } from "lucide-react";
 
 type SyncTotals = {

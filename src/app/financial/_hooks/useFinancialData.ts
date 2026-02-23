@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import {
   Transaction,
   TransactionService,
@@ -102,6 +102,21 @@ function getDateString(val: DateLike): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return fallback;
+};
+
+const formatTransactionLabel = (
+  transaction: Pick<Transaction, "id" | "description">,
+): string => {
+  const description = transaction.description?.trim();
+  return description ? `"${description}"` : `ID ${transaction.id}`;
+};
 
 interface FinancialSummary {
   totalIncome: number;
@@ -226,7 +241,7 @@ export function useFinancialData(): UseFinancialDataReturn {
   }, [fetchData]);
 
   const filteredTransactions = React.useMemo(() => {
-    let effectiveTransactions: Transaction[] = [];
+    const effectiveTransactions: Transaction[] = [];
 
     // In "byDueDate" mode, show all individual transactions (ungrouped)
     // In "grouped" mode, show grouped as before
@@ -254,7 +269,10 @@ export function useFinancialData(): UseFinancialDataReturn {
               amount: ec.amount,
               isExtraCostSync: true,
               parentTransactionId: t.id,
-            } as any);
+            } as Transaction & {
+              isExtraCostSync: boolean;
+              parentTransactionId: string;
+            });
           });
         }
       });
@@ -729,6 +747,8 @@ export function useFinancialData(): UseFinancialDataReturn {
   // Delete a single transaction (individual installment)
   const deleteTransaction = React.useCallback(
     async (transaction: Transaction): Promise<boolean> => {
+      const transactionLabel = formatTransactionLabel(transaction);
+
       try {
         await TransactionService.deleteTransaction(transaction.id);
 
@@ -746,11 +766,20 @@ export function useFinancialData(): UseFinancialDataReturn {
         // Refresh truth from server (background)
         await fetchData(true);
 
-        toast.success("Lançamento excluído com sucesso!");
+        toast.success(`Lancamento ${transactionLabel} foi excluido com sucesso.`, {
+          title: "Sucesso ao excluir",
+        });
         return true;
       } catch (error) {
         console.error("Error deleting transaction:", error);
-        toast.error("Erro ao excluir lançamento");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao excluir o lancamento.",
+        );
+        toast.error(
+          `Nao foi possivel excluir o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao excluir" },
+        );
         return false;
       }
     },
@@ -760,6 +789,8 @@ export function useFinancialData(): UseFinancialDataReturn {
   // Delete all installments in a group
   const deleteTransactionGroup = React.useCallback(
     async (transaction: Transaction): Promise<boolean> => {
+      const transactionLabel = formatTransactionLabel(transaction);
+
       try {
         // If it's an installment, delete all in the group
         if (transaction.installmentGroupId) {
@@ -792,7 +823,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
 
           toast.success(
-            `${groupTransactions.length} parcelas excluídas com sucesso!`,
+            `${groupTransactions.length} lancamentos vinculados a ${transactionLabel} foram excluidos com sucesso.`,
+            { title: "Sucesso ao excluir" },
           );
         } else {
           // Single transaction
@@ -808,7 +840,10 @@ export function useFinancialData(): UseFinancialDataReturn {
           setTransactions((prev) =>
             prev.filter((t) => t.id !== transaction.id),
           );
-          toast.success("Lançamento excluído com sucesso!");
+          toast.success(
+            `Lancamento ${transactionLabel} foi excluido com sucesso.`,
+            { title: "Sucesso ao excluir" },
+          );
         }
 
         // Refresh truth from server (background)
@@ -817,7 +852,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         return true;
       } catch (error) {
         console.error("Error deleting transaction group:", error);
-        toast.error("Erro ao excluir lançamentos");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao excluir os lancamentos.",
+        );
+        toast.error(
+          `Nao foi possivel excluir os lancamentos vinculados a ${transactionLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao excluir" },
+        );
         return false;
       }
     },
@@ -835,6 +877,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       transaction: Transaction,
       newStatus: Transaction["status"],
     ): Promise<boolean> => {
+      const transactionLabel = formatTransactionLabel(transaction);
+
       try {
         await TransactionService.updateTransaction(transaction.id, {
           status: newStatus,
@@ -851,7 +895,10 @@ export function useFinancialData(): UseFinancialDataReturn {
           ),
         );
 
-        toast.success("Status atualizado!");
+        toast.success(
+          `Status do lancamento ${transactionLabel} atualizado para "${newStatus}".`,
+          { title: "Sucesso ao editar" },
+        );
 
         // Refresh truth from server (background)
         await fetchData(true);
@@ -859,7 +906,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         return true;
       } catch (error) {
         console.error("Error updating transaction status:", error);
-        toast.error("Erro ao atualizar status");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao atualizar o status.",
+        );
+        toast.error(
+          `Nao foi possivel atualizar o status do lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
         return false;
       }
     },
@@ -872,6 +926,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       transaction: Transaction,
       data: Partial<Transaction>,
     ): Promise<boolean> => {
+      const transactionLabel = formatTransactionLabel(transaction);
+
       try {
         await TransactionService.updateTransaction(transaction.id, data);
 
@@ -881,7 +937,9 @@ export function useFinancialData(): UseFinancialDataReturn {
           prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
         );
 
-        toast.success("Lançamento atualizado!");
+        toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
+          title: "Sucesso ao editar",
+        });
 
         // Refresh truth from server (background)
         await fetchData(true);
@@ -889,7 +947,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         return true;
       } catch (error) {
         console.error("Error updating transaction:", error);
-        toast.error("Erro ao atualizar lançamento");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao editar o lancamento.",
+        );
+        toast.error(
+          `Nao foi possivel editar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
         return false;
       }
     },
@@ -925,7 +990,10 @@ export function useFinancialData(): UseFinancialDataReturn {
           });
         });
 
-        toast.success(`${updates.length} lançamentos atualizados!`);
+        toast.success(
+          `${updates.length} lancamentos foram atualizados com sucesso.`,
+          { title: "Sucesso ao editar" },
+        );
 
         // Refresh truth from server (background)
         await fetchData(true);
@@ -933,7 +1001,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         return true;
       } catch (error) {
         console.error("Error updating batch:", error);
-        toast.error("Erro ao atualizar lançamentos");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao editar os lancamentos.",
+        );
+        toast.error(
+          `Nao foi possivel editar ${updates.length} lancamentos. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
         return false;
       }
     },
@@ -947,6 +1022,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       newStatus: Transaction["status"],
       updateAll: boolean = true,
     ): Promise<boolean> => {
+      const transactionLabel = formatTransactionLabel(transaction);
+
       try {
         // Check if this is a proposal group (has proposalGroupId)
         const hasProposalGroup = transaction.proposalGroupId && updateAll;
@@ -980,7 +1057,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           toast.success(
-            `${groupTransactions.length} lançamentos da proposta atualizados!`,
+            `${groupTransactions.length} lancamentos da proposta ${transactionLabel} tiveram status atualizado para "${newStatus}".`,
+            { title: "Sucesso ao editar" },
           );
         } else if (hasInstallmentGroup) {
           // Update all installments in the installment group
@@ -1007,7 +1085,10 @@ export function useFinancialData(): UseFinancialDataReturn {
             ),
           );
 
-          toast.success(`${groupTransactions.length} parcelas atualizadas!`);
+          toast.success(
+            `${groupTransactions.length} parcelas de ${transactionLabel} tiveram status atualizado para "${newStatus}".`,
+            { title: "Sucesso ao editar" },
+          );
         } else {
           // Single transaction (or single installment update)
           await TransactionService.updateTransaction(transaction.id, {
@@ -1022,7 +1103,10 @@ export function useFinancialData(): UseFinancialDataReturn {
               t.id === transaction.id ? { ...t, status: newStatus } : t,
             ),
           );
-          toast.success("Status atualizado!");
+          toast.success(
+            `Status do lancamento ${transactionLabel} atualizado para "${newStatus}".`,
+            { title: "Sucesso ao editar" },
+          );
         }
 
         // Refresh truth from server (background)
@@ -1031,7 +1115,14 @@ export function useFinancialData(): UseFinancialDataReturn {
         return true;
       } catch (error) {
         console.error("Error updating status:", error);
-        toast.error("Erro ao atualizar status");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao atualizar o status.",
+        );
+        toast.error(
+          `Nao foi possivel atualizar o status de ${transactionLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
         return false;
       }
     },
@@ -1052,6 +1143,13 @@ export function useFinancialData(): UseFinancialDataReturn {
       try {
         const parentTx = transactions.find((t) => t.id === parentTxId);
         if (!parentTx) throw new Error("Parent transaction not found");
+        const parentLabel = formatTransactionLabel(parentTx);
+        const targetExtraCost = (parentTx.extraCosts || []).find(
+          (ec) => ec.id === ecId,
+        );
+        const extraCostLabel = targetExtraCost?.description?.trim()
+          ? `"${targetExtraCost.description.trim()}"`
+          : `ID ${ecId}`;
 
         const updatedExtraCosts = (parentTx.extraCosts || []).map((ec) =>
           ec.id === ecId ? { ...ec, status: newStatus } : ec,
@@ -1073,13 +1171,23 @@ export function useFinancialData(): UseFinancialDataReturn {
           ),
         );
 
-        toast.success("Status do acréscimo/custo extra atualizado!");
+        toast.success(
+          `Status do item extra ${extraCostLabel} em ${parentLabel} atualizado para "${newStatus}".`,
+          { title: "Sucesso ao editar" },
+        );
 
         await fetchData(true);
         return true;
       } catch (error) {
         console.error("Error updating extra cost status:", error);
-        toast.error("Erro ao atualizar status");
+        const errorMessage = getErrorMessage(
+          error,
+          "Falha inesperada ao atualizar o item extra.",
+        );
+        toast.error(
+          `Nao foi possivel atualizar o item extra ${ecId}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
         return false;
       }
     },

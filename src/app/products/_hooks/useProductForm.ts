@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -38,6 +38,7 @@ interface UseProductFormReturn {
   imageUrls: string[];
   pendingFiles: File[];
   isSubmitting: boolean;
+  hasChanges: boolean;
   showLimitModal: boolean;
   setShowLimitModal: (value: boolean) => void;
   showImageLimitModal: boolean;
@@ -61,6 +62,30 @@ interface UseProductFormReturn {
   handleRemoveImage: (index: number) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
+
+const buildProductFormSnapshot = (
+  formData: ProductFormData,
+  imageUrls: string[],
+  pendingFiles: File[],
+): string => {
+  const pendingFileKeys = pendingFiles.map(
+    (file) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`,
+  );
+
+  return JSON.stringify({
+    name: formData.name,
+    description: formData.description,
+    price: formData.price,
+    markup: formData.markup,
+    manufacturer: formData.manufacturer,
+    category: formData.category,
+    sku: formData.sku,
+    stock: formData.stock,
+    status: formData.status,
+    imageUrls,
+    pendingFileKeys,
+  });
+};
 
 export function useProductForm(
   initialData?: Product,
@@ -116,12 +141,37 @@ export function useProductForm(
 
   // Track removed URLs for cleanup
   const [removedUrls, setRemovedUrls] = React.useState<string[]>([]);
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    () => {
+      if (productId) return null;
+
+      return buildProductFormSnapshot(
+        {
+          name: initialData?.name || "",
+          description: initialData?.description || "",
+          price: initialData?.price || "",
+          markup: initialData?.markup || "30",
+          manufacturer: initialData?.manufacturer || "",
+          category: initialData?.category || "",
+          sku: initialData?.sku || "",
+          stock:
+            typeof initialData?.stock === "number"
+              ? String(initialData.stock)
+              : "",
+          status: initialData?.status || "active",
+          image: null,
+          images: [],
+        },
+        initialData?.images || (initialData?.image ? [initialData.image] : []),
+        [],
+      );
+    },
+  );
 
   // Update form data if initialData changes
   React.useEffect(() => {
     if (initialData) {
-      setFormData((prev) => ({
-        ...prev,
+      const initialFormData: ProductFormData = {
         name: initialData.name || "",
         description: initialData.description || "",
         price: initialData.price || "",
@@ -134,7 +184,13 @@ export function useProductForm(
             ? String(initialData.stock)
             : "",
         status: initialData.status || "active",
+        image: null,
         images: [],
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        ...initialFormData,
       }));
 
       const existingImages =
@@ -142,6 +198,10 @@ export function useProductForm(
       setImageUrls(existingImages);
       setPendingFiles([]);
       setPendingPreviews([]);
+      setRemovedUrls([]);
+      setInitialSnapshot(
+        buildProductFormSnapshot(initialFormData, existingImages, []),
+      );
     }
   }, [initialData]);
 
@@ -248,6 +308,15 @@ export function useProductForm(
     }
   };
 
+  const hasChanges = React.useMemo(() => {
+    if (!initialSnapshot) return false;
+
+    return (
+      buildProductFormSnapshot(formData, imageUrls, pendingFiles) !==
+      initialSnapshot
+    );
+  }, [formData, imageUrls, pendingFiles, initialSnapshot]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -285,6 +354,9 @@ export function useProductForm(
     }
 
     setIsSubmitting(true);
+    const productLabel = formData.name.trim()
+      ? `"${formData.name.trim()}"`
+      : "selecionado";
 
     try {
       // Upload pending files to Storage
@@ -328,7 +400,9 @@ export function useProductForm(
 
       if (productId) {
         await ProductService.updateProduct(productId, dataToSave);
-        toast.success("Produto atualizado com sucesso!");
+        toast.success(`Produto ${productLabel} foi atualizado com sucesso.`, {
+          title: "Sucesso ao editar",
+        });
         router.push("/products");
         router.refresh();
       } else {
@@ -353,7 +427,16 @@ export function useProductForm(
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error("Erro ao salvar produto. Tente novamente.");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao salvar o produto.";
+      const actionLabel = productId ? "editar" : "salvar";
+
+      toast.error(
+        `Nao foi possivel ${actionLabel} o produto ${productLabel}. Detalhes: ${errorMessage}`,
+        { title: productId ? "Erro ao editar" : "Erro ao salvar" },
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -367,6 +450,7 @@ export function useProductForm(
     imageUrls: allImages,
     pendingFiles,
     isSubmitting,
+    hasChanges,
     showLimitModal,
     setShowLimitModal,
     showImageLimitModal,

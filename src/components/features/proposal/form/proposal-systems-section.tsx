@@ -136,10 +136,9 @@ export function ProposalSystemsSection({
 
     if (existingIndex !== -1) {
       // Duplicate detected - show toast and reset only this selection
-      import("react-toastify").then(({ toast }) => {
+      import("@/lib/toast").then(({ toast }) => {
         toast.warning(
           `O sistema "${newValue.sistemaName}" já foi adicionado ao ambiente "${newValue.ambienteName}". Escolha outro sistema ou ambiente.`,
-          { toastId: "duplicate-system-warning" },
         );
       });
 

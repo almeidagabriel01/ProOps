@@ -16,152 +16,102 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from "firebase/firestore";
-import { SheetData, RowData, CellStyle } from "@/types";
+import {
+  SpreadsheetData,
+  SpreadsheetDataFormat,
+  UniverWorkbookData,
+} from "@/types";
 import { PaginatedResult } from "./client-service";
 
 export type Spreadsheet = {
   id: string;
   tenantId: string;
   name: string;
-  data: SheetData[]; // FortuneSheet data structure (runtime)
+  data: SpreadsheetData;
+  dataFormat?: SpreadsheetDataFormat;
   dataJson?: string; // Stored as JSON string in Firestore
   createdAt?: string;
   updatedAt?: string;
 };
 
 const COLLECTION_NAME = "spreadsheets";
-
-/**
- * Convert expanded data format (2D array) to compact celldata format
- * Only stores cells that have content, ignoring null/empty cells
- */
-const convertToCelldata = (sheetData: SheetData[]): SheetData[] => {
-  return sheetData.map((sheet) => {
-    // If already has celldata, prefer that
-    if (sheet.celldata && Array.isArray(sheet.celldata)) {
-      return {
-        ...sheet,
-        data: undefined,
-      };
-    }
-
-    // Convert data array to celldata
-    const celldata: Array<{
-      r: number;
-      c: number;
-      v: unknown;
-    }> = [];
-
-    if (sheet.data && Array.isArray(sheet.data)) {
-      sheet.data.forEach((row, rowIndex) => {
-        if (Array.isArray(row)) {
-          row.forEach((cell, colIndex) => {
-            // Only save cells with actual content
-            if (cell !== null && cell !== undefined) {
-              celldata.push({
-                r: rowIndex,
-                c: colIndex,
-                v: cell,
-              });
-            }
-          });
-        }
-      });
-    }
-
-    // Return sheet with celldata format, removing expanded data array
-    return {
-      ...sheet,
-      celldata: celldata.length > 0 ? celldata : undefined,
-      data: undefined,
-    };
-  });
+const DEFAULT_UNIVER_WORKBOOK: UniverWorkbookData = {
+  name: "Planilha 1",
 };
 
-/**
- * Expand celldata format back to 2D data array for FortuneSheet rendering
- * Reverse operation of convertToCelldata
- */
-const expandCelldata = (sheetData: SheetData[]): SheetData[] => {
-  return sheetData.map((sheet) => {
-    // If already has expanded data array, return as is
-    if (sheet.data && Array.isArray(sheet.data) && sheet.data.length > 0) {
-      return sheet;
+const isUniverWorkbookData = (value: unknown): value is UniverWorkbookData => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const parseRawSpreadsheetData = (
+  dataJson: unknown,
+  fallbackData: unknown,
+): unknown => {
+  if (typeof dataJson === "string") {
+    try {
+      return JSON.parse(dataJson);
+    } catch (e) {
+      console.error("Error parsing spreadsheet data", e);
     }
+  }
 
-    // If has celldata, expand it to data array
-    if (
-      sheet.celldata &&
-      Array.isArray(sheet.celldata) &&
-      sheet.celldata.length > 0
-    ) {
-      // Determine grid size from celldata
-      let maxRow = 0;
-      let maxCol = 0;
+  return fallbackData;
+};
 
-      (sheet.celldata as Array<{ r: number; c: number }>).forEach((cell) => {
-        if (cell.r > maxRow) maxRow = cell.r;
-        if (cell.c > maxCol) maxCol = cell.c;
-      });
+const resolveWorkbookName = (
+  workbookData: UniverWorkbookData,
+  fallbackName?: string,
+): string => {
+  if (
+    typeof workbookData.name === "string" &&
+    workbookData.name.trim().length > 0
+  ) {
+    return workbookData.name.trim();
+  }
 
-      // Create empty 2D array with appropriate size
-      // Add some padding to ensure we have enough space
-      const rows = Math.max(maxRow + 1, sheet.row || 100);
-      const cols = Math.max(maxCol + 1, sheet.column || 60);
+  if (typeof fallbackName === "string" && fallbackName.trim().length > 0) {
+    return fallbackName.trim();
+  }
 
-      const dataArray: RowData[] = [];
-      for (let r = 0; r < rows; r++) {
-        const row: (CellStyle | null)[] = [];
-        for (let c = 0; c < cols; c++) {
-          row.push(null);
-        }
-        dataArray.push(row);
-      }
+  return DEFAULT_UNIVER_WORKBOOK.name ?? "Planilha 1";
+};
 
-      // Fill in the cells from celldata
-      (sheet.celldata as Array<{ r: number; c: number; v: unknown }>).forEach(
-        (cell) => {
-          if (cell.r < rows && cell.c < cols) {
-            dataArray[cell.r][cell.c] = cell.v as CellStyle | null;
-          }
-        },
-      );
+const normalizeWorkbookData = (
+  parsedData: unknown,
+  fallbackName?: string,
+): SpreadsheetData => {
+  const baseData = isUniverWorkbookData(parsedData) ? parsedData : {};
+  const normalized: SpreadsheetData = {
+    ...DEFAULT_UNIVER_WORKBOOK,
+    ...baseData,
+  };
+  normalized.name = resolveWorkbookName(normalized, fallbackName);
+  return normalized;
+};
 
-      return {
-        ...sheet,
-        data: dataArray,
-        // Keep celldata for compatibility but data takes precedence for rendering
-      };
-    }
-
-    // Empty sheet - return with minimal structure
-    return {
-      ...sheet,
-      data: sheet.data || [],
-    };
-  });
+const serializeSpreadsheetData = (
+  payload: SpreadsheetData | undefined,
+  fallbackName?: string,
+): { dataJson: string; dataFormat: SpreadsheetDataFormat } => {
+  const normalized = normalizeWorkbookData(payload, fallbackName);
+  return {
+    dataJson: JSON.stringify(normalized),
+    dataFormat: "univer",
+  };
 };
 
 function mapSpreadsheetDoc(
   d: QueryDocumentSnapshot<DocumentData>,
 ): Spreadsheet {
   const data = d.data();
-  let parsedData: SheetData[] = [];
-  try {
-    if (data.dataJson) {
-      parsedData = JSON.parse(data.dataJson);
-      parsedData = expandCelldata(parsedData);
-    } else if (data.data) {
-      parsedData = data.data;
-    }
-  } catch (e) {
-    console.error("Error parsing spreadsheet data", e);
-  }
+  const rawParsedData = parseRawSpreadsheetData(data.dataJson, data.data);
+  const normalizedData = normalizeWorkbookData(rawParsedData, data.name);
 
   return {
     id: d.id,
     ...data,
-    data: parsedData,
+    dataFormat: "univer",
+    data: normalizedData,
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -235,23 +185,14 @@ export const SpreadsheetService = {
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-        let parsedData = [];
-        try {
-          if (data.dataJson) {
-            parsedData = JSON.parse(data.dataJson);
-            // Expand celldata to data array for FortuneSheet rendering
-            parsedData = expandCelldata(parsedData);
-          } else if (data.data) {
-            parsedData = data.data;
-          }
-        } catch (e) {
-          console.error("Error parsing spreadsheet data", e);
-        }
+        const rawParsedData = parseRawSpreadsheetData(data.dataJson, data.data);
+        const normalizedData = normalizeWorkbookData(rawParsedData, data.name);
 
         return {
           id: docSnap.id,
           ...data,
-          data: parsedData,
+          dataFormat: "univer",
+          data: normalizedData,
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
             : data.createdAt,
@@ -271,18 +212,17 @@ export const SpreadsheetService = {
     data: Omit<Spreadsheet, "id" | "createdAt" | "updatedAt">,
   ): Promise<string> => {
     try {
-      // Prepare data for Firestore: remove 'data' array, use 'dataJson' string
+      // Persist data in dataJson and keep format for runtime decoding.
       const { data: sheetData, ...rest } = data;
-      // Default to one sheet if none provided, using celldata format
-      const initialData =
-        sheetData && sheetData.length > 0
-          ? convertToCelldata(sheetData)
-          : [{ name: "Planilha 1", celldata: [] }];
-      const dataJson = JSON.stringify(initialData);
+      const { dataJson, dataFormat } = serializeSpreadsheetData(
+        sheetData,
+        rest.name,
+      );
 
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...rest,
         dataJson,
+        dataFormat,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -300,15 +240,21 @@ export const SpreadsheetService = {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
 
-      const updateData: Partial<Spreadsheet> & { dataJson?: string } = {
+      const updateData: Partial<Spreadsheet> & {
+        dataJson?: string;
+        dataFormat?: SpreadsheetDataFormat;
+      } = {
         ...data,
       };
 
-      // If we are updating contents, convert to compact format and serialize
-      if (data.data) {
-        const compactData = convertToCelldata(data.data);
-        const dataJson = JSON.stringify(compactData);
+      // If we are updating contents, serialize according to payload shape.
+      if (Object.prototype.hasOwnProperty.call(data, "data")) {
+        const { dataJson, dataFormat } = serializeSpreadsheetData(
+          data.data,
+          data.name,
+        );
         updateData.dataJson = dataJson;
+        updateData.dataFormat = dataFormat;
         delete updateData.data; // Don't save raw array
       }
 

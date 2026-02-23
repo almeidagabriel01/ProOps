@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { Sistema, ProposalSistema } from "@/types/automation";
 import { ProposalProduct } from "@/types/proposal";
@@ -1073,6 +1073,7 @@ export function SimpleProposalForm({
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSaving}
+            submitDisabled={!!proposalId && !isDirty}
             submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}
           />
         </StepCard>

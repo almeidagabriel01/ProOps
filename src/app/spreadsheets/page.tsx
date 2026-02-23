@@ -5,7 +5,7 @@ import { normalize } from "@/utils/text";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Spreadsheet,
@@ -28,6 +28,7 @@ import {
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { SpreadsheetsSkeleton } from "./_components/spreadsheets-skeleton";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -128,7 +129,7 @@ export default function SpreadsheetsPage() {
       const newId = await SpreadsheetService.createSpreadsheet({
         tenantId: tenant.id,
         name: "Nova Planilha",
-        data: [], // Empty data initially
+        data: { name: "Nova Planilha" },
       });
       toast.success("Planilha criada com sucesso!");
       router.push(`/spreadsheets/${newId}`);
@@ -229,13 +230,9 @@ export default function SpreadsheetsPage() {
     },
   ];
 
-  // if (isPageLoading) {
-  //   return (
-  //     <div className="flex h-full items-center justify-center">
-  //       <Spinner className="w-8 h-8" />
-  //     </div>
-  //   );
-  // }
+  if (isPageLoading) {
+    return <SpreadsheetsSkeleton />;
+  }
 
   return (
     <>
@@ -280,12 +277,7 @@ export default function SpreadsheetsPage() {
           </div>
         )}
 
-        {isPageLoading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Spinner className="w-8 h-8 text-primary" />
-            <p className="text-muted-foreground mt-4">Carregando...</p>
-          </div>
-        ) : hasAnySheets === false ? (
+        {hasAnySheets === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

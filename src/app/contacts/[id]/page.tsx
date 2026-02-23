@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,27 @@ const customerSteps = [
   },
 ];
 
+type CustomerType = "cliente" | "fornecedor";
+
+interface EditCustomerFormData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  types: CustomerType[];
+}
+
+const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
+  JSON.stringify({
+    name: formData.name,
+    email: formData.email,
+    phone: formData.phone,
+    address: formData.address,
+    notes: formData.notes,
+    types: [...formData.types].sort(),
+  });
+
 export default function EditCustomerPage() {
   const router = useRouter();
   const params = useParams();
@@ -99,14 +120,17 @@ export default function EditCustomerPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [client, setClient] = React.useState<Client | null>(null);
 
-  const [formData, setFormData] = React.useState({
+  const [formData, setFormData] = React.useState<EditCustomerFormData>({
     name: "",
     email: "",
     phone: "",
     address: "",
     notes: "",
-    types: ["cliente"] as ("cliente" | "fornecedor")[],
+    types: ["cliente"],
   });
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    null,
+  );
 
   React.useEffect(() => {
     const fetchClient = async () => {
@@ -114,14 +138,16 @@ export default function EditCustomerPage() {
         const data = await ClientService.getClientById(clientId);
         if (data) {
           setClient(data);
-          setFormData({
+          const initialFormData: EditCustomerFormData = {
             name: data.name || "",
             email: data.email || "",
             phone: data.phone || "",
             address: data.address || "",
             notes: data.notes || "",
             types: data.types || ["cliente"],
-          });
+          };
+          setFormData(initialFormData);
+          setInitialSnapshot(buildCustomerFormSnapshot(initialFormData));
         }
       } catch (error) {
         console.error("Error fetching client:", error);
@@ -160,6 +186,12 @@ export default function EditCustomerPage() {
     }
   };
 
+  const hasChanges = React.useMemo(() => {
+    if (!initialSnapshot) return false;
+
+    return buildCustomerFormSnapshot(formData) !== initialSnapshot;
+  }, [formData, initialSnapshot]);
+
   // Step 1 validation: Name and Phone are required
   const validateStep1 = (): boolean => {
     let isValid = true;
@@ -177,6 +209,10 @@ export default function EditCustomerPage() {
   };
 
   const handleSubmit = async () => {
+    if (!hasChanges) {
+      return;
+    }
+
     // Validate form before submit
     if (!validateForm(formData)) {
       return;
@@ -621,6 +657,7 @@ export default function EditCustomerPage() {
           <StepNavigation
             onSubmit={handleSubmit}
             isSubmitting={isSaving}
+            submitDisabled={!hasChanges}
             submitLabel="Salvar Alterações"
           />
         </StepCard>

@@ -8,7 +8,7 @@ import { CreateClientData } from "@/hooks/useClientActions";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getExtraProducts } from "./product-handlers";
 import { prepareCreatePayload } from "./submit-helpers";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface UseProposalFormProductSubmitContext {
   formData: Partial<Proposal>;
@@ -320,6 +320,9 @@ export function useProposalFormProductSubmit(
     }
 
     setIsSaving(true);
+    const proposalLabel = formData.title?.trim()
+      ? `"${formData.title.trim()}"`
+      : "sem titulo";
 
     try {
       let clientId: string | undefined = selectedClientId;
@@ -385,23 +388,42 @@ export function useProposalFormProductSubmit(
           await ClientService.updateClient(clientId, clientUpdateData);
         } catch (clientUpdateError) {
           console.error("Failed to update client:", clientUpdateError);
-          toast.error("Proposta salva, mas houve um erro ao atualizar os dados do cliente");
+          const clientErrorMessage =
+            clientUpdateError instanceof Error && clientUpdateError.message.trim()
+              ? clientUpdateError.message.trim()
+              : "Falha ao atualizar os dados do cliente.";
+          toast.error(
+            `A proposta ${proposalLabel} foi salva, mas nao foi possivel atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
+            { title: "Erro ao editar" },
+          );
         }
       }
 
       if (proposalId) {
         await ProposalService.updateProposal(proposalId, payload);
-        toast.success("Proposta atualizada com sucesso!");
+        toast.success(`Proposta ${proposalLabel} foi atualizada com sucesso.`, {
+          title: "Sucesso ao editar",
+        });
         router.push("/proposals");
       } else {
         const createdProposal = await ProposalService.createProposal(payload);
-        toast.success("Proposta criada com sucesso!");
+        toast.success(`Proposta ${proposalLabel} foi criada com sucesso.`, {
+          title: "Sucesso ao criar",
+        });
         router.push(isComplete ? `/proposals/${createdProposal.id}/edit-pdf` : "/proposals");
       }
       return true;
     } catch (error) {
       console.error("Error saving proposal:", error);
-      toast.error("Erro ao salvar proposta");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao salvar a proposta.";
+      const actionLabel = proposalId ? "editar" : "salvar";
+      toast.error(
+        `Nao foi possivel ${actionLabel} a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+        { title: proposalId ? "Erro ao editar" : "Erro ao salvar" },
+      );
       return false;
     } finally {
       setIsSaving(false);

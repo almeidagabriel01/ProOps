@@ -453,13 +453,8 @@ export default function FinancialPage() {
     return result;
   }, [selectedIds, transactions]);
 
-  // Use total wallet balance OR calculation from selected items
-  const balance = React.useMemo(() => {
-    if (selectedIds.size > 0 && selectionSummary) {
-      return selectionSummary.paidIncome - selectionSummary.paidExpense;
-    }
-    return totalWalletBalance;
-  }, [totalWalletBalance, selectedIds.size, selectionSummary]);
+  // Use total wallet balance, ignoring selection to keep general balance stable
+  const balance = totalWalletBalance;
 
   // Show loading first - before checking plan access to avoid flash
   // Show loading first - before checking plan access to avoid flash
@@ -496,6 +491,9 @@ export default function FinancialPage() {
     setViewMode(mode);
     if (mode === "byDueDate") {
       setFilterDateType("dueDate");
+      setFilterStatus("pending");
+    } else {
+      setFilterStatus("all");
     }
   };
 
@@ -559,7 +557,7 @@ export default function FinancialPage() {
         <FinancialSummaryCards
           summary={summary}
           selectionSummary={selectionSummary}
-          balance={filteredTransactions.length === 0 ? 0 : balance}
+          balance={balance}
         />
       </div>
 

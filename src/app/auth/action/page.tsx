@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, Lock, CheckCircle, XCircle } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 function AuthActionContent() {
     const searchParams = useSearchParams();

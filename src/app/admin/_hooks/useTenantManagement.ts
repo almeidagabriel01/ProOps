@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { Tenant } from "@/types";

@@ -14,11 +14,11 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import {
   useMasterDataTransaction,
 } from "./useMasterDataTransaction";
-import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { ClientType } from "@/services/client-service";
 import {
   createInitialProposalFormData,

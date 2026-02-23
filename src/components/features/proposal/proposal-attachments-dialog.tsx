@@ -19,7 +19,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { ProposalService } from "@/services/proposal-service";
 
 interface ProposalAttachmentsDialogProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter } from "next/navigation";
 import {
   TransactionService,
@@ -13,7 +13,7 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
-import { useWalletsData } from "../wallets/_hooks/useWalletsData";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { getTodayISO } from "@/utils/date-utils";
 
 export type PaymentMode = "total" | "installmentValue";
@@ -438,6 +438,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
     }
 
     setIsSaving(true);
+    const transactionLabel = formData.description.trim()
+      ? `"${formData.description.trim()}"`
+      : "sem descricao";
 
     try {
       let clientId = formData.clientId;
@@ -481,7 +484,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         }
 
         const count = formData.isInstallment ? formData.installmentCount : 1;
-        // Naive division for INITIAL submission. We will fix it immediately after.
+        // Round once to cents so all generated installments keep the same value.
         finalAmount = parseFloat((remainingAmount / count).toFixed(2));
 
         walletToUse = formData.wallet;
@@ -552,58 +555,20 @@ export function useTransactionForm(): UseTransactionFormReturn {
         updatedAt: now,
       });
 
-      // 3. POST-CREATION FIX check
-      if (
-        formData.paymentMode === "total" &&
-        formData.isInstallment &&
-        formData.installmentCount > 1 &&
-        installmentGroupId
-      ) {
-        const all = await TransactionService.getTransactions(tenant.id);
-        const group = all.filter(
-          (t) =>
-            t.installmentGroupId === installmentGroupId && !t.isDownPayment,
-        );
-
-        if (group.length > 0) {
-          const totalAmount = parseFloat(formData.amount);
-          const downPayment = downPaymentAmount;
-          const targetTotalForInstallments = totalAmount - downPayment;
-
-          const count = group.length;
-          const baseAmount =
-            Math.floor((targetTotalForInstallments / count) * 100) / 100;
-          const totalBase = baseAmount * count;
-          const remainder = Math.round(
-            (targetTotalForInstallments - totalBase) * 100,
-          );
-
-          const operations: Promise<unknown>[] = [];
-
-          group.forEach((t, index) => {
-            const shouldBeAmount = baseAmount + (index < remainder ? 0.01 : 0);
-            const currentAmount = t.amount;
-
-            if (Math.abs(currentAmount - shouldBeAmount) > 0.001) {
-              operations.push(
-                TransactionService.updateTransaction(t.id, {
-                  amount: parseFloat(shouldBeAmount.toFixed(2)),
-                }),
-              );
-            }
-          });
-
-          if (operations.length > 0) {
-            await Promise.all(operations);
-          }
-        }
-      }
-
-      toast.success("Lançamento criado com sucesso!");
+      toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
+        title: "Sucesso ao criar",
+      });
       router.push("/financial");
     } catch (error) {
       console.error("Error creating transaction:", error);
-      toast.error("Erro ao criar lançamento");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao criar o lancamento.";
+      toast.error(
+        `Nao foi possivel criar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        { title: "Erro ao criar" },
+      );
     } finally {
       setIsSaving(false);
     }

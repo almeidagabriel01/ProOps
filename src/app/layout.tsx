@@ -10,9 +10,8 @@ import {
   Playfair_Display,
   Roboto,
 } from "next/font/google";
-import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
-import { ToastContainer } from "react-toastify";
+import { ToastProvider } from "@/components/shared/toast-provider";
 import { Header } from "@/components/layout/header";
 import { BottomDock } from "@/components/layout/bottom-dock";
 import { TenantProvider } from "@/providers/tenant-provider";
@@ -81,6 +80,8 @@ export default function RootLayout({
 
   const isAuthOnlyPage =
     pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
@@ -115,7 +116,7 @@ export default function RootLayout({
                           <SubscriptionGuard>
                             <main
                               id="main-content"
-                              className="flex-1 p-8 pb-28 overflow-y-auto"
+                              className="flex-1 p-8 overflow-y-auto"
                             >
                               {children}
                             </main>
@@ -129,18 +130,7 @@ export default function RootLayout({
               </PermissionsProvider>
             </AuthProvider>
           )}
-          <ToastContainer
-            position="top-center"
-            autoClose={4000}
-            hideProgressBar
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss={false}
-            draggable={false}
-            pauseOnHover
-            theme="dark"
-          />
+          <ToastProvider />
         </ThemeProvider>
       </body>
     </html>

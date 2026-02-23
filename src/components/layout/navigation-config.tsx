@@ -68,7 +68,7 @@ export const menuItems: MenuItem[] = [
       {
         icon: WalletCards,
         label: "Carteiras",
-        href: "/financial/wallets",
+        href: "/wallets",
       },
     ],
   },
@@ -80,7 +80,7 @@ export const menuItems: MenuItem[] = [
   {
     icon: UsersRound,
     label: "Equipe",
-    href: "/settings/team",
+    href: "/team",
     pageId: "team",
     masterOnly: true,
   },

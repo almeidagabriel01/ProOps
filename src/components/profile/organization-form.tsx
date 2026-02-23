@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { TenantService } from "@/services/tenant-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface OrganizationFormProps {
   tenant: Tenant | null;

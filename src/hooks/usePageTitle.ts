@@ -10,6 +10,8 @@ import { usePathname } from "next/navigation";
 const PAGE_TITLES: Record<string, string> = {
   // Auth pages
   "/login": "Login",
+  "/register": "Criar Conta",
+  "/forgot-password": "Redefinir Senha",
   "/403": "Acesso Negado",
 
   // ERP pages
@@ -21,7 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/solutions": "Soluções | ERP",
   "/profile": "Meu Perfil | ERP",
   "/settings": "Configurações | ERP",
-  "/settings/team": "Equipe | ERP",
+  "/team": "Equipe | ERP",
   "/settings/billing": "Plano | ERP",
 
   // Subscribe/Checkout pages

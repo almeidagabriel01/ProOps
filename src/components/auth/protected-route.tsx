@@ -24,7 +24,7 @@ import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleto
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
-import { TeamSkeleton } from "@/app/settings/team/_components/team-skeleton";
+import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
@@ -32,13 +32,30 @@ import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleto
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
-import { WalletsSkeleton } from "@/app/financial/wallets/_components/wallets-skeleton";
+import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
+import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
+import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 
 // Routes that handle their own auth logic
-const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
+const SELF_HANDLED_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/subscribe",
+  "/checkout-success",
+  "/",
+];
 
 // Routes that allow unauthenticated access
-const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing", "/auth"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/subscribe",
+  "/pricing",
+  "/auth",
+];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -122,6 +139,22 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Loading state
   if (isLoading) {
+    if (pathname?.startsWith("/spreadsheets/")) {
+      return (
+        <AppSkeleton>
+          <SpreadsheetEditorSkeleton />
+        </AppSkeleton>
+      );
+    }
+
+    if (pathname === "/spreadsheets") {
+      return (
+        <AppSkeleton>
+          <SpreadsheetsSkeleton />
+        </AppSkeleton>
+      );
+    }
+
     // Try to determine best skeleton from pathname first, then cache
     let skeletonType = "dashboard";
 
@@ -129,7 +162,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "addons";
     } else if (pathname?.startsWith("/profile")) {
       skeletonType = "profile";
-    } else if (pathname === "/financial/wallets") {
+    } else if (pathname === "/wallets") {
       skeletonType = "wallets";
     } else if (pathname?.startsWith("/financial")) {
       skeletonType = "financial";
@@ -139,7 +172,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "proposals";
     } else if (pathname?.startsWith("/contacts")) {
       skeletonType = "clients";
-    } else if (pathname?.startsWith("/settings/team")) {
+    } else if (pathname?.startsWith("/team")) {
       skeletonType = "team";
     } else if (pathname?.startsWith("/admin/overview")) {
       skeletonType = "adminOverview";
@@ -244,6 +277,22 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // No user after loading (redirect happening)
   if (!user) {
+    if (pathname?.startsWith("/spreadsheets/")) {
+      return (
+        <AppSkeleton>
+          <SpreadsheetEditorSkeleton />
+        </AppSkeleton>
+      );
+    }
+
+    if (pathname === "/spreadsheets") {
+      return (
+        <AppSkeleton>
+          <SpreadsheetsSkeleton />
+        </AppSkeleton>
+      );
+    }
+
     // Transient state before redirect happens
     let skeletonType = "dashboard";
     // ... (same cache reading logic could be extracted but duplicating for safety in this ephemeral block)

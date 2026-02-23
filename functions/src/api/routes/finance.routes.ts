@@ -13,11 +13,13 @@ import {
   transferValues,
   adjustBalance,
 } from "../controllers/wallets.controller";
+import { createShareLink as createTransactionShareLink } from "../controllers/shared-transactions.controller";
 
 const router = Router();
 
 // Transactions
 router.post("/transactions", createTransaction);
+router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.post("/transactions/status-batch", updateTransactionsStatusBatch);
 router.put("/transactions/:id", updateTransaction);
 router.put("/transactions/:id/installments", updateTransactionWithInstallments);

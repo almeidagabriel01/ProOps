@@ -66,6 +66,7 @@ export default function EditTransactionPage() {
 
     isLoading,
     isSaving,
+    hasChanges,
     canEdit,
     isProposalTransaction,
     groupTotalValue,
@@ -360,6 +361,7 @@ export default function EditTransactionPage() {
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSaving}
+            submitDisabled={!hasChanges}
             submitLabel="Salvar Alterações"
           />
         </StepCard>
