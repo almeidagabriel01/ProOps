@@ -169,7 +169,7 @@ const searchItems: SearchItem[] = [
     id: "team",
     label: "Equipe",
     description: "Gerenciar membros da equipe",
-    path: "/settings/team",
+    path: "/team",
     icon: Users,
     keywords: ["membros", "usuários", "time", "colaboradores"],
     masterOnly: true,

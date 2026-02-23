@@ -44,7 +44,7 @@ const SKIP_PATTERNS = [
 ];
 
 // MASTER-only routes
-const MASTER_ONLY_ROUTES = ["/settings/team", "/settings/billing"];
+const MASTER_ONLY_ROUTES = ["/team", "/settings/billing"];
 
 // SUPER_ADMIN-only routes
 const SUPER_ADMIN_ROUTES = ["/admin"];
@@ -86,6 +86,13 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/automation" || pathname.startsWith("/automation/")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = pathname.replace("/automation", "/solutions");
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Legacy route redirect: /settings/team -> /team
+  if (pathname === "/settings/team" || pathname.startsWith("/settings/team/")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = pathname.replace("/settings/team", "/team");
     return NextResponse.redirect(redirectUrl);
   }
 

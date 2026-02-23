@@ -23,7 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/solutions": "Soluções | ERP",
   "/profile": "Meu Perfil | ERP",
   "/settings": "Configurações | ERP",
-  "/settings/team": "Equipe | ERP",
+  "/team": "Equipe | ERP",
   "/settings/billing": "Plano | ERP",
 
   // Subscribe/Checkout pages

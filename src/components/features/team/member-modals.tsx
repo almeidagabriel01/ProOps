@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Eye, EyeOff } from "lucide-react";
 import { useMemberActions } from "@/hooks/useMemberActions";
 import { TeamMember } from "./team-types";
 
@@ -39,6 +40,8 @@ const buildMemberEditSnapshot = (data: {
     phoneNumber: data.phoneNumber.trim(),
     password: data.password,
   });
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ============================================
 // EDIT MEMBER MODAL
@@ -64,6 +67,8 @@ export function EditMemberModal({
     member.phoneNumber || "",
   );
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [initialSnapshot, setInitialSnapshot] = React.useState("");
 
   React.useEffect(() => {
@@ -77,6 +82,8 @@ export function EditMemberModal({
     setEmail(memberEmail);
     setPhoneNumber(memberPhone);
     setPassword("");
+    setShowPassword(false);
+    setErrors({});
     setInitialSnapshot(
       buildMemberEditSnapshot({
         name: memberName,
@@ -98,21 +105,84 @@ export function EditMemberModal({
     [name, email, phoneNumber, password, initialSnapshot],
   );
 
+  const validateForm = React.useCallback(() => {
+    const nextErrors: Record<string, string> = {};
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedName) {
+      nextErrors.name = "Nome e obrigatorio";
+    } else if (normalizedName.length < 2) {
+      nextErrors.name = "Nome deve ter pelo menos 2 caracteres";
+    }
+
+    if (!normalizedEmail) {
+      nextErrors.email = "Email e obrigatorio";
+    } else if (!EMAIL_REGEX.test(normalizedEmail)) {
+      nextErrors.email = "Email invalido";
+    }
+
+    if (password && password.length < 6) {
+      nextErrors.password = "Senha deve ter pelo menos 6 caracteres";
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }, [name, email, password]);
+
+  React.useEffect(() => {
+    if (name.trim().length >= 2 && errors.name) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.name;
+        return next;
+      });
+    }
+  }, [name, errors.name]);
+
+  React.useEffect(() => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail && EMAIL_REGEX.test(normalizedEmail) && errors.email) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
+  }, [email, errors.email]);
+
+  React.useEffect(() => {
+    if ((!password || password.length >= 6) && errors.password) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.password;
+        return next;
+      });
+    }
+  }, [password, errors.password]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasChanges) return;
+    if (!validateForm()) return;
+
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phoneNumber.trim();
 
     const success = await updateMember({
       memberId: member.id,
-      name,
-      email,
-      phoneNumber: phoneNumber || undefined,
+      name: normalizedName,
+      email: normalizedEmail,
+      phoneNumber: normalizedPhone || undefined,
       password: password || undefined,
     });
     if (success) {
       onSuccess();
       onOpenChange(false);
       setPassword("");
+      setShowPassword(false);
+      setErrors({});
     }
   };
 
@@ -125,14 +195,19 @@ export function EditMemberModal({
             Atualize as informações de {member.name}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <Label>Nome</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
+              className={errors.name ? "border-destructive" : ""}
             />
+            {errors.name && (
+              <span className="text-sm text-destructive mt-1 block">
+                {errors.name}
+              </span>
+            )}
           </div>
           <div>
             <Label>Email</Label>
@@ -140,8 +215,13 @@ export function EditMemberModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              className={errors.email ? "border-destructive" : ""}
             />
+            {errors.email && (
+              <span className="text-sm text-destructive mt-1 block">
+                {errors.email}
+              </span>
+            )}
           </div>
           <div>
             <Label>WhatsApp / Telefone</Label>
@@ -152,13 +232,35 @@ export function EditMemberModal({
           </div>
           <div>
             <Label>Nova Senha (Opcional)</Label>
-            <Input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Deixe em branco para manter a atual"
-              minLength={6}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Deixe em branco para manter a atual"
+                autoComplete="new-password"
+                className={
+                  errors.password ? "border-destructive pr-10" : "pr-10"
+                }
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            {errors.password && (
+              <span className="text-sm text-destructive mt-1 block">
+                {errors.password}
+              </span>
+            )}
           </div>
           <DialogFooter>
             <Button

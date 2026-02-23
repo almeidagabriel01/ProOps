@@ -80,7 +80,7 @@ export const menuItems: MenuItem[] = [
   {
     icon: UsersRound,
     label: "Equipe",
-    href: "/settings/team",
+    href: "/team",
     pageId: "team",
     masterOnly: true,
   },

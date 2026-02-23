@@ -128,9 +128,9 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
   },
   
   // MASTER-only pages
-  '/settings/team': {
+  '/team': {
     pageId: 'team',
-    slug: '/settings/team',
+    slug: '/team',
     name: 'Equipe',
     module: 'settings',
     requiresAuth: true,

@@ -24,7 +24,7 @@ import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleto
 import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
-import { TeamSkeleton } from "@/app/settings/team/_components/team-skeleton";
+import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
@@ -172,7 +172,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "proposals";
     } else if (pathname?.startsWith("/contacts")) {
       skeletonType = "clients";
-    } else if (pathname?.startsWith("/settings/team")) {
+    } else if (pathname?.startsWith("/team")) {
       skeletonType = "team";
     } else if (pathname?.startsWith("/admin/overview")) {
       skeletonType = "adminOverview";
