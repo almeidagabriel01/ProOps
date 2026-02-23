@@ -1,15 +1,13 @@
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
-import { NotificationService } from "./notification.service";
 
-const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
+const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
 const SHARED_LINK_EXPIRATION_DAYS = 30;
-const DEFAULT_PROPOSAL_TITLE = "Proposta sem t\u00edtulo";
 
-export interface SharedProposal {
+export interface SharedTransaction {
   id: string;
-  proposalId: string;
+  transactionId: string;
   tenantId: string;
   token: string;
   createdAt: string;
@@ -31,7 +29,7 @@ export interface ShareLinkResponse {
   expiresAt: string;
 }
 
-export class SharedProposalService {
+export class SharedTransactionService {
   private static getBaseAppUrl(): string {
     const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
 
@@ -51,7 +49,7 @@ export class SharedProposalService {
   }
 
   private static buildShareUrl(token: string): string {
-    return new URL(`/share/${token}`, this.getBaseAppUrl()).toString();
+    return new URL(`/share/transaction/${token}`, this.getBaseAppUrl()).toString();
   }
 
   private static assertNotExpired(expiresAtIso: string): void {
@@ -61,47 +59,23 @@ export class SharedProposalService {
     }
   }
 
-  private static async resolveProposalInfo(
-    proposalId: string,
-    proposalTitle?: string,
-    tenantId?: string,
-  ): Promise<{ proposalTitle: string; tenantId?: string }> {
-    let resolvedProposalTitle = proposalTitle;
-    let resolvedTenantId = tenantId;
-
-    if (!resolvedProposalTitle || !resolvedTenantId) {
-      const proposalDoc = await db.collection("proposals").doc(proposalId).get();
-      if (proposalDoc.exists) {
-        const proposalData = proposalDoc.data();
-        resolvedProposalTitle =
-          resolvedProposalTitle || proposalData?.title || DEFAULT_PROPOSAL_TITLE;
-        resolvedTenantId = resolvedTenantId || proposalData?.tenantId;
-      }
-    }
-
-    return {
-      proposalTitle: resolvedProposalTitle || DEFAULT_PROPOSAL_TITLE,
-      tenantId: resolvedTenantId,
-    };
-  }
-
   static async createShareLink(
-    proposalId: string,
+    transactionId: string,
     tenantId: string,
     userId: string,
   ): Promise<ShareLinkResponse> {
     try {
-      // Verificar se já existe um link compartilhado para esta proposta
+      // Verificar se já existe um link compartilhado para esta transação
       const existingSnapshot = await db
-        .collection(SHARED_PROPOSALS_COLLECTION)
-        .where("proposalId", "==", proposalId)
+        .collection(SHARED_TRANSACTIONS_COLLECTION)
+        .where("transactionId", "==", transactionId)
         .where("tenantId", "==", tenantId)
         .limit(1)
         .get();
 
       if (!existingSnapshot.empty) {
         const doc = existingSnapshot.docs[0];
-        const data = doc.data() as SharedProposal;
+        const data = doc.data() as SharedTransaction;
         
         // Renovar a data de expiração
         const expiresAt = this.getExpirationDate();
@@ -117,8 +91,8 @@ export class SharedProposalService {
       const token = uuidv4();
       const expiresAt = this.getExpirationDate();
 
-      const sharedProposal: Omit<SharedProposal, "id"> = {
-        proposalId,
+      const sharedTransaction: Omit<SharedTransaction, "id"> = {
+        transactionId,
         tenantId,
         token,
         createdAt: new Date().toISOString(),
@@ -127,7 +101,7 @@ export class SharedProposalService {
         viewerInfo: [],
       };
 
-      await db.collection(SHARED_PROPOSALS_COLLECTION).add(sharedProposal);
+      await db.collection(SHARED_TRANSACTIONS_COLLECTION).add(sharedTransaction);
 
       return {
         shareUrl: this.buildShareUrl(token),
@@ -140,10 +114,10 @@ export class SharedProposalService {
     }
   }
 
-  static async getSharedProposal(token: string): Promise<SharedProposal | null> {
+  static async getSharedTransaction(token: string): Promise<SharedTransaction | null> {
     try {
       const snapshot = await db
-        .collection(SHARED_PROPOSALS_COLLECTION)
+        .collection(SHARED_TRANSACTIONS_COLLECTION)
         .where("token", "==", token)
         .limit(1)
         .get();
@@ -153,7 +127,7 @@ export class SharedProposalService {
       }
 
       const doc = snapshot.docs[0];
-      const data = doc.data() as Omit<SharedProposal, "id">;
+      const data = doc.data() as Omit<SharedTransaction, "id">;
       this.assertNotExpired(data.expiresAt);
 
       return {
@@ -164,20 +138,17 @@ export class SharedProposalService {
       if (error instanceof Error && error.message === "EXPIRED_LINK") {
         throw error;
       }
-      console.error("Error getting shared proposal:", error);
-      throw new Error("Failed to get shared proposal");
+      console.error("Error getting shared transaction:", error);
+      throw new Error("Failed to get shared transaction");
     }
   }
 
   static async recordView(
-    sharedProposalId: string,
-    tenantId: string,
-    proposalId: string,
+    sharedTransactionId: string,
     viewerData: {
       ip?: string;
       userAgent?: string;
     },
-    proposalTitle?: string,
   ): Promise<void> {
     try {
       const viewerInfo: ViewerInfo = {
@@ -186,31 +157,12 @@ export class SharedProposalService {
         timestamp: new Date().toISOString(),
       };
 
-      const docRef = db.collection(SHARED_PROPOSALS_COLLECTION).doc(sharedProposalId);
-      const resolved = await this.resolveProposalInfo(proposalId, proposalTitle, tenantId);
+      const docRef = db.collection(SHARED_TRANSACTIONS_COLLECTION).doc(sharedTransactionId);
 
-      if (!resolved.tenantId) {
-        console.error("Error recording view: missing tenantId for notification", {
-          sharedProposalId,
-          proposalId,
-        });
-        return;
-      }
-
-      await Promise.all([
-        docRef.update({
-          viewedAt: new Date().toISOString(),
-          viewerInfo: FieldValue.arrayUnion(viewerInfo),
-        }),
-        NotificationService.createNotification({
-          tenantId: resolved.tenantId,
-          type: "proposal_viewed",
-          title: "Proposta Visualizada",
-          message: `A proposta "${resolved.proposalTitle}" foi visualizada por um cliente`,
-          proposalId,
-          sharedProposalId,
-        }),
-      ]);
+      await docRef.update({
+        viewedAt: new Date().toISOString(),
+        viewerInfo: FieldValue.arrayUnion(viewerInfo),
+      });
     } catch (error) {
       console.error("Error recording view:", error);
     }

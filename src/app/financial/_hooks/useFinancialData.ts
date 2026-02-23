@@ -226,7 +226,7 @@ export function useFinancialData(): UseFinancialDataReturn {
   }, [fetchData]);
 
   const filteredTransactions = React.useMemo(() => {
-    let effectiveTransactions: Transaction[] = [];
+    const effectiveTransactions: Transaction[] = [];
 
     // In "byDueDate" mode, show all individual transactions (ungrouped)
     // In "grouped" mode, show grouped as before
@@ -254,7 +254,10 @@ export function useFinancialData(): UseFinancialDataReturn {
               amount: ec.amount,
               isExtraCostSync: true,
               parentTransactionId: t.id,
-            } as any);
+            } as Transaction & {
+              isExtraCostSync: boolean;
+              parentTransactionId: string;
+            });
           });
         }
       });
