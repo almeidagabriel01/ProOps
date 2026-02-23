@@ -116,7 +116,7 @@ export default function RootLayout({
                           <SubscriptionGuard>
                             <main
                               id="main-content"
-                              className="flex-1 p-8 pb-28 overflow-y-auto"
+                              className="flex-1 p-8 overflow-y-auto"
                             >
                               {children}
                             </main>

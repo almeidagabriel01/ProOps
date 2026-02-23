@@ -33,6 +33,8 @@ import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
+import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
+import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
@@ -137,6 +139,22 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Loading state
   if (isLoading) {
+    if (pathname?.startsWith("/spreadsheets/")) {
+      return (
+        <AppSkeleton>
+          <SpreadsheetEditorSkeleton />
+        </AppSkeleton>
+      );
+    }
+
+    if (pathname === "/spreadsheets") {
+      return (
+        <AppSkeleton>
+          <SpreadsheetsSkeleton />
+        </AppSkeleton>
+      );
+    }
+
     // Try to determine best skeleton from pathname first, then cache
     let skeletonType = "dashboard";
 
@@ -259,6 +277,22 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // No user after loading (redirect happening)
   if (!user) {
+    if (pathname?.startsWith("/spreadsheets/")) {
+      return (
+        <AppSkeleton>
+          <SpreadsheetEditorSkeleton />
+        </AppSkeleton>
+      );
+    }
+
+    if (pathname === "/spreadsheets") {
+      return (
+        <AppSkeleton>
+          <SpreadsheetsSkeleton />
+        </AppSkeleton>
+      );
+    }
+
     // Transient state before redirect happens
     let skeletonType = "dashboard";
     // ... (same cache reading logic could be extracted but duplicating for safety in this ephemeral block)

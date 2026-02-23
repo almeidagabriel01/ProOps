@@ -13,10 +13,11 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@fortune-sheet/react": "^1.0.4",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
+    "@univerjs/preset-sheets-core": "^0.11.0",
+    "@univerjs/presets": "^0.11.0",
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
