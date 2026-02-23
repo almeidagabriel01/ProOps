@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
 import { TransactionService } from "@/services/transaction-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,

@@ -22,7 +22,7 @@ import {
   Loader2,
   Calendar,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import {
   AlertDialog,
   AlertDialogAction,

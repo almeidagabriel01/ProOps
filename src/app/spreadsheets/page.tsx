@@ -5,7 +5,7 @@ import { normalize } from "@/utils/text";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useTenant } from "@/providers/tenant-provider";
 import {
   Spreadsheet,

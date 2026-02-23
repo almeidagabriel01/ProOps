@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { UserPlan, User, Tenant, BillingInterval } from "@/types";
 import { PlanPreview } from "@/types/plan";
 import { PlanService } from "@/services/plan-service";

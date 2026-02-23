@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter, useParams } from "next/navigation";
 import {
   TransactionService,
@@ -570,6 +570,10 @@ export function useEditTransaction() {
     if (!transaction) return;
 
     setIsSaving(true);
+    const transactionLabel = formData.description.trim()
+      ? `"${formData.description.trim()}"`
+      : `ID ${transaction.id}`;
+
     try {
       const payload: UpdateFinancialEntryWithInstallmentsPayload = {
         type: formData.type,
@@ -608,11 +612,20 @@ export function useEditTransaction() {
         payload,
       );
 
-      toast.success("Lançamento atualizado com sucesso!");
+      toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
+        title: "Sucesso ao editar",
+      });
       router.push("/financial");
     } catch (error) {
       console.error("Error updating transaction:", error);
-      toast.error("Erro ao atualizar lançamento");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao editar o lancamento.";
+      toast.error(
+        `Nao foi possivel editar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        { title: "Erro ao editar" },
+      );
     } finally {
       setIsSaving(false);
     }

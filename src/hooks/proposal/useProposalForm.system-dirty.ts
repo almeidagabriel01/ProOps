@@ -3,7 +3,7 @@ import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { ProposalSistema, Sistema } from "@/types/automation";
 import { buildEssentialFormSnapshot } from "./useProposalForm.helpers";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface UseProposalFormSystemDirtyContext {
   selectedSistemas: ProposalSistema[];

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
 import { Input } from "@/components/ui/input";

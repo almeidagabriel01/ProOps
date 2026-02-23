@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { Wallet, WalletTransaction } from "@/types";
 import {
   WalletService,

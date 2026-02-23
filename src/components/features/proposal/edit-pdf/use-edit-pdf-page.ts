@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { ProposalService } from "@/services/proposal-service";

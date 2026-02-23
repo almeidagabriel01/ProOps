@@ -33,7 +33,7 @@ import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -362,16 +362,30 @@ export default function ProposalsPage() {
     e.preventDefault();
     if (!deleteId) return;
 
+    const proposal = proposals.find((p) => p.id === deleteId);
+    const proposalLabel = proposal?.title?.trim()
+      ? `"${proposal.title.trim()}"`
+      : `ID ${deleteId}`;
+
     setIsDeleting(true);
     try {
       await ProposalService.deleteProposal(deleteId);
       resetRef.current?.();
       setHasAnyProposals(null);
       setProposals((prev) => prev.filter((p) => p.id !== deleteId));
-      toast.success("Proposta excluída com sucesso.");
+      toast.success(`Proposta ${proposalLabel} foi excluida com sucesso.`, {
+        title: "Sucesso ao excluir",
+      });
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao excluir proposta");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao excluir a proposta.";
+      toast.error(
+        `Nao foi possivel excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+        { title: "Erro ao excluir" },
+      );
     } finally {
       setIsDeleting(false);
       setDeleteId(null);
@@ -439,6 +453,9 @@ export default function ProposalsPage() {
     async (proposalId: string, newStatus: ProposalStatus) => {
       const proposal = proposals.find((p) => p.id === proposalId);
       if (!proposal || proposal.status === newStatus) return;
+      const proposalLabel = proposal.title?.trim()
+        ? `"${proposal.title.trim()}"`
+        : `ID ${proposalId}`;
 
       setUpdatingStatusId(proposalId);
       try {
@@ -449,11 +466,19 @@ export default function ProposalsPage() {
           ),
         );
         toast.success(
-          `Status alterado para "${statusConfig[newStatus].label}"`,
+          `Status da proposta ${proposalLabel} alterado para "${statusConfig[newStatus].label}".`,
+          { title: "Sucesso ao editar" },
         );
       } catch (error) {
         console.error("Error updating status:", error);
-        toast.error("Erro ao alterar status");
+        const errorMessage =
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Falha inesperada ao alterar o status da proposta.";
+        toast.error(
+          `Nao foi possivel alterar o status da proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao editar" },
+        );
       } finally {
         setUpdatingStatusId(null);
       }

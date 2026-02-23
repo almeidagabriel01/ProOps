@@ -24,7 +24,7 @@ import {
   CreditCard,
   Split,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
 

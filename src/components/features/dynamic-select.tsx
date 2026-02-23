@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Option, OptionService } from "@/services/option-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { OptionManagerDialog } from "./option-manager-dialog";
 
 interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {

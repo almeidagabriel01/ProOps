@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Copy, Settings2 } from "lucide-react";
 import { TenantBillingInfo } from "@/services/admin-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface TenantActionsMenuProps {
     item: TenantBillingInfo;

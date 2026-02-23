@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { callApi } from "@/lib/api-client";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 // ============================================
 // TYPES

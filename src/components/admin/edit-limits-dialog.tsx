@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { PlanFeatures } from "@/types";
 import { AdminService } from "@/services/admin-service";
 import { Loader2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface Props {
   open: boolean;

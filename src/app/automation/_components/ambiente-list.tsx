@@ -15,7 +15,7 @@ import {
   X,
   LayoutGrid,
 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import {

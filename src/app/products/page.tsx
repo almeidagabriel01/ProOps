@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { ProductsSkeleton } from "./_components/products-skeleton";
 import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -49,9 +49,16 @@ export default function ProductsPage() {
     const numericStock = parseInt(newStock, 10);
     if (isNaN(numericStock)) return false;
 
-    const success = await updateProduct(product.id, {
-      stock: numericStock,
-    });
+    const success = await updateProduct(
+      product.id,
+      {
+        stock: numericStock,
+      },
+      {
+        productName: product.name,
+        context: "stock",
+      },
+    );
 
     if (success) {
       // Trigger re-fetch
@@ -155,6 +162,10 @@ export default function ProductsPage() {
 
     setIsDeleting(true);
     try {
+      const selectedProduct = (allProducts ?? []).find((p) => p.id === deleteId);
+      const productLabel = selectedProduct?.name?.trim()
+        ? `"${selectedProduct.name.trim()}"`
+        : "selecionado";
       // Check if product is used in any proposal
       const isUsed = await ProposalService.isProductUsedInProposal(
         deleteId,
@@ -162,7 +173,8 @@ export default function ProductsPage() {
       );
       if (isUsed) {
         toast.error(
-          "Não é possível excluir este produto pois ele está vinculado a uma ou mais propostas.",
+          `Nao foi possivel excluir o produto ${productLabel} porque ele esta vinculado a uma ou mais propostas.`,
+          { title: "Erro ao excluir" },
         );
         setIsDeleting(false);
         setDeleteId(null);
@@ -170,7 +182,7 @@ export default function ProductsPage() {
       }
 
       // await ProductService.deleteProduct(deleteId);
-      const success = await deleteProduct(deleteId);
+      const success = await deleteProduct(deleteId, selectedProduct?.name);
       if (success) {
         resetRef.current?.();
         setHasAnyProducts(null);

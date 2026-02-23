@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -285,6 +285,9 @@ export function useProductForm(
     }
 
     setIsSubmitting(true);
+    const productLabel = formData.name.trim()
+      ? `"${formData.name.trim()}"`
+      : "selecionado";
 
     try {
       // Upload pending files to Storage
@@ -328,7 +331,9 @@ export function useProductForm(
 
       if (productId) {
         await ProductService.updateProduct(productId, dataToSave);
-        toast.success("Produto atualizado com sucesso!");
+        toast.success(`Produto ${productLabel} foi atualizado com sucesso.`, {
+          title: "Sucesso ao editar",
+        });
         router.push("/products");
         router.refresh();
       } else {
@@ -353,7 +358,16 @@ export function useProductForm(
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error("Erro ao salvar produto. Tente novamente.");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao salvar o produto.";
+      const actionLabel = productId ? "editar" : "salvar";
+
+      toast.error(
+        `Nao foi possivel ${actionLabel} o produto ${productLabel}. Detalhes: ${errorMessage}`,
+        { title: productId ? "Erro ao editar" : "Erro ao salvar" },
+      );
     } finally {
       setIsSubmitting(false);
     }
