@@ -38,6 +38,7 @@ interface UseProductFormReturn {
   imageUrls: string[];
   pendingFiles: File[];
   isSubmitting: boolean;
+  hasChanges: boolean;
   showLimitModal: boolean;
   setShowLimitModal: (value: boolean) => void;
   showImageLimitModal: boolean;
@@ -61,6 +62,30 @@ interface UseProductFormReturn {
   handleRemoveImage: (index: number) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
+
+const buildProductFormSnapshot = (
+  formData: ProductFormData,
+  imageUrls: string[],
+  pendingFiles: File[],
+): string => {
+  const pendingFileKeys = pendingFiles.map(
+    (file) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`,
+  );
+
+  return JSON.stringify({
+    name: formData.name,
+    description: formData.description,
+    price: formData.price,
+    markup: formData.markup,
+    manufacturer: formData.manufacturer,
+    category: formData.category,
+    sku: formData.sku,
+    stock: formData.stock,
+    status: formData.status,
+    imageUrls,
+    pendingFileKeys,
+  });
+};
 
 export function useProductForm(
   initialData?: Product,
@@ -116,12 +141,37 @@ export function useProductForm(
 
   // Track removed URLs for cleanup
   const [removedUrls, setRemovedUrls] = React.useState<string[]>([]);
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    () => {
+      if (productId) return null;
+
+      return buildProductFormSnapshot(
+        {
+          name: initialData?.name || "",
+          description: initialData?.description || "",
+          price: initialData?.price || "",
+          markup: initialData?.markup || "30",
+          manufacturer: initialData?.manufacturer || "",
+          category: initialData?.category || "",
+          sku: initialData?.sku || "",
+          stock:
+            typeof initialData?.stock === "number"
+              ? String(initialData.stock)
+              : "",
+          status: initialData?.status || "active",
+          image: null,
+          images: [],
+        },
+        initialData?.images || (initialData?.image ? [initialData.image] : []),
+        [],
+      );
+    },
+  );
 
   // Update form data if initialData changes
   React.useEffect(() => {
     if (initialData) {
-      setFormData((prev) => ({
-        ...prev,
+      const initialFormData: ProductFormData = {
         name: initialData.name || "",
         description: initialData.description || "",
         price: initialData.price || "",
@@ -134,7 +184,13 @@ export function useProductForm(
             ? String(initialData.stock)
             : "",
         status: initialData.status || "active",
+        image: null,
         images: [],
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        ...initialFormData,
       }));
 
       const existingImages =
@@ -142,6 +198,10 @@ export function useProductForm(
       setImageUrls(existingImages);
       setPendingFiles([]);
       setPendingPreviews([]);
+      setRemovedUrls([]);
+      setInitialSnapshot(
+        buildProductFormSnapshot(initialFormData, existingImages, []),
+      );
     }
   }, [initialData]);
 
@@ -247,6 +307,15 @@ export function useProductForm(
       setPendingPreviews((prev) => prev.filter((_, i) => i !== pendingIndex));
     }
   };
+
+  const hasChanges = React.useMemo(() => {
+    if (!initialSnapshot) return false;
+
+    return (
+      buildProductFormSnapshot(formData, imageUrls, pendingFiles) !==
+      initialSnapshot
+    );
+  }, [formData, imageUrls, pendingFiles, initialSnapshot]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,6 +450,7 @@ export function useProductForm(
     imageUrls: allImages,
     pendingFiles,
     isSubmitting,
+    hasChanges,
     showLimitModal,
     setShowLimitModal,
     showImageLimitModal,

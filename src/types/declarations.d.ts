@@ -3,3 +3,6 @@ declare module "@fortune-sheet/react" {
   const Workbook: any;
   export { Workbook };
 }
+
+declare module "@fortune-sheet/react/dist/index.css";
+declare module "*.css";

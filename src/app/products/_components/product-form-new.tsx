@@ -75,6 +75,7 @@ export function ProductFormNew({
     formData,
     imageUrls,
     isSubmitting,
+    hasChanges,
     showLimitModal,
     setShowLimitModal,
     currentProductCount,
@@ -531,6 +532,7 @@ export function ProductFormNew({
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
+            submitDisabled={!!productId && !hasChanges}
             submitLabel={productId ? "Salvar Alterações" : "Criar Produto"}
           />
         </StepCard>

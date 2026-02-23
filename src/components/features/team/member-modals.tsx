@@ -27,6 +27,19 @@ import {
 import { useMemberActions } from "@/hooks/useMemberActions";
 import { TeamMember } from "./team-types";
 
+const buildMemberEditSnapshot = (data: {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+}): string =>
+  JSON.stringify({
+    name: data.name.trim(),
+    email: data.email.trim().toLowerCase(),
+    phoneNumber: data.phoneNumber.trim(),
+    password: data.password,
+  });
+
 // ============================================
 // EDIT MEMBER MODAL
 // ============================================
@@ -51,9 +64,44 @@ export function EditMemberModal({
     member.phoneNumber || "",
   );
   const [password, setPassword] = React.useState("");
+  const [initialSnapshot, setInitialSnapshot] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const memberName = member.name || "";
+    const memberEmail = member.email || "";
+    const memberPhone = member.phoneNumber || "";
+
+    setName(memberName);
+    setEmail(memberEmail);
+    setPhoneNumber(memberPhone);
+    setPassword("");
+    setInitialSnapshot(
+      buildMemberEditSnapshot({
+        name: memberName,
+        email: memberEmail,
+        phoneNumber: memberPhone,
+        password: "",
+      }),
+    );
+  }, [open, member]);
+
+  const hasChanges = React.useMemo(
+    () =>
+      buildMemberEditSnapshot({
+        name,
+        email,
+        phoneNumber,
+        password,
+      }) !== initialSnapshot,
+    [name, email, phoneNumber, password, initialSnapshot],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!hasChanges) return;
+
     const success = await updateMember({
       memberId: member.id,
       name,
@@ -120,7 +168,16 @@ export function EditMemberModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading} className="gap-2">
+            <Button
+              type="submit"
+              disabled={
+                isLoading ||
+                !name.trim() ||
+                !email.trim() ||
+                !hasChanges
+              }
+              className="gap-2"
+            >
               {isLoading && <Spinner className="w-4 h-4 text-white" />}
               {isLoading ? "Salvando..." : "Salvar Alterações"}
             </Button>

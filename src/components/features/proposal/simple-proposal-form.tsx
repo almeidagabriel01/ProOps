@@ -1073,6 +1073,7 @@ export function SimpleProposalForm({
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSaving}
+            submitDisabled={!!proposalId && !isDirty}
             submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}
           />
         </StepCard>

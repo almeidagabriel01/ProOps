@@ -372,7 +372,19 @@ export interface WorkbookInstance {
     value: unknown,
     options?: Record<string, unknown>,
   ) => void;
-  getSelection: () => { row: number[]; column: number[] }[] | undefined;
+  clearCell: (
+    row: number,
+    column: number,
+    options?: Record<string, unknown>,
+  ) => void;
+  getSelection: () =>
+    | {
+        row: number[];
+        column: number[];
+        row_focus?: number;
+        column_focus?: number;
+      }[]
+    | undefined;
   setSelection: (range: { row: number[]; column: number[] }[]) => void;
   getAllSheets: () => SheetData[];
 }

@@ -30,6 +30,25 @@ interface WalletFormDialogProps {
   onSubmit: (data: CreateWalletInput | UpdateWalletInput) => Promise<boolean>;
 }
 
+interface WalletEditSnapshot {
+  name: string;
+  type: WalletType;
+  color: string;
+  description: string;
+  isDefault: boolean;
+}
+
+const buildWalletEditSnapshot = (
+  data: WalletEditSnapshot,
+): string =>
+  JSON.stringify({
+    name: data.name.trim(),
+    type: data.type,
+    color: data.color,
+    description: data.description.trim(),
+    isDefault: data.isDefault,
+  });
+
 const WALLET_COLORS = [
   "#6366F1", // Indigo
   "#8B5CF6", // Violet
@@ -58,6 +77,9 @@ export function WalletFormDialog({
   const [description, setDescription] = React.useState("");
   const [initialBalance, setInitialBalance] = React.useState(0);
   const [isDefault, setIsDefault] = React.useState(false);
+  const [initialEditSnapshot, setInitialEditSnapshot] = React.useState<
+    string | null
+  >(null);
 
   const isEditMode = !!wallet;
 
@@ -72,6 +94,15 @@ export function WalletFormDialog({
         setDescription(wallet.description || "");
         setIsDefault(wallet.isDefault || false);
         setInitialBalance(0); // Don't show balance on edit
+        setInitialEditSnapshot(
+          buildWalletEditSnapshot({
+            name: wallet.name,
+            type: wallet.type,
+            color: wallet.color,
+            description: wallet.description || "",
+            isDefault: wallet.isDefault || false,
+          }),
+        );
       } else {
         setName("");
         setType("bank");
@@ -79,14 +110,40 @@ export function WalletFormDialog({
         setDescription("");
         setInitialBalance(0);
         setIsDefault(false);
+        setInitialEditSnapshot(null);
       }
     }
   }, [open, wallet]);
 
+  const hasEditChanges = React.useMemo(() => {
+    if (!isEditMode || !initialEditSnapshot) return false;
+
+    return (
+      buildWalletEditSnapshot({
+        name,
+        type,
+        color,
+        description,
+        isDefault,
+      }) !== initialEditSnapshot
+    );
+  }, [
+    isEditMode,
+    initialEditSnapshot,
+    name,
+    type,
+    color,
+    description,
+    isDefault,
+  ]);
+
+  const canSubmit =
+    !!name.trim() && (!isEditMode || hasEditChanges);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim()) return;
+    if (!canSubmit) return;
 
     setIsSubmitting(true);
 
@@ -225,7 +282,7 @@ export function WalletFormDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim()}>
+            <Button type="submit" disabled={isSubmitting || !canSubmit}>
               {isSubmitting && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}

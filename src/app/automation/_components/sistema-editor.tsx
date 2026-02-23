@@ -61,6 +61,30 @@ interface SistemaEditorProps {
   onAmbienteCreated?: () => void; // Added prop
 }
 
+const buildSistemaSnapshot = (
+  name: string,
+  description: string,
+  configAmbientes: SistemaAmbienteTemplate[],
+): string =>
+  JSON.stringify({
+    name: name.trim(),
+    description: description.trim(),
+    configAmbientes: [...configAmbientes]
+      .map((ambiente) => ({
+        ambienteId: ambiente.ambienteId,
+        description: ambiente.description || "",
+        products: [...(ambiente.products || [])]
+          .map((product) => ({
+            productId: product.productId,
+            productName: product.productName || "",
+            quantity: product.quantity,
+            status: product.status || "active",
+          }))
+          .sort((a, b) => a.productId.localeCompare(b.productId)),
+      }))
+      .sort((a, b) => a.ambienteId.localeCompare(b.ambienteId)),
+  });
+
 export function SistemaEditor({
   sistema,
   allAmbientes,
@@ -93,6 +117,9 @@ export function SistemaEditor({
   const [currentSystemId, setCurrentSystemId] = React.useState<string | null>(
     null,
   );
+  const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
+    null,
+  );
 
   // Update local state ONLY when the system ID changes (or we switch between new/edit)
   React.useEffect(() => {
@@ -104,15 +131,32 @@ export function SistemaEditor({
         setDescription(sistema.description || "");
         const loadedAmbientes = sistema.ambientes || [];
         setConfigAmbientes(loadedAmbientes);
+        setInitialSnapshot(
+          buildSistemaSnapshot(
+            sistema.name,
+            sistema.description || "",
+            loadedAmbientes,
+          ),
+        );
       } else {
         // Reset for new system
         setName("");
         setDescription("");
         setConfigAmbientes([]);
+        setInitialSnapshot(null);
       }
       setCurrentSystemId(incomingId);
     }
   }, [sistema, currentSystemId]);
+
+  const hasChanges = React.useMemo(() => {
+    if (!sistema?.id || !initialSnapshot) return true;
+
+    return (
+      buildSistemaSnapshot(name, description, configAmbientes) !==
+      initialSnapshot
+    );
+  }, [sistema?.id, initialSnapshot, name, description, configAmbientes]);
 
   // Product Data
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -191,7 +235,7 @@ export function SistemaEditor({
 
   // Handle Save
   const handleSave = async () => {
-    if (!tenant?.id || !name.trim()) return;
+    if (!tenant?.id || !name.trim() || (sistema?.id && !hasChanges)) return;
     setIsSaving(true);
     try {
       const payload = {
@@ -390,7 +434,7 @@ export function SistemaEditor({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !name.trim()}
+            disabled={isSaving || !name.trim() || (!!sistema?.id && !hasChanges)}
             className="min-w-[120px]"
           >
             {isSaving ? (

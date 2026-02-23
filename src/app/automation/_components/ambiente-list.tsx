@@ -79,6 +79,17 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
 
   const handleEdit = async (id: string) => {
     if (!editingName.trim()) return;
+
+    const targetAmbiente = ambientes.find((amb) => amb.id === id);
+    if (
+      targetAmbiente &&
+      editingName.trim() === targetAmbiente.name.trim()
+    ) {
+      setEditingId(null);
+      setEditingName("");
+      return;
+    }
+
     setIsUpdating(true);
     try {
       await AmbienteService.updateAmbiente(id, { name: editingName.trim() });
@@ -197,7 +208,11 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
                     <Button
                       size="sm"
                       onClick={() => handleEdit(amb.id)}
-                      disabled={isUpdating}
+                      disabled={
+                        isUpdating ||
+                        !editingName.trim() ||
+                        editingName.trim() === amb.name.trim()
+                      }
                       className="h-8 px-3"
                     >
                       {isUpdating ? (

@@ -181,6 +181,16 @@ export function AmbienteManagerDialog({
   const handleEdit = async (id: string) => {
     if (!editingName.trim()) return;
 
+    const targetAmbiente = ambientes.find((ambiente) => ambiente.id === id);
+    if (
+      targetAmbiente &&
+      editingName.trim() === targetAmbiente.name.trim()
+    ) {
+      setEditingId(null);
+      setEditingName("");
+      return;
+    }
+
     setUpdatingId(id);
     try {
       const newName = editingName.trim();
@@ -310,7 +320,11 @@ export function AmbienteManagerDialog({
                         <Button
                           size="sm"
                           onClick={() => handleEdit(ambiente.id)}
-                          disabled={updatingId === ambiente.id}
+                          disabled={
+                            updatingId === ambiente.id ||
+                            !editingName.trim() ||
+                            editingName.trim() === ambiente.name.trim()
+                          }
                         >
                           {updatingId === ambiente.id ? (
                             <Spinner className="h-3 w-3" />

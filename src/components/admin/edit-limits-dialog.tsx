@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,18 @@ interface Props {
   onSaved: () => void;
 }
 
+const buildPlanFeaturesSnapshot = (features: PlanFeatures): string =>
+  JSON.stringify({
+    maxUsers: features.maxUsers,
+    maxProducts: features.maxProducts,
+    maxClients: features.maxClients,
+    maxProposals: features.maxProposals,
+    maxPdfTemplates: features.maxPdfTemplates,
+    hasFinancial: features.hasFinancial,
+    canCustomizeTheme: features.canCustomizeTheme,
+    canEditPdfSections: features.canEditPdfSections,
+  });
+
 export function EditLimitsDialog({
   open,
   onClose,
@@ -37,18 +49,27 @@ export function EditLimitsDialog({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<PlanFeatures>(currentFeatures);
+  const [initialSnapshot, setInitialSnapshot] = useState("");
 
   useEffect(() => {
     if (currentFeatures) {
       setFormData(currentFeatures);
+      setInitialSnapshot(buildPlanFeaturesSnapshot(currentFeatures));
     }
   }, [currentFeatures, open]);
+
+  const hasChanges = useMemo(
+    () => buildPlanFeaturesSnapshot(formData) !== initialSnapshot,
+    [formData, initialSnapshot],
+  );
 
   const handleChange = (field: keyof PlanFeatures, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
+    if (!hasChanges) return;
+
     setLoading(true);
     try {
       await AdminService.updateTenantLimits(tenantId, formData);
@@ -166,7 +187,7 @@ export function EditLimitsDialog({
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading || !hasChanges}>
             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Salvar Alterações
           </Button>

@@ -52,6 +52,7 @@ export function SistemaTemplateDialog({
     isLoading,
     isSaving,
     isEditing,
+    hasChanges,
     toggleAmbiente,
     handleSave,
   } = useSistemaForm({
@@ -129,7 +130,7 @@ export function SistemaTemplateDialog({
               )}
               <Button
                 onClick={handleSave}
-                disabled={!name.trim() || isSaving}
+                disabled={!name.trim() || isSaving || (isEditing && !hasChanges)}
                 className="gap-2"
               >
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}
@@ -149,7 +150,7 @@ export function SistemaTemplateDialog({
               )}
               <Button
                 onClick={handleSave}
-                disabled={!name.trim() || isSaving}
+                disabled={!name.trim() || isSaving || (isEditing && !hasChanges)}
                 className="gap-2"
               >
                 {isSaving && <Spinner className="h-4 w-4 text-white" />}

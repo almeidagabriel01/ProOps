@@ -219,10 +219,7 @@ export default function SpreadsheetEditorPage() {
           key={spreadsheet.id}
           ref={workbookRef}
           data={workbookData}
-          onChange={() => {
-            // onChange fires as data updates - workbookRef will have the latest state
-            // No need to store separately as we query workbookRef on save
-          }}
+          showFormulaBar={false}
         />
       </div>
     </div>
