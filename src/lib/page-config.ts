@@ -42,6 +42,18 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     name: 'Login',
     requiresAuth: false,
   },
+  '/register': {
+    pageId: 'register',
+    slug: '/register',
+    name: 'Criar Conta',
+    requiresAuth: false,
+  },
+  '/forgot-password': {
+    pageId: 'forgot-password',
+    slug: '/forgot-password',
+    name: 'Redefinir Senha',
+    requiresAuth: false,
+  },
   '/subscribe': {
     pageId: 'subscribe',
     slug: '/subscribe',

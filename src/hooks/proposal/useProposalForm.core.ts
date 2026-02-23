@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import {
   useMasterDataTransaction,
 } from "./useMasterDataTransaction";
-import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { ClientType } from "@/services/client-service";
 import {
   createInitialProposalFormData,

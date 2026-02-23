@@ -116,7 +116,7 @@ const searchItems: SearchItem[] = [
     id: "wallets",
     label: "Carteiras",
     description: "Gerenciar carteiras financeiras",
-    path: "/financial/wallets",
+    path: "/wallets",
     icon: WalletCards,
     keywords: ["carteira", "carteiras", "contas", "saldos"],
     requiresFinancial: true,

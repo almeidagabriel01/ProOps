@@ -68,7 +68,7 @@ export const menuItems: MenuItem[] = [
       {
         icon: WalletCards,
         label: "Carteiras",
-        href: "/financial/wallets",
+        href: "/wallets",
       },
     ],
   },

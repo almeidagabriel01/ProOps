@@ -13,7 +13,7 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
-import { useWalletsData } from "../wallets/_hooks/useWalletsData";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { getTodayISO } from "@/utils/date-utils";
 
 export type PaymentMode = "total" | "installmentValue";

@@ -81,6 +81,8 @@ export default function RootLayout({
 
   const isAuthOnlyPage =
     pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||

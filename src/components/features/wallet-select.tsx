@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useWalletsData } from "@/app/financial/wallets/_hooks/useWalletsData";
-import { WalletFormDialog } from "@/app/financial/wallets/_components/wallet-form-dialog";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
+import { WalletFormDialog } from "@/app/wallets/_components/wallet-form-dialog";
 import {
   CreateWalletInput,
   UpdateWalletInput,

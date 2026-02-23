@@ -10,6 +10,8 @@ import { usePathname } from "next/navigation";
 const PAGE_TITLES: Record<string, string> = {
   // Auth pages
   "/login": "Login",
+  "/register": "Criar Conta",
+  "/forgot-password": "Redefinir Senha",
   "/403": "Acesso Negado",
 
   // ERP pages

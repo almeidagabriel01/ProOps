@@ -32,7 +32,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 
@@ -248,7 +248,12 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
-  const [activeTab, setActiveTab] = React.useState("sistemas");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const tabFromUrl = tabParam === "ambientes" ? "ambientes" : "sistemas";
+  const [activeTab, setActiveTab] = React.useState(tabFromUrl);
 
   // Data State
   const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
@@ -320,7 +325,28 @@ export default function AutomationAdminPage() {
     [tenant?.id],
   );
 
-  const searchParams = useSearchParams();
+  React.useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  const handleTabChange = React.useCallback(
+    (tab: string) => {
+      setActiveTab(tab);
+
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "sistemas") {
+        params.delete("tab");
+      } else {
+        params.set("tab", "ambientes");
+      }
+
+      const query = params.toString();
+      router.replace(query ? `/solutions?${query}` : "/solutions", {
+        scroll: false,
+      });
+    },
+    [router, searchParams],
+  );
 
   React.useEffect(() => {
     loadData();
@@ -397,7 +423,7 @@ export default function AutomationAdminPage() {
       {/* Main Content Info */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="w-full space-y-6 flex-1 flex flex-col"
       >
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">

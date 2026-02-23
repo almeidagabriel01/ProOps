@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -11,6 +11,7 @@ import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
 
 type AuthMode = "login" | "register" | "forgot";
+const AUTH_MODES: AuthMode[] = ["login", "register", "forgot"];
 
 interface UseLoginFormReturn {
   // Login fields
@@ -77,10 +78,6 @@ export function useLoginForm(): UseLoginFormReturn {
   const [errors, setErrors] = React.useState<Record<string, string>>({}); // New: specific field errors
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
   const [isRegistering, setIsRegistering] = React.useState(false);
-  type AuthMode = "login" | "register" | "forgot";
-
-  // ... (inside function)
-  const [mode, setMode] = React.useState<AuthMode>("login");
   const [resetSent, setResetSent] = React.useState(false);
   const [isResetting, setIsResetting] = React.useState(false);
 
@@ -111,7 +108,50 @@ export function useLoginForm(): UseLoginFormReturn {
   };
   const { login, user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const modeParam = searchParams.get("mode");
+  const mode: AuthMode = pathname === "/register"
+    ? "register"
+    : pathname === "/forgot-password"
+      ? "forgot"
+    : AUTH_MODES.includes(modeParam as AuthMode)
+      ? (modeParam as AuthMode)
+      : "login";
+
+  const setMode = React.useCallback(
+    (value: AuthMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (value === "register") {
+        params.delete("mode");
+        const query = params.toString();
+        router.replace(query ? `/register?${query}` : "/register", {
+          scroll: false,
+        });
+        return;
+      }
+
+      if (value === "forgot") {
+        params.delete("mode");
+        const query = params.toString();
+        router.replace(
+          query ? `/forgot-password?${query}` : "/forgot-password",
+          { scroll: false },
+        );
+        return;
+      }
+
+      if (value === "login") {
+        params.delete("mode");
+      }
+
+      const query = params.toString();
+      router.replace(query ? `/login?${query}` : "/login", { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   // Get redirect URL from query params
   const redirectUrl = searchParams.get("redirect");

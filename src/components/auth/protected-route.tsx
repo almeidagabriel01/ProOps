@@ -32,13 +32,28 @@ import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleto
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
-import { WalletsSkeleton } from "@/app/financial/wallets/_components/wallets-skeleton";
+import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 
 // Routes that handle their own auth logic
-const SELF_HANDLED_ROUTES = ["/login", "/subscribe", "/checkout-success", "/"];
+const SELF_HANDLED_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/subscribe",
+  "/checkout-success",
+  "/",
+];
 
 // Routes that allow unauthenticated access
-const PUBLIC_ROUTES = ["/", "/login", "/subscribe", "/pricing", "/auth"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/subscribe",
+  "/pricing",
+  "/auth",
+];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -129,7 +144,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "addons";
     } else if (pathname?.startsWith("/profile")) {
       skeletonType = "profile";
-    } else if (pathname === "/financial/wallets") {
+    } else if (pathname === "/wallets") {
       skeletonType = "wallets";
     } else if (pathname?.startsWith("/financial")) {
       skeletonType = "financial";

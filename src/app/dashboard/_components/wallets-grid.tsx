@@ -31,7 +31,7 @@ export function WalletsGrid({ wallets }: WalletsGridProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">Suas Carteiras</h2>
         <Link
-          href="/financial/wallets"
+          href="/wallets"
           className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
         >
           Gerenciar <ArrowRight className="w-4 h-4" />
@@ -50,7 +50,7 @@ export function WalletsGrid({ wallets }: WalletsGridProps) {
                 Cadastre suas contas para acompanhar o saldo.
               </p>
               <Link
-                href="/financial/wallets"
+                href="/wallets"
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Cadastrar Carteira
