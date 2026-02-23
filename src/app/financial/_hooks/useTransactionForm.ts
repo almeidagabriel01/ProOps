@@ -484,7 +484,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         }
 
         const count = formData.isInstallment ? formData.installmentCount : 1;
-        // Naive division for INITIAL submission. We will fix it immediately after.
+        // Round once to cents so all generated installments keep the same value.
         finalAmount = parseFloat((remainingAmount / count).toFixed(2));
 
         walletToUse = formData.wallet;
@@ -554,53 +554,6 @@ export function useTransactionForm(): UseTransactionFormReturn {
         createdAt: now,
         updatedAt: now,
       });
-
-      // 3. POST-CREATION FIX check
-      if (
-        formData.paymentMode === "total" &&
-        formData.isInstallment &&
-        formData.installmentCount > 1 &&
-        installmentGroupId
-      ) {
-        const all = await TransactionService.getTransactions(tenant.id);
-        const group = all.filter(
-          (t) =>
-            t.installmentGroupId === installmentGroupId && !t.isDownPayment,
-        );
-
-        if (group.length > 0) {
-          const totalAmount = parseFloat(formData.amount);
-          const downPayment = downPaymentAmount;
-          const targetTotalForInstallments = totalAmount - downPayment;
-
-          const count = group.length;
-          const baseAmount =
-            Math.floor((targetTotalForInstallments / count) * 100) / 100;
-          const totalBase = baseAmount * count;
-          const remainder = Math.round(
-            (targetTotalForInstallments - totalBase) * 100,
-          );
-
-          const operations: Promise<unknown>[] = [];
-
-          group.forEach((t, index) => {
-            const shouldBeAmount = baseAmount + (index < remainder ? 0.01 : 0);
-            const currentAmount = t.amount;
-
-            if (Math.abs(currentAmount - shouldBeAmount) > 0.001) {
-              operations.push(
-                TransactionService.updateTransaction(t.id, {
-                  amount: parseFloat(shouldBeAmount.toFixed(2)),
-                }),
-              );
-            }
-          });
-
-          if (operations.length > 0) {
-            await Promise.all(operations);
-          }
-        }
-      }
 
       toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
         title: "Sucesso ao criar",

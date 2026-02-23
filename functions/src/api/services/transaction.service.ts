@@ -531,14 +531,11 @@ export class TransactionService {
             totalAmount - (shouldHaveDownPayment ? downPaymentAmount : 0),
           ),
         );
-        const base =
-          Math.floor((remaining / targetInstallmentCount) * 100) / 100;
-        const baseTotal = roundCurrency(base * targetInstallmentCount);
-        const remainderCents = Math.round((remaining - baseTotal) * 100);
+        const equalInstallmentAmount = roundCurrency(
+          remaining / targetInstallmentCount,
+        );
         for (let i = 0; i < targetInstallmentCount; i++) {
-          installmentAmounts.push(
-            roundCurrency(base + (i < remainderCents ? 0.01 : 0)),
-          );
+          installmentAmounts.push(equalInstallmentAmount);
         }
       }
 
