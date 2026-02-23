@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { useRouter } from "next/navigation";
 import {
   TransactionService,
@@ -438,6 +438,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
     }
 
     setIsSaving(true);
+    const transactionLabel = formData.description.trim()
+      ? `"${formData.description.trim()}"`
+      : "sem descricao";
 
     try {
       let clientId = formData.clientId;
@@ -599,11 +602,20 @@ export function useTransactionForm(): UseTransactionFormReturn {
         }
       }
 
-      toast.success("Lançamento criado com sucesso!");
+      toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
+        title: "Sucesso ao criar",
+      });
       router.push("/financial");
     } catch (error) {
       console.error("Error creating transaction:", error);
-      toast.error("Erro ao criar lançamento");
+      const errorMessage =
+        error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : "Falha inesperada ao criar o lancamento.";
+      toast.error(
+        `Nao foi possivel criar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        { title: "Erro ao criar" },
+      );
     } finally {
       setIsSaving(false);
     }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { savePdfBlob, renderToPdf } from "@/services/pdf/render-to-pdf";
 import { buildProposalPdfFilename } from "@/services/pdf/render-to-pdf.helpers";
 

@@ -12,7 +12,7 @@ import { AmbienteService, Ambiente } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
 import { Sistema, ProposalSistema } from "@/types/automation";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
 
 interface UseProposalFormLoadingEffectsContext {

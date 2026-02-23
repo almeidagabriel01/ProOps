@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { Ambiente, Sistema } from "@/types/automation";
 import { AmbienteService } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 export type MasterDataActionType = "create" | "update" | "delete";
 

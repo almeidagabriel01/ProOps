@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
 
 // ============================================
@@ -32,6 +32,24 @@ interface CreateProductResult {
   productId: string;
   message: string;
 }
+
+interface UpdateProductOptions {
+  productName?: string;
+  context?: "general" | "stock";
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return fallback;
+};
+
+const formatProductLabel = (name?: string, fallback = "produto"): string => {
+  const value = name?.trim();
+  return value ? `"${value}"` : fallback;
+};
 
 // ============================================
 // HOOK
@@ -65,13 +83,19 @@ export function useProductActions() {
         payload,
       );
 
-      toast.success("Produto criado com sucesso!");
+      const productLabel = formatProductLabel(data.name, "novo produto");
+      toast.success(`Produto ${productLabel} criado com sucesso.`, {
+        title: "Sucesso ao criar",
+      });
       return result;
     } catch (error: unknown) {
       console.error("Error creating product:", error);
-      const message =
-        error instanceof Error ? error.message : "Erro ao criar produto.";
-      toast.error(message);
+      const productLabel = formatProductLabel(data.name, "novo produto");
+      const message = getErrorMessage(error, "Falha ao criar produto.");
+      toast.error(
+        `Nao foi possivel criar o produto ${productLabel}. Detalhes: ${message}`,
+        { title: "Erro ao criar" },
+      );
       return null;
     } finally {
       setIsLoading(false);
@@ -81,6 +105,7 @@ export function useProductActions() {
   const updateProduct = async (
     productId: string,
     data: Partial<CreateProductData>,
+    options?: UpdateProductOptions,
   ): Promise<boolean> => {
     if (!productId) return false;
 
@@ -93,18 +118,34 @@ export function useProductActions() {
         data,
       );
 
-      toast.success("Produto atualizado com sucesso!");
+      const productLabel = formatProductLabel(
+        options?.productName || data.name,
+      );
+      const successMessage =
+        options?.context === "stock" && typeof data.stock === "number"
+          ? `Estoque do produto ${productLabel} atualizado para ${data.stock}.`
+          : `Produto ${productLabel} atualizado com sucesso.`;
+
+      toast.success(successMessage, { title: "Sucesso ao editar" });
       return true;
     } catch (error: unknown) {
       console.error("Error updating product:", error);
-      const message =
-        error instanceof Error ? error.message : "Erro ao atualizar produto.";
-      toast.error(message);
+      const productLabel = formatProductLabel(
+        options?.productName || data.name,
+      );
+      const message = getErrorMessage(error, "Falha ao editar produto.");
+      toast.error(
+        `Nao foi possivel editar o produto ${productLabel}. Detalhes: ${message}`,
+        { title: "Erro ao editar" },
+      );
       return false;
     }
   };
 
-  const deleteProduct = async (productId: string): Promise<boolean> => {
+  const deleteProduct = async (
+    productId: string,
+    productName?: string,
+  ): Promise<boolean> => {
     if (!productId) return false;
 
     setIsLoading(true);
@@ -114,13 +155,19 @@ export function useProductActions() {
         "DELETE",
       );
 
-      toast.success("Produto removido com sucesso!");
+      const productLabel = formatProductLabel(productName);
+      toast.success(`Produto ${productLabel} foi excluido com sucesso.`, {
+        title: "Sucesso ao excluir",
+      });
       return true;
     } catch (error: unknown) {
       console.error("Error deleting product:", error);
-      const message =
-        error instanceof Error ? error.message : "Erro ao deletar produto.";
-      toast.error(message);
+      const productLabel = formatProductLabel(productName);
+      const message = getErrorMessage(error, "Falha ao excluir produto.");
+      toast.error(
+        `Nao foi possivel excluir o produto ${productLabel}. Detalhes: ${message}`,
+        { title: "Erro ao excluir" },
+      );
       return false;
     } finally {
       setIsLoading(false);

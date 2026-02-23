@@ -17,7 +17,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { AmbienteService } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
 import { Ambiente, Sistema } from "@/types/automation";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { SistemaList } from "./_components/sistema-list";
 import { AmbienteList } from "./_components/ambiente-list";
 import { SistemaEditor } from "./_components/sistema-editor";

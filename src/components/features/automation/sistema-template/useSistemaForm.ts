@@ -6,7 +6,7 @@ import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface UseSistemaFormProps {

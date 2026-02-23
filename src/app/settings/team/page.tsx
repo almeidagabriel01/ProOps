@@ -19,7 +19,7 @@ import { TeamSkeleton } from "./_components/team-skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Shield, UserPlus, X } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import {
   TeamMember,
   Permission,

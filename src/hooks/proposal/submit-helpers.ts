@@ -5,7 +5,7 @@ import {
 } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { getPrimaryAmbiente, getAllProductsFromSistema } from "@/lib/sistema-migration-utils";
 
 interface CreateProposalPayload {
@@ -156,6 +156,9 @@ export async function updateProposal(
     if (value === null || value === undefined) return "";
     return String(value);
   };
+  const proposalLabel = formData.title?.trim()
+    ? `"${formData.title.trim()}"`
+    : `ID ${proposalId}`;
 
   await ProposalService.updateProposal(proposalId, {
     title: formData.title,
@@ -187,7 +190,9 @@ export async function updateProposal(
     pdfSettings: formData.pdfSettings || undefined,
   });
 
-  toast.success("Proposta atualizada com sucesso!");
+  toast.success(`Proposta ${proposalLabel} foi atualizada com sucesso.`, {
+    title: "Sucesso ao editar",
+  });
 }
 
 // Prepare proposal data for creation

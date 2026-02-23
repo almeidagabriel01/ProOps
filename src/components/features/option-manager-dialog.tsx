@@ -25,7 +25,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { Loader2 } from "lucide-react";
 
 interface OptionManagerDialogProps {

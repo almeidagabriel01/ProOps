@@ -1,5 +1,5 @@
 import * as React from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { Client, ClientService } from "@/services/client-service";
 import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";

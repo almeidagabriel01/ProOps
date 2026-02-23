@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { Sistema, Ambiente } from "@/types/automation";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";

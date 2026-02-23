@@ -10,9 +10,8 @@ import {
   Playfair_Display,
   Roboto,
 } from "next/font/google";
-import "react-toastify/dist/ReactToastify.css";
 import "./globals.css";
-import { ToastContainer } from "react-toastify";
+import { ToastProvider } from "@/components/shared/toast-provider";
 import { Header } from "@/components/layout/header";
 import { BottomDock } from "@/components/layout/bottom-dock";
 import { TenantProvider } from "@/providers/tenant-provider";
@@ -131,18 +130,7 @@ export default function RootLayout({
               </PermissionsProvider>
             </AuthProvider>
           )}
-          <ToastContainer
-            position="top-center"
-            autoClose={4000}
-            hideProgressBar
-            newestOnTop
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss={false}
-            draggable={false}
-            pauseOnHover
-            theme="light"
-          />
+          <ToastProvider />
         </ThemeProvider>
       </body>
     </html>

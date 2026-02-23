@@ -17,7 +17,7 @@ import { formatCurrency } from "@/utils/format";
 import { getTodayISO } from "@/utils/date-utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Loader2 } from "lucide-react";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 
 interface PartialPaymentDialogProps {
   open: boolean;

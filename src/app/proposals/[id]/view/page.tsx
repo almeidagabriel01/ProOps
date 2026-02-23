@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 
 export default function ViewProposalPage() {

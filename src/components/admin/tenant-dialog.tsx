@@ -20,7 +20,7 @@ import { ALLOWED_TYPES } from "@/services/storage-service";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "react-toastify";
+import { toast } from '@/lib/toast';
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   getTodayISO,
