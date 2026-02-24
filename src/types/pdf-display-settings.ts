@@ -6,6 +6,7 @@ export interface PdfDisplaySettings {
   showProductDescriptions: boolean;
   showProductPrices: boolean;
   showSubtotals: boolean;
+  showEnvironmentSubtotals: boolean;
   showPaymentTerms: boolean;
   showLogo: boolean;
   showValidUntil: boolean;
@@ -19,6 +20,7 @@ export const defaultPdfDisplaySettings: PdfDisplaySettings = {
   showProductDescriptions: true,
   showProductPrices: false,
   showSubtotals: true,
+  showEnvironmentSubtotals: false,
   showPaymentTerms: true,
   showLogo: true,
   showValidUntil: true,

@@ -10,6 +10,7 @@ export interface PdfDisplaySettings {
   showProductDescriptions: boolean;
   showProductPrices: boolean;
   showSubtotals: boolean;
+  showEnvironmentSubtotals: boolean;
   showPaymentTerms: boolean;
   showLogo: boolean;
   showValidUntil: boolean;
@@ -22,6 +23,7 @@ export const defaultPdfSettings: PdfDisplaySettings = {
   showProductDescriptions: true,
   showProductPrices: false,
   showSubtotals: true,
+  showEnvironmentSubtotals: false,
   showPaymentTerms: true,
   showLogo: true,
   showValidUntil: true,
@@ -140,6 +142,11 @@ export function PdfDisplayOptionsSection({
               label="Mostrar subtotais"
               checked={settings.showSubtotals}
               onChange={(v) => updateSetting("showSubtotals", v)}
+            />
+            <CheckboxOption
+              label="Mostrar subtotais por ambiente"
+              checked={settings.showEnvironmentSubtotals}
+              onChange={(v) => updateSetting("showEnvironmentSubtotals", v)}
             />
           </div>
         </div>
