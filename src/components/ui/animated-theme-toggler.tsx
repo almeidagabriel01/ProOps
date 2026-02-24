@@ -34,6 +34,10 @@ export const AnimatedThemeToggler = ({
 
     // Check if View Transitions API is supported
     if (document.startViewTransition) {
+      // Disable CSS transitions on all elements during the view transition
+      // to prevent hundreds of simultaneous transitions from causing jank
+      document.documentElement.classList.add("theme-transitioning");
+
       await document.startViewTransition(() => {
         flushSync(() => {
           setTheme(newTheme);
@@ -46,7 +50,7 @@ export const AnimatedThemeToggler = ({
       const y = top + height / 2;
       const maxRadius = Math.hypot(
         Math.max(left, window.innerWidth - left),
-        Math.max(top, window.innerHeight - top)
+        Math.max(top, window.innerHeight - top),
       );
 
       document.documentElement.animate(
@@ -60,8 +64,13 @@ export const AnimatedThemeToggler = ({
           duration,
           easing: "ease-in-out",
           pseudoElement: "::view-transition-new(root)",
-        }
+        },
       );
+
+      // Re-enable CSS transitions after the animation completes
+      setTimeout(() => {
+        document.documentElement.classList.remove("theme-transitioning");
+      }, duration);
     } else {
       // Fallback for browsers without View Transitions API
       setTheme(newTheme);
