@@ -185,6 +185,10 @@ export const createShareLink = async (req: Request, res: Response) => {
     }
 
     const proposalData = proposalSnap.data();
+    const proposalTenantId = String(proposalData?.tenantId || "").trim();
+    if (!proposalTenantId) {
+      return res.status(412).json({ message: "Proposta sem tenantId válido" });
+    }
 
     // Validar acesso (proposta deve pertencer ao tenant do usuário)
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId) {
@@ -194,7 +198,7 @@ export const createShareLink = async (req: Request, res: Response) => {
     // Gerar link compartilhável
     const result = await SharedProposalService.createShareLink(
       proposalId,
-      proposalData?.tenantId || tenantId,
+      proposalTenantId,
       userId,
     );
 
@@ -243,6 +247,9 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     }
 
     const proposalData = proposalSnap.data() as ProposalLike | undefined;
+    if (String((proposalData as Record<string, unknown> | undefined)?.tenantId || "").trim() !== sharedProposal.tenantId) {
+      return res.status(404).json({ message: "Proposta nÃ£o encontrada" });
+    }
     const enrichedProposalData = await enrichSharedProposalProducts(
       proposalData,
       sharedProposal.tenantId,

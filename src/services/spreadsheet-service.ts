@@ -22,6 +22,7 @@ import {
   UniverWorkbookData,
 } from "@/types";
 import { PaginatedResult } from "./client-service";
+import { callApi } from "@/lib/api-client";
 
 export type Spreadsheet = {
   id: string;
@@ -214,13 +215,44 @@ export const SpreadsheetService = {
     try {
       // Persist data in dataJson and keep format for runtime decoding.
       const { data: sheetData, ...rest } = data;
+      const tenantId = String(rest.tenantId || "").trim();
+      if (!tenantId) {
+        throw new Error("tenantId is required to create spreadsheet");
+      }
       const { dataJson, dataFormat } = serializeSpreadsheetData(
         sheetData,
         rest.name,
       );
+      try {
+        const response = await callApi<{ id?: string; spreadsheetId?: string }>(
+          "/v1/spreadsheets",
+          "POST",
+          {
+            ...rest,
+            tenantId,
+            dataJson,
+            dataFormat,
+          },
+        );
+        const createdId = response.id || response.spreadsheetId;
+        if (!createdId) {
+          throw new Error("Spreadsheet API response missing id");
+        }
+        return createdId;
+      } catch (apiError) {
+        // Non-production fallback keeps local preview/dev productive.
+        if (process.env.NODE_ENV === "production") {
+          throw apiError;
+        }
+        console.warn(
+          "Falling back to direct Firestore spreadsheet create in non-production:",
+          apiError,
+        );
+      }
 
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
         ...rest,
+        tenantId,
         dataJson,
         dataFormat,
         createdAt: serverTimestamp(),
@@ -238,14 +270,17 @@ export const SpreadsheetService = {
     data: Partial<Spreadsheet>,
   ): Promise<void> => {
     try {
-      const docRef = doc(db, COLLECTION_NAME, id);
-
       const updateData: Partial<Spreadsheet> & {
         dataJson?: string;
         dataFormat?: SpreadsheetDataFormat;
       } = {
         ...data,
       };
+
+      // tenantId is immutable once created.
+      delete updateData.tenantId;
+      delete updateData.createdAt;
+      delete updateData.id;
 
       // If we are updating contents, serialize according to payload shape.
       if (Object.prototype.hasOwnProperty.call(data, "data")) {
@@ -258,6 +293,20 @@ export const SpreadsheetService = {
         delete updateData.data; // Don't save raw array
       }
 
+      try {
+        await callApi(`/v1/spreadsheets/${id}`, "PUT", updateData);
+        return;
+      } catch (apiError) {
+        if (process.env.NODE_ENV === "production") {
+          throw apiError;
+        }
+        console.warn(
+          "Falling back to direct Firestore spreadsheet update in non-production:",
+          apiError,
+        );
+      }
+
+      const docRef = doc(db, COLLECTION_NAME, id);
       await updateDoc(docRef, {
         ...updateData,
         updatedAt: serverTimestamp(),
@@ -270,6 +319,19 @@ export const SpreadsheetService = {
 
   deleteSpreadsheet: async (id: string): Promise<void> => {
     try {
+      try {
+        await callApi(`/v1/spreadsheets/${id}`, "DELETE");
+        return;
+      } catch (apiError) {
+        if (process.env.NODE_ENV === "production") {
+          throw apiError;
+        }
+        console.warn(
+          "Falling back to direct Firestore spreadsheet delete in non-production:",
+          apiError,
+        );
+      }
+
       await deleteDoc(doc(db, COLLECTION_NAME, id));
     } catch (error) {
       console.error("Error deleting spreadsheet:", error);

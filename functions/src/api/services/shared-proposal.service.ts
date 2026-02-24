@@ -39,9 +39,9 @@ export class SharedProposalService {
       return configuredUrl;
     }
 
-    return process.env.NODE_ENV === "production"
-      ? "https://proops.com.br/"
-      : "http://localhost:3000/";
+    const isLocal = process.env.FUNCTIONS_EMULATOR === "true" || process.env.NODE_ENV === "development";
+
+    return isLocal ? "http://localhost:3000/" : "https://proops.com.br/";
   }
 
   private static getExpirationDate(): Date {

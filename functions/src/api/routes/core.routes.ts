@@ -14,6 +14,11 @@ import {
   updateProposal,
   deleteProposal,
 } from "../controllers/proposals.controller";
+import {
+  createSpreadsheet,
+  updateSpreadsheet,
+  deleteSpreadsheet,
+} from "../controllers/spreadsheets.controller";
 import { createShareLink } from "../controllers/shared-proposals.controller";
 import { updateTenant } from "../controllers/tenants.controller";
 
@@ -33,7 +38,10 @@ router.delete("/clients/:id", deleteClient);
 router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
 router.delete("/proposals/:id", deleteProposal);
-router.post("/proposals/:id/share-link", createShareLink); // Nova rota para gerar link compartilhável
+router.post("/spreadsheets", createSpreadsheet);
+router.put("/spreadsheets/:id", updateSpreadsheet);
+router.delete("/spreadsheets/:id", deleteSpreadsheet);
+router.post("/proposals/:id/share-link", createShareLink);
 
 // Tenants
 router.put("/tenants/:id", updateTenant);

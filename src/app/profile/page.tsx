@@ -216,6 +216,7 @@ function ProfileContent() {
         preview={planPreview}
         isLoading={loadingPreview}
         isFirstSubscription={isFirstSubscription}
+        billingInterval={billingInterval}
         isProcessing={upgradingPlan !== null || downgradingPlan !== null}
         onConfirm={confirmPlanChange}
         onManagePayment={handleManagePayment}

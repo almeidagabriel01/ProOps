@@ -6,6 +6,7 @@ import {
   buildProposalPdfStoragePath,
   parseStoragePathFromUrl,
   isUrlAccessible,
+  downloadPdfFromSafeUrl,
   toDate,
   toNumber,
   formatCurrency,
@@ -145,9 +146,10 @@ export async function getOrGenerateProposalPdf(
         const [buffer] = await file.download();
         return { pdfBuffer: buffer, pdfPath: resolvedPath };
       } else {
-        const res = await fetch(preferredExistingUrl);
-        const arrayBuffer = await res.arrayBuffer();
-        return { pdfBuffer: Buffer.from(arrayBuffer), pdfPath: resolvedPath };
+        const remotePdfBuffer = await downloadPdfFromSafeUrl(preferredExistingUrl);
+        if (remotePdfBuffer) {
+          return { pdfBuffer: remotePdfBuffer, pdfPath: resolvedPath };
+        }
       }
     } catch (e) {
       console.error("Failed to download existing pdf", e);

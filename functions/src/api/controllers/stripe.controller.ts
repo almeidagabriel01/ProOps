@@ -18,55 +18,362 @@ import {
 } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
+import {
+  assertSuperAdminClaim,
+  assertTenantAdminClaim,
+  getTenantClaim,
+} from "../../lib/request-auth";
+import Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
 
-async function hasSuperAdminRole(req: Request): Promise<boolean> {
-  const claimRole = String(req.user?.role || "").toLowerCase();
-  if (claimRole === "superadmin") return true;
+function normalizeOrigin(value: string): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
 
-  const userId = req.user?.uid;
-  if (!userId) return false;
+  const candidates = /^https?:\/\//i.test(raw)
+    ? [raw]
+    : [`https://${raw}`, `http://${raw}`];
 
-  const userSnap = await db.collection("users").doc(userId).get();
-  if (!userSnap.exists) return false;
+  for (const candidate of candidates) {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      // try next candidate
+    }
+  }
 
-  const userRole = String(userSnap.data()?.role || "").toLowerCase();
-  return userRole === "superadmin";
+  return null;
+}
+
+function addOriginWithVariants(target: Set<string>, value: string): void {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) return;
+
+  target.add(normalized);
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase();
+    const port = parsed.port ? `:${parsed.port}` : "";
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return;
+    }
+
+    if (hostname.startsWith("www.")) {
+      const bareHostname = hostname.slice(4);
+      if (bareHostname) {
+        target.add(`${parsed.protocol}//${bareHostname}${port}`);
+      }
+      return;
+    }
+
+    if (hostname.includes(".")) {
+      target.add(`${parsed.protocol}//www.${hostname}${port}`);
+    }
+  } catch {
+    // no-op
+  }
+}
+
+function parseOrigins(rawValue: string | undefined): Set<string> {
+  const origins = new Set<string>();
+  if (!rawValue) return origins;
+
+  rawValue
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((entry) => {
+      addOriginWithVariants(origins, entry);
+    });
+
+  return origins;
+}
+
+function resolveAllowedAppOrigins(): Set<string> {
+  const origins = parseOrigins(process.env.CORS_ALLOWED_ORIGINS);
+  [
+    process.env.APP_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.NEXT_PUBLIC_VERCEL_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  ]
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .forEach((entry) => {
+      addOriginWithVariants(origins, entry);
+    });
+
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("http://localhost:3000");
+    origins.add("http://127.0.0.1:3000");
+  }
+
+  return origins;
+}
+
+function isProductionRuntime(): boolean {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
+}
+
+function allowCorsFallbackInCurrentEnvironment(): boolean {
+  return (
+    !isProductionRuntime() &&
+    String(process.env.ALLOW_CORS_FALLBACK || "")
+      .trim()
+      .toLowerCase() === "true"
+  );
+}
+
+function allowsDynamicPreviewOrigins(): boolean {
+  const defaultValue = isProductionRuntime() ? "false" : "true";
+  return (
+    String(process.env.CORS_ALLOW_DYNAMIC_PREVIEW_ORIGINS || defaultValue)
+      .trim()
+      .toLowerCase() !== "false"
+  );
+}
+
+function isDynamicPreviewOrigin(origin: string): boolean {
+  if (!allowsDynamicPreviewOrigins()) return false;
+
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return (
+      hostname.endsWith(".vercel.app") ||
+      hostname.endsWith(".web.app") ||
+      hostname.endsWith(".firebaseapp.com")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function resolveRequestOrigin(req: Request): string {
-  const requestOrigin = req.headers.origin;
+  const fallbackOrigin =
+    normalizeOrigin(getAppUrl()) || getAppUrl().replace(/\/+$/, "");
+  const allowedOrigins = resolveAllowedAppOrigins();
+  const corsAllowlistMissing = allowedOrigins.size === 0;
+  const corsFallbackEnabled = allowCorsFallbackInCurrentEnvironment();
+  const requestOrigin =
+    typeof req.headers.origin === "string"
+      ? normalizeOrigin(req.headers.origin)
+      : null;
+  const bodyOrigin =
+    typeof req.body?.origin === "string" ? normalizeOrigin(req.body.origin) : null;
 
-  if (typeof requestOrigin === "string" && requestOrigin.trim()) {
-    return requestOrigin.replace(/\/+$/, "");
+  if (corsAllowlistMissing && isProductionRuntime()) {
+    throw new Error("FORBIDDEN_CORS_ALLOWLIST_REQUIRED");
   }
 
-  return getAppUrl().replace(/\/+$/, "");
+  if (corsAllowlistMissing && corsFallbackEnabled) {
+    return requestOrigin || bodyOrigin || fallbackOrigin;
+  }
+
+  if (
+    requestOrigin &&
+    (allowedOrigins.has(requestOrigin) || isDynamicPreviewOrigin(requestOrigin))
+  ) {
+    return requestOrigin;
+  }
+  if (bodyOrigin && (allowedOrigins.has(bodyOrigin) || isDynamicPreviewOrigin(bodyOrigin))) {
+    return bodyOrigin;
+  }
+
+  if (!requestOrigin && !bodyOrigin) {
+    return fallbackOrigin;
+  }
+
+  throw new Error("FORBIDDEN_CORS_ORIGIN");
+}
+
+function resolveAddonId(rawAddonId: unknown): string | null {
+  const addonId = String(rawAddonId || "").trim();
+  if (!addonId) return null;
+  const purchaseableAddonIds = new Set([
+    "financial",
+    "pdf_editor_partial",
+    "pdf_editor_full",
+    "whatsapp_addon",
+  ]);
+  if (!purchaseableAddonIds.has(addonId)) return null;
+  return getPriceIdForAddon(addonId) ? addonId : null;
+}
+
+function getPrimaryPlanSubscriptionItem(
+  subscription: Stripe.Subscription,
+): Stripe.SubscriptionItem | undefined {
+  const nonOverageItem = subscription.items.data.find(
+    (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
+  );
+  return nonOverageItem || subscription.items.data[0];
+}
+
+function hasRecurringMismatch(
+  baseRecurring: Stripe.Price.Recurring | null,
+  comparisonRecurring: Stripe.Price.Recurring | null,
+): boolean {
+  if (!baseRecurring || !comparisonRecurring) return false;
+  return (
+    baseRecurring.interval !== comparisonRecurring.interval ||
+    (baseRecurring.interval_count || 1) !==
+      (comparisonRecurring.interval_count || 1)
+  );
+}
+
+function resolvePlanChangeBillingCycleAnchor(input: {
+  currentRecurring: Stripe.Price.Recurring | null;
+  targetRecurring: Stripe.Price.Recurring | null;
+}): "unchanged" | "now" {
+  if (hasRecurringMismatch(input.currentRecurring, input.targetRecurring)) {
+    return "now";
+  }
+  return "unchanged";
+}
+
+function getStripeCustomerId(customer: string | Stripe.Customer | null): string {
+  if (!customer) return "";
+  return typeof customer === "string" ? customer : String(customer.id || "");
+}
+
+function isSafeEmail(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return !!trimmed && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed);
+}
+
+function getErrorStatus(error: unknown): number {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "UNAUTHENTICATED") return 401;
+  if (
+    message.startsWith("FORBIDDEN_") ||
+    message.startsWith("AUTH_CLAIMS_MISSING_")
+  ) {
+    return 403;
+  }
+  if (message === "NOT_FOUND") return 404;
+  if (message === "BAD_REQUEST") return 400;
+  return 500;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "Unknown error";
+  const message = error.message;
+  if (message === "UNAUTHENTICATED") return "Authentication required";
+  if (message.startsWith("AUTH_CLAIMS_MISSING_")) {
+    return "Missing required authorization claims";
+  }
+  if (message === "FORBIDDEN_CORS_ALLOWLIST_REQUIRED") {
+    return "CORS origin allowlist is required in production";
+  }
+  if (message === "FORBIDDEN_CORS_ORIGIN") {
+    return "Origin not allowed";
+  }
+  if (message.startsWith("FORBIDDEN_")) return "Forbidden";
+  if (message === "NOT_FOUND") return "Resource not found";
+  if (message === "BAD_REQUEST") return "Invalid request";
+  return message;
+}
+
+function assertSubscriptionOwnership(
+  subscription: Stripe.Subscription,
+  tenantId: string,
+  expectedCustomerId?: string,
+): void {
+  const subscriptionCustomerId = getStripeCustomerId(
+    subscription.customer as string | Stripe.Customer | null,
+  );
+  if (
+    expectedCustomerId &&
+    subscriptionCustomerId &&
+    subscriptionCustomerId !== expectedCustomerId
+  ) {
+    throw new Error("FORBIDDEN_STRIPE_OWNERSHIP");
+  }
+
+  const metadataTenantId = String(subscription.metadata?.tenantId || "").trim();
+  if (metadataTenantId && metadataTenantId !== tenantId) {
+    throw new Error("FORBIDDEN_STRIPE_OWNERSHIP");
+  }
+}
+
+async function resolveStripeUserContext(req: Request): Promise<{
+  userId: string;
+  tenantId: string;
+  customerId?: string;
+  userRef: FirebaseFirestore.DocumentReference;
+  userSnap: FirebaseFirestore.DocumentSnapshot;
+  tenantRef: FirebaseFirestore.DocumentReference;
+  tenantSnap: FirebaseFirestore.DocumentSnapshot;
+}> {
+  assertTenantAdminClaim(req);
+
+  const userId = req.user?.uid;
+  if (!userId) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const tenantId = getTenantClaim(req);
+  if (!tenantId) {
+    throw new Error("AUTH_CLAIMS_MISSING_TENANT");
+  }
+
+  const userRef = db.collection("users").doc(userId);
+  const userSnap = await userRef.get();
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const tenantSnap = await tenantRef.get();
+
+  const userData = userSnap.exists
+    ? (userSnap.data() as Record<string, unknown> | undefined)
+    : undefined;
+  const tenantData = tenantSnap.exists
+    ? (tenantSnap.data() as Record<string, unknown> | undefined)
+    : undefined;
+
+  const docTenantId = String(userData?.tenantId || userData?.companyId || "").trim();
+
+  if (docTenantId && docTenantId !== tenantId) {
+    console.warn(
+      `[Stripe] Tenant mismatch for user ${userId}. Rejecting request.`,
+      {
+        claimTenantId: tenantId,
+        docTenantId,
+      },
+    );
+    throw new Error("FORBIDDEN_TENANT_MISMATCH");
+  }
+
+  const tenantCustomerId = String(tenantData?.stripeCustomerId || "").trim();
+  const userCustomerId =
+    String(req.user?.stripeId || "").trim() ||
+    String(userData?.stripeId || "").trim();
+  const customerId = tenantCustomerId || userCustomerId || undefined;
+
+  return {
+    userId,
+    tenantId,
+    customerId,
+    userRef,
+    userSnap,
+    tenantRef,
+    tenantSnap,
+  };
 }
 
 // Handlers adapted from original onCall functions
 
 export const cancelAddon = async (req: Request, res: Response) => {
   try {
-    const { addonId, tenantId: bodyTenantId } = req.body;
-    const userId = (req as any).user!.uid;
-
+    const addonId = resolveAddonId(req.body?.addonId);
     if (!addonId) {
-      return res.status(400).json({ message: "Addon ID is required" });
+      return res.status(400).json({ message: "Valid addon ID is required" });
     }
 
-    const userRef = db.collection("users").doc(userId);
-    const userSnap = await userRef.get();
-
-    let tenantId = bodyTenantId;
-    if (!tenantId && userSnap.exists) {
-      tenantId = userSnap.data()?.tenantId;
-    }
-
-    if (!tenantId) {
-      tenantId = `tenant_${userId}`;
-    }
+    const { tenantId, customerId } = await resolveStripeUserContext(req);
 
     // Look up the addon purchase
     const dbAddonId = `${tenantId}_${addonId}`;
@@ -78,6 +385,10 @@ export const cancelAddon = async (req: Request, res: Response) => {
     }
 
     const addonData = addonSnap.data();
+    if (addonData?.tenantId !== tenantId) {
+      return res.status(403).json({ message: "Addon does not belong to user tenant" });
+    }
+
     const stripeSubscriptionId = addonData?.stripeSubscriptionId;
 
     if (!stripeSubscriptionId) {
@@ -89,6 +400,11 @@ export const cancelAddon = async (req: Request, res: Response) => {
     // Schedule cancellation at period end (NOT immediate cancellation)
     // This allows the user to keep the addon until the renewal date
     const stripe = getStripe();
+    const existingSubscription = await stripe.subscriptions.retrieve(
+      stripeSubscriptionId,
+    );
+    assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
+
     const subscription = await stripe.subscriptions.update(
       stripeSubscriptionId,
       {
@@ -115,71 +431,83 @@ export const cancelAddon = async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error("Cancel Addon Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
 export const cancelSubscription = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user!.uid;
-    console.log(`[cancelSubscription] Starting for userId: ${userId}`);
+    const {
+      userId,
+      tenantId,
+      customerId,
+      tenantRef,
+      tenantSnap,
+      userRef,
+      userSnap,
+    } = await resolveStripeUserContext(req);
 
-    const userRef = db.collection("users").doc(userId);
-    const userSnap = await userRef.get();
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown>)
+      : {};
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown>)
+      : {};
+    const legacySubscriptionId = String(
+      (userData as { subscription?: { id?: string } })?.subscription?.id || "",
+    ).trim();
 
-    if (!userSnap.exists) {
-      console.log(`[cancelSubscription] User not found: ${userId}`);
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const userData = userSnap.data();
-    // Check both possible locations for subscription ID
-    const stripeSubscriptionId =
-      userData?.stripeSubscriptionId || userData?.subscription?.id;
-
-    console.log(`[cancelSubscription] User data:`, {
-      stripeSubscriptionId,
-      subscriptionFromNested: userData?.subscription?.id,
-      hasSubscriptionObject: !!userData?.subscription,
-    });
-
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        legacySubscriptionId ||
+        "",
+    ).trim();
     if (!stripeSubscriptionId) {
-      console.log(
-        `[cancelSubscription] No subscription ID found for user: ${userId}`,
-      );
       return res.status(400).json({ message: "No active subscription found" });
     }
 
-    // Schedule cancellation at period end (NOT immediate cancellation)
     const stripe = getStripe();
-    console.log(
-      `[cancelSubscription] Updating Stripe subscription: ${stripeSubscriptionId}`,
-    );
+    const existingSubscription =
+      await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    const subscription = await stripe.subscriptions.update(
-      stripeSubscriptionId,
-      {
-        cancel_at_period_end: true,
-      },
-    );
+    const subscription = await stripe.subscriptions.update(stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    });
 
-    console.log(
-      `[cancelSubscription] Stripe updated successfully, cancel_at_period_end: ${subscription.cancel_at_period_end}`,
-    );
-
-    // Update user document with cancellation info
     const currentPeriodEnd = new Date(
       (subscription as any).current_period_end * 1000,
     ).toISOString();
+    const nowIso = new Date().toISOString();
 
-    await userRef.update({
-      cancelAtPeriodEnd: true,
-      cancelScheduledAt: new Date().toISOString(),
-      currentPeriodEnd: currentPeriodEnd,
-    });
+    await Promise.all([
+      tenantRef.set(
+        {
+          stripeSubscriptionId: subscription.id,
+          cancelAtPeriodEnd: true,
+          cancelScheduledAt: nowIso,
+          currentPeriodEnd,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      ),
+      userRef.set(
+        {
+          stripeSubscriptionId: subscription.id,
+          cancelAtPeriodEnd: true,
+          cancelScheduledAt: nowIso,
+          currentPeriodEnd,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      ),
+    ]);
 
-    console.log(`[cancelSubscription] Firestore updated for user: ${userId}`);
+    console.log(
+      `[cancelSubscription] cancellation scheduled`,
+      JSON.stringify({ userId, tenantId, subscriptionId: subscription.id }),
+    );
 
     return res.json({
       success: true,
@@ -189,8 +517,9 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error("[cancelSubscription] Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message, success: false });
+    return res
+      .status(getErrorStatus(error))
+      .json({ message: getErrorMessage(error), success: false });
   }
 };
 
@@ -199,11 +528,26 @@ export const createAddonCheckoutSession = async (
   res: Response,
 ) => {
   try {
-    const { addonId, userEmail, tenantId: bodyTenantId } = req.body;
-    const userId = (req as any).user!.uid;
+    const {
+      userId,
+      tenantId,
+      userRef,
+      userSnap,
+      tenantRef,
+      tenantSnap,
+      customerId: contextCustomerId,
+    } = await resolveStripeUserContext(req);
+    const addonId = resolveAddonId(req.body?.addonId);
+    if (typeof req.body?.userId === "string" && req.body.userId !== userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const userEmail = isSafeEmail(req.body?.userEmail)
+      ? req.body.userEmail.trim()
+      : undefined;
 
     if (!addonId) {
-      return res.status(400).json({ message: "Addon ID is required" });
+      return res.status(400).json({ message: "Valid addon ID is required" });
     }
 
     const priceId = getPriceIdForAddon(addonId);
@@ -215,47 +559,109 @@ export const createAddonCheckoutSession = async (
     }
 
     const stripe = getStripe();
-    let customerId = (req as any).user!.stripeId;
-    const userRef = db.collection("users").doc(userId);
+    let customerId = contextCustomerId;
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
 
-    // Only fetch if missing or if we need tenantId
-    let userSnap: FirebaseFirestore.DocumentSnapshot | undefined;
-
-    // Always fetch user data to get tenantId if not provided
-    userSnap = await userRef.get();
-
-    let tenantId = bodyTenantId;
-    if (userSnap && userSnap.exists) {
-      customerId = userSnap.data()?.stripeId;
-      if (!tenantId) {
-        tenantId = userSnap.data()?.tenantId;
-      }
-    }
-
-    // Fallback if tenantId is still missing
-    if (!tenantId) {
-      tenantId = `tenant_${userId}`;
-    }
-
-    if (!userSnap.exists) {
-      // Create basic user doc if missing
-      const newUserData = {
-        email: userEmail || "",
-        role: "free",
-        createdAt: new Date().toISOString(),
-        tenantId: tenantId,
-      };
-      await userRef.set(newUserData);
-    }
+    customerId =
+      customerId ||
+      String(userData?.stripeId || "").trim() ||
+      String(tenantData?.stripeCustomerId || "").trim() ||
+      undefined;
 
     if (!customerId) {
       // Create stripe customer if not exists
+      const fallbackEmail = isSafeEmail(userData?.email)
+        ? String(userData?.email).trim()
+        : isSafeEmail(req.user?.email)
+          ? String(req.user?.email).trim()
+          : undefined;
       const customer = await stripe.customers.create({
-        email: userEmail,
-        metadata: { firebaseUID: userId },
+        email: userEmail || fallbackEmail,
+        metadata: { firebaseUID: userId, tenantId },
       });
       customerId = customer.id;
-      await userRef.update({ stripeId: customerId });
+      const nowIso = new Date().toISOString();
+      await Promise.all([
+        userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        tenantRef.set(
+          { stripeCustomerId: customerId, updatedAt: nowIso },
+          { merge: true },
+        ),
+      ]);
+    }
+
+    const addonDocId = `${tenantId}_${addonId}`;
+    const addonRef = db.collection("addons").doc(addonDocId);
+    const existingAddonSnap = await addonRef.get();
+    const existingAddonData = existingAddonSnap.exists
+      ? (existingAddonSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const existingAddonSubscriptionId = String(
+      existingAddonData?.stripeSubscriptionId || "",
+    ).trim();
+
+    if (existingAddonSubscriptionId) {
+      try {
+        const existingAddonSubscription = await stripe.subscriptions.retrieve(
+          existingAddonSubscriptionId,
+        );
+        assertSubscriptionOwnership(
+          existingAddonSubscription,
+          tenantId,
+          customerId,
+        );
+
+        if (
+          ["active", "trialing", "past_due"].includes(
+            String(existingAddonSubscription.status || ""),
+          )
+        ) {
+          if (existingAddonSubscription.cancel_at_period_end) {
+            const reactivatedSubscription = await stripe.subscriptions.update(
+              existingAddonSubscription.id,
+              { cancel_at_period_end: false },
+            );
+            await addonRef.set(
+              {
+                tenantId,
+                addonType: addonId,
+                stripeSubscriptionId: reactivatedSubscription.id,
+                status:
+                  reactivatedSubscription.status === "past_due"
+                    ? "past_due"
+                    : "active",
+                cancelAtPeriodEnd: false,
+                cancelScheduledAt: null,
+                currentPeriodEnd: new Date(
+                  (reactivatedSubscription as any).current_period_end * 1000,
+                ).toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true },
+            );
+
+            return res.json({
+              success: true,
+              message: "Add-on reactivated successfully",
+            });
+          }
+
+          return res.json({
+            success: true,
+            message: "Add-on is already active",
+          });
+        }
+      } catch (existingAddonError) {
+        console.warn(
+          "[createAddonCheckoutSession] Existing addon subscription check failed; creating new checkout session.",
+          existingAddonError,
+        );
+      }
     }
 
     const appOrigin = resolveRequestOrigin(req);
@@ -274,22 +680,36 @@ export const createAddonCheckoutSession = async (
     return res.json({ url: session.url });
   } catch (error: unknown) {
     console.error("Stripe Addon Checkout Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    const { planTier, userEmail, billingInterval = "monthly" } = req.body;
-    const userId = (req as any).user!.uid;
+    const {
+      userId,
+      tenantId,
+      userRef,
+      userSnap,
+      tenantRef,
+      tenantSnap,
+      customerId: contextCustomerId,
+    } = await resolveStripeUserContext(req);
+    const planTier = String(req.body?.planTier || "").trim();
+    const userEmail = req.body?.userEmail;
+    const rawBillingInterval = String(req.body?.billingInterval || "monthly")
+      .toLowerCase()
+      .trim();
+    if (typeof req.body?.userId === "string" && req.body.userId !== userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
     if (!planTier) {
       return res.status(400).json({ message: "Plan tier is required" });
     }
 
     const validInterval: BillingInterval =
-      billingInterval === "yearly" ? "yearly" : "monthly";
+      rawBillingInterval === "yearly" ? "yearly" : "monthly";
     const priceId = getPriceIdForTier(planTier, validInterval);
 
     if (!priceId) {
@@ -299,40 +719,193 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     }
 
     const stripe = getStripe();
-    let customerId = (req as any).user!.stripeId;
-    const userRef = db.collection("users").doc(userId);
+    const targetPlanPrice = await stripe.prices.retrieve(priceId);
+    const targetPlanRecurring = targetPlanPrice.recurring;
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const legacySubscriptionId = String(
+      (userData as { subscription?: { id?: string } } | undefined)?.subscription
+        ?.id || "",
+    ).trim();
+    const existingStripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        legacySubscriptionId ||
+        "",
+    ).trim();
 
-    // Only fetch if missing
-    let userSnap: FirebaseFirestore.DocumentSnapshot | undefined;
-    if (!customerId) {
-      userSnap = await userRef.get();
-    }
+    let customerId =
+      contextCustomerId ||
+      String(userData?.stripeId || "").trim() ||
+      String(tenantData?.stripeCustomerId || "").trim() ||
+      undefined;
 
-    // let customerId: string | undefined; // Removed
+    if (existingStripeSubscriptionId) {
+      const existingSubscription = await stripe.subscriptions.retrieve(
+        existingStripeSubscriptionId,
+      );
+      assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    if (userSnap && !userSnap.exists) {
-      // Create basic user doc if missing
-      const newUserData = {
-        email: userEmail || "",
-        role: "free",
-        createdAt: new Date().toISOString(),
-        tenantId: `tenant_${userId}`,
-      };
-      await userRef.set(newUserData);
-    } else if (userSnap) {
-      customerId = userSnap.data()?.stripeId;
-      // If user has subscription, logic to handle upgrade/downgrade should be here
-      // For now, following the simple checkout flow
+      const currentPlanItem = getPrimaryPlanSubscriptionItem(existingSubscription);
+      if (!currentPlanItem) {
+        return res.status(400).json({
+          message: "Could not resolve current plan subscription item",
+        });
+      }
+
+      if (
+        currentPlanItem.price.id === priceId &&
+        !existingSubscription.cancel_at_period_end
+      ) {
+        return res.json({
+          success: true,
+          message: "Subscription already configured with requested plan",
+        });
+      }
+
+      const billingCycleAnchor = resolvePlanChangeBillingCycleAnchor({
+        currentRecurring: currentPlanItem.price.recurring,
+        targetRecurring: targetPlanRecurring,
+      });
+
+      const updatedSubscription = await stripe.subscriptions.update(
+        existingSubscription.id,
+        {
+          cancel_at_period_end: false,
+          proration_behavior: "always_invoice",
+          billing_cycle_anchor: billingCycleAnchor,
+          items: existingSubscription.items.data.map((item) => {
+            const shouldDeleteForMismatch =
+              item.id !== currentPlanItem.id &&
+              hasRecurringMismatch(targetPlanRecurring, item.price.recurring);
+
+            if (shouldDeleteForMismatch) {
+              return { id: item.id, deleted: true };
+            }
+
+            if (item.id === currentPlanItem.id) {
+              return { id: item.id, price: priceId };
+            }
+
+            return { id: item.id };
+          }),
+          metadata: {
+            ...existingSubscription.metadata,
+            userId,
+            tenantId,
+            planTier,
+            billingInterval: validInterval,
+          },
+        },
+      );
+
+      const overageItemId = await addWhatsAppOverageToSubscription(
+        updatedSubscription.id,
+      );
+      const hydratedSubscription = overageItemId
+        ? await stripe.subscriptions.retrieve(updatedSubscription.id)
+        : updatedSubscription;
+
+      const status = mapStripeSubscriptionStatus(hydratedSubscription.status);
+      const currentPeriodEnd = new Date(
+        (hydratedSubscription as any).current_period_end * 1000,
+      );
+      const effectiveCustomerId =
+        getStripeCustomerId(
+          hydratedSubscription.customer as string | Stripe.Customer | null,
+        ) || customerId;
+
+      const effectivePlanItem = getPrimaryPlanSubscriptionItem(hydratedSubscription);
+      const interval = effectivePlanItem?.price?.recurring?.interval;
+      const intervalForUserPlan = interval === "year" ? "year" : "month";
+
+      await updateUserPlan(
+        userId,
+        planTier,
+        hydratedSubscription.id,
+        intervalForUserPlan,
+        currentPeriodEnd,
+        hydratedSubscription.cancel_at_period_end,
+      );
+
+      const whatsappItem = hydratedSubscription.items.data.find(
+        (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+      );
+
+      await upsertTenantStripeBillingData({
+        tenantId,
+        stripeCustomerId: effectiveCustomerId,
+        stripeSubscriptionId: hydratedSubscription.id,
+        whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+        whatsappOverageSubscriptionItemId: whatsappItem?.id,
+      });
+
+      await Promise.all([
+        tenantRef.set(
+          {
+            stripeCustomerId: effectiveCustomerId || null,
+            stripeSubscriptionId: hydratedSubscription.id,
+            subscriptionStatus: status.toLowerCase(),
+            currentPeriodEnd: currentPeriodEnd.toISOString(),
+            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        ),
+        userRef.set(
+          {
+            stripeId: effectiveCustomerId || null,
+            stripeSubscriptionId: hydratedSubscription.id,
+            subscriptionStatus: status.toLowerCase(),
+            currentPeriodEnd: currentPeriodEnd.toISOString(),
+            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+            billingInterval: validInterval,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        ),
+      ]);
+
+      await updateSubscriptionStatus(
+        userId,
+        status,
+        "Plan change with proration",
+        currentPeriodEnd,
+        hydratedSubscription.cancel_at_period_end,
+      );
+
+      return res.json({
+        success: true,
+        message: "Plan changed successfully with proration",
+      });
     }
 
     if (!customerId) {
       // Create stripe customer if not exists
+      const fallbackEmail = isSafeEmail(userEmail)
+        ? userEmail.trim()
+        : isSafeEmail(userData?.email)
+          ? String(userData?.email).trim()
+          : isSafeEmail(req.user?.email)
+            ? String(req.user?.email).trim()
+            : undefined;
       const customer = await stripe.customers.create({
-        email: userEmail,
-        metadata: { firebaseUID: userId },
+        email: fallbackEmail,
+        metadata: { firebaseUID: userId, tenantId },
       });
       customerId = customer.id;
-      await userRef.update({ stripeId: customerId });
+      const nowIso = new Date().toISOString();
+      await Promise.all([
+        userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        tenantRef.set(
+          { stripeCustomerId: customerId, updatedAt: nowIso },
+          { merge: true },
+        ),
+      ]);
     }
 
     const appOrigin = resolveRequestOrigin(req);
@@ -341,27 +914,30 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       mode: "subscription",
       payment_method_types: ["card"],
       customer: customerId,
-      line_items: [
-        { price: priceId, quantity: 1 },
-        { price: WHATSAPP_OVERAGE_PRICE_ID }, // WhatsApp Overage Metered Price
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appOrigin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/subscribe`,
-      metadata: { userId, planTier, billingInterval: validInterval },
+      metadata: { userId, tenantId, planTier, billingInterval: validInterval },
       allow_promotion_codes: true,
     });
 
     return res.json({ url: session.url });
   } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
 export const confirmCheckoutSession = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user!.uid;
+    const {
+      userId,
+      tenantId,
+      customerId: contextCustomerId,
+      userRef,
+      userSnap,
+      tenantRef,
+    } = await resolveStripeUserContext(req);
     const { sessionId } = req.body as { sessionId?: string };
 
     if (!sessionId) {
@@ -382,11 +958,40 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid checkout session mode" });
     }
 
+    if (session.status !== "complete") {
+      return res.status(400).json({ message: "Checkout session is not complete" });
+    }
+
+    if (
+      session.payment_status !== "paid" &&
+      session.payment_status !== "no_payment_required"
+    ) {
+      return res.status(400).json({ message: "Checkout payment not confirmed" });
+    }
+
     const metadataUserId = session.metadata?.userId;
     if (metadataUserId && metadataUserId !== userId) {
       return res
         .status(403)
         .json({ message: "Session does not belong to authenticated user" });
+    }
+    const metadataTenantId = String(session.metadata?.tenantId || "").trim();
+    if (metadataTenantId && metadataTenantId !== tenantId) {
+      return res.status(403).json({ message: "Session tenant mismatch" });
+    }
+    if (session.metadata?.type === "addon") {
+      return res.status(400).json({ message: "Use addon confirmation flow" });
+    }
+
+    const sessionCustomerId = getStripeCustomerId(
+      session.customer as string | Stripe.Customer | null,
+    );
+    if (
+      contextCustomerId &&
+      sessionCustomerId &&
+      contextCustomerId !== sessionCustomerId
+    ) {
+      return res.status(403).json({ message: "Stripe customer mismatch" });
     }
 
     let subscription =
@@ -400,8 +1005,15 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         .json({ message: "No subscription found for session" });
     }
 
+    assertSubscriptionOwnership(
+      subscription as Stripe.Subscription,
+      tenantId,
+      contextCustomerId || sessionCustomerId,
+    );
+
     const planTier = session.metadata?.planTier;
-    const interval = subscription.items.data[0]?.price.recurring?.interval;
+    const primaryPlanItem = getPrimaryPlanSubscriptionItem(subscription);
+    const interval = primaryPlanItem?.price.recurring?.interval;
 
     if (planTier) {
       await updateUserPlan(
@@ -418,7 +1030,6 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         .doc(userId)
         .update({
           stripeSubscriptionId: subscription.id,
-          role: "admin",
           currentPeriodEnd: new Date(
             (subscription as any).current_period_end * 1000,
           ).toISOString(),
@@ -439,21 +1050,44 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
-    const userSnap = await db.collection("users").doc(userId).get();
-    const userData = userSnap.data();
-    const tenantId = userData?.tenantId || userData?.companyId || `tenant_${userId}`;
-    const sessionCustomerId =
-      typeof session.customer === "string"
-        ? session.customer
-        : session.customer?.id || userData?.stripeId;
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const effectiveCustomerId =
+      sessionCustomerId ||
+      contextCustomerId ||
+      String(userData?.stripeId || "").trim();
 
     await upsertTenantStripeBillingData({
       tenantId,
-      stripeCustomerId: sessionCustomerId,
+      stripeCustomerId: effectiveCustomerId,
       stripeSubscriptionId: subscription.id,
       whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
       whatsappOverageSubscriptionItemId: whatsappItem?.id,
     });
+
+    await Promise.all([
+      tenantRef.set(
+        {
+          stripeCustomerId: effectiveCustomerId || null,
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      ),
+      userRef.set(
+        {
+          stripeId: effectiveCustomerId || null,
+          stripeSubscriptionId: subscription.id,
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      ),
+    ]);
 
     await updateSubscriptionStatus(
       userId,
@@ -471,17 +1105,206 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
     });
   } catch (error: unknown) {
     console.error("Confirm Checkout Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
+  }
+};
+
+export const previewPlanChange = async (req: Request, res: Response) => {
+  try {
+    const {
+      userId,
+      tenantId,
+      userSnap,
+      tenantSnap,
+      customerId: contextCustomerId,
+    } = await resolveStripeUserContext(req);
+
+    if (typeof req.body?.userId === "string" && req.body.userId !== userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const planTier = String(req.body?.newPlanTier || req.body?.planTier || "")
+      .trim()
+      .toLowerCase();
+    const rawBillingInterval = String(req.body?.billingInterval || "monthly")
+      .toLowerCase()
+      .trim();
+    const validInterval: BillingInterval =
+      rawBillingInterval === "yearly" ? "yearly" : "monthly";
+
+    if (!planTier) {
+      return res.status(400).json({ message: "Plan tier is required" });
+    }
+
+    const newPriceId = getPriceIdForTier(planTier, validInterval);
+    if (!newPriceId) {
+      return res
+        .status(400)
+        .json({ message: "Invalid plan tier or price not configured" });
+    }
+
+    const stripe = getStripe();
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const legacySubscriptionId = String(
+      (userData as { subscription?: { id?: string } } | undefined)?.subscription
+        ?.id || "",
+    ).trim();
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        legacySubscriptionId ||
+        "",
+    ).trim();
+
+    if (!stripeSubscriptionId) {
+      return res.json({
+        amountDue: 0,
+        currency: "brl",
+        isNewSubscription: true,
+      });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    assertSubscriptionOwnership(subscription, tenantId, contextCustomerId);
+
+    const customerId =
+      getStripeCustomerId(subscription.customer as string | Stripe.Customer | null) ||
+      contextCustomerId;
+    if (!customerId) {
+      return res.status(400).json({ message: "Stripe customer not found" });
+    }
+
+    const currentPlanItem = getPrimaryPlanSubscriptionItem(subscription);
+    if (!currentPlanItem) {
+      return res.status(400).json({ message: "Current plan item not found" });
+    }
+
+    const currentPriceAmount = Number(currentPlanItem.price.unit_amount || 0) / 100;
+    const newPrice = await stripe.prices.retrieve(newPriceId);
+    const newPriceAmount = Number(newPrice.unit_amount || 0) / 100;
+    const newPlanRecurring = newPrice.recurring;
+    const previewBillingCycleAnchor = resolvePlanChangeBillingCycleAnchor({
+      currentRecurring: currentPlanItem.price.recurring,
+      targetRecurring: newPlanRecurring,
+    });
+
+    const projectedItems = subscription.items.data.map((item) => {
+      const shouldDeleteForMismatch =
+        item.id !== currentPlanItem.id &&
+        hasRecurringMismatch(newPlanRecurring, item.price.recurring);
+
+      if (shouldDeleteForMismatch) {
+        return { id: item.id, deleted: true };
+      }
+
+      if (item.id === currentPlanItem.id) {
+        return { id: item.id, price: newPriceId };
+      }
+
+      return { id: item.id };
+    });
+
+    const upcomingInvoice = await stripe.invoices.retrieveUpcoming({
+      customer: customerId,
+      subscription: subscription.id,
+      subscription_details: {
+        proration_behavior: "always_invoice",
+        billing_cycle_anchor: previewBillingCycleAnchor,
+        items: projectedItems,
+      },
+    });
+
+    const amountDueRaw = Number(upcomingInvoice.amount_due || 0) / 100;
+    const amountDue = Math.max(amountDueRaw, 0);
+    const creditAmount = Math.max(-amountDueRaw, 0);
+
+    let paymentMethod: {
+      brand: string;
+      last4: string;
+      expMonth: number;
+      expYear: number;
+    } | null = null;
+
+    const defaultPaymentMethod =
+      typeof subscription.default_payment_method === "string"
+        ? subscription.default_payment_method
+        : subscription.default_payment_method?.id;
+
+    if (defaultPaymentMethod) {
+      const pm = await stripe.paymentMethods.retrieve(defaultPaymentMethod);
+      if (pm.type === "card" && pm.card) {
+        paymentMethod = {
+          brand: pm.card.brand,
+          last4: pm.card.last4,
+          expMonth: pm.card.exp_month,
+          expYear: pm.card.exp_year,
+        };
+      }
+    }
+
+    const nextBillingDate = new Date(
+      (subscription as any).current_period_end * 1000,
+    ).toLocaleDateString("pt-BR");
+
+    return res.json({
+      amountDue,
+      currency: String(upcomingInvoice.currency || "brl").toLowerCase(),
+      isNewSubscription: false,
+      preview: {
+        currentPlan: {
+          tier: String(subscription.metadata?.planTier || "atual"),
+          price: currentPriceAmount,
+          interval:
+            currentPlanItem.price.recurring?.interval === "year"
+              ? "yearly"
+              : "monthly",
+        },
+        newPlan: {
+          tier: planTier,
+          price: newPriceAmount,
+          interval: validInterval,
+        },
+        amountDue,
+        creditAmount,
+        isUpgrade: amountDue > 0 || newPriceAmount > currentPriceAmount,
+        isDowngrade: creditAmount > 0 || newPriceAmount < currentPriceAmount,
+        paymentMethod,
+        nextBillingDate,
+      },
+    });
+  } catch (error: unknown) {
+    console.error("Preview Plan Change Error:", error);
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
 export const createPortalSession = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user!.uid;
-    const userSnap = await db.collection("users").doc(userId).get();
-    let stripeId = userSnap.data()?.stripeId;
-    const userData = userSnap.data();
+    const {
+      userId,
+      tenantId,
+      userRef,
+      userSnap,
+      tenantRef,
+      tenantSnap,
+      customerId: contextCustomerId,
+    } = await resolveStripeUserContext(req);
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    let stripeId =
+      contextCustomerId ||
+      String(tenantData?.stripeCustomerId || "").trim() ||
+      String(userData?.stripeId || "").trim() ||
+      undefined;
 
     const stripe = getStripe();
 
@@ -490,23 +1313,32 @@ export const createPortalSession = async (req: Request, res: Response) => {
       console.log(
         `[createPortalSession] Missing stripeId for user ${userId}. Creating new customer...`,
       );
-      const email = userData?.email;
-
-      if (!email) {
-        return res
-          .status(400)
-          .json({ message: "User email required to create Stripe customer" });
-      }
+      const email = isSafeEmail(userData?.email)
+        ? String(userData?.email).trim()
+        : isSafeEmail(req.user?.email)
+          ? String(req.user?.email).trim()
+          : undefined;
 
       const customer = await stripe.customers.create({
-        email: email,
-        metadata: { firebaseUID: userId },
+        email,
+        metadata: { firebaseUID: userId, tenantId },
       });
 
       stripeId = customer.id;
 
       // Save for future use
-      await db.collection("users").doc(userId).update({ stripeId });
+      const nowIso = new Date().toISOString();
+      await Promise.all([
+        userRef.set({ stripeId, updatedAt: nowIso }, { merge: true }),
+        tenantRef.set(
+          { stripeCustomerId: stripeId, updatedAt: nowIso },
+          { merge: true },
+        ),
+      ]);
+    }
+
+    if (!stripeId) {
+      throw new Error("BAD_REQUEST");
     }
 
     const appOrigin = resolveRequestOrigin(req);
@@ -519,8 +1351,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
     return res.json({ url: session.url });
   } catch (error: unknown) {
     console.error("Portal Session Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
@@ -688,18 +1519,31 @@ export const getPlans = async (_req: Request, res: Response) => {
 
 export const syncSubscription = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user!.uid;
-    const userRef = db.collection("users").doc(userId);
-    const userSnap = await userRef.get();
-    const userData = userSnap.data();
+    const {
+      userId,
+      tenantId,
+      customerId,
+      userRef,
+      userSnap,
+      tenantRef,
+      tenantSnap,
+    } = await resolveStripeUserContext(req);
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const legacySubscriptionId = String(
+      (userData as { subscription?: { id?: string } })?.subscription?.id || "",
+    ).trim();
 
-    if (!userData) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Try to find subscription ID from various fields
-    const stripeSubscriptionId =
-      userData.stripeSubscriptionId || userData.subscription?.id;
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        legacySubscriptionId ||
+        "",
+    ).trim();
 
     if (!stripeSubscriptionId) {
       return res.status(400).json({ message: "No active subscription found" });
@@ -720,6 +1564,7 @@ export const syncSubscription = async (req: Request, res: Response) => {
     if (!subscription) {
       return res.status(404).json({ message: "Subscription not found" });
     }
+    assertSubscriptionOwnership(subscription, tenantId, customerId);
 
     const status = mapStripeSubscriptionStatus(subscription.status);
 
@@ -735,6 +1580,30 @@ export const syncSubscription = async (req: Request, res: Response) => {
       subscription.cancel_at_period_end,
     );
 
+    await Promise.all([
+      tenantRef.set(
+        {
+          stripeSubscriptionId,
+          stripeCustomerId: getStripeCustomerId(
+            subscription.customer as string | Stripe.Customer | null,
+          ),
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      ),
+      userRef.set(
+        {
+          stripeSubscriptionId,
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      ),
+    ]);
+
     return res.json({
       success: true,
       data: {
@@ -744,14 +1613,15 @@ export const syncSubscription = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Sync Subscription Error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };
 
 export const syncAllSubscriptions = async (req: Request, res: Response) => {
   try {
-    if (!(await hasSuperAdminRole(req))) {
+    try {
+      assertSuperAdminClaim(req);
+    } catch {
       return res
         .status(403)
         .json({ message: "Only superadmin can run batch sync" });
@@ -780,7 +1650,6 @@ export const syncAllSubscriptions = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Batch sync subscriptions error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return res.status(500).json({ message });
+    return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
   }
 };

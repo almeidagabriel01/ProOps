@@ -1,6 +1,26 @@
 import crypto from "crypto";
 import { Timestamp } from "firebase-admin/firestore";
 import { WhatsAppStatus } from "./whatsapp.types";
+import {
+  parseCommaSeparatedHosts,
+  validateOutboundUrl,
+} from "../../security/url-security";
+
+const DEFAULT_WHATSAPP_PDF_ALLOWED_HOSTS = [
+  "firebasestorage.googleapis.com",
+  "firebasestorage.app",
+  "storage.googleapis.com",
+];
+const WHATSAPP_PDF_ALLOWED_HOSTS = (() => {
+  const configuredHosts = parseCommaSeparatedHosts(
+    process.env.WHATSAPP_PDF_ALLOWED_HOSTS,
+  );
+  return configuredHosts.length > 0
+    ? configuredHosts
+    : DEFAULT_WHATSAPP_PDF_ALLOWED_HOSTS;
+})();
+const URL_ACCESS_TIMEOUT_MS = 5000;
+const MAX_DOWNLOADABLE_PDF_BYTES = 10 * 1024 * 1024;
 
 export function verifyWhatsAppSignature(
   rawBody: string | Buffer,
@@ -274,12 +294,58 @@ export function parseStoragePathFromUrl(value: string): string | null {
   return null;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+async function validateWhatsAppPdfUrl(
+  url: string,
+): Promise<{ ok: true; url: string } | { ok: false }> {
+  const validation = await validateOutboundUrl(url, {
+    allowedHosts: WHATSAPP_PDF_ALLOWED_HOSTS,
+    allowHttp: process.env.NODE_ENV !== "production",
+    allowLocalAddresses: process.env.NODE_ENV !== "production",
+    maxUrlLength: 2048,
+  });
+
+  if (!validation.ok) {
+    console.warn("[WhatsApp] Blocked outbound URL:", {
+      reason: validation.reason,
+      statusCode: validation.statusCode,
+    });
+    return { ok: false };
+  }
+
+  return { ok: true, url: validation.normalizedUrl };
+}
+
 export async function isUrlAccessible(url: string): Promise<boolean> {
   const trimmedUrl = String(url || "").trim();
   if (!trimmedUrl) return false;
 
+  const validated = await validateWhatsAppPdfUrl(trimmedUrl);
+  if (!validated.ok) return false;
+
   try {
-    const response = await fetch(trimmedUrl, { method: "HEAD" });
+    const response = await fetchWithTimeout(
+      validated.url,
+      {
+        method: "HEAD",
+        redirect: "error",
+      },
+      URL_ACCESS_TIMEOUT_MS,
+    );
     if (response.ok) return true;
     if (response.status !== 405) return false;
   } catch {
@@ -287,13 +353,71 @@ export async function isUrlAccessible(url: string): Promise<boolean> {
   }
 
   try {
-    const response = await fetch(trimmedUrl, {
-      method: "GET",
-      headers: { Range: "bytes=0-0" },
-    });
+    const response = await fetchWithTimeout(
+      validated.url,
+      {
+        method: "GET",
+        redirect: "error",
+        headers: { Range: "bytes=0-0" },
+      },
+      URL_ACCESS_TIMEOUT_MS,
+    );
     return response.ok || response.status === 206;
   } catch {
     return false;
+  }
+}
+
+export async function downloadPdfFromSafeUrl(url: string): Promise<Buffer | null> {
+  const trimmedUrl = String(url || "").trim();
+  if (!trimmedUrl) return null;
+
+  const validated = await validateWhatsAppPdfUrl(trimmedUrl);
+  if (!validated.ok) return null;
+
+  try {
+    const response = await fetchWithTimeout(
+      validated.url,
+      {
+        method: "GET",
+        redirect: "error",
+      },
+      URL_ACCESS_TIMEOUT_MS,
+    );
+
+    if (!response.ok) return null;
+
+    const contentLengthHeader = response.headers.get("content-length");
+    const contentLength = Number(contentLengthHeader || "0");
+    if (
+      Number.isFinite(contentLength) &&
+      contentLength > MAX_DOWNLOADABLE_PDF_BYTES
+    ) {
+      return null;
+    }
+
+    const contentTypeHeader = response.headers.get("content-type") || "";
+    const normalizedContentType = contentTypeHeader
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (
+      normalizedContentType &&
+      normalizedContentType !== "application/pdf" &&
+      normalizedContentType !== "application/octet-stream"
+    ) {
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    if (buffer.length === 0 || buffer.length > MAX_DOWNLOADABLE_PDF_BYTES) {
+      return null;
+    }
+
+    return buffer;
+  } catch {
+    return null;
   }
 }
 

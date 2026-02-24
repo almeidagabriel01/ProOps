@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createCheckoutSession,
   confirmCheckoutSession,
+  previewPlanChange,
   createAddonCheckoutSession,
   createPortalSession,
   getPlans,
@@ -15,6 +16,7 @@ const router = Router();
 const publicRouter = Router();
 
 router.post("/checkout", createCheckoutSession);
+router.post("/preview", previewPlanChange);
 router.post("/confirm-checkout", confirmCheckoutSession);
 router.post("/checkout-addon", createAddonCheckoutSession);
 router.post("/cancel", cancelAddon);

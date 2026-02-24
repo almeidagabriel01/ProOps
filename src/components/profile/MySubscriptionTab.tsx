@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 
 import {
   Card,
@@ -146,7 +146,22 @@ export function MySubscriptionTab({
   const billingInterval = user?.billingInterval || "monthly";
   const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
   const isManualSubscription = user?.isManualSubscription;
+  const hasStripeCustomer = !!user?.stripeCustomerId;
   const hasStripeSubscription = !!user?.stripeSubscriptionId;
+  const hasBillingStatusHistory = [
+    "active",
+    "trialing",
+    "past_due",
+    "unpaid",
+    "payment_failed",
+    "canceled",
+  ].includes(String(rawSubscriptionStatus || "").toLowerCase());
+  const hasBillingEvidence =
+    hasStripeCustomer ||
+    hasStripeSubscription ||
+    Boolean(currentPeriodEnd) ||
+    hasBillingStatusHistory;
+  const showManualTag = Boolean(isManualSubscription) && !hasBillingEvidence;
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [addonToCancel, setAddonToCancel] = useState<string | null>(null);
@@ -162,7 +177,6 @@ export function MySubscriptionTab({
       const { StripeService } = await import("@/services/stripe-service");
       await StripeService.cancelAddon({
         addonId: addonToCancel,
-        tenantId: user?.tenantId,
       });
       toast.success(
         "Módulo cancelado com sucesso. A alteração será refletida em breve.",
@@ -222,11 +236,53 @@ export function MySubscriptionTab({
   // Show billing info only for real Stripe subscriptions (not manual ones)
   // Data comes from Stripe webhooks - no hardcoded tier checks
   const showBillingInfo =
-    !isManualSubscription && hasStripeSubscription && currentPeriodEnd;
+    !showManualTag && hasStripeSubscription && currentPeriodEnd;
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    const date = new Date(dateString);
+  const normalizeDate = (value: unknown): Date | null => {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof value === "object") {
+      const asObj = value as {
+        toDate?: () => Date;
+        seconds?: number;
+      };
+
+      if (typeof asObj.toDate === "function") {
+        const parsed = asObj.toDate();
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof asObj.seconds === "number") {
+        const parsed = new Date(asObj.seconds * 1000);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+    }
+
+    return null;
+  };
+
+  const formatDate = (dateInput?: unknown) => {
+    const date = normalizeDate(dateInput);
+    if (!date) return "-";
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const getFormattedDateOrNull = (dateInput?: unknown) => {
+    const date = normalizeDate(dateInput);
+    if (!date) return null;
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "long",
@@ -248,6 +304,38 @@ export function MySubscriptionTab({
     const addon = ADDON_DEFINITIONS.find((a) => a.id === addonId);
     return addon?.name || addonId;
   };
+
+  const addonToCancelInfo = addonToCancel
+    ? addonsData.find((addon) => addon.addonType === addonToCancel)
+    : null;
+  const addonCancelDate = (() => {
+    const purchasedDate = normalizeDate(addonToCancelInfo?.purchasedAt);
+    if (!purchasedDate) {
+      return getFormattedDateOrNull(addonToCancelInfo?.currentPeriodEnd);
+    }
+
+    const now = new Date();
+    // Start with the purchased date, but in the current month and year
+    const nextCycle = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      purchasedDate.getDate(),
+    );
+
+    // If the day in the current month has already passed or is today, the next cycle is next month
+    if (nextCycle <= now) {
+      nextCycle.setMonth(nextCycle.getMonth() + 1);
+    }
+
+    return getFormattedDateOrNull(nextCycle);
+  })();
+
+  const subscriptionCancelDate =
+    getFormattedDateOrNull(currentPeriodEnd) ||
+    getFormattedDateOrNull(user?.subscription?.updatedAt);
+
+  const canCancelSubscription =
+    Boolean(effectivePlan) && !cancelAtPeriodEnd && hasStripeSubscription;
 
   if (!isMaster) {
     return (
@@ -285,14 +373,14 @@ export function MySubscriptionTab({
                       : "Plano Gratuito"}
                   </h2>
                   <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                  {isManualSubscription && (
+                  {showManualTag && (
                     <Badge variant="secondary" className="text-xs">
                       Manual
                     </Badge>
                   )}
                 </div>
                 <p className="text-muted-foreground text-sm mt-1">
-                  {isManualSubscription
+                  {showManualTag
                     ? "Gerenciado pelo administrador"
                     : billingInterval === "yearly"
                       ? "Cobrança anual"
@@ -348,35 +436,33 @@ export function MySubscriptionTab({
           )}
 
           {/* Sync Button for missing billing info */}
-          {!isManualSubscription &&
-            hasStripeSubscription &&
-            !currentPeriodEnd && (
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-3 flex-1">
-                  <AlertCircle className="w-5 h-5 text-amber-500" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-600">
-                      Data de cobrança não disponível
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Sincronize sua assinatura para atualizar os dados.
-                    </p>
-                  </div>
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && (
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-3 flex-1">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-amber-600">
+                    Data de cobrança não disponível
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Sincronize sua assinatura para atualizar os dados.
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="shrink-0"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
-                  />
-                  Sincronizar
-                </Button>
               </div>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="shrink-0"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+                />
+                Sincronizar
+              </Button>
+            </div>
+          )}
 
           {/* What's Included */}
           <div>
@@ -455,6 +541,15 @@ export function MySubscriptionTab({
                     <ExternalLink className="w-3 h-3 ml-1 opacity-50" />
                   </>
                 )}
+              </Button>
+            )}
+            {canCancelSubscription && (
+              <Button
+                variant="outline"
+                className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
+                onClick={() => setSubscriptionToCancel(true)}
+              >
+                Cancelar Assinatura
               </Button>
             )}
           </div>
@@ -645,36 +740,6 @@ export function MySubscriptionTab({
         </CardContent>
       </Card>
 
-      {/* Cancel Subscription Direct - only for Stripe subscriptions */}
-      {effectivePlan && !cancelAtPeriodEnd && !isManualSubscription && (
-        <Card className="border-dashed">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <AlertCircle className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold mb-1">
-                  Precisa cancelar sua assinatura?
-                </h4>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Você pode cancelar a qualquer momento. Seu acesso continua até
-                  o fim do período pago.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSubscriptionToCancel(true)}
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                >
-                  Cancelar Assinatura
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <AlertDialog
         open={!!addonToCancel}
         onOpenChange={(open) => !open && setAddonToCancel(null)}
@@ -689,8 +754,12 @@ export function MySubscriptionTab({
               </strong>
               ?
               <br />
-              <br />O acesso será revogado imediatamente e não haverá cobranças
-              futuras para este item.
+              <br />
+              <br />
+              Seu acesso continuará ativo até{" "}
+              <strong>{addonCancelDate || "o fim do período já pago"}</strong>.
+              Após essa data, o acesso às funcionalidades deste módulo será
+              revogado e não haverá renovação automática.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -733,8 +802,12 @@ export function MySubscriptionTab({
               <strong>{effectivePlan?.name}</strong>?
               <br />
               <br />
-              Seu acesso continuará ativo até o final do período já pago. Após
-              essa data, você será movido para o plano gratuito.
+              Seu acesso continuará ativo até{" "}
+              <strong>
+                {subscriptionCancelDate || "o final do período já pago"}
+              </strong>
+              . Após essa data, sua assinatura não será renovada automaticamente
+              e você será movido para o plano gratuito.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

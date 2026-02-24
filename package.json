@@ -10,7 +10,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "security:claims:backfill": "node scripts/backfill-custom-claims.mjs",
+    "security:claims:validate": "node scripts/validate-custom-claims.mjs",
+    "firestore:ttl:stripe-events": "node scripts/enable-firestore-ttl-stripe-events.mjs",
+    "security:audit:functions": "npm --prefix functions run security:audit:runtime"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard } from "lucide-react";
-import { UserPlan } from "@/types";
+import { BillingInterval, UserPlan } from "@/types";
 import { PlanPreview } from "@/types/plan";
 import { formatPrice } from "@/utils/format";
 
@@ -21,6 +21,7 @@ interface PlanChangeDialogProps {
     preview: PlanPreview | null;
     isLoading: boolean;
     isFirstSubscription: boolean;
+    billingInterval: BillingInterval;
     isProcessing: boolean;
     onConfirm: () => void;
     onManagePayment: () => void;
@@ -33,6 +34,7 @@ export function PlanChangeDialog({
     preview,
     isLoading,
     isFirstSubscription,
+    billingInterval,
     isProcessing,
     onConfirm,
     onManagePayment,
@@ -66,7 +68,14 @@ export function PlanChangeDialog({
                 {isLoading ? (
                     <LoadingState />
                 ) : isFirstSubscription ? (
-                    <FirstSubscriptionContent price={selectedPlan?.price || 0} />
+                    <FirstSubscriptionContent
+                        price={
+                            selectedPlan?.pricing?.[billingInterval] ??
+                            selectedPlan?.price ??
+                            0
+                        }
+                        billingInterval={billingInterval}
+                    />
                 ) : preview ? (
                     <PreviewContent
                         preview={preview}
@@ -108,7 +117,13 @@ function LoadingState() {
     );
 }
 
-function FirstSubscriptionContent({ price }: { price: number }) {
+function FirstSubscriptionContent({
+    price,
+    billingInterval,
+}: {
+    price: number;
+    billingInterval: BillingInterval;
+}) {
     return (
         <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
@@ -116,7 +131,7 @@ function FirstSubscriptionContent({ price }: { price: number }) {
                     Você será redirecionado para a página de pagamento do Stripe.
                 </p>
                 <p className="text-lg font-semibold mt-2">
-                    Valor: {formatPrice(price)}/mês
+                    Valor: {formatPrice(price)}/{billingInterval === "yearly" ? "ano" : "mês"}
                 </p>
             </div>
         </div>

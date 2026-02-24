@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { db } from "../../init";
+import { auth, db } from "../../init";
 import { WebhookPayload } from "../services/whatsapp/whatsapp.types";
 import {
   verifyWhatsAppSignature,
@@ -131,6 +131,32 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const user = { id: userDoc.id, ...userDoc.data() } as any;
+        let effectiveRole = String(user.role || "").toLowerCase().trim();
+
+        try {
+          const userRecord = await auth.getUser(user.id);
+          const claimRole = String(userRecord.customClaims?.role || "")
+            .toLowerCase()
+            .trim();
+          const claimTenantId = String(userRecord.customClaims?.tenantId || "").trim();
+
+          if (claimRole) {
+            effectiveRole = claimRole;
+          }
+
+          if (claimTenantId && claimTenantId !== indexedTenantId) {
+            console.warn("[WhatsApp] claim tenant mismatch", {
+              phone,
+              userId: user.id,
+              claimTenantId,
+              indexTenantId: indexedTenantId,
+            });
+            await sendWhatsAppMessage(from, "Seu numero nao esta vinculado");
+            return res.status(200).send("OK");
+          }
+        } catch (claimError) {
+          console.error("[WhatsApp] Failed to read auth claims", claimError);
+        }
         if (user.status === "inactive") {
           await sendWhatsAppMessage(from, "Seu número não está vinculado");
           return res.status(200).send("OK");
@@ -242,7 +268,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             (t) => normalizedText.includes(t),
           )
         ) {
-          if (!["admin", "superadmin"].includes(user.role)) {
+          if (!["admin", "master", "wk", "superadmin"].includes(effectiveRole)) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
@@ -260,7 +286,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             normalizedText.includes(t),
           )
         ) {
-          if (!["admin", "superadmin"].includes(user.role)) {
+          if (!["admin", "master", "wk", "superadmin"].includes(effectiveRole)) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar o saldo pelo WhatsApp.",

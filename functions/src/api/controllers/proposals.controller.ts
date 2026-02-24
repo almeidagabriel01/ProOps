@@ -1,24 +1,72 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { checkProposalLimit } from "../../lib/billing-helpers";
 import {
-  UserDoc,
   resolveUserAndTenant,
   checkPermission,
 } from "../../lib/auth-helpers";
 import { resolveWalletRef } from "../../lib/finance-helpers";
+import {
+  enforceTenantPlanLimit,
+  buildMonthlyPeriodWindowUtc,
+} from "../../lib/tenant-plan-policy";
+import {
+  incrementSecurityCounter,
+  logSecurityEvent,
+  writeSecurityAuditEvent,
+} from "../../lib/security-observability";
 
 const PROPOSALS_COLLECTION = "proposals";
+const TENANT_USAGE_COLLECTION = "tenant_usage";
+
+type ProposalMonthlyLimitPayload = {
+  code: string;
+  message: string;
+  used: number;
+  limit: number;
+  projected: number;
+  tier: string;
+  source: string;
+  periodStart?: string;
+  periodEnd?: string;
+  resetAt?: string;
+};
+
+class ProposalMonthlyLimitError extends Error {
+  payload: ProposalMonthlyLimitPayload;
+
+  constructor(payload: ProposalMonthlyLimitPayload) {
+    super(payload.message);
+    this.name = "ProposalMonthlyLimitError";
+    this.payload = payload;
+  }
+}
+
+function buildTenantUsageMonthId(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function normalizeMonthlyUsageCount(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.floor(parsed));
+}
 
 export const createProposal = async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.uid;
+  const userId = req.user!.uid;
     const input = req.body;
-    console.log("createProposal payload:", JSON.stringify(input, null, 2));
+    console.log("[createProposal] request received", {
+      userId,
+      status: input?.status,
+      hasProducts: Array.isArray(input?.products),
+    });
 
     // Relaxed validation for drafts
-    const isDraft = input.status === "draft";
+    const normalizedStatus = String(input.status || "draft").trim().toLowerCase();
+    const isDraft = normalizedStatus === "draft";
 
     if (!isDraft) {
       if (!input.title || input.title.trim().length < 3) {
@@ -44,7 +92,6 @@ export const createProposal = async (req: Request, res: Response) => {
     }
 
     const {
-      masterData,
       masterRef,
       tenantId,
       isMaster,
@@ -66,7 +113,6 @@ export const createProposal = async (req: Request, res: Response) => {
 
     // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
     let targetMasterRef = masterRef;
-    let targetMasterData = masterData;
 
     // We already resolved masterData for the logged user (Super Admin).
     // If target is different, we must find the actual master of that tenant.
@@ -87,48 +133,139 @@ export const createProposal = async (req: Request, res: Response) => {
 
       if (ownerDoc) {
         targetMasterRef = db.collection("users").doc(ownerDoc.id);
-        targetMasterData = ownerDoc.data() as UserDoc;
       }
     }
 
-    if (
-      targetMasterData.subscription?.status &&
-      !["ACTIVE", "TRIALING"].includes(targetMasterData.subscription.status)
-    ) {
-      // Optional: check strict status
-    }
-
+    let proposalId = "";
     try {
-      await checkProposalLimit(targetMasterData);
-    } catch (e) {
-      // Allow bypass for Super Admin
-      if (!isSuperAdmin) {
-        const error = e as Error;
-        return res
-          .status(402)
-          .json({ message: error.message, code: "resource-exhausted" });
-      }
-    }
-
-    const proposalId = await db.runTransaction(async (t) => {
+      proposalId = await db.runTransaction(async (t) => {
       // === ALL READS FIRST ===
-      const freshMasterSnap = await t.get(masterRef);
-      const freshMasterData = freshMasterSnap.data() as UserDoc;
+      await t.get(masterRef);
 
       const companyRef = db.collection("companies").doc(userCompanyId);
       const companySnap = await t.get(companyRef);
+      const now = Timestamp.now();
 
-      // Validate limit after reads
-      try {
-        await checkProposalLimit(freshMasterData);
-      } catch (e) {
-        const error = e as Error;
-        throw new Error(error.message);
+      // Monthly proposals quota policy:
+      // count every new proposal except drafts.
+      if (!isDraft) {
+        const period = buildMonthlyPeriodWindowUtc();
+        const monthId = buildTenantUsageMonthId(period.startDate);
+        const monthUsageRef = db
+          .collection(TENANT_USAGE_COLLECTION)
+          .doc(userCompanyId)
+          .collection("months")
+          .doc(monthId);
+
+        try {
+          const monthUsageSnap = await t.get(monthUsageRef);
+          const currentUsage = normalizeMonthlyUsageCount(
+            monthUsageSnap.data()?.proposalsCreated,
+          );
+          const projectedUsage = currentUsage + 1;
+
+          const proposalLimitDecision = await enforceTenantPlanLimit({
+            tenantId: userCompanyId,
+            feature: "maxProposalsPerMonth",
+            currentUsage,
+            usageKnown: true,
+            incrementBy: 1,
+            uid: userId,
+            requestId: req.requestId,
+            route: req.path,
+            isSuperAdmin,
+            periodStart: period.periodStart,
+            periodEnd: period.periodEnd,
+            resetAt: period.resetAt,
+          });
+
+          if (!proposalLimitDecision.allowed) {
+            throw new ProposalMonthlyLimitError({
+              code: proposalLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
+              message:
+                proposalLimitDecision.message ||
+                "Limite mensal de propostas atingido.",
+              used: proposalLimitDecision.currentUsage,
+              limit: proposalLimitDecision.limit,
+              projected: proposalLimitDecision.projectedUsage,
+              tier: proposalLimitDecision.profile.tier,
+              source: proposalLimitDecision.profile.source,
+              periodStart: proposalLimitDecision.periodStart,
+              periodEnd: proposalLimitDecision.periodEnd,
+              resetAt: proposalLimitDecision.resetAt,
+            });
+          }
+
+          t.set(
+            monthUsageRef,
+            {
+              proposalsCreated: projectedUsage,
+              periodStart: period.periodStart,
+              periodEnd: period.periodEnd,
+              resetAt: period.resetAt,
+              updatedAt: now.toDate().toISOString(),
+            },
+            { merge: true },
+          );
+        } catch (monthlyEnforcementError) {
+          if (monthlyEnforcementError instanceof ProposalMonthlyLimitError) {
+            throw monthlyEnforcementError;
+          }
+
+          const failOpenReason =
+            monthlyEnforcementError instanceof Error
+              ? monthlyEnforcementError.message
+              : "MONTHLY_ENFORCEMENT_INTERNAL_ERROR";
+
+          logSecurityEvent(
+            "tenant_plan_monthly_enforcement_fail_open",
+            {
+              requestId: req.requestId,
+              route: req.path,
+              tenantId: userCompanyId,
+              uid: userId,
+              reason: failOpenReason,
+              source: "proposals_controller",
+              status: 200,
+            },
+            "WARN",
+          );
+          void incrementSecurityCounter("plan_limit_would_block", {
+            requestId: req.requestId,
+            route: req.path,
+            tenantId: userCompanyId,
+            uid: userId,
+            reason: "monthly_enforcement_fail_open",
+            source: "proposals_controller",
+            status: 200,
+          });
+          void writeSecurityAuditEvent({
+            eventType: "TENANT_PLAN_MONTHLY_ENFORCEMENT_FAIL_OPEN",
+            requestId: req.requestId,
+            route: req.path,
+            status: 200,
+            tenantId: userCompanyId,
+            uid: userId,
+            reason: failOpenReason,
+            source: "proposals_controller",
+          });
+
+          t.set(
+            monthUsageRef,
+            {
+              proposalsCreated: FieldValue.increment(1),
+              periodStart: period.periodStart,
+              periodEnd: period.periodEnd,
+              resetAt: period.resetAt,
+              updatedAt: now.toDate().toISOString(),
+            },
+            { merge: true },
+          );
+        }
       }
 
       // === ALL WRITES AFTER READS ===
       const newRef = db.collection(PROPOSALS_COLLECTION).doc();
-      const now = Timestamp.now();
 
       t.set(newRef, {
         title: input.title.trim(),
@@ -184,7 +321,24 @@ export const createProposal = async (req: Request, res: Response) => {
       }
 
       return newRef.id;
-    });
+      });
+    } catch (transactionError) {
+      if (transactionError instanceof ProposalMonthlyLimitError) {
+        return res.status(402).json({
+          message: transactionError.payload.message,
+          code: transactionError.payload.code,
+          used: transactionError.payload.used,
+          limit: transactionError.payload.limit,
+          projected: transactionError.payload.projected,
+          tier: transactionError.payload.tier,
+          source: transactionError.payload.source,
+          periodStart: transactionError.payload.periodStart,
+          periodEnd: transactionError.payload.periodEnd,
+          resetAt: transactionError.payload.resetAt,
+        });
+      }
+      throw transactionError;
+    }
 
     return res.status(201).json({
       success: true,
@@ -203,10 +357,11 @@ export const updateProposal = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
     const { id } = req.params;
     const updateData = req.body;
-    console.log(
-      `updateProposal payload for ${id}:`,
-      JSON.stringify(updateData, null, 2),
-    );
+    console.log("[updateProposal] request received", {
+      userId,
+      proposalId: id,
+      updatedFields: Object.keys(updateData || {}),
+    });
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 

@@ -327,7 +327,6 @@ export function buildProxyImageUrl(
   }
 
   const params = new URLSearchParams({
-    tenantId: options.tenantId || "",
     url: rawUrl,
     capture: "1",
   });

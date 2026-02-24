@@ -136,7 +136,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID do produto inválido." });
 
     const { tenantId, isMaster, isSuperAdmin } =
-      await resolveUserAndTenant(userId);
+      await resolveUserAndTenant(userId, req.user);
 
     const productRef = db.collection("products").doc(id);
     const productSnap = await productRef.get();
@@ -211,7 +211,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID do produto obrigatório." });
 
     const { tenantId, isMaster, isSuperAdmin, masterRef } =
-      await resolveUserAndTenant(userId);
+      await resolveUserAndTenant(userId, req.user);
 
     const productRef = db.collection("products").doc(id);
     const productSnap = await productRef.get();

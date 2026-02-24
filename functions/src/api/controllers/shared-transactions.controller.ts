@@ -3,125 +3,122 @@ import { SharedTransactionService } from "../services/shared-transactions.servic
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 
-/**
- * POST /v1/transactions/:id/share-link
- * Gera um link compartilhável para um lançamento financeiro
- */
 export const createShareLink = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id: transactionId } = req.params;
 
     if (!transactionId) {
-      return res.status(400).json({ message: "ID do lançamento é obrigatório" });
+      return res.status(400).json({ message: "ID do lancamento e obrigatorio" });
     }
 
-    // Resolver tenant do usuário
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(
-      userId,
-      req.user,
-    );
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
-    // Buscar lançamento
     const transactionRef = db.collection("transactions").doc(transactionId);
     const transactionSnap = await transactionRef.get();
 
     if (!transactionSnap.exists) {
-      return res.status(404).json({ message: "Lançamento não encontrado" });
+      return res.status(404).json({ message: "Lancamento nao encontrado" });
     }
 
-    const transactionData = transactionSnap.data();
+    const transactionData = transactionSnap.data() as
+      | { tenantId?: string }
+      | undefined;
+    const transactionTenantId = String(transactionData?.tenantId || "").trim();
+    if (!transactionTenantId) {
+      return res.status(412).json({ message: "Lancamento sem tenantId valido" });
+    }
 
-    // Validar acesso (lançamento deve pertencer ao tenant do usuário)
-    if (!isSuperAdmin && transactionData?.tenantId !== tenantId) {
+    if (!isSuperAdmin && transactionTenantId !== tenantId) {
       return res.status(403).json({ message: "Acesso negado" });
     }
 
-    // Gerar link compartilhável
     const result = await SharedTransactionService.createShareLink(
       transactionId,
-      transactionData?.tenantId || tenantId,
+      transactionTenantId,
       userId,
     );
 
     return res.status(201).json({
       success: true,
       ...result,
-      message: "Link compartilhável gerado com sucesso",
+      message: "Link compartilhavel gerado com sucesso",
     });
   } catch (error) {
-    console.error("Error creating share link:", error);
-    const message =
-      error instanceof Error ? error.message : "Erro ao gerar link";
+    console.error("Error creating shared transaction link:", error);
+    const message = error instanceof Error ? error.message : "Erro ao gerar link";
     return res.status(500).json({ message });
   }
 };
 
-/**
- * GET /v1/share/transaction/:token
- * Acessa um lançamento via link público (sem autenticação)
- */
 export const getSharedTransaction = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
 
     if (!token) {
-      return res.status(400).json({ message: "Token inválido" });
+      return res.status(400).json({ message: "Token invalido" });
     }
 
-    // Buscar lançamento compartilhado
     const sharedTransaction = await SharedTransactionService.getSharedTransaction(token);
 
     if (!sharedTransaction) {
-      return res
-        .status(404)
-        .json({ message: "Link não encontrado ou inválido" });
+      return res.status(404).json({ message: "Link nao encontrado ou invalido" });
     }
 
-    // Buscar dados do lançamento
-    const transactionRef = db
-      .collection("transactions")
-      .doc(sharedTransaction.transactionId);
+    const transactionRef = db.collection("transactions").doc(sharedTransaction.transactionId);
     const transactionSnap = await transactionRef.get();
 
     if (!transactionSnap.exists) {
-      return res.status(404).json({ message: "Lançamento não encontrado" });
+      return res.status(404).json({ message: "Lancamento nao encontrado" });
     }
 
-    const transactionData = transactionSnap.data();
+    const transactionData = transactionSnap.data() as
+      | {
+          tenantId?: string;
+          proposalGroupId?: string;
+          installmentGroupId?: string;
+        }
+      | undefined;
 
-    let relatedTransactions: any[] = [];
+    const transactionTenantId = String(transactionData?.tenantId || "").trim();
+    if (!transactionTenantId || transactionTenantId !== sharedTransaction.tenantId) {
+      return res.status(404).json({ message: "Lancamento nao encontrado" });
+    }
+
+    let relatedTransactions: Array<Record<string, unknown>> = [];
     if (transactionData?.proposalGroupId) {
-       const relatedSnap = await db.collection("transactions")
-         .where("proposalGroupId", "==", transactionData.proposalGroupId)
-         .where("tenantId", "==", sharedTransaction.tenantId)
-         .get();
-       relatedTransactions = relatedSnap.docs.map(d => ({id: d.id, ...d.data()}));
+      const relatedSnap = await db
+        .collection("transactions")
+        .where("proposalGroupId", "==", transactionData.proposalGroupId)
+        .where("tenantId", "==", sharedTransaction.tenantId)
+        .get();
+      relatedTransactions = relatedSnap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
     } else if (transactionData?.installmentGroupId) {
-       const relatedSnap = await db.collection("transactions")
-         .where("installmentGroupId", "==", transactionData.installmentGroupId)
-         .where("tenantId", "==", sharedTransaction.tenantId)
-         .get();
-       relatedTransactions = relatedSnap.docs.map(d => ({id: d.id, ...d.data()}));
+      const relatedSnap = await db
+        .collection("transactions")
+        .where("installmentGroupId", "==", transactionData.installmentGroupId)
+        .where("tenantId", "==", sharedTransaction.tenantId)
+        .get();
+      relatedTransactions = relatedSnap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
     }
 
-    // Buscar dados do tenant para branding
     const tenantRef = db.collection("tenants").doc(sharedTransaction.tenantId);
     const tenantSnap = await tenantRef.get();
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    // Registrar visualização
     const viewerData = {
       ip: req.ip || (req.headers["x-forwarded-for"] as string),
       userAgent: req.headers["user-agent"],
     };
 
-    await SharedTransactionService.recordView(
-      sharedTransaction.id,
-      viewerData,
-    );
+    await SharedTransactionService.recordView(sharedTransaction.id, viewerData);
 
-    // Retornar dados da proposta
     return res.status(200).json({
       success: true,
       transaction: {
@@ -143,13 +140,12 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
 
     if (error instanceof Error && error.message === "EXPIRED_LINK") {
       return res.status(410).json({
-        message: "Este link expirou. Solicite um novo link ao responsável.",
+        message: "Este link expirou. Solicite um novo link ao responsavel.",
         code: "EXPIRED_LINK",
       });
     }
 
-    const message =
-      error instanceof Error ? error.message : "Erro ao carregar lançamento";
+    const message = error instanceof Error ? error.message : "Erro ao carregar lancamento";
     return res.status(500).json({ message });
   }
 };

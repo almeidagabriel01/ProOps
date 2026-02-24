@@ -70,6 +70,11 @@ Adicione membros à sua equipe com diferentes níveis de permissão. Controle qu
 - ✅ Backups automáticos diários
 - ✅ Controle de acesso por níveis de permissão
 
+### Segurança de Produção (obrigatório)
+
+- Use apenas placeholders em `.env.example` e `functions/.env.example`.
+- Nunca mantenha segredos reais em arquivos locais do projeto.
+
 ---
 
 <div align="center">

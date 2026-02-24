@@ -32,28 +32,78 @@ service cloud.firestore {
     }
     
     /**
-     * Get the current user's document data
-     * Note: In high-scale, custom claims are preferred to avoid this read. 
-     * However, for strict data consistency without claims sync capability, this is acceptable.
+     * Claims-based tenant source (trusted token claim)
      */
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getAuthTenantId() {
+      return isAuthenticated() ? request.auth.token.get('tenantId', '') : '';
     }
     
     /**
-     * Get the tenant ID for the current user.
-     * Checks 'tenantId' field, with fallback to 'companyId' for legacy data.
+     * Claims-based role source (trusted token claim)
      */
-    function getUserTenantId() {
-      let data = getUserData();
-      return data.get('tenantId', data.get('companyId', ''));
+    function getAuthRole() {
+      return isAuthenticated() ? request.auth.token.get('role', '') : '';
+    }
+
+    /**
+     * Claims-based master source (trusted token claim)
+     */
+    function getAuthMasterId() {
+      return isAuthenticated() ? request.auth.token.get('masterId', '') : '';
+    }
+
+    /**
+     * Bootstrap tenant used during initial registration before claims are minted.
+     */
+    function isBootstrapTenant(tenantId) {
+      return isAuthenticated() && tenantId == 'tenant_' + request.auth.uid;
     }
     
     /**
      * Check if the user belongs to the tenant that owns the resource.
      */
     function belongsToTenant(resourceTenantId) {
-       return getUserTenantId() == resourceTenantId;
+       return isAuthenticated()
+              && getAuthTenantId() != ''
+              && resourceTenantId != ''
+              && getAuthTenantId() == resourceTenantId;
+    }
+
+    /**
+     * Tenant admin roles allowed to manage tenant-scoped records.
+     */
+    function hasTenantAdminRole() {
+      return isAuthenticated()
+             && getAuthRole() in ['admin', 'ADMIN', 'master', 'MASTER', 'wk', 'WK'];
+    }
+
+    /**
+     * Resolve tenant from resource data with legacy companyId fallback.
+     */
+    function tenantFromData(data) {
+      return data.get('tenantId', data.get('companyId', ''));
+    }
+
+    /**
+     * Self-registration user document validation.
+     */
+    function isValidSelfRegistrationUserCreate(userId) {
+      let bootstrapTenant = 'tenant_' + request.auth.uid;
+      return isOwner(userId)
+             && request.resource.data.keys().hasOnly([
+               'name',
+               'email',
+               'photoUrl',
+               'phoneNumber',
+               'role',
+               'tenantId',
+               'companyId',
+               'createdAt',
+               'updatedAt',
+             ])
+             && request.resource.data.get('role', '') in ['free', 'FREE']
+             && request.resource.data.get('tenantId', '') == bootstrapTenant
+             && request.resource.data.get('companyId', bootstrapTenant) == bootstrapTenant;
     }
 
     /**
@@ -61,7 +111,7 @@ service cloud.firestore {
      * Super admins have full read access to all tenant data for administration.
      */
     function isSuperAdmin() {
-      return isAuthenticated() && getUserData().role == 'superadmin';
+      return isAuthenticated() && getAuthRole() in ['superadmin', 'SUPERADMIN'];
     }
 
     /**
@@ -80,19 +130,19 @@ service cloud.firestore {
       // READ: Own profile, Master of this user, Admin of same tenant, Member reading their Master, or Super Admin
       // Using resource.data.get() with default to avoid null errors for non-existent docs
       allow read: if isOwner(userId) 
+                  || isSuperAdmin()
                   || (isAuthenticated() && resource.data.get('masterId', '') == request.auth.uid)
-                  || (isAuthenticated() && getUserData().role in ['admin', 'master', 'ADMIN', 'MASTER', 'Admin', 'Master'] && belongsToTenant(resource.data.get('tenantId', '')))
-                  || (isAuthenticated() && getUserData().get('masterId', '') == userId)
-                  || isSuperAdmin();
+                  || (hasTenantAdminRole() && belongsToTenant(tenantFromData(resource.data)))
+                  || (isAuthenticated() && getAuthMasterId() == userId);
       
       // CREATE: Allowed for self-registration (user creating their own document)
-      allow create: if isOwner(userId);
+      allow create: if isValidSelfRegistrationUserCreate(userId);
       
       // UPDATE: Owner can update profile info, but NOT sensitive roles/ids.
       // Super admin can update any field for tenant management.
       allow update: if isSuperAdmin()
                     || (isOwner(userId)
-                        && onlyUpdatesFields(['name', 'photoUrl', 'updatedAt'])
+                        && onlyUpdatesFields(['name', 'photoUrl', 'phoneNumber', 'updatedAt'])
                         && !request.resource.data.diff(resource.data).affectedKeys()
                             .hasAny(['role', 'masterId', 'tenantId', 'companyId', 
                                      'subscription', 'usage', 'stripeCustomerId', 'stripeSubscriptionId']));
@@ -210,25 +260,40 @@ service cloud.firestore {
     // COMPANIES (Legacy/Core Tenant Info)
     match /companies/{companyId} {
       // Only members of the company can view its details
-      allow read: if isAuthenticated() && getUserData().companyId == companyId;
+      allow read: if isSuperAdmin()
+                  || (isAuthenticated()
+                      && (companyId == getAuthTenantId()
+                          || companyId == request.auth.token.get('companyId', '')));
       allow write: if false;
     }
     
     // TENANTS (New Tenant Info)
     match /tenants/{tenantId} {
       // Allow read if: super admin, user's tenantId matches, OR tenant ID matches the UID pattern (fallback for new users)
-      allow read: if isSuperAdmin() || (isAuthenticated() && (
-        tenantId == 'tenant_' + request.auth.uid ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         getUserData().tenantId == tenantId)
-      ));
+      allow read: if isSuperAdmin()
+                  || belongsToTenant(tenantId)
+                  || isBootstrapTenant(tenantId);
       // CREATE: Super admin can create any tenant, users can only create their own (self-registration)
-      allow create: if isSuperAdmin() || (isAuthenticated() && tenantId == 'tenant_' + request.auth.uid);
+      allow create: if isSuperAdmin()
+                    || (isBootstrapTenant(tenantId)
+                        && request.resource.data.get('tenantId', tenantId) == tenantId
+                        && request.resource.data.keys().hasOnly([
+                          'tenantId',
+                          'name',
+                          'slug',
+                          'primaryColor',
+                          'logoUrl',
+                          'niche',
+                          'createdAt',
+                          'updatedAt',
+                        ]));
       // UPDATE: Super admin can update any field, tenant owner (master) can update safe fields
       allow update: if isSuperAdmin() 
                     || (isAuthenticated() 
-                        && getUserData().tenantId == tenantId 
-                        && getUserData().get('masterId', null) == null
+                        && belongsToTenant(tenantId)
+                        && hasTenantAdminRole()
+                        && request.resource.data.get('tenantId', tenantId) == tenantId
+                        && resource.data.get('tenantId', tenantId) == request.resource.data.get('tenantId', tenantId)
                         && onlyUpdatesFields(['name', 'niche', 'primaryColor', 'logoUrl', 'updatedAt']));
       // DELETE: Only super admin can delete tenants
       allow delete: if isSuperAdmin();
@@ -242,7 +307,7 @@ service cloud.firestore {
     
     // PLANS (Public/Reference)
     match /plans/{planId} {
-      allow read: if true; // Public read for landing page plan display
+      allow read: if false; // Read served by backend endpoint only
       allow write: if false;
     }
     
@@ -255,16 +320,28 @@ service cloud.firestore {
     // SHARED PROPOSALS - Acesso público via token
     // Cloud Functions validam token e expiração
     match /shared_proposals/{shareId} {
-      allow read: if true; // Público, mas endpoint valida token e expiração
+      allow read: if false; // Public access only via backend token-validation endpoint
       allow write: if false; // Apenas Cloud Functions
     }
 
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
-      allow create: if isSuperAdmin() || (isAuthenticated() && request.resource.data.tenantId == getUserTenantId());
-      allow update: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
-      allow delete: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')));
+      allow create: if isSuperAdmin()
+                    || (isAuthenticated()
+                        && hasTenantAdminRole()
+                        && request.resource.data.get('tenantId', '') != ''
+                        && request.resource.data.get('tenantId', '') == getAuthTenantId());
+      allow update: if isSuperAdmin()
+                    || (isAuthenticated()
+                        && hasTenantAdminRole()
+                        && belongsToTenant(resource.data.get('tenantId', ''))
+                        && request.resource.data.get('tenantId', '') == resource.data.get('tenantId', '')
+                        && request.resource.data.get('tenantId', '') == getAuthTenantId());
+      allow delete: if isSuperAdmin()
+                    || (isAuthenticated()
+                        && hasTenantAdminRole()
+                        && belongsToTenant(resource.data.get('tenantId', '')));
     }
     
     // NOTIFICATIONS - Acesso restrito ao tenant

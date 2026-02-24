@@ -1,6 +1,16 @@
 import { db } from "../init";
 import { UserDoc } from "./auth-helpers";
 
+function normalizeRole(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeTenantId(value: unknown): string {
+  return String(value || "").trim();
+}
+
 export interface WalletDoc {
   name: string;
   balance: number;
@@ -49,7 +59,7 @@ export async function resolveWalletRef(
   transaction: FirebaseFirestore.Transaction,
   db: FirebaseFirestore.Firestore,
   tenantId: string,
-  identifier: string
+  identifier: string,
 ): Promise<{
   ref: FirebaseFirestore.DocumentReference;
   data: WalletDoc;
@@ -87,55 +97,61 @@ export async function resolveWalletRef(
 export async function checkFinancialPermission(
   userId: string,
   permission: string,
-  claims?: { role?: string; tenantId?: string; [key: string]: unknown }
+  claims?: { uid?: string; role?: string; tenantId?: string; [key: string]: unknown },
 ): Promise<{
   userDoc?: UserDoc;
   tenantId: string;
   isMaster: boolean;
   isSuperAdmin: boolean;
 }> {
-  const userRef = db.collection("users").doc(userId);
-  let userDoc: UserDoc | undefined;
-  let tenantId: string | undefined;
-  let role: string | undefined;
-
-  // Use Claims
-  if (claims && claims.role && claims.tenantId) {
-    role = claims.role.toUpperCase();
-    tenantId = claims.tenantId;
-  } else {
-    // Fallback Fetch
-    const userSnap = await userRef.get();
-    if (!userSnap.exists) throw new Error("Usuário não encontrado.");
-    userDoc = userSnap.data() as UserDoc;
-    role = (userDoc.role || "").toUpperCase();
-    tenantId = userDoc.tenantId || userDoc.companyId;
+  if (!claims?.uid || claims.uid !== userId) {
+    throw new Error("UNAUTHENTICATED");
   }
+
+  const role = normalizeRole(claims.role);
+  if (!role) throw new Error("AUTH_CLAIMS_MISSING_ROLE");
 
   const isSuperAdmin = role === "SUPERADMIN";
-  if (!tenantId && !isSuperAdmin) throw new Error("Usuário sem tenantId.");
+  const tenantId = normalizeTenantId(claims.tenantId);
 
-  // Check Master logic using Role or Data
-  let isMaster = false;
-  if (role === "MASTER" || role === "ADMIN" || role === "WK") {
-    isMaster = true;
-  } else if (userDoc) {
-    // If we fetched userDoc, check generic fields
-    isMaster = !userDoc.masterId && !userDoc.masterID && !!userDoc.subscription;
+  if (!isSuperAdmin && !tenantId) {
+    throw new Error("AUTH_CLAIMS_MISSING_TENANT");
   }
 
+  const userRef = db.collection("users").doc(userId);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) throw new Error("Usuário não encontrado.");
+  const userDoc = userSnap.data() as UserDoc;
+
+  const docTenantId = normalizeTenantId(userDoc.tenantId || userDoc.companyId);
+  if (tenantId && docTenantId && tenantId !== docTenantId) {
+    throw new Error("FORBIDDEN_TENANT_MISMATCH");
+  }
+
+  const effectiveTenantId = tenantId || docTenantId;
+  if (!isSuperAdmin && !effectiveTenantId) {
+    throw new Error("AUTH_CLAIMS_MISSING_TENANT");
+  }
+
+  // Check master logic using role claims only.
+  const isMaster = role === "MASTER" || role === "ADMIN" || role === "WK";
+
   if (isSuperAdmin)
-    return { userDoc, tenantId: tenantId!, isMaster: true, isSuperAdmin: true };
+    return {
+      userDoc,
+      tenantId: effectiveTenantId,
+      isMaster: true,
+      isSuperAdmin: true,
+    };
   if (isMaster)
     return {
       userDoc,
-      tenantId: tenantId!,
+      tenantId: effectiveTenantId,
       isMaster: true,
       isSuperAdmin: false,
     };
 
   // Member check - Needs Permissions Doc
-  // We can skip userRef fetch but we need permRef fetch
   const permRef = userRef.collection("permissions").doc("financial");
   const permSnap = await permRef.get();
 
@@ -143,5 +159,10 @@ export async function checkFinancialPermission(
     throw new Error("Sem permissão financeira.");
   }
 
-  return { userDoc, tenantId: tenantId!, isMaster: false, isSuperAdmin: false };
+  return {
+    userDoc,
+    tenantId: effectiveTenantId,
+    isMaster: false,
+    isSuperAdmin: false,
+  };
 }

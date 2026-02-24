@@ -33,6 +33,14 @@ const TenantContext = React.createContext<TenantContextType>({
   setViewingTenant: () => {},
 });
 
+function resolveSafeTenantColor(input: unknown): string {
+  const normalized = String(input || "").trim();
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized)) {
+    return normalized;
+  }
+  return "#3b82f6";
+}
+
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
@@ -173,9 +181,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // Apply tenant theme synchronously to avoid flash
   React.useLayoutEffect(() => {
     if (tenant) {
+      const safePrimaryColor = resolveSafeTenantColor(tenant.primaryColor);
       document.documentElement.style.setProperty(
         "--primary",
-        tenant.primaryColor || "#3b82f6",
+        safePrimaryColor,
       );
       // We could add more advanced theming here later
       const styleId = "tenant-styles";
@@ -187,11 +196,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
       styleTag.innerHTML = `
                ::selection {
-                   background-color: ${tenant.primaryColor || "#3b82f6"} !important;
+               background-color: ${safePrimaryColor} !important;
                    color: #ffffff !important;
                }
                .tenant-border {
-                   border-color: ${tenant.primaryColor || "#3b82f6"} !important;
+               border-color: ${safePrimaryColor} !important;
                }
            `;
     } else {

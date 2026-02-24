@@ -36,6 +36,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
+  const createServerSession = React.useCallback(
+    async (firebaseUser: FirebaseUser) => {
+      const idToken = await firebaseUser.getIdToken();
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create session cookie (${response.status})`);
+      }
+    },
+    [],
+  );
+
+  const clearServerSession = React.useCallback(async () => {
+    try {
+      await fetch("/api/auth/session", {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Failed to clear server session:", error);
+    }
+  }, []);
+
   const fetchUserData = async (
     firebaseUser: FirebaseUser,
   ): Promise<User | null> => {
@@ -158,22 +186,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         const userData = await fetchUserData(firebaseUser);
         setUser(userData);
-
-        const token = await firebaseUser.getIdToken();
-        document.cookie = `firebase-auth-token=${token}; path=/; max-age=3600; SameSite=Lax`;
-        if (userData?.role) {
-          document.cookie = `user-role=${userData.role}; path=/; max-age=3600; SameSite=Lax`;
+        try {
+          await createServerSession(firebaseUser);
+        } catch (error) {
+          console.error("Unable to sync server session:", error);
         }
       } else {
         setUser(null);
-        document.cookie = "firebase-auth-token=; path=/; max-age=0";
-        document.cookie = "user-role=; path=/; max-age=0";
+        await clearServerSession();
       }
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [clearServerSession, createServerSession]);
 
   const refreshUser = async () => {
     const firebaseUser = auth.currentUser;
@@ -197,6 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      await clearServerSession();
       await signOut(auth);
       setUser(null);
 

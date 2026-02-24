@@ -1,49 +1,193 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import {
-  doc,
-  setDoc,
-  getDocs,
-  collection,
-  query,
-  where,
-} from "firebase/firestore";
+import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 
-// DEVELOPMENT ONLY: Manual endpoint to activate add-ons
-// In production, this should be removed or protected
+type DevAddonBody = {
+  tenantId?: string;
+  addonType?: string;
+  action?: "activate" | "deactivate";
+};
+
+const DEV_ROUTE_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEV_ROUTE_RATE_LIMIT_MAX_REQUESTS = 40;
+const DEV_ROUTE_MAX_BODY_BYTES = 8 * 1024;
+const DEV_ROUTE_RATE_LIMIT_STATE = new Map<string, { count: number; windowStart: number }>();
+
+function isDevRouteEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.ENABLE_DEV_ACTIVATE_ADDON_ROUTE === "true"
+  );
+}
+
+function getClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return request.headers.get("x-real-ip") || "unknown";
+}
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const now = Date.now();
+
+  if (DEV_ROUTE_RATE_LIMIT_STATE.size > 5000) {
+    DEV_ROUTE_RATE_LIMIT_STATE.forEach((entry, entryKey) => {
+      if (now - entry.windowStart > DEV_ROUTE_RATE_LIMIT_WINDOW_MS * 2) {
+        DEV_ROUTE_RATE_LIMIT_STATE.delete(entryKey);
+      }
+    });
+  }
+
+  const current = DEV_ROUTE_RATE_LIMIT_STATE.get(key);
+  if (!current || now - current.windowStart >= DEV_ROUTE_RATE_LIMIT_WINDOW_MS) {
+    DEV_ROUTE_RATE_LIMIT_STATE.set(key, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+
+  current.count += 1;
+  DEV_ROUTE_RATE_LIMIT_STATE.set(key, current);
+  if (current.count <= DEV_ROUTE_RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: true };
+  }
+
+  const retryAfterSeconds = Math.ceil(
+    (DEV_ROUTE_RATE_LIMIT_WINDOW_MS - (now - current.windowStart)) / 1000,
+  );
+
+  return {
+    allowed: false,
+    retryAfterSeconds: Math.max(retryAfterSeconds, 1),
+  };
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutHandle = setTimeout(() => reject(new Error("REQUEST_TIMEOUT")), timeoutMs);
+    promise
+      .then((result) => {
+        clearTimeout(timeoutHandle);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timeoutHandle);
+        reject(error);
+      });
+  });
+}
+
+async function requireSuperAdmin(request: NextRequest): Promise<{ uid: string }> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const adminAuth = getAdminAuth();
+  const decoded = await adminAuth.verifyIdToken(token, true);
+  const userRecord = await adminAuth.getUser(decoded.uid);
+  const role = String(userRecord.customClaims?.role || decoded.role || "")
+    .toLowerCase()
+    .trim();
+  if (role !== "superadmin") {
+    throw new Error("FORBIDDEN");
+  }
+
+  const rateKey = `${getClientIp(request)}:${decoded.uid}`;
+  const rateLimitResult = checkRateLimit(rateKey);
+  if (!rateLimitResult.allowed) {
+    const error = new Error("RATE_LIMITED");
+    (error as Error & { retryAfterSeconds?: number }).retryAfterSeconds =
+      rateLimitResult.retryAfterSeconds;
+    throw error;
+  }
+
+  return { uid: decoded.uid };
+}
+
+function validateBody(body: DevAddonBody): {
+  tenantId: string;
+  addonType: string;
+  action: "activate" | "deactivate";
+} {
+  const tenantId = String(body.tenantId || "").trim();
+  const addonType = String(body.addonType || "").trim();
+  const action = body.action === "deactivate" ? "deactivate" : "activate";
+
+  if (!tenantId || !addonType) {
+    throw new Error("BAD_REQUEST");
+  }
+
+  return { tenantId, addonType, action };
+}
+
+function errorToResponse(error: unknown): NextResponse {
+  const message = error instanceof Error ? error.message : "UNKNOWN";
+
+  if (message === "UNAUTHENTICATED") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (message === "FORBIDDEN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (message === "BAD_REQUEST") {
+    return NextResponse.json(
+      { error: "tenantId and addonType are required" },
+      { status: 400 },
+    );
+  }
+  if (message === "RATE_LIMITED") {
+    const retryAfterSeconds =
+      (error as Error & { retryAfterSeconds?: number }).retryAfterSeconds || 60;
+    const response = NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 },
+    );
+    response.headers.set("Retry-After", String(retryAfterSeconds));
+    return response;
+  }
+  if (message === "REQUEST_TIMEOUT") {
+    return NextResponse.json({ error: "Request timeout" }, { status: 408 });
+  }
+
+  return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Only allow in development
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "This endpoint is disabled in production" },
-        { status: 403 },
-      );
+    if (!isDevRouteEnabled()) {
+      return NextResponse.json({ error: "Endpoint disabled" }, { status: 403 });
     }
 
-    const body = await request.json();
-    const { tenantId, addonType, action = "activate" } = body;
-
-    if (!tenantId || !addonType) {
-      return NextResponse.json(
-        { error: "tenantId and addonType are required" },
-        { status: 400 },
-      );
+    const contentLength = Number(request.headers.get("content-length") || "0");
+    if (Number.isFinite(contentLength) && contentLength > DEV_ROUTE_MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "Payload too large" }, { status: 413 });
     }
 
+    await requireSuperAdmin(request);
+    const body = (await request.json()) as DevAddonBody;
+    const { tenantId, addonType, action } = validateBody(body);
+    const db = getAdminFirestore();
     const addonId = `${tenantId}_${addonType}`;
+    const timeoutMs = Number(process.env.ADMIN_ROUTE_TIMEOUT_MS || 15_000);
 
     if (action === "activate") {
-      await setDoc(doc(db, "addons", addonId), {
-        tenantId,
-        addonType,
-        stripeSubscriptionId: "dev_manual_activation",
-        status: "active",
-        purchasedAt: new Date().toISOString(),
-      });
-
-      console.log(
-        `[DEV] Manually activated add-on ${addonType} for tenant ${tenantId}`,
+      await withTimeout(
+        db.collection("addons").doc(addonId).set(
+          {
+            tenantId,
+            addonType,
+            stripeSubscriptionId: "dev_manual_activation",
+            status: "active",
+            purchasedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true },
+        ),
+        timeoutMs,
       );
 
       return NextResponse.json({
@@ -51,52 +195,41 @@ export async function POST(request: NextRequest) {
         message: `Add-on ${addonType} activated for tenant ${tenantId}`,
         addonId,
       });
-    } else if (action === "deactivate") {
-      await setDoc(
-        doc(db, "addons", addonId),
+    }
+
+    await withTimeout(
+      db.collection("addons").doc(addonId).set(
         {
           tenantId,
           addonType,
           status: "cancelled",
           cancelledAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         },
         { merge: true },
-      );
-
-      console.log(
-        `[DEV] Manually deactivated add-on ${addonType} for tenant ${tenantId}`,
-      );
-
-      return NextResponse.json({
-        success: true,
-        message: `Add-on ${addonType} deactivated for tenant ${tenantId}`,
-        addonId,
-      });
-    }
-
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error) {
-    console.error("Error in manual addon activation:", error);
-    return NextResponse.json(
-      { error: "Failed to process request" },
-      { status: 500 },
+      ),
+      timeoutMs,
     );
+
+    return NextResponse.json({
+      success: true,
+      message: `Add-on ${addonType} deactivated for tenant ${tenantId}`,
+      addonId,
+    });
+  } catch (error) {
+    return errorToResponse(error);
   }
 }
 
-// GET: List all addons for a tenant
 export async function GET(request: NextRequest) {
   try {
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "This endpoint is disabled in production" },
-        { status: 403 },
-      );
+    if (!isDevRouteEnabled()) {
+      return NextResponse.json({ error: "Endpoint disabled" }, { status: 403 });
     }
 
+    await requireSuperAdmin(request);
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get("tenantId");
-
+    const tenantId = String(searchParams.get("tenantId") || "").trim();
     if (!tenantId) {
       return NextResponse.json(
         { error: "tenantId query param is required" },
@@ -104,21 +237,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const addonsRef = collection(db, "addons");
-    const q = query(addonsRef, where("tenantId", "==", tenantId));
-    const snapshot = await getDocs(q);
+    const db = getAdminFirestore();
+    const timeoutMs = Number(process.env.ADMIN_ROUTE_TIMEOUT_MS || 15_000);
+    const snapshot = await withTimeout(
+      db.collection("addons").where("tenantId", "==", tenantId).get(),
+      timeoutMs,
+    );
 
-    const addons = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
+    const addons = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
     }));
 
     return NextResponse.json({ tenantId, addons });
   } catch (error) {
-    console.error("Error fetching addons:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch addons" },
-      { status: 500 },
-    );
+    return errorToResponse(error);
   }
 }

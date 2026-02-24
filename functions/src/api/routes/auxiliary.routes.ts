@@ -16,12 +16,8 @@ import {
   updateProposalTemplate,
   deleteProposalTemplate,
 } from "../controllers/auxiliary.controller";
-import { proxyImage } from "../controllers/proxy.controller";
 
 const router = Router();
-
-// Proxy
-router.get("/proxy-image", proxyImage);
 
 // Ambientes
 router.post("/ambientes", createAmbiente);

@@ -5,6 +5,26 @@ import {
 } from "../helpers/transaction-validation";
 import { TransactionService } from "../services/transaction.service";
 
+function mapTransactionErrorStatus(message: string): number {
+  if (
+    message.startsWith("FORBIDDEN_") ||
+    message.startsWith("AUTH_CLAIMS_MISSING_") ||
+    message.includes("Sem permiss") ||
+    message.includes("Acesso negado")
+  ) {
+    return 403;
+  }
+  if (message.includes("nÃ£o encontrada")) return 404;
+  if (
+    message.includes("Dados invÃ¡lidos") ||
+    message.includes("Status invÃ¡lido") ||
+    message.includes("ID invÃ¡lido")
+  ) {
+    return 400;
+  }
+  return 500;
+}
+
 export const createTransaction = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
@@ -40,7 +60,7 @@ export const createTransaction = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error("createTransaction Error:", error);
     const message = error instanceof Error ? error.message : "Erro interno.";
-    return res.status(500).json({ message });
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };
 
@@ -71,7 +91,7 @@ export const updateTransaction = async (req: Request, res: Response) => {
     console.error("updateTransaction Error:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar.";
-    return res.status(500).json({ message });
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };
 
@@ -98,7 +118,7 @@ export const updateTransactionWithInstallments = async (
     console.error("updateTransactionWithInstallments Error:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar.";
-    return res.status(500).json({ message });
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };
 
@@ -137,7 +157,7 @@ export const updateTransactionsStatusBatch = async (
     console.error("updateTransactionsStatusBatch Error:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao atualizar status.";
-    return res.status(500).json({ message });
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };
 
@@ -154,6 +174,6 @@ export const deleteTransaction = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error("deleteTransaction Error:", error);
     const message = error instanceof Error ? error.message : "Erro ao excluir.";
-    return res.status(500).json({ message });
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };

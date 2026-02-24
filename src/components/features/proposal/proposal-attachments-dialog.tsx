@@ -224,30 +224,13 @@ export function ProposalAttachmentsDialog({
   };
 
   const openAttachment = (attachment: ProposalAttachment) => {
-    // For base64 data, open in new tab
-    const newWindow = window.open();
-    if (newWindow) {
-      if (attachment.type === "image") {
-        newWindow.document.write(`
-          <html>
-            <head><title>${attachment.name}</title></head>
-            <body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a1a;">
-              <img src="${attachment.url}" style="max-width:100%;max-height:100vh;object-fit:contain;" />
-            </body>
-          </html>
-        `);
-      } else {
-        // For PDF, create an iframe
-        newWindow.document.write(`
-          <html>
-            <head><title>${attachment.name}</title></head>
-            <body style="margin:0;">
-              <iframe src="${attachment.url}" style="width:100%;height:100vh;border:none;"></iframe>
-            </body>
-          </html>
-        `);
-      }
+    const targetUrl = String(attachment.url || "").trim();
+    if (!targetUrl) {
+      toast.error("Anexo inválido");
+      return;
     }
+
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
   return (

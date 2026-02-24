@@ -2,51 +2,100 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { isSuperAdminClaim } from "../../lib/request-auth";
 
-// Helper to handle standard CRUD (Create, Update, Delete) for auxiliary collections
-// Collections: ambientes, sistemas, customFields, options, proposalTemplates
-// All these have: tenantId, createdAt, updatedAt, and various specific fields.
+function sanitizeCreateInput(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const {
+    id: _ignoredId,
+    tenantId: _ignoredTenantId,
+    targetTenantId: _ignoredTargetTenantId,
+    createdAt: _ignoredCreatedAt,
+    updatedAt: _ignoredUpdatedAt,
+    ...safeInput
+  } = input;
+  return safeInput;
+}
+
+function sanitizeUpdateInput(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const {
+    id: _ignoredId,
+    tenantId: _ignoredTenantId,
+    targetTenantId: _ignoredTargetTenantId,
+    createdAt: _ignoredCreatedAt,
+    ...safeInput
+  } = input;
+  return safeInput;
+}
+
+function mapAuxiliaryError(error: unknown): { status: number; message: string } {
+  const message = error instanceof Error ? error.message : "Erro desconhecido";
+  if (
+    message.startsWith("FORBIDDEN_") ||
+    message.startsWith("AUTH_CLAIMS_MISSING_")
+  ) {
+    return { status: 403, message: "Permissao negada" };
+  }
+  return { status: 500, message };
+}
+
+function resolveEffectiveTenantId(
+  req: Request,
+  input: Record<string, unknown>,
+  requesterTenantId: string,
+): string {
+  const targetTenantId =
+    typeof input.targetTenantId === "string" ? input.targetTenantId.trim() : "";
+
+  if (isSuperAdminClaim(req) && targetTenantId) {
+    return targetTenantId;
+  }
+
+  return requesterTenantId;
+}
 
 const handleCreate = async (
   req: Request,
   res: Response,
   collectionName: string,
-  requiredFields: string[]
+  requiredFields: string[],
 ) => {
   try {
     const userId = req.user!.uid;
-    const input = req.body;
+    const input = (req.body || {}) as Record<string, unknown>;
 
-    // Basic Validation
     for (const field of requiredFields) {
-      if (!input[field]) {
-        return res.status(400).json({ message: `${field} é obrigatório.` });
+      const value = input[field];
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && !value.trim())
+      ) {
+        return res.status(400).json({ message: `${field} e obrigatorio.` });
       }
     }
 
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId);
+    const { tenantId: requesterTenantId } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
 
-    // Permission: usually being authenticated and part of tenant is enough for auxiliary?
-    // The original code checked: getTenantId, then docData = { tenantId, ... }
-    // We assume if you are in the tenant, you can manage basic config, OR we should check role.
-    // Ideally only ADMIN/MASTER/SUPERADMIN can manage configs.
-    // Original code: "auth.uid" -> "getTenantId". If success, proceed.
-    // We should probably enforce isMaster || isSuperAdmin to be professional.
-
-    // if (!isMaster && !isSuperAdmin) return res.status(403).json({ message: "Permissão negada." });
+    const effectiveTenantId = resolveEffectiveTenantId(
+      req,
+      input,
+      requesterTenantId,
+    );
 
     const now = Timestamp.now();
     const docData: Record<string, unknown> = {
-      tenantId:
-        isSuperAdmin && input.targetTenantId ? input.targetTenantId : tenantId,
-      ...input,
+      ...sanitizeCreateInput(input),
+      tenantId: effectiveTenantId,
       createdAt: now,
       updatedAt: now,
     };
-
-    // Remove sensitive or computed fields if passed
-    delete docData.id;
-    delete docData.targetTenantId; // Clean up
 
     const docRef = await db.collection(collectionName).add(docData);
 
@@ -57,29 +106,28 @@ const handleCreate = async (
     });
   } catch (error: unknown) {
     console.error(`Error creating ${collectionName}:`, error);
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    const mapped = mapAuxiliaryError(error);
+    return res.status(mapped.status).json({ message: mapped.message });
   }
 };
 
 const handleUpdate = async (
   req: Request,
   res: Response,
-  collectionName: string
+  collectionName: string,
 ) => {
   try {
     const { id } = req.params;
     const userId = req.user!.uid;
-    const input = req.body;
+    const input = (req.body || {}) as Record<string, unknown>;
 
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId);
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     const docRef = db.collection(collectionName).doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return res.status(404).json({ message: "Documento não encontrado." });
+      return res.status(404).json({ message: "Documento nao encontrado." });
     }
 
     const data = docSnap.data();
@@ -88,41 +136,36 @@ const handleUpdate = async (
     }
 
     const updateData = {
-      ...input,
+      ...sanitizeUpdateInput(input),
       updatedAt: Timestamp.now(),
     };
-    // Protect immutable fields
-    delete updateData.tenantId;
-    delete updateData.createdAt;
-    delete updateData.id;
 
     await docRef.update(updateData);
 
     return res.json({ success: true, message: "Atualizado com sucesso." });
   } catch (error: unknown) {
     console.error(`Error updating ${collectionName}:`, error);
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    const mapped = mapAuxiliaryError(error);
+    return res.status(mapped.status).json({ message: mapped.message });
   }
 };
 
 const handleDelete = async (
   req: Request,
   res: Response,
-  collectionName: string
+  collectionName: string,
 ) => {
   try {
     const { id } = req.params;
     const userId = req.user!.uid;
 
-    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId);
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     const docRef = db.collection(collectionName).doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
-      return res.status(404).json({ message: "Documento não encontrado." });
+      return res.status(404).json({ message: "Documento nao encontrado." });
     }
 
     const data = docSnap.data();
@@ -135,13 +178,11 @@ const handleDelete = async (
     return res.json({ success: true, message: "Removido com sucesso." });
   } catch (error: unknown) {
     console.error(`Error deleting ${collectionName}:`, error);
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    const mapped = mapAuxiliaryError(error);
+    return res.status(mapped.status).json({ message: mapped.message });
   }
 };
 
-// Export specific handlers
 export const createAmbiente = (req: Request, res: Response) =>
   handleCreate(req, res, "ambientes", ["name"]);
 export const updateAmbiente = (req: Request, res: Response) =>

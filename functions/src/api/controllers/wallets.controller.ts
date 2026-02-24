@@ -2,9 +2,27 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { checkFinancialPermission } from "../../lib/finance-helpers";
+import {
+  enforceTenantPlanLimit,
+  getTenantWalletsUsage,
+} from "../../lib/tenant-plan-policy";
 
 const WALLETS_COLLECTION = "wallets";
 const WALLET_TRANSACTIONS_COLLECTION = "wallet_transactions";
+
+function mapWalletErrorStatus(message: string): number {
+  if (
+    message.startsWith("FORBIDDEN_") ||
+    message.startsWith("AUTH_CLAIMS_MISSING_") ||
+    message.includes("Sem permiss") ||
+    message.includes("Acesso negado")
+  ) {
+    return 403;
+  }
+  if (message.includes("nÃ£o encontrada")) return 404;
+  if (message.includes("Dados invÃ¡lidos")) return 400;
+  return 500;
+}
 
 // Create Wallet
 export const createWallet = async (req: Request, res: Response) => {
@@ -26,6 +44,25 @@ export const createWallet = async (req: Request, res: Response) => {
     
     // Super admin can specify target tenant
     const tenantId = data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
+    const walletsUsage = await getTenantWalletsUsage(tenantId);
+    const walletLimitDecision = await enforceTenantPlanLimit({
+      tenantId,
+      feature: "maxWallets",
+      currentUsage: walletsUsage,
+      uid: userId,
+      requestId: req.requestId,
+      route: req.path,
+      isSuperAdmin,
+    });
+    if (!walletLimitDecision.allowed) {
+      return res.status(walletLimitDecision.statusCode || 402).json({
+        message:
+          walletLimitDecision.message ||
+          "Limite de carteiras atingido para o plano atual.",
+        code: walletLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
+      });
+    }
+
     const now = Timestamp.now();
     const initialBalance = data.initialBalance || 0;
 
@@ -80,7 +117,7 @@ export const createWallet = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro ao criar carteira.";
-    return res.status(500).json({ message });
+    return res.status(mapWalletErrorStatus(message)).json({ message });
   }
 };
 
@@ -144,7 +181,7 @@ export const updateWallet = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    return res.status(mapWalletErrorStatus(message)).json({ message });
   }
 };
 
@@ -188,7 +225,7 @@ export const deleteWallet = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    return res.status(mapWalletErrorStatus(message)).json({ message });
   }
 };
 
@@ -272,7 +309,7 @@ export const transferValues = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    return res.status(mapWalletErrorStatus(message)).json({ message });
   }
 };
 
@@ -331,6 +368,6 @@ export const adjustBalance = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
+    return res.status(mapWalletErrorStatus(message)).json({ message });
   }
 };

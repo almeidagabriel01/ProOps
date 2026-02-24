@@ -1,34 +1,51 @@
 import { Request, Response } from "express";
-import { getStorage } from "firebase-admin/storage";
 import axios from "axios";
+import {
+  parseCommaSeparatedHosts,
+  validateOutboundUrl,
+} from "../security/url-security";
 
 const DEFAULT_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+  "TemplateERP-ProxyImage/1.0 (+https://proops.com.br)";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const REQUEST_TIMEOUT_MS = 8000;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const DEFAULT_PROXY_ALLOWED_HOSTS = [
+  "firebasestorage.googleapis.com",
+  "firebasestorage.app",
+  "storage.googleapis.com",
+];
 
-/**
- * Extracts the file path from a Firebase Storage URL
- */
-function extractFirebaseStoragePath(url: string): string | null {
-  try {
-    // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token=...
-    const decodedUrl = decodeURIComponent(url);
-    const match = decodedUrl.match(/\/o\/(.+?)\?/);
-    if (match) {
-      return decodeURIComponent(match[1]);
-    }
-    return null;
-  } catch {
-    return null;
-  }
+const ALLOWED_IMAGE_CONTENT_TYPES = new Set([
+  "image/avif",
+  "image/gif",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
+const RATE_LIMIT_STATE = new Map<string, { count: number; windowStart: number }>();
+const configuredProxyHosts = parseCommaSeparatedHosts(
+  process.env.PROXY_IMAGE_ALLOWED_HOSTS,
+);
+const PROXY_ALLOWED_HOSTS =
+  configuredProxyHosts.length > 0
+    ? configuredProxyHosts
+    : DEFAULT_PROXY_ALLOWED_HOSTS;
+const PROXY_ALLOWED_ORIGINS = resolveAllowedOrigins();
+
+function isProductionRuntime(): boolean {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 }
 
-/**
- * Checks if the URL is a Firebase Storage URL
- */
-function isFirebaseStorageUrl(url: string): boolean {
+function allowCorsFallbackInCurrentEnvironment(): boolean {
   return (
-    url.includes("firebasestorage.googleapis.com") ||
-    url.includes("firebasestorage.app")
+    !isProductionRuntime() &&
+    String(process.env.ALLOW_CORS_FALLBACK || "")
+      .trim()
+      .toLowerCase() === "true"
   );
 }
 
@@ -40,108 +57,314 @@ function getCacheControl(req: Request): string {
     : "public, max-age=3600";
 }
 
-function applyCorsAndCacheHeaders(req: Request, res: Response): void {
-  const origin = req.get("origin");
-  const isCaptureMode = req.query.capture === "1";
-  const disableCache = req.query.noStore === "1";
-  const isNoStore = isCaptureMode || disableCache;
+function normalizeOrigin(value: string): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
 
-  res.set("Access-Control-Allow-Origin", isCaptureMode ? "*" : origin || "*");
-  res.set("Vary", "Origin");
+  const candidates = /^https?:\/\//i.test(raw)
+    ? [raw]
+    : [`https://${raw}`, `http://${raw}`];
 
+  for (const candidate of candidates) {
+    try {
+      return new URL(candidate).origin;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+
+function addOriginWithVariants(target: Set<string>, value: string): void {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) return;
+
+  target.add(normalized);
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase();
+    const port = parsed.port ? `:${parsed.port}` : "";
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return;
+    }
+
+    if (hostname.startsWith("www.")) {
+      const bareHostname = hostname.slice(4);
+      if (bareHostname) {
+        target.add(`${parsed.protocol}//${bareHostname}${port}`);
+      }
+      return;
+    }
+
+    if (hostname.includes(".")) {
+      target.add(`${parsed.protocol}//www.${hostname}${port}`);
+    }
+  } catch {
+    // no-op
+  }
+}
+
+function parseAllowedOrigins(rawValue: string | undefined): Set<string> {
+  const allowedOrigins = new Set<string>();
+  if (!rawValue) return allowedOrigins;
+
+  rawValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      addOriginWithVariants(allowedOrigins, value);
+    });
+
+  return allowedOrigins;
+}
+
+function resolveAllowedOrigins(): Set<string> {
+  const origins = parseAllowedOrigins(process.env.PROXY_IMAGE_ALLOWED_ORIGINS);
+  [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.APP_URL,
+    process.env.VERCEL_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.NEXT_PUBLIC_VERCEL_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      addOriginWithVariants(origins, value);
+    });
+
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("http://localhost:3000");
+    origins.add("http://127.0.0.1:3000");
+    origins.add("http://localhost:5000");
+    origins.add("http://127.0.0.1:5000");
+  }
+
+  return origins;
+}
+
+function allowsDynamicPreviewOrigins(): boolean {
+  const defaultValue = isProductionRuntime() ? "false" : "true";
+  return (
+    String(process.env.CORS_ALLOW_DYNAMIC_PREVIEW_ORIGINS || defaultValue)
+      .trim()
+      .toLowerCase() !== "false"
+  );
+}
+
+function isDynamicPreviewOrigin(origin: string): boolean {
+  if (!allowsDynamicPreviewOrigins()) return false;
+
+  try {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return (
+      hostname.endsWith(".vercel.app") ||
+      hostname.endsWith(".web.app") ||
+      hostname.endsWith(".firebaseapp.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function applySecurityHeaders(req: Request, res: Response): boolean {
+  const requestOrigin = req.get("origin");
+  const normalizedOrigin = requestOrigin ? normalizeOrigin(requestOrigin) : null;
+  const corsAllowlistMissing = PROXY_ALLOWED_ORIGINS.size === 0;
+  const corsFallbackEnabled = allowCorsFallbackInCurrentEnvironment();
+  const isOriginAllowed = normalizedOrigin
+    ? ((corsAllowlistMissing && corsFallbackEnabled) ||
+      PROXY_ALLOWED_ORIGINS.has(normalizedOrigin) ||
+      isDynamicPreviewOrigin(normalizedOrigin))
+    : true;
+
+  const shouldDenyOrigin =
+    Boolean(normalizedOrigin) &&
+    (isProductionRuntime() ? corsAllowlistMissing || !isOriginAllowed : !isOriginAllowed);
+
+  if (normalizedOrigin && !shouldDenyOrigin) {
+    res.set("Access-Control-Allow-Origin", normalizedOrigin);
+    res.set("Vary", "Origin");
+  } else {
+    res.removeHeader("Access-Control-Allow-Origin");
+    res.removeHeader("Vary");
+  }
+
+  const isNoStore = req.query.capture === "1" || req.query.noStore === "1";
   if (isNoStore) {
     res.set("Pragma", "no-cache");
     res.set("Expires", "0");
   }
+
+  res.set("X-Content-Type-Options", "nosniff");
+  return !shouldDenyOrigin;
 }
 
-type FirebaseReadResult =
-  | { status: "not-firebase" | "fallback-http" }
-  | { status: "not-found" }
-  | { status: "ok"; buffer: Buffer; contentType: string };
-
-async function tryReadFirebaseImage(imageUrl: string): Promise<FirebaseReadResult> {
-  if (!isFirebaseStorageUrl(imageUrl)) {
-    return { status: "not-firebase" };
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
   }
 
-  const filePath = extractFirebaseStoragePath(imageUrl);
-  if (!filePath) {
-    return { status: "fallback-http" };
+  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
+    return String(forwardedFor[0] || "").trim();
+  }
+
+  return req.ip || "unknown";
+}
+
+function isRateLimited(req: Request, res: Response): boolean {
+  const now = Date.now();
+  if (RATE_LIMIT_STATE.size > 5000) {
+    RATE_LIMIT_STATE.forEach((entry, entryKey) => {
+      if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS * 2) {
+        RATE_LIMIT_STATE.delete(entryKey);
+      }
+    });
+  }
+
+  const key = getClientIp(req);
+  const current = RATE_LIMIT_STATE.get(key);
+
+  if (!current || now - current.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    RATE_LIMIT_STATE.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+
+  current.count += 1;
+  RATE_LIMIT_STATE.set(key, current);
+
+  if (current.count <= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  const retryAfterSeconds = Math.ceil(
+    (RATE_LIMIT_WINDOW_MS - (now - current.windowStart)) / 1000,
+  );
+  res.set("Retry-After", String(Math.max(retryAfterSeconds, 1)));
+  return true;
+}
+
+type ProxyFetchResult =
+  | { ok: true; buffer: Buffer; contentType: string }
+  | { ok: false; statusCode: number; message: string };
+
+async function fetchRemoteImage(imageUrl: string): Promise<ProxyFetchResult> {
+  const validation = await validateOutboundUrl(imageUrl, {
+    allowedHosts: PROXY_ALLOWED_HOSTS,
+    allowHttp: process.env.PROXY_IMAGE_ALLOW_HTTP === "true",
+    allowLocalAddresses: process.env.PROXY_IMAGE_ALLOW_LOCAL === "true",
+    maxUrlLength: 2048,
+  });
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      statusCode: validation.statusCode,
+      message: validation.reason,
+    };
   }
 
   try {
-    const bucket = getStorage().bucket();
-    const file = bucket.file(filePath);
-    const [exists] = await file.exists();
+    const response = await axios.get<ArrayBuffer>(validation.normalizedUrl, {
+      responseType: "arraybuffer",
+      timeout: REQUEST_TIMEOUT_MS,
+      maxContentLength: MAX_IMAGE_BYTES,
+      maxBodyLength: MAX_IMAGE_BYTES,
+      maxRedirects: 0,
+      validateStatus: (status) => status >= 200 && status < 300,
+      headers: {
+        "User-Agent": DEFAULT_USER_AGENT,
+        Accept: "image/*",
+      },
+    });
 
-    if (!exists) {
-      console.error(`[Proxy] File not found: ${filePath}`);
-      return { status: "not-found" };
+    const contentTypeHeader = response.headers["content-type"];
+    const contentTypeValue = Array.isArray(contentTypeHeader)
+      ? contentTypeHeader[0]
+      : contentTypeHeader;
+    const normalizedContentType = String(contentTypeValue || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+
+    if (!ALLOWED_IMAGE_CONTENT_TYPES.has(normalizedContentType)) {
+      return {
+        ok: false,
+        statusCode: 415,
+        message: "URL does not point to a supported image type",
+      };
     }
 
-    const [metadata] = await file.getMetadata();
-    const [buffer] = await file.download();
+    const buffer = Buffer.from(response.data);
+    if (buffer.length === 0 || buffer.length > MAX_IMAGE_BYTES) {
+      return {
+        ok: false,
+        statusCode: 413,
+        message: "Image exceeds size limit",
+      };
+    }
 
     return {
-      status: "ok",
+      ok: true,
       buffer,
-      contentType: metadata.contentType || "image/jpeg",
+      contentType: normalizedContentType,
     };
-  } catch (storageError) {
-    console.error("[Proxy] Storage error, falling back to HTTP:", storageError);
-    return { status: "fallback-http" };
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      if (error.code === "ECONNABORTED") {
+        return { ok: false, statusCode: 504, message: "Upstream timeout" };
+      }
+
+      const status = error.response?.status;
+      if (status && [301, 302, 303, 307, 308].includes(status)) {
+        return { ok: false, statusCode: 400, message: "Redirects are not allowed" };
+      }
+
+      if (status === 404) {
+        return { ok: false, statusCode: 404, message: "Image not found" };
+      }
+    }
+
+    return { ok: false, statusCode: 502, message: "Failed to fetch remote image" };
   }
-}
-
-async function fetchImageViaHttp(imageUrl: string): Promise<{
-  data: Buffer;
-  contentType: string;
-}> {
-  const response = await axios.get(imageUrl, {
-    responseType: "arraybuffer",
-    headers: {
-      "User-Agent": DEFAULT_USER_AGENT,
-    },
-  });
-
-  return {
-    data: response.data,
-    contentType: response.headers["content-type"] || "application/octet-stream",
-  };
 }
 
 export const proxyImage = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<Response> => {
   try {
-    const imageUrl = req.query.url as string;
-    const cacheControl = getCacheControl(req);
+    const canServeOrigin = applySecurityHeaders(req, res);
+    if (!canServeOrigin) {
+      return res.status(403).send("Origin not allowed");
+    }
 
-    applyCorsAndCacheHeaders(req, res);
+    if (isRateLimited(req, res)) {
+      return res.status(429).send("Too many requests.");
+    }
 
+    const imageUrl = typeof req.query.url === "string" ? req.query.url : "";
     if (!imageUrl) {
       return res.status(400).send("URL parameter is required.");
     }
 
-    const firebaseImage = await tryReadFirebaseImage(imageUrl);
+    const cacheControl = getCacheControl(req);
+    const remoteImage = await fetchRemoteImage(imageUrl);
 
-    if (firebaseImage.status === "not-found") {
-      return res.status(404).send("Image not found.");
+    if (!remoteImage.ok) {
+      return res.status(remoteImage.statusCode).send(remoteImage.message);
     }
-
-    if (firebaseImage.status === "ok") {
-      res.set("Content-Type", firebaseImage.contentType);
-      res.set("Cache-Control", cacheControl);
-      return res.send(firebaseImage.buffer);
-    }
-
-    const remoteImage = await fetchImageViaHttp(imageUrl);
 
     res.set("Content-Type", remoteImage.contentType);
+    res.set("Content-Length", String(remoteImage.buffer.length));
     res.set("Cache-Control", cacheControl);
-    return res.send(remoteImage.data);
+    return res.send(remoteImage.buffer);
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Error proxying image.";

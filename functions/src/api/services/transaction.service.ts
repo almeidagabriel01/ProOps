@@ -44,6 +44,42 @@ type TransactionDoc = {
   data: Record<string, any>;
 };
 
+const UPDATABLE_TRANSACTION_FIELDS = new Set([
+  "type",
+  "description",
+  "amount",
+  "date",
+  "dueDate",
+  "status",
+  "clientId",
+  "clientName",
+  "proposalId",
+  "proposalGroupId",
+  "category",
+  "wallet",
+  "isDownPayment",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "isInstallment",
+  "installmentCount",
+  "installmentNumber",
+  "installmentGroupId",
+  "notes",
+  "extraCosts",
+]);
+
+function sanitizeTransactionUpdateData(
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+  Object.entries(input).forEach(([key, value]) => {
+    if (UPDATABLE_TRANSACTION_FIELDS.has(key) && value !== undefined) {
+      safe[key] = value;
+    }
+  });
+  return safe;
+}
+
 function roundCurrency(value: number): number {
   return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
 }
@@ -739,6 +775,10 @@ export class TransactionService {
     id: string,
     updateData: Partial<CreateTransactionDTO>,
   ) {
+    const safeUpdateData = sanitizeTransactionUpdateData(
+      (updateData || {}) as Record<string, unknown>,
+    );
+
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
@@ -785,7 +825,7 @@ export class TransactionService {
       };
 
       const oldImpacts = getWalletImpacts(currentData);
-      const newData = { ...currentData, ...updateData };
+      const newData = { ...currentData, ...safeUpdateData };
       const newImpacts = getWalletImpacts(newData);
 
       const walletAdjustments = new Map<string, number>();
@@ -842,7 +882,7 @@ export class TransactionService {
         t.update(proposalRef, proposalUpdate);
       }
 
-      t.update(ref, { ...updateData, updatedAt: Timestamp.now() });
+      t.update(ref, { ...safeUpdateData, updatedAt: Timestamp.now() });
     });
   }
 

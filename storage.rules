@@ -5,32 +5,88 @@ service firebase.storage {
     function isAuthenticated() {
       return request.auth != null;
     }
+
+    // Claims-based tenant source (trusted token claim)
+    function getAuthTenantId() {
+      return isAuthenticated() ? request.auth.token.tenantId : null;
+    }
+
+    // Claims-based role source (trusted token claim)
+    function getAuthRole() {
+      return isAuthenticated() ? request.auth.token.role : null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getAuthRole() in ['superadmin', 'SUPERADMIN'];
+    }
+
+    function hasTenantWriteRole() {
+      return isAuthenticated()
+             && getAuthRole() in [
+               'admin',
+               'ADMIN',
+               'master',
+               'MASTER',
+               'wk',
+               'WK',
+               'superadmin',
+               'SUPERADMIN'
+             ];
+    }
+
+    function belongsToTenant(tenantId) {
+      return isAuthenticated()
+             && getAuthTenantId() != null
+             && getAuthTenantId() == tenantId;
+    }
     
     // Helper function to check file size (5MB max)
     function isValidFileSize() {
-      return request.resource.size < 5 * 1024 * 1024;
+      return request.resource.size > 0 && request.resource.size <= 5 * 1024 * 1024;
     }
     
-    // Helper function to check if file is an image
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
+    // Helper function to allow only raster images (blocks SVG/script payloads)
+    function isAllowedImageType() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|gif|webp|avif)');
+    }
+
+    function isAllowedFolder(folder) {
+      return folder == 'products' || folder == 'proposals';
+    }
+
+    function canReadTenantPath(tenantId) {
+      return isSuperAdmin() || belongsToTenant(tenantId);
     }
     
     // Tenant images - organized by tenant ID
     // Path: tenants/{tenantId}/products/{productId}/{filename}
     // Path: tenants/{tenantId}/proposals/{proposalId}/{filename}
-    match /tenants/{tenantId}/{allPaths=**} {
-      // Allow read if user is authenticated
-      // In production, you might want to verify user belongs to tenant
-      allow read: if isAuthenticated();
-      
-      // Allow write if authenticated, file is valid image, and under 5MB
-      allow write: if isAuthenticated() 
-                   && isValidFileSize() 
-                   && isImage();
-      
-      // Allow delete if authenticated
-      allow delete: if isAuthenticated();
+    match /tenants/{tenantId}/{folder}/{fileName} {
+      allow read: if isAllowedFolder(folder) && canReadTenantPath(tenantId);
+      allow write: if isAllowedFolder(folder)
+                   && canReadTenantPath(tenantId)
+                   && hasTenantWriteRole()
+                   && isValidFileSize()
+                   && isAllowedImageType();
+      allow delete: if isAllowedFolder(folder)
+                    && canReadTenantPath(tenantId)
+                    && hasTenantWriteRole();
+    }
+
+    match /tenants/{tenantId}/{folder}/{entityId}/{fileName} {
+      allow read: if isAllowedFolder(folder) && canReadTenantPath(tenantId);
+      allow write: if isAllowedFolder(folder)
+                   && canReadTenantPath(tenantId)
+                   && hasTenantWriteRole()
+                   && isValidFileSize()
+                   && isAllowedImageType();
+      allow delete: if isAllowedFolder(folder)
+                    && canReadTenantPath(tenantId)
+                    && hasTenantWriteRole();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

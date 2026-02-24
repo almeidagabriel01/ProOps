@@ -43,12 +43,6 @@ const SKIP_PATTERNS = [
   "/api/", // Let API routes handle their own auth
 ];
 
-// MASTER-only routes
-const MASTER_ONLY_ROUTES = ["/team", "/settings/billing"];
-
-// SUPER_ADMIN-only routes
-const SUPER_ADMIN_ROUTES = ["/admin"];
-
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
@@ -61,18 +55,6 @@ function isPublicRoute(pathname: string): boolean {
 
 function shouldSkip(pathname: string): boolean {
   return SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern));
-}
-
-function isMasterOnlyRoute(pathname: string): boolean {
-  return MASTER_ONLY_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-}
-
-function isSuperAdminRoute(pathname: string): boolean {
-  return SUPER_ADMIN_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
 }
 
 // ============================================
@@ -110,39 +92,26 @@ export async function middleware(request: NextRequest) {
   // Firebase Auth doesn't automatically set cookies in Next.js
   // The client needs to set a session cookie after login
   const sessionCookie = request.cookies.get("__session")?.value;
-  const authToken = request.cookies.get("firebase-auth-token")?.value;
+  const legacyAuthHint = request.cookies.get("firebase-auth-token")?.value;
+  const defaultLegacyFallback =
+    String(process.env.NODE_ENV || "").trim().toLowerCase() === "production"
+      ? "false"
+      : "true";
+  const acceptLegacyCookieHint =
+    String(process.env.AUTH_ACCEPT_LEGACY_COOKIE_HINT || defaultLegacyFallback)
+      .trim()
+      .toLowerCase() !== "false";
 
   // If no session, redirect to login
-  if (!sessionCookie && !authToken) {
+  if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Protection for Super Admin routes
-  if (isSuperAdminRoute(pathname)) {
-    const userRole = request.cookies.get("user-role")?.value;
-
-    // Strict check: must be explicitly "superadmin"
-    if (userRole !== "superadmin") {
-      // Redirect to dashboard (or generic access denied)
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-  }
-
-  // For MASTER-only routes, we need to check the role
-  // Since we can't easily verify Firebase tokens in Edge runtime,
-  // we rely on a role cookie set by the client
-  if (isMasterOnlyRoute(pathname)) {
-    const userRole = request.cookies.get("user-role")?.value;
-
-    if (userRole === "MEMBER") {
-      return NextResponse.redirect(new URL("/403", request.url));
-    }
-
-    // If role is not set, let the client-side handle it
-    // This is a fallback - ProtectedRoute will do the full check
-  }
+  // This middleware only checks session presence.
+  // Authorization is enforced server-side using verified/revocation-checked tokens.
+  // Legacy JS-readable cookie remains login hint only during phase A rollout.
 
   return NextResponse.next();
 }

@@ -42,12 +42,12 @@ interface AddonCheckoutRequest {
   userId: string;
   addonId: string;
   origin?: string;
-  tenantId?: string; // Added to match usage
 }
 
 interface AddonCheckoutResponse {
   url?: string;
   success?: boolean;
+  message?: string;
 }
 
 interface AddonConfirmRequest {
@@ -124,7 +124,6 @@ interface CancelAddonRequest {
   subscriptionItemId?: string;
   addonId?: string;
   addonType?: string;
-  tenantId?: string;
 }
 
 interface SyncResponse {
@@ -280,10 +279,9 @@ export const StripeService = {
   },
 
   previewProration: async (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _data: PreviewRequest,
+    data: PreviewRequest,
   ): Promise<PreviewResponse> => {
-    return { amountDue: 0, currency: "brl" };
+    return callApi<PreviewResponse>("/v1/stripe/preview", "POST", data);
   },
 
   getPrices: async (): Promise<PricesResponse> => {

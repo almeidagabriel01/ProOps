@@ -66,6 +66,57 @@ export default function AddonsPage() {
   const [addonToCancel, setAddonToCancel] =
     React.useState<AddonDefinition | null>(null);
 
+  const normalizeDate = (value: unknown): Date | null => {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? null : value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof value === "object") {
+      const asObj = value as {
+        toDate?: () => Date;
+        seconds?: number;
+      };
+
+      if (typeof asObj.toDate === "function") {
+        const parsed = asObj.toDate();
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof asObj.seconds === "number") {
+        const parsed = new Date(asObj.seconds * 1000);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+    }
+
+    return null;
+  };
+
+  const formatDate = (value: unknown): string | null => {
+    const parsed = normalizeDate(value);
+    if (!parsed) return null;
+    return parsed.toLocaleDateString("pt-BR");
+  };
+
+  const addonToCancelData = addonToCancel
+    ? purchasedAddonsData.find((a) => a.addonType === addonToCancel.id)
+    : null;
+  const addonToCancelDate =
+    formatDate(addonToCancelData?.currentPeriodEnd) ||
+    (() => {
+      const purchasedDate = normalizeDate(addonToCancelData?.purchasedAt);
+      if (!purchasedDate) return null;
+      const projected = new Date(purchasedDate);
+      projected.setDate(projected.getDate() + 30);
+      return formatDate(projected);
+    })();
+
   // Handle success/canceled URL params - only after loading is complete
   React.useEffect(() => {
     // Wait until loading is done before showing toasts
@@ -74,6 +125,7 @@ export default function AddonsPage() {
     const success = searchParams.get("success");
     const canceled = searchParams.get("canceled");
     const addonCancelled = searchParams.get("addon_cancelled");
+    const addonAlreadyActive = searchParams.get("addon_already_active");
 
     if (success === "true") {
       toast.success(
@@ -99,6 +151,13 @@ export default function AddonsPage() {
           toastId: "addon-cancelled-success",
         },
       );
+      router.replace("/profile/addons");
+    }
+
+    if (addonAlreadyActive === "true") {
+      toast.success("Este add-on já estava ativo para sua conta.", {
+        toastId: "addon-already-active",
+      });
       router.replace("/profile/addons");
     }
   }, [searchParams, router, isPlanLoading, isPriceLoading]);
@@ -128,7 +187,6 @@ export default function AddonsPage() {
       const { StripeService } = await import("@/services/stripe-service");
       const data = await StripeService.createAddonCheckout({
         userId: user?.id || "",
-        tenantId: tenant?.id || "",
         addonId: selectedAddon.id, // Fixed: use addonId instead of addonType
         origin: window.location.origin,
       });
@@ -136,6 +194,9 @@ export default function AddonsPage() {
       if (data.url) {
         // Redirect to Stripe Checkout
         window.location.href = data.url;
+      } else if (data.success) {
+        window.location.href =
+          "/profile/addons?addon_already_active=true";
       } else {
         console.error("No checkout URL returned:", data);
         toast.error("Erro ao gerar link de pagamento. Tente novamente.");
@@ -166,7 +227,6 @@ export default function AddonsPage() {
       const { StripeService } = await import("@/services/stripe-service");
       await StripeService.cancelAddon({
         addonId: addonToCancel.id,
-        tenantId: tenant?.id,
       });
 
       // Redirect with query param - toast will show after skeleton loading completes
@@ -415,8 +475,9 @@ export default function AddonsPage() {
               Tem certeza que deseja cancelar o add-on{" "}
               <strong>{addonToCancel?.name}</strong>?
               <br />
-              <br />O add-on continuará ativo até o final do período já pago.
-              Após essa data, você perderá acesso às funcionalidades extras.
+              <br />O add-on continuará ativo até{" "}
+              <strong>{addonToCancelDate || "o final do período já pago"}</strong>.
+              Após essa data, o acesso será revogado e não haverá renovação automática.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

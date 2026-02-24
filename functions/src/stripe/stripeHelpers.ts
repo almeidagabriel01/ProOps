@@ -30,7 +30,6 @@ export async function updateUserPlan(
     billingInterval: billingInterval,
     stripeSubscriptionId: stripeSubscriptionId,
     planUpdatedAt: FieldValue.serverTimestamp(),
-    role: "admin",
     subscriptionStatus: "active",
     cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
     "subscription.status": "ACTIVE",
@@ -53,8 +52,13 @@ export async function updateUserPlan(
     const userSnap = await userRef.get();
     const userData = userSnap.data();
     if (userData) {
-      const tenantId =
-        userData.tenantId || userData.companyId || `tenant_${userId}`;
+      const tenantId = String(userData.tenantId || userData.companyId || "").trim();
+      if (!tenantId) {
+        console.warn(
+          `[updateUserPlan] Missing tenantId for user ${userId}. Skipping tenant billing sync.`,
+        );
+        return;
+      }
       let isWhatsappEnabled = false;
 
       if (planTier === "pro" || planTier === "enterprise") {
@@ -430,6 +434,29 @@ export async function addWhatsAppOverageToSubscription(
       return existingItem.id;
     }
 
+    const primaryItem =
+      subscription.items.data.find(
+        (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
+      ) || subscription.items.data[0];
+    const baseRecurring = primaryItem?.price?.recurring;
+    const overagePrice = await stripe.prices.retrieve(WHATSAPP_OVERAGE_PRICE_ID);
+    const overageRecurring = overagePrice.recurring;
+
+    if (
+      baseRecurring &&
+      overageRecurring &&
+      (
+        baseRecurring.interval !== overageRecurring.interval ||
+        (baseRecurring.interval_count || 1) !==
+          (overageRecurring.interval_count || 1)
+      )
+    ) {
+      console.warn(
+        `[addWhatsAppOverage] Skipping overage item for subscription ${subscriptionId} due to recurring interval mismatch (${baseRecurring.interval}/${baseRecurring.interval_count || 1} vs ${overageRecurring.interval}/${overageRecurring.interval_count || 1}).`,
+      );
+      return null;
+    }
+
     // Add item
     const updatedSubscription = await stripe.subscriptions.update(
       subscriptionId,
@@ -454,6 +481,16 @@ export async function addWhatsAppOverageToSubscription(
 
     return null;
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (
+      message.includes("All prices on a subscription must have the same `recurring.interval`")
+    ) {
+      console.warn(
+        `[addWhatsAppOverage] Skipping overage item for subscription ${subscriptionId} due to Stripe interval restriction.`,
+      );
+      return null;
+    }
+
     console.error(
       `[addWhatsAppOverage] Error adding item to subscription ${subscriptionId}:`,
       error,
