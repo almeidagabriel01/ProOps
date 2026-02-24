@@ -356,6 +356,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
           pointerEvents: "none",
         }}
         aria-hidden="true"
+        data-html2canvas-ignore="true"
       >
         {items.map((item, idx) => (
           <div

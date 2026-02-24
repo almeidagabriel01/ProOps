@@ -402,7 +402,7 @@ export function buildContentItems(
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
-    const visibleProducts = productsToAdd.filter((p) => hasVisibleQuantity(p));
+    const visibleProducts = productsToAdd.filter((p) => !p._shouldHide && hasVisibleQuantity(p));
     if (visibleProducts.length > 0) {
       items.push({
         type: "product-header",

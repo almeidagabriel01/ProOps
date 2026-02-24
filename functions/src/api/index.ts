@@ -158,7 +158,7 @@ if (corsAllowlistMissing && corsFallbackEnabled) {
 
 const publicGeneralLimiter = createRateLimiter({
   keyPrefix: "public-general",
-  maxRequests: 60,
+  maxRequests: 300,
 });
 
 const publicShareLimiter = createRateLimiter({

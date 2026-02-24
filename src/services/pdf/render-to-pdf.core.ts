@@ -284,7 +284,9 @@ export async function prepareCloneForCapture(
     source.removeAttribute("sizes");
   });
 
-  const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+  const images = Array.from(root.querySelectorAll<HTMLImageElement>("img")).filter(
+    (img) => !img.closest("[data-html2canvas-ignore]"),
+  );
   let proxiedImagesCount = 0;
   images.forEach((image, index) => {
     const effectiveSource =
@@ -313,7 +315,7 @@ export async function prepareCloneForCapture(
   // or rely on CSS stylesheets if any. In this system, remote backgrounds are injected via inline styles.
   const inlineBackgroundNodes = Array.from(
     root.querySelectorAll<HTMLElement>('[style*="url("]'),
-  );
+  ).filter((node) => !node.closest("[data-html2canvas-ignore]"));
   let proxiedBackgroundImagesCount = 0;
   inlineBackgroundNodes.forEach((node) => {
     const rawStyle = node.getAttribute("style") || "";
@@ -337,7 +339,7 @@ export async function prepareCloneForCapture(
     root.querySelectorAll<HTMLElement>(
       '[style*="http://"], [style*="https://"]',
     ),
-  );
+  ).filter((node) => !node.closest("[data-html2canvas-ignore]"));
   inlineWithHttp.forEach((node) => {
     const current = node.style.getPropertyValue("background-image");
     if (!current || !current.includes("url(")) return;
@@ -748,7 +750,7 @@ export async function ensureSourceImagesReady(
 ): Promise<void> {
   const sourceImages = Array.from(
     rootElement.querySelectorAll<HTMLImageElement>("img"),
-  );
+  ).filter((img) => !img.closest("[data-html2canvas-ignore]"));
   if (sourceImages.length === 0) return;
 
   await Promise.all(
