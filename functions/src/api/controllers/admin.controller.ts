@@ -5,7 +5,7 @@ import {
   generateRandomPassword,
   isValidEmail,
 } from "../../lib/admin-helpers";
-import { UserDoc, resolveUserAndTenant } from "../../lib/auth-helpers";
+import { UserDoc } from "../../lib/auth-helpers";
 import {
   isSuperAdminClaim,
   isTenantAdminClaim,
@@ -549,6 +549,10 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+
     interface BillingUserData {
       tenantId?: string;
       companyId?: string;
@@ -573,21 +577,88 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         clients?: number;
         products?: number;
       };
+      phoneNumber?: string;
       [key: string]: unknown;
     }
 
-    const userId = req.user!.uid;
-    const { isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
-
-    if (!isSuperAdmin) {
-      return res.status(403).json({ message: "Acesso negado." });
+    interface TenantData {
+      name?: string;
+      slug?: string;
+      createdAt?: string;
+      logoUrl?: string;
+      primaryColor?: string;
+      niche?: string;
+      whatsappEnabled?: boolean;
     }
 
-    // Busca usuÃ¡rios MASTER/admin (donos de empresa)
+    // Busca usuários MASTER/admin (donos de empresa)
     const usersSnapshot = await db
       .collection("users")
       .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
       .get();
+
+    console.log(`[getAllTenantsBilling] Found ${usersSnapshot.docs.length} master users`);
+
+    // Collect unique tenant IDs and plan IDs for batch fetch
+    const tenantIds = new Set<string>();
+    const planIds = new Set<string>();
+    const tierToName: Record<string, string> = {
+      free: "Gratuito",
+      starter: "Starter",
+      pro: "Pro",
+      enterprise: "Enterprise",
+    };
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data() as BillingUserData;
+      const tenantId = userData.tenantId || userData.companyId;
+      if (tenantId) tenantIds.add(tenantId);
+
+      const planId = String(userData.planId || "free").toLowerCase();
+      if (!tierToName[planId] && planId !== "free") {
+        planIds.add(userData.planId!);
+      }
+    }
+
+    // Batch fetch all tenant docs at once
+    const tenantDataMap = new Map<string, TenantData>();
+    if (tenantIds.size > 0) {
+      try {
+        const tenantRefs = Array.from(tenantIds).map((id) =>
+          db.collection("tenants").doc(id),
+        );
+        const tenantSnaps = await db.getAll(...tenantRefs);
+        for (const snap of tenantSnaps) {
+          if (snap.exists) {
+            tenantDataMap.set(snap.id, (snap.data() as TenantData) || {});
+          }
+        }
+      } catch (err) {
+        console.warn("[getAllTenantsBilling] Batch tenant fetch failed, continuing without tenant data:", err);
+      }
+    }
+
+    // Batch fetch all plan docs at once
+    const planNameMap = new Map<string, string>();
+    if (planIds.size > 0) {
+      try {
+        const planRefs = Array.from(planIds).map((id) =>
+          db.collection("plans").doc(id),
+        );
+        const planSnaps = await db.getAll(...planRefs);
+        for (const snap of planSnaps) {
+          if (snap.exists) {
+            const planData = snap.data();
+            planNameMap.set(
+              snap.id,
+              tierToName[planData?.tier] || planData?.name || snap.id,
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("[getAllTenantsBilling] Batch plan fetch failed, continuing without plan names:", err);
+      }
+    }
 
     const normalizeStatus = (rawStatus: unknown): string => {
       if (!rawStatus) return "";
@@ -660,67 +731,32 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       return "active";
     };
 
-    // Mapeia para TenantBillingInfo
-    const tenantsData = await Promise.all(
-      usersSnapshot.docs.map(async (userDoc) => {
+    // Process all users synchronously using pre-fetched data
+    const tenantsData = [];
+    for (const userDoc of usersSnapshot.docs) {
+      try {
         const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
+        const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {};
 
-        // Busca dados do tenant
-        interface TenantData {
-          name?: string;
-          slug?: string;
-          createdAt?: string;
-          logoUrl?: string;
-          primaryColor?: string;
-          niche?: string;
-          whatsappEnabled?: boolean;
-        }
-        let tenantData: TenantData = {};
-        if (tenantId) {
-          const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-          if (tenantSnap.exists) {
-            tenantData = (tenantSnap.data() as TenantData) || {};
-          }
-        }
-
-        // Determina nome do plano
         const planId = String(userData.planId || "free");
-        const tierToName: Record<string, string> = {
-          free: "Gratuito",
-          starter: "Starter",
-          pro: "Pro",
-          enterprise: "Enterprise",
-        };
-
-        // Se planId Ã© um tier conhecido, usa direto. SenÃ£o, busca o documento do plano
         let planName = tierToName[planId.toLowerCase()];
         if (!planName && planId !== "free") {
-          try {
-            const planSnap = await db.collection("plans").doc(planId).get();
-            if (planSnap.exists) {
-              const planData = planSnap.data();
-              planName = tierToName[planData?.tier] || planData?.name || planId;
-            } else {
-              planName = planId;
-            }
-          } catch {
-            planName = planId;
-          }
+          planName = planNameMap.get(planId) || planId;
         }
 
         const effectiveStatus = deriveTenantStatus(userData);
 
-        return {
+        tenantsData.push({
           tenant: {
             id: tenantId || userDoc.id,
-            name: tenantData.name || userData.companyName || "Sem nome",
-            slug: tenantData.slug,
-            createdAt: tenantData.createdAt || userData.createdAt,
-            logoUrl: tenantData.logoUrl,
-            primaryColor: tenantData.primaryColor,
-            niche: tenantData.niche,
-            whatsappEnabled: tenantData.whatsappEnabled,
+            name: (tenantData as TenantData).name || userData.companyName || "Sem nome",
+            slug: (tenantData as TenantData).slug,
+            createdAt: (tenantData as TenantData).createdAt || userData.createdAt,
+            logoUrl: (tenantData as TenantData).logoUrl,
+            primaryColor: (tenantData as TenantData).primaryColor,
+            niche: (tenantData as TenantData).niche,
+            whatsappEnabled: (tenantData as TenantData).whatsappEnabled,
           },
           admin: {
             id: userDoc.id,
@@ -740,10 +776,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             clients: userData.usage?.clients || 0,
             products: userData.usage?.products || 0,
           },
-        };
-      }),
-    );
+        });
+      } catch (docErr) {
+        console.error(`[getAllTenantsBilling] Error processing user doc ${userDoc.id}, skipping:`, docErr);
+      }
+    }
 
+    console.log(`[getAllTenantsBilling] Returning ${tenantsData.length} tenants`);
     return res.json(tenantsData);
   } catch (error: unknown) {
     console.error("Error getting tenants:", error);
