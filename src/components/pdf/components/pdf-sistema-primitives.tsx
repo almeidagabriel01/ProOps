@@ -204,9 +204,9 @@ export function PdfSistemaProductCard({
                   paddingLeft: "12px",
                   whiteSpace: "nowrap",
                   textAlign: "right",
-                  minWidth: "68px",
-                  width: "68px",
-                  lineHeight: "1",
+                  minWidth: "120px",
+                  width: "120px",
+                  lineHeight: "1.3",
                   marginTop: "0",
                   paddingTop: "0",
                 }}
