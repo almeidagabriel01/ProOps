@@ -20,7 +20,7 @@ import { ALLOWED_TYPES } from "@/services/storage-service";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   getTodayISO,
@@ -251,7 +251,7 @@ export function TenantDialog({
       open={isOpen}
       onOpenChange={(open) => !isSaving && !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto top-[15%] translate-y-0">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Empresa" : "Nova Empresa"}
@@ -613,7 +613,10 @@ export function TenantDialog({
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving || (isEditing && !hasChanges)}>
+            <Button
+              type="submit"
+              disabled={isSaving || (isEditing && !hasChanges)}
+            >
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isEditing ? "Salvar Alterações" : "Criar Empresa"}
             </Button>

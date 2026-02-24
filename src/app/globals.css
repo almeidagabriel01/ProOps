@@ -337,6 +337,12 @@ body {
   mix-blend-mode: normal;
 }
 
+/* Disable all element transitions during theme view-transition to prevent jank */
+html.theme-transitioning,
+html.theme-transitioning * {
+  transition: none !important;
+}
+
 /* PDF Utilities - Hide inactive products visually while keeping in calculations */
 .pdf-hide-inactive {
   display: none !important;
