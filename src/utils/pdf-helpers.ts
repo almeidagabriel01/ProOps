@@ -52,6 +52,7 @@ export type ContentItemType =
   | "sistema-footer"
   | "extra-products-header"
   | "ambiente-header"
+  | "ambiente-footer"
   | "sistema-container-header"
   | "sistema-container-product"
   | "sistema-container-footer"

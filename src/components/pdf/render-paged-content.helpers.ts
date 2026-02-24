@@ -310,6 +310,7 @@ export function buildContentItems(
         return {
           env,
           products: visibleSortedProducts, // Only return visible products for rendering
+          allProducts: sortedProducts.filter((p) => hasVisibleQuantity(p)), // All products including inactive for subtotal
           height: envHeight,
         };
       })
@@ -370,6 +371,24 @@ export function buildContentItems(
               pdfDisplaySettings: settings,
             },
             height: rowHeight,
+          });
+        }
+
+        // Add per-environment subtotal if setting is enabled and there are multiple environments
+        if (settings.showEnvironmentSubtotals && envsWithProducts.length > 1) {
+          const envSubtotal = group.allProducts.reduce(
+            (sum: number, p: Product) => sum + p.total,
+            0,
+          );
+          items.push({
+            type: "ambiente-footer",
+            id: generateId("ambiente-footer"),
+            data: {
+              ambienteName: group.env.ambienteName,
+              ambienteSubtotal: envSubtotal,
+              primaryColor,
+            },
+            height: 36,
           });
         }
       });

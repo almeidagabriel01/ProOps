@@ -289,6 +289,29 @@ export function PdfSistemaBlock({
                     )}
                   </tbody>
                 </table>
+
+                {settings.showEnvironmentSubtotals && ambientes.length > 1 && (
+                  <div
+                    className="flex justify-between items-center px-4 pb-2 pt-1.5"
+                    style={{ borderTop: `1px dashed ${primaryColor}30` }}
+                  >
+                    <span className="text-xs font-medium text-gray-500">
+                      Subtotal ({amb.ambienteName}):
+                    </span>
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: primaryColor }}
+                    >
+                      {formatCurrency(
+                        scopeProducts
+                          .filter(
+                            (p) => Number(p.quantity || 0) > 0 && !p._isGhost,
+                          )
+                          .reduce((sum, p) => sum + p.total, 0),
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}

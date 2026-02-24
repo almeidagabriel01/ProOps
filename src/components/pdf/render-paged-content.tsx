@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { pdfDebugLog } from "@/utils/pdf-helpers";
+import { formatCurrency } from "@/utils/format-utils";
 import {
   ContentItem,
   Product,
@@ -330,7 +331,36 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfSistemaFooter
               sistemaSubtotal={item.data.sistemaSubtotal}
               primaryColor={primaryColor}
+              pdfDisplaySettings={settings}
             />
+          </div>
+        );
+
+      case "ambiente-footer":
+        return (
+          <div
+            key={`ambiente-footer-${item.data.ambienteName}`}
+            style={{ width: "100%" }}
+          >
+            <div
+              className="border-l-2 border-r-2 bg-white"
+              style={{ borderColor: primaryColor }}
+            >
+              <div
+                className="flex justify-between items-center px-4 pb-2 pt-1.5"
+                style={{ borderTop: `1px dashed ${primaryColor}30` }}
+              >
+                <span className="text-xs font-medium text-gray-500">
+                  Subtotal ({item.data.ambienteName}):
+                </span>
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: primaryColor }}
+                >
+                  {formatCurrency(item.data.ambienteSubtotal)}
+                </span>
+              </div>
+            </div>
           </div>
         );
 

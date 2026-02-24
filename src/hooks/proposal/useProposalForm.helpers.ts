@@ -34,6 +34,7 @@ export function createInitialProposalFormData(): Partial<Proposal> {
       showProductDescriptions: true,
       showProductPrices: false,
       showSubtotals: true,
+      showEnvironmentSubtotals: false,
       showPaymentTerms: true,
       showLogo: true,
       showValidUntil: true,
