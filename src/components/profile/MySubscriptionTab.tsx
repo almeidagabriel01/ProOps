@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 
 import {
   Card,
@@ -280,6 +280,16 @@ export function MySubscriptionTab({
     });
   };
 
+  const getFormattedDateOrNull = (dateInput?: unknown) => {
+    const date = normalizeDate(dateInput);
+    if (!date) return null;
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
   const statusInfo = statusLabels[subscriptionStatus] || statusLabels.active;
 
   // Calculate monthly price (using effectivePlan)
@@ -298,18 +308,31 @@ export function MySubscriptionTab({
   const addonToCancelInfo = addonToCancel
     ? addonsData.find((addon) => addon.addonType === addonToCancel)
     : null;
-  const addonCancelDate =
-    formatDate(addonToCancelInfo?.currentPeriodEnd) ||
-    (() => {
-      const purchasedDate = normalizeDate(addonToCancelInfo?.purchasedAt);
-      if (!purchasedDate) return null;
-      const projected = new Date(purchasedDate);
-      projected.setDate(projected.getDate() + 30);
-      return formatDate(projected);
-    })();
+  const addonCancelDate = (() => {
+    const purchasedDate = normalizeDate(addonToCancelInfo?.purchasedAt);
+    if (!purchasedDate) {
+      return getFormattedDateOrNull(addonToCancelInfo?.currentPeriodEnd);
+    }
+
+    const now = new Date();
+    // Start with the purchased date, but in the current month and year
+    const nextCycle = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      purchasedDate.getDate(),
+    );
+
+    // If the day in the current month has already passed or is today, the next cycle is next month
+    if (nextCycle <= now) {
+      nextCycle.setMonth(nextCycle.getMonth() + 1);
+    }
+
+    return getFormattedDateOrNull(nextCycle);
+  })();
 
   const subscriptionCancelDate =
-    formatDate(currentPeriodEnd) || formatDate(user?.subscription?.updatedAt);
+    getFormattedDateOrNull(currentPeriodEnd) ||
+    getFormattedDateOrNull(user?.subscription?.updatedAt);
 
   const canCancelSubscription =
     Boolean(effectivePlan) && !cancelAtPeriodEnd && hasStripeSubscription;
@@ -413,35 +436,33 @@ export function MySubscriptionTab({
           )}
 
           {/* Sync Button for missing billing info */}
-          {!showManualTag &&
-            hasStripeSubscription &&
-            !currentPeriodEnd && (
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-3 flex-1">
-                  <AlertCircle className="w-5 h-5 text-amber-500" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-600">
-                      Data de cobrança não disponível
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Sincronize sua assinatura para atualizar os dados.
-                    </p>
-                  </div>
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && (
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-3 flex-1">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-amber-600">
+                    Data de cobrança não disponível
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Sincronize sua assinatura para atualizar os dados.
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className="shrink-0"
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
-                  />
-                  Sincronizar
-                </Button>
               </div>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="shrink-0"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
+                />
+                Sincronizar
+              </Button>
+            </div>
+          )}
 
           {/* What's Included */}
           <div>
@@ -734,10 +755,11 @@ export function MySubscriptionTab({
               ?
               <br />
               <br />
-              <br />Seu acesso continuará ativo até{" "}
+              <br />
+              Seu acesso continuará ativo até{" "}
               <strong>{addonCancelDate || "o fim do período já pago"}</strong>.
-              Após essa data, o acesso às funcionalidades deste módulo será revogado
-              e não haverá renovação automática.
+              Após essa data, o acesso às funcionalidades deste módulo será
+              revogado e não haverá renovação automática.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -781,9 +803,11 @@ export function MySubscriptionTab({
               <br />
               <br />
               Seu acesso continuará ativo até{" "}
-              <strong>{subscriptionCancelDate || "o final do período já pago"}</strong>.
-              Após essa data, sua assinatura não será renovada automaticamente e
-              você será movido para o plano gratuito.
+              <strong>
+                {subscriptionCancelDate || "o final do período já pago"}
+              </strong>
+              . Após essa data, sua assinatura não será renovada automaticamente
+              e você será movido para o plano gratuito.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
