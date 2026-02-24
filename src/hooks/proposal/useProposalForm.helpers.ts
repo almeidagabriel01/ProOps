@@ -55,6 +55,7 @@ function mapSnapshotProducts(
         markup: p.markup,
         systemInstanceId: p.systemInstanceId,
         isExtra: p.isExtra,
+        status: p.status,
       };
     }
 
@@ -72,6 +73,7 @@ function mapSnapshotProducts(
       category: p.category,
       systemInstanceId: p.systemInstanceId,
       isExtra: p.isExtra,
+      status: p.status,
     };
   });
 }
