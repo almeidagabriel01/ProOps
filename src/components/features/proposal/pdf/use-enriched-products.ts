@@ -23,6 +23,7 @@ export function useEnrichedProducts(
         : [];
       const fallbackImage = proposalProduct.productImage || normalizedImages[0] || "";
       const isGhost = normalizedQuantity <= 0;
+      const isInactive = options?.filterInactive && proposalProduct.status === "inactive";
 
       return {
         ...proposalProduct,
@@ -34,8 +35,9 @@ export function useEnrichedProducts(
             : fallbackImage
               ? [fallbackImage]
               : [],
+        _isInactive: isInactive,
         _isGhost: isGhost,
-        _shouldHide: Boolean(proposalProduct._shouldHide || isGhost),
+        _shouldHide: Boolean(proposalProduct._shouldHide || isGhost || isInactive),
       };
     };
 
@@ -45,10 +47,14 @@ export function useEnrichedProducts(
         !tenantId ||
         !proposal?.products?.length
       ) {
-        setEnrichedProducts(
-          (proposal?.products || []).map((p) => normalizeProposalProduct(p)),
-        );
-        setIsLoading(false);
+        // Enforce a small delay to allow DOM to settle and React to finish measuring
+        // layout in RenderPagedContent before declaring products ready for PDF generation.
+        setTimeout(() => {
+          setEnrichedProducts(
+            (proposal?.products || []).map((p) => normalizeProposalProduct(p)),
+          );
+          setIsLoading(false);
+        }, 150);
         return;
       }
 

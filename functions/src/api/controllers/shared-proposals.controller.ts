@@ -125,7 +125,12 @@ async function enrichSharedProposalProducts(
       : undefined;
 
     if (!catalogProduct) {
-      return product;
+      const isInactive = product.status === "inactive";
+      return {
+        ...product,
+        _isInactive: isInactive,
+        _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
+      };
     }
 
     const catalogImages = extractImageUrls(catalogProduct.images);
@@ -140,6 +145,9 @@ async function enrichSharedProposalProducts(
           : product.productImages || [];
     const mergedImage = mergedImages[0] || product.productImage || "";
 
+    const status = (catalogProduct.status as string) || (product.status as string);
+    const isInactive = status === "inactive";
+
     return {
       ...product,
       productImage: mergedImage,
@@ -148,6 +156,8 @@ async function enrichSharedProposalProducts(
         (typeof catalogProduct.description === "string"
           ? catalogProduct.description
           : "") || product.productDescription || "",
+      _isInactive: isInactive,
+      _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
     };
   });
 

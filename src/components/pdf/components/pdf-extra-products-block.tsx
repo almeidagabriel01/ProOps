@@ -15,6 +15,8 @@ interface PdfProduct {
   quantity: number;
   unitPrice: number;
   total: number;
+  _isInactive?: boolean;
+  _isGhost?: boolean;
 }
 
 interface PdfExtraProductsBlockProps {
@@ -32,12 +34,15 @@ export function PdfExtraProductsBlock({
   pdfDisplaySettings,
 }: PdfExtraProductsBlockProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
-  const visibleProducts = products.filter(
-    (product) => Number(product.quantity || 0) > 0,
+  const nonGhostProducts = products.filter(
+    (product) => Number(product.quantity || 0) > 0 && !product._isGhost,
   );
-  const extraSubtotal = visibleProducts.reduce(
+  const extraSubtotal = nonGhostProducts.reduce(
     (sum: number, p: PdfProduct) => sum + p.total,
     0,
+  );
+  const visibleProducts = nonGhostProducts.filter(
+    (product) => !product._isInactive,
   );
 
   return (

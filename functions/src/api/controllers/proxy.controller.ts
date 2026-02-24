@@ -10,7 +10,7 @@ const DEFAULT_USER_AGENT =
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 8000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 300;
 const DEFAULT_PROXY_ALLOWED_HOSTS = [
   "firebasestorage.googleapis.com",
   "firebasestorage.app",
@@ -123,7 +123,9 @@ function parseAllowedOrigins(rawValue: string | undefined): Set<string> {
 }
 
 function resolveAllowedOrigins(): Set<string> {
-  const origins = parseAllowedOrigins(process.env.PROXY_IMAGE_ALLOWED_ORIGINS);
+  const origins = parseAllowedOrigins(
+    process.env.PROXY_IMAGE_ALLOWED_ORIGINS || process.env.CORS_ALLOWED_ORIGINS,
+  );
   [
     process.env.NEXT_PUBLIC_APP_URL,
     process.env.APP_URL,

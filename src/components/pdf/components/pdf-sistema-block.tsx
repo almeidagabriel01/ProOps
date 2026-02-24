@@ -158,13 +158,10 @@ export function PdfSistemaBlock({
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   const ambientes = resolveSistemaAmbientes(sistema);
-  const visibleProducts = products.filter(
-    (product) =>
-      Number(product.quantity || 0) > 0 &&
-      !product._isGhost &&
-      !product._isInactive,
+  const nonGhostProducts = products.filter(
+    (product) => Number(product.quantity || 0) > 0 && !product._isGhost,
   );
-  const sistemaSubtotal = visibleProducts.reduce((sum, p) => sum + p.total, 0);
+  const sistemaSubtotal = nonGhostProducts.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">

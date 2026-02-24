@@ -6,7 +6,10 @@ import { flushSync } from "react-dom";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
-import { CoverElement, PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import {
+  CoverElement,
+  PdfSection,
+} from "@/components/features/proposal/pdf-section-editor";
 import { ThemeType } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { RenderToPdfResult, renderToPdf } from "@/services/pdf/render-to-pdf";
 
@@ -104,15 +107,21 @@ export async function renderProposalToPdfOffscreen({
     reactRoot = createRoot(host);
     flushSync(() => {
       reactRoot?.render(
-        <div id="pdf-offscreen-content" style={{ width: "794px", minWidth: "794px" }}>
-        <ProposalPdfViewer
-          proposal={proposal}
-          template={template}
-          tenant={tenant}
-          customSettings={
-            customSettings as Parameters<typeof ProposalPdfViewer>[0]["customSettings"]
-          }
+        <div
+          id="pdf-offscreen-content"
+          style={{ width: "794px", minWidth: "794px" }}
+        >
+          <ProposalPdfViewer
+            proposal={proposal}
+            template={template}
+            tenant={tenant}
+            customSettings={
+              customSettings as Parameters<
+                typeof ProposalPdfViewer
+              >[0]["customSettings"]
+            }
             showCover={showCover}
+            skipCatalogEnrichment={sourceLabel === "shared"}
           />
         </div>,
       );
@@ -127,7 +136,7 @@ export async function renderProposalToPdfOffscreen({
     }
     await waitForAttributeValue(
       host,
-      '[data-pdf-products-ready]',
+      "[data-pdf-products-ready]",
       "data-pdf-products-ready",
       "1",
       6000,
