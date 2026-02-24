@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase-admin";
+import { rateLimit } from "@/lib/rate-limit";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
 const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5; // 5 days
 const MAX_REQUEST_BODY_BYTES = 8 * 1024;
 
+// Rate limiting: 5 attempts per IP in a 15-minute sliding window
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
 export const dynamic = "force-dynamic";
+
+function getClientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // x-forwarded-for can contain multiple IPs; the first is the client
+    return forwarded.split(",")[0].trim();
+  }
+  return req.headers.get("x-real-ip") || "unknown";
+}
 
 function resolveSessionMaxAgeSeconds(): number {
   const configured = Number(process.env.AUTH_SESSION_MAX_AGE_SECONDS || "");
@@ -33,6 +47,22 @@ function clearLegacyCookie(response: NextResponse, req: NextRequest): void {
 }
 
 export async function POST(req: NextRequest) {
+  const clientIp = getClientIp(req);
+
+  // Pre-check: if this IP is already blocked, reject immediately
+  const preCheck = rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS, true);
+  if (!preCheck.allowed) {
+    const response = NextResponse.json(
+      {
+        error: "Muitas tentativas de login. Tente novamente mais tarde.",
+        retryAfterSeconds: preCheck.retryAfterSeconds,
+      },
+      { status: 429 },
+    );
+    response.headers.set("Retry-After", String(preCheck.retryAfterSeconds));
+    return response;
+  }
+
   try {
     const contentLength = Number(req.headers.get("content-length") || "0");
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
@@ -67,6 +97,8 @@ export async function POST(req: NextRequest) {
     clearLegacyCookie(response, req);
     return response;
   } catch (error) {
+    // Token verification failed — THIS counts as a failed attempt
+    rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS);
     console.error("Failed to create session cookie:", error);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

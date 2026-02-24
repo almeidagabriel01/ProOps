@@ -180,52 +180,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "admin";
     } else if (pathname?.startsWith("/solutions")) {
       skeletonType = "automation";
-    } else if (pathname === "/" && typeof window !== "undefined") {
-      // Only use cache guessing for root redirect
-      try {
-        const cached = localStorage.getItem("erp_user_cache");
-        if (cached) {
-          const data = JSON.parse(cached);
-          const { permissions, isAdmin } = data;
-
-          if (isAdmin || permissions?.dashboard?.canView) {
-            skeletonType = "dashboard";
-          } else {
-            const pages = [
-              "proposals",
-              "clients",
-              "products",
-              "financial",
-              "profile",
-            ];
-            const firstAllowed = pages.find(
-              (page) =>
-                permissions[page]?.canView === true || page === "profile",
-            );
-            switch (firstAllowed) {
-              case "financial":
-                skeletonType = "financial";
-                break;
-              case "profile":
-                skeletonType = "profile";
-                break;
-              case "products":
-                skeletonType = "products";
-                break;
-              case "clients":
-                skeletonType = "clients";
-                break;
-              case "proposals":
-                skeletonType = "proposals";
-                break;
-              default:
-                skeletonType = "list";
-                break;
-            }
-          }
-        }
-      } catch {}
-    } else if (pathname?.startsWith("/dashboard")) {
+    } else if (pathname === "/" || pathname?.startsWith("/dashboard")) {
       skeletonType = "dashboard";
     }
 
@@ -293,37 +248,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       );
     }
 
-    // Transient state before redirect happens
-    let skeletonType = "dashboard";
-    // ... (same cache reading logic could be extracted but duplicating for safety in this ephemeral block)
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("erp_user_cache");
-        if (cached) {
-          const data = JSON.parse(cached);
-          if (!data.isAdmin && !data.permissions?.dashboard?.canView) {
-            skeletonType = "list"; // default to list if no dashboard
-          }
-        }
-      } catch {}
-    }
-
+    // Transient state before redirect happens — show dashboard skeleton as default
     return (
       <AppSkeleton>
-        {skeletonType === "dashboard" ? (
-          <DashboardSkeleton />
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="h-8 w-48 bg-muted animate-pulse mb-2" />
-                <div className="h-4 w-64 bg-muted animate-pulse" />
-              </div>
-              <div className="h-10 w-32 bg-muted animate-pulse" />
-            </div>
-            <TableSkeleton rowCount={8} columnCount={5} />
-          </div>
-        )}
+        <DashboardSkeleton />
       </AppSkeleton>
     );
   }

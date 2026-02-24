@@ -25,9 +25,6 @@ interface LandingPlan {
 export function useLandingPage() {
   const router = useRouter();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  // Initialize from cache to prevent flash, but handle hydration mismatch
-  // by using useEffect for the redirect logic
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
@@ -41,12 +38,44 @@ export function useLandingPage() {
   // Fixed initial skeleton value
   const initialSkeleton = "list";
 
-  // Fetch plans on mount
+  // ──────────────────────────────────────────────
+  // 1. Server-side session pre-check via cookie
+  //    Shows the loader IMMEDIATELY if a valid session exists
+  // ──────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkServerSession = async () => {
+      try {
+        const res = await fetch("/api/auth/check", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!cancelled && data.authenticated) {
+          // Session is valid on the server — show loader immediately
+          setIsRedirecting(true);
+        }
+      } catch {
+        // Network error or server unavailable — fall through to Firebase client check
+      }
+    };
+
+    checkServerSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ──────────────────────────────────────────────
+  // 2. Fetch plans on mount
+  // ──────────────────────────────────────────────
   useEffect(() => {
     const fetchPlans = async () => {
-      // Fetch live data from Stripe (only source of truth)
-
-      // 2. Fetch live data from Stripe (slower but accurate)
       try {
         const livePlans = await PlanService.getLivePlans();
         if (livePlans && livePlans.length > 0) {
@@ -103,9 +132,11 @@ export function useLandingPage() {
     fetchPlans();
   }, []);
 
-  // Auth state listener - handles both login check and redirect
+  // ──────────────────────────────────────────────
+  // 3. Firebase client-side auth listener
+  //    Handles the actual redirect logic
+  // ──────────────────────────────────────────────
   useEffect(() => {
-    // Check for cached session on mount (client-side only)
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
@@ -116,6 +147,7 @@ export function useLandingPage() {
             if (userData.role !== "free") {
               // Superadmin goes directly to admin panel
               if (userData.role === "superadmin") {
+                setIsRedirecting(true);
                 router.replace("/admin");
                 return;
               }
@@ -127,20 +159,7 @@ export function useLandingPage() {
               const canViewDashboard =
                 isAdmin || perms["dashboard"]?.canView === true;
 
-              // Cache the role/permissions for faster next load
-              try {
-                const cachedData = {
-                  role: userData.role,
-                  permissions: userData.permissions || {},
-                  isAdmin: isAdmin,
-                };
-                localStorage.setItem(
-                  "erp_user_cache",
-                  JSON.stringify(cachedData),
-                );
-              } catch {
-                // Ignore storage errors
-              }
+              setIsRedirecting(true);
 
               if (canViewDashboard) {
                 router.replace("/dashboard");
@@ -178,17 +197,10 @@ export function useLandingPage() {
         setIsCheckingAuth(false);
         setIsRedirecting(false);
       } else {
-        // User is NOT logged in - clear cache and reset state
+        // User is NOT logged in
         setCurrentUser(null);
         setIsCheckingAuth(false);
         setIsRedirecting(false);
-
-        // Clear the cached session since user is not logged in
-        try {
-          localStorage.removeItem("erp_user_cache");
-        } catch {
-          // Ignore storage errors
-        }
       }
     });
 
@@ -198,12 +210,6 @@ export function useLandingPage() {
   const handleSignOut = async () => {
     await signOut(auth);
     setCurrentUser(null);
-    // Clear cache on sign out
-    try {
-      localStorage.removeItem("erp_user_cache");
-    } catch {
-      // Ignore storage errors
-    }
   };
 
   return {

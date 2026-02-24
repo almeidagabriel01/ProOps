@@ -16,6 +16,7 @@ import { FullPageLoading } from "@/components/ui/full-page-loading";
 
 export default function LandingPage() {
   const {
+    isCheckingAuth,
     isRedirecting,
     currentUser,
     billingInterval,
@@ -25,12 +26,16 @@ export default function LandingPage() {
     handleSignOut,
   } = useLandingPage();
 
-  // Show loading when redirecting to dashboard
-  if (isRedirecting) {
+  // Show loading when checking for existing session or redirecting to dashboard
+  if (isRedirecting || isCheckingAuth) {
     return (
       <FullPageLoading
-        message="Entrando..."
-        description="Verificando sua sessão"
+        message={isRedirecting ? "Entrando..." : "Verificando sessão..."}
+        description={
+          isRedirecting
+            ? "Redirecionando para sua conta"
+            : "Conectando à sua conta"
+        }
       />
     );
   }
