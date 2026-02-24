@@ -640,6 +640,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     // Batch fetch all plan docs at once
     const planNameMap = new Map<string, string>();
+    const planTierMap = new Map<string, string>(); // Maps document ID -> tier name
     if (planIds.size > 0) {
       try {
         const planRefs = Array.from(planIds).map((id) =>
@@ -653,6 +654,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
               snap.id,
               tierToName[planData?.tier] || planData?.name || snap.id,
             );
+            // Store the tier so we can normalize planId for the frontend
+            if (planData?.tier) {
+              planTierMap.set(snap.id, String(planData.tier).toLowerCase());
+            }
           }
         }
       } catch (err) {
@@ -739,7 +744,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         const tenantId = userData.tenantId || userData.companyId;
         const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {};
 
-        const planId = String(userData.planId || "free");
+        const rawPlanId = String(userData.planId || "free");
+        // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
+        const planId = tierToName[rawPlanId.toLowerCase()]
+          ? rawPlanId.toLowerCase()
+          : (planTierMap.get(rawPlanId) || rawPlanId.toLowerCase());
         let planName = tierToName[planId.toLowerCase()];
         if (!planName && planId !== "free") {
           planName = planNameMap.get(planId) || planId;
