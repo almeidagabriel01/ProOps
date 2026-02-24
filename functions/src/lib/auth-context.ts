@@ -213,15 +213,19 @@ async function resolveAuthContextFromDecodedToken(
 
   const userSnap = await db.collection("users").doc(decodedIdToken.uid).get();
   const userData = userSnap.exists
-    ? (userSnap.data() as { tenantId?: string; companyId?: string })
+    ? (userSnap.data() as { tenantId?: string; companyId?: string; role?: string })
     : undefined;
   const userDocTenantId = normalizeTenantId(
     userData?.tenantId || userData?.companyId,
   );
 
+  // Fallback to Firestore user document role when claims are missing
+  const effectiveRole = role || normalizeRole(userData?.role);
+  const effectiveTenantId = tenantId || userDocTenantId;
+
   const invariantResult = evaluateAuthContextInvariants({
-    role,
-    tenantId,
+    role: effectiveRole,
+    tenantId: effectiveTenantId,
     userDocTenantId,
     requireStrictClaims: options.requireStrictClaims,
   });
@@ -243,8 +247,8 @@ async function resolveAuthContextFromDecodedToken(
       normalizeOptionalString(decodedIdToken.email) ||
       normalizeOptionalString(userRecord.email),
     email_verified: decodedIdToken.email_verified,
-    role,
-    tenantId,
+    role: effectiveRole,
+    tenantId: effectiveTenantId,
     masterId,
     stripeId,
     isSuperAdmin: invariantResult.isSuperAdmin,
