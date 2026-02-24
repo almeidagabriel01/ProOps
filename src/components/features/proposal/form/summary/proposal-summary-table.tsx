@@ -34,6 +34,11 @@ export function ProposalSummaryTable({
   extraExpense,
   totalValue,
 }: ProposalSummaryTableProps) {
+  const displaySelectedProducts = selectedProducts.filter(
+    (p) => p.quantity > 0,
+  );
+  const displayExtraProducts = extraProducts.filter((p) => p.quantity > 0);
+
   // Helper to check if product is inactive
   const isProductInactive = (product: ProposalProduct) => {
     // Check if product is inactive in catalog OR marked as inactive in proposal
@@ -59,14 +64,14 @@ export function ProposalSummaryTable({
           {isAutomacaoNiche && (
             <SystemGroupRows
               selectedSistemas={selectedSistemas}
-              selectedProducts={selectedProducts}
+              selectedProducts={displaySelectedProducts}
               primaryColor={primaryColor}
               isProductInactive={isProductInactive}
             />
           )}
 
           {/* Produtos extras (Automacao) */}
-          {isAutomacaoNiche && extraProducts.length > 0 && (
+          {isAutomacaoNiche && displayExtraProducts.length > 0 && (
             <React.Fragment>
               <tr className="border-t bg-gray-100">
                 <td
@@ -76,7 +81,7 @@ export function ProposalSummaryTable({
                   📦 Produtos Extras (não vinculados a sistemas)
                 </td>
               </tr>
-              {extraProducts.map((product) => (
+              {displayExtraProducts.map((product) => (
                 <ProductRow
                   key={product.productId}
                   product={product}
@@ -88,7 +93,7 @@ export function ProposalSummaryTable({
 
           {/* Para nicho não-automação */}
           {!isAutomacaoNiche &&
-            selectedProducts.map((product) => (
+            displaySelectedProducts.map((product) => (
               <ProductRow
                 key={product.productId}
                 product={product}
@@ -97,7 +102,7 @@ export function ProposalSummaryTable({
             ))}
         </tbody>
         <SummaryFooter
-          selectedProducts={selectedProducts}
+          selectedProducts={displaySelectedProducts}
           subtotal={subtotal}
           discount={discount}
           discountPercentage={discountPercentage}
