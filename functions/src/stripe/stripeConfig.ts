@@ -124,7 +124,7 @@ export function getAppUrl(): string {
     return appUrl.endsWith("/") ? appUrl : `${appUrl}/`;
   }
 
-  return process.env.NODE_ENV === "production"
-    ? "https://proops.com.br/"
-    : "http://localhost:3000/";
+  const isLocal = process.env.FUNCTIONS_EMULATOR === "true" || process.env.NODE_ENV === "development";
+
+  return isLocal ? "http://localhost:3000/" : "https://proops.com.br/";
 }
