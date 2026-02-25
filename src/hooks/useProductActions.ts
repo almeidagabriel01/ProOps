@@ -20,7 +20,6 @@ export interface CreateProductData {
   markup?: string;
   manufacturer?: string;
   category?: string;
-  sku?: string;
   stock?: number;
   status?: string;
   images?: string[];
@@ -70,7 +69,6 @@ export function useProductActions() {
         markup: data.markup || "",
         manufacturer: data.manufacturer || "",
         category: data.category || "",
-        sku: data.sku || "",
         stock: data.stock ?? 0,
         status: data.status || "active",
         images: data.images || [],

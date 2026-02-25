@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
 import { toast } from '@/lib/toast';
@@ -18,6 +18,7 @@ interface UsePdfGeneratorProps {
   tenant?: Tenant | null;
   customSettings?: PdfViewerSettings;
   showCover?: boolean;
+  canonicalSource?: boolean;
   setIsOpen: (open: boolean) => void;
 }
 
@@ -27,51 +28,64 @@ export function usePdfGenerator({
   tenant,
   customSettings,
   showCover = true,
+  canonicalSource = true,
   setIsOpen,
 }: UsePdfGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleGenerate = async (
-    rootElementId?: string,
-    sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
-  ) => {
-    setIsGenerating(true);
-    try {
-      const hasProposalPayload = Boolean(
-        proposal &&
-          (proposal.id ||
-            (proposal.products && proposal.products.length > 0) ||
-            proposal.title),
-      );
+  const handleGenerate = useCallback(
+    async (
+      rootElementId?: string,
+      sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
+    ) => {
+      setIsGenerating(true);
+      try {
+        const hasProposalPayload = Boolean(
+          proposal &&
+            (proposal.id ||
+              (proposal.products && proposal.products.length > 0) ||
+              proposal.title),
+        );
 
-      if (!hasProposalPayload) {
-        toast.error("Erro ao localizar dados da proposta para gerar o PDF.");
-        return;
+        if (!hasProposalPayload) {
+          toast.error("Erro ao localizar dados da proposta para gerar o PDF.");
+          return;
+        }
+
+        const result = await generateProposalPdf({
+          proposal,
+          template,
+          tenant,
+          customSettings,
+          showCover,
+          rootHint: rootElementId || "pdf-offscreen-content",
+          proposalTitle: proposal?.title,
+          tenantId: proposal?.tenantId,
+          sourceLabel,
+          canonicalSource,
+        });
+
+        savePdfBlob(result.blob, result.filename);
+        setIsOpen(false);
+        toast.success("PDF baixado com sucesso!");
+      } catch (error) {
+        console.error("Erro ao gerar PDF:", error);
+        toast.error("Erro ao gerar PDF.");
+        setIsOpen(false);
+      } finally {
+        setIsGenerating(false);
       }
-
-      const result = await generateProposalPdf({
-        proposal,
-        template,
-        tenant,
-        customSettings,
-        showCover,
-        rootHint: rootElementId || "pdf-offscreen-content",
-        proposalTitle: proposal?.title,
-        tenantId: proposal?.tenantId,
-        sourceLabel,
-      });
-
-      savePdfBlob(result.blob, result.filename);
-      setIsOpen(false);
-      toast.success("PDF baixado com sucesso!");
-    } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      toast.error("Erro ao gerar PDF.");
-      setIsOpen(false);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    },
+    [
+      canonicalSource,
+      customSettings,
+      proposal,
+      setIsOpen,
+      showCover,
+      template,
+      tenant,
+    ],
+  );
 
   return { isGenerating, handleGenerate };
 }

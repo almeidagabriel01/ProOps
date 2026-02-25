@@ -235,7 +235,11 @@ export function useProposalFormProductSubmit(
   };
 
   const calculateSubtotal = React.useCallback(
-    () => visibleProducts.reduce((sum, p) => sum + p.total, 0),
+    () =>
+      visibleProducts.reduce(
+        (sum, p) => (Number(p.quantity || 0) > 0 ? sum + p.total : sum),
+        0,
+      ),
     [visibleProducts],
   );
 

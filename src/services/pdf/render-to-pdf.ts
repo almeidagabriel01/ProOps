@@ -264,6 +264,7 @@ export async function renderToPdf({
       clonedDoc: Document,
       pageIndex: number,
       pageIndexAttr: string,
+      aggressiveColorSanitization = false,
     ) => {
       // Replace modern color functions that html2canvas may fail to parse.
       injectModernColorFallbacksFromStylesheets(clonedDoc);
@@ -280,6 +281,7 @@ export async function renderToPdf({
         captureProxyOptions,
         captureSelector,
         log,
+        aggressiveColorSanitization,
       );
       Object.entries(cloneStats.unsupportedColorHitsByProperty).forEach(
         ([propertyName, count]) => {
@@ -350,77 +352,6 @@ export async function renderToPdf({
               unsupportedColorHitsByProperty:
                 cloneStatsFromHandle.unsupportedColorHitsByProperty,
             };
-            return;
-            // Replace Tailwind v4 modern color functions (lab, oklch, etc.) that html2canvas
-            // cannot parse. This scans CSS rules once (fast) and injects a single :root
-            // override block — much faster than per-node getComputedStyle traversal.
-            injectModernColorFallbacksFromStylesheets(clonedDoc);
-            // Speed up Chrome text measurement
-            const overrideStyle = clonedDoc.createElement("style");
-            overrideStyle.innerHTML =
-              "* { text-rendering: optimizeSpeed !important; font-variant-ligatures: none !important; }";
-            clonedDoc.head.appendChild(overrideStyle);
-            const cloneStats = await prepareCloneForCapture(
-              clonedDoc,
-              captureProxyOptions,
-              captureTargetSelector,
-              log,
-            );
-            Object.entries(cloneStats.unsupportedColorHitsByProperty).forEach(
-              ([propertyName, count]) => {
-                aggregateUnsupportedColorHitsByProperty[propertyName] =
-                  (aggregateUnsupportedColorHitsByProperty[propertyName] || 0) +
-                  count;
-              },
-            );
-            aggregateUnsupportedColorElementsCount +=
-              cloneStats.unsupportedColorElementsCount;
-            aggregateBgModernFlaggedCount += cloneStats.bgModernFlaggedCount;
-            aggregateGlobalOverridesApplied =
-              aggregateGlobalOverridesApplied ||
-              cloneStats.globalOverridesApplied;
-            aggregateNormalizedColorsCount += cloneStats.normalizedColorsCount;
-            aggregateRemainingUnsupportedColorCount +=
-              cloneStats.remainingUnsupportedColorCount;
-            aggregateTotalImages += cloneStats.totalImages;
-            aggregateDecodedImages += cloneStats.decodedImages;
-            aggregateFailedImages += cloneStats.failedImages;
-            aggregateProxiedImagesCount += cloneStats.proxiedImagesCount;
-            aggregateProxiedBackgroundImagesCount +=
-              cloneStats.proxiedBackgroundImagesCount;
-            aggregateDirectRemoteImageRequestsCount +=
-              cloneStats.directRemoteImageRequestsCount;
-            aggregateImageWaitMs += cloneStats.imageWaitMs;
-            latestCloneErrorDiagnostics = {
-              pageIndex,
-              remainingUnsupportedColorCount:
-                cloneStats.remainingUnsupportedColorCount,
-              unsupportedColorHitsByProperty:
-                cloneStats.unsupportedColorHitsByProperty,
-            };
-            log("clone capture diagnostics", {
-              pageIndex,
-              captureTargetSelector: cloneStats.captureTargetSelector,
-              captureTargetSnippet: cloneStats.captureTargetSnippet,
-              captureTargetRect: cloneStats.captureTargetRect,
-              captureTargetPages: cloneStats.captureTargetPages,
-              pageCountInTarget: cloneStats.captureTargetPages.length,
-              visibleNodeCount: cloneStats.visibleNodeCount,
-              unsupportedColorHitsByProperty:
-                cloneStats.unsupportedColorHitsByProperty,
-              unsupportedColorElementsCount:
-                cloneStats.unsupportedColorElementsCount,
-              bgModernFlaggedCount: cloneStats.bgModernFlaggedCount,
-              globalOverridesApplied: cloneStats.globalOverridesApplied,
-              normalizedColorsCount: cloneStats.normalizedColorsCount,
-              remainingUnsupportedColorCount:
-                cloneStats.remainingUnsupportedColorCount,
-              proxiedImagesCount: cloneStats.proxiedImagesCount,
-              proxiedBackgroundImagesCount:
-                cloneStats.proxiedBackgroundImagesCount,
-              directRemoteImageRequestsCount:
-                cloneStats.directRemoteImageRequestsCount,
-            });
           },
         });
       } catch (error) {
@@ -441,6 +372,7 @@ export async function renderToPdf({
                 clonedDoc,
                 pageIndex,
                 pageIndexAttr,
+                true,
               );
               latestCloneErrorDiagnostics = {
                 pageIndex,
@@ -512,8 +444,10 @@ export async function renderToPdf({
     });
 
     const blob = pdf.output("blob");
-    const arrayBuffer = await blob.arrayBuffer();
-    const hashHex = await hashBuffer(arrayBuffer);
+    // Hashing large PDFs adds noticeable latency before download starts.
+    // Keep this expensive diagnostics path only when pdf debug is enabled.
+    const arrayBuffer = debugEnabled ? await blob.arrayBuffer() : new ArrayBuffer(0);
+    const hashHex = debugEnabled ? await hashBuffer(arrayBuffer) : "";
     const durationMs = Math.round(performance.now() - startedAt);
 
     const result: RenderToPdfResult = {
@@ -585,3 +519,4 @@ export function savePdfBlob(blob: Blob, filename: string): void {
   document.body.removeChild(anchor);
   URL.revokeObjectURL(blobUrl);
 }
+

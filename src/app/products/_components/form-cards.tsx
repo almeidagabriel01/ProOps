@@ -150,7 +150,6 @@ export function PriceStockCard({
         )}
         <FormRow cols={2}>
           <FormDisplayField label="Estoque" value={formData.stock} />
-          <FormDisplayField label="SKU" value={formData.sku} />
         </FormRow>
       </FormCard>
     );
@@ -204,15 +203,6 @@ export function PriceStockCard({
             type="number"
             placeholder="0"
             value={formData.stock}
-            onChange={onChange}
-          />
-        </FormField>
-        <FormField label="SKU (Código)" htmlFor="sku">
-          <Input
-            id="sku"
-            name="sku"
-            placeholder="PROD-001"
-            value={formData.sku}
             onChange={onChange}
           />
         </FormField>
@@ -349,3 +339,5 @@ export function PublishCard({
     </FormCard>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { pdfDebugLog } from "@/utils/pdf-helpers";
 import { formatCurrency } from "@/utils/format-utils";
 import {
@@ -23,6 +23,7 @@ import {
   PdfSistemaProductCard,
 } from "./components";
 import { defaultPdfDisplaySettings } from "@/types/pdf-display-settings";
+import { shouldCountInPdfTotals } from "./product-visibility";
 
 // Type definitions
 export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
@@ -39,64 +40,75 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
   pdfDisplaySettings = defaultPdfDisplaySettings,
 }) => {
   // Merge with defaults to ensure all settings have values
-  const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
+  const settings = useMemo(
+    () => ({ ...defaultPdfDisplaySettings, ...pdfDisplaySettings }),
+    [pdfDisplaySettings],
+  );
 
   const [measuredHeights, setMeasuredHeights] = useState<
     Record<string, number>
   >({});
   const measureRef = useRef<HTMLDivElement>(null);
 
-  const items = buildContentItems(
-    sections,
-    products,
-    proposal,
-    primaryColor,
-    settings,
+  const items = useMemo(
+    () => buildContentItems(sections, products, proposal, primaryColor, settings),
+    [sections, products, proposal, primaryColor, settings],
+  );
+
+  const countableProducts = useMemo(
+    () => products.filter((p) => shouldCountInPdfTotals(p)),
+    [products],
   );
 
   // Measurement effect: capture real DOM heights
   useLayoutEffect(() => {
     if (!measureRef.current) return;
 
-    const newHeights: Record<string, number> = {};
-    let hasChanges = false;
-    let count = 0;
+    setMeasuredHeights((previousHeights) => {
+      const nextHeights: Record<string, number> = {};
+      let hasChanges = false;
+      let count = 0;
+      const previousKeys = Object.keys(previousHeights).length;
 
-    items.forEach((item) => {
-      if (item.id) {
+      items.forEach((item) => {
+        if (!item.id) return;
         const el = measureRef.current?.querySelector(
           `[data-measure-id="${item.id}"]`,
-        ) as HTMLElement;
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          // Calculate scale factor by comparing rendered width vs layout width
-          // This handles the case where the parent container is scaled (e.g. in Edit PDF zoom)
-          // Default to 1 if offsetWidth is 0 to avoid division by zero
-          const scale = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+        ) as HTMLElement | null;
+        if (!el) return;
 
-          // Use unscaled height for pagination logic
-          const height = rect.height / scale;
-          const currentHeight = measuredHeights[item.id] || 0;
+        const rect = el.getBoundingClientRect();
+        // Keep pagination based on unscaled heights (preview may be zoomed).
+        const scale = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+        const height = rect.height / scale;
+        const currentHeight = previousHeights[item.id] || 0;
 
-          // Only update if difference > 0.5px to avoid infinite loops from micro-adjustments
-          if (Math.abs(height - currentHeight) > 0.5) {
-            newHeights[item.id] = height;
-            hasChanges = true;
-          } else {
-            newHeights[item.id] = currentHeight;
-          }
-          count++;
+        if (Math.abs(height - currentHeight) > 0.5) {
+          nextHeights[item.id] = height;
+          hasChanges = true;
+        } else {
+          nextHeights[item.id] = currentHeight;
         }
+        count += 1;
+      });
+
+      if (previousKeys !== Object.keys(nextHeights).length) {
+        hasChanges = true;
       }
-    });
 
-    if (hasChanges) {
+      if (!hasChanges) {
+        return previousHeights;
+      }
+
       pdfDebugLog(`Measurement updated for ${count} items`);
-      setMeasuredHeights(newHeights);
-    }
-  }, [items, measuredHeights]); // Re-run when items change or measurements update (to converge)
+      return nextHeights;
+    });
+  }, [items]);
 
-  const pages = distributeIntoPages(items, measuredHeights);
+  const pages = useMemo(
+    () => distributeIntoPages(items, measuredHeights),
+    [items, measuredHeights],
+  );
 
   const renderItem = (item: ContentItem) => {
     switch (item.type) {
@@ -170,9 +182,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
         return (
           <div key="totals" style={{ width: "100%" }}>
             <PdfTotals
-              products={products.filter(
-                (p) => Number(p.quantity || 0) > 0 && !p._isGhost,
-              )}
+              products={countableProducts}
               discount={proposal.discount || 0}
               extraExpense={proposal.extraExpense || 0}
               contentStyles={
@@ -468,7 +478,9 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               }}
             >
               {pageItems.map((item, idx) => (
-                <React.Fragment key={idx}>{renderItem(item)}</React.Fragment>
+                <React.Fragment key={item.id || `item-${idx}`}>
+                  {renderItem(item)}
+                </React.Fragment>
               ))}
             </div>
 

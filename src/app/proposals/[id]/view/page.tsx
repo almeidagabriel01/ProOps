@@ -50,6 +50,7 @@ export default function ViewProposalPage() {
         typeof ProposalPdfViewer
       >[0]["customSettings"]) ?? undefined,
     showCover: true,
+    canonicalSource: false,
     setIsOpen: () => undefined,
   });
 
@@ -131,11 +132,21 @@ export default function ViewProposalPage() {
                       pp.unitPrice !== undefined
                         ? pp.unitPrice
                         : parseFloat(freshProduct.price) || 0;
+                    const resolvedProposalMarkup = (() => {
+                      if (isService) return 0;
+                      if (pp.markup !== undefined) return pp.markup;
+                      const qty = Number(pp.quantity || 0);
+                      const unit = Number(price || 0);
+                      const total = Number(pp.total || 0);
+                      if (qty > 0 && unit > 0) {
+                        const sellingPerUnit = total / qty;
+                        return Math.max(0, ((sellingPerUnit / unit) - 1) * 100);
+                      }
+                      return 0;
+                    })();
                     const markup = isService
                       ? 0
-                      : pp.markup !== undefined
-                        ? pp.markup
-                        : parseFloat(freshProduct.markup || "0");
+                      : resolvedProposalMarkup;
                     const sellingPrice = price * (1 + markup / 100);
                     return {
                       ...pp,

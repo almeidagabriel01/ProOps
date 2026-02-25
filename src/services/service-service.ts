@@ -24,7 +24,6 @@ export type Service = {
   markup?: string;
 
   category: string;
-  sku: string;
   stock: number;
   images: string[];
   image?: string | null;

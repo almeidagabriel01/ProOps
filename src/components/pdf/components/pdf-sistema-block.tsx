@@ -11,6 +11,10 @@ import {
   resolvePdfDisplaySettings,
   resolveSistemaAmbientes,
 } from "./pdf-sistema-types";
+import {
+  isProductVisibleInPdf,
+  shouldCountInPdfTotals,
+} from "../product-visibility";
 
 function PdfSistemaHead({
   sistema,
@@ -158,10 +162,10 @@ export function PdfSistemaBlock({
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   const ambientes = resolveSistemaAmbientes(sistema);
-  const nonGhostProducts = products.filter(
-    (product) => Number(product.quantity || 0) > 0 && !product._isGhost,
+  const productsForTotals = products.filter((product) =>
+    shouldCountInPdfTotals(product),
   );
-  const sistemaSubtotal = nonGhostProducts.reduce((sum, p) => sum + p.total, 0);
+  const sistemaSubtotal = productsForTotals.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">
@@ -203,11 +207,8 @@ export function PdfSistemaBlock({
               scopeProducts = products;
             }
 
-            const activeProducts = scopeProducts.filter(
-              (product) =>
-                Number(product.quantity || 0) > 0 &&
-                !product._isGhost &&
-                !product._isInactive,
+            const activeProducts = scopeProducts.filter((product) =>
+              isProductVisibleInPdf(product),
             );
             if (activeProducts.length === 0) return null;
 
@@ -304,9 +305,7 @@ export function PdfSistemaBlock({
                     >
                       {formatCurrency(
                         scopeProducts
-                          .filter(
-                            (p) => Number(p.quantity || 0) > 0 && !p._isGhost,
-                          )
+                          .filter((p) => shouldCountInPdfTotals(p))
                           .reduce((sum, p) => sum + p.total, 0),
                       )}
                     </span>

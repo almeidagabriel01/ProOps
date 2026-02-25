@@ -146,6 +146,7 @@ export async function prepareCloneForCapture(
   options: { apiBaseUrl: string; tenantId?: string; disableCache: boolean },
   captureTargetSelector: string,
   log?: DebugLogger,
+  aggressiveColorSanitization = false,
 ): Promise<CloneCapturePreparationStats> {
   const debugEnabled = getPdfDebugEnabled();
   const root =
@@ -227,7 +228,16 @@ export async function prepareCloneForCapture(
   applyRootBackgroundFailsafe(cloneHtml);
   applyRootBackgroundFailsafe(cloneBody);
 
-  const colorStats = sanitizeUnsupportedColorsInClone(clonedDoc, root);
+  const colorStats = aggressiveColorSanitization
+    ? sanitizeUnsupportedColorsInClone(clonedDoc, root)
+    : {
+        unsupportedColorHitsByProperty: {},
+        unsupportedColorElementsCount: 0,
+        bgModernFlaggedCount: 0,
+        globalOverridesApplied: false,
+        normalizedColorsCount: 0,
+        remainingUnsupportedColorCount: 0,
+      };
   const captureTargetRect = debugEnabled ? getElementRectSnapshot(root) : null;
   const captureTargetPages = debugEnabled ? getPageRectDiagnostics(root) : [];
   const visibleNodeCount =
@@ -384,10 +394,9 @@ export async function prepareCloneForCapture(
   const decodedImages = settled.filter(Boolean).length;
   const failedImages = settled.length - decodedImages;
 
-  const directRemoteImageRequestsCount = countDirectRemoteImageRequestsInClone(
-    root,
-    clonedDoc,
-  );
+  const directRemoteImageRequestsCount = debugEnabled
+    ? countDirectRemoteImageRequestsInClone(root, clonedDoc)
+    : 0;
   return {
     captureTargetSelector,
     captureTargetSnippet,

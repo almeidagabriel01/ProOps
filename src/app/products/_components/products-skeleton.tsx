@@ -25,7 +25,7 @@ export function ProductsSkeleton() {
           <Skeleton className="col-span-1 h-4 w-full" /> {/* Image */}
           <Skeleton className="col-span-4 h-4 w-full" /> {/* Name */}
           <Skeleton className="col-span-2 h-4 w-full" /> {/* Category */}
-          <Skeleton className="col-span-2 h-4 w-full" /> {/* SKU */}
+          <Skeleton className="col-span-2 h-4 w-full" /> {/* Name detail */}
           <Skeleton className="col-span-1 h-4 w-full" /> {/* Stock */}
           <Skeleton className="col-span-1 h-4 w-full" /> {/* Price */}
           <Skeleton className="col-span-1 h-4 w-full" /> {/* Actions */}

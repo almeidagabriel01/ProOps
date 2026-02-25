@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -93,6 +93,10 @@ export function ProductFormNew({
 
   const entityLabel = entityType === "service" ? "Serviço" : "Produto";
   const entityLabelLower = entityType === "service" ? "serviço" : "produto";
+  const basePrice = parseFloat(formData.price || "0");
+  const markupValue = parseFloat(formData.markup || "0");
+  const sellingPrice = basePrice + (basePrice * markupValue) / 100;
+  const stockLevel = Number(formData.stock || 0);
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -136,7 +140,7 @@ export function ProductFormNew({
     return (
       <div className="space-y-6">
         <FormSection title="Informações" icon={Package}>
-          <FormStatic label="Nome do Produto" value={formData.name} />
+          <FormStatic label={`Nome do ${entityLabel}`} value={formData.name} />
           <FormStatic label="Descrição" value={formData.description} />
           <FormGroup>
             <FormStatic label="Categoria" value={formData.category} />
@@ -151,9 +155,15 @@ export function ProductFormNew({
         <FormSection title="Preço" icon={DollarSign}>
           <FormGroup>
             <FormStatic
-              label="Preço Base"
-              value={`R$ ${parseFloat(formData.price || "0").toFixed(2)}`}
+              label={entityType === "product" ? "Preço Bruto" : "Preço Base"}
+              value={`R$ ${basePrice.toFixed(2)}`}
             />
+            {entityType === "product" && (
+              <>
+                <FormStatic label="Markup" value={`${markupValue.toFixed(2)}%`} />
+                <FormStatic label="Estoque" value={String(stockLevel)} />
+              </>
+            )}
           </FormGroup>
         </FormSection>
         <FormSection title="Imagens" icon={ImageIcon}>
@@ -322,47 +332,131 @@ export function ProductFormNew({
               </div>
             </div>
 
-            <FormGroup>
-              <FormItem
-                label="Preço Base"
-                htmlFor="price"
-                required
-                error={errors.price}
-              >
-                <CurrencyInput
-                  id="price"
-                  name="price"
-                  placeholder="0,00"
-                  value={formData.price}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  className={errors.price ? "border-destructive" : ""}
-                  required
-                />
-              </FormItem>
-            </FormGroup>
+            {entityType === "product" ? (
+              <>
+                <FormGroup cols={3}>
+                  <FormItem
+                    label="Preço Bruto (Custo)"
+                    htmlFor="price"
+                    required
+                    error={errors.price}
+                  >
+                    <CurrencyInput
+                      id="price"
+                      name="price"
+                      placeholder="0,00"
+                      value={formData.price}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={errors.price ? "border-destructive" : ""}
+                      required
+                    />
+                  </FormItem>
 
-            {/* Price preview card */}
-            <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Preço Base
-                  </span>
-                  <span className="text-lg font-semibold">
-                    R$ {parseFloat(formData.price || "0").toFixed(2)}
-                  </span>
+                  <FormItem label="Markup (%)" htmlFor="markup" error={errors.markup}>
+                    <Input
+                      id="markup"
+                      name="markup"
+                      type="number"
+                      placeholder="0"
+                      value={formData.markup}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      min="0"
+                      max="1000"
+                      step="0.01"
+                      className={errors.markup ? "border-destructive" : ""}
+                    />
+                  </FormItem>
+
+                  <FormItem label="Estoque Inicial" htmlFor="stock" error={errors.stock}>
+                    <Input
+                      id="stock"
+                      name="stock"
+                      type="number"
+                      placeholder="0"
+                      value={formData.stock}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      min="0"
+                      className={errors.stock ? "border-destructive" : ""}
+                    />
+                  </FormItem>
+                </FormGroup>
+
+                <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center justify-between sm:block">
+                      <span className="font-medium text-muted-foreground">Preço Bruto</span>
+                      <p className="font-semibold">R$ {basePrice.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center justify-between sm:block">
+                      <span className="font-medium text-muted-foreground">Markup</span>
+                      <p className="font-semibold">{markupValue.toFixed(2)}%</p>
+                    </div>
+                    <div className="flex items-center justify-between sm:block">
+                      <span className="font-medium text-muted-foreground">Lucro por unidade</span>
+                      <p className="font-semibold text-green-700">
+                        R$ {(basePrice * (markupValue / 100)).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between sm:block">
+                      <span className="font-medium text-muted-foreground">Estoque inicial</span>
+                      <p className="font-semibold">{stockLevel}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-green-500/20 flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">Preço de Venda</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      R$ {sellingPrice.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">
-                    Valor considerado
-                  </span>
-                  <span className="text-2xl font-bold text-green-600">
-                    R$ {parseFloat(formData.price || "0").toFixed(2)}
-                  </span>
+              </>
+            ) : (
+              <>
+                <FormGroup>
+                  <FormItem
+                    label="Preço Base"
+                    htmlFor="price"
+                    required
+                    error={errors.price}
+                  >
+                    <CurrencyInput
+                      id="price"
+                      name="price"
+                      placeholder="0,00"
+                      value={formData.price}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={errors.price ? "border-destructive" : ""}
+                      required
+                    />
+                  </FormItem>
+                </FormGroup>
+
+                <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Preço Base
+                      </span>
+                      <span className="text-lg font-semibold">
+                        R$ {basePrice.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">
+                        Valor considerado
+                      </span>
+                      <span className="text-2xl font-bold text-green-600">
+                        R$ {basePrice.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           <StepNavigation onBeforeNext={validateStep2} />
@@ -469,17 +563,33 @@ export function ProductFormNew({
                   <p className="font-medium">{formData.category || "—"}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Preço Base:</span>
+                  <span className="text-muted-foreground">
+                    {entityType === "product" ? "Preço Bruto:" : "Preço Base:"}
+                  </span>
                   <p className="font-medium">
-                    R$ {parseFloat(formData.price || "0").toFixed(2)}
+                    R$ {basePrice.toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Valor final:</span>
+                  <span className="text-muted-foreground">
+                    {entityType === "product" ? "Preço de Venda:" : "Valor final:"}
+                  </span>
                   <p className="font-medium text-green-600">
-                    R$ {parseFloat(formData.price || "0").toFixed(2)}
+                    R$ {(entityType === "product" ? sellingPrice : basePrice).toFixed(2)}
                   </p>
                 </div>
+                {entityType === "product" && (
+                  <>
+                    <div>
+                      <span className="text-muted-foreground">Markup:</span>
+                      <p className="font-medium">{markupValue.toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Estoque:</span>
+                      <p className="font-medium">{stockLevel}</p>
+                    </div>
+                  </>
+                )}
                 <div>
                   <span className="text-muted-foreground">Imagens:</span>
                   <p className="font-medium">

@@ -107,16 +107,16 @@ function PdfDownloader({
     proposal: proposal || {},
     tenant,
     showCover: true,
+    canonicalSource: false,
     setIsOpen: (v) => !v && onClose(),
   });
 
   React.useEffect(() => {
     if (isOpen && proposal && !isGenerating) {
-      // Small timeout to ensure rendering is complete
-      const timer = setTimeout(() => {
-        handleGenerate(undefined, "download");
-      }, 500);
-      return () => clearTimeout(timer);
+      const rafId = window.requestAnimationFrame(() => {
+        void handleGenerate(undefined, "download");
+      });
+      return () => window.cancelAnimationFrame(rafId);
     }
   }, [isOpen, proposal, isGenerating, handleGenerate]);
 

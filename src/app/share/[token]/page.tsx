@@ -43,6 +43,7 @@ export default function SharedProposalPage() {
         typeof ProposalPdfViewer
       >[0]["customSettings"]) ?? undefined,
     showCover: true,
+    canonicalSource: false,
     setIsOpen: () => undefined,
   });
 

@@ -28,7 +28,6 @@ export interface ProductFormData {
   markup: string;
   manufacturer?: string;
   category: string;
-  sku: string;
   stock: string;
   status: string;
   image: File | null;
@@ -37,6 +36,13 @@ export interface ProductFormData {
 
 type CatalogEntityType = "product" | "service";
 type CatalogItem = Product | Service;
+
+function normalizeInitialStock(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  const parsed =
+    typeof value === "number" ? value : Number(String(value).trim());
+  return Number.isFinite(parsed) ? String(parsed) : "";
+}
 
 interface UseProductFormReturn {
   formData: ProductFormData;
@@ -72,23 +78,34 @@ const buildProductFormSnapshot = (
   formData: ProductFormData,
   imageUrls: string[],
   pendingFiles: File[],
+  entityType: CatalogEntityType,
 ): string => {
   const pendingFileKeys = pendingFiles.map(
     (file) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`,
   );
 
-  return JSON.stringify({
+  const baseSnapshot = {
     name: formData.name,
     description: formData.description,
     price: formData.price,
-    markup: formData.markup,
-    manufacturer: formData.manufacturer,
     category: formData.category,
-    sku: formData.sku,
-    stock: formData.stock,
     status: formData.status,
     imageUrls,
     pendingFileKeys,
+  };
+
+  const productOnlySnapshot =
+    entityType === "product"
+      ? {
+          markup: formData.markup,
+          manufacturer: formData.manufacturer,
+          stock: formData.stock,
+        }
+      : {};
+
+  return JSON.stringify({
+    ...baseSnapshot,
+    ...productOnlySnapshot,
   });
 };
 
@@ -120,15 +137,15 @@ export function useProductForm(
     name: initialData?.name || "",
     description: initialData?.description || "",
     price: initialData?.price || "",
-    markup: initialData?.markup || "30",
+    markup:
+      entityType === "product" ? (initialData?.markup || "30") : "",
     manufacturer:
       "manufacturer" in (initialData || {})
         ? (initialData as Product).manufacturer
         : "",
     category: initialData?.category || "",
-    sku: initialData?.sku || "",
     stock:
-      typeof initialData?.stock === "number" ? String(initialData.stock) : "",
+      entityType === "product" ? normalizeInitialStock(initialData?.stock) : "",
     status: initialData?.status || "active",
     image: null,
     images: [],
@@ -158,16 +175,16 @@ export function useProductForm(
           name: initialData?.name || "",
           description: initialData?.description || "",
           price: initialData?.price || "",
-          markup: initialData?.markup || "30",
+          markup:
+            entityType === "product" ? (initialData?.markup || "30") : "",
           manufacturer:
             "manufacturer" in (initialData || {})
               ? (initialData as Product).manufacturer
               : "",
           category: initialData?.category || "",
-          sku: initialData?.sku || "",
           stock:
-            typeof initialData?.stock === "number"
-              ? String(initialData.stock)
+            entityType === "product"
+              ? normalizeInitialStock(initialData?.stock)
               : "",
           status: initialData?.status || "active",
           image: null,
@@ -175,6 +192,7 @@ export function useProductForm(
         },
         initialData?.images || (initialData?.image ? [initialData.image] : []),
         [],
+        entityType,
       );
     },
   );
@@ -186,16 +204,15 @@ export function useProductForm(
         name: initialData.name || "",
         description: initialData.description || "",
         price: initialData.price || "",
-        markup: initialData.markup || "",
+        markup: entityType === "product" ? (initialData.markup || "") : "",
         manufacturer:
-          "manufacturer" in initialData
+          entityType === "product" && "manufacturer" in initialData
             ? (initialData as Product).manufacturer
             : "",
         category: initialData.category || "",
-        sku: initialData.sku || "",
         stock:
-          typeof initialData.stock === "number"
-            ? String(initialData.stock)
+          entityType === "product"
+            ? normalizeInitialStock(initialData.stock)
             : "",
         status: initialData.status || "active",
         image: null,
@@ -214,10 +231,10 @@ export function useProductForm(
       setPendingPreviews([]);
       setRemovedUrls([]);
       setInitialSnapshot(
-        buildProductFormSnapshot(initialFormData, existingImages, []),
+        buildProductFormSnapshot(initialFormData, existingImages, [], entityType),
       );
     }
-  }, [initialData]);
+  }, [initialData, entityType]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -239,17 +256,19 @@ export function useProductForm(
   ) => {
     const { name, value } = e.target;
     // Only validate fields that are in the schema
-    const schemaFields = [
-      "name",
-      "description",
-      "price",
-      "markup",
-      "manufacturer",
-      "category",
-      "sku",
-      "stock",
-      "status",
-    ];
+    const schemaFields =
+      entityType === "product"
+        ? [
+            "name",
+            "description",
+            "price",
+            "markup",
+            "manufacturer",
+            "category",
+            "stock",
+            "status",
+          ]
+        : ["name", "description", "price", "category", "status"];
     if (schemaFields.includes(name)) {
       validateField(
         name as keyof typeof errors,
@@ -326,10 +345,10 @@ export function useProductForm(
     if (!initialSnapshot) return false;
 
     return (
-      buildProductFormSnapshot(formData, imageUrls, pendingFiles) !==
+      buildProductFormSnapshot(formData, imageUrls, pendingFiles, entityType) !==
       initialSnapshot
     );
-  }, [formData, imageUrls, pendingFiles, initialSnapshot]);
+  }, [formData, imageUrls, pendingFiles, initialSnapshot, entityType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -351,17 +370,25 @@ export function useProductForm(
     }
 
     // Validate form before submit - only validate fields that are in the schema
-    const schemaData = {
-      name: formData.name,
-      description: formData.description,
-      price: formData.price,
-      markup: formData.markup,
-      manufacturer: formData.manufacturer,
-      category: formData.category,
-      sku: formData.sku,
-      stock: formData.stock,
-      status: formData.status as "active" | "inactive",
-    };
+    const schemaData =
+      entityType === "product"
+        ? {
+            name: formData.name,
+            description: formData.description,
+            price: formData.price,
+            markup: formData.markup,
+            manufacturer: formData.manufacturer,
+            category: formData.category,
+            stock: formData.stock,
+            status: formData.status as "active" | "inactive",
+          }
+        : {
+            name: formData.name,
+            description: formData.description,
+            price: formData.price,
+            category: formData.category,
+            status: formData.status as "active" | "inactive",
+          };
     if (!validateForm(schemaData)) {
       toast.error("Preencha todos os campos obrigatórios!");
       return;
@@ -398,22 +425,24 @@ export function useProductForm(
         }
       }
 
-      const dataToSave = {
+      const baseDataToSave = {
         tenantId: tenant.id,
         name: formData.name,
         description: formData.description,
         price: formData.price,
-        markup: formData.markup,
-        // Only include manufacturer if it's a product
-        ...(entityType === "product" && {
-          manufacturer: formData.manufacturer,
-        }),
         category: formData.category,
-        sku: formData.sku,
-        stock: normalizedStock,
         status: formData.status as "active" | "inactive",
         images: allImageUrls,
       };
+      const productOnlyData =
+        entityType === "product"
+          ? {
+              markup: formData.markup,
+              manufacturer: formData.manufacturer,
+              stock: normalizedStock,
+            }
+          : {};
+      const dataToSave = { ...baseDataToSave, ...productOnlyData };
 
       const entityLabel = entityType === "service" ? "serviço" : "produto";
       const entityPluralPath =
@@ -434,21 +463,24 @@ export function useProductForm(
         router.push(entityPluralPath);
         router.refresh();
       } else {
-        const payload = {
+        const basePayload = {
           targetTenantId: tenant.id,
           name: formData.name,
           description: formData.description,
           price: formData.price,
-          markup: formData.markup,
-          ...(entityType === "product" && {
-            manufacturer: formData.manufacturer,
-          }),
           category: formData.category,
-          sku: formData.sku,
-          stock: normalizedStock,
           status: formData.status as "active" | "inactive",
           images: allImageUrls,
         };
+        const productOnlyPayload =
+          entityType === "product"
+            ? {
+                markup: formData.markup,
+                manufacturer: formData.manufacturer,
+                stock: normalizedStock,
+              }
+            : {};
+        const payload = { ...basePayload, ...productOnlyPayload };
 
         const result =
           entityType === "service"

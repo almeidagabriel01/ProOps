@@ -6,6 +6,10 @@ import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
+import {
+  isProductVisibleInPdf,
+  shouldCountInPdfTotals,
+} from "../product-visibility";
 
 interface PdfProduct {
   productId: string;
@@ -36,15 +40,15 @@ export function PdfExtraProductsBlock({
   pdfDisplaySettings,
 }: PdfExtraProductsBlockProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
-  const nonGhostProducts = products.filter(
-    (product) => Number(product.quantity || 0) > 0 && !product._isGhost,
+  const visibleProducts = products.filter((product) =>
+    isProductVisibleInPdf(product),
   );
-  const extraSubtotal = nonGhostProducts.reduce(
+  const productsForTotals = products.filter((product) =>
+    shouldCountInPdfTotals(product),
+  );
+  const extraSubtotal = productsForTotals.reduce(
     (sum: number, p: PdfProduct) => sum + p.total,
     0,
-  );
-  const visibleProducts = nonGhostProducts.filter(
-    (product) => !product._isInactive,
   );
 
   return (
