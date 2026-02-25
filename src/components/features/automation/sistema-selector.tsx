@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Pencil } from "lucide-react";
 import {
   Sistema,
@@ -259,21 +259,21 @@ export function SistemaSelector({
         </div>
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <Select
+            <SearchableSelect
+              id="proposal-sistema-select"
+              name="proposal-sistema-select"
               value={selectedSistemaId}
               onChange={(e) => handleSistemaChange(e.target.value)}
               disabled={isLoading}
+              options={sistemas.map((sistema) => ({
+                value: sistema.id,
+                label: sistema.name,
+              }))}
               placeholder="Selecione um sistema..."
-            >
-              <option value="" disabled>
-                Selecione um sistema...
-              </option>
-              {sistemas.map((sistema) => (
-                <option key={sistema.id} value={sistema.id}>
-                  {sistema.name}
-                </option>
-              ))}
-            </Select>
+              searchPlaceholder="Buscar sistema..."
+              emptyMessage="Nenhum sistema disponível"
+              noResultsMessage="Nenhum sistema encontrado"
+            />
           </div>
 
           {selectedSistemaId && (
@@ -301,27 +301,33 @@ export function SistemaSelector({
           <Label>Ambiente</Label>
         </div>
         <div className="relative">
-          <Select
+          <SearchableSelect
+            id="proposal-ambiente-select"
+            name="proposal-ambiente-select"
             value={selectedAmbienteId}
             onChange={(e) => handleAmbienteChange(e.target.value)}
             disabled={!selectedSistemaId}
+            options={filteredAmbientes.map((ambiente) => ({
+              value: ambiente.id,
+              label: ambiente.name,
+            }))}
             placeholder={
               selectedSistemaId
                 ? "Selecione um ambiente..."
                 : "Selecione um sistema primeiro"
             }
-          >
-            <option value="" disabled>
-              {selectedSistemaId
-                ? "Selecione um ambiente..."
-                : "Selecione um sistema primeiro"}
-            </option>
-            {filteredAmbientes.map((ambiente) => (
-              <option key={ambiente.id} value={ambiente.id}>
-                {ambiente.name}
-              </option>
-            ))}
-          </Select>
+            searchPlaceholder={
+              selectedSistemaId
+                ? "Buscar ambiente..."
+                : "Selecione um sistema primeiro"
+            }
+            emptyMessage={
+              selectedSistemaId
+                ? "Nenhum ambiente disponível"
+                : "Selecione um sistema primeiro"
+            }
+            noResultsMessage="Nenhum ambiente encontrado"
+          />
         </div>
       </div>
 
