@@ -16,6 +16,7 @@ import {
 } from "@/types/pdf-display-settings";
 export interface Product {
   productId: string;
+  itemType?: "product" | "service";
   productName: string;
   quantity: number;
   unitPrice: number;

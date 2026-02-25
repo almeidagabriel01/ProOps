@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Package2,
+  Wrench,
   Contact,
   FilePenLine,
   Wallet,
@@ -36,6 +37,7 @@ export const menuItems: MenuItem[] = [
     pageId: "dashboard",
   },
   { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
+  { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
   {
     icon: FilePenLine,
     label: "Propostas",

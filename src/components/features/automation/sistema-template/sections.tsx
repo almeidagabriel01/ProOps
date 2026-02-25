@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Check, Package, X, Minus } from "lucide-react";
 import { SistemaProduct, Ambiente } from "@/types/automation";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 
 interface SistemaInfoSectionProps {
   name: string;
@@ -106,16 +107,23 @@ export function AmbienteSelectorSection({
 }
 
 interface ProductSelectorSectionProps {
-  products: Product[];
+  products: Array<Product | Service>;
   selectedProducts: SistemaProduct[];
   productSearch: string;
   showProductList: boolean;
   productListRef: React.RefObject<HTMLDivElement | null>;
   onSearchChange: (value: string) => void;
   onShowList: () => void;
-  onAddProduct: (product: Product) => void;
-  onRemoveProduct: (productId: string) => void;
-  onUpdateQuantity: (productId: string, delta: number) => void;
+  onAddProduct: (product: Product | Service) => void;
+  onRemoveProduct: (
+    productId: string,
+    itemType?: "product" | "service",
+  ) => void;
+  onUpdateQuantity: (
+    productId: string,
+    delta: number,
+    itemType?: "product" | "service",
+  ) => void;
 }
 
 export function ProductSelectorSection({
@@ -132,7 +140,11 @@ export function ProductSelectorSection({
 }: ProductSelectorSectionProps) {
   const filteredProducts = products.filter(
     (p) =>
-      !selectedProducts.some((sp) => sp.productId === p.id) &&
+      !selectedProducts.some(
+        (sp) =>
+          sp.productId === p.id &&
+          (sp.itemType || "product") === (p.itemType || "product"),
+      ) &&
       (productSearch === "" ||
         p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
         p.category?.toLowerCase().includes(productSearch.toLowerCase())),
@@ -155,7 +167,7 @@ export function ProductSelectorSection({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {selectedProducts.map((sp) => (
               <div
-                key={sp.productId}
+                key={`${sp.productId}-${sp.itemType || "product"}`}
                 className="group relative flex flex-col p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all duration-200"
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -167,7 +179,9 @@ export function ProductSelectorSection({
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mr-2 -mt-2"
-                    onClick={() => onRemoveProduct(sp.productId)}
+                    onClick={() =>
+                      onRemoveProduct(sp.productId, sp.itemType || "product")
+                    }
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -180,6 +194,11 @@ export function ProductSelectorSection({
                   >
                     {sp.productName}
                   </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {(sp.itemType || "product") === "service"
+                      ? "Serviço"
+                      : "Produto"}
+                  </p>
                 </div>
 
                 {/* Quantity Control */}
@@ -189,7 +208,13 @@ export function ProductSelectorSection({
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6 hover:bg-background shadow-sm"
-                    onClick={() => onUpdateQuantity(sp.productId, -1)}
+                    onClick={() =>
+                      onUpdateQuantity(
+                        sp.productId,
+                        -1,
+                        sp.itemType || "product",
+                      )
+                    }
                   >
                     <Minus className="h-3 w-3" />
                   </Button>
@@ -201,7 +226,13 @@ export function ProductSelectorSection({
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6 hover:bg-background shadow-sm"
-                    onClick={() => onUpdateQuantity(sp.productId, 1)}
+                    onClick={() =>
+                      onUpdateQuantity(
+                        sp.productId,
+                        1,
+                        sp.itemType || "product",
+                      )
+                    }
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -217,7 +248,7 @@ export function ProductSelectorSection({
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
-            placeholder="Buscar e adicionar produtos..."
+            placeholder="Buscar e adicionar produtos/serviços..."
             value={productSearch}
             onChange={(e) => onSearchChange(e.target.value)}
             onFocus={onShowList}
@@ -230,8 +261,8 @@ export function ProductSelectorSection({
             {filteredProducts.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground text-center">
                 {products.length === 0
-                  ? "Nenhum produto cadastrado"
-                  : "Nenhum produto encontrado"}
+                  ? "Nenhum item cadastrado"
+                  : "Nenhum item encontrado"}
               </div>
             ) : (
               filteredProducts.slice(0, 15).map((product) => (
@@ -249,7 +280,11 @@ export function ProductSelectorSection({
                       {product.name}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {product.category && `${product.category} • `}
+                      {(product.itemType === "service"
+                        ? "Serviço"
+                        : "Produto") +
+                        (product.category ? ` • ${product.category}` : "") +
+                        " • "}
                       R$ {parseFloat(product.price).toFixed(2)}
                     </div>
                   </div>
@@ -263,7 +298,7 @@ export function ProductSelectorSection({
 
       {selectedProducts.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-2">
-          Clique no campo acima para ver e adicionar produtos
+          Clique no campo acima para ver e adicionar itens
         </p>
       )}
     </div>

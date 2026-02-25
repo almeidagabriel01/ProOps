@@ -1,15 +1,10 @@
 import { formatCurrency } from "@/utils/format-utils";
 import { PdfDisplaySettings } from "@/types/pdf-display-settings";
 import { PdfExtraBadge } from "./pdf-extra-badge";
+import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
 
-export function PdfProductTitle({
-  productName,
-  isExtra,
-}: {
-  productName: string;
-  isExtra?: boolean;
-}) {
+export function PdfProductTitle({ productName }: { productName: string }) {
   return (
     <table
       style={{
@@ -39,20 +34,6 @@ export function PdfProductTitle({
               {productName}
             </span>
           </td>
-          {isExtra && (
-            <td
-              data-pdf-padding-top="2px"
-              style={{
-                padding: 0,
-                paddingLeft: "8px",
-                paddingTop: "2px",
-                verticalAlign: "top",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <PdfExtraBadge />
-            </td>
-          )}
         </tr>
       </tbody>
     </table>
@@ -172,87 +153,29 @@ export function PdfSistemaProductCard({
       }}
     >
       <div className="space-y-2">
-        <table
+        <div
           data-pdf-item-row="1"
           data-pdf-item-id={product.productId}
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            tableLayout: "fixed",
-          }}
+          className="flex items-start justify-between gap-2"
         >
-          <tbody>
-            <tr>
-              <td
-                data-pdf-item-title="1"
-                style={{
-                  verticalAlign: "top",
-                  width: "100%",
-                  minWidth: 0,
-                }}
-              >
-                <PdfProductTitle
-                  productName={product.productName}
-                  isExtra={product.isExtra}
-                />
-              </td>
-              <td
-                className="text-right shrink-0"
-                data-pdf-item-qty="1"
-                style={{
-                  verticalAlign: "top",
-                  paddingLeft: "12px",
-                  whiteSpace: "nowrap",
-                  textAlign: "right",
-                  minWidth: "120px",
-                  width: "120px",
-                  lineHeight: "1.3",
-                  marginTop: "0",
-                  paddingTop: "0",
-                }}
-              >
-                {settings.showProductPrices ? (
-                  <div
-                    className="space-y-0"
-                    style={{
-                      display: "inline-flex",
-                      flexDirection: "column",
-                      alignItems: "flex-end",
-                      justifyContent: "center",
-                      lineHeight: "1.2",
-                    }}
-                  >
-                    <span className="text-[10px] text-gray-500 block">
-                      {product.quantity}x {formatCurrency(product.unitPrice)}
-                    </span>
-                    <span
-                      className="font-semibold text-sm"
-                      style={{ color: primaryColor }}
-                    >
-                      {formatCurrency(product.total)}
-                    </span>
-                  </div>
-                ) : (
-                  <span
-                    className="font-medium text-xs text-gray-600"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
-                      gap: "4px",
-                      minHeight: "20px",
-                      lineHeight: "1",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <span>Qtd:</span>
-                    <span>{product.quantity}</span>
-                  </span>
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div data-pdf-item-title="1" className="min-w-0 flex-1">
+            <PdfProductTitle productName={product.productName} />
+          </div>
+
+          <div
+            className="shrink-0 flex flex-col items-end gap-1"
+            style={{ minHeight: "37px" }}
+          >
+            <PdfItemTypeBadge itemType={product.itemType || "product"} />
+            {product.isExtra ? (
+              <PdfExtraBadge />
+            ) : (
+              <span style={{ visibility: "hidden" }}>
+                <PdfExtraBadge />
+              </span>
+            )}
+          </div>
+        </div>
 
         {settings.showProductImages && allImages.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
@@ -281,6 +204,48 @@ export function PdfSistemaProductCard({
             {product.productDescription}
           </p>
         )}
+
+        <div
+          data-pdf-item-qty="1"
+          className="pt-2 mt-1 flex justify-end"
+          style={{ borderTop: "1px solid #e5e7eb" }}
+        >
+          {settings.showProductPrices ? (
+            <div
+              style={{
+                display: "inline-flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                lineHeight: "1.2",
+              }}
+            >
+              <span className="text-[10px] text-gray-500 block">
+                {product.quantity}x {formatCurrency(product.unitPrice)}
+              </span>
+              <span
+                className="font-semibold text-sm"
+                style={{ color: primaryColor }}
+              >
+                {formatCurrency(product.total)}
+              </span>
+            </div>
+          ) : (
+            <span
+              className="font-medium text-xs text-gray-600"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: "4px",
+                lineHeight: "1",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span>Qtd:</span>
+              <span>{product.quantity}</span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

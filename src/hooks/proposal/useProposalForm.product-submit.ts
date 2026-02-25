@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Proposal, ProposalProduct, ProposalService } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ClientType } from "@/services/client-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus } from "@/types";
@@ -84,20 +85,26 @@ export function useProposalFormProductSubmit(
 
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
 
-  const toggleProduct = (product: Product) => {
-    const existing = selectedProducts.find((p) => p.productId === product.id);
+  const toggleProduct = (product: Product | Service) => {
+    const itemType = product.itemType || "product";
+    const existing = selectedProducts.find(
+      (p) => p.productId === product.id && (p.itemType || "product") === itemType,
+    );
     if (existing) {
       setFormData((prev) => ({
         ...prev,
-        products: selectedProducts.filter((p) => p.productId !== product.id),
+        products: selectedProducts.filter(
+          (p) => !(p.productId === product.id && (p.itemType || "product") === itemType),
+        ),
       }));
       return;
     }
 
     const price = parseFloat(product.price) || 0;
-    const markup = parseFloat(product.markup || "0");
+  const markup = itemType === "service" ? 0 : parseFloat(product.markup || "0");
     const newProduct: ProposalProduct = {
       productId: product.id,
+      itemType,
       productName: product.name,
       productImage: product.images?.[0] || product.image || "",
       productImages: product.images?.length
@@ -124,17 +131,24 @@ export function useProposalFormProductSubmit(
     productId: string,
     delta: number,
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => {
     setFormData((prev) => ({
       ...prev,
       products: selectedProducts.map((p) => {
         const matchesTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId && p.productId === productId
-          : !p.systemInstanceId && p.productId === productId;
+          ? p.systemInstanceId === systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType)
+          : !p.systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType);
 
         if (!matchesTarget) return p;
         const newQty = Math.max(0, p.quantity + delta);
-        const sellingPrice = p.unitPrice * (1 + (p.markup || 0) / 100);
+        const effectiveMarkup =
+          (p.itemType || "product") === "service" ? 0 : (p.markup || 0);
+        const sellingPrice = p.unitPrice * (1 + effectiveMarkup / 100);
         return { ...p, quantity: newQty, total: newQty * sellingPrice };
       }),
     }));
@@ -144,29 +158,48 @@ export function useProposalFormProductSubmit(
     productId: string,
     markup: number,
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => {
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).map((p) => {
         const isTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId && p.productId === productId
-          : !p.systemInstanceId && p.productId === productId;
+          ? p.systemInstanceId === systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType)
+          : !p.systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType);
 
         if (!isTarget) return p;
+        if ((p.itemType || "product") === "service") {
+          return { ...p, markup: 0, total: p.quantity * p.unitPrice };
+        }
         const sellingPrice = p.unitPrice * (1 + markup / 100);
         return { ...p, markup, total: p.quantity * sellingPrice };
       }),
     }));
   };
 
-  const removeProduct = (productId: string, systemInstanceId?: string) => {
+  const removeProduct = (
+    productId: string,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+  ) => {
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).filter((p) => {
         if (systemInstanceId) {
-          return !(p.systemInstanceId === systemInstanceId && p.productId === productId);
+          return !(
+            p.systemInstanceId === systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType)
+          );
         }
-        return p.productId !== productId;
+        return !(
+          p.productId === productId &&
+          (!itemType || (p.itemType || "product") === itemType)
+        );
       }),
     }));
   };
@@ -175,13 +208,17 @@ export function useProposalFormProductSubmit(
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => {
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).map((p) => {
         const isTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId && p.productId === productId
-          : p.productId === productId;
+          ? p.systemInstanceId === systemInstanceId &&
+            p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType)
+          : p.productId === productId &&
+            (!itemType || (p.itemType || "product") === itemType);
         return isTarget ? { ...p, status: newStatus } : p;
       }),
     }));

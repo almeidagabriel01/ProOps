@@ -1,8 +1,10 @@
 import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
+import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 
 interface ProductData {
   productName: string;
+  itemType?: "product" | "service";
   productDescription?: string;
   productImages?: string[];
   productImage?: string;
@@ -85,10 +87,15 @@ export function PdfProductRow({
       <div className="flex-1 flex flex-col gap-2">
         <div>
           <div className="mb-2">
-            <div className="flex justify-between items-start">
-              <span className="text-lg font-bold text-gray-900 leading-tight">
-                {product.productName}
-              </span>
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <span className="text-lg font-bold text-gray-900 leading-tight">
+                  {product.productName}
+                </span>
+              </div>
+              <div className="shrink-0 flex items-start">
+                <PdfItemTypeBadge itemType={product.itemType || "product"} />
+              </div>
             </div>
 
             {/* Category/Manufacturer Badges */}

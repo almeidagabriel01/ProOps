@@ -8,6 +8,7 @@ import {
   AmbienteProduct,
 } from "@/types/automation";
 import { Product, ProductService } from "@/services/product-service";
+import { Service, ServiceService } from "@/services/service-service";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service"; // Added import
 import { useTenant } from "@/providers/tenant-provider";
@@ -30,7 +31,7 @@ import {
   Minus,
   BoxSelect,
 } from "lucide-react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -76,6 +77,7 @@ const buildSistemaSnapshot = (
         products: [...(ambiente.products || [])]
           .map((product) => ({
             productId: product.productId,
+            itemType: product.itemType || "product",
             productName: product.productName || "",
             quantity: product.quantity,
             status: product.status || "active",
@@ -159,7 +161,7 @@ export function SistemaEditor({
   }, [sistema?.id, initialSnapshot, name, description, configAmbientes]);
 
   // Product Data
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [products, setProducts] = React.useState<Array<Product | Service>>([]);
 
   // Track pending environment creation to ensure data consistency
   const [pendingAmbienteCreationId, setPendingAmbienteCreationId] =
@@ -198,13 +200,30 @@ export function SistemaEditor({
 
   // Search State for Products
   const [productSearch, setProductSearch] = React.useState("");
+  const [catalogTypeFilter, setCatalogTypeFilter] = React.useState<
+    "all" | "product" | "service"
+  >("all");
   const [showProductList, setShowProductList] = React.useState(false);
   const productListRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (tenant?.id) {
-      ProductService.getProducts(tenant.id)
-        .then(setProducts)
+      Promise.all([
+        ProductService.getProducts(tenant.id),
+        ServiceService.getServices(tenant.id),
+      ])
+        .then(([loadedProducts, loadedServices]) =>
+          setProducts([
+            ...loadedProducts.map((item) => ({
+              ...item,
+              itemType: "product" as const,
+            })),
+            ...loadedServices.map((item) => ({
+              ...item,
+              itemType: "service" as const,
+            })),
+          ]),
+        )
         .catch(console.error);
     }
   }, [tenant?.id]);
@@ -342,13 +361,21 @@ export function SistemaEditor({
     );
   };
 
-  const handleAddProduct = (product: Product) => {
+  const handleAddProduct = (product: Product | Service) => {
     if (!activeAmbienteId) return;
     const currentProducts = activeConfig?.products || [];
-    if (currentProducts.some((p) => p.productId === product.id)) return;
+    if (
+      currentProducts.some(
+        (p) =>
+          p.productId === product.id &&
+          (p.itemType || "product") === (product.itemType || "product"),
+      )
+    )
+      return;
 
     const newProd: AmbienteProduct = {
       productId: product.id,
+      itemType: product.itemType || "product",
       productName: product.name,
       quantity: 0,
       status: "active",
@@ -356,20 +383,35 @@ export function SistemaEditor({
     updateActiveProducts([...currentProducts, newProd]);
   };
 
-  const handleRemoveProduct = (productId: string) => {
+  const handleRemoveProduct = (
+    productId: string,
+    itemType: "product" | "service" = "product",
+  ) => {
     if (!activeAmbienteId) return;
     const currentProducts = activeConfig?.products || [];
     updateActiveProducts(
-      currentProducts.filter((p) => p.productId !== productId),
+      currentProducts.filter(
+        (p) =>
+          !(
+            p.productId === productId && (p.itemType || "product") === itemType
+          ),
+      ),
     );
   };
 
-  const handleUpdateQuantity = (productId: string, delta: number) => {
+  const handleUpdateQuantity = (
+    productId: string,
+    delta: number,
+    itemType: "product" | "service" = "product",
+  ) => {
     if (!activeAmbienteId) return;
     const currentProducts = activeConfig?.products || [];
     updateActiveProducts(
       currentProducts.map((p) => {
-        if (p.productId === productId) {
+        if (
+          p.productId === productId &&
+          (p.itemType || "product") === itemType
+        ) {
           return { ...p, quantity: Math.max(0, p.quantity + delta) };
         }
         return p;
@@ -380,12 +422,16 @@ export function SistemaEditor({
   const handleUpdateStatus = (
     productId: string,
     newStatus: "active" | "inactive",
+    itemType: "product" | "service" = "product",
   ) => {
     if (!activeAmbienteId) return;
     const currentProducts = activeConfig?.products || [];
     updateActiveProducts(
       currentProducts.map((p) => {
-        if (p.productId === productId) {
+        if (
+          p.productId === productId &&
+          (p.itemType || "product") === itemType
+        ) {
           return { ...p, status: newStatus };
         }
         return p;
@@ -397,7 +443,13 @@ export function SistemaEditor({
   const filteredProducts = products
     .filter(
       (p) =>
-        !activeConfig?.products.some((sp) => sp.productId === p.id) &&
+        !activeConfig?.products.some(
+          (sp) =>
+            sp.productId === p.id &&
+            (sp.itemType || "product") === (p.itemType || "product"),
+        ) &&
+        (catalogTypeFilter === "all" ||
+          (p.itemType || "product") === catalogTypeFilter) &&
         (productSearch === "" ||
           p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
           p.category?.toLowerCase().includes(productSearch.toLowerCase())),
@@ -434,7 +486,9 @@ export function SistemaEditor({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !name.trim() || (!!sistema?.id && !hasChanges)}
+            disabled={
+              isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
+            }
             className="min-w-[120px]"
           >
             {isSaving ? (
@@ -617,7 +671,7 @@ export function SistemaEditor({
                   <div>
                     <h3 className="text-lg font-bold flex items-center gap-2 text-foreground">
                       <Package className="w-5 h-5 text-primary" />
-                      Produtos:{" "}
+                      Produtos e Serviços:{" "}
                       <span className="text-muted-foreground font-normal">
                         {activeAmbienteDef?.name || "Ambiente recém-criado"}
                       </span>
@@ -651,62 +705,86 @@ export function SistemaEditor({
                   />
                 </div>
 
-                <div className="relative z-20 w-full" ref={productListRef}>
-                  <div className="relative w-full group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
-                    <Input
-                      placeholder="Buscar produto para adicionar..."
-                      className="pl-11 h-12 bg-muted/30 border-muted-foreground/10 focus:bg-background transition-all shadow-sm rounded-xl w-full"
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      onFocus={() => setShowProductList(true)}
-                    />
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <Select
+                    value={catalogTypeFilter}
+                    onChange={(e) =>
+                      setCatalogTypeFilter(
+                        e.target.value as "all" | "product" | "service",
+                      )
+                    }
+                    className="md:col-span-4 lg:col-span-3"
+                  >
+                    <option value="all">Todos (Produtos e Serviços)</option>
+                    <option value="product">Apenas Produtos</option>
+                    <option value="service">Apenas Serviços</option>
+                  </Select>
 
-                  {/* Product Autocomplete Dropdown */}
-                  <AnimatePresence>
-                    {showProductList && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute top-full left-0 right-0 mt-2 bg-popover text-popover-foreground rounded-xl border shadow-xl max-h-80 overflow-y-auto z-50 divide-y"
-                      >
-                        {filteredProducts.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-muted-foreground">
-                            {products.length === 0
-                              ? "Cadastre produtos primeiro"
-                              : "Nenhum produto encontrado"}
-                          </div>
-                        ) : (
-                          filteredProducts.slice(0, 20).map((product) => (
-                            <button
-                              key={product.id}
-                              className="w-full flex items-center justify-between p-4 text-left hover:bg-accent hover:text-accent-foreground transition-colors group"
-                              onClick={() => handleAddProduct(product)}
-                            >
-                              <div className="flex items-center gap-4 overflow-hidden">
-                                <div className="p-2.5 bg-muted rounded-lg group-hover:bg-background transition-colors">
-                                  <Package className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-sm truncate">
-                                    {product.name}
+                  <div
+                    className="relative z-20 w-full md:col-span-8 lg:col-span-9"
+                    ref={productListRef}
+                  >
+                    <div className="relative w-full group">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
+                      <Input
+                        placeholder="Buscar item para adicionar..."
+                        className="pl-11 h-12 bg-muted/30 border-muted-foreground/10 focus:bg-background transition-all shadow-sm rounded-xl w-full"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        onFocus={() => setShowProductList(true)}
+                      />
+                    </div>
+
+                    {/* Product Autocomplete Dropdown */}
+                    <AnimatePresence>
+                      {showProductList && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute top-full left-0 right-0 mt-2 bg-popover text-popover-foreground rounded-xl border shadow-xl max-h-80 overflow-y-auto z-50 divide-y"
+                        >
+                          {filteredProducts.length === 0 ? (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                              {products.length === 0
+                                ? "Cadastre produtos/serviços primeiro"
+                                : "Nenhum item encontrado"}
+                            </div>
+                          ) : (
+                            filteredProducts.slice(0, 20).map((product) => (
+                              <button
+                                key={product.id}
+                                className="w-full flex items-center justify-between p-4 text-left hover:bg-accent hover:text-accent-foreground transition-colors group"
+                                onClick={() => handleAddProduct(product)}
+                              >
+                                <div className="flex items-center gap-4 overflow-hidden">
+                                  <div className="p-2.5 bg-muted rounded-lg group-hover:bg-background transition-colors">
+                                    <Package className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
                                   </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {product.category || "Sem categoria"}
+                                  <div>
+                                    <div className="font-semibold text-sm truncate">
+                                      {product.name}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {product.itemType === "service"
+                                        ? "Serviço"
+                                        : "Produto"}
+                                      {product.category
+                                        ? ` • ${product.category}`
+                                        : ""}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                Adicionar <Plus className="w-4 h-4" />
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                                <div className="flex items-center gap-2 text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                  Adicionar <Plus className="w-4 h-4" />
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
 
@@ -718,8 +796,7 @@ export function SistemaEditor({
                     </div>
                     <h3 className="text-xl font-semibold mb-2">Lista Vazia</h3>
                     <p className="text-base text-center max-w-xs text-muted-foreground">
-                      Use a pesquisa acima para adicionar produtos a este
-                      ambiente.
+                      Use a pesquisa acima para adicionar itens a este ambiente.
                     </p>
                   </div>
                 ) : (
@@ -735,7 +812,7 @@ export function SistemaEditor({
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            key={item.productId}
+                            key={`${item.itemType || "product"}-${item.productId}`}
                             className="group flex items-center justify-between p-4 rounded-xl bg-card border shadow-sm hover:shadow-md transition-all hover:border-primary/20"
                           >
                             <div className="flex items-center gap-4 flex-1 min-w-0">
@@ -743,12 +820,24 @@ export function SistemaEditor({
                                 <Package className="h-6 w-6" />
                               </div>
                               <div className="min-w-0">
-                                <h4 className="font-semibold text-foreground truncate pr-4">
-                                  {item.productName}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
-                                  Produto vinculado
-                                </p>
+                                <div className="flex items-center gap-2 min-w-0 pr-4">
+                                  <h4 className="font-semibold text-foreground truncate">
+                                    {item.productName}
+                                  </h4>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-[10px] px-2 py-0.5 h-auto shrink-0",
+                                      (item.itemType || "product") === "service"
+                                        ? "bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
+                                        : "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40",
+                                    )}
+                                  >
+                                    {(item.itemType || "product") === "service"
+                                      ? "Serviço"
+                                      : "Produto"}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
 
@@ -760,6 +849,7 @@ export function SistemaEditor({
                                   handleUpdateStatus(
                                     item.productId,
                                     e.target.value as "active" | "inactive",
+                                    item.itemType || "product",
                                   )
                                 }
                                 inputSize="sm"
@@ -778,7 +868,11 @@ export function SistemaEditor({
                                   size="icon"
                                   className="h-8 w-8 rounded-md hover:bg-background hover:text-destructive transition-colors"
                                   onClick={() =>
-                                    handleUpdateQuantity(item.productId, -1)
+                                    handleUpdateQuantity(
+                                      item.productId,
+                                      -1,
+                                      item.itemType || "product",
+                                    )
                                   }
                                 >
                                   <Minus className="w-3.5 h-3.5" />
@@ -791,7 +885,11 @@ export function SistemaEditor({
                                   size="icon"
                                   className="h-8 w-8 rounded-md hover:bg-background hover:text-primary transition-colors"
                                   onClick={() =>
-                                    handleUpdateQuantity(item.productId, 1)
+                                    handleUpdateQuantity(
+                                      item.productId,
+                                      1,
+                                      item.itemType || "product",
+                                    )
                                   }
                                 >
                                   <Plus className="w-3.5 h-3.5" />
@@ -803,7 +901,10 @@ export function SistemaEditor({
                                 size="icon"
                                 className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
                                 onClick={() =>
-                                  handleRemoveProduct(item.productId)
+                                  handleRemoveProduct(
+                                    item.productId,
+                                    item.itemType || "product",
+                                  )
                                 }
                               >
                                 <Trash2 className="w-4 h-4" />

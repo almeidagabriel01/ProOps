@@ -1,18 +1,27 @@
-interface PdfExtraBadgeProps {
+interface PdfItemTypeBadgeProps {
+  itemType?: "product" | "service";
   className?: string;
 }
 
-export function PdfExtraBadge({ className = "" }: PdfExtraBadgeProps) {
-  const text = "EXTRA";
+export function PdfItemTypeBadge({
+  itemType = "product",
+  className = "",
+}: PdfItemTypeBadgeProps) {
+  const isService = itemType === "service";
+  const text = isService ? "SERVIÇO" : "PRODUTO";
   const height = 18;
   const fontSize = 9;
   const width = 66;
   const radius = Math.round(height / 2);
   const textY = Number((height / 2 + fontSize * 0.36).toFixed(2));
 
+  const fill = isService ? "#fdf2f8" : "#ecfdf5";
+  const stroke = isService ? "#f9a8d4" : "#86efac";
+  const textColor = isService ? "#9f1239" : "#166534";
+
   return (
     <span
-      data-pdf-item-extra-tag="1"
+      data-pdf-item-type-tag={isService ? "service" : "product"}
       className={className}
       style={{
         display: "block",
@@ -36,8 +45,8 @@ export function PdfExtraBadge({ className = "" }: PdfExtraBadgeProps) {
           height={height - 1}
           rx={radius}
           ry={radius}
-          fill="#dbeafe"
-          stroke="#bfdbfe"
+          fill={fill}
+          stroke={stroke}
         />
         <text
           x={width / 2}
@@ -45,7 +54,7 @@ export function PdfExtraBadge({ className = "" }: PdfExtraBadgeProps) {
           textAnchor="middle"
           fontSize={fontSize}
           fontWeight="700"
-          fill="#1d4ed8"
+          fill={textColor}
           fontFamily="Arial, sans-serif"
         >
           {text}

@@ -4,9 +4,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from '@/lib/toast';
 import { ProductService, Product } from "@/services/product-service";
+import { ServiceService, Service } from "@/services/service-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useProductActions } from "@/hooks/useProductActions";
+import { useServiceActions } from "@/hooks/useServiceActions";
 import {
   uploadImage,
   deleteImage,
@@ -32,6 +34,9 @@ export interface ProductFormData {
   image: File | null;
   images: File[];
 }
+
+type CatalogEntityType = "product" | "service";
+type CatalogItem = Product | Service;
 
 interface UseProductFormReturn {
   formData: ProductFormData;
@@ -88,13 +93,15 @@ const buildProductFormSnapshot = (
 };
 
 export function useProductForm(
-  initialData?: Product,
+  initialData?: CatalogItem,
   productId?: string,
+  entityType: CatalogEntityType = "product",
 ): UseProductFormReturn {
   const router = useRouter();
   const { tenant } = useTenant();
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
   const { createProduct } = useProductActions();
+  const { createService } = useServiceActions();
 
   const [showLimitModal, setShowLimitModal] = React.useState(false);
   const [showImageLimitModal, setShowImageLimitModal] = React.useState(false);
@@ -365,7 +372,7 @@ export function useProductForm(
         const result = await uploadImage(
           file,
           tenant.id,
-          "products",
+          entityType === "service" ? "services" : "products",
           productId || undefined,
         );
         uploadedUrls.push(result.url);
@@ -398,16 +405,23 @@ export function useProductForm(
         images: allImageUrls,
       };
 
+      const entityLabel = entityType === "service" ? "serviço" : "produto";
+      const entityPluralPath = entityType === "service" ? "/services" : "/products";
+
       if (productId) {
-        await ProductService.updateProduct(productId, dataToSave);
-        toast.success(`Produto ${productLabel} foi atualizado com sucesso.`, {
+        if (entityType === "service") {
+          await ServiceService.updateService(productId, dataToSave);
+        } else {
+          await ProductService.updateProduct(productId, dataToSave);
+        }
+        toast.success(`${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)} ${productLabel} foi atualizado com sucesso.`, {
           title: "Sucesso ao editar",
         });
-        router.push("/products");
+        router.push(entityPluralPath);
         router.refresh();
       } else {
-        const result = await createProduct({
-          targetTenantId: tenant.id, // Pass tenant ID. Backend only respects it if superadmin.
+        const payload = {
+          targetTenantId: tenant.id,
           name: formData.name,
           description: formData.description,
           price: formData.price,
@@ -418,10 +432,15 @@ export function useProductForm(
           stock: normalizedStock,
           status: formData.status as "active" | "inactive",
           images: allImageUrls,
-        });
+        };
+
+        const result =
+          entityType === "service"
+            ? await createService(payload)
+            : await createProduct(payload);
 
         if (result?.success) {
-          router.push("/products");
+          router.push(entityPluralPath);
           router.refresh();
         }
       }
@@ -430,11 +449,12 @@ export function useProductForm(
       const errorMessage =
         error instanceof Error && error.message.trim()
           ? error.message.trim()
-          : "Falha inesperada ao salvar o produto.";
+          : `Falha inesperada ao salvar o ${entityType === "service" ? "serviço" : "produto"}.`;
       const actionLabel = productId ? "editar" : "salvar";
+      const noun = entityType === "service" ? "serviço" : "produto";
 
       toast.error(
-        `Nao foi possivel ${actionLabel} o produto ${productLabel}. Detalhes: ${errorMessage}`,
+        `Nao foi possivel ${actionLabel} o ${noun} ${productLabel}. Detalhes: ${errorMessage}`,
         { title: productId ? "Erro ao editar" : "Erro ao salvar" },
       );
     } finally {

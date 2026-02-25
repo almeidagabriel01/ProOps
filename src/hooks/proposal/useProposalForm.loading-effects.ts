@@ -6,6 +6,7 @@ import {
   ProposalService,
 } from "@/services/proposal-service";
 import { Product, ProductService } from "@/services/product-service";
+import { Service, ServiceService } from "@/services/service-service";
 import { ProposalTemplate, ProposalStatus } from "@/types";
 import { ProposalTemplateService } from "@/services/proposal-template-service";
 import { AmbienteService, Ambiente } from "@/services/ambiente-service";
@@ -18,11 +19,11 @@ import { buildFullFormSnapshot } from "./useProposalForm.helpers";
 interface UseProposalFormLoadingEffectsContext {
   tenant: { id: string; proposalDefaults?: Record<string, unknown> } | null;
   proposalId?: string;
-  products: Product[];
+  products: Array<Product | Service>;
   proposalFetchedRef: React.MutableRefObject<boolean>;
   setLocalAmbientes: (ambientes: Ambiente[]) => void;
   setLocalSistemas: (sistemas: Sistema[]) => void;
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  setProducts: React.Dispatch<React.SetStateAction<Array<Product | Service>>>;
   setTemplate: React.Dispatch<React.SetStateAction<ProposalTemplate | null>>;
   setFormData: React.Dispatch<React.SetStateAction<Partial<Proposal>>>;
   setSelectedClientId: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -182,7 +183,12 @@ export function useProposalFormLoadingEffects(
       if (!tenant) return;
       try {
         const loadedProducts = await ProductService.getProducts(tenant.id);
-        setProducts(loadedProducts);
+        const loadedServices = await ServiceService.getServices(tenant.id);
+        const mergedCatalog = [
+          ...loadedProducts.map((item) => ({ ...item, itemType: "product" as const })),
+          ...loadedServices.map((item) => ({ ...item, itemType: "service" as const })),
+        ];
+        setProducts(mergedCatalog);
 
         const templates = await ProposalTemplateService.getTemplates(tenant.id);
         const defaultTemplate = templates.find((t) => t.isDefault) || templates[0];
@@ -261,18 +267,24 @@ export function useProposalFormLoadingEffects(
         }
 
         const syncedProducts = (proposal.products || []).map((pp) => {
-          const freshProduct = products.find((p) => p.id === pp.productId);
+          const targetType = pp.itemType || "product";
+          const freshProduct = products.find(
+            (p) => p.id === pp.productId && (p.itemType || "product") === targetType,
+          );
           if (!freshProduct) return pp;
 
           const price = parseFloat(freshProduct.price) || pp.unitPrice;
-          const markup =
-            pp.markup !== undefined
+          const isService = (freshProduct.itemType || targetType) === "service";
+          const markup = isService
+            ? 0
+            : pp.markup !== undefined
               ? pp.markup
               : parseFloat(freshProduct.markup || "0");
           const sellingPrice = price * (1 + markup / 100);
 
           return {
             ...pp,
+            itemType: (freshProduct.itemType || targetType) as "product" | "service",
             productName: freshProduct.name,
             productImage:
               freshProduct.images?.[0] || freshProduct.image || pp.productImage || "",

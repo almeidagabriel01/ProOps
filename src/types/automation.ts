@@ -6,6 +6,7 @@
  */
 export type AmbienteProduct = {
   productId: string;
+  itemType?: "product" | "service";
   productName: string; // Cache para exibição
   quantity: number;
   notes?: string;
@@ -75,6 +76,7 @@ export type SistemaAmbienteTemplate = {
  */
 export type SistemaProduct = {
   productId: string;
+  itemType?: "product" | "service";
   productName: string;
   quantity: number;
   notes?: string;

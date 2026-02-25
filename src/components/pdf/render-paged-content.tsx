@@ -145,7 +145,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             className="text-xl font-bold mb-4 pb-2 border-b-2 mt-4"
             style={{ ...contentStyles.productTitle, width: "100%" }}
           >
-            Produtos e Servios
+            Itens (Produtos e Serviços)
           </h2>
         );
 

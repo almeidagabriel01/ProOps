@@ -5,6 +5,7 @@ import { Sistema, SistemaProduct, Ambiente } from "@/types/automation";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
+import { ServiceService, Service } from "@/services/service-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from '@/lib/toast';
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
@@ -34,6 +35,7 @@ const buildSistemaTemplateSnapshot = (data: {
     selectedProducts: [...data.selectedProducts]
       .map((product) => ({
         productId: product.productId,
+        itemType: product.itemType || "product",
         quantity: product.quantity,
         productName: product.productName || "",
       }))
@@ -64,7 +66,7 @@ export function useSistemaForm({
 
   // Data
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [products, setProducts] = React.useState<Array<Product | Service>>([]);
   const [productSearch, setProductSearch] = React.useState("");
   const [showProductList, setShowProductList] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -83,8 +85,14 @@ export function useSistemaForm({
       // Products still fetched directly for now as they are not managed transactionally in this scope yet?
       // Assuming products are global standard list.
       if (tenant?.id) {
-        const productsData = await ProductService.getProducts(tenant.id);
-        setProducts(productsData);
+        const [productsData, servicesData] = await Promise.all([
+          ProductService.getProducts(tenant.id),
+          ServiceService.getServices(tenant.id),
+        ]);
+        setProducts([
+          ...productsData.map((item) => ({ ...item, itemType: "product" as const })),
+          ...servicesData.map((item) => ({ ...item, itemType: "service" as const })),
+        ]);
       }
       setIsLoading(false);
       return;
@@ -93,12 +101,16 @@ export function useSistemaForm({
     if (!tenant?.id) return;
     setIsLoading(true);
     try {
-      const [ambientesData, productsData] = await Promise.all([
+      const [ambientesData, productsData, servicesData] = await Promise.all([
         AmbienteService.getAmbientes(tenant.id),
         ProductService.getProducts(tenant.id),
+        ServiceService.getServices(tenant.id),
       ]);
       setAmbientes(ambientesData);
-      setProducts(productsData);
+      setProducts([
+        ...productsData.map((item) => ({ ...item, itemType: "product" as const })),
+        ...servicesData.map((item) => ({ ...item, itemType: "service" as const })),
+      ]);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -174,13 +186,21 @@ export function useSistemaForm({
     );
   };
 
-  const addProduct = (product: Product) => {
-    if (selectedProducts.some((p) => p.productId === product.id)) return;
+  const addProduct = (product: Product | Service) => {
+    if (
+      selectedProducts.some(
+        (p) =>
+          p.productId === product.id &&
+          (p.itemType || "product") === (product.itemType || "product"),
+      )
+    )
+      return;
 
     setSelectedProducts((prev) => [
       ...prev,
       {
         productId: product.id,
+        itemType: product.itemType || "product",
         productName: product.name,
         quantity: 1,
       },
@@ -189,16 +209,26 @@ export function useSistemaForm({
     setShowProductList(false);
   };
 
-  const removeProduct = (productId: string) => {
+  const removeProduct = (
+    productId: string,
+    itemType: "product" | "service" = "product",
+  ) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p.productId !== productId),
+      prev.filter(
+        (p) =>
+          !(p.productId === productId && (p.itemType || "product") === itemType),
+      ),
     );
   };
 
-  const updateProductQuantity = (productId: string, delta: number) => {
+  const updateProductQuantity = (
+    productId: string,
+    delta: number,
+    itemType: "product" | "service" = "product",
+  ) => {
     setSelectedProducts((prev) =>
       prev.map((p) => {
-        if (p.productId === productId) {
+        if (p.productId === productId && (p.itemType || "product") === itemType) {
           const newQty = Math.max(1, p.quantity + delta);
           return { ...p, quantity: newQty };
         }

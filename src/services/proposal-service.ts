@@ -428,6 +428,7 @@ export const ProposalService = {
   isProductUsedInProposal: async (
     productId: string,
     tenantId?: string,
+    itemType: "product" | "service" = "product",
   ): Promise<boolean> => {
     // Basic validation
     if (!productId || !tenantId) {
@@ -453,7 +454,10 @@ export const ProposalService = {
         // Check if any product in the array matches exactly the productId
         if (
           Array.isArray(products) &&
-          products.some((p: ProposalProduct) => p.productId === productId)
+          products.some(
+            (p: ProposalProduct) =>
+              p.productId === productId && (p.itemType || "product") === itemType,
+          )
         ) {
           return true;
         }

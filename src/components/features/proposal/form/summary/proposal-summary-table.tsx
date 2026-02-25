@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProductRow } from "./product-row";
@@ -13,7 +14,7 @@ interface ProposalSummaryTableProps {
   extraProducts: ProposalProduct[];
   isAutomacaoNiche: boolean;
   primaryColor: string;
-  products: Product[];
+  products: Array<Product | Service>;
   subtotal: number;
   discount: number;
   discountPercentage: number;
@@ -53,7 +54,7 @@ export function ProposalSummaryTable({
       <table className="w-full text-sm">
         <thead className="bg-muted">
           <tr>
-            <th className="text-left p-3">Produto</th>
+            <th className="text-left p-3">Item</th>
             <th className="text-center p-3 w-16">Qtd</th>
             <th className="text-right p-3 w-36">Unit.</th>
             <th className="text-right p-3 w-36">Total</th>

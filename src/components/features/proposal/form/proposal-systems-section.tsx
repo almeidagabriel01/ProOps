@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
 import { Package, Plus, Minus, Cpu, Trash2, Search, X } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
@@ -37,7 +38,7 @@ import { useWindowFocus } from "@/hooks/use-window-focus";
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
   selectedProducts: ProposalProduct[];
-  products: Product[];
+  products: Array<Product | Service>;
   primaryColor: string;
   selectorKey: number;
   onEditSystem: (index: number) => void;
@@ -46,25 +47,32 @@ interface ProposalSystemsSectionProps {
     productId: string,
     delta: number,
     systemInstanceId: string,
+    itemType?: "product" | "service",
   ) => void;
   onUpdateProductMarkup: (
     productId: string,
     markup: number,
     systemInstanceId: string,
+    itemType?: "product" | "service",
   ) => void;
   onAddExtraProductToSystem: (
-    product: Product,
+    product: Product | Service,
     sistemaIndex: number,
     systemInstanceId: string,
   ) => void;
   onAddNewSystem: (sistema: ProposalSistema) => void;
   onUpdateSystem?: (index: number, sistema: ProposalSistema) => void;
-  onRemoveProduct: (productId: string, systemInstanceId: string) => void;
+  onRemoveProduct: (
+    productId: string,
+    systemInstanceId: string,
+    itemType?: "product" | "service",
+  ) => void;
   SistemaSelectorComponent: React.ComponentType<SistemaSelectorProps>;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
   onDataUpdate?: () => void;
   // Transactional Data
@@ -361,7 +369,7 @@ interface SystemCardProps {
   sistemaProducts: ProposalProduct[];
   sistemaTotal: number;
   sistemaTotalWithMarkup: number;
-  products: Product[];
+  products: Array<Product | Service>;
   primaryColor: string;
   systemInstanceId: string;
   onRemove: () => void;
@@ -369,18 +377,25 @@ interface SystemCardProps {
     productId: string,
     delta: number,
     instanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
   onUpdateMarkup: (
     productId: string,
     markup: number,
     instanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
-  onRemoveProduct: (productId: string, instanceId?: string) => void;
-  onAddExtraProduct: (product: Product, instanceId?: string) => void;
+  onRemoveProduct: (
+    productId: string,
+    instanceId?: string,
+    itemType?: "product" | "service",
+  ) => void;
+  onAddExtraProduct: (product: Product | Service, instanceId?: string) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
   onDeleteEnvironment: (ambienteId: string) => void;
 }
@@ -611,13 +626,27 @@ function SystemCard({
                           product={product}
                           isActive={isActive}
                           onUpdateQuantity={(pid, delta) =>
-                            onUpdateQuantity(pid, delta, currentInstanceId)
+                            onUpdateQuantity(
+                              pid,
+                              delta,
+                              currentInstanceId,
+                              product.itemType || "product",
+                            )
                           }
                           onUpdateMarkup={(pid, markup) =>
-                            onUpdateMarkup(pid, markup, currentInstanceId)
+                            onUpdateMarkup(
+                              pid,
+                              markup,
+                              currentInstanceId,
+                              product.itemType || "product",
+                            )
                           }
                           onRemoveProduct={(pid) =>
-                            onRemoveProduct(pid, currentInstanceId)
+                            onRemoveProduct(
+                              pid,
+                              currentInstanceId,
+                              product.itemType || "product",
+                            )
                           }
                           onToggleStatus={onToggleStatus}
                         />
@@ -653,17 +682,24 @@ interface ProductRowProps {
     productId: string,
     delta: number,
     instanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
   onUpdateMarkup: (
     productId: string,
     markup: number,
     instanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
-  onRemoveProduct: (productId: string, instanceId?: string) => void;
+  onRemoveProduct: (
+    productId: string,
+    instanceId?: string,
+    itemType?: "product" | "service",
+  ) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
 }
 
@@ -676,6 +712,7 @@ function ProductRow({
   onToggleStatus,
 }: ProductRowProps) {
   const isExtra = !!product.isExtra;
+  const isService = (product.itemType || "product") === "service";
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [markup, setMarkup] = React.useState(product.markup || 0);
   const [isEditingMarkup, setIsEditingMarkup] = React.useState(false);
@@ -694,6 +731,7 @@ function ProductRow({
         product.productId,
         isActive ? "inactive" : "active",
         product.systemInstanceId,
+        product.itemType || "product",
       );
     } finally {
       setIsUpdating(false);
@@ -703,7 +741,12 @@ function ProductRow({
   const handleMarkupBlur = () => {
     setIsEditingMarkup(false);
     if (markup !== product.markup) {
-      onUpdateMarkup(product.productId, markup, product.systemInstanceId);
+      onUpdateMarkup(
+        product.productId,
+        markup,
+        product.systemInstanceId,
+        product.itemType || "product",
+      );
     }
   };
 
@@ -773,6 +816,16 @@ function ProductRow({
           >
             {product.productName}
           </h5>
+          <Badge
+            variant="outline"
+            className={
+              isService
+                ? "text-[9px] h-4 px-1 bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
+                : "text-[9px] h-4 px-1 bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40"
+            }
+          >
+            {isService ? "Serviço" : "Produto"}
+          </Badge>
           {isExtra && (
             <Badge
               variant="default"
@@ -796,7 +849,7 @@ function ProductRow({
       </div>
 
       {/* Markup Control */}
-      {isActive && (
+      {isActive && !isService && (
         <div className="flex flex-col items-center mr-2">
           <span className="text-[10px] text-muted-foreground mb-0.5">
             Markup
@@ -838,7 +891,12 @@ function ProductRow({
           size="icon"
           className="h-7 w-7"
           onClick={() =>
-            onUpdateQuantity(product.productId, -1, product.systemInstanceId)
+            onUpdateQuantity(
+              product.productId,
+              -1,
+              product.systemInstanceId,
+              product.itemType || "product",
+            )
           }
         >
           <Minus className="w-3 h-3" />
@@ -852,7 +910,12 @@ function ProductRow({
           size="icon"
           className="h-7 w-7"
           onClick={() =>
-            onUpdateQuantity(product.productId, 1, product.systemInstanceId)
+            onUpdateQuantity(
+              product.productId,
+              1,
+              product.systemInstanceId,
+              product.itemType || "product",
+            )
           }
         >
           <Plus className="w-3 h-3" />
@@ -869,9 +932,9 @@ function ProductRow({
         {isActive && (
           <span className="text-[10px] text-muted-foreground">
             (R${" "}
-            {(
-              (product.unitPrice || 0) *
-              (1 + (product.markup || 0) / 100)
+            {(isService
+              ? product.unitPrice || 0
+              : (product.unitPrice || 0) * (1 + (product.markup || 0) / 100)
             ).toFixed(2)}{" "}
             un)
           </span>
@@ -908,7 +971,11 @@ function ProductRow({
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={() =>
-                onRemoveProduct(product.productId, product.systemInstanceId)
+                onRemoveProduct(
+                  product.productId,
+                  product.systemInstanceId,
+                  product.itemType || "product",
+                )
               }
             >
               Remover
@@ -922,10 +989,10 @@ function ProductRow({
 
 // Sub-component for extra products grid
 interface ExtraProductsGridProps {
-  products: Product[];
+  products: Array<Product | Service>;
   sistemaProducts: ProposalProduct[];
   primaryColor: string;
-  onAddProduct: (product: Product) => void;
+  onAddProduct: (product: Product | Service) => void;
 }
 
 function ExtraProductsGrid({
@@ -934,43 +1001,82 @@ function ExtraProductsGrid({
   primaryColor,
   onAddProduct,
 }: ExtraProductsGridProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [isProductsOpen, setIsProductsOpen] = React.useState(false);
+  const [isServicesOpen, setIsServicesOpen] = React.useState(false);
+  const [productSearchTerm, setProductSearchTerm] = React.useState("");
+  const [serviceSearchTerm, setServiceSearchTerm] = React.useState("");
+  const productsContainerRef = React.useRef<HTMLDivElement>(null);
+  const servicesContainerRef = React.useRef<HTMLDivElement>(null);
+  const productsInputRef = React.useRef<HTMLInputElement>(null);
+  const servicesInputRef = React.useRef<HTMLInputElement>(null);
 
   // Click outside to close
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        productsContainerRef.current &&
+        !productsContainerRef.current.contains(event.target as Node) &&
+        servicesContainerRef.current &&
+        !servicesContainerRef.current.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        setIsProductsOpen(false);
+        setIsServicesOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const availableProducts = products
-    .filter((p) => !sistemaProducts.some((sp) => sp.productId === p.id))
-    .filter((p) => {
-      if (!searchTerm) return true;
-      const term = searchTerm.toLowerCase();
-      return (
-        p.name.toLowerCase().includes(term) ||
-        p.category?.toLowerCase().includes(term)
-      );
-    })
+  const availableItems = products
+    .filter(
+      (p) =>
+        !sistemaProducts.some(
+          (sp) =>
+            sp.productId === p.id &&
+            (sp.itemType || "product") === (p.itemType || "product"),
+        ),
+    )
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleSelect = (product: Product) => {
-    onAddProduct(product);
-    setSearchTerm("");
-    // Keep it open for multi-select
-    // setIsOpen(false);
-    inputRef.current?.focus();
+  const availableProducts = availableItems.filter(
+    (p) => (p.itemType || "product") === "product",
+  );
+
+  const availableServices = availableItems.filter(
+    (p) => (p.itemType || "product") === "service",
+  );
+
+  const filteredProducts = availableProducts.filter((p) => {
+    if (!productSearchTerm) return true;
+    const term = productSearchTerm.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(term) ||
+      p.category?.toLowerCase().includes(term)
+    );
+  });
+
+  const filteredServices = availableServices.filter((p) => {
+    if (!serviceSearchTerm) return true;
+    const term = serviceSearchTerm.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(term) ||
+      p.category?.toLowerCase().includes(term)
+    );
+  });
+
+  const handleSelect = (
+    item: Product | Service,
+    type: "product" | "service",
+  ) => {
+    onAddProduct(item);
+    if (type === "product") {
+      setProductSearchTerm("");
+      productsInputRef.current?.focus();
+      return;
+    }
+
+    setServiceSearchTerm("");
+    servicesInputRef.current?.focus();
   };
 
   return (
@@ -988,83 +1094,174 @@ function ExtraProductsGrid({
             className="text-sm font-semibold"
             style={{ color: primaryColor }}
           >
-            Adicionar Produto Extra
+            Adicionar Itens Extras
           </span>
         </div>
-        {availableProducts.length === 0 && !searchTerm && (
-          <span className="text-xs text-muted-foreground italic">
-            Todos os produtos adicionados
-          </span>
-        )}
+        {availableItems.length === 0 &&
+          !productSearchTerm &&
+          !serviceSearchTerm && (
+            <span className="text-xs text-muted-foreground italic">
+              Todos os itens já foram adicionados
+            </span>
+          )}
       </div>
 
-      <div className="relative" ref={containerRef}>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Buscar produto para adicionar..."
-            className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              if (!isOpen) setIsOpen(true);
-            }}
-            onFocus={() => setIsOpen(true)}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                inputRef.current?.focus();
-              }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="relative" ref={productsContainerRef}>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-2 py-0.5 h-auto bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40"
             >
-              <X className="w-4 h-4" />
-            </button>
+              Produto
+            </Badge>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              ref={productsInputRef}
+              type="text"
+              placeholder="Buscar produto para adicionar..."
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              value={productSearchTerm}
+              onChange={(e) => {
+                setProductSearchTerm(e.target.value);
+                if (!isProductsOpen) setIsProductsOpen(true);
+              }}
+              onFocus={() => setIsProductsOpen(true)}
+            />
+            {productSearchTerm && (
+              <button
+                onClick={() => {
+                  setProductSearchTerm("");
+                  productsInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {isProductsOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
+              {filteredProducts.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  {productSearchTerm
+                    ? "Nenhum produto encontrado"
+                    : "Todos os produtos já foram adicionados"}
+                </div>
+              ) : (
+                <div className="p-1">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={`${product.itemType || "product"}-${product.id}`}
+                      onClick={() => handleSelect(product, "product")}
+                      className="w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-primary transition-colors">
+                          <Package className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">
+                            {product.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                            <span>{product.category || "Sem categoria"}</span>
+                            <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                            <span>
+                              R$ {parseFloat(product.price).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Dropdown Results */}
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
-            {availableProducts.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {searchTerm
-                  ? "Nenhum produto encontrado"
-                  : "Todos os produtos já foram adicionados"}
-              </div>
-            ) : (
-              <div className="p-1">
-                {availableProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => handleSelect(product)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors group"
-                  >
-                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-primary transition-colors">
-                        <Package className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">
-                          {product.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
-                          <span>{product.category || "Sem categoria"}</span>
-                          <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
-                          <span>R$ {parseFloat(product.price).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0 ml-2" />
-                  </button>
-                ))}
-              </div>
+        <div className="relative" ref={servicesContainerRef}>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-2 py-0.5 h-auto bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
+            >
+              Serviço
+            </Badge>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              ref={servicesInputRef}
+              type="text"
+              placeholder="Buscar serviço para adicionar..."
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              value={serviceSearchTerm}
+              onChange={(e) => {
+                setServiceSearchTerm(e.target.value);
+                if (!isServicesOpen) setIsServicesOpen(true);
+              }}
+              onFocus={() => setIsServicesOpen(true)}
+            />
+            {serviceSearchTerm && (
+              <button
+                onClick={() => {
+                  setServiceSearchTerm("");
+                  servicesInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
-        )}
+
+          {isServicesOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
+              {filteredServices.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  {serviceSearchTerm
+                    ? "Nenhum serviço encontrado"
+                    : "Todos os serviços já foram adicionados"}
+                </div>
+              ) : (
+                <div className="p-1">
+                  {filteredServices.map((service) => (
+                    <button
+                      key={`${service.itemType || "service"}-${service.id}`}
+                      onClick={() => handleSelect(service, "service")}
+                      className="w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-primary transition-colors">
+                          <Package className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">
+                            {service.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
+                            <span>{service.category || "Sem categoria"}</span>
+                            <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                            <span>
+                              R$ {parseFloat(service.price).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 text-primary transition-opacity shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

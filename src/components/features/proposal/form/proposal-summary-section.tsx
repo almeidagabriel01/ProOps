@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProposalProduct, Proposal } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus } from "@/types/proposal";
 import { FileText } from "lucide-react";
@@ -26,7 +27,7 @@ interface ProposalSummarySectionProps {
   extraProducts: ProposalProduct[];
   isAutomacaoNiche: boolean;
   primaryColor: string;
-  products?: Product[]; // Full product list for status checking
+  products?: Array<Product | Service>; // Full catalog list for status checking
   calculateSubtotal: () => number;
   calculateDiscount: () => number;
   calculateTotal: () => number;

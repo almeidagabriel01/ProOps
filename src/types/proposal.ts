@@ -9,6 +9,7 @@ export type ProposalStatus =
 
 export interface ProposalProduct {
   productId: string;
+  itemType?: "product" | "service";
   name?: string; // Legacy/Optional
   productName: string; // Used in components
   quantity: number;

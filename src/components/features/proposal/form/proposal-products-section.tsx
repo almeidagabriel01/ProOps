@@ -12,19 +12,28 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
+import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Minus } from "lucide-react";
 
 interface ProposalProductsSectionProps {
-  products: Product[];
+  products: Array<Product | Service>;
   selectedProducts: ProposalProduct[];
   extraProducts: ProposalProduct[];
   systemProductIds: Set<string>;
-  onToggleProduct: (product: Product) => void;
-  onUpdateQuantity: (productId: string, delta: number) => void;
+  onToggleProduct: (product: Product | Service) => void;
+  onUpdateQuantity: (
+    productId: string,
+    delta: number,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+  ) => void;
   onNavigateToProducts: () => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
 }
 
@@ -43,10 +52,10 @@ export function ProposalProductsSection({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Produtos Extras (Avulsos)
+            Itens Extras (Produtos/Serviços)
           </CardTitle>
           <CardDescription>
-            Selecione produtos que NÃO fazem parte dos sistemas acima
+            Selecione itens que NÃO fazem parte dos sistemas acima
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -54,7 +63,7 @@ export function ProposalProductsSection({
             <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Nenhum produto cadastrado</p>
             <Button variant="link" onClick={onNavigateToProducts}>
-              Cadastrar produtos
+              Cadastrar itens
             </Button>
           </div>
         </CardContent>
@@ -72,26 +81,30 @@ export function ProposalProductsSection({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Package className="w-5 h-5" />
-          Produtos Extras (Avulsos)
+          Itens Extras (Produtos/Serviços)
         </CardTitle>
         <CardDescription>
-          Selecione produtos que NÃO fazem parte dos sistemas acima
+          Selecione itens que NÃO fazem parte dos sistemas acima
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {availableProducts.map((product) => {
             const selected = extraProducts.find(
-              (p) => p.productId === product.id,
+              (p) =>
+                p.productId === product.id &&
+                (p.itemType || "product") === (product.itemType || "product"),
             );
 
             return (
               <ProductCard
-                key={product.id}
+                key={`${product.itemType || "product"}-${product.id}`}
                 product={product}
                 selected={selected}
                 onToggle={() => onToggleProduct(product)}
-                onUpdateQuantity={onUpdateQuantity}
+                onUpdateQuantity={(productId, delta, itemType) =>
+                  onUpdateQuantity(productId, delta, undefined, itemType)
+                }
                 onToggleStatus={onToggleStatus}
               />
             );
@@ -103,13 +116,19 @@ export function ProposalProductsSection({
 }
 
 interface ProductCardProps {
-  product: Product;
+  product: Product | Service;
   selected?: ProposalProduct;
   onToggle: () => void;
-  onUpdateQuantity: (productId: string, delta: number) => void;
+  onUpdateQuantity: (
+    productId: string,
+    delta: number,
+    itemType?: "product" | "service",
+  ) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
 }
 
@@ -130,7 +149,12 @@ function ProductCard({
 
     setIsUpdating(true);
     try {
-      await onToggleStatus(product.id, isActive ? "inactive" : "active");
+      await onToggleStatus(
+        product.id,
+        isActive ? "inactive" : "active",
+        undefined,
+        product.itemType || "product",
+      );
     } finally {
       setIsUpdating(false);
     }
@@ -180,7 +204,21 @@ function ProductCard({
 
       <div className="flex justify-between items-start mb-2">
         <div className="flex flex-col">
-          <h4 className="font-medium mr-2">{product.name}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium mr-2">{product.name}</h4>
+            <Badge
+              variant="outline"
+              className={
+                (product.itemType || "product") === "service"
+                  ? "text-[10px] px-2 py-0.5 h-auto bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
+                  : "text-[10px] px-2 py-0.5 h-auto bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40"
+              }
+            >
+              {(product.itemType || "product") === "service"
+                ? "Serviço"
+                : "Produto"}
+            </Badge>
+          </div>
         </div>
         <span className="text-sm font-bold text-primary whitespace-nowrap">
           R$ {parseFloat(product.price).toFixed(2)}
@@ -196,7 +234,7 @@ function ProductCard({
       {/* Inactive message */}
       {!isActive && (
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-          Produto inativo (não aparecerá no PDF)
+          Item inativo (não aparecerá no PDF)
         </p>
       )}
 
@@ -210,7 +248,9 @@ function ProductCard({
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => onUpdateQuantity(product.id, -1)}
+            onClick={() =>
+              onUpdateQuantity(product.id, -1, product.itemType || "product")
+            }
           >
             <Minus className="w-3 h-3" />
           </Button>
@@ -220,7 +260,9 @@ function ProductCard({
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => onUpdateQuantity(product.id, 1)}
+            onClick={() =>
+              onUpdateQuantity(product.id, 1, product.itemType || "product")
+            }
           >
             <Plus className="w-3 h-3" />
           </Button>
