@@ -971,9 +971,18 @@ export class TransactionService {
         }
       }
 
-      // 3) Write transaction statuses
+      // 3) Write transaction statuses + paidAt timestamp
       for (const txRef of transactionsToUpdate) {
-        t.update(txRef, { status: newStatus, updatedAt: now });
+        const statusUpdate: Record<string, any> = {
+          status: newStatus,
+          updatedAt: now,
+        };
+        if (newStatus === "paid") {
+          statusUpdate.paidAt = now;
+        } else {
+          statusUpdate.paidAt = FieldValue.delete();
+        }
+        t.update(txRef, statusUpdate);
       }
 
       // 4) Write wallet balance deltas
