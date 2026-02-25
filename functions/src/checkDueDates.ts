@@ -1,7 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -31,12 +31,12 @@ export const checkDueDates = onSchedule(
       // ================================================================
       // 1. TRANSAÇÕES PENDENTES — vencimento próximo ou vencido
       // ================================================================
-      // Query: status == "pending" e dueDate <= hoje + 3 dias
-      // Firestore não suporta <= em strings de forma confiável para datas,
-      // então buscamos todas as pendentes e filtramos no código.
+      // Compound query: status == "pending" AND dueDate <= limitDateStr
+      // Requires composite index (status ASC, dueDate ASC) in firestore.indexes.json
       const pendingTransactions = await db
         .collection("transactions")
         .where("status", "==", "pending")
+        .where("dueDate", "<=", limitDateStr)
         .get();
 
       for (const doc of pendingTransactions.docs) {
@@ -45,9 +45,6 @@ export const checkDueDates = onSchedule(
         const tenantId = data.tenantId as string;
 
         if (!dueDate || !tenantId) continue;
-
-        // Verificar se dueDate está dentro do intervalo (já venceu ou vence em até 3 dias)
-        if (dueDate > limitDateStr) continue;
 
         // Determinar se já venceu ou está próximo
         const isOverdue = dueDate < today;
@@ -108,46 +105,43 @@ export const checkDueDates = onSchedule(
       // ================================================================
       // 2. PROPOSTAS COM VALIDADE PRÓXIMA OU EXPIRADA
       // ================================================================
-      const activeStatuses = ["draft", "in_progress", "sent"];
+      // Single query using `in` operator instead of 3 sequential queries
+      const proposalSnapshot = await db
+        .collection("proposals")
+        .where("status", "in", ["draft", "in_progress", "sent"])
+        .get();
 
-      for (const status of activeStatuses) {
-        const proposalSnapshot = await db
-          .collection("proposals")
-          .where("status", "==", status)
-          .get();
+      for (const doc of proposalSnapshot.docs) {
+        const data = doc.data();
+        const validUntil = data.validUntil as string | undefined;
+        const tenantId = data.tenantId as string;
 
-        for (const doc of proposalSnapshot.docs) {
-          const data = doc.data();
-          const validUntil = data.validUntil as string | undefined;
-          const tenantId = data.tenantId as string;
+        if (!validUntil || !tenantId) continue;
 
-          if (!validUntil || !tenantId) continue;
+        // Verificar se validUntil está dentro do intervalo
+        if (validUntil > limitDateStr) continue;
 
-          // Verificar se validUntil está dentro do intervalo
-          if (validUntil > limitDateStr) continue;
+        const isExpired = validUntil < today;
+        const title = data.title || "Sem título";
+        const clientName = data.clientName || "";
 
-          const isExpired = validUntil < today;
-          const title = data.title || "Sem título";
-          const clientName = data.clientName || "";
+        const formattedValidUntil = formatDateBR(validUntil);
 
-          const formattedValidUntil = formatDateBR(validUntil);
+        await upsertDueReminderNotification({
+          tenantId,
+          type: "proposal_expiring",
+          title: isExpired
+            ? "Proposta com validade expirada"
+            : "Proposta próxima da validade",
+          message: isExpired
+            ? `"${title}"${clientName ? ` (${clientName})` : ""} expirou em ${formattedValidUntil}. Verifique o status.`
+            : `"${title}"${clientName ? ` (${clientName})` : ""} válida até ${formattedValidUntil}. Lembre-se de acompanhar.`,
+          resourceId: doc.id,
+          resourceField: "proposalId",
+          proposalId: doc.id,
+        });
 
-          await upsertDueReminderNotification({
-            tenantId,
-            type: "proposal_expiring",
-            title: isExpired
-              ? "Proposta com validade expirada"
-              : "Proposta próxima da validade",
-            message: isExpired
-              ? `"${title}"${clientName ? ` (${clientName})` : ""} expirou em ${formattedValidUntil}. Verifique o status.`
-              : `"${title}"${clientName ? ` (${clientName})` : ""} válida até ${formattedValidUntil}. Lembre-se de acompanhar.`,
-            resourceId: doc.id,
-            resourceField: "proposalId",
-            proposalId: doc.id,
-          });
-
-          proposalReminders++;
-        }
+        proposalReminders++;
       }
 
       console.log(
@@ -156,6 +150,34 @@ export const checkDueDates = onSchedule(
       console.log(
         `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,
       );
+
+      // ================================================================
+      // 3. CLEANUP — WhatsApp stale sessions (TTL)
+      // ================================================================
+      try {
+        const staleThreshold = Timestamp.fromMillis(
+          Date.now() - 24 * 60 * 60 * 1000,
+        );
+        const staleSessions = await db
+          .collection("whatsappSessions")
+          .where("expiresAt", "<", staleThreshold)
+          .limit(200)
+          .get();
+
+        if (!staleSessions.empty) {
+          const batch = db.batch();
+          staleSessions.docs.forEach((doc) => batch.delete(doc.ref));
+          await batch.commit();
+          console.log(
+            `Cleaned up ${staleSessions.size} stale WhatsApp sessions.`,
+          );
+        }
+      } catch (cleanupError) {
+        console.warn(
+          "WhatsApp session cleanup failed (non-fatal):",
+          cleanupError,
+        );
+      }
     } catch (error) {
       console.error("Error checking due dates:", error);
     }

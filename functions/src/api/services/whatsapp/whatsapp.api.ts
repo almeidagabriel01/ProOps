@@ -3,7 +3,10 @@ import { formatOutboundNumber, getWhatsAppApiConfig } from "./whatsapp.utils";
 
 export async function sendWhatsAppMessage(to: string, body: string) {
   const formattedTo = formatOutboundNumber(to);
-  console.log(`[WhatsApp] Sending to ${formattedTo}: ${body}`);
+  const preview = body.length > 50 ? body.slice(0, 50) + "..." : body;
+  console.log(
+    `[WhatsApp] Sending to ${formattedTo} (${body.length} chars): ${preview}`,
+  );
 
   const config = getWhatsAppApiConfig();
   if (!config) {
@@ -182,5 +185,69 @@ export async function sendWhatsAppPdf(
     }
   } catch (error) {
     console.error(`[WhatsApp] Exception sending PDF to ${formattedTo}:`, error);
+  }
+}
+
+export async function sendWhatsAppInteractiveMessage(
+  to: string,
+  interactivePayload: any,
+) {
+  const formattedTo = formatOutboundNumber(to);
+  console.log(`[WhatsApp] Sending interactive message to ${formattedTo}`);
+
+  const config = getWhatsAppApiConfig();
+  if (!config) {
+    return;
+  }
+  const { token, phoneNumberId, tokenDiagnostics } = config;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedTo,
+          type: "interactive",
+          interactive: interactivePayload,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(
+        `[WhatsApp] Meta API Error sending interactive message to ${formattedTo}:`,
+        errorData,
+        {
+          phoneNumberId,
+          tokenDiagnostics,
+        },
+      );
+    } else {
+      const successData = (await response
+        .json()
+        .catch(() => null)) as WhatsAppSendApiResponse | null;
+      const messageId = successData?.messages?.[0]?.id;
+      const messageStatus = successData?.messages?.[0]?.message_status;
+      console.log(
+        `[WhatsApp] Successfully sent interactive message to ${formattedTo}`,
+        {
+          messageId,
+          messageStatus,
+        },
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[WhatsApp] Exception sending interactive message to ${formattedTo}:`,
+      error,
+    );
   }
 }

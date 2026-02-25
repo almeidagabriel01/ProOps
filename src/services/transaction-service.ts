@@ -51,6 +51,7 @@ export type Transaction = {
   isPartialPayment?: boolean;
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
   extraCosts?: ExtraCost[]; // Inline extra costs that don't need their own transaction documents
+  paidAt?: string; // Timestamp set when transaction is marked as paid
 };
 
 export type UpdateFinancialEntryWithInstallmentsPayload = {

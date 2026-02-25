@@ -79,11 +79,25 @@ export async function logAction(
   details?: any,
 ) {
   try {
+    // Truncate details to prevent oversized documents
+    let safeDetails = {};
+    if (details) {
+      try {
+        const serialized = JSON.stringify(details);
+        safeDetails =
+          serialized.length > 2000
+            ? JSON.parse(serialized.slice(0, 2000) + '"}')
+            : details;
+      } catch {
+        safeDetails = { raw: String(details).slice(0, 500) };
+      }
+    }
+
     await db.collection("whatsappLogs").add({
       phoneNumber,
       userId,
       action,
-      details: details || {},
+      details: safeDetails,
       timestamp: FieldValue.serverTimestamp(),
     });
   } catch (error) {
@@ -92,55 +106,57 @@ export async function logAction(
 }
 
 export async function checkRateLimit(phoneNumber: string): Promise<boolean> {
-  const now = new Date();
   const ref = db.collection("whatsappRateLimit").doc(phoneNumber);
-  const snap = await ref.get();
 
-  let data = snap.exists
-    ? snap.data()!
-    : {
-        minuteWindowStart: Timestamp.fromDate(now),
-        minuteCount: 0,
-        dayWindowStart: Timestamp.fromDate(now),
-        dayCount: 0,
-      };
+  // Use Firestore transaction for atomic read-then-write (prevents race conditions under burst)
+  return db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    const now = new Date();
 
-  const minStart =
-    data.minuteWindowStart instanceof Timestamp
-      ? data.minuteWindowStart.toMillis()
-      : now.getTime();
-  const dayStart =
-    data.dayWindowStart instanceof Timestamp
-      ? data.dayWindowStart.toMillis()
-      : now.getTime();
+    let data = snap.exists
+      ? snap.data()!
+      : {
+          minuteWindowStart: Timestamp.fromDate(now),
+          minuteCount: 0,
+          dayWindowStart: Timestamp.fromDate(now),
+          dayCount: 0,
+        };
 
-  if (now.getTime() - minStart > 60 * 1000) {
-    data.minuteWindowStart = Timestamp.fromDate(now);
-    data.minuteCount = 1;
-  } else {
-    data.minuteCount = (data.minuteCount || 0) + 1;
-  }
+    const minStart =
+      data.minuteWindowStart instanceof Timestamp
+        ? data.minuteWindowStart.toMillis()
+        : now.getTime();
+    const dayStart =
+      data.dayWindowStart instanceof Timestamp
+        ? data.dayWindowStart.toMillis()
+        : now.getTime();
 
-  if (now.getTime() - dayStart > 24 * 60 * 60 * 1000) {
-    data.dayWindowStart = Timestamp.fromDate(now);
-    data.dayCount = 1;
-  } else {
-    data.dayCount = (data.dayCount || 0) + 1;
-  }
+    if (now.getTime() - minStart > 60 * 1000) {
+      data.minuteWindowStart = Timestamp.fromDate(now);
+      data.minuteCount = 1;
+    } else {
+      data.minuteCount = (data.minuteCount || 0) + 1;
+    }
 
-  await ref.set(data, { merge: true });
+    if (now.getTime() - dayStart > 24 * 60 * 60 * 1000) {
+      data.dayWindowStart = Timestamp.fromDate(now);
+      data.dayCount = 1;
+    } else {
+      data.dayCount = (data.dayCount || 0) + 1;
+    }
 
-  if (data.minuteCount > RATE_LIMIT_MINUTE) {
-    console.log(`Rate limit exceeded (minute) for ${phoneNumber}`);
-    return false;
-  }
+    transaction.set(ref, data, { merge: true });
 
-  if (data.dayCount > RATE_LIMIT_DAY) {
-    console.log(`Rate limit exceeded (day) for ${phoneNumber}`);
-    return false;
-  }
+    if (data.minuteCount > RATE_LIMIT_MINUTE) {
+      return false;
+    }
 
-  return true;
+    if (data.dayCount > RATE_LIMIT_DAY) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export async function checkUsage(
