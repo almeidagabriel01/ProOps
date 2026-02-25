@@ -3,12 +3,12 @@
 import * as React from "react";
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Option, OptionService } from "@/services/option-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { OptionManagerDialog } from "./option-manager-dialog";
 
 interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -87,17 +87,15 @@ export function DynamicSelect({
         </Button>
       </div>
 
-      <Select
+      <SearchableSelect
         {...props}
-        error={error}
-      >
-        <option value="">Selecione...</option>
-        {options.map((opt) => (
-          <option key={opt.id} value={opt.label}>
-            {opt.label}
-          </option>
-        ))}
-      </Select>
+        options={options.map((opt) => ({
+          value: opt.label,
+          label: opt.label,
+        }))}
+        placeholder="Selecione..."
+        searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
+      />
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <OptionManagerDialog
