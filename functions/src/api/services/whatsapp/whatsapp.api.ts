@@ -3,7 +3,10 @@ import { formatOutboundNumber, getWhatsAppApiConfig } from "./whatsapp.utils";
 
 export async function sendWhatsAppMessage(to: string, body: string) {
   const formattedTo = formatOutboundNumber(to);
-  console.log(`[WhatsApp] Sending to ${formattedTo}: ${body}`);
+  const preview = body.length > 50 ? body.slice(0, 50) + "..." : body;
+  console.log(
+    `[WhatsApp] Sending to ${formattedTo} (${body.length} chars): ${preview}`,
+  );
 
   const config = getWhatsAppApiConfig();
   if (!config) {

@@ -137,12 +137,23 @@ export async function handleFinancialDaySummary(
   await logAction(to, userId, "view_financial_summary");
 
   try {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
+    // Use BRT (UTC-3) for "today" since all tenants are Brazilian
+    const now = new Date();
+    const brtOffset = -3 * 60; // UTC-3 in minutes
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const brtNow = new Date(utcMs + brtOffset * 60000);
 
-    const todayTransactions = await getTodaysTransactions(tenantId, start, end);
+    const start = new Date(brtNow);
+    start.setHours(0, 0, 0, 0);
+    // Convert BRT midnight back to UTC for Firestore queries
+    const startUtc = new Date(start.getTime() - brtOffset * 60000);
+    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
+
+    const todayTransactions = await getTodaysTransactions(
+      tenantId,
+      startUtc,
+      endUtc,
+    );
 
     if (todayTransactions.length === 0) {
       await sendWhatsAppMessage(to, "Nenhuma movimentação hoje.");
