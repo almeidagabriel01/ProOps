@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import {
   Transaction,
   TransactionService,
@@ -38,6 +38,9 @@ const sameClient = (a: Transaction, b: Transaction): boolean => {
   return (a.clientName || "").trim() === (b.clientName || "").trim();
 };
 
+const baseDesc = (s: string): string =>
+  s.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
+
 const matchesGroupByHeuristic = (
   orphan: Transaction,
   grouped: Transaction[],
@@ -48,9 +51,9 @@ const matchesGroupByHeuristic = (
       !!g.installmentGroupId &&
       !g.proposalGroupId &&
       g.type === orphan.type &&
-      (g.description || "").trim() === (orphan.description || "").trim() &&
+      baseDesc(g.description || "") === baseDesc(orphan.description || "") &&
       sameClient(g, orphan) &&
-      dateOnly(g.date || g.dueDate) === dateOnly(orphan.date || orphan.dueDate),
+      dateOnly(g.date) === dateOnly(orphan.date),
   );
   return matchingGroups.length === 1;
 };
@@ -288,6 +291,9 @@ export function useFinancialData(): UseFinancialDataReturn {
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
 
+      // === PASS 1: Process grouped transactions (proposal groups + installment groups) ===
+      // This ensures all group representatives exist in effectiveTransactions
+      // before we check orphan down payments in pass 2.
       sortedRaw.forEach((t) => {
         // CASE 1: Transaction is part of a proposal group (has both down payment and installments)
         if (t.proposalGroupId) {
@@ -382,15 +388,21 @@ export function useFinancialData(): UseFinancialDataReturn {
           }
           return;
         }
+      });
 
-        // CASE 3: Regular transaction (not part of any group)
+      // === PASS 2: Process standalone transactions and orphan down payments ===
+      // Now effectiveTransactions contains ALL group representatives,
+      // so heuristic matching can correctly find them.
+      sortedRaw.forEach((t) => {
+        // Skip already-processed grouped transactions
+        if (t.proposalGroupId || t.installmentGroupId) return;
+
+        // Orphan down payment — check if it matches a group representative
         if (
-          !t.installmentGroupId &&
-          !t.proposalGroupId &&
           isDownPaymentLike(t) &&
           matchesGroupByHeuristic(t, effectiveTransactions)
         ) {
-          return;
+          return; // Will be attached to its group by page.tsx rendering
         }
         effectiveTransactions.push(t);
       });
@@ -766,9 +778,12 @@ export function useFinancialData(): UseFinancialDataReturn {
         // Refresh truth from server (background)
         await fetchData(true);
 
-        toast.success(`Lancamento ${transactionLabel} foi excluido com sucesso.`, {
-          title: "Sucesso ao excluir",
-        });
+        toast.success(
+          `Lancamento ${transactionLabel} foi excluido com sucesso.`,
+          {
+            title: "Sucesso ao excluir",
+          },
+        );
         return true;
       } catch (error) {
         console.error("Error deleting transaction:", error);
@@ -937,9 +952,12 @@ export function useFinancialData(): UseFinancialDataReturn {
           prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
         );
 
-        toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
-          title: "Sucesso ao editar",
-        });
+        toast.success(
+          `Lancamento ${transactionLabel} atualizado com sucesso.`,
+          {
+            title: "Sucesso ao editar",
+          },
+        );
 
         // Refresh truth from server (background)
         await fetchData(true);

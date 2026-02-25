@@ -305,9 +305,9 @@ service cloud.firestore {
       allow write: if false; // Managed by Stripe Webhooks
     }
     
-    // PLANS (Public/Reference)
+    // PLANS (Public/Reference - needed by PlanService.getPlanById on frontend)
     match /plans/{planId} {
-      allow read: if false; // Read served by backend endpoint only
+      allow read: if isAuthenticated();
       allow write: if false;
     }
     
@@ -348,6 +348,39 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
       allow write: if false; // Apenas Cloud Functions
+    }
+
+    // ============================================
+    // BACKEND-ONLY COLLECTIONS
+    // Managed exclusively by Cloud Functions (admin SDK).
+    // Explicitly denied to prevent accidental client access.
+    // ============================================
+
+    match /phoneNumberIndex/{phone} {
+      allow read, write: if false;
+    }
+
+    match /whatsappUsage/{tenantId} {
+      allow read, write: if false;
+      match /months/{month} {
+        allow read, write: if false;
+      }
+    }
+
+    match /whatsappSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /whatsappRateLimit/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /whatsappLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /stripe_events/{eventId} {
+      allow read, write: if false;
     }
 
     // ============================================
