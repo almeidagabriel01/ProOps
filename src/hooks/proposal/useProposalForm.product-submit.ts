@@ -442,30 +442,6 @@ export function useProposalFormProductSubmit(
       latestStateRef.current.hasSaved = true;
       const isFinalizing = draftFormData.status !== "draft";
 
-      if (isFinalizing && clientId) {
-        const clientUpdateData = {
-          name: formData.clientName?.trim() || "",
-          email: formData.clientEmail || "",
-          phone: formData.clientPhone || "",
-          address: formData.clientAddress || "",
-        };
-        try {
-          const { ClientService } = await import("@/services/client-service");
-          await ClientService.updateClient(clientId, clientUpdateData);
-        } catch (clientUpdateError) {
-          console.error("Failed to update client:", clientUpdateError);
-          const clientErrorMessage =
-            clientUpdateError instanceof Error &&
-            clientUpdateError.message.trim()
-              ? clientUpdateError.message.trim()
-              : "Falha ao atualizar os dados do cliente.";
-          toast.error(
-            `A proposta ${proposalLabel} foi salva, mas nao foi possivel atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
-            { title: "Erro ao editar" },
-          );
-        }
-      }
-
       if (proposalId) {
         await ProposalService.updateProposal(proposalId, payload);
         toast.success(`Proposta ${proposalLabel} foi atualizada com sucesso.`, {
@@ -482,6 +458,32 @@ export function useProposalFormProductSubmit(
             ? `/proposals/${createdProposal.id}/edit-pdf`
             : "/proposals",
         );
+      }
+
+      // Fire-and-forget: client contact sync is non-blocking
+      if (isFinalizing && clientId) {
+        void (async () => {
+          try {
+            const { ClientService } = await import("@/services/client-service");
+            await ClientService.updateClient(clientId, {
+              name: formData.clientName?.trim() || "",
+              email: formData.clientEmail || "",
+              phone: formData.clientPhone || "",
+              address: formData.clientAddress || "",
+            });
+          } catch (clientUpdateError) {
+            console.error("Failed to update client:", clientUpdateError);
+            const clientErrorMessage =
+              clientUpdateError instanceof Error &&
+              clientUpdateError.message.trim()
+                ? clientUpdateError.message.trim()
+                : "Falha ao atualizar os dados do cliente.";
+            toast.error(
+              `A proposta ${proposalLabel} foi salva, mas nao foi possivel atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
+              { title: "Erro ao editar" },
+            );
+          }
+        })();
       }
       return true;
     } catch (error) {

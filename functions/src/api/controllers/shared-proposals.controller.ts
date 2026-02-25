@@ -107,17 +107,23 @@ async function enrichSharedProposalProducts(
   const productCatalogMap = new Map<string, Record<string, unknown>>();
   const chunks = chunkArray(productIds, 10);
 
-  for (const idsChunk of chunks) {
-    const catalogSnap = await db
-      .collection("products")
-      .where("tenantId", "==", tenantId)
-      .where(FieldPath.documentId(), "in", idsChunk)
-      .get();
+  // Parallel chunk queries: all chunks are independent reads
+  await Promise.all(
+    chunks.map(async (idsChunk) => {
+      const catalogSnap = await db
+        .collection("products")
+        .where("tenantId", "==", tenantId)
+        .where(FieldPath.documentId(), "in", idsChunk)
+        .get();
 
-    catalogSnap.docs.forEach((docSnap) => {
-      productCatalogMap.set(docSnap.id, docSnap.data() as Record<string, unknown>);
-    });
-  }
+      catalogSnap.docs.forEach((docSnap) => {
+        productCatalogMap.set(
+          docSnap.id,
+          docSnap.data() as Record<string, unknown>,
+        );
+      });
+    }),
+  );
 
   const enrichedProducts = visibleProducts.map((product) => {
     const catalogProduct = product.productId
@@ -129,7 +135,9 @@ async function enrichSharedProposalProducts(
       return {
         ...product,
         _isInactive: isInactive,
-        _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
+        _shouldHide: Boolean(
+          product._shouldHide || product._isGhost || isInactive,
+        ),
       };
     }
 
@@ -145,7 +153,8 @@ async function enrichSharedProposalProducts(
           : product.productImages || [];
     const mergedImage = mergedImages[0] || product.productImage || "";
 
-    const status = (catalogProduct.status as string) || (product.status as string);
+    const status =
+      (catalogProduct.status as string) || (product.status as string);
     const isInactive = status === "inactive";
 
     return {
@@ -155,9 +164,13 @@ async function enrichSharedProposalProducts(
       productDescription:
         (typeof catalogProduct.description === "string"
           ? catalogProduct.description
-          : "") || product.productDescription || "",
+          : "") ||
+        product.productDescription ||
+        "",
       _isInactive: isInactive,
-      _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
+      _shouldHide: Boolean(
+        product._shouldHide || product._isGhost || isInactive,
+      ),
     };
   });
 
@@ -246,44 +259,48 @@ export const getSharedProposal = async (req: Request, res: Response) => {
         .json({ message: "Link não encontrado ou inválido" });
     }
 
-    // Buscar dados da proposta
+    // Parallel fetch: proposal and tenant are independent reads
     const proposalRef = db
       .collection("proposals")
       .doc(sharedProposal.proposalId);
-    const proposalSnap = await proposalRef.get();
+    const tenantRef = db.collection("tenants").doc(sharedProposal.tenantId);
+
+    const [proposalSnap, tenantSnap] = await Promise.all([
+      proposalRef.get(),
+      tenantRef.get(),
+    ]);
 
     if (!proposalSnap.exists) {
       return res.status(404).json({ message: "Proposta não encontrada" });
     }
 
     const proposalData = proposalSnap.data() as ProposalLike | undefined;
-    if (String((proposalData as Record<string, unknown> | undefined)?.tenantId || "").trim() !== sharedProposal.tenantId) {
-      return res.status(404).json({ message: "Proposta nÃ£o encontrada" });
+    if (
+      String(
+        (proposalData as Record<string, unknown> | undefined)?.tenantId || "",
+      ).trim() !== sharedProposal.tenantId
+    ) {
+      return res.status(404).json({ message: "Proposta não encontrada" });
     }
     const enrichedProposalData = await enrichSharedProposalProducts(
       proposalData,
       sharedProposal.tenantId,
     );
 
-    // Buscar dados do tenant para branding
-    const tenantRef = db.collection("tenants").doc(sharedProposal.tenantId);
-    const tenantSnap = await tenantRef.get();
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    // Registrar visualização
+    // Fire-and-forget: view recording is non-critical analytics
     const viewerData = {
       ip: req.ip || (req.headers["x-forwarded-for"] as string),
       userAgent: req.headers["user-agent"],
     };
-
-    // Registrar visualização antes da resposta para evitar perda em ambiente serverless
-    await SharedProposalService.recordView(
+    void SharedProposalService.recordView(
       sharedProposal.id,
       sharedProposal.tenantId,
       sharedProposal.proposalId,
       viewerData,
       enrichedProposalData?.title,
-    );
+    ).catch((err) => console.error("recordView failed (non-critical)", err));
 
     // Retornar dados da proposta
     return res.status(200).json({

@@ -1,10 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import {
-  resolveUserAndTenant,
-  checkPermission,
-} from "../../lib/auth-helpers";
+import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import {
   enforceTenantPlanLimit,
@@ -56,7 +53,7 @@ function normalizeMonthlyUsageCount(value: unknown): number {
 
 export const createProposal = async (req: Request, res: Response) => {
   try {
-  const userId = req.user!.uid;
+    const userId = req.user!.uid;
     const input = req.body;
     console.log("[createProposal] request received", {
       userId,
@@ -65,7 +62,9 @@ export const createProposal = async (req: Request, res: Response) => {
     });
 
     // Relaxed validation for drafts
-    const normalizedStatus = String(input.status || "draft").trim().toLowerCase();
+    const normalizedStatus = String(input.status || "draft")
+      .trim()
+      .toLowerCase();
     const isDraft = normalizedStatus === "draft";
 
     if (!isDraft) {
@@ -91,13 +90,8 @@ export const createProposal = async (req: Request, res: Response) => {
         input.totalValue = 0;
     }
 
-    const {
-      masterRef,
-      tenantId,
-      isMaster,
-      isSuperAdmin,
-      userData,
-    } = await resolveUserAndTenant(userId, req.user);
+    const { masterRef, tenantId, isMaster, isSuperAdmin, userData } =
+      await resolveUserAndTenant(userId, req.user);
 
     if (!isMaster && !isSuperAdmin) {
       const canCreate = await checkPermission(userId, "proposals", "canCreate");
@@ -139,188 +133,188 @@ export const createProposal = async (req: Request, res: Response) => {
     let proposalId = "";
     try {
       proposalId = await db.runTransaction(async (t) => {
-      // === ALL READS FIRST ===
-      await t.get(masterRef);
+        // === ALL READS FIRST ===
+        await t.get(masterRef);
 
-      const companyRef = db.collection("companies").doc(userCompanyId);
-      const companySnap = await t.get(companyRef);
-      const now = Timestamp.now();
+        const companyRef = db.collection("companies").doc(userCompanyId);
+        const companySnap = await t.get(companyRef);
+        const now = Timestamp.now();
 
-      // Monthly proposals quota policy:
-      // count every new proposal except drafts.
-      if (!isDraft) {
-        const period = buildMonthlyPeriodWindowUtc();
-        const monthId = buildTenantUsageMonthId(period.startDate);
-        const monthUsageRef = db
-          .collection(TENANT_USAGE_COLLECTION)
-          .doc(userCompanyId)
-          .collection("months")
-          .doc(monthId);
+        // Monthly proposals quota policy:
+        // count every new proposal except drafts.
+        if (!isDraft) {
+          const period = buildMonthlyPeriodWindowUtc();
+          const monthId = buildTenantUsageMonthId(period.startDate);
+          const monthUsageRef = db
+            .collection(TENANT_USAGE_COLLECTION)
+            .doc(userCompanyId)
+            .collection("months")
+            .doc(monthId);
 
-        try {
-          const monthUsageSnap = await t.get(monthUsageRef);
-          const currentUsage = normalizeMonthlyUsageCount(
-            monthUsageSnap.data()?.proposalsCreated,
-          );
-          const projectedUsage = currentUsage + 1;
+          try {
+            const monthUsageSnap = await t.get(monthUsageRef);
+            const currentUsage = normalizeMonthlyUsageCount(
+              monthUsageSnap.data()?.proposalsCreated,
+            );
+            const projectedUsage = currentUsage + 1;
 
-          const proposalLimitDecision = await enforceTenantPlanLimit({
-            tenantId: userCompanyId,
-            feature: "maxProposalsPerMonth",
-            currentUsage,
-            usageKnown: true,
-            incrementBy: 1,
-            uid: userId,
-            requestId: req.requestId,
-            route: req.path,
-            isSuperAdmin,
-            periodStart: period.periodStart,
-            periodEnd: period.periodEnd,
-            resetAt: period.resetAt,
-          });
-
-          if (!proposalLimitDecision.allowed) {
-            throw new ProposalMonthlyLimitError({
-              code: proposalLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
-              message:
-                proposalLimitDecision.message ||
-                "Limite mensal de propostas atingido.",
-              used: proposalLimitDecision.currentUsage,
-              limit: proposalLimitDecision.limit,
-              projected: proposalLimitDecision.projectedUsage,
-              tier: proposalLimitDecision.profile.tier,
-              source: proposalLimitDecision.profile.source,
-              periodStart: proposalLimitDecision.periodStart,
-              periodEnd: proposalLimitDecision.periodEnd,
-              resetAt: proposalLimitDecision.resetAt,
-            });
-          }
-
-          t.set(
-            monthUsageRef,
-            {
-              proposalsCreated: projectedUsage,
+            const proposalLimitDecision = await enforceTenantPlanLimit({
+              tenantId: userCompanyId,
+              feature: "maxProposalsPerMonth",
+              currentUsage,
+              usageKnown: true,
+              incrementBy: 1,
+              uid: userId,
+              requestId: req.requestId,
+              route: req.path,
+              isSuperAdmin,
               periodStart: period.periodStart,
               periodEnd: period.periodEnd,
               resetAt: period.resetAt,
-              updatedAt: now.toDate().toISOString(),
-            },
-            { merge: true },
-          );
-        } catch (monthlyEnforcementError) {
-          if (monthlyEnforcementError instanceof ProposalMonthlyLimitError) {
-            throw monthlyEnforcementError;
-          }
+            });
 
-          const failOpenReason =
-            monthlyEnforcementError instanceof Error
-              ? monthlyEnforcementError.message
-              : "MONTHLY_ENFORCEMENT_INTERNAL_ERROR";
+            if (!proposalLimitDecision.allowed) {
+              throw new ProposalMonthlyLimitError({
+                code: proposalLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
+                message:
+                  proposalLimitDecision.message ||
+                  "Limite mensal de propostas atingido.",
+                used: proposalLimitDecision.currentUsage,
+                limit: proposalLimitDecision.limit,
+                projected: proposalLimitDecision.projectedUsage,
+                tier: proposalLimitDecision.profile.tier,
+                source: proposalLimitDecision.profile.source,
+                periodStart: proposalLimitDecision.periodStart,
+                periodEnd: proposalLimitDecision.periodEnd,
+                resetAt: proposalLimitDecision.resetAt,
+              });
+            }
 
-          logSecurityEvent(
-            "tenant_plan_monthly_enforcement_fail_open",
-            {
+            t.set(
+              monthUsageRef,
+              {
+                proposalsCreated: projectedUsage,
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+                resetAt: period.resetAt,
+                updatedAt: now.toDate().toISOString(),
+              },
+              { merge: true },
+            );
+          } catch (monthlyEnforcementError) {
+            if (monthlyEnforcementError instanceof ProposalMonthlyLimitError) {
+              throw monthlyEnforcementError;
+            }
+
+            const failOpenReason =
+              monthlyEnforcementError instanceof Error
+                ? monthlyEnforcementError.message
+                : "MONTHLY_ENFORCEMENT_INTERNAL_ERROR";
+
+            logSecurityEvent(
+              "tenant_plan_monthly_enforcement_fail_open",
+              {
+                requestId: req.requestId,
+                route: req.path,
+                tenantId: userCompanyId,
+                uid: userId,
+                reason: failOpenReason,
+                source: "proposals_controller",
+                status: 200,
+              },
+              "WARN",
+            );
+            void incrementSecurityCounter("plan_limit_would_block", {
               requestId: req.requestId,
               route: req.path,
               tenantId: userCompanyId,
               uid: userId,
-              reason: failOpenReason,
+              reason: "monthly_enforcement_fail_open",
               source: "proposals_controller",
               status: 200,
-            },
-            "WARN",
-          );
-          void incrementSecurityCounter("plan_limit_would_block", {
-            requestId: req.requestId,
-            route: req.path,
-            tenantId: userCompanyId,
-            uid: userId,
-            reason: "monthly_enforcement_fail_open",
-            source: "proposals_controller",
-            status: 200,
-          });
-          void writeSecurityAuditEvent({
-            eventType: "TENANT_PLAN_MONTHLY_ENFORCEMENT_FAIL_OPEN",
-            requestId: req.requestId,
-            route: req.path,
-            status: 200,
-            tenantId: userCompanyId,
-            uid: userId,
-            reason: failOpenReason,
-            source: "proposals_controller",
-          });
+            });
+            void writeSecurityAuditEvent({
+              eventType: "TENANT_PLAN_MONTHLY_ENFORCEMENT_FAIL_OPEN",
+              requestId: req.requestId,
+              route: req.path,
+              status: 200,
+              tenantId: userCompanyId,
+              uid: userId,
+              reason: failOpenReason,
+              source: "proposals_controller",
+            });
 
-          t.set(
-            monthUsageRef,
-            {
-              proposalsCreated: FieldValue.increment(1),
-              periodStart: period.periodStart,
-              periodEnd: period.periodEnd,
-              resetAt: period.resetAt,
-              updatedAt: now.toDate().toISOString(),
-            },
-            { merge: true },
-          );
+            t.set(
+              monthUsageRef,
+              {
+                proposalsCreated: FieldValue.increment(1),
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+                resetAt: period.resetAt,
+                updatedAt: now.toDate().toISOString(),
+              },
+              { merge: true },
+            );
+          }
         }
-      }
 
-      // === ALL WRITES AFTER READS ===
-      const newRef = db.collection(PROPOSALS_COLLECTION).doc();
+        // === ALL WRITES AFTER READS ===
+        const newRef = db.collection(PROPOSALS_COLLECTION).doc();
 
-      t.set(newRef, {
-        title: input.title.trim(),
-        status: input.status || "draft",
-        totalValue: input.totalValue,
-        notes: input.notes?.trim() || null,
-        customNotes: input.customNotes?.trim() || null,
-        discount: input.discount || 0,
-        extraExpense: input.extraExpense || 0,
-        validUntil: input.validUntil || null,
-        clientId: input.clientId,
-        clientName: input.clientName,
-        clientEmail: input.clientEmail || null,
-        clientPhone: input.clientPhone || null,
-        clientAddress: input.clientAddress || null,
-        products: input.products || [],
-        sistemas: input.sistemas || [],
-        sections: input.sections || [],
-        // Payment options
-        downPaymentEnabled: input.downPaymentEnabled || false,
-        downPaymentType: input.downPaymentType || "value",
-        downPaymentPercentage: input.downPaymentPercentage || 0,
-        downPaymentValue: input.downPaymentValue || 0,
-        downPaymentWallet: input.downPaymentWallet || null,
-        downPaymentDueDate: input.downPaymentDueDate || null,
-        installmentsEnabled: input.installmentsEnabled || false,
-        installmentsCount: input.installmentsCount || 1,
-        installmentValue: input.installmentValue || 0,
-        installmentsWallet: input.installmentsWallet || null,
-        firstInstallmentDate: input.firstInstallmentDate || null,
-        // PDF display settings (which elements to show/hide in PDF)
-        pdfSettings: input.pdfSettings || null,
-        // Attachments
-        attachments: input.attachments || [],
-        createdById: userId,
-        createdByName: userData?.name || "Usuário",
-        companyId: userCompanyId,
-        tenantId: userCompanyId,
-        createdAt: now,
-        updatedAt: now,
-      });
+        t.set(newRef, {
+          title: input.title.trim(),
+          status: input.status || "draft",
+          totalValue: input.totalValue,
+          notes: input.notes?.trim() || null,
+          customNotes: input.customNotes?.trim() || null,
+          discount: input.discount || 0,
+          extraExpense: input.extraExpense || 0,
+          validUntil: input.validUntil || null,
+          clientId: input.clientId,
+          clientName: input.clientName,
+          clientEmail: input.clientEmail || null,
+          clientPhone: input.clientPhone || null,
+          clientAddress: input.clientAddress || null,
+          products: input.products || [],
+          sistemas: input.sistemas || [],
+          sections: input.sections || [],
+          // Payment options
+          downPaymentEnabled: input.downPaymentEnabled || false,
+          downPaymentType: input.downPaymentType || "value",
+          downPaymentPercentage: input.downPaymentPercentage || 0,
+          downPaymentValue: input.downPaymentValue || 0,
+          downPaymentWallet: input.downPaymentWallet || null,
+          downPaymentDueDate: input.downPaymentDueDate || null,
+          installmentsEnabled: input.installmentsEnabled || false,
+          installmentsCount: input.installmentsCount || 1,
+          installmentValue: input.installmentValue || 0,
+          installmentsWallet: input.installmentsWallet || null,
+          firstInstallmentDate: input.firstInstallmentDate || null,
+          // PDF display settings (which elements to show/hide in PDF)
+          pdfSettings: input.pdfSettings || null,
+          // Attachments
+          attachments: input.attachments || [],
+          createdById: userId,
+          createdByName: userData?.name || "Usuário",
+          companyId: userCompanyId,
+          tenantId: userCompanyId,
+          createdAt: now,
+          updatedAt: now,
+        });
 
-      t.update(targetMasterRef, {
-        "usage.proposals": FieldValue.increment(1),
-        updatedAt: now,
-      });
-
-      if (companySnap.exists) {
-        t.update(companyRef, {
+        t.update(targetMasterRef, {
           "usage.proposals": FieldValue.increment(1),
           updatedAt: now,
         });
-      }
 
-      return newRef.id;
+        if (companySnap.exists) {
+          t.update(companyRef, {
+            "usage.proposals": FieldValue.increment(1),
+            updatedAt: now,
+          });
+        }
+
+        return newRef.id;
       });
     } catch (transactionError) {
       if (transactionError instanceof ProposalMonthlyLimitError) {
@@ -365,13 +359,13 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
-    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
-      userId,
-      req.user,
-    );
-
+    // Parallel fetch: auth resolution and proposal doc are independent reads
     const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
-    const proposalSnap = await proposalRef.get();
+    const [{ tenantId, isMaster, isSuperAdmin }, proposalSnap] =
+      await Promise.all([
+        resolveUserAndTenant(userId, req.user),
+        proposalRef.get(),
+      ]);
 
     if (!proposalSnap.exists)
       return res.status(404).json({ message: "Proposta não encontrada." });
@@ -475,7 +469,8 @@ export const updateProposal = async (req: Request, res: Response) => {
           updateData.downPaymentType !== proposalData?.downPaymentType,
         dpPercentage:
           updateData.downPaymentPercentage !== undefined &&
-          updateData.downPaymentPercentage !== proposalData?.downPaymentPercentage,
+          updateData.downPaymentPercentage !==
+            proposalData?.downPaymentPercentage,
         dpValue:
           updateData.downPaymentValue !== undefined &&
           updateData.downPaymentValue !== proposalData?.downPaymentValue,
@@ -520,7 +515,8 @@ export const updateProposal = async (req: Request, res: Response) => {
             (doc) => doc.data().isInstallment,
           );
           const shouldHaveDownPayment =
-            !!mergedData.downPaymentEnabled && Number(mergedData.downPaymentValue || 0) > 0;
+            !!mergedData.downPaymentEnabled &&
+            Number(mergedData.downPaymentValue || 0) > 0;
 
           // Helper for balance adjustments
           const registerAdjustment = (walletName: string, amount: number) => {
@@ -698,9 +694,12 @@ export const updateProposal = async (req: Request, res: Response) => {
               type: "income",
               description: `Entrada: ${mergedData.title || proposalData?.title || "Proposta"}`,
               amount: Number(mergedData.downPaymentValue || 0),
-              date: mergedData.downPaymentDueDate || installData.date || nowDateStr,
+              date:
+                mergedData.downPaymentDueDate || installData.date || nowDateStr,
               dueDate:
-                mergedData.downPaymentDueDate || installData.dueDate || nowDateStr,
+                mergedData.downPaymentDueDate ||
+                installData.dueDate ||
+                nowDateStr,
               status: installData.status || "pending",
               clientId: mergedData.clientId || null,
               clientName: mergedData.clientName || null,
@@ -742,31 +741,24 @@ export const updateProposal = async (req: Request, res: Response) => {
           }
 
           // --- 3. Consolidate Wallet Updates ---
-          // Need to fetch wallet refs to update balances
+          // Batched wallet lookup: single query instead of N sequential ones
           if (walletAdjustments.size > 0) {
             const walletNames = Array.from(walletAdjustments.keys());
-            // We can't really do "where name in [...]" easily if names are many?
-            // Assuming reasonable number of wallets.
+            const wSnap = await db
+              .collection("wallets")
+              .where("tenantId", "==", proposalTenantId)
+              .where("name", "in", walletNames)
+              .get();
 
-            // Since we are inside a loop, let's just do individual lookups or assume names are unique per tenant.
-            // We will iterate and find them.
+            const walletRefMap = new Map(
+              wSnap.docs.map((d) => [d.data().name as string, d.ref]),
+            );
 
-            // Optimization: fetch all tenant wallets? No, might be too many.
-            // Fetch only involved wallets.
-
-            for (const wName of walletNames) {
-              const adjustment = walletAdjustments.get(wName);
+            for (const [wName, adjustment] of walletAdjustments.entries()) {
               if (!adjustment) continue;
-
-              const wQuery = await db
-                .collection("wallets")
-                .where("tenantId", "==", proposalTenantId)
-                .where("name", "==", wName)
-                .limit(1)
-                .get();
-
-              if (!wQuery.empty) {
-                batch.update(wQuery.docs[0].ref, {
+              const ref = walletRefMap.get(wName);
+              if (ref) {
+                batch.update(ref, {
                   balance: FieldValue.increment(adjustment),
                   updatedAt: Timestamp.now(),
                 });
@@ -1012,34 +1004,34 @@ export const updateProposal = async (req: Request, res: Response) => {
             batch.set(ref, docData);
           });
 
-          // 2. Update Wallets
-          for (const [walletName, adjustment] of walletAdjustments.entries()) {
-            if (adjustment === 0) continue;
+          // 2. Batched wallet lookup: single query instead of N sequential ones
+          const walletNamesToResolve = Array.from(walletAdjustments.entries())
+            .filter(([, adj]) => adj !== 0)
+            .map(([name]) => name);
 
-            // Need to resolve wallet ref within the transaction logic?
-            // Note: We are using db.batch() here, not t.update().
-            // Ideally we should use the same transaction 't' if possible, or correct logic.
-            // But 'proposals.controller.ts' lines 96 use `db.runTransaction` for CREATE.
-            // HERE (updateProposal), lines 254 use `await proposalRef.update(safeUpdate)`.
-            // It is NOT inside a transaction! It blindly calls `update`.
-
-            // To ensure consistency, we should do lookups.
-            // We can do lookups before the batch.
-
-            // Resolve wallet by name
-            const walletQuery = await db
+          if (walletNamesToResolve.length > 0) {
+            const walletSnap = await db
               .collection("wallets")
               .where("tenantId", "==", proposalTenantId)
-              .where("name", "==", walletName)
-              .limit(1)
+              .where("name", "in", walletNamesToResolve)
               .get();
 
-            if (!walletQuery.empty) {
-              const wRef = walletQuery.docs[0].ref;
-              batch.update(wRef, {
-                balance: FieldValue.increment(adjustment),
-                updatedAt: now,
-              });
+            const walletRefMap = new Map(
+              walletSnap.docs.map((d) => [d.data().name as string, d.ref]),
+            );
+
+            for (const [
+              walletName,
+              adjustment,
+            ] of walletAdjustments.entries()) {
+              if (adjustment === 0) continue;
+              const wRef = walletRefMap.get(walletName);
+              if (wRef) {
+                batch.update(wRef, {
+                  balance: FieldValue.increment(adjustment),
+                  updatedAt: now,
+                });
+              }
             }
           }
 

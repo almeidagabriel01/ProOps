@@ -201,8 +201,13 @@ export function useProposalFormLoadingEffects(
     const fetchInitialData = async () => {
       if (!tenant) return;
       try {
-        const loadedProducts = await ProductService.getProducts(tenant.id);
-        const loadedServices = await ServiceService.getServices(tenant.id);
+        // Parallel fetch: products, services, and templates are independent reads
+        const [loadedProducts, loadedServices, templates] = await Promise.all([
+          ProductService.getProducts(tenant.id),
+          ServiceService.getServices(tenant.id),
+          ProposalTemplateService.getTemplates(tenant.id),
+        ]);
+
         const mergedCatalog = [
           ...loadedProducts.map((item) => ({
             ...item,
@@ -215,7 +220,6 @@ export function useProposalFormLoadingEffects(
         ];
         setProducts(mergedCatalog);
 
-        const templates = await ProposalTemplateService.getTemplates(tenant.id);
         const defaultTemplate =
           templates.find((t) => t.isDefault) || templates[0];
         setTemplate(defaultTemplate || null);
