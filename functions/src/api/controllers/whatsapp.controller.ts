@@ -14,15 +14,26 @@ import {
   checkUsage,
   incrementUsage,
 } from "../services/whatsapp/whatsapp.session";
-import { sendWhatsAppMessage } from "../services/whatsapp/whatsapp.api";
+import {
+  sendWhatsAppMessage,
+  sendWhatsAppInteractiveMessage,
+} from "../services/whatsapp/whatsapp.api";
 import {
   handleListProposals,
   handleSendPdf,
   handleFinancialDaySummary,
   handleCurrentBalance,
+  handleListRecentTransactions,
+  handleWeeklySummary,
+  handleSendTransactionLink,
 } from "../services/whatsapp/whatsapp.flows";
 
 const MONTHLY_LIMIT = Number(process.env.WHATSAPP_MONTHLY_LIMIT) || 2000;
+
+/** Roles allowed to access financial data via WhatsApp */
+const FINANCIAL_ACCESS_ROLES = new Set(["admin", "master", "wk", "superadmin"]);
+const canAccessFinancial = (role: string): boolean =>
+  FINANCIAL_ACCESS_ROLES.has(role);
 
 export const verifyChallenge = async (req: Request, res: Response) => {
   const mode = req.query["hub.mode"] as string;
@@ -131,14 +142,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const user = { id: userDoc.id, ...userDoc.data() } as any;
-        let effectiveRole = String(user.role || "").toLowerCase().trim();
+        let effectiveRole = String(user.role || "")
+          .toLowerCase()
+          .trim();
 
         try {
           const userRecord = await auth.getUser(user.id);
           const claimRole = String(userRecord.customClaims?.role || "")
             .toLowerCase()
             .trim();
-          const claimTenantId = String(userRecord.customClaims?.tenantId || "").trim();
+          const claimTenantId = String(
+            userRecord.customClaims?.tenantId || "",
+          ).trim();
 
           if (claimRole) {
             effectiveRole = claimRole;
@@ -174,8 +189,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const tenantId = indexedTenantId;
+        const maskedPhone =
+          phone.length > 4
+            ? phone.slice(0, 4) + "*****" + phone.slice(-4)
+            : "****";
         console.log("[WhatsApp] resolved phone", {
-          phone,
+          phone: maskedPhone,
           userId: user.id,
           tenantId,
         });
@@ -216,10 +235,99 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         let actionProcessed = false;
 
-        if (normalizedText.startsWith("#")) {
+        const rawInteractiveId =
+          message.interactive?.button_reply?.id ||
+          message.interactive?.list_reply?.id ||
+          "";
+        // Sanitize: only allow alphanumeric, underscores, and hyphens (max 128 chars)
+        const interactiveId = /^[a-zA-Z0-9_-]{1,128}$/.test(rawInteractiveId)
+          ? rawInteractiveId
+          : "";
+
+        if (interactiveId) {
+          if (interactiveId === "menu_proposals") {
+            await handleListProposals(from, tenantId, user.id);
+            actionProcessed = true;
+          } else if (interactiveId === "menu_financial") {
+            if (!canAccessFinancial(effectiveRole)) {
+              await sendWhatsAppMessage(
+                from,
+                "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
+              );
+              await logAction(from, user.id, "unauthorized_access_attempt", {
+                target: "financial_summary",
+              });
+            } else {
+              await handleFinancialDaySummary(from, tenantId, user.id);
+            }
+            actionProcessed = true;
+          } else if (interactiveId === "menu_balance") {
+            if (!canAccessFinancial(effectiveRole)) {
+              await sendWhatsAppMessage(
+                from,
+                "Você não tem permissão para acessar o saldo pelo WhatsApp.",
+              );
+              await logAction(from, user.id, "unauthorized_access_attempt", {
+                target: "balance",
+              });
+            } else {
+              await handleCurrentBalance(from, tenantId, user.id);
+            }
+            actionProcessed = true;
+          } else if (interactiveId === "menu_transactions") {
+            if (!canAccessFinancial(effectiveRole)) {
+              await sendWhatsAppMessage(
+                from,
+                "Você não tem permissão para acessar os lançamentos pelo WhatsApp.",
+              );
+              await logAction(from, user.id, "unauthorized_access_attempt", {
+                target: "recent_transactions",
+              });
+            } else {
+              await handleListRecentTransactions(from, tenantId, user.id);
+            }
+            actionProcessed = true;
+          } else if (interactiveId === "menu_weekly_bills") {
+            if (!canAccessFinancial(effectiveRole)) {
+              await sendWhatsAppMessage(
+                from,
+                "Você não tem permissão para acessar o financeiro da semana pelo WhatsApp.",
+              );
+              await logAction(from, user.id, "unauthorized_access_attempt", {
+                target: "weekly_bills",
+              });
+            } else {
+              await handleWeeklySummary(from, tenantId, user.id);
+            }
+            actionProcessed = true;
+          } else if (interactiveId.startsWith("proposal_pdf_")) {
+            const proposalId = interactiveId.replace("proposal_pdf_", "");
+            await handleSendPdf(from, tenantId, proposalId, user.id);
+            actionProcessed = true;
+          } else if (interactiveId.startsWith("transaction_link_")) {
+            const transactionId = interactiveId.replace(
+              "transaction_link_",
+              "",
+            );
+            await handleSendTransactionLink(
+              from,
+              tenantId,
+              transactionId,
+              user.id,
+            );
+            actionProcessed = true;
+          }
+        } else if (normalizedText.startsWith("#")) {
           const inputId = text.trim().substring(1).trim();
-          if (inputId) {
+          // Validate: Firestore doc IDs must be non-empty, max 128 chars, and safe charset
+          if (inputId && /^[a-zA-Z0-9_-]{1,128}$/.test(inputId)) {
             await handleSendPdf(from, tenantId, inputId, user.id);
+            actionProcessed = true;
+          } else if (inputId) {
+            await sendWhatsAppMessage(
+              from,
+              "ID inválido. Use apenas letras, números e hífens.",
+            );
             actionProcessed = true;
           }
         } else if (
@@ -268,7 +376,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             (t) => normalizedText.includes(t),
           )
         ) {
-          if (!["admin", "master", "wk", "superadmin"].includes(effectiveRole)) {
+          if (!canAccessFinancial(effectiveRole)) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
@@ -286,7 +394,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             normalizedText.includes(t),
           )
         ) {
-          if (!["admin", "master", "wk", "superadmin"].includes(effectiveRole)) {
+          if (!canAccessFinancial(effectiveRole)) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar o saldo pelo WhatsApp.",
@@ -309,10 +417,84 @@ export const handleWebhook = async (req: Request, res: Response) => {
           );
           actionProcessed = true;
         } else {
-          await sendWhatsAppMessage(
-            from,
-            "Olá! Sou seu assistente ERP. Posso ajudar com:\n\n1. 'Ver propostas'\n2. 'Financeiro de hoje'\n3. 'Saldo atual'\n\nOu digite o número da proposta (#ID) para PDF.",
-          );
+          let interactivePayload: any;
+
+          if (canAccessFinancial(effectiveRole)) {
+            const listRows = [
+              {
+                id: "menu_proposals",
+                title: "📄 Ver propostas",
+                description: "Consulte todas as suas propostas",
+              },
+              {
+                id: "menu_financial",
+                title: "📊 Resumo de hoje",
+                description: "Consolidação de entradas e saídas do dia",
+              },
+              {
+                id: "menu_balance",
+                title: "💰 Saldo atual",
+                description: "Saldo total de suas carteiras",
+              },
+              {
+                id: "menu_transactions",
+                title: "🧾 Lançamentos",
+                description: "Acesse últimos lançamentos detalhados",
+              },
+              {
+                id: "menu_weekly_bills",
+                title: "📅 Pagar/Receber",
+                description: "Contas da semana atual",
+              },
+            ];
+
+            interactivePayload = {
+              type: "list",
+              header: {
+                type: "text",
+                text: "📌 Menu Principal",
+              },
+              body: {
+                text: "Olá! Sou seu assistente ERP. Selecione uma das opções abaixo:",
+              },
+              footer: {
+                text: "Selecione a opção",
+              },
+              action: {
+                button: "Abrir Menu",
+                sections: [
+                  {
+                    title: "Comercial",
+                    rows: [listRows[0]],
+                  },
+                  {
+                    title: "Financeiro",
+                    rows: listRows.slice(1),
+                  },
+                ],
+              },
+            };
+          } else {
+            const buttons = [
+              {
+                type: "reply",
+                reply: { id: "menu_proposals", title: "📄 Ver propostas" },
+              },
+            ];
+
+            interactivePayload = {
+              type: "button",
+              body: {
+                text: "Olá! Sou seu assistente ERP. Selecione uma das opções abaixo:",
+              },
+              action: {
+                buttons: buttons,
+              },
+            };
+          }
+
+          await sendWhatsAppInteractiveMessage(from, interactivePayload);
+
           await updateSession(from, {
             lastAction: "idle",
             proposalsShown: [],

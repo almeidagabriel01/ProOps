@@ -4,10 +4,41 @@ export interface WhatsAppMessage {
   from: string;
   id: string;
   timestamp: string;
-  text: {
+  text?: {
     body: string;
   };
   type: string;
+  interactive?: {
+    type: "button_reply" | "list_reply";
+    button_reply?: {
+      id: string;
+      title: string;
+    };
+    list_reply?: {
+      id: string;
+      title: string;
+      description?: string;
+    };
+  };
+}
+
+export interface WhatsAppInteractiveButton {
+  type: "reply";
+  reply: {
+    id: string;
+    title: string;
+  };
+}
+
+export interface WhatsAppInteractiveListRow {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export interface WhatsAppInteractiveSection {
+  title?: string;
+  rows: WhatsAppInteractiveListRow[];
 }
 
 export interface WhatsAppStatus {

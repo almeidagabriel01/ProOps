@@ -40,6 +40,9 @@ const sameClient = (a: Transaction, b: Transaction): boolean => {
   return (a.clientName || "").trim() === (b.clientName || "").trim();
 };
 
+const baseDesc = (s: string): string =>
+  s.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
+
 /** Infinite scroll wrapper for grouped transaction cards */
 function TransactionListInfinite({
   filteredTransactions,
@@ -110,11 +113,10 @@ function TransactionListInfinite({
               isDownPaymentLike(t) &&
               !transaction.proposalGroupId &&
               t.type === transaction.type &&
-              (t.description || "").trim() ===
-                (transaction.description || "").trim() &&
+              baseDesc(t.description || "") ===
+                baseDesc(transaction.description || "") &&
               sameClient(t, transaction) &&
-              dateOnly(t.date || t.dueDate) ===
-                dateOnly(transaction.date || transaction.dueDate),
+              dateOnly(t.date) === dateOnly(transaction.date),
           );
           if (orphanDownPayments.length === 1) {
             groupMembers.push(orphanDownPayments[0]);

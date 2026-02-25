@@ -99,12 +99,35 @@ const historyTypeConfig: Record<
   },
 };
 
-function formatDate(dateString: string): string {
-  const datePart = dateString.includes("T")
-    ? dateString.split("T")[0]
-    : dateString;
-  const [year, month, day] = datePart.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+function formatDate(dateInput: unknown): string {
+  if (!dateInput) return "";
+
+  let date: Date;
+  if (typeof dateInput === "string") {
+    if (dateInput.includes("T")) {
+      date = new Date(dateInput);
+    } else {
+      // YYYY-MM-DD format — parse as local date
+      const [year, month, day] = dateInput.split("-").map(Number);
+      date = new Date(year, month - 1, day);
+    }
+  } else if (dateInput instanceof Date) {
+    date = dateInput;
+  } else if (typeof dateInput === "object") {
+    const val = dateInput as { toDate?: () => Date; seconds?: number };
+    if (typeof val.toDate === "function") {
+      date = val.toDate();
+    } else if (val.seconds) {
+      date = new Date(val.seconds * 1000);
+    } else {
+      return "";
+    }
+  } else {
+    return "";
+  }
+
+  if (isNaN(date.getTime())) return "";
+
   return date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "short",
@@ -112,7 +135,27 @@ function formatDate(dateString: string): string {
   });
 }
 
-function formatTime(dateString: string): string {
+function formatTime(dateInput: unknown): string {
+  if (!dateInput) return "";
+
+  let dateString: string;
+  if (typeof dateInput === "string") {
+    dateString = dateInput;
+  } else if (dateInput instanceof Date) {
+    dateString = dateInput.toISOString();
+  } else if (typeof dateInput === "object") {
+    const val = dateInput as { toDate?: () => Date; seconds?: number };
+    if (typeof val.toDate === "function") {
+      dateString = val.toDate().toISOString();
+    } else if (val.seconds) {
+      dateString = new Date(val.seconds * 1000).toISOString();
+    } else {
+      return "";
+    }
+  } else {
+    return "";
+  }
+
   if (!dateString.includes("T")) return "";
   const date = new Date(dateString);
   return date.toLocaleTimeString("pt-BR", {
@@ -162,13 +205,15 @@ export function WalletHistoryDialog({
         allTransactions.forEach((t: Transaction) => {
           // Check Main Transaction
           if (t.wallet === wallet.name && t.status === "paid") {
+            // Show the payment date (when money moved), not the original transaction date
+            const paidDate = t.paidAt || t.updatedAt || t.date;
             regularItems.push({
               id: `tx_${t.id}`,
               type: t.type as "income" | "expense",
               description: t.description,
               amount: t.amount,
               isPositive: t.type === "income",
-              date: t.date, // Original transaction date for display
+              date: paidDate, // When the payment actually happened
               occurredAt: t.updatedAt, // When it was marked as paid (affects wallet)
               status: t.status,
             });
