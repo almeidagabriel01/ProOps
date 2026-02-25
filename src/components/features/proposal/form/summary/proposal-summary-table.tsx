@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProductRow } from "./product-row";
@@ -13,7 +14,7 @@ interface ProposalSummaryTableProps {
   extraProducts: ProposalProduct[];
   isAutomacaoNiche: boolean;
   primaryColor: string;
-  products: Product[];
+  products: Array<Product | Service>;
   subtotal: number;
   discount: number;
   discountPercentage: number;

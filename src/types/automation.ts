@@ -76,6 +76,7 @@ export type SistemaAmbienteTemplate = {
  */
 export type SistemaProduct = {
   productId: string;
+  itemType?: "product" | "service";
   productName: string;
   quantity: number;
   notes?: string;
