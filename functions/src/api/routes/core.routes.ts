@@ -5,6 +5,11 @@ import {
   deleteProduct,
 } from "../controllers/products.controller";
 import {
+  createService,
+  updateService,
+  deleteService,
+} from "../controllers/services.controller";
+import {
   createClient,
   updateClient,
   deleteClient,
@@ -28,6 +33,11 @@ const router = Router();
 router.post("/products", createProduct);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
+
+// Services
+router.post("/services", createService);
+router.put("/services/:id", updateService);
+router.delete("/services/:id", deleteService);
 
 // Clients
 router.post("/clients", createClient);

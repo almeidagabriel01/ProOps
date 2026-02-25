@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SistemaSelector } from "@/components/features/automation";
 import { AmbienteManagerDialog } from "@/components/features/automation/ambiente-manager-dialog";
 import { SistemaManagerDialog } from "@/components/features/automation/sistema-manager-dialog";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { SistemaTemplateDialog } from "@/components/features/automation/sistema-template-dialog";
 import { Sistema, ProposalSistema } from "@/types/automation";
 import { ProposalProduct } from "@/types/proposal";
@@ -487,7 +487,10 @@ export function SimpleProposalForm({
           errors.downPaymentPercentage =
             "Percentual da entrada deve ser maior que 0";
         }
-      } else if (!currentFormData.downPaymentValue || currentFormData.downPaymentValue <= 0) {
+      } else if (
+        !currentFormData.downPaymentValue ||
+        currentFormData.downPaymentValue <= 0
+      ) {
         errors.downPaymentValue = "Valor da entrada deve ser maior que 0";
       }
 
@@ -629,13 +632,21 @@ export function SimpleProposalForm({
 
         const newProposalProducts: ProposalProduct[] = newAmbiente.products.map(
           (sp) => {
-            const productDef = products.find((p) => p.id === sp.productId);
+            const itemType = sp.itemType || "product";
+            const productDef = products.find(
+              (p) =>
+                p.id === sp.productId && (p.itemType || "product") === itemType,
+            );
             const price = productDef ? parseFloat(productDef.price) : 0;
-            const markup = productDef
-              ? parseFloat(productDef.markup || "0")
-              : 0;
+            const markup =
+              itemType === "service"
+                ? 0
+                : productDef
+                  ? parseFloat(productDef.markup || "0")
+                  : 0;
             return {
               productId: sp.productId,
+              itemType,
               productName: productDef?.name || sp.productName || "Produto",
               productImage: productDef?.images?.[0] || productDef?.image || "",
               productImages: productDef?.images || [],

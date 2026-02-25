@@ -77,6 +77,9 @@ export const TenantService = {
       // 1. Delete all Products related to this tenant
       await safeDeleteDocs("products");
 
+      // 1.1 Delete all Services related to this tenant
+      await safeDeleteDocs("services");
+
       // 2. Delete all Proposals related to this tenant
       await safeDeleteDocs("proposals");
 

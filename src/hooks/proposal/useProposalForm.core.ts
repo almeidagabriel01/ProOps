@@ -8,6 +8,7 @@ import {
   ProposalService,
 } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -69,7 +70,7 @@ export function useProposalFormCore({
   // Flag to prevent auto-save when user explicitly discards changes
   const userDiscardedRef = React.useRef(false);
 
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [products, setProducts] = React.useState<Array<Product | Service>>([]);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
   const [clientTypes, setClientTypes] = React.useState<ClientType[]>([
     "cliente",

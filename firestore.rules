@@ -185,6 +185,13 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
+
+    // SERVICES
+    match /services/{serviceId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions (limits)
+      allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
+    }
     
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {

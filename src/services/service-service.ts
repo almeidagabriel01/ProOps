@@ -15,47 +15,45 @@ import {
 } from "firebase/firestore";
 import { PaginatedResult } from "./client-service";
 
-export type Product = {
+export type Service = {
   id: string;
   tenantId: string;
   name: string;
   description: string;
   price: string;
-  markup?: string; // Profit percentage over base price
+  markup?: string;
   manufacturer: string;
   category: string;
   sku: string;
   stock: number;
-  images: string[]; // Changed from single image to array
-  image?: string | null; // Kept for backward compatibility (optional)
-  /** @deprecated Status is now contextual (System/Proposal), not global */
+  images: string[];
+  image?: string | null;
   status?: "active" | "inactive";
   createdAt?: string;
   updatedAt?: string;
-  itemType?: "product";
+  itemType?: "service";
 };
 
-const COLLECTION_NAME = "products";
+const COLLECTION_NAME = "services";
 
-function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
+function mapServiceDoc(d: QueryDocumentSnapshot<DocumentData>): Service {
   const data = d.data();
   return {
     id: d.id,
     ...data,
-    itemType: "product",
-    // Coerce stock to number
     stock:
       typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+    itemType: "service",
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
     updatedAt: data.updatedAt?.toDate
       ? data.updatedAt.toDate().toISOString()
       : data.updatedAt,
-  } as Product;
+  } as Service;
 }
 
-function compareProductsByField(
+function compareServicesByField(
   a: QueryDocumentSnapshot<DocumentData>,
   b: QueryDocumentSnapshot<DocumentData>,
   sortField: string,
@@ -98,9 +96,8 @@ function compareProductsByField(
   return 0;
 }
 
-export const ProductService = {
-  // Get all products for a specific tenant
-  getProducts: async (tenantId: string): Promise<Product[]> => {
+export const ServiceService = {
+  getServices: async (tenantId: string): Promise<Service[]> => {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
@@ -108,19 +105,19 @@ export const ProductService = {
       );
 
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(mapProductDoc);
+      return querySnapshot.docs.map(mapServiceDoc);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error fetching services:", error);
       throw error;
     }
   },
 
-  getProductsPaginated: async (
+  getServicesPaginated: async (
     tenantId: string,
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
     sortConfig?: { key: string; direction: "asc" | "desc" } | null,
-  ): Promise<PaginatedResult<Product>> => {
+  ): Promise<PaginatedResult<Service>> => {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
@@ -135,7 +132,7 @@ export const ProductService = {
 
         const allSnapshot = await getDocs(baseQuery);
         const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
-          compareProductsByField(a, b, sortField, sortDirection),
+          compareServicesByField(a, b, sortField, sortDirection),
         );
 
         const startIndex = cursor
@@ -146,7 +143,7 @@ export const ProductService = {
         const hasMore = startIndex + pageSize < sortedDocs.length;
 
         return {
-          data: pageDocs.map(mapProductDoc),
+          data: pageDocs.map(mapServiceDoc),
           lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
           hasMore,
         };
@@ -173,18 +170,17 @@ export const ProductService = {
       const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
 
       return {
-        data: pageDocs.map(mapProductDoc),
+        data: pageDocs.map(mapServiceDoc),
         lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
         hasMore,
       };
     } catch (error) {
-      console.error("Error fetching products paginated:", error);
+      console.error("Error fetching services paginated:", error);
       throw error;
     }
   },
 
-  // Get a single product by ID
-  getProductById: async (id: string): Promise<Product | null> => {
+  getServiceById: async (id: string): Promise<Service | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
@@ -194,28 +190,28 @@ export const ProductService = {
         return {
           id: docSnap.id,
           ...data,
-          itemType: "product",
+          itemType: "service",
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
             : data.createdAt,
           updatedAt: data.updatedAt?.toDate
             ? data.updatedAt.toDate().toISOString()
             : data.updatedAt,
-        } as Product;
+        } as Service;
       } else {
         return null;
       }
     } catch (error) {
-      console.error("Error fetching product:", error);
+      console.error("Error fetching service:", error);
       throw error;
     }
   },
 
-  updateProduct: async (id: string, data: Partial<Product>): Promise<void> => {
+  updateService: async (id: string, data: Partial<Service>): Promise<void> => {
     try {
-      await callApi(`v1/products/${id}`, "PUT", data);
+      await callApi(`v1/services/${id}`, "PUT", data);
     } catch (error) {
-      console.error("Error updating product:", error);
+      console.error("Error updating service:", error);
       throw error;
     }
   },

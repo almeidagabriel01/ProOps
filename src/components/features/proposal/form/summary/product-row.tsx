@@ -12,6 +12,14 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
       <td className="p-3 font-medium pl-6">
         <div className="flex items-center gap-2">
           <span>{product.productName}</span>
+          {(product.itemType || "product") === "service" && (
+            <Badge
+              variant="default"
+              className="text-[10px] h-5 px-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200"
+            >
+              Serviço
+            </Badge>
+          )}
           {product.isExtra && (
             <Badge
               variant="default"

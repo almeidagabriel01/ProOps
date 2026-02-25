@@ -2,6 +2,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -18,7 +19,7 @@ export interface UseProposalFormReturn {
   isLoading: boolean;
   isSaving: boolean;
   isDirty: boolean;
-  products: Product[];
+  products: Array<Product | Service>;
   template: ProposalTemplate | null;
   selectedClientId: string | undefined;
   isNewClient: boolean;
@@ -46,16 +47,23 @@ export interface UseProposalFormReturn {
     >,
   ) => void;
   handleSubmit: (e: React.FormEvent) => Promise<boolean>;
-  toggleProduct: (product: Product) => void;
+  toggleProduct: (product: Product | Service) => void;
   updateProductQuantity: (
     productId: string,
     delta: number,
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
-  removeProduct: (productId: string, systemInstanceId?: string) => void;
+  removeProduct: (
+    productId: string,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+  ) => void;
   handleToggleProductStatus: (
     productId: string,
     newStatus: "active" | "inactive",
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => Promise<void>;
 
   calculateSubtotal: () => number;
@@ -76,7 +84,7 @@ export interface UseProposalFormReturn {
   removeSistema: (index: number, systemInstanceId: string) => void;
   updateSistema: (index: number, updatedSistema: ProposalSistema) => void;
   addProductToSystem: (
-    product: Product,
+    product: Product | Service,
     systemIndex: number,
     systemInstanceId: string,
   ) => void;
@@ -84,6 +92,7 @@ export interface UseProposalFormReturn {
     productId: string,
     markup: number,
     systemInstanceId?: string,
+    itemType?: "product" | "service",
   ) => void;
   removeAmbienteFromSistema: (sistemaIndex: number, ambienteId: string) => void;
   resetToInitial: () => void;

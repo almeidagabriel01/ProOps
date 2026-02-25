@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 
 export default function ViewProposalPage() {
@@ -46,8 +46,9 @@ export default function ViewProposalPage() {
     template,
     tenant,
     customSettings:
-      (proposal?.pdfSettings as Parameters<typeof ProposalPdfViewer>[0]["customSettings"]) ??
-      undefined,
+      (proposal?.pdfSettings as Parameters<
+        typeof ProposalPdfViewer
+      >[0]["customSettings"]) ?? undefined,
     showCover: true,
     setIsOpen: () => undefined,
   });
@@ -101,15 +102,23 @@ export default function ViewProposalPage() {
               }
             }
 
-            // Sync product data from products collection
+            // Sync item data from products/services collections
             if (p.products && p.products.length > 0) {
               try {
                 const { ProductService } =
                   await import("@/services/product-service");
-                const allProducts = await ProductService.getProducts(tenant.id);
+                const { ServiceService } =
+                  await import("@/services/service-service");
+                const [allProducts, allServices] = await Promise.all([
+                  ProductService.getProducts(tenant.id),
+                  ServiceService.getServices(tenant.id),
+                ]);
 
                 p.products = p.products.map((pp) => {
-                  const freshProduct = allProducts.find(
+                  const sourceType = pp.itemType || "product";
+                  const sourceList =
+                    sourceType === "service" ? allServices : allProducts;
+                  const freshProduct = sourceList.find(
                     (prod) => prod.id === pp.productId,
                   );
                   if (freshProduct) {
@@ -122,6 +131,7 @@ export default function ViewProposalPage() {
                     const sellingPrice = price * (1 + markup / 100);
                     return {
                       ...pp,
+                      itemType: sourceType,
                       productName: freshProduct.name,
                       productImage:
                         freshProduct.images?.[0] ||
@@ -143,10 +153,7 @@ export default function ViewProposalPage() {
                   return pp;
                 });
               } catch (productError) {
-                console.warn(
-                  "Could not fetch fresh product data:",
-                  productError,
-                );
+                console.warn("Could not fetch fresh item data:", productError);
               }
             }
 
@@ -264,7 +271,7 @@ export default function ViewProposalPage() {
             </h1>
             <p className="text-muted-foreground text-sm">
               Cliente: {proposal.clientName} • {proposal.products?.length || 0}{" "}
-              produto(s)
+              item(ns)
             </p>
           </div>
         </div>
@@ -362,5 +369,3 @@ export default function ViewProposalPage() {
     </div>
   );
 }
-
-

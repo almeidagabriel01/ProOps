@@ -10,6 +10,7 @@ import { DynamicSelect } from "@/components/features/dynamic-select";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { useProductForm } from "../_hooks/useProductForm";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import {
   StepWizard,
   StepNavigation,
@@ -28,14 +29,13 @@ import {
   Settings,
   X,
   Tag,
-  Hash,
-  Layers,
 } from "lucide-react";
 
 interface ProductFormNewProps {
-  initialData?: Product;
+  initialData?: Product | Service;
   productId?: string;
   isReadOnly?: boolean;
+  entityType?: "product" | "service";
 }
 
 const productSteps = [
@@ -48,7 +48,7 @@ const productSteps = [
   {
     id: "pricing",
     title: "Preço",
-    description: "Valores e estoque",
+    description: "Preço base",
     icon: DollarSign,
   },
   {
@@ -69,6 +69,7 @@ export function ProductFormNew({
   initialData,
   productId,
   isReadOnly = false,
+  entityType = "product",
 }: ProductFormNewProps) {
   const router = useRouter();
   const {
@@ -88,7 +89,10 @@ export function ProductFormNew({
     handleAddImage,
     handleRemoveImage,
     handleSubmit,
-  } = useProductForm(initialData, productId);
+  } = useProductForm(initialData, productId, entityType);
+
+  const entityLabel = entityType === "service" ? "Serviço" : "Produto";
+  const entityLabelLower = entityType === "service" ? "serviço" : "produto";
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -139,14 +143,12 @@ export function ProductFormNew({
             <FormStatic label="Fabricante" value={formData.manufacturer} />
           </FormGroup>
         </FormSection>
-        <FormSection title="Preço e Estoque" icon={DollarSign}>
-          <FormGroup cols={3}>
+        <FormSection title="Preço" icon={DollarSign}>
+          <FormGroup>
             <FormStatic
-              label="Preço"
+              label="Preço Base"
               value={`R$ ${parseFloat(formData.price || "0").toFixed(2)}`}
             />
-            <FormStatic label="Estoque" value={formData.stock} />
-            <FormStatic label="SKU" value={formData.sku} />
           </FormGroup>
         </FormSection>
         <FormSection title="Imagens" icon={ImageIcon}>
@@ -195,7 +197,7 @@ export function ProductFormNew({
               </div>
               <div>
                 <h3 className="text-lg font-semibold">
-                  Informações do Produto
+                  Informações do {entityLabel}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   Dados de identificação
@@ -204,7 +206,7 @@ export function ProductFormNew({
             </div>
 
             <FormItem
-              label="Nome do Produto"
+              label={`Nome do ${entityLabel}`}
               htmlFor="name"
               required
               error={errors.name}
@@ -212,7 +214,11 @@ export function ProductFormNew({
               <Input
                 id="name"
                 name="name"
-                placeholder="Ex: Câmera de Segurança HD Pro"
+                placeholder={
+                  entityType === "service"
+                    ? "Ex: Instalação e Configuração"
+                    : "Ex: Câmera de Segurança HD Pro"
+                }
                 value={formData.name}
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -226,7 +232,7 @@ export function ProductFormNew({
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Descreva as características e diferenciais do produto..."
+                placeholder={`Descreva as características e diferenciais do ${entityLabelLower}...`}
                 value={formData.description}
                 onChange={handleChange}
                 className="min-h-[140px]"
@@ -268,16 +274,16 @@ export function ProductFormNew({
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Preço e Estoque</h3>
+                <h3 className="text-lg font-semibold">Preço</h3>
                 <p className="text-sm text-muted-foreground">
-                  Valores de venda e inventário
+                  Defina o preço base do {entityLabelLower}
                 </p>
               </div>
             </div>
 
-            <FormGroup cols={2}>
+            <FormGroup>
               <FormItem
-                label="Preço Bruto (Custo)"
+                label="Preço Base"
                 htmlFor="price"
                 required
                 error={errors.price}
@@ -293,58 +299,6 @@ export function ProductFormNew({
                   required
                 />
               </FormItem>
-
-              <FormItem label="Markup (%)" htmlFor="markup">
-                <Input
-                  id="markup"
-                  name="markup"
-                  type="number"
-                  placeholder="0"
-                  value={formData.markup}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  min="0"
-                  max="1000"
-                  step="0.01"
-                  icon={<DollarSign className="w-4 h-4" />}
-                />
-                {formData.price && formData.markup && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Preço de venda: R${" "}
-                    {(
-                      parseFloat(formData.price) +
-                      (parseFloat(formData.price) *
-                        parseFloat(formData.markup)) /
-                        100
-                    ).toFixed(2)}
-                  </p>
-                )}
-              </FormItem>
-            </FormGroup>
-
-            <FormGroup cols={2}>
-              <FormItem label="Estoque" htmlFor="stock">
-                <Input
-                  id="stock"
-                  name="stock"
-                  type="number"
-                  placeholder="0"
-                  value={formData.stock}
-                  onChange={handleChange}
-                  icon={<Layers className="w-4 h-4" />}
-                />
-              </FormItem>
-
-              <FormItem label="SKU" htmlFor="sku">
-                <Input
-                  id="sku"
-                  name="sku"
-                  placeholder="PROD-001"
-                  value={formData.sku}
-                  onChange={handleChange}
-                  icon={<Hash className="w-4 h-4" />}
-                />
-              </FormItem>
             </FormGroup>
 
             {/* Price preview card */}
@@ -352,42 +306,18 @@ export function ProductFormNew({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-muted-foreground">
-                    Preço Bruto
+                    Preço Base
                   </span>
                   <span className="text-lg font-semibold">
                     R$ {parseFloat(formData.price || "0").toFixed(2)}
                   </span>
                 </div>
-                {formData.markup && parseFloat(formData.markup) > 0 && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Markup ({parseFloat(formData.markup).toFixed(2)}%)
-                      </span>
-                      <span className="text-lg font-semibold text-green-600">
-                        + R${" "}
-                        {(
-                          (parseFloat(formData.price || "0") *
-                            parseFloat(formData.markup)) /
-                          100
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="h-px bg-border my-2" />
-                  </>
-                )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">
-                    Preço de Venda
+                    Valor considerado
                   </span>
                   <span className="text-2xl font-bold text-green-600">
-                    R${" "}
-                    {(
-                      parseFloat(formData.price || "0") +
-                      (parseFloat(formData.price || "0") *
-                        parseFloat(formData.markup || "0")) /
-                        100
-                    ).toFixed(2)}
+                    R$ {parseFloat(formData.price || "0").toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -405,7 +335,9 @@ export function ProductFormNew({
                 <ImageIcon className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Imagens do Produto</h3>
+                <h3 className="text-lg font-semibold">
+                  Imagens do {entityLabel}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   Adicione até {maxImagesPerProduct} imagem (máx 2MB cada)
                 </p>
@@ -484,7 +416,7 @@ export function ProductFormNew({
             {/* Summary card */}
             <div className="p-5 rounded-xl bg-linear-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
               <h4 className="font-semibold text-foreground">
-                Resumo do Produto
+                Resumo do {entityLabel}
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -496,27 +428,15 @@ export function ProductFormNew({
                   <p className="font-medium">{formData.category || "—"}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Preço Bruto:</span>
+                  <span className="text-muted-foreground">Preço Base:</span>
                   <p className="font-medium">
                     R$ {parseFloat(formData.price || "0").toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Markup:</span>
+                  <span className="text-muted-foreground">Valor final:</span>
                   <p className="font-medium text-green-600">
-                    {parseFloat(formData.markup || "0").toFixed(2)}%
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Preço de Venda:</span>
-                  <p className="font-medium text-green-600">
-                    R${" "}
-                    {(
-                      parseFloat(formData.price || "0") +
-                      (parseFloat(formData.price || "0") *
-                        parseFloat(formData.markup || "0")) /
-                        100
-                    ).toFixed(2)}
+                    R$ {parseFloat(formData.price || "0").toFixed(2)}
                   </p>
                 </div>
                 <div>
@@ -533,7 +453,13 @@ export function ProductFormNew({
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
             submitDisabled={!!productId && !hasChanges}
-            submitLabel={productId ? "Salvar Alterações" : "Criar Produto"}
+            submitLabel={
+              productId
+                ? "Salvar Alterações"
+                : entityType === "service"
+                  ? "Criar Serviço"
+                  : "Criar Produto"
+            }
           />
         </StepCard>
       </StepWizard>

@@ -207,6 +207,7 @@ export function SistemaSelector({
         // Priority 3: System Global Defaults (Legacy)
         products = (sistema.defaultProducts || []).map((p) => ({
           productId: p.productId,
+          itemType: p.itemType || "product",
           productName: p.productName,
           quantity: p.quantity,
           notes: p.notes,

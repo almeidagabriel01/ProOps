@@ -54,6 +54,14 @@ const searchItems: SearchItem[] = [
     keywords: ["catálogo", "estoque", "itens", "mercadorias"],
   },
   {
+    id: "services",
+    label: "Serviços",
+    description: "Gerenciar catálogo de serviços",
+    path: "/services",
+    icon: Package,
+    keywords: ["serviço", "servicos", "mão de obra", "atividade"],
+  },
+  {
     id: "new-product",
     label: "Novo Produto",
     description: "Cadastrar um novo produto",
@@ -61,6 +69,15 @@ const searchItems: SearchItem[] = [
     icon: Package,
     keywords: ["adicionar", "criar", "cadastrar"],
     requiresCreate: "products",
+  },
+  {
+    id: "new-service",
+    label: "Novo Serviço",
+    description: "Cadastrar um novo serviço",
+    path: "/services/new",
+    icon: Package,
+    keywords: ["adicionar", "criar", "cadastrar", "serviço"],
+    requiresCreate: "services",
   },
   {
     id: "proposals",

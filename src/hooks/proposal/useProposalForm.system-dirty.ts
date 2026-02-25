@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema } from "@/types/automation";
 import { buildEssentialFormSnapshot } from "./useProposalForm.helpers";
 import { toast } from '@/lib/toast';
@@ -9,7 +10,7 @@ interface UseProposalFormSystemDirtyContext {
   selectedSistemas: ProposalSistema[];
   setSelectedSistemas: React.Dispatch<React.SetStateAction<ProposalSistema[]>>;
   setFormData: React.Dispatch<React.SetStateAction<Partial<Proposal>>>;
-  products: Product[];
+  products: Array<Product | Service>;
   mergedSistemas: Sistema[];
   proposalId?: string;
   initialFormDataRef: React.MutableRefObject<string | null>;
@@ -46,11 +47,22 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
 
     if (sistema.products && sistema.products.length > 0) {
       const systemProducts: ProposalProduct[] = sistema.products.map((sp) => {
-        const productDef = products.find((p) => p.id === sp.productId);
+        const itemType = sp.itemType || "product";
+        const productDef = products.find(
+          (p) =>
+            p.id === sp.productId &&
+            (p.itemType || "product") === itemType,
+        );
         const price = productDef ? parseFloat(productDef.price) : 0;
-        const markup = productDef ? parseFloat(productDef.markup || "0") : 0;
+        const markup =
+          itemType === "service"
+            ? 0
+            : productDef
+              ? parseFloat(productDef.markup || "0")
+              : 0;
         return {
           productId: sp.productId,
+          itemType,
           productName: productDef?.name || sp.productName || "Produto",
           productImage: productDef?.images?.[0] || productDef?.image || "",
           productImages: productDef?.images || [],
@@ -115,11 +127,22 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
     setSelectedSistemas((prev) => prev.map((s, i) => (i === index ? updatedSistema : s)));
 
     const newSystemProducts: ProposalProduct[] = (updatedSistema.products || []).map((sp) => {
-      const productDef = products.find((p) => p.id === sp.productId);
+      const itemType = sp.itemType || "product";
+      const productDef = products.find(
+        (p) =>
+          p.id === sp.productId &&
+          (p.itemType || "product") === itemType,
+      );
       const price = productDef ? parseFloat(productDef.price) : 0;
-      const markup = productDef ? parseFloat(productDef.markup || "0") : 0;
+      const markup =
+        itemType === "service"
+          ? 0
+          : productDef
+            ? parseFloat(productDef.markup || "0")
+            : 0;
       return {
         productId: sp.productId,
+        itemType,
         productName: productDef?.name || sp.productName || "Produto",
         productImage: productDef?.images?.[0] || productDef?.image || "",
         productImages: productDef?.images || [],
@@ -150,14 +173,16 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
   };
 
   const addProductToSystem = (
-    product: Product,
+    product: Product | Service,
     systemIndex: number,
     systemInstanceId: string,
   ) => {
+    const itemType = product.itemType || "product";
     const price = parseFloat(product.price) || 0;
-    const markup = parseFloat(product.markup || "0");
+    const markup = itemType === "service" ? 0 : parseFloat(product.markup || "0");
     const newProduct: ProposalProduct = {
       productId: product.id,
+      itemType,
       productName: product.name,
       productImage: product.images?.[0] || product.image || "",
       productImages: product.images?.length
@@ -190,7 +215,9 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
             (a) => a.ambienteId === targetAmbienteId,
           );
           const isOriginallyInSystem = !!masterAmbienteConfig?.products.some(
-            (p) => p.productId === product.id,
+            (p) =>
+              p.productId === product.id &&
+              (p.itemType || "product") === (product.itemType || "product"),
           );
           if (isOriginallyInSystem) {
             newProduct.isExtra = false;

@@ -175,6 +175,7 @@ export function getDefaultPermissions(
     proposals: { canView: true },
     clients: { canView: true },
     products: { canView: true },
+    services: { canView: true },
     ...(hasFinancial && { financial: { canView: true } }),
   };
 
@@ -184,6 +185,7 @@ export function getDefaultPermissions(
       proposals: { canView: true, canCreate: true, canEdit: true },
       clients: { canView: true, canCreate: true, canEdit: true },
       products: { canView: true, canCreate: true, canEdit: true },
+      services: { canView: true, canCreate: true, canEdit: true },
       ...(hasFinancial && {
         financial: { canView: true, canCreate: true, canEdit: true },
       }),
@@ -206,6 +208,12 @@ export function getDefaultPermissions(
         canDelete: true,
       },
       products: {
+        canView: true,
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+      },
+      services: {
         canView: true,
         canCreate: true,
         canEdit: true,

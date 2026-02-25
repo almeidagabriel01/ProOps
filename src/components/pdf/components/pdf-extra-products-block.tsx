@@ -1,6 +1,7 @@
 import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 import { getContrastTextColor } from "@/utils/color-utils";
+import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -8,6 +9,7 @@ import {
 
 interface PdfProduct {
   productId: string;
+  itemType?: "product" | "service";
   productName: string;
   productImage?: string;
   productImages?: string[];
@@ -156,7 +158,7 @@ export function PdfExtraProductsBlock({
                           >
                             {left && (
                               <div
-                                className="flex items-center gap-2 p-3 rounded-lg border"
+                                className="p-3 rounded-lg border"
                                 style={{
                                   backgroundColor:
                                     (rowIdx * 2) % 2 === 0
@@ -165,6 +167,150 @@ export function PdfExtraProductsBlock({
                                   borderColor: "#e5e7eb",
                                 }}
                               >
+                                <div className="flex items-start gap-2">
+                                  {settings.showProductImages &&
+                                    (left.productImage ||
+                                      (left.productImages &&
+                                        left.productImages.length > 0)) && (
+                                      <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={
+                                            left.productImages?.[0] ||
+                                            left.productImage
+                                          }
+                                          alt=""
+                                          className="w-full h-full object-contain p-1"
+                                        />
+                                      </div>
+                                    )}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-gray-900 truncate">
+                                      {left.productName}
+                                    </h4>
+                                  </div>
+                                  <div className="shrink-0 flex items-start">
+                                    <PdfItemTypeBadge
+                                      itemType={left.itemType || "product"}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div
+                                  className="mt-2 pt-2 flex justify-end"
+                                  style={{ borderTop: "1px solid #e5e7eb" }}
+                                >
+                                  <div className="text-right">
+                                    {settings.showProductPrices ? (
+                                      <>
+                                        <p className="text-sm text-gray-500">
+                                          {left.quantity} un. ×{" "}
+                                          {formatCurrency(left.unitPrice)}
+                                        </p>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          {formatCurrency(left.total)}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">
+                                        Qtd: {left.quantity}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              verticalAlign: "top",
+                              width: "50%",
+                              padding: 0,
+                            }}
+                          >
+                            {right && (
+                              <div
+                                className="p-3 rounded-lg border"
+                                style={{
+                                  backgroundColor:
+                                    (rowIdx * 2 + 1) % 2 === 0
+                                      ? "#f9fafb"
+                                      : "#ffffff",
+                                  borderColor: "#e5e7eb",
+                                }}
+                              >
+                                <div className="flex items-start gap-2">
+                                  {settings.showProductImages &&
+                                    (right.productImage ||
+                                      (right.productImages &&
+                                        right.productImages.length > 0)) && (
+                                      <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={
+                                            right.productImages?.[0] ||
+                                            right.productImage
+                                          }
+                                          alt=""
+                                          className="w-full h-full object-contain p-1"
+                                        />
+                                      </div>
+                                    )}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold text-gray-900 truncate">
+                                      {right.productName}
+                                    </h4>
+                                  </div>
+                                  <div className="shrink-0 flex items-start">
+                                    <PdfItemTypeBadge
+                                      itemType={right.itemType || "product"}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div
+                                  className="mt-2 pt-2 flex justify-end"
+                                  style={{ borderTop: "1px solid #e5e7eb" }}
+                                >
+                                  <div className="text-right">
+                                    {settings.showProductPrices ? (
+                                      <>
+                                        <p className="text-sm text-gray-500">
+                                          {right.quantity} un. ×{" "}
+                                          {formatCurrency(right.unitPrice)}
+                                        </p>
+                                        <span className="font-bold text-lg text-gray-700">
+                                          {formatCurrency(right.total)}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <p className="text-sm text-gray-500">
+                                        Qtd: {right.quantity}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <td
+                          colSpan={2}
+                          style={{ verticalAlign: "top", padding: 0 }}
+                        >
+                          {left && (
+                            <div
+                              className="p-3 rounded-lg border"
+                              style={{
+                                backgroundColor:
+                                  (rowIdx * 2) % 2 === 0
+                                    ? "#f9fafb"
+                                    : "#ffffff",
+                                borderColor: "#e5e7eb",
+                              }}
+                            >
+                              <div className="flex items-start gap-2">
                                 {settings.showProductImages &&
                                   (left.productImage ||
                                     (left.productImages &&
@@ -182,144 +328,41 @@ export function PdfExtraProductsBlock({
                                     </div>
                                   )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-gray-900 truncate">
-                                    {left.productName}
-                                  </h4>
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <h4 className="font-semibold text-gray-900 truncate">
+                                      {left.productName}
+                                    </h4>
+                                  </div>
+                                </div>
+                                <div className="shrink-0 flex items-start">
+                                  <PdfItemTypeBadge
+                                    itemType={left.itemType || "product"}
+                                  />
+                                </div>
+                              </div>
+
+                              <div
+                                className="mt-2 pt-2 flex justify-end"
+                                style={{ borderTop: "1px solid #e5e7eb" }}
+                              >
+                                <div className="text-right">
                                   {settings.showProductPrices ? (
-                                    <p className="text-sm text-gray-500">
-                                      {left.quantity} un. ×{" "}
-                                      {formatCurrency(left.unitPrice)}
-                                    </p>
+                                    <>
+                                      <p className="text-sm text-gray-500">
+                                        {left.quantity} un. ×{" "}
+                                        {formatCurrency(left.unitPrice)}
+                                      </p>
+                                      <span className="font-bold text-lg text-gray-700">
+                                        {formatCurrency(left.total)}
+                                      </span>
+                                    </>
                                   ) : (
                                     <p className="text-sm text-gray-500">
                                       Qtd: {left.quantity}
                                     </p>
                                   )}
                                 </div>
-                                {settings.showProductPrices && (
-                                  <div className="text-right">
-                                    <span className="font-bold text-lg text-gray-700">
-                                      {formatCurrency(left.total)}
-                                    </span>
-                                  </div>
-                                )}
                               </div>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              verticalAlign: "top",
-                              width: "50%",
-                              padding: 0,
-                            }}
-                          >
-                            {right && (
-                              <div
-                                className="flex items-center gap-2 p-3 rounded-lg border"
-                                style={{
-                                  backgroundColor:
-                                    (rowIdx * 2 + 1) % 2 === 0
-                                      ? "#f9fafb"
-                                      : "#ffffff",
-                                  borderColor: "#e5e7eb",
-                                }}
-                              >
-                                {settings.showProductImages &&
-                                  (right.productImage ||
-                                    (right.productImages &&
-                                      right.productImages.length > 0)) && (
-                                    <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={
-                                          right.productImages?.[0] ||
-                                          right.productImage
-                                        }
-                                        alt=""
-                                        className="w-full h-full object-contain p-1"
-                                      />
-                                    </div>
-                                  )}
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-gray-900 truncate">
-                                    {right.productName}
-                                  </h4>
-                                  {settings.showProductPrices ? (
-                                    <p className="text-sm text-gray-500">
-                                      {right.quantity} un. ×{" "}
-                                      {formatCurrency(right.unitPrice)}
-                                    </p>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">
-                                      Qtd: {right.quantity}
-                                    </p>
-                                  )}
-                                </div>
-                                {settings.showProductPrices && (
-                                  <div className="text-right">
-                                    <span className="font-bold text-lg text-gray-700">
-                                      {formatCurrency(right.total)}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </>
-                      ) : (
-                        <td
-                          colSpan={2}
-                          style={{ verticalAlign: "top", padding: 0 }}
-                        >
-                          {left && (
-                            <div
-                              className="flex items-center gap-2 p-3 rounded-lg border"
-                              style={{
-                                backgroundColor:
-                                  (rowIdx * 2) % 2 === 0
-                                    ? "#f9fafb"
-                                    : "#ffffff",
-                                borderColor: "#e5e7eb",
-                              }}
-                            >
-                              {settings.showProductImages &&
-                                (left.productImage ||
-                                  (left.productImages &&
-                                    left.productImages.length > 0)) && (
-                                  <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={
-                                        left.productImages?.[0] ||
-                                        left.productImage
-                                      }
-                                      alt=""
-                                      className="w-full h-full object-contain p-1"
-                                    />
-                                  </div>
-                                )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-gray-900 truncate">
-                                  {left.productName}
-                                </h4>
-                                {settings.showProductPrices ? (
-                                  <p className="text-sm text-gray-500">
-                                    {left.quantity} un. ×{" "}
-                                    {formatCurrency(left.unitPrice)}
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-gray-500">
-                                    Qtd: {left.quantity}
-                                  </p>
-                                )}
-                              </div>
-                              {settings.showProductPrices && (
-                                <div className="text-right">
-                                  <span className="font-bold text-lg text-gray-700">
-                                    {formatCurrency(left.total)}
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           )}
                         </td>

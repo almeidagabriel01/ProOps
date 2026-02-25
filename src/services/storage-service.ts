@@ -46,7 +46,7 @@ function generateFileName(originalName: string): string {
 export async function uploadImage(
   file: File,
   tenantId: string,
-  folder: "products" | "proposals",
+  folder: "products" | "services" | "proposals",
   entityId?: string,
 ): Promise<UploadResult> {
   validateFile(file);
@@ -74,7 +74,7 @@ export async function uploadImage(
 export async function uploadBase64Image(
   base64Data: string,
   tenantId: string,
-  folder: "products" | "proposals",
+  folder: "products" | "services" | "proposals",
   entityId?: string,
 ): Promise<UploadResult> {
   const isDataUrl = base64Data.startsWith("data:");

@@ -5,6 +5,7 @@ import {
 
 export interface PdfProduct {
   productId: string;
+  itemType?: "product" | "service";
   productName: string;
   productImage?: string;
   productImages?: string[];

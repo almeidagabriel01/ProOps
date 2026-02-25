@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Product } from "@/services/product-service";
+import { Service } from "@/services/service-service";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 
@@ -13,18 +14,24 @@ export function createToggleProduct({
   selectedProducts,
   setFormData,
 }: ProductHandlersProps) {
-  return (product: Product) => {
-    const existing = selectedProducts.find((p) => p.productId === product.id);
+  return (product: Product | Service) => {
+    const itemType = product.itemType || "product";
+    const existing = selectedProducts.find(
+      (p) => p.productId === product.id && (p.itemType || "product") === itemType,
+    );
     if (existing) {
       setFormData((prev) => ({
         ...prev,
-        products: selectedProducts.filter((p) => p.productId !== product.id),
+        products: selectedProducts.filter(
+          (p) => !(p.productId === product.id && (p.itemType || "product") === itemType),
+        ),
       }));
     } else {
       const price = parseFloat(product.price) || 0;
       const markup = parseFloat(product.markup || "0");
       const newProduct: ProposalProduct = {
         productId: product.id,
+        itemType,
         productName: product.name,
         productImage: product.images?.[0] || product.image || "",
         productImages: product.images?.length

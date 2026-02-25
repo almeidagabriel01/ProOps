@@ -54,6 +54,7 @@ export function sanitizeProducts(products: ProposalProduct[]) {
 
     return {
       productId: p.productId,
+      itemType: p.itemType || "product",
       productName: p.productName,
       quantity:
         typeof p.quantity === "number" && !isNaN(p.quantity)
