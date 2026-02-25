@@ -4,6 +4,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Check } from "lucide-react";
+import { compareDisplayText } from "@/lib/sort-text";
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -13,6 +14,28 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   /** Size variant: sm = h-9 (compact), md = h-12 (default for forms) */
   inputSize?: "sm" | "md";
 }
+
+interface NormalizedSelectOption {
+  value: string;
+  label: React.ReactNode;
+  disabled?: boolean;
+  nativeOption: React.ReactElement;
+}
+
+const optionLabelToText = (label: React.ReactNode): string => {
+  if (label === null || label === undefined) return "";
+  if (typeof label === "string" || typeof label === "number") {
+    return String(label);
+  }
+  if (Array.isArray(label)) {
+    return label.map((part) => optionLabelToText(part)).join(" ");
+  }
+  if (React.isValidElement(label)) {
+    const element = label as React.ReactElement<{ children?: React.ReactNode }>;
+    return optionLabelToText(element.props.children);
+  }
+  return "";
+};
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
@@ -25,6 +48,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       disabled,
       error,
       inputSize = "md",
+      options: optionsProp = [],
       ...props
     },
     ref,
@@ -49,23 +73,49 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       setIsMounted(true);
     }, []);
 
-    // Extract options from children (if provided as options)
     const options = React.useMemo(() => {
-      const opts: { value: string; label: React.ReactNode }[] = [];
+      const opts: NormalizedSelectOption[] = [];
+
       React.Children.forEach(children, (child) => {
         if (React.isValidElement(child) && child.type === "option") {
           const element = child as React.ReactElement<{
             value: string;
+            disabled?: boolean;
             children: React.ReactNode;
           }>;
           opts.push({
-            value: element.props.value,
+            value: String(element.props.value ?? ""),
             label: element.props.children,
+            disabled: element.props.disabled,
+            nativeOption: element,
           });
         }
       });
-      return opts;
-    }, [children]);
+
+      if (opts.length === 0 && optionsProp.length > 0) {
+        optionsProp.forEach((opt) => {
+          opts.push({
+            value: String(opt.value),
+            label: opt.label,
+            disabled: false,
+            nativeOption: (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ),
+          });
+        });
+      }
+
+      const pinned = opts.filter((opt) => opt.value === "");
+      const sortable = opts.filter((opt) => opt.value !== "");
+
+      sortable.sort((a, b) =>
+        compareDisplayText(optionLabelToText(a.label), optionLabelToText(b.label)),
+      );
+
+      return [...pinned, ...sortable];
+    }, [children, optionsProp]);
 
     const handleOpen = (e: React.MouseEvent | React.TouchEvent) => {
       if (disabled) return;
@@ -204,11 +254,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     // Critical: Use onMouseDown and preventDefault to bypass Focus traps in Dialogs
                     e.preventDefault();
                     e.stopPropagation();
+                    if (option.disabled) return;
                     handleSelect(option.value);
                   }}
                   className={cn(
                     "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2.5 pl-3 pr-2 text-sm outline-none transition-colors",
                     "hover:bg-accent hover:text-accent-foreground",
+                    option.disabled && "cursor-not-allowed opacity-50",
                     String(value) === String(option.value) &&
                       "bg-accent/50 font-medium",
                   )}
@@ -241,7 +293,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           disabled={disabled}
           {...props}
         >
-          {children}
+          {options.map((option) => option.nativeOption)}
         </select>
 
         {/* Custom Trigger */}

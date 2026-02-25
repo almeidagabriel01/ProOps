@@ -34,6 +34,7 @@ import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-smal
 import { SystemEnvironmentManagerDialog } from "@/components/features/automation/system-environment-manager-dialog";
 import { Settings } from "lucide-react";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { compareDisplayText } from "@/lib/sort-text";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -637,7 +638,9 @@ function SystemCard({
               <div className="p-3 space-y-2">
                 {scopeProducts.length > 0 ? (
                   scopeProducts
-                    .sort((a, b) => a.productName.localeCompare(b.productName))
+                    .sort((a, b) =>
+                      compareDisplayText(a.productName, b.productName),
+                    )
                     .map((product, idx) => {
                       // UPDATED: use contextual status from proposal product, default to active
                       const isActive = product.status !== "inactive";
@@ -1123,7 +1126,7 @@ function ExtraProductsGrid({
             (sp.itemType || "product") === (p.itemType || "product"),
         ),
     )
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => compareDisplayText(a.name, b.name));
 
   const availableProducts = availableItems.filter(
     (p) => (p.itemType || "product") === "product",

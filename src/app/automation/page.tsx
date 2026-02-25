@@ -35,6 +35,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
+import { compareDisplayText } from "@/lib/sort-text";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -73,7 +74,7 @@ function sortByCreatedAtDesc<T extends { createdAt?: unknown; name: string }>(
     const dateB = parseDate(b.createdAt)?.getTime() ?? 0;
 
     if (dateA === dateB) {
-      return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+      return compareDisplayText(a.name, b.name);
     }
 
     return dateB - dateA;
@@ -81,9 +82,7 @@ function sortByCreatedAtDesc<T extends { createdAt?: unknown; name: string }>(
 }
 
 function sortByNameAsc<T extends { name: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) =>
-    a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }),
-  );
+  return [...items].sort((a, b) => compareDisplayText(a.name, b.name));
 }
 
 function sortItems<T extends { name: string; createdAt?: unknown }>(

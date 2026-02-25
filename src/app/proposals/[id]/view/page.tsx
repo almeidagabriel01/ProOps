@@ -123,6 +123,10 @@ export default function ViewProposalPage() {
                   );
                   if (freshProduct) {
                     const isService = sourceType === "service";
+                    const manufacturer =
+                      "manufacturer" in freshProduct
+                        ? freshProduct.manufacturer
+                        : pp.manufacturer;
                     const price =
                       pp.unitPrice !== undefined
                         ? pp.unitPrice
@@ -149,8 +153,7 @@ export default function ViewProposalPage() {
                       unitPrice: price,
                       markup: markup,
                       total: pp.quantity * sellingPrice,
-                      manufacturer:
-                        (freshProduct as any).manufacturer || pp.manufacturer,
+                      manufacturer,
                       category: freshProduct.category || pp.category,
                     };
                   }

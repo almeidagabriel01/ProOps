@@ -34,6 +34,8 @@ export function createToggleProduct({
     } else {
       const price = parseFloat(product.price) || 0;
       const markup = parseFloat(product.markup || "0");
+      const manufacturer =
+        "manufacturer" in product ? product.manufacturer : undefined;
       const newProduct: ProposalProduct = {
         productId: product.id,
         itemType,
@@ -49,7 +51,7 @@ export function createToggleProduct({
         unitPrice: price,
         markup: markup,
         total: price * (1 + markup / 100),
-        manufacturer: (product as any).manufacturer,
+        manufacturer,
         category: product.category,
       };
       setFormData((prev) => ({

@@ -276,10 +276,10 @@ export function StyleToolbar({
               }
               className="h-8 px-2 text-xs bg-background border rounded"
             >
-              <option value={0}>Sem borda</option>
-              <option value={4}>Borda pequena</option>
-              <option value={8}>Borda média</option>
               <option value={16}>Borda grande</option>
+              <option value={8}>Borda média</option>
+              <option value={4}>Borda pequena</option>
+              <option value={0}>Sem borda</option>
             </select>
           </div>
         </>
