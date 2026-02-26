@@ -1,4 +1,4 @@
-import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import type { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 import {
   SAFE_HEIGHT,
   ESTIMATED_HEIGHTS,

@@ -71,6 +71,12 @@ export interface ProposalAttachment {
   uploadedAt: string;
 }
 
+export interface ProposalPdfMetadata {
+  storagePath: string;
+  versionHash: string;
+  updatedAt?: string;
+}
+
 export interface Proposal {
   id: string;
   tenantId: string;
@@ -93,6 +99,7 @@ export interface Proposal {
   createdAt: string;
   updatedAt: string;
   pdfSettings?: PdfDisplaySettings;
+  pdf?: ProposalPdfMetadata;
   attachments?: ProposalAttachment[];
   // Payment options
   downPaymentEnabled?: boolean;

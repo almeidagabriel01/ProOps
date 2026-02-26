@@ -6,12 +6,9 @@ import { flushSync } from "react-dom";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
-import {
-  CoverElement,
-  PdfSection,
-} from "@/components/features/proposal/pdf-section-editor";
 import { ThemeType } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { RenderToPdfResult, renderToPdf } from "@/services/pdf/render-to-pdf";
+import type { CoverElement, PdfSection } from "@/pdf/templates/ProposalPdfTemplate";
 
 interface OffscreenViewerSettings {
   theme?: ThemeType;

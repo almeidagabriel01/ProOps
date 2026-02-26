@@ -1,28 +1,12 @@
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
-import { CoverElement, PdfSection } from "@/components/features/proposal/pdf-section-editor";
-import { ThemeType } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { RenderToPdfResult } from "@/services/pdf/render-to-pdf";
 import { renderProposalToPdfOffscreen } from "@/services/pdf/render-proposal-offscreen";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { ProposalService } from "@/services/proposal-service";
+import type { ProposalPdfCustomSettings } from "@/pdf/templates/ProposalPdfTemplate";
 
-export interface ProposalPdfCustomSettings {
-  theme?: ThemeType;
-  primaryColor?: string;
-  fontFamily?: string;
-  coverTitle?: string;
-  coverImage?: string;
-  coverLogo?: string;
-  coverImageOpacity?: number;
-  coverImageFit?: "cover" | "contain";
-  coverImagePosition?: string;
-  sections?: PdfSection[];
-  coverElements?: CoverElement[];
-  repeatHeader?: boolean;
-  pageNumberStart?: number;
-  logoStyle?: "original" | "rounded" | "circle";
-}
+export type { ProposalPdfCustomSettings } from "@/pdf/templates/ProposalPdfTemplate";
 
 export interface GenerateProposalPdfOptions {
   proposal: Partial<Proposal>;

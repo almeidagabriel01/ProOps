@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
 import { toast } from '@/lib/toast';
+import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
 import { savePdfBlob } from "@/services/pdf/render-to-pdf";
 import {
   generateProposalPdf,
@@ -49,6 +50,17 @@ export function usePdfGenerator({
 
         if (!hasProposalPayload) {
           toast.error("Erro ao localizar dados da proposta para gerar o PDF.");
+          return;
+        }
+
+        const shouldUseBackendDownload =
+          Boolean(proposal?.id) &&
+          (sourceLabel === "download" || sourceLabel === "view");
+
+        if (shouldUseBackendDownload && proposal.id) {
+          await downloadProposalPdfFromBackend(proposal.id);
+          setIsOpen(false);
+          toast.success("PDF baixado com sucesso!");
           return;
         }
 
