@@ -16,10 +16,87 @@ type ProductLike = {
 };
 
 type ProposalLike = {
+  tenantId?: string;
+  status?: string;
+  clientId?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  validUntil?: string;
   title?: string;
+  sistemas?: unknown[];
   products?: ProductLike[];
+  sections?: unknown[];
+  discount?: number;
+  totalValue?: number;
+  extraExpense?: number;
+  customNotes?: string;
+  notes?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  pdfSettings?: unknown;
+  pdf?: unknown;
+  attachments?: unknown[];
+  downPaymentEnabled?: boolean;
+  downPaymentType?: string;
+  downPaymentPercentage?: number;
+  downPaymentValue?: number;
+  downPaymentDueDate?: string;
+  installmentsEnabled?: boolean;
+  installmentsCount?: number;
+  installmentValue?: number;
+  firstInstallmentDate?: string;
   [key: string]: unknown;
 };
+
+const SHARED_PROPOSAL_ALLOWED_FIELDS = [
+  "tenantId",
+  "status",
+  "clientId",
+  "clientName",
+  "clientEmail",
+  "clientPhone",
+  "clientAddress",
+  "validUntil",
+  "title",
+  "sistemas",
+  "products",
+  "sections",
+  "discount",
+  "totalValue",
+  "extraExpense",
+  "customNotes",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "pdfSettings",
+  "pdf",
+  "attachments",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "firstInstallmentDate",
+] as const;
+
+function sanitizeSharedProposalPayload(
+  proposalId: string,
+  proposalData: ProposalLike | undefined,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = { id: proposalId };
+  const source = proposalData || {};
+  SHARED_PROPOSAL_ALLOWED_FIELDS.forEach((field) => {
+    if (typeof source[field] !== "undefined") {
+      safe[field] = source[field];
+    }
+  });
+  return safe;
+}
 
 function extractImageUrls(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -259,6 +336,14 @@ export const getSharedProposal = async (req: Request, res: Response) => {
         .json({ message: "Link não encontrado ou inválido" });
     }
 
+    const linkPurpose = String(sharedProposal.purpose || "external_share");
+    const isPdfGeneratorRequest = req.headers["x-pdf-generator"] === "true";
+    if (linkPurpose === "system_pdf_render" && !isPdfGeneratorRequest) {
+      return res
+        .status(404)
+        .json({ message: "Link nao encontrado ou invalido" });
+    }
+
     // Parallel fetch: proposal and tenant are independent reads
     const proposalRef = db
       .collection("proposals")
@@ -290,8 +375,7 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
     // Skip view recording for PDF generation requests (automated Puppeteer)
-    const isPdfGenerator = req.headers["x-pdf-generator"] === "true";
-    if (!isPdfGenerator) {
+    if (!isPdfGeneratorRequest) {
       const viewerData = {
         ip: req.ip || (req.headers["x-forwarded-for"] as string),
         userAgent: req.headers["user-agent"],
@@ -308,10 +392,10 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     // Retornar dados da proposta
     return res.status(200).json({
       success: true,
-      proposal: {
-        id: proposalSnap.id,
-        ...enrichedProposalData,
-      },
+      proposal: sanitizeSharedProposalPayload(
+        proposalSnap.id,
+        enrichedProposalData,
+      ),
       tenant: tenantData
         ? {
             id: sharedProposal.tenantId,
@@ -336,3 +420,6 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     return res.status(500).json({ message });
   }
 };
+
+
+
