@@ -25,6 +25,7 @@ export { checkManualSubscriptions } from "./checkManualSubscriptions";
 export { checkDueDates } from "./checkDueDates";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
 export { reportWhatsappOverage } from "./reportWhatsappOverage";
+export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

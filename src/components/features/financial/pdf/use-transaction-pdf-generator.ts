@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
-import { toast } from '@/lib/toast';
-import { savePdfBlob, renderToPdf } from "@/services/pdf/render-to-pdf";
-import { buildReceiptPdfFilename } from "@/services/pdf/pdf-filename";
+import { toast } from "@/lib/toast";
+import { SharedTransactionService } from "@/services/shared-transaction-service";
+import { downloadSharedTransactionPdf } from "@/services/pdf/download-shared-transaction-pdf";
 
 interface UseTransactionPdfGeneratorProps {
   transaction: Transaction;
@@ -15,8 +15,9 @@ interface UseTransactionPdfGeneratorProps {
 
 export function useTransactionPdfGenerator({
   transaction,
-  tenant,
+  tenant: _tenant,
 }: UseTransactionPdfGeneratorProps) {
+  void _tenant;
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async (
@@ -28,32 +29,18 @@ export function useTransactionPdfGenerator({
       const hasTransactionPayload = Boolean(transaction && transaction.id);
 
       if (!hasTransactionPayload) {
-        toast.error("Erro ao localizar dados do lançamento para gerar o PDF.");
+        toast.error("Erro ao localizar dados do lancamento para gerar o PDF.");
         return;
       }
 
-      const targetId = rootElementId || "shared-transaction-preview-content";
-      const rootElement = document.getElementById(targetId);
+      void rootElementId;
+      void sourceLabel;
 
-      if (!rootElement) {
-        toast.error("Erro ao renderizar o PDF (Elemento não encontrado).");
-        return;
-      }
+      const share = await SharedTransactionService.generateShareLink(
+        transaction.id,
+      );
+      await downloadSharedTransactionPdf(share.token, transaction.description);
 
-      const result = await renderToPdf({
-        rootElement,
-        rootHint: targetId,
-        proposalTitle: `Recibo-${transaction.description}`,
-        tenantId: tenant?.id || transaction.tenantId,
-        sourceLabel,
-      });
-
-      const safeDesc = String(transaction.description || "")
-        .replace(/[^a-z0-9]/gi, "_")
-        .substring(0, 30);
-      const filename = buildReceiptPdfFilename(safeDesc);
-
-      savePdfBlob(result.blob, filename);
       toast.success("PDF baixado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
