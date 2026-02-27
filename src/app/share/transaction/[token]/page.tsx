@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Loader2,
   AlertCircle,
@@ -17,12 +17,13 @@ import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
 import { TransactionPdfViewer } from "@/components/pdf/transaction-pdf-viewer";
 import Image from "next/image";
-
-import { useTransactionPdfGenerator } from "@/components/features/financial/pdf/use-transaction-pdf-generator";
+import { downloadSharedTransactionPdf } from "@/services/pdf/download-shared-transaction-pdf";
 
 export default function SharedTransactionPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = params.token as string;
+  const isPrintMode = searchParams.get("print") === "1";
 
   const [transaction, setTransaction] = React.useState<Transaction | null>(
     null,
@@ -36,12 +37,20 @@ export default function SharedTransactionPage() {
   const [previewZoom, setPreviewZoom] = React.useState(1);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = React.useState(0);
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
-  const { isGenerating, handleGenerate } = useTransactionPdfGenerator({
-    transaction: transaction || ({} as Transaction),
-    relatedTransactions,
-    tenant,
-  });
+  const handleDownloadPdf = React.useCallback(async () => {
+    if (!token) return;
+    setIsGenerating(true);
+    try {
+      await downloadSharedTransactionPdf(token, transaction?.description);
+    } catch (error) {
+      console.error("Error downloading shared transaction PDF:", error);
+      alert("Erro ao baixar PDF. Tente novamente.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [token, transaction?.description]);
 
   React.useEffect(() => {
     // Auto-fit PDF on mobile screens initially and on resize
@@ -155,6 +164,19 @@ export default function SharedTransactionPage() {
     );
   }
 
+  if (isPrintMode) {
+    return (
+      <div className="bg-white w-[794px] m-0 p-0">
+        <span data-pdf-transaction-ready="1" style={{ display: "none" }} />
+        <TransactionPdfViewer
+          transaction={transaction}
+          relatedTransactions={relatedTransactions}
+          tenant={tenant}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header simplificado com branding do tenant */}
@@ -196,7 +218,7 @@ export default function SharedTransactionPage() {
                       color: "hsl(var(--primary-foreground))",
                     }
               }
-              onClick={() => handleGenerate(undefined, "shared")}
+              onClick={handleDownloadPdf}
               disabled={isGenerating}
             >
               {isGenerating ? (
@@ -232,7 +254,7 @@ export default function SharedTransactionPage() {
                     color: "hsl(var(--primary-foreground))",
                   }
             }
-            onClick={() => handleGenerate(undefined, "shared")}
+            onClick={handleDownloadPdf}
             disabled={isGenerating}
           >
             {isGenerating ? (

@@ -3,7 +3,10 @@
 import { Request, Response } from "express";
 import { SharedProposalService } from "../services/shared-proposal.service";
 import { getOrGenerateProposalPdf } from "../services/proposal-pdf.service";
-import { buildPdfFilename } from "../services/pdf-filename";
+import {
+  buildPdfContentDisposition,
+  buildPdfFilename,
+} from "../services/pdf-filename";
 
 /**
  * GET /v1/share/:token/pdf
@@ -35,7 +38,10 @@ export async function downloadSharedProposalPdf(req: Request, res: Response) {
     const filename = buildPdfFilename(result.proposalTitle);
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Disposition",
+      buildPdfContentDisposition(filename),
+    );
     res.setHeader("Cache-Control", "private, no-store");
     return res.status(200).send(result.buffer);
   } catch (error) {

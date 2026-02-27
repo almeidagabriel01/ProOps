@@ -21,6 +21,10 @@ import {
 } from "lucide-react";
 import { toast } from '@/lib/toast';
 import { ProposalService } from "@/services/proposal-service";
+import {
+  deleteStorageObject,
+  uploadProposalAttachment,
+} from "@/services/storage-service";
 
 interface ProposalAttachmentsDialogProps {
   proposal: Proposal;
@@ -35,6 +39,29 @@ const ACCEPTED_TYPES = {
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function isSafeAttachmentOpenUrl(value: string, type: "image" | "pdf"): boolean {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+
+  if (trimmed.startsWith("data:")) {
+    const match = trimmed.match(/^data:([^;,]+);base64,/i);
+    if (!match) return false;
+    const mime = String(match[1] || "").toLowerCase();
+    if (type === "pdf") return mime === "application/pdf";
+    return mime.startsWith("image/");
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const isHttps = parsed.protocol === "https:";
+    const isDevHttp =
+      parsed.protocol === "http:" && process.env.NODE_ENV !== "production";
+    return (isHttps || isDevHttp) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
 
 export function ProposalAttachmentsDialog({
   proposal,
@@ -80,12 +107,19 @@ export function ProposalAttachmentsDialog({
     setIsUploading(true);
 
     try {
-      const base64 = await fileToBase64(file);
+      const tenantId = String(proposal.tenantId || "").trim();
+      if (!tenantId || !proposal.id) {
+        toast.error("Nao foi possivel identificar a proposta para upload.");
+        return;
+      }
+
+      const upload = await uploadProposalAttachment(file, tenantId, proposal.id);
 
       const newAttachment: ProposalAttachment = {
         id: crypto.randomUUID(),
         name: file.name || `arquivo-${Date.now()}.${isImage ? "png" : "pdf"}`,
-        url: base64,
+        url: upload.url,
+        storagePath: upload.path,
         type: isImage ? "image" : "pdf",
         size: file.size,
         uploadedAt: new Date().toISOString(),
@@ -198,6 +232,7 @@ export function ProposalAttachmentsDialog({
     setDeletingId(attachmentId);
 
     try {
+      const attachmentToDelete = attachments.find((a) => a.id === attachmentId);
       const updatedAttachments = attachments.filter(
         (a) => a.id !== attachmentId,
       );
@@ -208,6 +243,16 @@ export function ProposalAttachmentsDialog({
 
       setAttachments(updatedAttachments);
       onUpdate(updatedAttachments);
+      if (attachmentToDelete?.storagePath) {
+        void deleteStorageObject(attachmentToDelete.storagePath).catch(
+          (deleteError) => {
+            console.warn(
+              "Nao foi possivel remover arquivo do storage:",
+              deleteError,
+            );
+          },
+        );
+      }
       toast.success("Anexo removido com sucesso!");
     } catch (error) {
       console.error("Error deleting attachment:", error);
@@ -225,7 +270,7 @@ export function ProposalAttachmentsDialog({
 
   const openAttachment = (attachment: ProposalAttachment) => {
     const targetUrl = String(attachment.url || "").trim();
-    if (!targetUrl) {
+    if (!targetUrl || !isSafeAttachmentOpenUrl(targetUrl, attachment.type)) {
       toast.error("Anexo inválido");
       return;
     }
@@ -367,14 +412,4 @@ export function ProposalAttachmentsDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-// Helper function to convert file to base64
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
 }

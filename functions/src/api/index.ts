@@ -222,6 +222,8 @@ const corsMiddleware = cors({
   allowedHeaders: [
     "Authorization",
     "Content-Type",
+    "x-pdf-generator",
+    "x-vercel-protection-bypass",
     "x-cron-secret",
     "x-hub-signature-256",
     "stripe-signature",

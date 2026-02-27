@@ -66,6 +66,7 @@ export interface ProposalAttachment {
   id: string;
   name: string;
   url: string;
+  storagePath?: string;
   type: "image" | "pdf";
   size: number;
   uploadedAt: string;

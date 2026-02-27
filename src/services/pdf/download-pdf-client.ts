@@ -3,19 +3,12 @@
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { savePdfBlob } from "@/services/pdf/render-to-pdf";
-
-function sanitizeFilename(value: string): string {
-  return value.replace(/[<>:"/\\|?*]/g, "").trim();
-}
-
-export function buildProposalPdfFilename(title?: string): string {
-  const clean = sanitizeFilename(title || "");
-  return clean ? `Proposta - ${clean}.pdf` : "Proposta.pdf";
-}
+import { buildProposalPdfFilename } from "@/services/pdf/pdf-filename";
 
 export function getFilenameFromContentDisposition(
   headerValue: string | null,
   fallbackTitle?: string,
+  fallbackFilename?: string,
 ): string {
   if (headerValue) {
     const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
@@ -33,6 +26,9 @@ export function getFilenameFromContentDisposition(
     }
   }
 
+  if (fallbackFilename) {
+    return fallbackFilename;
+  }
   return buildProposalPdfFilename(fallbackTitle);
 }
 
@@ -69,6 +65,7 @@ async function getAuthenticatedUser(): Promise<FirebaseUser | null> {
 export async function downloadPdfFromApiEndpoint(options: {
   endpointPath: string;
   fallbackTitle?: string;
+  fallbackFilename?: string;
   requiresAuth?: boolean;
 }): Promise<void> {
   const endpoint = `${getApiBaseUrl()}${options.endpointPath}`;
@@ -98,6 +95,7 @@ export async function downloadPdfFromApiEndpoint(options: {
   const filename = getFilenameFromContentDisposition(
     response.headers.get("content-disposition"),
     options.fallbackTitle,
+    options.fallbackFilename,
   );
 
   savePdfBlob(blob, filename);

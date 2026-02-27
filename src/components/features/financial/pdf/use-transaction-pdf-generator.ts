@@ -5,7 +5,7 @@ import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
 import { toast } from '@/lib/toast';
 import { savePdfBlob, renderToPdf } from "@/services/pdf/render-to-pdf";
-import { buildProposalPdfFilename } from "@/services/pdf/render-to-pdf.helpers";
+import { buildReceiptPdfFilename } from "@/services/pdf/pdf-filename";
 
 interface UseTransactionPdfGeneratorProps {
   transaction: Transaction;
@@ -48,8 +48,10 @@ export function useTransactionPdfGenerator({
         sourceLabel,
       });
 
-      const safeDesc = transaction.description.replace(/[^a-z0-9]/gi, "_").substring(0, 30);
-      const filename = buildProposalPdfFilename(`Recibo-${safeDesc}`);
+      const safeDesc = String(transaction.description || "")
+        .replace(/[^a-z0-9]/gi, "_")
+        .substring(0, 30);
+      const filename = buildReceiptPdfFilename(safeDesc);
 
       savePdfBlob(result.blob, filename);
       toast.success("PDF baixado com sucesso!");

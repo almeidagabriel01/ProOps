@@ -1,4 +1,5 @@
 import { DebugLogger } from "./render-to-pdf.types";
+import { buildProposalPdfFilename as buildSharedProposalPdfFilename } from "./pdf-filename";
 
 export function getApiBaseUrl(rawApiBaseUrl?: string): string {
   const apiUrl = rawApiBaseUrl || process.env.NEXT_PUBLIC_API_URL;
@@ -25,15 +26,6 @@ export function createDebugLogger(): DebugLogger {
   };
 }
 
-function slugify(value?: string): string {
-  return (value || "comercial")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export function buildProposalPdfFilename(title?: string): string {
-  return `proposta-${slugify(title)}.pdf`;
+  return buildSharedProposalPdfFilename(title);
 }

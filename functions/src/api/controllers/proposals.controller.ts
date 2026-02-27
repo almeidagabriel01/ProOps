@@ -15,6 +15,20 @@ import {
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
+const MAX_ATTACHMENTS_PER_PROPOSAL = 20;
+const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_NAME_LENGTH = 180;
+const MAX_ATTACHMENT_URL_LENGTH = 15 * 1024 * 1024;
+
+type SanitizedAttachment = {
+  id: string;
+  name: string;
+  url: string;
+  type: "image" | "pdf";
+  size: number;
+  uploadedAt: string;
+  storagePath?: string;
+};
 
 type ProposalMonthlyLimitPayload = {
   code: string;
@@ -49,6 +63,128 @@ function normalizeMonthlyUsageCount(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.floor(parsed));
+}
+
+function sanitizeAttachmentName(value: unknown, fallbackType: "image" | "pdf"): string {
+  const normalized = String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[<>:"/\\|?*]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_ATTACHMENT_NAME_LENGTH);
+
+  if (normalized) return normalized;
+  return fallbackType === "pdf" ? "documento.pdf" : "imagem";
+}
+
+function sanitizeAttachmentId(value: unknown, index: number): string {
+  const normalized = String(value || "").trim();
+  if (/^[A-Za-z0-9._:-]{6,120}$/.test(normalized)) {
+    return normalized;
+  }
+  return `att-${Date.now()}-${index + 1}`;
+}
+
+function normalizeAttachmentType(value: unknown): "image" | "pdf" {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "pdf") return "pdf";
+  return "image";
+}
+
+function isSafeAttachmentUrl(url: string, type: "image" | "pdf"): boolean {
+  if (!url || url.length > MAX_ATTACHMENT_URL_LENGTH) return false;
+
+  if (url.startsWith("data:")) {
+    const dataUrlMatch = url.match(/^data:([^;,]+);base64,/i);
+    if (!dataUrlMatch) return false;
+    const mime = String(dataUrlMatch[1] || "").toLowerCase();
+    if (type === "pdf") {
+      return mime === "application/pdf";
+    }
+    return (
+      mime === "image/jpeg" ||
+      mime === "image/jpg" ||
+      mime === "image/png" ||
+      mime === "image/webp" ||
+      mime === "image/gif" ||
+      mime === "image/avif"
+    );
+  }
+
+  try {
+    const parsed = new URL(url);
+    const isHttps = parsed.protocol === "https:";
+    const isDevHttp =
+      parsed.protocol === "http:" && process.env.NODE_ENV !== "production";
+    if (!isHttps && !isDevHttp) return false;
+    if (parsed.username || parsed.password) return false;
+    return Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAttachmentStoragePath(value: unknown): string | undefined {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!normalized) return undefined;
+  if (normalized.length > 512) return undefined;
+  if (!normalized.startsWith("tenants/")) return undefined;
+  if (!normalized.includes("/proposals/")) return undefined;
+  if (!normalized.includes("/attachments/")) return undefined;
+  if (normalized.includes("..")) return undefined;
+  return normalized;
+}
+
+function sanitizeAttachmentsInput(rawValue: unknown): SanitizedAttachment[] {
+  if (typeof rawValue === "undefined" || rawValue === null) {
+    return [];
+  }
+  if (!Array.isArray(rawValue)) {
+    throw new Error("INVALID_ATTACHMENTS");
+  }
+  if (rawValue.length > MAX_ATTACHMENTS_PER_PROPOSAL) {
+    throw new Error("INVALID_ATTACHMENTS");
+  }
+
+  return rawValue.map((rawAttachment, index) => {
+    const source =
+      rawAttachment && typeof rawAttachment === "object"
+        ? (rawAttachment as Record<string, unknown>)
+        : {};
+
+    const type = normalizeAttachmentType(source.type);
+    const id = sanitizeAttachmentId(source.id, index);
+    const name = sanitizeAttachmentName(source.name, type);
+    const url = String(source.url || "").trim();
+    const size = Number(source.size || 0);
+    const uploadedAtRaw = String(source.uploadedAt || "").trim();
+    const uploadedAtDate = uploadedAtRaw ? new Date(uploadedAtRaw) : null;
+    const storagePath = sanitizeAttachmentStoragePath(source.storagePath);
+
+    if (!isSafeAttachmentUrl(url, type)) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+    if (!Number.isFinite(size) || size < 0 || size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+    if (!uploadedAtDate || Number.isNaN(uploadedAtDate.getTime())) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+
+    return {
+      id,
+      name,
+      url,
+      type,
+      size,
+      uploadedAt: uploadedAtDate.toISOString(),
+      ...(storagePath ? { storagePath } : {}),
+    };
+  });
 }
 
 export const createProposal = async (req: Request, res: Response) => {
@@ -88,6 +224,13 @@ export const createProposal = async (req: Request, res: Response) => {
       if (!input.clientName) input.clientName = "";
       if (input.totalValue === undefined || input.totalValue < 0)
         input.totalValue = 0;
+    }
+
+    let sanitizedAttachments: SanitizedAttachment[] = [];
+    try {
+      sanitizedAttachments = sanitizeAttachmentsInput(input.attachments);
+    } catch {
+      return res.status(400).json({ message: "Anexos invalidos" });
     }
 
     const { masterRef, tenantId, isMaster, isSuperAdmin, userData } =
@@ -293,7 +436,7 @@ export const createProposal = async (req: Request, res: Response) => {
           // PDF display settings (which elements to show/hide in PDF)
           pdfSettings: input.pdfSettings || null,
           // Attachments
-          attachments: input.attachments || [],
+          attachments: sanitizedAttachments,
           createdById: userId,
           createdByName: userData?.name || "Usuário",
           companyId: userCompanyId,
@@ -383,6 +526,15 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
+    let sanitizedAttachments: SanitizedAttachment[] | undefined;
+    if (typeof updateData.attachments !== "undefined") {
+      try {
+        sanitizedAttachments = sanitizeAttachmentsInput(updateData.attachments);
+      } catch {
+        return res.status(400).json({ message: "Anexos invalidos" });
+      }
+    }
+
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
       "title",
@@ -419,7 +571,12 @@ export const updateProposal = async (req: Request, res: Response) => {
     ];
 
     fields.forEach((f) => {
-      if (updateData[f] !== undefined) safeUpdate[f] = updateData[f];
+      if (typeof updateData[f] === "undefined") return;
+      if (f === "attachments") {
+        safeUpdate[f] = sanitizedAttachments || [];
+        return;
+      }
+      safeUpdate[f] = updateData[f];
     });
 
     if (updateData.products) {

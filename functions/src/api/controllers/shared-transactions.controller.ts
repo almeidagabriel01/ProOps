@@ -54,6 +54,7 @@ export const createShareLink = async (req: Request, res: Response) => {
 export const getSharedTransaction = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
+    const isPdfGeneratorRequest = req.headers["x-pdf-generator"] === "true";
 
     if (!token) {
       return res.status(400).json({ message: "Token invalido" });
@@ -112,18 +113,24 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
     const tenantSnap = await tenantRef.get();
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    const viewerData = {
-      ip: req.ip || (req.headers["x-forwarded-for"] as string),
-      userAgent: req.headers["user-agent"],
-    };
+    if (!isPdfGeneratorRequest) {
+      const viewerData = {
+        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        userAgent: req.headers["user-agent"],
+      };
 
-    await SharedTransactionService.recordView(
-      sharedTransaction.id,
-      sharedTransaction.tenantId,
-      sharedTransaction.transactionId,
-      viewerData,
-      (transactionData as Record<string, unknown>)?.description as string | undefined,
-    );
+      void SharedTransactionService.recordView(
+        sharedTransaction.id,
+        sharedTransaction.tenantId,
+        sharedTransaction.transactionId,
+        viewerData,
+        (transactionData as Record<string, unknown>)?.description as
+          | string
+          | undefined,
+      ).catch((recordError) => {
+        console.error("recordView failed (non-critical)", recordError);
+      });
+    }
 
     return res.status(200).json({
       success: true,
