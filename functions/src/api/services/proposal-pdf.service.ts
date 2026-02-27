@@ -1,15 +1,12 @@
 import { createHash } from "node:crypto";
-import { FieldPath, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { chromium } from "playwright-core";
 import chromiumPackage from "@sparticuz/chromium";
 import { db } from "../../init";
-import {
-  renderProposalPdfHtml,
-  type ProposalPdfTemplatePayload,
-} from "../../shared/pdf/ProposalPdfTemplate";
+import { SharedProposalService } from "./shared-proposal.service";
 
-const PDF_TEMPLATE_VERSION = "proposal-pdf-v2-server-html";
+const PDF_TEMPLATE_VERSION = "proposal-pdf-v3-frontend-puppeteer";
 const PDF_VIEWPORT_WIDTH = 1280;
 const PDF_VIEWPORT_HEIGHT = 1700;
 const PDF_PAGE_READY_TIMEOUT_MS = 45_000;
@@ -20,26 +17,12 @@ type ProposalPdfMetadata = {
   versionHash?: string;
 };
 
-type ProductLike = {
-  productId?: unknown;
-  itemType?: unknown;
-  productImage?: unknown;
-  productImages?: unknown;
-  productDescription?: unknown;
-  quantity?: unknown;
-  status?: unknown;
-  _isGhost?: unknown;
-  _shouldHide?: unknown;
-  _isInactive?: unknown;
-  [key: string]: unknown;
-};
-
 type ProposalDocData = {
   tenantId?: unknown;
   pdf?: ProposalPdfMetadata;
   createdAt?: unknown;
   updatedAt?: unknown;
-  products?: ProductLike[];
+  products?: unknown[];
   [key: string]: unknown;
 };
 
@@ -127,157 +110,9 @@ function toStringValue(value: unknown): string {
   return "";
 }
 
-function toNumberValue(value: unknown): number {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return numeric;
-}
 
-function extractImageUrls(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      if (
-        item &&
-        typeof item === "object" &&
-        "url" in (item as Record<string, unknown>) &&
-        typeof (item as Record<string, unknown>).url === "string"
-      ) {
-        return String((item as Record<string, unknown>).url).trim();
-      }
-      return "";
-    })
-    .filter(Boolean);
-}
 
-function chunkArray<T>(values: T[], chunkSize: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < values.length; i += chunkSize) {
-    chunks.push(values.slice(i, i + chunkSize));
-  }
-  return chunks;
-}
-
-function normalizeProposalProduct(product: ProductLike): ProductLike {
-  const quantity = Math.max(0, toNumberValue(product.quantity));
-  const normalizedImages = extractImageUrls(product.productImages);
-  const fallbackImage = toStringValue(product.productImage) || normalizedImages[0] || "";
-  const isGhost = quantity <= 0;
-
-  return {
-    ...product,
-    quantity,
-    productImage: fallbackImage,
-    productImages:
-      normalizedImages.length > 0
-        ? normalizedImages
-        : fallbackImage
-          ? [fallbackImage]
-          : [],
-    _isGhost: isGhost,
-    _shouldHide: Boolean(product._shouldHide || isGhost),
-  };
-}
-
-async function enrichProposalProducts(
-  proposalData: ProposalDocData,
-  tenantId: string,
-): Promise<ProposalDocData> {
-  const sourceProducts = Array.isArray(proposalData.products)
-    ? proposalData.products
-    : [];
-
-  const normalizedProducts = sourceProducts.map((product) =>
-    normalizeProposalProduct(product),
-  );
-
-  const visibleProducts = normalizedProducts.filter(
-    (product) => toNumberValue(product.quantity) > 0,
-  );
-
-  const productIds = Array.from(
-    new Set(
-      visibleProducts
-        .map((product) => toStringValue(product.productId))
-        .filter(Boolean),
-    ),
-  );
-
-  if (!tenantId || productIds.length === 0) {
-    return {
-      ...proposalData,
-      products: visibleProducts,
-    };
-  }
-
-  const productCatalogMap = new Map<string, Record<string, unknown>>();
-  const chunks = chunkArray(productIds, 10);
-
-  await Promise.all(
-    chunks.map(async (idsChunk) => {
-      const catalogSnap = await db
-        .collection("products")
-        .where("tenantId", "==", tenantId)
-        .where(FieldPath.documentId(), "in", idsChunk)
-        .get();
-
-      catalogSnap.docs.forEach((docSnap) => {
-        productCatalogMap.set(
-          docSnap.id,
-          docSnap.data() as Record<string, unknown>,
-        );
-      });
-    }),
-  );
-
-  const enrichedProducts = visibleProducts.map((product) => {
-    const productId = toStringValue(product.productId);
-    const catalogProduct = productId ? productCatalogMap.get(productId) : undefined;
-
-    if (!catalogProduct) {
-      const isInactive = toStringValue(product.status) === "inactive";
-      return {
-        ...product,
-        _isInactive: isInactive,
-        _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
-      };
-    }
-
-    const catalogImages = extractImageUrls(catalogProduct.images);
-    const catalogImage =
-      typeof catalogProduct.image === "string" ? catalogProduct.image : "";
-
-    const mergedImages =
-      catalogImages.length > 0
-        ? catalogImages
-        : catalogImage
-          ? [catalogImage]
-          : extractImageUrls(product.productImages);
-    const mergedImage = mergedImages[0] || toStringValue(product.productImage);
-
-    const status = toStringValue(catalogProduct.status) || toStringValue(product.status);
-    const isInactive = status === "inactive";
-
-    return {
-      ...product,
-      productImage: mergedImage,
-      productImages: mergedImages,
-      productDescription:
-        toStringValue(catalogProduct.description) ||
-        toStringValue(product.productDescription),
-      _isInactive: isInactive,
-      _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
-    };
-  });
-
-  return {
-    ...proposalData,
-    products: enrichedProducts,
-  };
-}
-
-async function generatePdfFromHtml(html: string): Promise<Buffer> {
+async function generatePdfFromUrl(url: string): Promise<Buffer> {
   chromiumPackage.setGraphicsMode = false;
   const executablePath = await chromiumPackage.executablePath();
   const pageErrors: string[] = [];
@@ -293,6 +128,15 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
       viewport: { width: PDF_VIEWPORT_WIDTH, height: PDF_VIEWPORT_HEIGHT },
     });
 
+    const bypassSecret = process.env.VERCEL_PROTECTION_BYPASS_SECRET || "";
+    const extraHeaders: Record<string, string> = {
+      "x-pdf-generator": "true",
+    };
+    if (bypassSecret) {
+      extraHeaders["x-vercel-protection-bypass"] = bypassSecret;
+    }
+    await page.setExtraHTTPHeaders(extraHeaders);
+
     page.on("pageerror", (error) => {
       pageErrors.push(error?.message || "unknown_page_error");
     });
@@ -302,26 +146,8 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
       pageErrors.push(`${request.method()} ${request.url()} :: ${failureText}`);
     });
 
-    await page.route("**/*", async (route, request) => {
-      try {
-        const hostname = new URL(request.url()).hostname.toLowerCase();
-        if (
-          hostname === "vercel.com" ||
-          hostname.endsWith(".vercel.com") ||
-          hostname.endsWith(".vercel.app")
-        ) {
-          await route.abort("blockedbyclient");
-          return;
-        }
-      } catch {
-        // Ignore URL parse failures and continue request.
-      }
-
-      await route.continue();
-    });
-
-    await page.setContent(html, {
-      waitUntil: "load",
+    await page.goto(`${url}?print=1`, {
+      waitUntil: "networkidle",
       timeout: PDF_PAGE_READY_TIMEOUT_MS,
     });
 
@@ -331,6 +157,11 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
           await document.fonts.ready;
         } catch {
           // Ignore fonts readiness failures.
+        }
+
+        const pdfReadyMarker = document.querySelector('[data-pdf-products-ready="1"]');
+        if (!pdfReadyMarker) {
+           return false;
         }
 
         const imageWaiters = Array.from(document.images).map(
@@ -350,6 +181,8 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
       },
       { timeout: PDF_RENDER_ASSET_TIMEOUT_MS },
     );
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     await page.emulateMedia({ media: "print" });
 
@@ -415,25 +248,13 @@ export async function getOrGenerateProposalPdfBuffer(
     }
   }
 
-  const enrichedProposalData = await enrichProposalProducts(proposalData, tenantId);
-
-  const templatePayload: ProposalPdfTemplatePayload = {
+  const shareData = await SharedProposalService.createShareLink(
     proposalId,
-    proposal: toSerializable({
-      id: proposalId,
-      ...enrichedProposalData,
-    }) as ProposalPdfTemplatePayload["proposal"],
-    tenant: {
-      id: tenantId,
-      name: toStringValue(tenantData.name),
-      logoUrl: toStringValue(tenantData.logoUrl),
-      primaryColor: toStringValue(tenantData.primaryColor),
-      proposalDefaults: toSerializable(tenantData.proposalDefaults),
-    },
-  };
+    tenantId,
+    "system-pdf-generator",
+  );
 
-  const html = renderProposalPdfHtml(templatePayload);
-  const generatedBuffer = await generatePdfFromHtml(html);
+  const generatedBuffer = await generatePdfFromUrl(shareData.shareUrl);
 
   await storageFile.save(generatedBuffer, {
     contentType: "application/pdf",

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Loader2,
   AlertCircle,
@@ -23,7 +23,9 @@ import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-gene
 
 export default function SharedProposalPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = params.token as string;
+  const isPrintMode = searchParams.get("print") === "1";
 
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
@@ -175,10 +177,48 @@ export default function SharedProposalPage() {
     );
   }
 
+  if (isPrintMode) {
+    return (
+      <div className="bg-white w-[794px] m-0 p-0">
+        <ProposalPdfViewer
+          proposal={proposal}
+          tenant={tenant}
+          template={template}
+          skipCatalogEnrichment
+          customSettings={
+            (proposal.pdfSettings as Parameters<
+              typeof ProposalPdfViewer
+            >[0]["customSettings"]) ?? undefined
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Print-mode CSS: hides UI chrome from Puppeteer @media print */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @media print {
+          [data-pdf-ui] { display: none !important; }
+          body, html { background: white !important; }
+          #shared-proposal-preview-content {
+            transform: none !important;
+            margin-bottom: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+        }
+      `,
+        }}
+      />
       {/* Header simplificado com branding do tenant */}
-      <header className="border-b bg-card sticky top-0 z-50 shadow-sm">
+      <header
+        data-pdf-ui
+        className="border-b bg-card sticky top-0 z-50 shadow-sm"
+      >
         <div className="container mx-auto px-4 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-6">
           <div className="flex items-center justify-between w-full md:w-auto gap-3">
             <div className="flex items-center gap-3 overflow-hidden">
@@ -268,7 +308,10 @@ export default function SharedProposalPage() {
       {/* PDF View Area */}
       <main className="flex-1 w-full bg-muted/20 overflow-hidden flex flex-col relative">
         <div className="container mx-auto px-4 py-4 w-full flex justify-center">
-          <div className="w-full max-w-[794px] flex items-center justify-between bg-card border rounded-lg p-2 shadow-sm z-10">
+          <div
+            data-pdf-ui
+            className="w-full max-w-[794px] flex items-center justify-between bg-card border rounded-lg p-2 shadow-sm z-10"
+          >
             <span className="text-sm font-medium text-muted-foreground px-2">
               Visualização da Proposta
             </span>
