@@ -165,7 +165,10 @@ export function PdfSistemaBlock({
   const productsForTotals = products.filter((product) =>
     shouldCountInPdfTotals(product),
   );
-  const sistemaSubtotal = productsForTotals.reduce((sum, p) => sum + p.total, 0);
+  const sistemaSubtotal = productsForTotals.reduce(
+    (sum, p) => sum + p.total,
+    0,
+  );
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">
@@ -207,10 +210,18 @@ export function PdfSistemaBlock({
               scopeProducts = products;
             }
 
-            const activeProducts = scopeProducts.filter((product) =>
+            const activeProductsTemp = scopeProducts.filter((product) =>
               isProductVisibleInPdf(product),
             );
-            if (activeProducts.length === 0) return null;
+            if (activeProductsTemp.length === 0) return null;
+
+            const onlyProducts = activeProductsTemp.filter(
+              (p) => p.itemType !== "service",
+            );
+            const onlyServices = activeProductsTemp.filter(
+              (p) => p.itemType === "service",
+            );
+            const activeProducts = [...onlyProducts, ...onlyServices];
 
             return (
               <div key={currentInstanceId}>
