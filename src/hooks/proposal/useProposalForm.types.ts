@@ -46,7 +46,10 @@ export interface UseProposalFormReturn {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<boolean>;
+  handleSubmit: (
+    e: React.FormEvent,
+    options?: { finalize?: boolean },
+  ) => Promise<boolean>;
   toggleProduct: (product: Product | Service) => void;
   updateProductQuantity: (
     productId: string,
@@ -91,6 +94,12 @@ export interface UseProposalFormReturn {
   updateProductMarkup: (
     productId: string,
     markup: number,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+  ) => void;
+  updateProductPrice: (
+    productId: string,
+    newPrice: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
   ) => void;

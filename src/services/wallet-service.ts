@@ -11,6 +11,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { Wallet, WalletTransaction } from "@/types";
+import { compareDisplayText } from "@/lib/sort-text";
 
 // ============================================
 // TYPES
@@ -85,7 +86,7 @@ export const WalletService = {
       })) as Wallet[];
 
       // Sort by name
-      return wallets.sort((a, b) => a.name.localeCompare(b.name));
+      return wallets.sort((a, b) => compareDisplayText(a.name, b.name));
     } catch (error) {
       console.error("Error fetching wallets:", error);
       throw error;

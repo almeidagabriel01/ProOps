@@ -10,6 +10,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { ChevronDown, ChevronUp, Plus, X, Settings2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { compareDisplayText } from "@/lib/sort-text";
 
 interface LinkedFieldEntry {
   id: string;
@@ -111,15 +112,22 @@ export function LinkedFieldSelector({
     });
   };
 
+  const sortByLabel = (a: { label: string }, b: { label: string }) =>
+    compareDisplayText(a.label, b.label);
+
+  const sortedParentItems = [...parentType.items].sort(sortByLabel);
+
   // Get child items that are linked to a specific parent item
   const getChildItemsForParent = (parentItemId: string): CustomFieldItem[] => {
     if (!childType) return [];
-    return childType.items.filter(
-      (item) =>
-        !item.parentItemIds ||
-        item.parentItemIds.length === 0 ||
-        item.parentItemIds.includes(parentItemId),
-    );
+    return [...childType.items]
+      .filter(
+        (item) =>
+          !item.parentItemIds ||
+          item.parentItemIds.length === 0 ||
+          item.parentItemIds.includes(parentItemId),
+      )
+      .sort(sortByLabel);
   };
 
   const getParentItem = (id: string) =>
@@ -185,7 +193,7 @@ export function LinkedFieldSelector({
                       className="w-full bg-transparent border-0 font-medium focus:ring-0 text-foreground p-0"
                     >
                       <option value="">Selecione {parentType.name}...</option>
-                      {parentType.items.map((item) => (
+                      {sortedParentItems.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.label}
                         </option>
@@ -304,10 +312,12 @@ export function LinkedFieldsConfig({
   }, [tenant]);
 
   // Filter to show only parent types (no parentTypeId) and child types
-  const parentTypes = fieldTypes.filter((t) => !t.parentTypeId);
-  const childTypes = fieldTypes.filter(
-    (t) => t.parentTypeId === value.parentTypeId,
-  );
+  const parentTypes = [...fieldTypes]
+    .filter((t) => !t.parentTypeId)
+    .sort((a, b) => compareDisplayText(a.name, b.name));
+  const childTypes = [...fieldTypes]
+    .filter((t) => t.parentTypeId === value.parentTypeId)
+    .sort((a, b) => compareDisplayText(a.name, b.name));
 
   return (
     <div className="space-y-4">

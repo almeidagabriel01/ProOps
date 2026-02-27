@@ -14,6 +14,7 @@ import { ProposalSummaryControls } from "./summary/proposal-summary-controls";
 import { PaymentConditionsSummary } from "./summary/payment-conditions-summary";
 
 const statusOptions: { value: ProposalStatus; label: string }[] = [
+  { value: "draft", label: "Rascunho" },
   { value: "in_progress", label: "Em Aberto" },
   { value: "sent", label: "Enviada" },
   { value: "approved", label: "Aprovada" },
@@ -89,7 +90,7 @@ export function ProposalSummarySection({
 
         <ProposalSummaryControls
           discount={formData.discount || 0}
-          status={formData.status || "in_progress"}
+          status={formData.status || "draft"}
           customNotes={formData.customNotes || ""}
           onFormChange={onFormChange}
           statusOptions={statusOptions}

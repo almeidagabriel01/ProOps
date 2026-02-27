@@ -4,7 +4,7 @@ import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema } from "@/types/automation";
 import { buildEssentialFormSnapshot } from "./useProposalForm.helpers";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 
 interface UseProposalFormSystemDirtyContext {
   selectedSistemas: ProposalSistema[];
@@ -23,7 +23,9 @@ interface UseProposalFormSystemDirtyContext {
   formData: Partial<Proposal>;
 }
 
-export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContext) {
+export function useProposalFormSystemDirty(
+  ctx: UseProposalFormSystemDirtyContext,
+) {
   const {
     selectedSistemas,
     setSelectedSistemas,
@@ -50,8 +52,7 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
         const itemType = sp.itemType || "product";
         const productDef = products.find(
           (p) =>
-            p.id === sp.productId &&
-            (p.itemType || "product") === itemType,
+            p.id === sp.productId && (p.itemType || "product") === itemType,
         );
         const price = productDef ? parseFloat(productDef.price) : 0;
         const markup =
@@ -71,8 +72,11 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
           unitPrice: price,
           markup,
           total: sp.quantity * price * (1 + markup / 100),
-          manufacturer: productDef?.manufacturer,
-          category: productDef?.category,
+          manufacturer: (productDef as Record<string, unknown>)
+            ?.manufacturer as string | undefined,
+          category: (productDef as Record<string, unknown>)?.category as
+            | string
+            | undefined,
           systemInstanceId,
           isExtra: false,
           status: sp.status || "active",
@@ -105,7 +109,9 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
     });
 
     if (systemInstanceId && validInstanceIds.has(systemInstanceId)) {
-      console.warn(`Expected to remove ${systemInstanceId} but it's still in valid IDs`);
+      console.warn(
+        `Expected to remove ${systemInstanceId} but it's still in valid IDs`,
+      );
     }
 
     setSelectedSistemas(newSelectedSistemas);
@@ -124,52 +130,78 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
       : null;
     const newInstanceId = `${updatedSistema.sistemaId}-${updatedSistema.ambienteId}`;
 
-    setSelectedSistemas((prev) => prev.map((s, i) => (i === index ? updatedSistema : s)));
+    setSelectedSistemas((prev) =>
+      prev.map((s, i) => (i === index ? updatedSistema : s)),
+    );
 
-    const newSystemProducts: ProposalProduct[] = (updatedSistema.products || []).map((sp) => {
-      const itemType = sp.itemType || "product";
-      const productDef = products.find(
-        (p) =>
-          p.id === sp.productId &&
-          (p.itemType || "product") === itemType,
-      );
-      const price = productDef ? parseFloat(productDef.price) : 0;
-      const markup =
-        itemType === "service"
-          ? 0
-          : productDef
-            ? parseFloat(productDef.markup || "0")
-            : 0;
+    setFormData((prev) => {
+      const prevProducts = prev.products || [];
+      const newSystemProducts: ProposalProduct[] = (
+        updatedSistema.products || []
+      ).map((sp) => {
+        const itemType = sp.itemType || "product";
+        const productDef = products.find(
+          (p) =>
+            p.id === sp.productId && (p.itemType || "product") === itemType,
+        );
+
+        const existingPropProduct = prevProducts.find(
+          (p) =>
+            p.systemInstanceId === oldInstanceId &&
+            p.productId === sp.productId &&
+            !p.isExtra,
+        );
+
+        let price = productDef ? parseFloat(productDef.price) : 0;
+        let markup =
+          itemType === "service"
+            ? 0
+            : productDef
+              ? parseFloat(productDef.markup || "0")
+              : 0;
+        let status = sp.status || "active";
+
+        if (existingPropProduct) {
+          price = existingPropProduct.unitPrice;
+          markup = existingPropProduct.markup || 0;
+          status = existingPropProduct.status || status;
+        }
+
+        return {
+          productId: sp.productId,
+          itemType,
+          productName: productDef?.name || sp.productName || "Produto",
+          productImage: productDef?.images?.[0] || productDef?.image || "",
+          productImages: productDef?.images || [],
+          productDescription: productDef?.description || "",
+          quantity: sp.quantity,
+          unitPrice: price,
+          markup,
+          total: sp.quantity * price * (1 + markup / 100),
+          manufacturer: (productDef as Record<string, unknown>)
+            ?.manufacturer as string | undefined,
+          category: (productDef as Record<string, unknown>)?.category as
+            | string
+            | undefined,
+          systemInstanceId: newInstanceId,
+          isExtra: false,
+          status: status,
+        };
+      });
+
       return {
-        productId: sp.productId,
-        itemType,
-        productName: productDef?.name || sp.productName || "Produto",
-        productImage: productDef?.images?.[0] || productDef?.image || "",
-        productImages: productDef?.images || [],
-        productDescription: productDef?.description || "",
-        quantity: sp.quantity,
-        unitPrice: price,
-        markup,
-        total: sp.quantity * price * (1 + markup / 100),
-        manufacturer: productDef?.manufacturer,
-        category: productDef?.category,
-        systemInstanceId: newInstanceId,
-        isExtra: false,
-        status: sp.status || "active",
+        ...prev,
+        products: [
+          ...prevProducts.filter((p) => {
+            if (oldInstanceId && p.systemInstanceId === oldInstanceId)
+              return false;
+            if (p.systemInstanceId === newInstanceId) return false;
+            return true;
+          }),
+          ...newSystemProducts,
+        ],
       };
     });
-
-    setFormData((prev) => ({
-      ...prev,
-      products: [
-        ...(prev.products || []).filter((p) => {
-          if (oldInstanceId && p.systemInstanceId === oldInstanceId) return false;
-          if (p.systemInstanceId === newInstanceId) return false;
-          return true;
-        }),
-        ...newSystemProducts,
-      ],
-    }));
   };
 
   const addProductToSystem = (
@@ -179,7 +211,8 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
   ) => {
     const itemType = product.itemType || "product";
     const price = parseFloat(product.price) || 0;
-    const markup = itemType === "service" ? 0 : parseFloat(product.markup || "0");
+    const markup =
+      itemType === "service" ? 0 : parseFloat(product.markup || "0");
     const newProduct: ProposalProduct = {
       productId: product.id,
       itemType,
@@ -195,8 +228,12 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
       unitPrice: price,
       markup,
       total: price * (1 + markup / 100),
-      manufacturer: product.manufacturer,
-      category: product.category,
+      manufacturer: (product as Record<string, unknown>).manufacturer as
+        | string
+        | undefined,
+      category: (product as Record<string, unknown>).category as
+        | string
+        | undefined,
       systemInstanceId,
       isExtra: true,
       status: "active",
@@ -204,11 +241,15 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
 
     const targetSystem = selectedSistemas[systemIndex];
     if (targetSystem?.sistemaId) {
-      const masterSistema = mergedSistemas.find((s) => s.id === targetSystem.sistemaId);
+      const masterSistema = mergedSistemas.find(
+        (s) => s.id === targetSystem.sistemaId,
+      );
       if (masterSistema) {
         const parts = systemInstanceId.split("-");
         const targetAmbienteId =
-          parts.length >= 2 ? parts[1] : targetSystem.ambientes?.[0]?.ambienteId;
+          parts.length >= 2
+            ? parts[1]
+            : targetSystem.ambientes?.[0]?.ambienteId;
 
         if (targetAmbienteId) {
           const masterAmbienteConfig = masterSistema.ambientes?.find(
@@ -258,7 +299,13 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
       currentSnapshot !== initialEssentialSnapshot ||
         currentSistemas !== initialSistemasRef.current,
     );
-  }, [proposalId, formData, selectedSistemas, initialFormDataRef, initialSistemasRef]);
+  }, [
+    proposalId,
+    formData,
+    selectedSistemas,
+    initialFormDataRef,
+    initialSistemasRef,
+  ]);
 
   const resetToInitial = React.useCallback(() => {
     if (!initialFormDataRef.current) return;
@@ -296,10 +343,14 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
       }));
 
       if (initialSistemasRef.current) {
-        const initialSistemas = JSON.parse(initialSistemasRef.current) as ProposalSistema[];
+        const initialSistemas = JSON.parse(
+          initialSistemasRef.current,
+        ) as ProposalSistema[];
         setSelectedSistemas(initialSistemas);
         const sysProductIds = new Set(
-          initialSistemas.flatMap((s) => (s.products || []).map((p) => p.productId)),
+          initialSistemas.flatMap((s) =>
+            (s.products || []).map((p) => p.productId),
+          ),
         );
         setSystemProductIds(sysProductIds as Set<string>);
       }
@@ -319,7 +370,10 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
     setSystemProductIds,
   ]);
 
-  const removeAmbienteFromSistema = (sistemaIndex: number, ambienteId: string) => {
+  const removeAmbienteFromSistema = (
+    sistemaIndex: number,
+    ambienteId: string,
+  ) => {
     const sistema = selectedSistemas[sistemaIndex];
     if (!sistema) return;
 
@@ -327,11 +381,15 @@ export function useProposalFormSystemDirty(ctx: UseProposalFormSystemDirtyContex
     setFormData((prev) => ({
       ...prev,
       products: (prev.products || []).filter(
-        (p) => p.systemInstanceId !== instanceId && p.ambienteInstanceId !== instanceId,
+        (p) =>
+          p.systemInstanceId !== instanceId &&
+          p.ambienteInstanceId !== instanceId,
       ),
     }));
 
-    const updatedAmbientes = (sistema.ambientes || []).filter((a) => a.ambienteId !== ambienteId);
+    const updatedAmbientes = (sistema.ambientes || []).filter(
+      (a) => a.ambienteId !== ambienteId,
+    );
     if (updatedAmbientes.length === 0) {
       removeSistema(sistemaIndex, instanceId);
       toast.success("Sistema removido pois não possui mais ambientes.");

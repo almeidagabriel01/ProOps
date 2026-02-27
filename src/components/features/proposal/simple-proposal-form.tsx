@@ -159,6 +159,7 @@ export function SimpleProposalForm({
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    updateProductPrice,
     removeProduct,
     handleToggleProductStatus,
     calculateSubtotal,
@@ -655,8 +656,11 @@ export function SimpleProposalForm({
               unitPrice: price,
               markup: markup,
               total: sp.quantity * price * (1 + markup / 100),
-              manufacturer: productDef?.manufacturer,
-              category: productDef?.category,
+              manufacturer: (productDef as Record<string, unknown>)
+                ?.manufacturer as string | undefined,
+              category: (productDef as Record<string, unknown>)?.category as
+                | string
+                | undefined,
               systemInstanceId: newInstanceId,
               isExtra: false,
               // Link to the environment for grouping
@@ -746,8 +750,11 @@ export function SimpleProposalForm({
           quantity: sp.quantity,
           unitPrice: price,
           total: price * sp.quantity,
-          manufacturer: existingProduct?.manufacturer,
-          category: existingProduct?.category,
+          manufacturer: (existingProduct as Record<string, unknown>)
+            ?.manufacturer as string | undefined,
+          category: (existingProduct as Record<string, unknown>)?.category as
+            | string
+            | undefined,
           ambienteInstanceId: newInstanceId,
           systemInstanceId: newInstanceId, // Legacy field
           isExtra: false,
@@ -769,13 +776,15 @@ export function SimpleProposalForm({
     updateSistema(index, sistema);
   };
 
-  const handleFormSubmit = async (): Promise<boolean> => {
+  const handleFormSubmit = async (
+    options?: { finalize?: boolean },
+  ): Promise<boolean> => {
     if (!validateStep3()) {
       return false;
     }
 
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-    return await handleSubmit(fakeEvent);
+    return await handleSubmit(fakeEvent, options);
   };
 
   // Handle back navigation - show modal if editing existing proposal with unsaved changes
@@ -789,7 +798,7 @@ export function SimpleProposalForm({
 
   // Handle save from modal then navigate
   const handleSaveAndBack = async () => {
-    const success = await handleFormSubmit();
+    const success = await handleFormSubmit({ finalize: false });
     if (success) {
       router.push("/proposals");
     } else {
@@ -950,6 +959,7 @@ export function SimpleProposalForm({
                   onRemoveSystem={removeSistema}
                   onUpdateProductQuantity={updateProductQuantity}
                   onUpdateProductMarkup={updateProductMarkup}
+                  onUpdateProductPrice={updateProductPrice}
                   onAddExtraProductToSystem={addProductToSystem}
                   onAddNewSystem={handleAddNewSystem}
                   onUpdateSystem={handleUpdateSystem}
@@ -1082,7 +1092,7 @@ export function SimpleProposalForm({
           </div>
 
           <StepNavigation
-            onSubmit={handleFormSubmit}
+            onSubmit={() => handleFormSubmit({ finalize: true })}
             isSubmitting={isSaving}
             submitDisabled={!!proposalId && !isDirty}
             submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}

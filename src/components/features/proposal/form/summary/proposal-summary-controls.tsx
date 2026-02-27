@@ -55,7 +55,7 @@ export function ProposalSummaryControls({
           <Select
             id="status"
             name="status"
-            value={status || "in_progress"}
+            value={status || "draft"}
             onChange={onFormChange}
             className="w-40"
           >

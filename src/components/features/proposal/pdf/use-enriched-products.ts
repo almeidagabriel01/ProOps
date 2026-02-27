@@ -1,17 +1,40 @@
-
 import { useState, useEffect } from "react";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProductService } from "@/services/product-service";
+
+function hasProposalProductVisualSnapshot(product: ProposalProduct): boolean {
+  if (product.itemType === "service") return true;
+
+  const hasImage =
+    Boolean(product.productImage) ||
+    (Array.isArray(product.productImages) &&
+      product.productImages.some(Boolean));
+  const hasName = Boolean(product.productName);
+  return hasImage && hasName;
+}
 
 export function useEnrichedProducts(
   proposal: Proposal | null | undefined,
   tenantId?: string,
   options?: { filterInactive?: boolean; skipCatalogEnrichment?: boolean },
 ) {
-  const [enrichedProducts, setEnrichedProducts] = useState<ProposalProduct[]>(
-    proposal?.products || []
+  const shouldStartLoading = Boolean(
+    proposal?.products?.length &&
+      !options?.skipCatalogEnrichment &&
+      tenantId &&
+      proposal.products.some(
+        (product) =>
+          product.itemType !== "service" &&
+          typeof product.productId === "string" &&
+          !!product.productId &&
+          !hasProposalProductVisualSnapshot(product),
+      ),
   );
-  const [isLoading, setIsLoading] = useState(true);
+
+  const [enrichedProducts, setEnrichedProducts] = useState<ProposalProduct[]>(
+    proposal?.products || [],
+  );
+  const [isLoading, setIsLoading] = useState(shouldStartLoading);
 
   useEffect(() => {
     const normalizeProposalProduct = (
@@ -23,7 +46,8 @@ export function useEnrichedProducts(
         : [];
       const fallbackImage = proposalProduct.productImage || normalizedImages[0] || "";
       const isGhost = normalizedQuantity <= 0;
-      const isInactive = options?.filterInactive && proposalProduct.status === "inactive";
+      const isInactive =
+        options?.filterInactive && proposalProduct.status === "inactive";
 
       return {
         ...proposalProduct,
@@ -41,40 +65,68 @@ export function useEnrichedProducts(
       };
     };
 
+    let isCancelled = false;
+
     const loadProductImages = async () => {
+      const proposalProducts = proposal?.products || [];
+      const normalizedProducts = proposalProducts.map((p) =>
+        normalizeProposalProduct(p),
+      );
+
       if (
         options?.skipCatalogEnrichment ||
         !tenantId ||
-        !proposal?.products?.length
+        proposalProducts.length === 0
       ) {
-        // Enforce a small delay to allow DOM to settle and React to finish measuring
-        // layout in RenderPagedContent before declaring products ready for PDF generation.
-        setTimeout(() => {
-          setEnrichedProducts(
-            (proposal?.products || []).map((p) => normalizeProposalProduct(p)),
-          );
+        if (!isCancelled) {
+          setEnrichedProducts(normalizedProducts);
           setIsLoading(false);
-        }, 150);
+        }
         return;
       }
 
-      try {
-        // Get all products from the tenant's catalog
-        const catalogProducts = await ProductService.getProducts(tenantId);
+      const productIdsToFetch = Array.from(
+        new Set(
+          proposalProducts
+            .filter((proposalProduct) => !hasProposalProductVisualSnapshot(proposalProduct))
+            .filter((proposalProduct) => proposalProduct.itemType !== "service")
+            .map((proposalProduct) => proposalProduct.productId)
+            .filter((id): id is string => typeof id === "string" && !!id),
+        ),
+      );
 
-        // Create a map for quick lookup
+      if (productIdsToFetch.length === 0) {
+        if (!isCancelled) {
+          setEnrichedProducts(normalizedProducts);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (!isCancelled) {
+        setIsLoading(true);
+      }
+
+      try {
+        const catalogProducts = await ProductService.getProductsByIds(
+          tenantId,
+          productIdsToFetch,
+        );
+
         const productMap = new Map(catalogProducts.map((p) => [p.id, p]));
 
-        // Enrich proposal products with images from catalog
-        const enriched = (proposal?.products || []).map((proposalProduct) => {
+        const enriched = proposalProducts.map((proposalProduct) => {
           const baseProduct = normalizeProposalProduct(proposalProduct);
           const catalogProduct = productMap.get(proposalProduct.productId);
-          
+
           if (catalogProduct) {
             const baseEnriched = {
               ...baseProduct,
               productImage:
-                catalogProduct.images?.[0] || catalogProduct.image || baseProduct.productImage || "",
+                catalogProduct.images?.[0] ||
+                catalogProduct.image ||
+                baseProduct.productImage ||
+                "",
               productImages: catalogProduct.images?.length
                 ? catalogProduct.images
                 : catalogProduct.image
@@ -87,7 +139,8 @@ export function useEnrichedProducts(
             };
 
             // Metadata flags
-            const isInactiveStatus = options?.filterInactive && (catalogProduct.status === 'inactive' || proposalProduct.status === 'inactive');
+            const isInactiveStatus =
+              options?.filterInactive && proposalProduct.status === "inactive";
             const isGhost = (baseProduct.quantity || 0) <= 0;
 
             if (isInactiveStatus || isGhost) {
@@ -116,18 +169,25 @@ export function useEnrichedProducts(
           return baseProduct;
         }); // Keep all products, including inactive ones
 
-        setEnrichedProducts(enriched);
+        if (!isCancelled) {
+          setEnrichedProducts(enriched);
+        }
       } catch (error) {
         console.error("Error loading product images:", error);
-        setEnrichedProducts(
-          (proposal?.products || []).map((p) => normalizeProposalProduct(p)),
-        );
+        if (!isCancelled) {
+          setEnrichedProducts(normalizedProducts);
+        }
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadProductImages();
+    return () => {
+      isCancelled = true;
+    };
   }, [
     tenantId,
     proposal?.products,

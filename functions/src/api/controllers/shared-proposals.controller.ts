@@ -16,10 +16,100 @@ type ProductLike = {
 };
 
 type ProposalLike = {
+  tenantId?: string;
+  status?: string;
+  clientId?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  validUntil?: string;
   title?: string;
+  sistemas?: unknown[];
   products?: ProductLike[];
+  sections?: unknown[];
+  discount?: number;
+  totalValue?: number;
+  extraExpense?: number;
+  customNotes?: string;
+  notes?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+  pdfSettings?: unknown;
+  pdf?: unknown;
+  attachments?: unknown[];
+  downPaymentEnabled?: boolean;
+  downPaymentType?: string;
+  downPaymentPercentage?: number;
+  downPaymentValue?: number;
+  downPaymentDueDate?: string;
+  installmentsEnabled?: boolean;
+  installmentsCount?: number;
+  installmentValue?: number;
+  firstInstallmentDate?: string;
   [key: string]: unknown;
 };
+
+const SHARED_PROPOSAL_ALLOWED_FIELDS = [
+  "tenantId",
+  "status",
+  "clientId",
+  "clientName",
+  "clientEmail",
+  "clientPhone",
+  "clientAddress",
+  "validUntil",
+  "title",
+  "sistemas",
+  "products",
+  "sections",
+  "discount",
+  "totalValue",
+  "extraExpense",
+  "customNotes",
+  "notes",
+  "createdAt",
+  "updatedAt",
+  "pdfSettings",
+  "pdf",
+  "attachments",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "firstInstallmentDate",
+] as const;
+
+function sanitizeSharedProposalPayload(
+  proposalId: string,
+  proposalData: ProposalLike | undefined,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = { id: proposalId };
+  const source = proposalData || {};
+  SHARED_PROPOSAL_ALLOWED_FIELDS.forEach((field) => {
+    if (typeof source[field] !== "undefined") {
+      safe[field] = source[field];
+    }
+  });
+
+  // Remover storagePath interno dos attachments — dado de infraestrutura nunca
+  // deve ser exposto em rotas públicas (evita enumeração de paths no Storage).
+  if (Array.isArray(safe.attachments)) {
+    safe.attachments = (safe.attachments as Array<Record<string, unknown>>).map(
+      ({ storagePath: _storagePath, ...publicFields }) => publicFields,
+    );
+  }
+
+  // Remover o campo pdf inteiro (contém storagePath e versionHash internos).
+  // O cliente público não precisa de metadados de cache do PDF.
+  delete safe.pdf;
+
+  return safe;
+}
 
 function extractImageUrls(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -107,17 +197,23 @@ async function enrichSharedProposalProducts(
   const productCatalogMap = new Map<string, Record<string, unknown>>();
   const chunks = chunkArray(productIds, 10);
 
-  for (const idsChunk of chunks) {
-    const catalogSnap = await db
-      .collection("products")
-      .where("tenantId", "==", tenantId)
-      .where(FieldPath.documentId(), "in", idsChunk)
-      .get();
+  // Parallel chunk queries: all chunks are independent reads
+  await Promise.all(
+    chunks.map(async (idsChunk) => {
+      const catalogSnap = await db
+        .collection("products")
+        .where("tenantId", "==", tenantId)
+        .where(FieldPath.documentId(), "in", idsChunk)
+        .get();
 
-    catalogSnap.docs.forEach((docSnap) => {
-      productCatalogMap.set(docSnap.id, docSnap.data() as Record<string, unknown>);
-    });
-  }
+      catalogSnap.docs.forEach((docSnap) => {
+        productCatalogMap.set(
+          docSnap.id,
+          docSnap.data() as Record<string, unknown>,
+        );
+      });
+    }),
+  );
 
   const enrichedProducts = visibleProducts.map((product) => {
     const catalogProduct = product.productId
@@ -129,7 +225,9 @@ async function enrichSharedProposalProducts(
       return {
         ...product,
         _isInactive: isInactive,
-        _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
+        _shouldHide: Boolean(
+          product._shouldHide || product._isGhost || isInactive,
+        ),
       };
     }
 
@@ -145,7 +243,8 @@ async function enrichSharedProposalProducts(
           : product.productImages || [];
     const mergedImage = mergedImages[0] || product.productImage || "";
 
-    const status = (catalogProduct.status as string) || (product.status as string);
+    const status =
+      (catalogProduct.status as string) || (product.status as string);
     const isInactive = status === "inactive";
 
     return {
@@ -155,9 +254,13 @@ async function enrichSharedProposalProducts(
       productDescription:
         (typeof catalogProduct.description === "string"
           ? catalogProduct.description
-          : "") || product.productDescription || "",
+          : "") ||
+        product.productDescription ||
+        "",
       _isInactive: isInactive,
-      _shouldHide: Boolean(product._shouldHide || product._isGhost || isInactive),
+      _shouldHide: Boolean(
+        product._shouldHide || product._isGhost || isInactive,
+      ),
     };
   });
 
@@ -246,52 +349,66 @@ export const getSharedProposal = async (req: Request, res: Response) => {
         .json({ message: "Link não encontrado ou inválido" });
     }
 
-    // Buscar dados da proposta
+    const linkPurpose = String(sharedProposal.purpose || "external_share");
+    const isPdfGeneratorRequest = req.headers["x-pdf-generator"] === "true";
+    if (linkPurpose === "system_pdf_render" && !isPdfGeneratorRequest) {
+      return res
+        .status(404)
+        .json({ message: "Link nao encontrado ou invalido" });
+    }
+
+    // Parallel fetch: proposal and tenant are independent reads
     const proposalRef = db
       .collection("proposals")
       .doc(sharedProposal.proposalId);
-    const proposalSnap = await proposalRef.get();
+    const tenantRef = db.collection("tenants").doc(sharedProposal.tenantId);
+
+    const [proposalSnap, tenantSnap] = await Promise.all([
+      proposalRef.get(),
+      tenantRef.get(),
+    ]);
 
     if (!proposalSnap.exists) {
       return res.status(404).json({ message: "Proposta não encontrada" });
     }
 
     const proposalData = proposalSnap.data() as ProposalLike | undefined;
-    if (String((proposalData as Record<string, unknown> | undefined)?.tenantId || "").trim() !== sharedProposal.tenantId) {
-      return res.status(404).json({ message: "Proposta nÃ£o encontrada" });
+    if (
+      String(
+        (proposalData as Record<string, unknown> | undefined)?.tenantId || "",
+      ).trim() !== sharedProposal.tenantId
+    ) {
+      return res.status(404).json({ message: "Proposta não encontrada" });
     }
     const enrichedProposalData = await enrichSharedProposalProducts(
       proposalData,
       sharedProposal.tenantId,
     );
 
-    // Buscar dados do tenant para branding
-    const tenantRef = db.collection("tenants").doc(sharedProposal.tenantId);
-    const tenantSnap = await tenantRef.get();
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    // Registrar visualização
-    const viewerData = {
-      ip: req.ip || (req.headers["x-forwarded-for"] as string),
-      userAgent: req.headers["user-agent"],
-    };
-
-    // Registrar visualização antes da resposta para evitar perda em ambiente serverless
-    await SharedProposalService.recordView(
-      sharedProposal.id,
-      sharedProposal.tenantId,
-      sharedProposal.proposalId,
-      viewerData,
-      enrichedProposalData?.title,
-    );
+    // Skip view recording for PDF generation requests (automated Puppeteer)
+    if (!isPdfGeneratorRequest) {
+      const viewerData = {
+        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        userAgent: req.headers["user-agent"],
+      };
+      void SharedProposalService.recordView(
+        sharedProposal.id,
+        sharedProposal.tenantId,
+        sharedProposal.proposalId,
+        viewerData,
+        enrichedProposalData?.title,
+      ).catch((err) => console.error("recordView failed (non-critical)", err));
+    }
 
     // Retornar dados da proposta
     return res.status(200).json({
       success: true,
-      proposal: {
-        id: proposalSnap.id,
-        ...enrichedProposalData,
-      },
+      proposal: sanitizeSharedProposalPayload(
+        proposalSnap.id,
+        enrichedProposalData,
+      ),
       tenant: tenantData
         ? {
             id: sharedProposal.tenantId,
@@ -316,3 +433,6 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     return res.status(500).json({ message });
   }
 };
+
+
+

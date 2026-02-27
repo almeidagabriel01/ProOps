@@ -14,6 +14,8 @@ import {
   adjustBalance,
 } from "../controllers/wallets.controller";
 import { createShareLink as createTransactionShareLink } from "../controllers/shared-transactions.controller";
+import { downloadTransactionPdf } from "../controllers/transaction-pdf.controller";
+import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
 const router = Router();
 
@@ -24,6 +26,8 @@ router.post("/transactions/status-batch", updateTransactionsStatusBatch);
 router.put("/transactions/:id", updateTransaction);
 router.put("/transactions/:id/installments", updateTransactionWithInstallments);
 router.delete("/transactions/:id", deleteTransaction);
+// Download autenticado do PDF de recibo (não cria share link público)
+router.get("/transactions/:id/pdf", pdfRateLimiter, downloadTransactionPdf);
 
 // Wallets
 router.post("/wallets", createWallet);

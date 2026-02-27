@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { ProposalService } from "@/services/proposal-service";
@@ -22,8 +22,7 @@ import {
   DEFAULT_PDF_FONT_FAMILY,
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
-import { savePdfBlob } from "@/services/pdf/render-to-pdf";
-import { generateProposalPdf } from "@/services/pdf/generate-proposal-pdf";
+import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -76,9 +75,7 @@ export function useEditPdfPage() {
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#2563eb",
   );
-  const [fontFamily, setFontFamily] = useState<string>(
-    DEFAULT_PDF_FONT_FAMILY,
-  );
+  const [fontFamily, setFontFamily] = useState<string>(DEFAULT_PDF_FONT_FAMILY);
 
   // Editable sections
   const [sections, setSections] = useState<PdfSection[]>([]);
@@ -212,7 +209,8 @@ export function useEditPdfPage() {
               } else {
                 setPrimaryColor(tenant.primaryColor || "#2563eb");
               }
-              if (s.fontFamily) setFontFamily(normalizePdfFontFamily(s.fontFamily));
+              if (s.fontFamily)
+                setFontFamily(normalizePdfFontFamily(s.fontFamily));
               if (s.theme) setTheme(s.theme as ThemeType);
 
               if (s.coverImage) setCoverImage(s.coverImage);
@@ -267,7 +265,8 @@ export function useEditPdfPage() {
               } else {
                 setPrimaryColor(tenant.primaryColor || "#2563eb");
               }
-              if (s.fontFamily) setFontFamily(normalizePdfFontFamily(s.fontFamily));
+              if (s.fontFamily)
+                setFontFamily(normalizePdfFontFamily(s.fontFamily));
               if (s.theme) setTheme(s.theme as ThemeType);
 
               if (s.coverImage) setCoverImage(s.coverImage);
@@ -440,41 +439,11 @@ export function useEditPdfPage() {
   const handleGeneratePdf = async () => {
     setIsGenerating(true);
     try {
-      const result = await generateProposalPdf({
-        proposal: proposal as Proposal,
-        template,
-        tenant,
-        customSettings: {
-          theme: theme as
-            | "modern"
-            | "classic"
-            | "minimal"
-            | "tech"
-            | "elegant"
-            | "bold"
-            | "livre",
-          primaryColor,
-          fontFamily,
-          coverTitle,
-          coverImage,
-          coverLogo,
-          coverImageOpacity,
-          coverImageFit,
-          coverImagePosition,
-          sections,
-          coverElements,
-          repeatHeader,
-          logoStyle,
-        },
-        showCover: true,
-        rootHint: "pdf-edit-offscreen-root",
-        proposalTitle: proposal?.title,
-        tenantId: tenant?.id || proposal?.tenantId,
-        sourceLabel: "edit-preview",
-        canonicalSource: false,
-      });
+      // 1. Save current settings so the backend sees the latest customizations
+      await handleSave({ suppressToast: true, suppressLoading: true });
 
-      savePdfBlob(result.blob, result.filename);
+      // 2. Download via the centralized backend Playwright pipeline
+      await downloadProposalPdfFromBackend(proposal!.id, proposal!.title);
     } catch (error) {
       console.error(error);
       alert("Erro ao gerar PDF");
@@ -612,6 +581,3 @@ export function useEditPdfPage() {
     isSavingDefault,
   };
 }
-
-
-

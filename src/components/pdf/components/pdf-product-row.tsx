@@ -106,7 +106,7 @@ export function PdfProductRow({
                     {product.category}
                   </span>
                 )}
-                {product.manufacturer && (
+                {product.manufacturer && product.itemType !== "service" && (
                   <span className="bg-gray-100 px-2 py-0.5 rounded text-[10px] font-medium text-gray-600 uppercase tracking-wide">
                     {product.manufacturer}
                   </span>

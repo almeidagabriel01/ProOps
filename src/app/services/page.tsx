@@ -193,8 +193,7 @@ export default function ServicesPage() {
   const filteredServices = isFiltering
     ? sortedServices.filter(
         (service) =>
-          normalize(service.name).includes(normalize(searchTerm)) ||
-          normalize(service.sku).includes(normalize(searchTerm)),
+          normalize(service.name).includes(normalize(searchTerm)),
       )
     : [];
 
@@ -372,7 +371,7 @@ export default function ServicesPage() {
         {hasAnyServices !== false && (
           <div className="max-w-md">
             <Input
-              placeholder="Buscar por nome ou SKU..."
+              placeholder="Buscar por nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={

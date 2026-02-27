@@ -245,18 +245,11 @@ export function normalizeTransactionType(
   return rawAmount < 0 ? "expense" : "income";
 }
 
-export function buildProposalPdfStoragePath(
-  tenantId: string,
-  proposalId: string,
-): string {
-  return `proposals/${tenantId}/${proposalId}/proposal.pdf`;
-}
-
 export function parseStoragePathFromUrl(value: string): string | null {
   const raw = String(value || "").trim();
   if (!raw) return null;
 
-  if (raw.startsWith("proposals/")) return raw;
+  if (raw.startsWith("proposals/") || raw.startsWith("tenants/")) return raw;
 
   if (raw.startsWith("gs://")) {
     const noProtocol = raw.slice(5);

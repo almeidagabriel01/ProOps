@@ -15,6 +15,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from "firebase/firestore";
+import { compareDisplayText } from "@/lib/sort-text";
 
 export type ClientSource = "manual" | "proposal" | "financial";
 
@@ -57,6 +58,10 @@ function mapClientDoc(d: QueryDocumentSnapshot<DocumentData>): Client {
   } as Client;
 }
 
+function sortClientsByName(clients: Client[]): Client[] {
+  return [...clients].sort((a, b) => compareDisplayText(a.name, b.name));
+}
+
 export const ClientService = {
   getClients: async (tenantId: string): Promise<Client[]> => {
     try {
@@ -65,7 +70,7 @@ export const ClientService = {
         where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(mapClientDoc);
+      return sortClientsByName(querySnapshot.docs.map(mapClientDoc));
     } catch (error) {
       console.error("Error fetching clients:", error);
       throw error;

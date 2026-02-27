@@ -13,7 +13,7 @@ import { AmbienteService, Ambiente } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
 import { Sistema, ProposalSistema } from "@/types/automation";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
 
 interface UseProposalFormLoadingEffectsContext {
@@ -78,7 +78,11 @@ export function useProposalFormLoadingEffects(
 
   // Pure function to apply master data sync to a list of sistemas
   const applySyncToSistemas = React.useCallback(
-    (sistemas: ProposalSistema[], freshAmbientes: Ambiente[], freshSistemas: Sistema[]): ProposalSistema[] => {
+    (
+      sistemas: ProposalSistema[],
+      freshAmbientes: Ambiente[],
+      freshSistemas: Sistema[],
+    ): ProposalSistema[] => {
       return sistemas.map((s) => {
         const currentAmbientes =
           s.ambientes && s.ambientes.length > 0
@@ -107,9 +111,11 @@ export function useProposalFormLoadingEffects(
             ...env,
             ambienteName: masterAmbiente?.name || env.ambienteName,
             description:
-              (systemEnvConfig || masterAmbiente)
-                ? (systemEnvConfig?.description || masterAmbiente?.description || "")
-                : (env.description || ""),
+              systemEnvConfig || masterAmbiente
+                ? systemEnvConfig?.description ||
+                  masterAmbiente?.description ||
+                  ""
+                : env.description || "",
           };
         });
 
@@ -118,13 +124,16 @@ export function useProposalFormLoadingEffects(
           freshSistemas.find((sys) => sys.name === s.sistemaName);
         const primaryEnv = updatedAmbientes[0];
 
+        // Maintain the user's customized names if they exist; fallback to master data
         return {
           ...s,
-          sistemaName: masterSistema?.name || s.sistemaName,
-          description: masterSistema ? (masterSistema.description || "") : s.description,
+          sistemaName: s.sistemaName || masterSistema?.name || "",
+          description:
+            s.description ||
+            (masterSistema ? masterSistema.description || "" : ""),
           ambientes: updatedAmbientes,
-          ambienteName: primaryEnv?.ambienteName || s.ambienteName,
-          ambienteId: primaryEnv?.ambienteId || s.ambienteId,
+          ambienteName: s.ambienteName || primaryEnv?.ambienteName || "",
+          ambienteId: primaryEnv?.ambienteId || s.ambienteId || "",
         };
       });
     },
@@ -135,15 +144,25 @@ export function useProposalFormLoadingEffects(
   const syncSystemsWithMasterData = React.useCallback(
     (freshAmbientes: Ambiente[], freshSistemas: Sistema[]) => {
       setSelectedSistemas((prevSistemas) => {
-        const updated = applySyncToSistemas(prevSistemas, freshAmbientes, freshSistemas);
+        const updated = applySyncToSistemas(
+          prevSistemas,
+          freshAmbientes,
+          freshSistemas,
+        );
         return updated;
       });
 
       // Also update the initial snapshot so dirty detection doesn't false-fire
       if (initialSistemasRef.current !== null) {
         try {
-          const initialSistemas = JSON.parse(initialSistemasRef.current) as ProposalSistema[];
-          const updatedInitial = applySyncToSistemas(initialSistemas, freshAmbientes, freshSistemas);
+          const initialSistemas = JSON.parse(
+            initialSistemasRef.current,
+          ) as ProposalSistema[];
+          const updatedInitial = applySyncToSistemas(
+            initialSistemas,
+            freshAmbientes,
+            freshSistemas,
+          );
           initialSistemasRef.current = JSON.stringify(updatedInitial);
         } catch {
           // ignore parse errors
@@ -162,12 +181,12 @@ export function useProposalFormLoadingEffects(
           AmbienteService.getAmbientes(tenant.id),
           SistemaService.getSistemas(tenant.id),
         ]);
-        
+
         if (!isMountedRef.current) return;
 
         setLocalAmbientes(ambs);
         setLocalSistemas(siss);
-        
+
         // Apply updates to any systems already loaded (e.g. from fast proposal fetch)
         syncSystemsWithMasterData(ambs, siss);
       } catch (e) {
@@ -182,16 +201,27 @@ export function useProposalFormLoadingEffects(
     const fetchInitialData = async () => {
       if (!tenant) return;
       try {
-        const loadedProducts = await ProductService.getProducts(tenant.id);
-        const loadedServices = await ServiceService.getServices(tenant.id);
+        // Parallel fetch: products, services, and templates are independent reads
+        const [loadedProducts, loadedServices, templates] = await Promise.all([
+          ProductService.getProducts(tenant.id),
+          ServiceService.getServices(tenant.id),
+          ProposalTemplateService.getTemplates(tenant.id),
+        ]);
+
         const mergedCatalog = [
-          ...loadedProducts.map((item) => ({ ...item, itemType: "product" as const })),
-          ...loadedServices.map((item) => ({ ...item, itemType: "service" as const })),
+          ...loadedProducts.map((item) => ({
+            ...item,
+            itemType: "product" as const,
+          })),
+          ...loadedServices.map((item) => ({
+            ...item,
+            itemType: "service" as const,
+          })),
         ];
         setProducts(mergedCatalog);
 
-        const templates = await ProposalTemplateService.getTemplates(tenant.id);
-        const defaultTemplate = templates.find((t) => t.isDefault) || templates[0];
+        const defaultTemplate =
+          templates.find((t) => t.isDefault) || templates[0];
         setTemplate(defaultTemplate || null);
       } catch (error) {
         console.error("Error loading products", error);
@@ -226,14 +256,13 @@ export function useProposalFormLoadingEffects(
       if (!isMountedRef.current) return;
 
       if (freshAmbientes.length === 0 && freshSistemas.length === 0) {
-          return;
+        return;
       }
 
       setLocalAmbientes(freshAmbientes);
       setLocalSistemas(freshSistemas);
-      
-      syncSystemsWithMasterData(freshAmbientes, freshSistemas);
 
+      syncSystemsWithMasterData(freshAmbientes, freshSistemas);
     } catch (err) {
       console.error("Silent refresh failed", err);
     } finally {
@@ -267,35 +296,66 @@ export function useProposalFormLoadingEffects(
         }
 
         const syncedProducts = (proposal.products || []).map((pp) => {
-          const targetType = pp.itemType || "product";
-          const freshProduct = products.find(
-            (p) => p.id === pp.productId && (p.itemType || "product") === targetType,
-          );
+          let targetType = pp.itemType || "product";
+          const freshProduct = products.find((p) => p.id === pp.productId);
+
           if (!freshProduct) return pp;
 
-          const price = parseFloat(freshProduct.price) || pp.unitPrice;
+          // If legacy data had the wrong type, update "targetType" to the real one
+          targetType = freshProduct.itemType || "product";
+
           const isService = (freshProduct.itemType || targetType) === "service";
+
+          // To allow custom prices on proposals, prioritize the proposal's saved unitPrice.
+          // Only use the fresh master product price if the proposal unitPrice is undefined.
+          const price =
+            pp.unitPrice !== undefined
+              ? pp.unitPrice
+              : parseFloat(freshProduct.price) || 0;
+
+          const resolvedProposalMarkup = (() => {
+            if (isService) return 0;
+            if (pp.markup !== undefined) return pp.markup;
+            const qty = Number(pp.quantity || 0);
+            const unit = Number(price || 0);
+            const total = Number(pp.total || 0);
+            if (qty > 0 && unit > 0) {
+              const sellingPerUnit = total / qty;
+              return Math.max(0, ((sellingPerUnit / unit) - 1) * 100);
+            }
+            return 0;
+          })();
+
           const markup = isService
             ? 0
-            : pp.markup !== undefined
-              ? pp.markup
-              : parseFloat(freshProduct.markup || "0");
+            : resolvedProposalMarkup;
           const sellingPrice = price * (1 + markup / 100);
 
           return {
             ...pp,
-            itemType: (freshProduct.itemType || targetType) as "product" | "service",
+            itemType: (freshProduct.itemType || targetType) as
+              | "product"
+              | "service",
             productName: freshProduct.name,
             productImage:
-              freshProduct.images?.[0] || freshProduct.image || pp.productImage || "",
+              freshProduct.images?.[0] ||
+              freshProduct.image ||
+              pp.productImage ||
+              "",
             productImages: freshProduct.images || pp.productImages || [],
             productDescription:
               freshProduct.description || pp.productDescription || "",
             unitPrice: price,
             markup,
             total: pp.quantity * sellingPrice,
-            manufacturer: freshProduct.manufacturer || pp.manufacturer,
-            category: freshProduct.category || pp.category,
+            manufacturer:
+              ((freshProduct as Record<string, unknown>).manufacturer as
+                | string
+                | undefined) || pp.manufacturer,
+            category:
+              ((freshProduct as Record<string, unknown>).category as
+                | string
+                | undefined) || pp.category,
           };
         });
 
@@ -310,10 +370,7 @@ export function useProposalFormLoadingEffects(
           discount: proposal.discount || 0,
           extraExpense: proposal.extraExpense || 0,
           products: syncedProducts,
-          status:
-            (proposal.status === "draft"
-              ? "in_progress"
-              : (proposal.status as ProposalStatus)) || "in_progress",
+          status: (proposal.status as ProposalStatus) || "in_progress",
           downPaymentEnabled: proposal.downPaymentEnabled || false,
           downPaymentType: proposal.downPaymentType || "value",
           downPaymentPercentage: proposal.downPaymentPercentage,
@@ -332,12 +389,16 @@ export function useProposalFormLoadingEffects(
 
         if (proposal.sistemas && proposal.sistemas.length > 0) {
           // Use available merged data immediately if present (Optimistic Load)
-          const availableAmbientes = mergedAmbientes.length > 0 ? mergedAmbientes : [];
-          const availableSistemas = mergedSistemas.length > 0 ? mergedSistemas : [];
+          const availableAmbientes =
+            mergedAmbientes.length > 0 ? mergedAmbientes : [];
+          const availableSistemas =
+            mergedSistemas.length > 0 ? mergedSistemas : [];
 
           const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => {
-            const primaryAmbienteId = s.ambientes?.[0]?.ambienteId || s.ambienteId;
-            const primaryAmbienteName = s.ambientes?.[0]?.ambienteName || s.ambienteName;
+            const primaryAmbienteId =
+              s.ambientes?.[0]?.ambienteId || s.ambienteId;
+            const primaryAmbienteName =
+              s.ambientes?.[0]?.ambienteName || s.ambienteName;
 
             const masterAmbiente =
               availableAmbientes.find((a) => a.id === primaryAmbienteId) ||
@@ -347,7 +408,8 @@ export function useProposalFormLoadingEffects(
               availableSistemas.find((sys) => sys.id === s.sistemaId) ||
               availableSistemas.find((sys) => sys.name === s.sistemaName);
 
-            const productIds = s.ambientes?.[0]?.productIds || s.productIds || [];
+            const productIds =
+              s.ambientes?.[0]?.productIds || s.productIds || [];
             const systemEnvConfig = masterSistema?.ambientes?.find(
               (a) => a.ambienteId === (masterAmbiente?.id || primaryAmbienteId),
             );
@@ -362,14 +424,21 @@ export function useProposalFormLoadingEffects(
 
             return {
               sistemaId: masterSistema?.id || (s.sistemaId as string) || "",
-              sistemaName: masterSistema?.name || (s.sistemaName as string) || "",
-              description: masterSistema ? (masterSistema.description || "") : ((s.description as string) || ""),
+              sistemaName:
+                masterSistema?.name || (s.sistemaName as string) || "",
+              description: masterSistema
+                ? masterSistema.description || ""
+                : (s.description as string) || "",
               ambientes:
                 s.ambientes && s.ambientes.length > 0
                   ? s.ambientes.map((env: ProposalAmbienteInstance) => {
                       const envMasterAmbiente =
-                        availableAmbientes.find((a) => a.id === env.ambienteId) ||
-                        availableAmbientes.find((a) => a.name === env.ambienteName);
+                        availableAmbientes.find(
+                          (a) => a.id === env.ambienteId,
+                        ) ||
+                        availableAmbientes.find(
+                          (a) => a.name === env.ambienteName,
+                        );
 
                       const envProductIds: string[] = env.productIds || [];
                       const envProducts = syncedProducts
@@ -387,33 +456,37 @@ export function useProposalFormLoadingEffects(
                         ambienteId:
                           envMasterAmbiente?.id ||
                           env.ambienteId ||
-                          (env.ambienteId === (masterAmbiente?.id || primaryAmbienteId)
+                          (env.ambienteId ===
+                          (masterAmbiente?.id || primaryAmbienteId)
                             ? masterAmbiente?.id || primaryAmbienteId
                             : "") ||
                           "",
                         ambienteName:
                           envMasterAmbiente?.name ||
                           env.ambienteName ||
-                          (env.ambienteName === (masterAmbiente?.name || primaryAmbienteName)
+                          (env.ambienteName ===
+                          (masterAmbiente?.name || primaryAmbienteName)
                             ? masterAmbiente?.name || primaryAmbienteName
                             : "") ||
                           "",
-                        description:
-                          envMasterAmbiente
-                            ? (envMasterAmbiente.description || "")
-                            : (env.description || ""),
+                        description: envMasterAmbiente
+                          ? envMasterAmbiente.description || ""
+                          : env.description || "",
                         products: envProducts,
                       };
                     })
                   : [
                       {
-                        ambienteId: masterAmbiente?.id || primaryAmbienteId || "",
+                        ambienteId:
+                          masterAmbiente?.id || primaryAmbienteId || "",
                         ambienteName:
                           masterAmbiente?.name || primaryAmbienteName || "",
                         description:
-                          (systemEnvConfig || masterAmbiente)
-                            ? (systemEnvConfig?.description || masterAmbiente?.description || "")
-                            : (s.ambientes?.[0]?.description || ""),
+                          systemEnvConfig || masterAmbiente
+                            ? systemEnvConfig?.description ||
+                              masterAmbiente?.description ||
+                              ""
+                            : s.ambientes?.[0]?.description || "",
                         products: sistemaProducts,
                       },
                     ],
@@ -432,7 +505,7 @@ export function useProposalFormLoadingEffects(
           setSystemProductIds(sysProductIds);
           initialSistemasRef.current = JSON.stringify(sistemas);
         } else {
-             // systems empty
+          // systems empty
         }
 
         initialFormDataRef.current = buildFullFormSnapshot(loadedFormData);
@@ -443,7 +516,6 @@ export function useProposalFormLoadingEffects(
         // Fire and forget: trigger refresh to update descriptions if they were stale
         // This ensures that if we loaded with stale or empty merged data, it gets updated shortly
         refreshMasterData();
-
       } catch (error) {
         console.error("Error loading proposal", error);
         toast.error("Erro ao carregar proposta");
@@ -475,8 +547,6 @@ export function useProposalFormLoadingEffects(
     refreshMasterData,
   ]);
 
-
-
   React.useEffect(() => {
     const onFocus = () => {
       if (document.visibilityState === "visible") {
@@ -492,4 +562,3 @@ export function useProposalFormLoadingEffects(
     };
   }, [refreshMasterData]);
 }
-

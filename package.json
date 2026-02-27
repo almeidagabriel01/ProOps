@@ -14,7 +14,9 @@
     "security:claims:backfill": "node scripts/backfill-custom-claims.mjs",
     "security:claims:validate": "node scripts/validate-custom-claims.mjs",
     "firestore:ttl:stripe-events": "node scripts/enable-firestore-ttl-stripe-events.mjs",
-    "security:audit:functions": "npm --prefix functions run security:audit:runtime"
+    "security:audit:runtime": "npm audit --omit=dev --audit-level=high",
+    "security:audit:functions": "npm --prefix functions run security:audit:runtime",
+    "security:scan": "npm run security:audit:runtime && npm run security:audit:functions"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -27,8 +29,6 @@
     "clsx": "^2.1.1",
     "firebase": "^12.6.0",
     "firebase-admin": "^12.7.0",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^4.2.0",
     "lenis": "^1.3.16",
     "lucide-react": "^0.556.0",
     "motion": "^12.34.0",

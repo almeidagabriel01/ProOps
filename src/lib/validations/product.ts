@@ -29,7 +29,6 @@ export const productSchema = z.object({
     }, "Markup deve ser um percentual entre 0 e 1000"),
   manufacturer: z.string().min(1, "Fabricante é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  sku: z.string().optional().or(z.literal("")),
   stock: z
     .string()
     .optional()
@@ -41,7 +40,25 @@ export const productSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
 });
 
+export const serviceSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Nome é obrigatório")
+    .min(2, "Nome deve ter pelo menos 2 caracteres"),
+  description: z.string().optional().or(z.literal("")),
+  price: z
+    .string()
+    .min(1, "Preço é obrigatório")
+    .refine((val) => {
+      const num = parseFloat(val);
+      return !isNaN(num) && num > 0;
+    }, "Preço deve ser maior que 0"),
+  category: z.string().min(1, "Categoria é obrigatória"),
+  status: z.enum(["active", "inactive"]).default("active"),
+});
+
 export type ProductFormData = z.infer<typeof productSchema>;
+export type ServiceFormData = z.infer<typeof serviceSchema>;
 
 // Partial schema for real-time field validation
 export const productFieldSchemas = {
@@ -51,7 +68,6 @@ export const productFieldSchemas = {
   markup: productSchema.shape.markup,
   manufacturer: productSchema.shape.manufacturer,
   category: productSchema.shape.category,
-  sku: productSchema.shape.sku,
   stock: productSchema.shape.stock,
   status: productSchema.shape.status,
 };

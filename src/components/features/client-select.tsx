@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Client, ClientService } from "@/services/client-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { compareDisplayText, normalizeSortText } from "@/lib/sort-text";
 
 interface ClientSelectProps {
   value: string; // client name
@@ -123,9 +124,12 @@ export function ClientSelect({
   };
 
   const filteredClients = React.useMemo(() => {
-    if (!inputValue.trim()) return clients;
+    const sortedClients = [...clients].sort((a, b) =>
+      compareDisplayText(a.name, b.name),
+    );
+    if (!inputValue.trim()) return sortedClients;
     const term = inputValue.toLowerCase();
-    return clients.filter(
+    return sortedClients.filter(
       (client) =>
         client.name.toLowerCase().includes(term) ||
         client.email?.toLowerCase().includes(term),
@@ -133,7 +137,7 @@ export function ClientSelect({
   }, [clients, inputValue]);
 
   const exactMatch = clients.find(
-    (c) => c.name.toLowerCase() === inputValue.trim().toLowerCase(),
+    (c) => normalizeSortText(c.name) === normalizeSortText(inputValue),
   );
 
   const showCreateOption = inputValue.trim() && !exactMatch;

@@ -10,6 +10,7 @@ import {
   orderBy,
   limit,
   startAfter,
+  documentId,
   QueryDocumentSnapshot,
   DocumentData,
 } from "firebase/firestore";
@@ -24,7 +25,6 @@ export type Product = {
   markup?: string; // Profit percentage over base price
   manufacturer: string;
   category: string;
-  sku: string;
   stock: number;
   images: string[]; // Changed from single image to array
   image?: string | null; // Kept for backward compatibility (optional)
@@ -36,6 +36,75 @@ export type Product = {
 };
 
 const COLLECTION_NAME = "products";
+const FIRESTORE_IN_LIMIT = 30;
+const PRODUCT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+type TenantProductCache = {
+  expiresAt: number;
+  byId: Map<string, Product>;
+  allLoaded: boolean;
+};
+
+const tenantProductCache = new Map<string, TenantProductCache>();
+const allProductsInFlight = new Map<string, Promise<Product[]>>();
+const productsByIdsInFlight = new Map<string, Promise<Product[]>>();
+
+function getOrCreateTenantCache(tenantId: string): TenantProductCache {
+  const now = Date.now();
+  const existing = tenantProductCache.get(tenantId);
+  if (existing && existing.expiresAt > now) {
+    return existing;
+  }
+
+  const refreshed: TenantProductCache = {
+    expiresAt: now + PRODUCT_CACHE_TTL_MS,
+    byId: new Map<string, Product>(),
+    allLoaded: false,
+  };
+  tenantProductCache.set(tenantId, refreshed);
+  return refreshed;
+}
+
+function touchTenantCache(cache: TenantProductCache): void {
+  cache.expiresAt = Date.now() + PRODUCT_CACHE_TTL_MS;
+}
+
+function cacheProducts(tenantId: string, products: Product[]): TenantProductCache {
+  const cache = getOrCreateTenantCache(tenantId);
+  products.forEach((product) => {
+    cache.byId.set(product.id, product);
+  });
+  touchTenantCache(cache);
+  return cache;
+}
+
+function mapProductSnapshot(
+  docSnap: QueryDocumentSnapshot<DocumentData>,
+): Product {
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    itemType: "product",
+    stock:
+      typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+    createdAt: data.createdAt?.toDate
+      ? data.createdAt.toDate().toISOString()
+      : data.createdAt,
+    updatedAt: data.updatedAt?.toDate
+      ? data.updatedAt.toDate().toISOString()
+      : data.updatedAt,
+  } as Product;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  if (items.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
 
 function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
   const data = d.data();
@@ -101,17 +170,112 @@ function compareProductsByField(
 export const ProductService = {
   // Get all products for a specific tenant
   getProducts: async (tenantId: string): Promise<Product[]> => {
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-      );
+    const cache = getOrCreateTenantCache(tenantId);
+    if (cache.allLoaded) {
+      touchTenantCache(cache);
+      return Array.from(cache.byId.values());
+    }
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(mapProductDoc);
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      throw error;
+    const inflight = allProductsInFlight.get(tenantId);
+    if (inflight) {
+      return inflight;
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+        );
+
+        const querySnapshot = await getDocs(q);
+        const products = querySnapshot.docs.map(mapProductDoc);
+        const updatedCache = cacheProducts(tenantId, products);
+        updatedCache.allLoaded = true;
+        return products;
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        throw error;
+      }
+    })();
+
+    allProductsInFlight.set(tenantId, requestPromise);
+    try {
+      return await requestPromise;
+    } finally {
+      allProductsInFlight.delete(tenantId);
+    }
+  },
+
+  getProductsByIds: async (
+    tenantId: string,
+    productIds: string[],
+  ): Promise<Product[]> => {
+    const uniqueIds = Array.from(
+      new Set(
+        productIds
+          .filter((id): id is string => typeof id === "string")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    if (!tenantId || uniqueIds.length === 0) {
+      return [];
+    }
+
+    const cache = getOrCreateTenantCache(tenantId);
+    const missingIds = uniqueIds.filter((id) => !cache.byId.has(id));
+    if (missingIds.length === 0) {
+      touchTenantCache(cache);
+      return uniqueIds
+        .map((id) => cache.byId.get(id))
+        .filter((product): product is Product => Boolean(product));
+    }
+
+    const requestKey = `${tenantId}:${missingIds.slice().sort().join(",")}`;
+    const inflight = productsByIdsInFlight.get(requestKey);
+    if (inflight) {
+      const pendingProducts = await inflight;
+      const refreshedCache = cacheProducts(tenantId, pendingProducts);
+      return uniqueIds
+        .map((id) => refreshedCache.byId.get(id))
+        .filter((product): product is Product => Boolean(product));
+    }
+
+    const requestPromise = (async () => {
+      try {
+        const idChunks = chunkArray(missingIds, FIRESTORE_IN_LIMIT);
+        const snapshots = await Promise.all(
+          idChunks.map((idsChunk) =>
+            getDocs(
+              query(
+                collection(db, COLLECTION_NAME),
+                where("tenantId", "==", tenantId),
+                where(documentId(), "in", idsChunk),
+              ),
+            ),
+          ),
+        );
+
+        return snapshots.flatMap((snapshot) =>
+          snapshot.docs.map((docSnap) => mapProductSnapshot(docSnap)),
+        );
+      } catch (error) {
+        console.error("Error fetching products by ids:", error);
+        throw error;
+      }
+    })();
+
+    productsByIdsInFlight.set(requestKey, requestPromise);
+    try {
+      const fetchedProducts = await requestPromise;
+      const updatedCache = cacheProducts(tenantId, fetchedProducts);
+      return uniqueIds
+        .map((id) => updatedCache.byId.get(id))
+        .filter((product): product is Product => Boolean(product));
+    } finally {
+      productsByIdsInFlight.delete(requestKey);
     }
   },
 

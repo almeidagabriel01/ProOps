@@ -37,6 +37,7 @@ runSecretRotationGuard({ source: "api" });
 
 const DEFAULT_PUBLIC_WINDOW_MS = 60_000;
 const DEFAULT_PROTECTED_TIMEOUT_MS = 20_000;
+const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
 const rateLimitStore = createRateLimitStore();
 
 function getClientIp(req: express.Request): string {
@@ -64,6 +65,24 @@ function buildRateLimitIdentity(req: express.Request): string {
   const uid = String(req.user?.uid || "anonymous");
   const tenantId = String(req.user?.tenantId || "no-tenant");
   return `${getClientIp(req)}:${uid}:${tenantId}`;
+}
+
+function resolveProtectedRouteTimeoutMs(req: express.Request): number {
+  const originalPath = String(req.originalUrl || req.url || req.path || "")
+    .split("?")[0]
+    .trim();
+  const isProposalPdfRoute = /(?:^|\/)proposals\/[^/]+\/pdf$/.test(originalPath);
+
+  if (isProposalPdfRoute) {
+    return Number(
+      process.env.PROTECTED_PDF_ROUTE_TIMEOUT_MS ||
+        DEFAULT_PROTECTED_PDF_TIMEOUT_MS,
+    );
+  }
+
+  return Number(
+    process.env.PROTECTED_ROUTE_TIMEOUT_MS || DEFAULT_PROTECTED_TIMEOUT_MS,
+  );
 }
 
 function createRateLimiter(options: {
@@ -203,6 +222,8 @@ const corsMiddleware = cors({
   allowedHeaders: [
     "Authorization",
     "Content-Type",
+    "x-pdf-generator",
+    "x-vercel-protection-bypass",
     "x-cron-secret",
     "x-hub-signature-256",
     "stripe-signature",
@@ -326,9 +347,7 @@ app.use(validateFirebaseIdToken);
 app.use(protectedLimiter);
 
 app.use((req, res, next) => {
-  const timeoutMs = Number(
-    process.env.PROTECTED_ROUTE_TIMEOUT_MS || DEFAULT_PROTECTED_TIMEOUT_MS,
-  );
+  const timeoutMs = resolveProtectedRouteTimeoutMs(req);
   const timeoutHandle = setTimeout(() => {
     if (!res.headersSent) {
       const context = buildSecurityLogContext(req, {

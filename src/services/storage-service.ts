@@ -8,6 +8,7 @@ import {
 } from "firebase/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
 
 export const ALLOWED_TYPES = [
   "image/jpeg",
@@ -16,6 +17,11 @@ export const ALLOWED_TYPES = [
   "image/webp",
   "image/avif",
 ];
+
+const ALLOWED_ATTACHMENT_TYPES = [
+  ...ALLOWED_TYPES,
+  "application/pdf",
+] as const;
 
 export interface UploadResult {
   url: string;
@@ -36,11 +42,35 @@ function validateFile(file: File): void {
   }
 }
 
+function validateAttachmentFile(file: File): void {
+  if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
+    throw new Error(
+      `Arquivo muito grande. O tamanho maximo e ${MAX_ATTACHMENT_FILE_SIZE / (1024 * 1024)}MB.`,
+    );
+  }
+
+  if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
+    throw new Error("Tipo de arquivo nao suportado. Use imagens ou PDF.");
+  }
+}
+
 function generateFileName(originalName: string): string {
   const timestamp = Date.now();
   const randomSuffix = Math.random().toString(36).substring(2, 8);
   const extension = originalName.split(".").pop() || "jpg";
   return `${timestamp}-${randomSuffix}.${extension}`;
+}
+
+function getAttachmentFileName(file: File): string {
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const originalExtension = file.name.split(".").pop()?.toLowerCase();
+  const mimeExtension = file.type.split("/").pop()?.toLowerCase();
+  const extension = (originalExtension || mimeExtension || "bin").replace(
+    /[^a-z0-9]/g,
+    "",
+  );
+  return `${timestamp}-${randomSuffix}.${extension || "bin"}`;
 }
 
 export async function uploadImage(
@@ -115,6 +145,7 @@ export async function deleteImage(urlOrPath: string): Promise<void> {
 
     if (
       urlOrPath.includes("firebasestorage.googleapis.com") ||
+      urlOrPath.includes("firebasestorage.app") ||
       urlOrPath.includes("storage.googleapis.com")
     ) {
       const decodedUrl = decodeURIComponent(urlOrPath);
@@ -133,6 +164,34 @@ export async function deleteImage(urlOrPath: string): Promise<void> {
     }
     throw error;
   }
+}
+
+export async function deleteStorageObject(pathOrUrl: string): Promise<void> {
+  await deleteImage(pathOrUrl);
+}
+
+export async function uploadProposalAttachment(
+  file: File,
+  tenantId: string,
+  proposalId: string,
+): Promise<UploadResult> {
+  validateAttachmentFile(file);
+
+  const fileName = getAttachmentFileName(file);
+  const path = `tenants/${tenantId}/proposals/${proposalId}/attachments/${fileName}`;
+  const storageRef = ref(storage, path);
+
+  await uploadBytes(storageRef, file, {
+    contentType: file.type,
+    customMetadata: {
+      originalName: file.name,
+      uploadedAt: new Date().toISOString(),
+      attachmentType: file.type === "application/pdf" ? "pdf" : "image",
+    },
+  });
+
+  const url = await getDownloadURL(storageRef);
+  return { url, path };
 }
 
 export function isStorageUrl(value: string): boolean {

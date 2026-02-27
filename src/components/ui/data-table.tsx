@@ -72,6 +72,11 @@ export interface DataTableProps<T> {
    * When provided, replaces the default Loader2 spinner.
    */
   loadingSkeleton?: React.ReactNode;
+  /**
+   * Callback fired once when async mode finishes the first load
+   * (success or failure), useful to gate parent-level rendering.
+   */
+  onInitialLoadComplete?: () => void;
 }
 
 // ── Internal sub-component for ASYNC mode ────────────────────────────
@@ -88,6 +93,7 @@ function AsyncDataTable<T>({
   onItemsChange,
   minWidth,
   loadingSkeleton,
+  onInitialLoadComplete,
 }: DataTableProps<T> & {
   fetchPage: NonNullable<DataTableProps<T>["fetchPage"]>;
 }) {
@@ -97,6 +103,7 @@ function AsyncDataTable<T>({
       batchSize,
       enabled: fetchEnabled,
     });
+  const initialLoadNotifiedRef = React.useRef(false);
 
   // Expose reset function
   React.useEffect(() => {
@@ -111,6 +118,13 @@ function AsyncDataTable<T>({
       onItemsChange(items);
     }
   }, [items, onItemsChange]);
+
+  React.useEffect(() => {
+    if (!isLoading && !initialLoadNotifiedRef.current) {
+      initialLoadNotifiedRef.current = true;
+      onInitialLoadComplete?.();
+    }
+  }, [isLoading, onInitialLoadComplete]);
 
   const colCount = columns.length;
   const style = gridClassName

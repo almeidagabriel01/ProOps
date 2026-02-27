@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compareDisplayText } from "@/lib/sort-text";
 
 export interface SearchableSelectOption {
   value: string;
@@ -52,9 +53,13 @@ export const SearchableSelect = React.forwardRef<
     const resolvedRef = (ref ||
       innerRef) as React.RefObject<HTMLSelectElement | null>;
 
+    const sortedOptions = React.useMemo(() => {
+      return [...options].sort((a, b) => compareDisplayText(a.label, b.label));
+    }, [options]);
+
     const selectedOption = React.useMemo(
-      () => options.find((opt) => String(opt.value) === String(value)),
-      [options, value],
+      () => sortedOptions.find((opt) => String(opt.value) === String(value)),
+      [sortedOptions, value],
     );
 
     React.useEffect(() => {
@@ -80,16 +85,16 @@ export const SearchableSelect = React.forwardRef<
 
     const filteredOptions = React.useMemo(() => {
       const term = searchTerm.trim().toLowerCase();
-      if (!term) return options;
+      if (!term) return sortedOptions;
 
-      return options.filter((option) => {
+      return sortedOptions.filter((option) => {
         const labelMatch = option.label.toLowerCase().includes(term);
         const descriptionMatch = option.description
           ?.toLowerCase()
           .includes(term);
         return labelMatch || descriptionMatch;
       });
-    }, [options, searchTerm]);
+    }, [sortedOptions, searchTerm]);
 
     const emitChange = (newValue: string) => {
       if (resolvedRef.current) {
@@ -123,7 +128,7 @@ export const SearchableSelect = React.forwardRef<
     const handleSelectOption = (newValue: string) => {
       emitChange(newValue);
       setIsOpen(false);
-      const selected = options.find((opt) => opt.value === newValue);
+      const selected = sortedOptions.find((opt) => opt.value === newValue);
       setSearchTerm(selected?.label || "");
     };
 
@@ -145,7 +150,7 @@ export const SearchableSelect = React.forwardRef<
           {...props}
         >
           <option value="">{placeholder}</option>
-          {options.map((option) => (
+          {sortedOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -203,7 +208,7 @@ export const SearchableSelect = React.forwardRef<
 
         {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
-            {options.length === 0 ? (
+            {sortedOptions.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </div>

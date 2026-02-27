@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
-import { toast } from '@/lib/toast';
-import { savePdfBlob, renderToPdf } from "@/services/pdf/render-to-pdf";
-import { buildProposalPdfFilename } from "@/services/pdf/render-to-pdf.helpers";
+import { toast } from "@/lib/toast";
+import { downloadTransactionPdfFromBackend } from "@/services/pdf/download-transaction-pdf";
 
 interface UseTransactionPdfGeneratorProps {
   transaction: Transaction;
@@ -13,45 +12,35 @@ interface UseTransactionPdfGeneratorProps {
   tenant?: Tenant | null;
 }
 
+/**
+ * Hook centralizado para download de PDF de recibo de lançamento financeiro.
+ *
+ * SEGURANÇA: usa endpoint autenticado (Bearer token) GET /v1/transactions/:id/pdf.
+ * Não cria mais share links públicos de 30 dias só para o download privado,
+ * evitando a mistura de "download privado" com "compartilhamento público".
+ */
 export function useTransactionPdfGenerator({
   transaction,
-  tenant,
+  tenant: _tenant,
 }: UseTransactionPdfGeneratorProps) {
+  void _tenant;
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async (
-    rootElementId?: string,
-    sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
+    _rootElementId?: string,
+    _sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
   ) => {
+    void _rootElementId;
+    void _sourceLabel;
+
     setIsGenerating(true);
     try {
-      const hasTransactionPayload = Boolean(transaction && transaction.id);
-
-      if (!hasTransactionPayload) {
-        toast.error("Erro ao localizar dados do lançamento para gerar o PDF.");
+      if (!transaction?.id) {
+        toast.error("Erro ao localizar dados do lancamento para gerar o PDF.");
         return;
       }
 
-      const targetId = rootElementId || "shared-transaction-preview-content";
-      const rootElement = document.getElementById(targetId);
-
-      if (!rootElement) {
-        toast.error("Erro ao renderizar o PDF (Elemento não encontrado).");
-        return;
-      }
-
-      const result = await renderToPdf({
-        rootElement,
-        rootHint: targetId,
-        proposalTitle: `Recibo-${transaction.description}`,
-        tenantId: tenant?.id || transaction.tenantId,
-        sourceLabel,
-      });
-
-      const safeDesc = transaction.description.replace(/[^a-z0-9]/gi, "_").substring(0, 30);
-      const filename = buildProposalPdfFilename(`Recibo-${safeDesc}`);
-
-      savePdfBlob(result.blob, filename);
+      await downloadTransactionPdfFromBackend(transaction.id, transaction.description);
       toast.success("PDF baixado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -63,3 +52,4 @@ export function useTransactionPdfGenerator({
 
   return { isGenerating, handleGenerate };
 }
+

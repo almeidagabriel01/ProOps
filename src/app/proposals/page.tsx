@@ -107,16 +107,16 @@ function PdfDownloader({
     proposal: proposal || {},
     tenant,
     showCover: true,
+    canonicalSource: false,
     setIsOpen: (v) => !v && onClose(),
   });
 
   React.useEffect(() => {
     if (isOpen && proposal && !isGenerating) {
-      // Small timeout to ensure rendering is complete
-      const timer = setTimeout(() => {
-        handleGenerate(undefined, "download");
-      }, 500);
-      return () => clearTimeout(timer);
+      const rafId = window.requestAnimationFrame(() => {
+        void handleGenerate(undefined, "download");
+      });
+      return () => window.cancelAnimationFrame(rafId);
     }
   }, [isOpen, proposal, isGenerating, handleGenerate]);
 
@@ -149,6 +149,8 @@ export default function ProposalsPage() {
   const [hasAnyProposals, setHasAnyProposals] = React.useState<boolean | null>(
     null,
   );
+  const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
+    React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
   const attachmentsCacheRef = React.useRef<Map<string, ProposalAttachment[]>>(
     new Map(),
@@ -246,23 +248,54 @@ export default function ProposalsPage() {
 
   // Show full page skeleton until initial async data is ready (or empty state determined)
   const showFullPageSkeleton =
-    !isFiltering && !asyncDataReady && hasAnyProposals !== false;
+    !isFiltering &&
+    (!asyncDataReady || isAwaitingPendingSave) &&
+    hasAnyProposals !== false;
 
   // Check if there are any proposals (for empty state)
   React.useEffect(() => {
+    let cancelled = false;
     const check = async () => {
       if (!tenant) return;
       try {
+        await ProposalService.waitForSave();
+        if (cancelled) return;
         const result = await ProposalService.getProposalsPaginated(
           tenant.id,
           1,
         );
-        setHasAnyProposals(result.data.length > 0);
+        if (!cancelled) {
+          setHasAnyProposals(result.data.length > 0);
+        }
       } catch {
-        setHasAnyProposals(false);
+        if (!cancelled) {
+          setHasAnyProposals(false);
+        }
       }
     };
     check();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const waitPendingSave = async () => {
+      if (!tenant) return;
+      setIsAwaitingPendingSave(true);
+      try {
+        await ProposalService.waitForSave();
+      } finally {
+        if (!cancelled) {
+          setIsAwaitingPendingSave(false);
+        }
+      }
+    };
+    waitPendingSave();
+    return () => {
+      cancelled = true;
+    };
   }, [tenant]);
 
   // fetchPage callback for async pagination
@@ -270,6 +303,7 @@ export default function ProposalsPage() {
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
       if (!tenant)
         return { data: [] as Proposal[], lastDoc: null, hasMore: false };
+      await ProposalService.waitForSave();
       return ProposalService.getProposalsPaginated(
         tenant.id,
         12,
@@ -986,15 +1020,15 @@ export default function ProposalsPage() {
             keyExtractor={(proposal) => proposal.id}
             gridClassName="grid-cols-7"
             fetchPage={fetchPage}
-            fetchEnabled={!!tenant}
+            fetchEnabled={!!tenant && !isAwaitingPendingSave}
             onResetRef={resetRef}
             batchSize={12}
             minWidth="900px"
             onSort={requestSort}
             sortConfig={sortConfig}
+            onInitialLoadComplete={() => setAsyncDataReady(true)}
             onItemsChange={(items) => {
               setProposals(items);
-              if (items.length > 0) setAsyncDataReady(true);
             }}
           />
         )}

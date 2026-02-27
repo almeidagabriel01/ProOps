@@ -149,6 +149,60 @@ export function SistemaSelector({
     }
   }, [selectedSistemaId, sistemas, ambientes, selectedSistemas]);
 
+  const currentValueSistemaId = value?.sistemaId;
+
+  const availableSistemas = React.useMemo(() => {
+    if (!selectedSistemas || selectedSistemas.length === 0) {
+      return sistemas;
+    }
+
+    return sistemas.filter((sistema) => {
+      if (currentValueSistemaId && sistema.id === currentValueSistemaId) {
+        return true;
+      }
+
+      const allowedAmbienteIds =
+        sistema.availableAmbienteIds && sistema.availableAmbienteIds.length > 0
+          ? sistema.availableAmbienteIds
+          : sistema.ambienteIds && sistema.ambienteIds.length > 0
+            ? sistema.ambienteIds
+            : ambientes.map((a) => a.id);
+
+      const selectedForSystem = selectedSistemas.find(
+        (s) => s.sistemaId === sistema.id,
+      );
+
+      if (!selectedForSystem) {
+        return true;
+      }
+
+      const selectedAmbienteIds = new Set(
+        (selectedForSystem.ambientes && selectedForSystem.ambientes.length > 0
+          ? selectedForSystem.ambientes.map((a) => a.ambienteId)
+          : selectedForSystem.ambienteId
+            ? [selectedForSystem.ambienteId]
+            : []
+        ).filter(Boolean),
+      );
+
+      const hasRemainingAmbiente = allowedAmbienteIds.some(
+        (ambienteId) => !selectedAmbienteIds.has(ambienteId),
+      );
+
+      return hasRemainingAmbiente;
+    });
+  }, [sistemas, ambientes, selectedSistemas, currentValueSistemaId]);
+
+  React.useEffect(() => {
+    if (!selectedSistemaId) return;
+    const stillAvailable = availableSistemas.some((s) => s.id === selectedSistemaId);
+    if (!stillAvailable) {
+      setSelectedSistemaId("");
+      setSelectedAmbienteId("");
+      onChange(null);
+    }
+  }, [selectedSistemaId, availableSistemas, onChange]);
+
   // Initialize from value (Legacy handling + New Format)
   React.useEffect(() => {
     if (value) {
@@ -265,7 +319,7 @@ export function SistemaSelector({
               value={selectedSistemaId}
               onChange={(e) => handleSistemaChange(e.target.value)}
               disabled={isLoading}
-              options={sistemas.map((sistema) => ({
+              options={availableSistemas.map((sistema) => ({
                 value: sistema.id,
                 label: sistema.name,
               }))}

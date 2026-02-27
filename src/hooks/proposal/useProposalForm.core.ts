@@ -15,10 +15,8 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
-import { toast } from '@/lib/toast';
-import {
-  useMasterDataTransaction,
-} from "./useMasterDataTransaction";
+import { toast } from "@/lib/toast";
+import { useMasterDataTransaction } from "./useMasterDataTransaction";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { ClientType } from "@/services/client-service";
 import {
@@ -34,8 +32,10 @@ import { useProposalFormLoadingEffects } from "./useProposalForm.loading-effects
 import { useProposalFormProductSubmit } from "./useProposalForm.product-submit";
 import { useProposalFormSystemDirty } from "./useProposalForm.system-dirty";
 
-export type { UseProposalFormProps, UseProposalFormReturn } from "./useProposalForm.types";
-
+export type {
+  UseProposalFormProps,
+  UseProposalFormReturn,
+} from "./useProposalForm.types";
 
 export function useProposalFormCore({
   proposalId,
@@ -109,11 +109,16 @@ export function useProposalFormCore({
       const installmentsWallet = prev.installmentsWallet || defaultWallet.name;
 
       // Update initial snapshot so wallet pre-selection doesn't trigger false dirty
-      if (initialFormDataRef.current && (!prev.downPaymentWallet || !prev.installmentsWallet)) {
+      if (
+        initialFormDataRef.current &&
+        (!prev.downPaymentWallet || !prev.installmentsWallet)
+      ) {
         try {
           const initialData = JSON.parse(initialFormDataRef.current);
-          if (!initialData.downPaymentWallet) initialData.downPaymentWallet = downPaymentWallet;
-          if (!initialData.installmentsWallet) initialData.installmentsWallet = installmentsWallet;
+          if (!initialData.downPaymentWallet)
+            initialData.downPaymentWallet = downPaymentWallet;
+          if (!initialData.installmentsWallet)
+            initialData.installmentsWallet = installmentsWallet;
           initialFormDataRef.current = buildFullFormSnapshot(initialData);
         } catch {
           // ignore parse errors
@@ -349,6 +354,7 @@ export function useProposalFormCore({
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    updateProductPrice,
     removeProduct,
     handleToggleProductStatus,
     calculateSubtotal,
@@ -451,6 +457,7 @@ export function useProposalFormCore({
     updateSistema,
     addProductToSystem,
     updateProductMarkup,
+    updateProductPrice,
     removeAmbienteFromSistema,
     resetToInitial,
     markAsDiscarded,

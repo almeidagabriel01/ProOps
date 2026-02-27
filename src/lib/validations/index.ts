@@ -13,7 +13,9 @@ export {
 export {
   productSchema,
   productFieldSchemas,
+  serviceSchema,
   type ProductFormData,
+  type ServiceFormData,
 } from "./product";
 
 // Transaction

@@ -3,6 +3,31 @@ import { SharedTransactionService } from "../services/shared-transactions.servic
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 
+// Campos internos de infraestrutura que nunca devem ser expostos em rotas públicas.
+const INTERNAL_TRANSACTION_FIELDS = new Set([
+  "pdfPath",
+  "pdfUrl",
+  "storagePath",
+  "pdfGenerationLock",
+]);
+
+/**
+ * Remove campos internos sensíveis antes de responder em rotas públicas.
+ * Evita enumeração de paths internos do Firebase Storage e metadados de lock.
+ */
+function sanitizeSharedTransactionPayload(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = { id };
+  for (const [key, value] of Object.entries(data || {})) {
+    if (!INTERNAL_TRANSACTION_FIELDS.has(key)) {
+      safe[key] = value;
+    }
+  }
+  return safe;
+}
+
 export const createShareLink = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
@@ -54,6 +79,7 @@ export const createShareLink = async (req: Request, res: Response) => {
 export const getSharedTransaction = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
+    const isPdfGeneratorRequest = req.headers["x-pdf-generator"] === "true";
 
     if (!token) {
       return res.status(400).json({ message: "Token invalido" });
@@ -112,26 +138,31 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
     const tenantSnap = await tenantRef.get();
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    const viewerData = {
-      ip: req.ip || (req.headers["x-forwarded-for"] as string),
-      userAgent: req.headers["user-agent"],
-    };
+    if (!isPdfGeneratorRequest) {
+      const viewerData = {
+        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        userAgent: req.headers["user-agent"],
+      };
 
-    await SharedTransactionService.recordView(
-      sharedTransaction.id,
-      sharedTransaction.tenantId,
-      sharedTransaction.transactionId,
-      viewerData,
-      (transactionData as Record<string, unknown>)?.description as string | undefined,
-    );
+      void SharedTransactionService.recordView(
+        sharedTransaction.id,
+        sharedTransaction.tenantId,
+        sharedTransaction.transactionId,
+        viewerData,
+        (transactionData as Record<string, unknown>)?.description as
+          | string
+          | undefined,
+      ).catch((recordError) => {
+        console.error("recordView failed (non-critical)", recordError);
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      transaction: {
-        id: transactionSnap.id,
-        ...transactionData,
-      },
-      relatedTransactions,
+      transaction: sanitizeSharedTransactionPayload(transactionSnap.id, transactionData),
+      relatedTransactions: relatedTransactions.map((t) =>
+        sanitizeSharedTransactionPayload(String(t.id || ""), t as Record<string, unknown>),
+      ),
       tenant: tenantData
         ? {
             id: sharedTransaction.tenantId,

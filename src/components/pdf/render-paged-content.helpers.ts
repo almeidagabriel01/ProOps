@@ -1,4 +1,4 @@
-import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import type { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 import {
   SAFE_HEIGHT,
   ESTIMATED_HEIGHTS,
@@ -8,8 +8,12 @@ import {
   calculateSistemaBlockHeight,
   calculatePaymentTermsHeight,
   pdfDebugLog,
-} from "@/utils/pdf-helpers";
-export type { ContentItem } from "@/utils/pdf-helpers";
+} from "@/components/pdf/pdf-helpers";
+import {
+  isProductVisibleInPdf,
+  shouldCountInPdfTotals,
+} from "./product-visibility";
+export type { ContentItem } from "@/components/pdf/pdf-helpers";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -117,8 +121,8 @@ export function buildContentItems(
 
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
   let hasAddedPaymentTerms = false;
-  const hasVisibleQuantity = (p: Product): boolean =>
-    Number(p.quantity || 0) > 0 && !p._isGhost;
+  const shouldRenderProduct = (p: Product): boolean => isProductVisibleInPdf(p);
+  const shouldCountProduct = (p: Product): boolean => shouldCountInPdfTotals(p);
 
   // Check if proposal has dynamic payment options configured
   const hasDynamicPaymentOptions = !!(
@@ -184,7 +188,7 @@ export function buildContentItems(
       productsForSistema = products.filter(
         (p) =>
           p.systemInstanceId?.startsWith(`${sistema.sistemaId}-`) &&
-          hasVisibleQuantity(p), // Removed !p._shouldHide to include inactive products in subtotal
+          shouldCountProduct(p),
       );
 
       // Fallback for legacy (no instanceId)
@@ -197,7 +201,7 @@ export function buildContentItems(
         ];
 
         productsForSistema = products.filter(
-          (p) => allIds.includes(p.productId) && hasVisibleQuantity(p),
+          (p) => allIds.includes(p.productId) && shouldCountProduct(p),
         );
       }
 
@@ -219,8 +223,7 @@ export function buildContentItems(
       (p: Product) =>
         !p.systemInstanceId &&
         !sistemaProductIds.has(p.productId) &&
-        !p._shouldHide &&
-        hasVisibleQuantity(p),
+        shouldCountProduct(p),
     );
 
     if (extraProducts.length > 0) {
@@ -292,7 +295,7 @@ export function buildContentItems(
 
         // Filter out hidden products for height calculation and rendering
         const visibleSortedProducts = sortedProducts.filter(
-          (p) => !p._shouldHide && hasVisibleQuantity(p),
+          (p) => shouldRenderProduct(p),
         );
 
         // Calculate height for this environment
@@ -311,7 +314,7 @@ export function buildContentItems(
         return {
           env,
           products: visibleSortedProducts, // Only return visible products for rendering
-          allProducts: sortedProducts.filter((p) => hasVisibleQuantity(p)), // All products including inactive for subtotal
+          allProducts: sortedProducts.filter((p) => shouldCountProduct(p)),
           height: envHeight,
         };
       })
@@ -349,7 +352,7 @@ export function buildContentItems(
 
         // Add products as pairs (2 per row)
         const visibleProducts = group.products.filter(
-          (p: Product) => !p._shouldHide && hasVisibleQuantity(p),
+          (p: Product) => shouldRenderProduct(p),
         );
         for (let idx = 0; idx < visibleProducts.length; idx += 2) {
           const left = visibleProducts[idx];
@@ -397,7 +400,7 @@ export function buildContentItems(
       // Add sistema footer
       const sistemaSubtotal = productsForSistema.reduce(
         (sum: number, p: Product) =>
-          hasVisibleQuantity(p) ? sum + p.total : sum,
+          shouldCountProduct(p) ? sum + p.total : sum,
         0,
       );
       items.push({
@@ -422,7 +425,7 @@ export function buildContentItems(
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
-    const visibleProducts = productsToAdd.filter((p) => !p._shouldHide && hasVisibleQuantity(p));
+    const visibleProducts = productsToAdd.filter((p) => shouldRenderProduct(p));
     if (visibleProducts.length > 0) {
       items.push({
         type: "product-header",

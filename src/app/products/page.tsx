@@ -204,8 +204,7 @@ export default function ProductsPage() {
   const filteredProducts = isFiltering
     ? sortedProducts.filter(
         (product) =>
-          normalize(product.name).includes(normalize(searchTerm)) ||
-          normalize(product.sku).includes(normalize(searchTerm)),
+          normalize(product.name).includes(normalize(searchTerm)),
       )
     : [];
 
@@ -390,7 +389,7 @@ export default function ProductsPage() {
         {hasAnyProducts !== false && (
           <div className="max-w-md">
             <Input
-              placeholder="Buscar por nome ou SKU..."
+              placeholder="Buscar por nome..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={

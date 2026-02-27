@@ -6,8 +6,8 @@ import {
   ThemeType,
   adjustColor,
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
-import { PAGE_HEIGHT_PX, PAGE_WIDTH_PX, PADDING_X } from "@/utils/pdf-layout";
-import { CoverElement } from "@/components/features/proposal/pdf-section-editor";
+import { PAGE_HEIGHT_PX, PAGE_WIDTH_PX, PADDING_X } from "@/components/pdf/pdf-layout";
+import type { CoverElement } from "@/components/features/proposal/pdf-section-editor";
 
 interface PdfCoverPageProps {
   theme: ThemeType;

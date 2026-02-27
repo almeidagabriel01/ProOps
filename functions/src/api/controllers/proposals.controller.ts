@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import {
-  resolveUserAndTenant,
-  checkPermission,
-} from "../../lib/auth-helpers";
+import { getStorage } from "firebase-admin/storage";
+import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import {
   enforceTenantPlanLimit,
@@ -15,9 +13,27 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
+import {
+  enqueueStorageGcPath,
+  type StorageGcReason,
+} from "../../lib/storage-gc";
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
+const MAX_ATTACHMENTS_PER_PROPOSAL = 20;
+const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_NAME_LENGTH = 180;
+const MAX_ATTACHMENT_URL_LENGTH = 15 * 1024 * 1024;
+
+type SanitizedAttachment = {
+  id: string;
+  name: string;
+  url: string;
+  type: "image" | "pdf";
+  size: number;
+  uploadedAt: string;
+  storagePath?: string;
+};
 
 type ProposalMonthlyLimitPayload = {
   code: string;
@@ -54,9 +70,277 @@ function normalizeMonthlyUsageCount(value: unknown): number {
   return Math.max(0, Math.floor(parsed));
 }
 
+function sanitizeAttachmentName(value: unknown, fallbackType: "image" | "pdf"): string {
+  const normalized = String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[<>:"/\\|?*]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_ATTACHMENT_NAME_LENGTH);
+
+  if (normalized) return normalized;
+  return fallbackType === "pdf" ? "documento.pdf" : "imagem";
+}
+
+function sanitizeAttachmentId(value: unknown, index: number): string {
+  const normalized = String(value || "").trim();
+  if (/^[A-Za-z0-9._:-]{6,120}$/.test(normalized)) {
+    return normalized;
+  }
+  return `att-${Date.now()}-${index + 1}`;
+}
+
+function normalizeAttachmentType(value: unknown): "image" | "pdf" {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "pdf") return "pdf";
+  return "image";
+}
+
+function isSafeAttachmentUrl(url: string, type: "image" | "pdf"): boolean {
+  if (!url || url.length > MAX_ATTACHMENT_URL_LENGTH) return false;
+
+  if (url.startsWith("data:")) {
+    const dataUrlMatch = url.match(/^data:([^;,]+);base64,/i);
+    if (!dataUrlMatch) return false;
+    const mime = String(dataUrlMatch[1] || "").toLowerCase();
+    if (type === "pdf") {
+      return mime === "application/pdf";
+    }
+    return (
+      mime === "image/jpeg" ||
+      mime === "image/jpg" ||
+      mime === "image/png" ||
+      mime === "image/webp" ||
+      mime === "image/gif" ||
+      mime === "image/avif"
+    );
+  }
+
+  try {
+    const parsed = new URL(url);
+    const isHttps = parsed.protocol === "https:";
+    const isDevHttp =
+      parsed.protocol === "http:" && process.env.NODE_ENV !== "production";
+    if (!isHttps && !isDevHttp) return false;
+    if (parsed.username || parsed.password) return false;
+    return Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAttachmentStoragePath(value: unknown): string | undefined {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/\\/g, "/");
+  if (!normalized) return undefined;
+  if (normalized.length > 512) return undefined;
+  if (!normalized.startsWith("tenants/")) return undefined;
+  if (!normalized.includes("/proposals/")) return undefined;
+  if (!normalized.includes("/attachments/")) return undefined;
+  if (normalized.includes("..")) return undefined;
+  return normalized;
+}
+
+function sanitizeAttachmentsInput(rawValue: unknown): SanitizedAttachment[] {
+  if (typeof rawValue === "undefined" || rawValue === null) {
+    return [];
+  }
+  if (!Array.isArray(rawValue)) {
+    throw new Error("INVALID_ATTACHMENTS");
+  }
+  if (rawValue.length > MAX_ATTACHMENTS_PER_PROPOSAL) {
+    throw new Error("INVALID_ATTACHMENTS");
+  }
+
+  return rawValue.map((rawAttachment, index) => {
+    const source =
+      rawAttachment && typeof rawAttachment === "object"
+        ? (rawAttachment as Record<string, unknown>)
+        : {};
+
+    const type = normalizeAttachmentType(source.type);
+    const id = sanitizeAttachmentId(source.id, index);
+    const name = sanitizeAttachmentName(source.name, type);
+    const url = String(source.url || "").trim();
+    const size = Number(source.size || 0);
+    const uploadedAtRaw = String(source.uploadedAt || "").trim();
+    const uploadedAtDate = uploadedAtRaw ? new Date(uploadedAtRaw) : null;
+    const storagePath = sanitizeAttachmentStoragePath(source.storagePath);
+
+    if (!isSafeAttachmentUrl(url, type)) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+    if (!Number.isFinite(size) || size < 0 || size > MAX_ATTACHMENT_SIZE_BYTES) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+    if (!uploadedAtDate || Number.isNaN(uploadedAtDate.getTime())) {
+      throw new Error("INVALID_ATTACHMENTS");
+    }
+
+    return {
+      id,
+      name,
+      url,
+      type,
+      size,
+      uploadedAt: uploadedAtDate.toISOString(),
+      ...(storagePath ? { storagePath } : {}),
+    };
+  });
+}
+
+function parseStoragePathFromUrl(rawUrl: string): string {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+
+  if (value.startsWith("tenants/")) return value;
+  if (value.startsWith("gs://")) {
+    const noProtocol = value.slice(5);
+    const firstSlash = noProtocol.indexOf("/");
+    if (firstSlash > 0 && firstSlash < noProtocol.length - 1) {
+      return noProtocol.slice(firstSlash + 1);
+    }
+  }
+
+  try {
+    const url = new URL(value);
+    const pathname = decodeURIComponent(url.pathname || "");
+
+    if (
+      url.hostname.includes("firebasestorage.googleapis.com") ||
+      url.hostname.includes("firebasestorage.app")
+    ) {
+      const markerIndex = pathname.indexOf("/o/");
+      if (markerIndex >= 0) {
+        return pathname.slice(markerIndex + 3);
+      }
+    }
+
+    if (url.hostname.includes("storage.googleapis.com")) {
+      const parts = pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.slice(1).join("/");
+      }
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function isManagedProposalPath(path: string, tenantId: string, proposalId: string): boolean {
+  const normalizedPath = String(path || "").trim();
+  if (!normalizedPath) return false;
+  if (normalizedPath.includes("..")) return false;
+  return (
+    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/attachments/`) ||
+    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/pdf/`)
+  );
+}
+
+function collectAttachmentStoragePaths(
+  rawAttachments: unknown,
+  tenantId: string,
+  proposalId: string,
+): string[] {
+  if (!Array.isArray(rawAttachments)) return [];
+
+  const result = new Set<string>();
+  rawAttachments.forEach((rawAttachment) => {
+    const attachment =
+      rawAttachment && typeof rawAttachment === "object"
+        ? (rawAttachment as Record<string, unknown>)
+        : null;
+    if (!attachment) return;
+
+    const explicitPath = sanitizeAttachmentStoragePath(attachment.storagePath);
+    if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+      result.add(explicitPath);
+      return;
+    }
+
+    const parsedPath = parseStoragePathFromUrl(String(attachment.url || ""));
+    if (parsedPath && isManagedProposalPath(parsedPath, tenantId, proposalId)) {
+      result.add(parsedPath);
+    }
+  });
+
+  return Array.from(result);
+}
+
+function collectProposalPdfStoragePaths(
+  proposalData: Record<string, unknown> | undefined,
+  tenantId: string,
+  proposalId: string,
+): string[] {
+  const result = new Set<string>();
+  if (!proposalData) return [];
+
+  const pdfData =
+    proposalData.pdf && typeof proposalData.pdf === "object"
+      ? (proposalData.pdf as Record<string, unknown>)
+      : {};
+
+  const explicitPath = String(pdfData.storagePath || "").trim();
+  if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+    result.add(explicitPath);
+  }
+
+  const legacyPdfPath = String(proposalData.pdfPath || "").trim();
+  if (legacyPdfPath && isManagedProposalPath(legacyPdfPath, tenantId, proposalId)) {
+    result.add(legacyPdfPath);
+  }
+
+  const legacyPdfUrlPath = parseStoragePathFromUrl(String(proposalData.pdfUrl || ""));
+  if (legacyPdfUrlPath && isManagedProposalPath(legacyPdfUrlPath, tenantId, proposalId)) {
+    result.add(legacyPdfUrlPath);
+  }
+
+  return Array.from(result);
+}
+
+type StorageCleanupContext = {
+  reason: StorageGcReason;
+  tenantId?: string;
+  proposalId?: string;
+};
+
+async function deleteStorageObjectsBestEffort(
+  paths: string[],
+  context: StorageCleanupContext,
+): Promise<void> {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+  if (uniquePaths.length === 0) return;
+
+  const bucket = getStorage().bucket();
+  await Promise.allSettled(
+    uniquePaths.map(async (path) => {
+      try {
+        await bucket.file(path).delete({ ignoreNotFound: true });
+      } catch (error) {
+        console.warn("[proposal-storage-cleanup] failed to delete object", {
+          path,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        await enqueueStorageGcPath({
+          path,
+          reason: context.reason,
+          tenantId: context.tenantId,
+          proposalId: context.proposalId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
+  );
+}
+
 export const createProposal = async (req: Request, res: Response) => {
   try {
-  const userId = req.user!.uid;
+    const userId = req.user!.uid;
     const input = req.body;
     console.log("[createProposal] request received", {
       userId,
@@ -65,7 +349,9 @@ export const createProposal = async (req: Request, res: Response) => {
     });
 
     // Relaxed validation for drafts
-    const normalizedStatus = String(input.status || "draft").trim().toLowerCase();
+    const normalizedStatus = String(input.status || "draft")
+      .trim()
+      .toLowerCase();
     const isDraft = normalizedStatus === "draft";
 
     if (!isDraft) {
@@ -91,13 +377,15 @@ export const createProposal = async (req: Request, res: Response) => {
         input.totalValue = 0;
     }
 
-    const {
-      masterRef,
-      tenantId,
-      isMaster,
-      isSuperAdmin,
-      userData,
-    } = await resolveUserAndTenant(userId, req.user);
+    let sanitizedAttachments: SanitizedAttachment[] = [];
+    try {
+      sanitizedAttachments = sanitizeAttachmentsInput(input.attachments);
+    } catch {
+      return res.status(400).json({ message: "Anexos invalidos" });
+    }
+
+    const { masterRef, tenantId, isMaster, isSuperAdmin, userData } =
+      await resolveUserAndTenant(userId, req.user);
 
     if (!isMaster && !isSuperAdmin) {
       const canCreate = await checkPermission(userId, "proposals", "canCreate");
@@ -139,188 +427,188 @@ export const createProposal = async (req: Request, res: Response) => {
     let proposalId = "";
     try {
       proposalId = await db.runTransaction(async (t) => {
-      // === ALL READS FIRST ===
-      await t.get(masterRef);
+        // === ALL READS FIRST ===
+        await t.get(masterRef);
 
-      const companyRef = db.collection("companies").doc(userCompanyId);
-      const companySnap = await t.get(companyRef);
-      const now = Timestamp.now();
+        const companyRef = db.collection("companies").doc(userCompanyId);
+        const companySnap = await t.get(companyRef);
+        const now = Timestamp.now();
 
-      // Monthly proposals quota policy:
-      // count every new proposal except drafts.
-      if (!isDraft) {
-        const period = buildMonthlyPeriodWindowUtc();
-        const monthId = buildTenantUsageMonthId(period.startDate);
-        const monthUsageRef = db
-          .collection(TENANT_USAGE_COLLECTION)
-          .doc(userCompanyId)
-          .collection("months")
-          .doc(monthId);
+        // Monthly proposals quota policy:
+        // count every new proposal except drafts.
+        if (!isDraft) {
+          const period = buildMonthlyPeriodWindowUtc();
+          const monthId = buildTenantUsageMonthId(period.startDate);
+          const monthUsageRef = db
+            .collection(TENANT_USAGE_COLLECTION)
+            .doc(userCompanyId)
+            .collection("months")
+            .doc(monthId);
 
-        try {
-          const monthUsageSnap = await t.get(monthUsageRef);
-          const currentUsage = normalizeMonthlyUsageCount(
-            monthUsageSnap.data()?.proposalsCreated,
-          );
-          const projectedUsage = currentUsage + 1;
+          try {
+            const monthUsageSnap = await t.get(monthUsageRef);
+            const currentUsage = normalizeMonthlyUsageCount(
+              monthUsageSnap.data()?.proposalsCreated,
+            );
+            const projectedUsage = currentUsage + 1;
 
-          const proposalLimitDecision = await enforceTenantPlanLimit({
-            tenantId: userCompanyId,
-            feature: "maxProposalsPerMonth",
-            currentUsage,
-            usageKnown: true,
-            incrementBy: 1,
-            uid: userId,
-            requestId: req.requestId,
-            route: req.path,
-            isSuperAdmin,
-            periodStart: period.periodStart,
-            periodEnd: period.periodEnd,
-            resetAt: period.resetAt,
-          });
-
-          if (!proposalLimitDecision.allowed) {
-            throw new ProposalMonthlyLimitError({
-              code: proposalLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
-              message:
-                proposalLimitDecision.message ||
-                "Limite mensal de propostas atingido.",
-              used: proposalLimitDecision.currentUsage,
-              limit: proposalLimitDecision.limit,
-              projected: proposalLimitDecision.projectedUsage,
-              tier: proposalLimitDecision.profile.tier,
-              source: proposalLimitDecision.profile.source,
-              periodStart: proposalLimitDecision.periodStart,
-              periodEnd: proposalLimitDecision.periodEnd,
-              resetAt: proposalLimitDecision.resetAt,
-            });
-          }
-
-          t.set(
-            monthUsageRef,
-            {
-              proposalsCreated: projectedUsage,
+            const proposalLimitDecision = await enforceTenantPlanLimit({
+              tenantId: userCompanyId,
+              feature: "maxProposalsPerMonth",
+              currentUsage,
+              usageKnown: true,
+              incrementBy: 1,
+              uid: userId,
+              requestId: req.requestId,
+              route: req.path,
+              isSuperAdmin,
               periodStart: period.periodStart,
               periodEnd: period.periodEnd,
               resetAt: period.resetAt,
-              updatedAt: now.toDate().toISOString(),
-            },
-            { merge: true },
-          );
-        } catch (monthlyEnforcementError) {
-          if (monthlyEnforcementError instanceof ProposalMonthlyLimitError) {
-            throw monthlyEnforcementError;
-          }
+            });
 
-          const failOpenReason =
-            monthlyEnforcementError instanceof Error
-              ? monthlyEnforcementError.message
-              : "MONTHLY_ENFORCEMENT_INTERNAL_ERROR";
+            if (!proposalLimitDecision.allowed) {
+              throw new ProposalMonthlyLimitError({
+                code: proposalLimitDecision.code || "PLAN_LIMIT_EXCEEDED",
+                message:
+                  proposalLimitDecision.message ||
+                  "Limite mensal de propostas atingido.",
+                used: proposalLimitDecision.currentUsage,
+                limit: proposalLimitDecision.limit,
+                projected: proposalLimitDecision.projectedUsage,
+                tier: proposalLimitDecision.profile.tier,
+                source: proposalLimitDecision.profile.source,
+                periodStart: proposalLimitDecision.periodStart,
+                periodEnd: proposalLimitDecision.periodEnd,
+                resetAt: proposalLimitDecision.resetAt,
+              });
+            }
 
-          logSecurityEvent(
-            "tenant_plan_monthly_enforcement_fail_open",
-            {
+            t.set(
+              monthUsageRef,
+              {
+                proposalsCreated: projectedUsage,
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+                resetAt: period.resetAt,
+                updatedAt: now.toDate().toISOString(),
+              },
+              { merge: true },
+            );
+          } catch (monthlyEnforcementError) {
+            if (monthlyEnforcementError instanceof ProposalMonthlyLimitError) {
+              throw monthlyEnforcementError;
+            }
+
+            const failOpenReason =
+              monthlyEnforcementError instanceof Error
+                ? monthlyEnforcementError.message
+                : "MONTHLY_ENFORCEMENT_INTERNAL_ERROR";
+
+            logSecurityEvent(
+              "tenant_plan_monthly_enforcement_fail_open",
+              {
+                requestId: req.requestId,
+                route: req.path,
+                tenantId: userCompanyId,
+                uid: userId,
+                reason: failOpenReason,
+                source: "proposals_controller",
+                status: 200,
+              },
+              "WARN",
+            );
+            void incrementSecurityCounter("plan_limit_would_block", {
               requestId: req.requestId,
               route: req.path,
               tenantId: userCompanyId,
               uid: userId,
-              reason: failOpenReason,
+              reason: "monthly_enforcement_fail_open",
               source: "proposals_controller",
               status: 200,
-            },
-            "WARN",
-          );
-          void incrementSecurityCounter("plan_limit_would_block", {
-            requestId: req.requestId,
-            route: req.path,
-            tenantId: userCompanyId,
-            uid: userId,
-            reason: "monthly_enforcement_fail_open",
-            source: "proposals_controller",
-            status: 200,
-          });
-          void writeSecurityAuditEvent({
-            eventType: "TENANT_PLAN_MONTHLY_ENFORCEMENT_FAIL_OPEN",
-            requestId: req.requestId,
-            route: req.path,
-            status: 200,
-            tenantId: userCompanyId,
-            uid: userId,
-            reason: failOpenReason,
-            source: "proposals_controller",
-          });
+            });
+            void writeSecurityAuditEvent({
+              eventType: "TENANT_PLAN_MONTHLY_ENFORCEMENT_FAIL_OPEN",
+              requestId: req.requestId,
+              route: req.path,
+              status: 200,
+              tenantId: userCompanyId,
+              uid: userId,
+              reason: failOpenReason,
+              source: "proposals_controller",
+            });
 
-          t.set(
-            monthUsageRef,
-            {
-              proposalsCreated: FieldValue.increment(1),
-              periodStart: period.periodStart,
-              periodEnd: period.periodEnd,
-              resetAt: period.resetAt,
-              updatedAt: now.toDate().toISOString(),
-            },
-            { merge: true },
-          );
+            t.set(
+              monthUsageRef,
+              {
+                proposalsCreated: FieldValue.increment(1),
+                periodStart: period.periodStart,
+                periodEnd: period.periodEnd,
+                resetAt: period.resetAt,
+                updatedAt: now.toDate().toISOString(),
+              },
+              { merge: true },
+            );
+          }
         }
-      }
 
-      // === ALL WRITES AFTER READS ===
-      const newRef = db.collection(PROPOSALS_COLLECTION).doc();
+        // === ALL WRITES AFTER READS ===
+        const newRef = db.collection(PROPOSALS_COLLECTION).doc();
 
-      t.set(newRef, {
-        title: input.title.trim(),
-        status: input.status || "draft",
-        totalValue: input.totalValue,
-        notes: input.notes?.trim() || null,
-        customNotes: input.customNotes?.trim() || null,
-        discount: input.discount || 0,
-        extraExpense: input.extraExpense || 0,
-        validUntil: input.validUntil || null,
-        clientId: input.clientId,
-        clientName: input.clientName,
-        clientEmail: input.clientEmail || null,
-        clientPhone: input.clientPhone || null,
-        clientAddress: input.clientAddress || null,
-        products: input.products || [],
-        sistemas: input.sistemas || [],
-        sections: input.sections || [],
-        // Payment options
-        downPaymentEnabled: input.downPaymentEnabled || false,
-        downPaymentType: input.downPaymentType || "value",
-        downPaymentPercentage: input.downPaymentPercentage || 0,
-        downPaymentValue: input.downPaymentValue || 0,
-        downPaymentWallet: input.downPaymentWallet || null,
-        downPaymentDueDate: input.downPaymentDueDate || null,
-        installmentsEnabled: input.installmentsEnabled || false,
-        installmentsCount: input.installmentsCount || 1,
-        installmentValue: input.installmentValue || 0,
-        installmentsWallet: input.installmentsWallet || null,
-        firstInstallmentDate: input.firstInstallmentDate || null,
-        // PDF display settings (which elements to show/hide in PDF)
-        pdfSettings: input.pdfSettings || null,
-        // Attachments
-        attachments: input.attachments || [],
-        createdById: userId,
-        createdByName: userData?.name || "Usuário",
-        companyId: userCompanyId,
-        tenantId: userCompanyId,
-        createdAt: now,
-        updatedAt: now,
-      });
+        t.set(newRef, {
+          title: input.title.trim(),
+          status: input.status || "draft",
+          totalValue: input.totalValue,
+          notes: input.notes?.trim() || null,
+          customNotes: input.customNotes?.trim() || null,
+          discount: input.discount || 0,
+          extraExpense: input.extraExpense || 0,
+          validUntil: input.validUntil || null,
+          clientId: input.clientId,
+          clientName: input.clientName,
+          clientEmail: input.clientEmail || null,
+          clientPhone: input.clientPhone || null,
+          clientAddress: input.clientAddress || null,
+          products: input.products || [],
+          sistemas: input.sistemas || [],
+          sections: input.sections || [],
+          // Payment options
+          downPaymentEnabled: input.downPaymentEnabled || false,
+          downPaymentType: input.downPaymentType || "value",
+          downPaymentPercentage: input.downPaymentPercentage || 0,
+          downPaymentValue: input.downPaymentValue || 0,
+          downPaymentWallet: input.downPaymentWallet || null,
+          downPaymentDueDate: input.downPaymentDueDate || null,
+          installmentsEnabled: input.installmentsEnabled || false,
+          installmentsCount: input.installmentsCount || 1,
+          installmentValue: input.installmentValue || 0,
+          installmentsWallet: input.installmentsWallet || null,
+          firstInstallmentDate: input.firstInstallmentDate || null,
+          // PDF display settings (which elements to show/hide in PDF)
+          pdfSettings: input.pdfSettings || null,
+          // Attachments
+          attachments: sanitizedAttachments,
+          createdById: userId,
+          createdByName: userData?.name || "Usuário",
+          companyId: userCompanyId,
+          tenantId: userCompanyId,
+          createdAt: now,
+          updatedAt: now,
+        });
 
-      t.update(targetMasterRef, {
-        "usage.proposals": FieldValue.increment(1),
-        updatedAt: now,
-      });
-
-      if (companySnap.exists) {
-        t.update(companyRef, {
+        t.update(targetMasterRef, {
           "usage.proposals": FieldValue.increment(1),
           updatedAt: now,
         });
-      }
 
-      return newRef.id;
+        if (companySnap.exists) {
+          t.update(companyRef, {
+            "usage.proposals": FieldValue.increment(1),
+            updatedAt: now,
+          });
+        }
+
+        return newRef.id;
       });
     } catch (transactionError) {
       if (transactionError instanceof ProposalMonthlyLimitError) {
@@ -365,13 +653,13 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
-    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
-      userId,
-      req.user,
-    );
-
+    // Parallel fetch: auth resolution and proposal doc are independent reads
     const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
-    const proposalSnap = await proposalRef.get();
+    const [{ tenantId, isMaster, isSuperAdmin }, proposalSnap] =
+      await Promise.all([
+        resolveUserAndTenant(userId, req.user),
+        proposalRef.get(),
+      ]);
 
     if (!proposalSnap.exists)
       return res.status(404).json({ message: "Proposta não encontrada." });
@@ -379,6 +667,7 @@ export const updateProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
       const canEdit = await checkPermission(userId, "proposals", "canEdit");
@@ -388,6 +677,35 @@ export const updateProposal = async (req: Request, res: Response) => {
           .json({ message: "Sem permissão para editar propostas." });
       }
     }
+
+    const previousAttachmentPaths = collectAttachmentStoragePaths(
+      proposalData?.attachments,
+      proposalTenantId,
+      id,
+    );
+
+    let sanitizedAttachments: SanitizedAttachment[] | undefined;
+    if (typeof updateData.attachments !== "undefined") {
+      try {
+        sanitizedAttachments = sanitizeAttachmentsInput(updateData.attachments);
+      } catch {
+        return res.status(400).json({ message: "Anexos invalidos" });
+      }
+    }
+
+    const nextAttachmentPaths =
+      typeof sanitizedAttachments !== "undefined"
+        ? collectAttachmentStoragePaths(
+            sanitizedAttachments,
+            proposalTenantId,
+            id,
+          )
+        : [];
+    const nextAttachmentPathSet = new Set(nextAttachmentPaths);
+    const removedAttachmentPaths =
+      typeof sanitizedAttachments !== "undefined"
+        ? previousAttachmentPaths.filter((path) => !nextAttachmentPathSet.has(path))
+        : [];
 
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
@@ -425,7 +743,12 @@ export const updateProposal = async (req: Request, res: Response) => {
     ];
 
     fields.forEach((f) => {
-      if (updateData[f] !== undefined) safeUpdate[f] = updateData[f];
+      if (typeof updateData[f] === "undefined") return;
+      if (f === "attachments") {
+        safeUpdate[f] = sanitizedAttachments || [];
+        return;
+      }
+      safeUpdate[f] = updateData[f];
     });
 
     if (updateData.products) {
@@ -444,6 +767,14 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     await proposalRef.update(safeUpdate);
 
+    if (removedAttachmentPaths.length > 0) {
+      await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
+        reason: "proposal_update_attachment_cleanup_failed",
+        tenantId: proposalTenantId,
+        proposalId: id,
+      });
+    }
+
     // Criar receita automaticamente quando a proposta for aprovada
     const isBeingApproved =
       updateData.status === "approved" && proposalData?.status !== "approved";
@@ -461,7 +792,6 @@ export const updateProposal = async (req: Request, res: Response) => {
       (!updateData.status || updateData.status === "approved");
 
     if (isAlreadyApproved) {
-      const proposalTenantId = proposalData?.tenantId || tenantId;
       const mergedData = { ...proposalData, ...safeUpdate } as any;
       const nowDateStr = new Date().toISOString().split("T")[0];
 
@@ -475,7 +805,8 @@ export const updateProposal = async (req: Request, res: Response) => {
           updateData.downPaymentType !== proposalData?.downPaymentType,
         dpPercentage:
           updateData.downPaymentPercentage !== undefined &&
-          updateData.downPaymentPercentage !== proposalData?.downPaymentPercentage,
+          updateData.downPaymentPercentage !==
+            proposalData?.downPaymentPercentage,
         dpValue:
           updateData.downPaymentValue !== undefined &&
           updateData.downPaymentValue !== proposalData?.downPaymentValue,
@@ -520,7 +851,8 @@ export const updateProposal = async (req: Request, res: Response) => {
             (doc) => doc.data().isInstallment,
           );
           const shouldHaveDownPayment =
-            !!mergedData.downPaymentEnabled && Number(mergedData.downPaymentValue || 0) > 0;
+            !!mergedData.downPaymentEnabled &&
+            Number(mergedData.downPaymentValue || 0) > 0;
 
           // Helper for balance adjustments
           const registerAdjustment = (walletName: string, amount: number) => {
@@ -698,9 +1030,12 @@ export const updateProposal = async (req: Request, res: Response) => {
               type: "income",
               description: `Entrada: ${mergedData.title || proposalData?.title || "Proposta"}`,
               amount: Number(mergedData.downPaymentValue || 0),
-              date: mergedData.downPaymentDueDate || installData.date || nowDateStr,
+              date:
+                mergedData.downPaymentDueDate || installData.date || nowDateStr,
               dueDate:
-                mergedData.downPaymentDueDate || installData.dueDate || nowDateStr,
+                mergedData.downPaymentDueDate ||
+                installData.dueDate ||
+                nowDateStr,
               status: installData.status || "pending",
               clientId: mergedData.clientId || null,
               clientName: mergedData.clientName || null,
@@ -742,31 +1077,24 @@ export const updateProposal = async (req: Request, res: Response) => {
           }
 
           // --- 3. Consolidate Wallet Updates ---
-          // Need to fetch wallet refs to update balances
+          // Batched wallet lookup: single query instead of N sequential ones
           if (walletAdjustments.size > 0) {
             const walletNames = Array.from(walletAdjustments.keys());
-            // We can't really do "where name in [...]" easily if names are many?
-            // Assuming reasonable number of wallets.
+            const wSnap = await db
+              .collection("wallets")
+              .where("tenantId", "==", proposalTenantId)
+              .where("name", "in", walletNames)
+              .get();
 
-            // Since we are inside a loop, let's just do individual lookups or assume names are unique per tenant.
-            // We will iterate and find them.
+            const walletRefMap = new Map(
+              wSnap.docs.map((d) => [d.data().name as string, d.ref]),
+            );
 
-            // Optimization: fetch all tenant wallets? No, might be too many.
-            // Fetch only involved wallets.
-
-            for (const wName of walletNames) {
-              const adjustment = walletAdjustments.get(wName);
+            for (const [wName, adjustment] of walletAdjustments.entries()) {
               if (!adjustment) continue;
-
-              const wQuery = await db
-                .collection("wallets")
-                .where("tenantId", "==", proposalTenantId)
-                .where("name", "==", wName)
-                .limit(1)
-                .get();
-
-              if (!wQuery.empty) {
-                batch.update(wQuery.docs[0].ref, {
+              const ref = walletRefMap.get(wName);
+              if (ref) {
+                batch.update(ref, {
                   balance: FieldValue.increment(adjustment),
                   updatedAt: Timestamp.now(),
                 });
@@ -1012,34 +1340,34 @@ export const updateProposal = async (req: Request, res: Response) => {
             batch.set(ref, docData);
           });
 
-          // 2. Update Wallets
-          for (const [walletName, adjustment] of walletAdjustments.entries()) {
-            if (adjustment === 0) continue;
+          // 2. Batched wallet lookup: single query instead of N sequential ones
+          const walletNamesToResolve = Array.from(walletAdjustments.entries())
+            .filter(([, adj]) => adj !== 0)
+            .map(([name]) => name);
 
-            // Need to resolve wallet ref within the transaction logic?
-            // Note: We are using db.batch() here, not t.update().
-            // Ideally we should use the same transaction 't' if possible, or correct logic.
-            // But 'proposals.controller.ts' lines 96 use `db.runTransaction` for CREATE.
-            // HERE (updateProposal), lines 254 use `await proposalRef.update(safeUpdate)`.
-            // It is NOT inside a transaction! It blindly calls `update`.
-
-            // To ensure consistency, we should do lookups.
-            // We can do lookups before the batch.
-
-            // Resolve wallet by name
-            const walletQuery = await db
+          if (walletNamesToResolve.length > 0) {
+            const walletSnap = await db
               .collection("wallets")
               .where("tenantId", "==", proposalTenantId)
-              .where("name", "==", walletName)
-              .limit(1)
+              .where("name", "in", walletNamesToResolve)
               .get();
 
-            if (!walletQuery.empty) {
-              const wRef = walletQuery.docs[0].ref;
-              batch.update(wRef, {
-                balance: FieldValue.increment(adjustment),
-                updatedAt: now,
-              });
+            const walletRefMap = new Map(
+              walletSnap.docs.map((d) => [d.data().name as string, d.ref]),
+            );
+
+            for (const [
+              walletName,
+              adjustment,
+            ] of walletAdjustments.entries()) {
+              if (adjustment === 0) continue;
+              const wRef = walletRefMap.get(walletName);
+              if (wRef) {
+                batch.update(wRef, {
+                  balance: FieldValue.increment(adjustment),
+                  updatedAt: now,
+                });
+              }
             }
           }
 
@@ -1087,6 +1415,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
       const canDelete = await checkPermission(userId, "proposals", "canDelete");
@@ -1125,7 +1454,22 @@ export const deleteProposal = async (req: Request, res: Response) => {
     }
 
     // Cleanup associated transactions (revenue) if they exist
-    await cleanupProposalTransactions(id, proposalData?.tenantId || tenantId);
+    await cleanupProposalTransactions(id, proposalTenantId);
+
+    const storagePathsToDelete = Array.from(
+      new Set([
+        ...collectAttachmentStoragePaths(
+          proposalData?.attachments,
+          proposalTenantId,
+          id,
+        ),
+        ...collectProposalPdfStoragePaths(
+          proposalData as Record<string, unknown> | undefined,
+          proposalTenantId,
+          id,
+        ),
+      ]),
+    );
 
     await db.runTransaction(async (t) => {
       const pSnap = await t.get(proposalRef);
@@ -1133,7 +1477,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
 
       const companyRef = db
         .collection("companies")
-        .doc(proposalData?.tenantId || tenantId);
+        .doc(proposalTenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
@@ -1145,6 +1489,14 @@ export const deleteProposal = async (req: Request, res: Response) => {
         t.update(companyRef, { "usage.proposals": FieldValue.increment(-1) });
       }
     });
+
+    if (storagePathsToDelete.length > 0) {
+      await deleteStorageObjectsBestEffort(storagePathsToDelete, {
+        reason: "proposal_delete_cleanup_failed",
+        tenantId: proposalTenantId,
+        proposalId: id,
+      });
+    }
 
     return res.json({ success: true, message: "Proposta excluída." });
   } catch (error: unknown) {

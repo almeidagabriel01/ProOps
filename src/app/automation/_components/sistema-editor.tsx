@@ -52,6 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
+import { compareDisplayText } from "@/lib/sort-text";
 
 interface SistemaEditorProps {
   sistema: Sistema | null;
@@ -205,6 +206,7 @@ export function SistemaEditor({
   >("all");
   const [showProductList, setShowProductList] = React.useState(false);
   const productListRef = React.useRef<HTMLDivElement>(null);
+  const productSearchInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (tenant?.id) {
@@ -440,21 +442,37 @@ export function SistemaEditor({
   };
 
   // Filtered products for search
-  const filteredProducts = products
-    .filter(
-      (p) =>
-        !activeConfig?.products.some(
-          (sp) =>
-            sp.productId === p.id &&
-            (sp.itemType || "product") === (p.itemType || "product"),
-        ) &&
-        (catalogTypeFilter === "all" ||
-          (p.itemType || "product") === catalogTypeFilter) &&
-        (productSearch === "" ||
-          p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-          p.category?.toLowerCase().includes(productSearch.toLowerCase())),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const filteredProducts = React.useMemo(() => {
+    return products
+      .filter(
+        (p) =>
+          !activeConfig?.products.some(
+            (sp) =>
+              sp.productId === p.id &&
+              (sp.itemType || "product") === (p.itemType || "product"),
+          ) &&
+          (catalogTypeFilter === "all" ||
+            (p.itemType || "product") === catalogTypeFilter) &&
+          (productSearch === "" ||
+            p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+            p.category?.toLowerCase().includes(productSearch.toLowerCase())),
+      )
+      .sort((a, b) => compareDisplayText(a.name, b.name));
+  }, [
+    products,
+    activeConfig?.products,
+    catalogTypeFilter,
+    productSearch,
+  ]);
+
+  React.useEffect(() => {
+    if (
+      document.activeElement === productSearchInputRef.current &&
+      activeAmbienteId
+    ) {
+      setShowProductList(true);
+    }
+  }, [catalogTypeFilter, productSearch, activeAmbienteId]);
 
   const handleUpdateAmbienteDescription = (desc: string) => {
     if (!activeAmbienteId) return;
@@ -727,11 +745,13 @@ export function SistemaEditor({
                     <div className="relative w-full group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
                       <Input
+                        ref={productSearchInputRef}
                         placeholder="Buscar item para adicionar..."
                         className="pl-11 h-12 bg-muted/30 border-muted-foreground/10 focus:bg-background transition-all shadow-sm rounded-xl w-full"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
                         onFocus={() => setShowProductList(true)}
+                        onClick={() => setShowProductList(true)}
                       />
                     </div>
 
@@ -804,7 +824,7 @@ export function SistemaEditor({
                     <AnimatePresence initial={false}>
                       {activeConfig.products
                         .sort((a, b) =>
-                          a.productName.localeCompare(b.productName),
+                          compareDisplayText(a.productName, b.productName),
                         )
                         .map((item) => (
                           <motion.div

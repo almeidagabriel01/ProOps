@@ -80,9 +80,7 @@ export const createService = async (req: Request, res: Response) => {
         description: input.description || "",
         price: input.price,
         markup: input.markup || "0",
-        manufacturer: input.manufacturer || "",
         category: input.category || "",
-        sku: input.sku || "",
         stock: input.stock || "0",
         status: input.status || "active",
         images: input.images || [],
@@ -127,8 +125,10 @@ export const updateService = async (req: Request, res: Response) => {
     if (!id)
       return res.status(400).json({ message: "ID do serviço inválido." });
 
-    const { tenantId, isMaster, isSuperAdmin } =
-      await resolveUserAndTenant(userId, req.user);
+    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
+      userId,
+      req.user,
+    );
 
     const serviceRef = db.collection("services").doc(id);
     const serviceSnap = await serviceRef.get();
@@ -163,9 +163,7 @@ export const updateService = async (req: Request, res: Response) => {
       "description",
       "price",
       "markup",
-      "manufacturer",
       "category",
-      "sku",
       "stock",
       "images",
       "image",

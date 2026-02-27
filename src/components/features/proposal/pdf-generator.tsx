@@ -65,6 +65,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
       logoStyle: settings.logoStyle,
     },
     showCover: includeCover,
+    canonicalSource: false,
     setIsOpen,
   });
 
