@@ -6,90 +6,14 @@ import {
   SectionCard,
   AddSectionButtons,
 } from "./pdf-editor";
-
-export interface PdfSection {
-  id: string;
-  type: "title" | "text" | "image" | "divider" | "product-table";
-  content: string;
-  imageUrl?: string;
-  columnWidth?: number; // Percentage 10-100
-  styles: {
-    fontSize?: string;
-    fontWeight?: string;
-    fontStyle?: string;
-    textAlign?: "left" | "center" | "right";
-    color?: string;
-    backgroundColor?: string;
-    padding?: string;
-    marginTop?: string;
-    marginBottom?: string;
-    imageWidth?: number; // Percentage 10-100
-    imageAlign?: "left" | "center" | "right";
-    imageBorderRadius?: string;
-    borderRadius?: number; // Added for logo styling
-    imageBorder?: boolean;
-    verticalAlign?: "top" | "center" | "bottom";
-  };
-}
-
-// Legacy position type (kept for backwards compatibility)
-export type CoverElementPosition =
-  | "top-left"
-  | "top-center"
-  | "top-right"
-  | "center-left"
-  | "center"
-  | "center-right"
-  | "bottom-left"
-  | "bottom-center"
-  | "bottom-right";
-
-export interface CoverElement {
-  id: string;
-  type:
-    | "title"
-    | "subtitle"
-    | "text"
-    | "label"
-    | "divider"
-    | "client-name"
-    | "proposal-title"
-    | "valid-until"
-    | "logo"
-    | "company-name"
-    | "image";
-  content: string;
-  imageUrl?: string; // For image elements
-  prefix?: string; // Text to show before the main content (for backend-sourced elements)
-  suffix?: string; // Text to show after the main content (for backend-sourced elements)
-  x: number; // Horizontal position (0-100%)
-  y: number; // Vertical position (0-100%)
-  order: number;
-  // Special flags
-  includesClientName?: boolean; // If true, appends client name after content
-  usesProposalTitle?: boolean; // If true, uses the proposal title instead of content
-  styles: {
-    fontSize?: string;
-    fontWeight?: string;
-    fontStyle?: string;
-    textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-    letterSpacing?: string;
-    textAlign?: "left" | "center" | "right";
-    color?: string;
-    opacity?: number;
-    marginTop?: string;
-    marginBottom?: string;
-    borderRadius?: string | number;
-    imageWidth?: number; // Percentage 10-100 for image elements
-    imageHeight?: number; // Height in px for image elements
-    imageFit?: "cover" | "contain";
-    imageBorder?: boolean;
-    // Divider specific
-    width?: string;
-    height?: string;
-    backgroundColor?: string;
-  };
-}
+// Tipos canônicos importados da fonte única da verdade.
+// Re-exportados aqui para retrocompatibilidade com todos os importadores existentes.
+export type {
+  PdfSection,
+  CoverElement,
+  CoverElementPosition,
+} from "@/types/pdf.types";
+import type { PdfSection, CoverElement } from "@/types/pdf.types";
 
 // Helper to create default cover elements
 export function createDefaultCoverElements(): CoverElement[] {

@@ -5,7 +5,7 @@ import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
 import { toast } from "@/lib/toast";
 import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
-import type { ProposalPdfCustomSettings } from "@/pdf/templates/ProposalPdfTemplate";
+import type { ProposalPdfCustomSettings } from "@/components/pdf/templates/ProposalPdfTemplate";
 
 type PdfViewerSettings = ProposalPdfCustomSettings;
 
@@ -26,24 +26,16 @@ interface UsePdfGeneratorProps {
  * Não existe mais fallback client-side (html2canvas / jspdf).
  * Somente propostas salvas (com id) podem ser baixadas — o backend
  * valida tenant ownership antes de gerar o arquivo.
+ *
+ * Os parâmetros `template`, `tenant`, `customSettings`, `showCover` e
+ * `canonicalSource` são mantidos na interface apenas para retrocompatibilidade
+ * com chamadores existentes. O backend ignora-os e usa os settings salvos no
+ * Firestore como fonte canônica.
  */
 export function usePdfGenerator({
   proposal,
-  // Os parâmetros abaixo são mantidos na interface para compatibilidade
-  // com consumidores existentes, mas o backend não os usa diretamente
-  // (ele lê os settings salvos no Firestore).
-  template: _template,
-  tenant: _tenant,
-  customSettings: _customSettings,
-  showCover: _showCover,
-  canonicalSource: _canonicalSource,
   setIsOpen,
 }: UsePdfGeneratorProps) {
-  void _template;
-  void _tenant;
-  void _customSettings;
-  void _showCover;
-  void _canonicalSource;
 
   const [isGenerating, setIsGenerating] = useState(false);
 

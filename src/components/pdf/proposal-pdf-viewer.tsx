@@ -5,7 +5,7 @@ import { useEnrichedProducts } from "@/components/features/proposal/pdf/use-enri
 import {
   ProposalPdfTemplate,
   type ProposalPdfCustomSettings,
-} from "@/pdf/templates/ProposalPdfTemplate";
+} from "@/components/pdf/templates/ProposalPdfTemplate";
 
 interface ProposalPdfViewerProps {
   proposal: Proposal;

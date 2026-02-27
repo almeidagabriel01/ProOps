@@ -20,6 +20,7 @@ import {
   deleteProposal,
 } from "../controllers/proposals.controller";
 import { downloadProposalPdf } from "../controllers/proposal-pdf.controller";
+import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import {
   createSpreadsheet,
   updateSpreadsheet,
@@ -49,7 +50,7 @@ router.delete("/clients/:id", deleteClient);
 router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
 router.delete("/proposals/:id", deleteProposal);
-router.get("/proposals/:id/pdf", downloadProposalPdf);
+router.get("/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 router.post("/spreadsheets", createSpreadsheet);
 router.put("/spreadsheets/:id", updateSpreadsheet);
 router.delete("/spreadsheets/:id", deleteSpreadsheet);
