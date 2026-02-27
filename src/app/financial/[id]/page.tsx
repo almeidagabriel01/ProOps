@@ -11,8 +11,8 @@ import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   TypeSelectorStep,
   DetailsStep,
@@ -251,7 +251,7 @@ export default function EditTransactionPage() {
   // Read-only view without wizard
   if (!canEdit) {
     return (
-      <FormContainer className="max-w-3xl">
+      <FormContainer>
         <FormHeader
           title="Visualizar Lançamento"
           subtitle="Detalhes do lançamento financeiro"
@@ -279,7 +279,7 @@ export default function EditTransactionPage() {
   }
 
   return (
-    <FormContainer className="max-w-3xl">
+    <FormContainer>
       <FormHeader
         title="Editar Lançamento"
         subtitle="Atualize as informações do lançamento"
@@ -293,16 +293,16 @@ export default function EditTransactionPage() {
         stepValidators={stepValidators}
       >
         {/* Step 1: Type Selection */}
-        <StepCard>
+        <FormStepCard>
           <TypeSelectorStep
             type={adaptedFormData.type}
             onTypeChange={(type) => setFormData((prev) => ({ ...prev, type }))}
           />
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Details */}
-        <StepCard>
+        <FormStepCard>
           <DetailsStep
             formData={adaptedFormData}
             onChange={handleChange}
@@ -318,10 +318,10 @@ export default function EditTransactionPage() {
             }
           />
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Payment */}
-        <StepCard>
+        <FormStepCard>
           <PaymentStep
             formData={adaptedFormData}
             onFormDataChange={(updater) => {
@@ -348,10 +348,10 @@ export default function EditTransactionPage() {
           />
 
           <StepNavigation onBeforeNext={validatePaymentStep} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 4: Review */}
-        <StepCard>
+        <FormStepCard>
           <ReviewStep
             formData={adaptedFormData}
             onChange={handleChange}
@@ -364,7 +364,7 @@ export default function EditTransactionPage() {
             submitDisabled={!hasChanges}
             submitLabel="Salvar Alterações"
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
     </FormContainer>
   );

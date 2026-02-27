@@ -21,8 +21,8 @@ import {
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   User,
   Mail,
@@ -182,7 +182,7 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <FormContainer className="max-w-3xl">
+    <FormContainer>
       <FormHeader
         title="Novo Cliente"
         subtitle="Adicione um novo cliente à sua base de contatos"
@@ -192,7 +192,7 @@ export default function NewCustomerPage() {
 
       <StepWizard steps={customerSteps}>
         {/* Step 1: Basic Info + Contact */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
@@ -363,10 +363,10 @@ export default function NewCustomerPage() {
             </FormGroup>
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Address */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
@@ -392,10 +392,10 @@ export default function NewCustomerPage() {
             </FormItem>
           </div>
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Notes & Submit */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -455,7 +455,7 @@ export default function NewCustomerPage() {
             isSubmitting={isCreating}
             submitLabel="Cadastrar Cliente"
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
 
       <LimitReachedModal

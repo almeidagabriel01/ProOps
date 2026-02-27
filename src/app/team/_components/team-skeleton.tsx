@@ -1,23 +1,19 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FormContainer, FormHeaderSkeleton } from "@/components/ui/form-components";
 
 export function TeamSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Header with Title and Add Button Placeholder */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-48" />
-          </div>
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-10 w-40" /> {/* Add Member Button */}
+    <FormContainer>
+      <FormHeaderSkeleton />
+
+      <div className="flex justify-end">
+        <Skeleton className="h-10 w-44 rounded-xl" />
       </div>
 
       {/* Members List */}
       <div className="flex flex-col gap-4">
+        <Skeleton className="h-7 w-40" />
         {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i} className="overflow-hidden">
             <div className="flex items-center p-2 pr-4">
@@ -59,6 +55,6 @@ export function TeamSkeleton() {
           </Card>
         ))}
       </div>
-    </div>
+    </FormContainer>
   );
 }

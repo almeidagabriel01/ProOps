@@ -20,8 +20,8 @@ import {
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   User,
   Mail,
@@ -289,7 +289,7 @@ export default function EditCustomerPage() {
   // Read-only view for users without edit permission
   if (!canEdit) {
     return (
-      <FormContainer className="max-w-3xl">
+      <FormContainer>
         <FormHeader
           title="Detalhes do Cliente"
           subtitle={`Visualizando dados de "${formData.name}"`}
@@ -306,7 +306,7 @@ export default function EditCustomerPage() {
 
         <StepWizard steps={customerSteps} allowClickAhead>
           {/* Step 1: Basic Info */}
-          <StepCard>
+          <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
@@ -329,10 +329,10 @@ export default function EditCustomerPage() {
               </FormGroup>
             </div>
             <StepNavigation />
-          </StepCard>
+          </FormStepCard>
 
           {/* Step 2: Address */}
-          <StepCard>
+          <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
@@ -349,10 +349,10 @@ export default function EditCustomerPage() {
               <FormStatic label="Endereço Completo" value={formData.address} />
             </div>
             <StepNavigation />
-          </StepCard>
+          </FormStepCard>
 
           {/* Step 3: Notes */}
-          <StepCard>
+          <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -372,14 +372,14 @@ export default function EditCustomerPage() {
               onSubmit={() => router.push("/contacts")}
               submitLabel="Voltar"
             />
-          </StepCard>
+          </FormStepCard>
         </StepWizard>
       </FormContainer>
     );
   }
 
   return (
-    <FormContainer className="max-w-3xl">
+    <FormContainer>
       <FormHeader
         title="Editar Cliente"
         subtitle={`Atualize as informações de "${formData.name}"`}
@@ -396,7 +396,7 @@ export default function EditCustomerPage() {
 
       <StepWizard steps={customerSteps} allowClickAhead>
         {/* Step 1: Basic Info + Contact */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
@@ -567,10 +567,10 @@ export default function EditCustomerPage() {
             </FormGroup>
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Address */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
@@ -596,10 +596,10 @@ export default function EditCustomerPage() {
             </FormItem>
           </div>
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Notes & Submit */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -660,7 +660,7 @@ export default function EditCustomerPage() {
             submitDisabled={!hasChanges}
             submitLabel="Salvar Alterações"
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
     </FormContainer>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { UserPlus, AlertCircle } from "lucide-react";
-import { StepWizard, StepCard } from "@/components/ui/step-wizard";
+import { StepWizard } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
@@ -73,7 +74,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
 
         <StepWizard steps={steps}>
           {/* Step 1: Informações do Membro */}
-          <StepCard>
+          <FormStepCard>
             <MemberInfoStep
               name={name}
               setName={setName}
@@ -88,18 +89,18 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
               setShowPassword={setShowPassword}
               onNext={validateStep1}
             />
-          </StepCard>
+          </FormStepCard>
 
           {/* Step 2: Nível de Acesso */}
-          <StepCard>
+          <FormStepCard>
             <RoleSelectionStep
               selectedRole={selectedRole}
               onSelectRole={handleRoleSelect}
             />
-          </StepCard>
+          </FormStepCard>
 
           {/* Step 3: Personalizar Permissões */}
-          <StepCard>
+          <FormStepCard>
             <PermissionsStep
               customPermissions={customPermissions}
               setCustomPermissions={setCustomPermissions}
@@ -107,7 +108,7 @@ export function CreateMemberSection({ onSuccess }: CreateMemberSectionProps) {
               onSubmit={handleSubmit}
               isSubmitting={isLoading}
             />
-          </StepCard>
+          </FormStepCard>
         </StepWizard>
 
         <p className="text-xs text-center text-muted-foreground mt-6">

@@ -34,6 +34,7 @@ import { AutomationSkeleton } from "@/components/features/automation/automation-
 import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
+import { AppSkeleton } from "@/components/layout/app-skeleton";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
@@ -125,12 +126,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isLoading) {
+    const renderWithShell = (content: React.ReactNode) => (
+      <AppSkeleton>{content}</AppSkeleton>
+    );
+
     if (pathname?.startsWith("/spreadsheets/")) {
-      return <SpreadsheetEditorSkeleton />;
+      return renderWithShell(<SpreadsheetEditorSkeleton />);
     }
 
     if (pathname === "/spreadsheets") {
-      return <SpreadsheetsSkeleton />;
+      return renderWithShell(<SpreadsheetsSkeleton />);
     }
 
     let skeletonType = "dashboard";
@@ -168,33 +173,33 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
     switch (skeletonType) {
       case "dashboard":
-        return <DashboardSkeleton />;
+        return renderWithShell(<DashboardSkeleton />);
       case "profile":
-        return <ProfileSkeleton />;
+        return renderWithShell(<ProfileSkeleton />);
       case "addons":
-        return <AddonsSkeleton />;
+        return renderWithShell(<AddonsSkeleton />);
       case "financial":
-        return <FinancialSkeleton />;
+        return renderWithShell(<FinancialSkeleton />);
       case "wallets":
-        return <WalletsSkeleton />;
+        return renderWithShell(<WalletsSkeleton />);
       case "team":
-        return <TeamSkeleton />;
+        return renderWithShell(<TeamSkeleton />);
       case "admin":
-        return <AdminSkeleton />;
+        return renderWithShell(<AdminSkeleton />);
       case "adminOverview":
-        return <AdminOverviewSkeleton />;
+        return renderWithShell(<AdminOverviewSkeleton />);
       case "products":
-        return <ProductsSkeleton />;
+        return renderWithShell(<ProductsSkeleton />);
       case "services":
-        return <ServicesSkeleton />;
+        return renderWithShell(<ServicesSkeleton />);
       case "proposals":
-        return <ProposalsSkeleton />;
+        return renderWithShell(<ProposalsSkeleton />);
       case "clients":
-        return <ContactsSkeleton />;
+        return renderWithShell(<ContactsSkeleton />);
       case "automation":
-        return <AutomationSkeleton />;
+        return renderWithShell(<AutomationSkeleton />);
       default:
-        return <DashboardSkeleton />;
+        return renderWithShell(<DashboardSkeleton />);
     }
   }
 

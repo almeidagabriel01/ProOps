@@ -8,8 +8,8 @@ import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   TypeSelectorStep,
   DetailsStep,
@@ -218,7 +218,7 @@ export default function NewTransactionPage() {
   };
 
   return (
-    <FormContainer className="max-w-3xl">
+    <FormContainer>
       <FormHeader
         title="Novo Lançamento"
         subtitle="Registre uma nova movimentação financeira"
@@ -228,16 +228,16 @@ export default function NewTransactionPage() {
 
       <StepWizard steps={transactionSteps}>
         {/* Step 1: Type Selection */}
-        <StepCard>
+        <FormStepCard>
           <TypeSelectorStep
             type={formData.type}
             onTypeChange={(type) => setFormData((prev) => ({ ...prev, type }))}
           />
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Details */}
-        <StepCard>
+        <FormStepCard>
           <DetailsStep
             formData={formData}
             onChange={handleChange}
@@ -245,10 +245,10 @@ export default function NewTransactionPage() {
             errors={errors}
           />
           <StepNavigation onBeforeNext={validateStep2} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Payment */}
-        <StepCard>
+        <FormStepCard>
           <PaymentStep
             formData={formData}
             onFormDataChange={setFormData}
@@ -258,10 +258,10 @@ export default function NewTransactionPage() {
             onPaymentModeChange={switchPaymentMode}
           />
           <StepNavigation onBeforeNext={validateStep3} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 4: Review */}
-        <StepCard>
+        <FormStepCard>
           <ReviewStep
             formData={formData}
             onChange={handleChange}
@@ -277,7 +277,7 @@ export default function NewTransactionPage() {
                 : "Salvar Lançamento"
             }
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
     </FormContainer>
   );

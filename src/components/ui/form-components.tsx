@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon, ChevronDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ============================================
 // FORM CONTAINER - Main wrapper for forms
@@ -20,7 +21,7 @@ export function FormContainer({
   return (
     <div
       className={cn(
-        "w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8",
+        "w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8",
         className
       )}
       {...props}
@@ -92,6 +93,21 @@ export function FormHeader({
               {subtitle}
             </p>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FormHeaderSkeleton({ withBackButton = false }: { withBackButton?: boolean }) {
+  return (
+    <div className="mb-8">
+      <div className="flex items-start gap-5">
+        {withBackButton && <Skeleton className="mt-1.5 w-11 h-11 rounded-xl" />}
+        <Skeleton className="w-14 h-14 rounded-2xl shrink-0" />
+        <div className="flex-1 min-w-0 pt-1 space-y-2.5">
+          <Skeleton className="h-8 w-56 sm:h-9 sm:w-72" />
+          <Skeleton className="h-4 w-64 sm:w-96" />
         </div>
       </div>
     </div>

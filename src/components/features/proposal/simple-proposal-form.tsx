@@ -33,8 +33,8 @@ import { FormContainer } from "@/components/ui/form-components";
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 
 // Import extracted components
 import {
@@ -899,7 +899,7 @@ export function SimpleProposalForm({
         initialStep={initialStep}
       >
         {/* Step 1: Client Info */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
@@ -926,10 +926,10 @@ export function SimpleProposalForm({
             />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Systems or Products */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             {isAutomacaoNiche ? (
               <>
@@ -1015,10 +1015,10 @@ export function SimpleProposalForm({
             </Alert>
           )}
           <StepNavigation onBeforeNext={validateStep2} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Payment */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
@@ -1050,19 +1050,19 @@ export function SimpleProposalForm({
             />
           </div>
           <StepNavigation onBeforeNext={validateStep3} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 4: PDF Settings */}
-        <StepCard>
+        <FormStepCard>
           <PdfDisplayOptionsSection
             formData={formData}
             setFormData={setFormData}
           />
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 5: Summary */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -1097,7 +1097,7 @@ export function SimpleProposalForm({
             submitDisabled={!!proposalId && !isDirty}
             submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
 
       {/* Dialog de Edição de Seleção */}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -14,8 +14,8 @@ import { Service } from "@/services/service-service";
 import {
   StepWizard,
   StepNavigation,
-  StepCard,
 } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   FormSection,
   FormGroup,
@@ -204,7 +204,7 @@ export function ProductFormNew({
     <>
       <StepWizard steps={productSteps} allowClickAhead={!!productId}>
         {/* Step 1: Product Info */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
@@ -315,10 +315,10 @@ export function ProductFormNew({
           </div>
 
           <StepNavigation onBeforeNext={validateStep1} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 2: Pricing */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
@@ -460,10 +460,10 @@ export function ProductFormNew({
           </div>
 
           <StepNavigation onBeforeNext={validateStep2} />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 3: Images */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
@@ -531,10 +531,10 @@ export function ProductFormNew({
           </div>
 
           <StepNavigation />
-        </StepCard>
+        </FormStepCard>
 
         {/* Step 4: Settings */}
-        <StepCard>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -612,7 +612,7 @@ export function ProductFormNew({
                   : "Criar Produto"
             }
           />
-        </StepCard>
+        </FormStepCard>
       </StepWizard>
 
       {/* Modals */}

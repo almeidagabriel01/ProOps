@@ -18,7 +18,8 @@ import { useUpdatePermissions } from "@/hooks/useUpdatePermissions";
 import { TeamSkeleton } from "./_components/team-skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Shield, UserPlus, X } from "lucide-react";
+import { FormContainer, FormHeader } from "@/components/ui/form-components";
+import { Users, Shield, UserPlus, X, Loader2 } from "lucide-react";
 import { toast } from '@/lib/toast';
 import {
   TeamMember,
@@ -27,7 +28,6 @@ import {
   MemberCard,
 } from "@/components/features/team";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { Loader2 } from "lucide-react";
 
 export default function TeamPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -202,18 +202,14 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="space-y-6 flex flex-col min-h-[calc(100vh_-_135px)]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Users className="w-8 h-8" />
-            Equipe
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie os membros da sua equipe e suas permissões
-          </p>
-        </div>
+    <FormContainer>
+      <FormHeader
+        title="Equipe"
+        subtitle="Gerencie os membros da sua equipe e suas permissões"
+        icon={Users}
+      />
+
+      <div className="flex justify-end">
         <Button
           onClick={() => setIsCreatingMember(!isCreatingMember)}
           variant={isCreatingMember ? "outline" : "default"}
@@ -299,6 +295,6 @@ export default function TeamPage() {
           )}
         </div>
       </div>
-    </div>
+    </FormContainer>
   );
 }
