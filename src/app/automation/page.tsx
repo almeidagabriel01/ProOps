@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus, Settings2, Box, Layers } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
+import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
 import { Ambiente, Sistema } from "@/types/automation";
@@ -36,6 +37,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 import { compareDisplayText } from "@/lib/sort-text";
+import { SelectTenantState } from "@/components/shared/select-tenant-state";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -247,6 +249,7 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
 
 export default function AutomationAdminPage() {
   const { tenant } = useTenant();
+  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -305,7 +308,10 @@ export default function AutomationAdminPage() {
 
   const loadData = React.useCallback(
     async (silent: boolean = false) => {
-      if (!tenant?.id) return;
+      if (!tenant?.id) {
+        if (!silent) setIsLoading(false);
+        return;
+      }
       if (!silent) setIsLoading(true);
       try {
         const [sistemasData, ambientesData] = await Promise.all([
@@ -360,6 +366,10 @@ export default function AutomationAdminPage() {
 
   if (isLoading) {
     return <AutomationSkeleton />;
+  }
+
+  if (!tenant && user?.role === "superadmin") {
+    return <SelectTenantState />;
   }
 
   // Editing Mode

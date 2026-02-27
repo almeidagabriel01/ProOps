@@ -5,8 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Wrench } from "lucide-react";
 import { toast } from "@/lib/toast";
-import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
-import { ProductsTableSkeleton } from "@/app/products/_components/products-table-skeleton";
+import { ServicesTableSkeleton } from "./_components/services-table-skeleton";
 import { normalize } from "@/utils/text";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -78,8 +77,6 @@ export default function ServicesPage() {
 
     return success;
   };
-
-  const isPageLoading = tenantLoading;
 
   const {
     items: sortedServices,
@@ -392,8 +389,8 @@ export default function ServicesPage() {
           </div>
         )}
 
-        {isPageLoading ? (
-          <ProductsSkeleton />
+        {tenantLoading ? (
+          <ServicesTableSkeleton />
         ) : hasAnyServices === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
@@ -439,7 +436,6 @@ export default function ServicesPage() {
             onResetRef={resetRef}
             batchSize={12}
             minWidth="800px"
-            loadingSkeleton={<ProductsTableSkeleton />}
           />
         )}
       </div>

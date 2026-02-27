@@ -41,6 +41,7 @@ export interface AsyncScrollOptions<T> {
   ) => Promise<PaginatedResult<T>>;
   batchSize?: number;
   enabled?: boolean;
+  initialLoadTimeoutMs?: number;
 }
 
 // ============================================
@@ -50,7 +51,12 @@ export interface AsyncScrollOptions<T> {
 export function useAsyncInfiniteScroll<T>(
   options: AsyncScrollOptions<T>,
 ): AsyncInfiniteScrollResult<T> {
-  const { fetchPage, batchSize = 12, enabled = true } = options;
+  const {
+    fetchPage,
+    batchSize = 12,
+    enabled = true,
+    initialLoadTimeoutMs = 20000,
+  } = options;
 
   const [items, setItems] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +67,30 @@ export function useAsyncInfiniteScroll<T>(
   const observerRef = useRef<IntersectionObserver | null>(null);
   const isFetchingRef = useRef(false);
   const fetchPageRef = useRef(fetchPage);
+
+  const withTimeout = useCallback(
+    async (
+      promise: Promise<PaginatedResult<T>>,
+      timeoutMs: number,
+    ): Promise<PaginatedResult<T>> => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<PaginatedResult<T>>((_, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error("ASYNC_TABLE_INITIAL_LOAD_TIMEOUT"));
+            }, timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      }
+    },
+    [],
+  );
 
   // Keep fetchPage ref up to date
   fetchPageRef.current = fetchPage;
@@ -81,7 +111,10 @@ export function useAsyncInfiniteScroll<T>(
       setHasMore(true);
 
       try {
-        const result = await fetchPageRef.current(null);
+        const result = await withTimeout(
+          fetchPageRef.current(null),
+          initialLoadTimeoutMs,
+        );
         if (cancelled) return;
 
         setItems(result.data);
@@ -102,7 +135,7 @@ export function useAsyncInfiniteScroll<T>(
     };
     // We only re-fetch on initial mount or when `enabled` changes.
     // fetchPage identity changes are handled via ref.
-  }, [enabled, batchSize]);
+  }, [enabled, batchSize, initialLoadTimeoutMs, withTimeout]);
 
   // Load more
   const loadMore = useCallback(async () => {
@@ -111,7 +144,7 @@ export function useAsyncInfiniteScroll<T>(
     setIsLoadingMore(true);
 
     try {
-      const result = await fetchPageRef.current(cursorRef.current);
+        const result = await fetchPageRef.current(cursorRef.current);
       setItems((prev) => [...prev, ...result.data]);
       cursorRef.current = result.lastDoc;
       setHasMore(result.hasMore);
@@ -158,8 +191,7 @@ export function useAsyncInfiniteScroll<T>(
     setHasMore(true);
     setIsLoading(true);
 
-    fetchPageRef
-      .current(null)
+    withTimeout(fetchPageRef.current(null), initialLoadTimeoutMs)
       .then((result) => {
         setItems(result.data);
         cursorRef.current = result.lastDoc;
@@ -171,7 +203,7 @@ export function useAsyncInfiniteScroll<T>(
         setHasMore(false);
         setIsLoading(false);
       });
-  }, []);
+  }, [initialLoadTimeoutMs, withTimeout]);
 
   return { items, isLoading, isLoadingMore, hasMore, sentinelRef, reset };
 }

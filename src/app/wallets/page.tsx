@@ -7,6 +7,9 @@ import { Plus, Wallet as WalletIcon } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { WalletsSkeleton, WalletFilters } from "./_components";
 import { useWalletsCtrl } from "./_hooks/use-wallets-ctrl";
+import { useTenant } from "@/providers/tenant-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { WalletsSummaryCards } from "./_components/wallets-summary-cards";
 import { WalletsGrid, WalletsGridSkeleton } from "./_components/wallets-grid";
 import { WalletsDialogs } from "./_components/wallets-dialogs";
@@ -16,6 +19,8 @@ import {
 } from "./_components/wallets-empty-states";
 
 export default function WalletsPage() {
+  const { tenant, isLoading: tenantLoading } = useTenant();
+  const { user } = useAuth();
   const { state, actions } = useWalletsCtrl();
 
   const {
@@ -37,6 +42,24 @@ export default function WalletsPage() {
   } = state;
 
   // Show loading first - before checking plan access to avoid flash
+  if (tenantLoading) {
+    return (
+      <>
+        <WalletsSkeleton />
+        <WalletsDialogs state={state} actions={actions} wallets={wallets} />
+      </>
+    );
+  }
+
+  if (!tenant && user?.role === "superadmin") {
+    return (
+      <>
+        <SelectTenantState />
+        <WalletsDialogs state={state} actions={actions} wallets={wallets} />
+      </>
+    );
+  }
+
   if (showSkeleton && !isTransferring && settingDefaultId === null) {
     // Note: isTransferring and settingDefaultId are technically 'loading' states but we might want to show the UI with a spinner instead of a full skeleton.
     // However, the original code used `showSkeleton` for all these.

@@ -90,9 +90,7 @@ export default function CustomersPage() {
           />
         )}
 
-        {state.tenantLoading ? (
-          <ContactsSkeleton />
-        ) : hasAnyClients === false ? (
+        {hasAnyClients === false ? (
           <ContactsEmptyState canCreate={canCreate} />
         ) : isFiltering && filteredClients.length === 0 && !isLoadingAll ? (
           <ContactsNoResults />

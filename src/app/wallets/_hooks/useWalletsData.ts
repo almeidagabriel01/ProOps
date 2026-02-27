@@ -49,7 +49,21 @@ export function useWalletsData(): UseWalletsDataReturn {
   const hasLoadedRef = useRef(false);
 
   const fetchData = useCallback(async () => {
-    if (!tenant || (!hasFinancial && !isPlanLoading)) return;
+    if (!tenant) {
+      setWallets([]);
+      setSummary({
+        totalBalance: 0,
+        walletCount: 0,
+        activeWallets: 0,
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (!hasFinancial && !isPlanLoading) {
+      setIsLoading(false);
+      return;
+    }
 
     // Only show loading state if we haven't loaded data yet
     // This prevents the flickering when navigating back or when deps change

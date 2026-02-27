@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { toast } from '@/lib/toast';
-import { ProductsSkeleton } from "./_components/products-skeleton";
 import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
 import { normalize } from "@/utils/text";
 import { useTenant } from "@/providers/tenant-provider";
@@ -80,9 +79,6 @@ export default function ProductsPage() {
     return success;
   };
 
-  /* isPageLoading now only for initial tenant load to avoid full page blink */
-  const isPageLoading = tenantLoading;
-
   const {
     items: sortedProducts,
     requestSort,
@@ -148,11 +144,6 @@ export default function ProductsPage() {
     },
     [tenant, sortConfig],
   );
-
-  // Reset pagination when sort changes
-  useEffect(() => {
-    resetRef.current?.();
-  }, [sortConfig]);
 
   // Reset pagination when sort changes
   useEffect(() => {
@@ -410,8 +401,8 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {isPageLoading ? (
-          <ProductsSkeleton />
+        {tenantLoading ? (
+          <ProductsTableSkeleton />
         ) : hasAnyProducts === false ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">

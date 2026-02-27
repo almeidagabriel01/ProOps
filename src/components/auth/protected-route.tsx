@@ -19,15 +19,14 @@ import {
   pageRequiresAuth,
   pageIsMasterOnly,
 } from "@/lib/page-config";
-import { AppSkeleton } from "@/components/layout/app-skeleton";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
-import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
 import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
+import { ServicesSkeleton } from "@/app/services/_components/services-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
@@ -67,7 +66,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Check route type
   const isSelfHandled = SELF_HANDLED_ROUTES.some(
     (r) => pathname === r || pathname.startsWith(r + "/"),
   );
@@ -76,17 +74,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
   const pageConfig = getPageConfig(pathname);
 
-  // Combine loading states
   const isLoading = isAuthLoading || (user && isPermLoading);
 
   React.useEffect(() => {
-    // Skip checks for self-handled routes
     if (isSelfHandled) return;
-
-    // Skip checks while loading
     if (isAuthLoading) return;
 
-    // Not authenticated
     if (!user) {
       if (!isPublic && pageRequiresAuth(pathname)) {
         router.push("/login");
@@ -94,24 +87,20 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Wait for permissions to load
     if (isPermLoading) return;
     if (!permissions) return;
 
-    // MASTER-only page check
     if (pageIsMasterOnly(pathname) && permissions.role !== "MASTER") {
       router.push("/403");
       return;
     }
 
-    // Page permission check
     if (pageConfig?.requiredPermission) {
       const pageId = pageConfig.pageId;
       const requiredAction = pageConfig.requiredPermission;
 
       if (!hasPermission(pageId, requiredAction)) {
         router.push("/403");
-        return;
       }
     }
   }, [
@@ -127,35 +116,23 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     hasPermission,
   ]);
 
-  // Self-handled routes render immediately
   if (isSelfHandled) {
     return <>{children}</>;
   }
 
-  // Public routes with no user
   if (isPublic && !user && !isAuthLoading) {
     return <>{children}</>;
   }
 
-  // Loading state
   if (isLoading) {
     if (pathname?.startsWith("/spreadsheets/")) {
-      return (
-        <AppSkeleton>
-          <SpreadsheetEditorSkeleton />
-        </AppSkeleton>
-      );
+      return <SpreadsheetEditorSkeleton />;
     }
 
     if (pathname === "/spreadsheets") {
-      return (
-        <AppSkeleton>
-          <SpreadsheetsSkeleton />
-        </AppSkeleton>
-      );
+      return <SpreadsheetsSkeleton />;
     }
 
-    // Try to determine best skeleton from pathname first, then cache
     let skeletonType = "dashboard";
 
     if (pathname?.startsWith("/profile/addons")) {
@@ -168,6 +145,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "financial";
     } else if (pathname?.startsWith("/products")) {
       skeletonType = "products";
+    } else if (pathname?.startsWith("/services")) {
+      skeletonType = "services";
     } else if (pathname?.startsWith("/proposals")) {
       skeletonType = "proposals";
     } else if (pathname?.startsWith("/contacts")) {
@@ -178,84 +157,58 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       skeletonType = "adminOverview";
     } else if (pathname?.startsWith("/admin")) {
       skeletonType = "admin";
-    } else if (pathname?.startsWith("/solutions")) {
+    } else if (
+      pathname?.startsWith("/solutions") ||
+      pathname?.startsWith("/automation")
+    ) {
       skeletonType = "automation";
     } else if (pathname === "/" || pathname?.startsWith("/dashboard")) {
       skeletonType = "dashboard";
     }
 
-    const renderSkeleton = () => {
-      switch (skeletonType) {
-        case "dashboard":
-          return <DashboardSkeleton />;
-        case "profile":
-          return <ProfileSkeleton />;
-        case "addons":
-          return <AddonsSkeleton />;
-        case "financial":
-          return <FinancialSkeleton />;
-        case "wallets":
-          return <WalletsSkeleton />;
-        case "team":
-          return <TeamSkeleton />;
-        case "admin":
-          return <AdminSkeleton />;
-        case "adminOverview":
-          return <AdminOverviewSkeleton />;
-        case "products":
-          return <ProductsSkeleton />;
-        case "proposals":
-          return <ProposalsSkeleton />;
-        case "clients":
-          return <ContactsSkeleton />;
-        case "automation":
-          return <AutomationSkeleton />;
-        case "list":
-        default:
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="h-8 w-48 bg-muted animate-pulse mb-2" />
-                  <div className="h-4 w-64 bg-muted animate-pulse" />
-                </div>
-                <div className="h-10 w-32 bg-muted animate-pulse" />
-              </div>
-              <TableSkeleton rowCount={8} columnCount={5} />
-            </div>
-          );
-      }
-    };
-
-    return <AppSkeleton>{renderSkeleton()}</AppSkeleton>;
+    switch (skeletonType) {
+      case "dashboard":
+        return <DashboardSkeleton />;
+      case "profile":
+        return <ProfileSkeleton />;
+      case "addons":
+        return <AddonsSkeleton />;
+      case "financial":
+        return <FinancialSkeleton />;
+      case "wallets":
+        return <WalletsSkeleton />;
+      case "team":
+        return <TeamSkeleton />;
+      case "admin":
+        return <AdminSkeleton />;
+      case "adminOverview":
+        return <AdminOverviewSkeleton />;
+      case "products":
+        return <ProductsSkeleton />;
+      case "services":
+        return <ServicesSkeleton />;
+      case "proposals":
+        return <ProposalsSkeleton />;
+      case "clients":
+        return <ContactsSkeleton />;
+      case "automation":
+        return <AutomationSkeleton />;
+      default:
+        return <DashboardSkeleton />;
+    }
   }
 
-  // No user after loading (redirect happening)
   if (!user) {
     if (pathname?.startsWith("/spreadsheets/")) {
-      return (
-        <AppSkeleton>
-          <SpreadsheetEditorSkeleton />
-        </AppSkeleton>
-      );
+      return <SpreadsheetEditorSkeleton />;
     }
 
     if (pathname === "/spreadsheets") {
-      return (
-        <AppSkeleton>
-          <SpreadsheetsSkeleton />
-        </AppSkeleton>
-      );
+      return <SpreadsheetsSkeleton />;
     }
 
-    // Transient state before redirect happens — show dashboard skeleton as default
-    return (
-      <AppSkeleton>
-        <DashboardSkeleton />
-      </AppSkeleton>
-    );
+    return null;
   }
 
-  // Authenticated with permissions loaded
   return <>{children}</>;
 }
