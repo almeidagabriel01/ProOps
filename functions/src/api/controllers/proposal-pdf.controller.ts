@@ -1,15 +1,6 @@
 import { Request, Response } from "express";
-import { getOrGenerateProposalPdfBuffer } from "../services/proposal-pdf.service";
-import { db } from "../../init";
-
-function sanitizeFilename(value: string): string {
-  return value.replace(/[<>:"/\\|?*]/g, "").trim();
-}
-
-function buildFilename(title?: string): string {
-  const clean = sanitizeFilename(title || "");
-  return clean ? `Proposta - ${clean}.pdf` : "Proposta.pdf";
-}
+import { getOrGenerateProposalPdf } from "../services/proposal-pdf.service";
+import { buildPdfFilename } from "../services/pdf-filename";
 
 export async function downloadProposalPdf(req: Request, res: Response) {
   try {
@@ -23,22 +14,16 @@ export async function downloadProposalPdf(req: Request, res: Response) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Fetch proposal title for filename
-    const proposalSnap = await db.collection("proposals").doc(proposalId).get();
-    const proposalTitle = proposalSnap.exists
-      ? String((proposalSnap.data() as Record<string, unknown>)?.title || "")
-      : "";
-
-    const pdfBuffer = await getOrGenerateProposalPdfBuffer(
+    const result = await getOrGenerateProposalPdf(
       authTenantId,
       proposalId,
     );
-    const filename = buildFilename(proposalTitle);
+    const filename = buildPdfFilename(result.proposalTitle);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "private, no-store");
-    return res.status(200).send(pdfBuffer);
+    return res.status(200).send(result.buffer);
   } catch (error) {
     if (res.headersSent) {
       return;
@@ -51,6 +36,9 @@ export async function downloadProposalPdf(req: Request, res: Response) {
     }
     if (message === "FORBIDDEN_TENANT_MISMATCH") {
       return res.status(403).json({ message: "Acesso negado" });
+    }
+    if (message === "PDF_GENERATION_IN_PROGRESS") {
+      return res.status(409).json({ message: "PDF em geracao. Tente novamente." });
     }
 
     console.error("downloadProposalPdf Error:", error);

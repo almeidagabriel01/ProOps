@@ -5,7 +5,9 @@ import { NotificationService } from "./notification.service";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_LINK_EXPIRATION_DAYS = 30;
-const DEFAULT_PROPOSAL_TITLE = "Proposta sem t\u00edtulo";
+const DEFAULT_PROPOSAL_TITLE = "Proposta sem titulo";
+
+export type SharedProposalPurpose = "external_share" | "system_pdf_render";
 
 export interface SharedProposal {
   id: string;
@@ -15,6 +17,7 @@ export interface SharedProposal {
   createdAt: string;
   createdBy: string;
   expiresAt: string;
+  purpose?: SharedProposalPurpose;
   viewedAt?: string;
   viewerInfo?: ViewerInfo[];
 }
@@ -39,14 +42,22 @@ export class SharedProposalService {
       return configuredUrl;
     }
 
-    const isLocal = process.env.FUNCTIONS_EMULATOR === "true" || process.env.NODE_ENV === "development";
+    const isLocal =
+      process.env.FUNCTIONS_EMULATOR === "true" ||
+      process.env.NODE_ENV === "development";
 
     return isLocal ? "http://localhost:3000/" : "https://proops.com.br/";
   }
 
-  private static getExpirationDate(): Date {
+  private static getExpirationDate(days = SHARED_LINK_EXPIRATION_DAYS): Date {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + SHARED_LINK_EXPIRATION_DAYS);
+    expiresAt.setDate(expiresAt.getDate() + days);
+    return expiresAt;
+  }
+
+  private static getInternalRenderExpirationDate(minutes = 30): Date {
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
     return expiresAt;
   }
 
@@ -91,21 +102,27 @@ export class SharedProposalService {
     userId: string,
   ): Promise<ShareLinkResponse> {
     try {
-      // Verificar se já existe um link compartilhado para esta proposta
       const existingSnapshot = await db
         .collection(SHARED_PROPOSALS_COLLECTION)
         .where("proposalId", "==", proposalId)
         .where("tenantId", "==", tenantId)
-        .limit(1)
+        .limit(10)
         .get();
 
-      if (!existingSnapshot.empty) {
-        const doc = existingSnapshot.docs[0];
+      const existingExternalDoc = existingSnapshot.docs.find((docSnap) => {
+        const currentPurpose = String((docSnap.data() as SharedProposal).purpose || "");
+        return !currentPurpose || currentPurpose === "external_share";
+      });
+
+      if (existingExternalDoc) {
+        const doc = existingExternalDoc;
         const data = doc.data() as SharedProposal;
-        
-        // Renovar a data de expiração
+
         const expiresAt = this.getExpirationDate();
-        await doc.ref.update({ expiresAt: expiresAt.toISOString() });
+        await doc.ref.update({
+          expiresAt: expiresAt.toISOString(),
+          purpose: "external_share",
+        });
 
         return {
           shareUrl: this.buildShareUrl(data.token),
@@ -124,6 +141,7 @@ export class SharedProposalService {
         createdAt: new Date().toISOString(),
         createdBy: userId,
         expiresAt: expiresAt.toISOString(),
+        purpose: "external_share",
         viewerInfo: [],
       };
 
@@ -137,6 +155,64 @@ export class SharedProposalService {
     } catch (error) {
       console.error("Error creating share link:", error);
       throw new Error("Failed to create share link");
+    }
+  }
+
+  static async createInternalRenderLink(
+    proposalId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<ShareLinkResponse> {
+    try {
+      const existingSnapshot = await db
+        .collection(SHARED_PROPOSALS_COLLECTION)
+        .where("proposalId", "==", proposalId)
+        .where("tenantId", "==", tenantId)
+        .limit(10)
+        .get();
+
+      const now = new Date();
+      const existingInternalDoc = existingSnapshot.docs.find((docSnap) => {
+        const data = docSnap.data() as SharedProposal;
+        const purpose = String(data.purpose || "");
+        if (purpose !== "system_pdf_render") return false;
+        const expiresAt = new Date(String(data.expiresAt || ""));
+        return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+      });
+
+      if (existingInternalDoc) {
+        const data = existingInternalDoc.data() as SharedProposal;
+        return {
+          shareUrl: this.buildShareUrl(data.token),
+          token: data.token,
+          expiresAt: String(data.expiresAt),
+        };
+      }
+
+      const token = uuidv4();
+      const expiresAt = this.getInternalRenderExpirationDate();
+
+      const sharedProposal: Omit<SharedProposal, "id"> = {
+        proposalId,
+        tenantId,
+        token,
+        createdAt: new Date().toISOString(),
+        createdBy: userId,
+        expiresAt: expiresAt.toISOString(),
+        purpose: "system_pdf_render",
+        viewerInfo: [],
+      };
+
+      await db.collection(SHARED_PROPOSALS_COLLECTION).add(sharedProposal);
+
+      return {
+        shareUrl: this.buildShareUrl(token),
+        token,
+        expiresAt: expiresAt.toISOString(),
+      };
+    } catch (error) {
+      console.error("Error creating internal render link:", error);
+      throw new Error("Failed to create internal render link");
     }
   }
 

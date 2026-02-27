@@ -19,7 +19,7 @@ import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
-import { savePdfBlob } from "@/services/pdf/render-to-pdf";
+import { downloadSharedProposalPdf } from "@/services/pdf/download-shared-proposal-pdf";
 
 export default function SharedProposalPage() {
   const params = useParams();
@@ -41,44 +41,7 @@ export default function SharedProposalPage() {
     if (!token) return;
     setIsGenerating(true);
     try {
-      const apiBaseUrl = String(process.env.NEXT_PUBLIC_API_URL || "")
-        .trim()
-        .replace(/\/+$/, "");
-      if (!apiBaseUrl) {
-        throw new Error("NEXT_PUBLIC_API_URL is not configured.");
-      }
-
-      const endpoint = `${apiBaseUrl}/v1/share/${encodeURIComponent(token)}/pdf`;
-      const response = await fetch(endpoint, {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "");
-        throw new Error(errorText || "Falha ao baixar PDF.");
-      }
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get("content-disposition");
-      let filename = "Proposta.pdf";
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="([^"]+)"/i);
-        if (match?.[1]) {
-          filename = match[1];
-        }
-      }
-
-      if (filename === "Proposta.pdf" || filename === "proposta.pdf") {
-        const clean = (proposal?.title || "")
-          .replace(/[<>:"/\\|?*]/g, "")
-          .trim();
-        if (clean) {
-          filename = `Proposta - ${clean}.pdf`;
-        }
-      }
-
-      savePdfBlob(blob, filename);
+      await downloadSharedProposalPdf(token, proposal?.title);
     } catch (err) {
       console.error("Error downloading shared PDF:", err);
       alert("Erro ao baixar PDF. Tente novamente.");

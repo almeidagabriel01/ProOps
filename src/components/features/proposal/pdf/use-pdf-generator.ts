@@ -54,10 +54,12 @@ export function usePdfGenerator({
         }
 
         const shouldUseBackendDownload =
-          Boolean(proposal?.id) &&
-          (sourceLabel === "download" || sourceLabel === "view");
-
-        if (shouldUseBackendDownload && proposal.id) {
+          sourceLabel === "download" || sourceLabel === "view";
+        if (shouldUseBackendDownload) {
+          if (!proposal?.id) {
+            toast.error("Salve a proposta antes de baixar o PDF.");
+            return;
+          }
           await downloadProposalPdfFromBackend(proposal.id, proposal.title);
           setIsOpen(false);
           toast.success("PDF baixado com sucesso!");

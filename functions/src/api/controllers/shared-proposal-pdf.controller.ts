@@ -2,57 +2,42 @@
 
 import { Request, Response } from "express";
 import { SharedProposalService } from "../services/shared-proposal.service";
-import { getOrGenerateProposalPdfBuffer } from "../services/proposal-pdf.service";
-import { db } from "../../init";
-
-function sanitizeFilename(value: string): string {
-  return value.replace(/[<>:"/\\|?*]/g, "").trim();
-}
-
-function buildFilename(title?: string): string {
-  const clean = sanitizeFilename(title || "");
-  return clean ? `Proposta - ${clean}.pdf` : "Proposta.pdf";
-}
+import { getOrGenerateProposalPdf } from "../services/proposal-pdf.service";
+import { buildPdfFilename } from "../services/pdf-filename";
 
 /**
  * GET /v1/share/:token/pdf
- * Public endpoint — downloads the PDF for a shared proposal.
+ * Public endpoint - downloads the PDF for a shared proposal.
  * The share token acts as authentication (no Bearer token required).
  */
 export async function downloadSharedProposalPdf(req: Request, res: Response) {
   try {
     const token = String(req.params.token || "").trim();
     if (!token) {
-      return res.status(400).json({ message: "Token inválido" });
+      return res.status(400).json({ message: "Token invalido" });
     }
 
     const sharedProposal = await SharedProposalService.getSharedProposal(token);
     if (!sharedProposal) {
-      return res
-        .status(404)
-        .json({ message: "Link não encontrado ou inválido" });
+      return res.status(404).json({ message: "Link nao encontrado ou invalido" });
     }
 
-    // Fetch proposal title for filename
-    const proposalSnap = await db
-      .collection("proposals")
-      .doc(sharedProposal.proposalId)
-      .get();
-    const proposalTitle = proposalSnap.exists
-      ? String((proposalSnap.data() as Record<string, unknown>)?.title || "")
-      : "";
+    const linkPurpose = String(sharedProposal.purpose || "external_share");
+    if (linkPurpose === "system_pdf_render") {
+      return res.status(404).json({ message: "Link nao encontrado ou invalido" });
+    }
 
-    const pdfBuffer = await getOrGenerateProposalPdfBuffer(
+    const result = await getOrGenerateProposalPdf(
       sharedProposal.tenantId,
       sharedProposal.proposalId,
     );
 
-    const filename = buildFilename(proposalTitle);
+    const filename = buildPdfFilename(result.proposalTitle);
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Cache-Control", "private, no-store");
-    return res.status(200).send(pdfBuffer);
+    return res.status(200).send(result.buffer);
   } catch (error) {
     if (res.headersSent) {
       return;
@@ -62,12 +47,15 @@ export async function downloadSharedProposalPdf(req: Request, res: Response) {
 
     if (message === "EXPIRED_LINK") {
       return res.status(410).json({
-        message: "Este link expirou. Solicite um novo link ao responsável.",
+        message: "Este link expirou. Solicite um novo link ao responsavel.",
         code: "EXPIRED_LINK",
       });
     }
     if (message === "PROPOSAL_NOT_FOUND") {
-      return res.status(404).json({ message: "Proposta não encontrada" });
+      return res.status(404).json({ message: "Proposta nao encontrada" });
+    }
+    if (message === "PDF_GENERATION_IN_PROGRESS") {
+      return res.status(409).json({ message: "PDF em geracao. Tente novamente." });
     }
 
     console.error("downloadSharedProposalPdf Error:", error);
