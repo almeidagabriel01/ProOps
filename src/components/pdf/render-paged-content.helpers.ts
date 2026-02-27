@@ -219,12 +219,15 @@ export function buildContentItems(
         return (sistema.productIds as string[]) || [];
       }),
     );
-    const extraProducts = products.filter(
+    const extraProductsTemp = products.filter(
       (p: Product) =>
         !p.systemInstanceId &&
         !sistemaProductIds.has(p.productId) &&
         shouldCountProduct(p),
     );
+    const onlyProductsExtra = extraProductsTemp.filter((p) => p.itemType !== "service");
+    const onlyServicesExtra = extraProductsTemp.filter((p) => p.itemType === "service");
+    const extraProducts = [...onlyProductsExtra, ...onlyServicesExtra];
 
     if (extraProducts.length > 0) {
       items.push({
@@ -294,9 +297,17 @@ export function buildContentItems(
         );
 
         // Filter out hidden products for height calculation and rendering
-        const visibleSortedProducts = sortedProducts.filter(
+        const visibleSortedProductsTemp = sortedProducts.filter(
           (p) => shouldRenderProduct(p),
         );
+        
+        const onlyProducts = visibleSortedProductsTemp.filter(
+          (p) => p.itemType !== "service",
+        );
+        const onlyServices = visibleSortedProductsTemp.filter(
+          (p) => p.itemType === "service",
+        );
+        const visibleSortedProducts = [...onlyProducts, ...onlyServices];
 
         // Calculate height for this environment
         let envHeight = 0;
@@ -351,9 +362,7 @@ export function buildContentItems(
         });
 
         // Add products as pairs (2 per row)
-        const visibleProducts = group.products.filter(
-          (p: Product) => shouldRenderProduct(p),
-        );
+        const visibleProducts = group.products;
         for (let idx = 0; idx < visibleProducts.length; idx += 2) {
           const left = visibleProducts[idx];
           const right = visibleProducts[idx + 1];
@@ -425,7 +434,12 @@ export function buildContentItems(
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
-    const visibleProducts = productsToAdd.filter((p) => shouldRenderProduct(p));
+    const visibleProductsTemp = productsToAdd.filter((p) => shouldRenderProduct(p));
+    
+    const onlyProducts = visibleProductsTemp.filter((p) => p.itemType !== "service");
+    const onlyServices = visibleProductsTemp.filter((p) => p.itemType === "service");
+    const visibleProducts = [...onlyProducts, ...onlyServices];
+
     if (visibleProducts.length > 0) {
       items.push({
         type: "product-header",
