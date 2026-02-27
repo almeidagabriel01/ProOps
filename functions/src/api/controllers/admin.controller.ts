@@ -958,6 +958,324 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
   }
 };
 
+type CreateTenantRequestBody = {
+  name?: string;
+  slug?: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  niche?: string;
+  whatsappEnabled?: boolean;
+  adminName?: string;
+  adminEmail?: string;
+  adminPassword?: string;
+  adminPhoneNumber?: string;
+  planId?: string;
+  subscriptionStatus?: string;
+  currentPeriodEnd?: string;
+};
+
+function sanitizeSlug(input: string): string {
+  const normalized = String(input || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/-+/g, "-");
+  return normalized || `tenant-${Date.now()}`;
+}
+
+async function deleteQueryInBatches(
+  query: FirebaseFirestore.Query,
+): Promise<number> {
+  let totalDeleted = 0;
+  let snapshot = await query.limit(400).get();
+
+  while (!snapshot.empty) {
+    const batch = db.batch();
+    snapshot.docs.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+    totalDeleted += snapshot.size;
+    snapshot = await query.limit(400).get();
+  }
+
+  return totalDeleted;
+}
+
+async function deleteSubcollectionInBatches(
+  parentRef: FirebaseFirestore.DocumentReference,
+  subcollectionName: string,
+): Promise<void> {
+  const subQuery = parentRef.collection(subcollectionName);
+  await deleteQueryInBatches(subQuery);
+}
+
+export const createTenant = async (req: Request, res: Response) => {
+  let createdAuthUid: string | null = null;
+
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem criar empresas.",
+      });
+    }
+
+    const body = (req.body || {}) as CreateTenantRequestBody;
+    const tenantName = String(body.name || "").trim();
+    const adminName = String(body.adminName || "").trim();
+    const adminEmail = String(body.adminEmail || "")
+      .trim()
+      .toLowerCase();
+    const adminPassword = String(body.adminPassword || "");
+    const planId = String(body.planId || "free")
+      .trim()
+      .toLowerCase();
+
+    if (!tenantName || tenantName.length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Nome da empresa deve ter pelo menos 2 caracteres." });
+    }
+
+    if (!adminName || adminName.length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Nome do administrador deve ter pelo menos 2 caracteres." });
+    }
+
+    if (!isValidEmail(adminEmail)) {
+      return res.status(400).json({ message: "Email do administrador inválido." });
+    }
+
+    if (adminPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Senha do administrador deve ter no mínimo 6 caracteres." });
+    }
+
+    try {
+      await auth.getUserByEmail(adminEmail);
+      return res.status(409).json({ message: "Este email já está em uso." });
+    } catch (err: unknown) {
+      if (
+        !err ||
+        typeof err !== "object" ||
+        !("code" in err) ||
+        (err as { code: string }).code !== "auth/user-not-found"
+      ) {
+        throw err;
+      }
+    }
+
+    const tenantRef = db.collection("tenants").doc();
+    const tenantId = tenantRef.id;
+    const now = Timestamp.now();
+    const nowIso = now.toDate().toISOString();
+    const normalizedPlanId = planId || "free";
+    const isManualSubscription = normalizedPlanId !== "free";
+    const subscriptionStatus = String(
+      body.subscriptionStatus || (isManualSubscription ? "active" : "active"),
+    )
+      .trim()
+      .toLowerCase();
+
+    const adminAuth = await auth.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      displayName: adminName,
+      emailVerified: false,
+    });
+    createdAuthUid = adminAuth.uid;
+
+    await auth.setCustomUserClaims(adminAuth.uid, {
+      role: "ADMIN",
+      tenantId,
+    });
+
+    await db.runTransaction(async (transaction) => {
+      transaction.set(tenantRef, {
+        tenantId,
+        name: tenantName,
+        slug: sanitizeSlug(body.slug || tenantName),
+        primaryColor: String(body.primaryColor || "#3b82f6"),
+        logoUrl: String(body.logoUrl || ""),
+        niche: String(body.niche || ""),
+        whatsappEnabled: body.whatsappEnabled === true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      const companyRef = db.collection("companies").doc(tenantId);
+      transaction.set(
+        companyRef,
+        {
+          id: tenantId,
+          tenantId,
+          companyName: tenantName,
+          name: tenantName,
+          primaryColor: String(body.primaryColor || "#3b82f6"),
+          logoUrl: String(body.logoUrl || ""),
+          niche: String(body.niche || ""),
+          whatsappEnabled: body.whatsappEnabled === true,
+          usage: {
+            users: 0,
+            products: 0,
+            clients: 0,
+            proposals: 0,
+          },
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      );
+
+      const userRef = db.collection("users").doc(adminAuth.uid);
+      transaction.set(userRef, {
+        name: adminName,
+        email: adminEmail,
+        phoneNumber: normalizePhoneNumber(body.adminPhoneNumber) || null,
+        role: "admin",
+        tenantId,
+        companyId: tenantId,
+        planId: normalizedPlanId,
+        subscriptionStatus,
+        currentPeriodEnd: body.currentPeriodEnd || null,
+        isManualSubscription,
+        usage: {
+          users: 0,
+          products: 0,
+          clients: 0,
+          proposals: 0,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      await upsertPhoneNumberIndexTx(transaction, {
+        userId: adminAuth.uid,
+        tenantId,
+        newPhoneNumber: body.adminPhoneNumber,
+        now,
+      });
+    });
+
+    return res.status(201).json({
+      success: true,
+      tenantId,
+      adminUserId: adminAuth.uid,
+      message: "Empresa e administrador criados com sucesso.",
+    });
+  } catch (error: unknown) {
+    if (createdAuthUid) {
+      try {
+        await auth.deleteUser(createdAuthUid);
+      } catch (rollbackError) {
+        console.error("[createTenant] rollback auth delete failed:", rollbackError);
+      }
+    }
+    console.error("[createTenant] error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao criar empresa.";
+    return res.status(500).json({ message });
+  }
+};
+
+export const deleteTenant = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem remover empresas.",
+      });
+    }
+
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+
+    const userSnaps = await Promise.all([
+      db.collection("users").where("tenantId", "==", tenantId).get(),
+      db.collection("users").where("companyId", "==", tenantId).get(),
+    ]);
+
+    const uniqueUsers = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+    userSnaps.forEach((snap) => {
+      snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
+    });
+
+    for (const [uid, userSnap] of uniqueUsers) {
+      const userRef = db.collection("users").doc(uid);
+      await deleteSubcollectionInBatches(userRef, "permissions");
+
+      const userData = userSnap.data() as { phoneNumber?: string } | undefined;
+      const normalizedPhone = normalizePhoneNumber(userData?.phoneNumber);
+      if (normalizedPhone) {
+        const phoneRef = db.collection("phoneNumberIndex").doc(normalizedPhone);
+        const phoneSnap = await phoneRef.get();
+        const phoneData = phoneSnap.data() as { userId?: string } | undefined;
+        if (phoneSnap.exists && phoneData?.userId === uid) {
+          await phoneRef.delete();
+        }
+      }
+
+      try {
+        await auth.deleteUser(uid);
+      } catch (err: unknown) {
+        if (
+          !err ||
+          typeof err !== "object" ||
+          !("code" in err) ||
+          (err as { code: string }).code !== "auth/user-not-found"
+        ) {
+          throw err;
+        }
+      }
+
+      await userRef.delete();
+    }
+
+    const tenantCollections = [
+      "products",
+      "services",
+      "proposals",
+      "custom_options",
+      "custom_fields",
+      "options",
+      "clients",
+      "transactions",
+      "wallets",
+      "wallet_transactions",
+      "notifications",
+      "addons",
+      "purchased_addons",
+      "spreadsheets",
+      "proposal_templates",
+      "sistemas",
+      "ambientes",
+    ];
+
+    for (const collectionName of tenantCollections) {
+      await deleteQueryInBatches(
+        db.collection(collectionName).where("tenantId", "==", tenantId),
+      );
+    }
+
+    await db.collection("companies").doc(tenantId).delete();
+    await db.collection("tenants").doc(tenantId).delete();
+
+    return res.json({
+      success: true,
+      message: "Empresa removida com sucesso.",
+    });
+  } catch (error: unknown) {
+    console.error("[deleteTenant] error:", error);
+    const message =
+      error instanceof Error ? error.message : "Erro ao remover empresa.";
+    return res.status(500).json({ message });
+  }
+};
+
 import { reportWhatsAppOverage } from "../../services/whatsappBilling";
 
 export const testWhatsAppBilling = async (req: Request, res: Response) => {

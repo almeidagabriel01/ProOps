@@ -41,6 +41,9 @@ function resolveSafeTenantColor(input: unknown): string {
   return "#3b82f6";
 }
 
+const VIEWING_AS_TENANT_KEY = "viewingAsTenant";
+const VIEWING_AS_TENANT_DATA_KEY = "viewingAsTenantData";
+
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
@@ -57,7 +60,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // Check for "Viewing As" override (Super Admin feature)
     const viewingAsId =
       typeof window !== "undefined"
-        ? sessionStorage.getItem("viewingAsTenant")
+        ? sessionStorage.getItem(VIEWING_AS_TENANT_KEY)
         : null;
 
     let tenantIdToLoad = viewingAsId;
@@ -89,7 +92,51 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     if (tenantIdToLoad) {
       try {
-        const fetchedTenant = await TenantService.getTenantById(tenantIdToLoad);
+        let fetchedTenant: Tenant | null = null;
+        try {
+          fetchedTenant = await TenantService.getTenantById(tenantIdToLoad);
+        } catch (fetchTenantError) {
+          console.warn("Primary tenant fetch failed, trying local fallback.", fetchTenantError);
+        }
+
+        if (!fetchedTenant && user?.role?.toLowerCase() === "superadmin") {
+          const rawStoredTenant = sessionStorage.getItem(
+            VIEWING_AS_TENANT_DATA_KEY,
+          );
+          if (rawStoredTenant) {
+            try {
+              const parsed = JSON.parse(rawStoredTenant) as Tenant;
+              if (parsed?.id === tenantIdToLoad) {
+                fetchedTenant = parsed;
+              }
+            } catch {
+              // Ignore malformed session data and continue with normal fallback flow.
+            }
+          }
+
+          if (!fetchedTenant) {
+            try {
+              const { AdminService } = await import("@/services/admin-service");
+              const allTenants = await AdminService.getAllTenantsBilling();
+              const match = allTenants.find((item) => item.tenant.id === tenantIdToLoad);
+              if (match?.tenant) {
+                fetchedTenant = {
+                  id: match.tenant.id,
+                  name: match.tenant.name,
+                  slug: match.tenant.slug,
+                  createdAt: match.tenant.createdAt,
+                  logoUrl: match.tenant.logoUrl,
+                  primaryColor: match.tenant.primaryColor,
+                  niche: match.tenant.niche,
+                  whatsappEnabled: match.tenant.whatsappEnabled,
+                } as Tenant;
+              }
+            } catch (fallbackError) {
+              console.warn("Tenant fallback via admin API failed.", fallbackError);
+            }
+          }
+        }
+
         if (fetchedTenant) {
           setTenant(fetchedTenant);
           currentTenantIdRef.current = fetchedTenant.id;
@@ -219,12 +266,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearViewingTenant = () => {
-    sessionStorage.removeItem("viewingAsTenant");
+    sessionStorage.removeItem(VIEWING_AS_TENANT_KEY);
+    sessionStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
     setRefreshTrigger((prev) => prev + 1);
   };
 
   const setViewingTenant = (newTenant: Tenant) => {
-    sessionStorage.setItem("viewingAsTenant", newTenant.id);
+    sessionStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
+    sessionStorage.setItem(VIEWING_AS_TENANT_DATA_KEY, JSON.stringify(newTenant));
     setTenant(newTenant); // Immediate update
     // We don't trigger refresh here because we just manually set the state
     // ideally we should also fetch owner here or trigger refresh

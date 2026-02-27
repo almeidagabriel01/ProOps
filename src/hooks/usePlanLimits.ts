@@ -189,6 +189,14 @@ export function usePlanLimits(): UsePlanLimitsReturn {
   // Load addons when tenant changes or finishes loading
   useEffect(() => {
     const loadAddonsAsync = async () => {
+      if (user?.role === "superadmin") {
+        setPurchasedAddons([]);
+        setPurchasedAddonsData([]);
+        setPastDueAddonsData([]);
+        setIsAddonsLoading(false);
+        return;
+      }
+
       // If tenant is still loading globally, keep addons loading state true
       if (isTenantLoading) {
         setIsAddonsLoading(true);
@@ -241,10 +249,17 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadAddonsAsync();
-  }, [tenant, isTenantLoading]);
+  }, [tenant, isTenantLoading, user?.role]);
 
   // Refresh addons function (for external calls)
   const refreshAddons = useCallback(async () => {
+    if (user?.role === "superadmin") {
+      setPurchasedAddons([]);
+      setPurchasedAddonsData([]);
+      setPastDueAddonsData([]);
+      return;
+    }
+
     if (!tenant?.id) {
       setPurchasedAddons([]);
       setPurchasedAddonsData([]);
@@ -261,7 +276,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       setPurchasedAddons([]);
       setPurchasedAddonsData([]);
     }
-  }, [tenant]);
+  }, [tenant, user?.role]);
 
   const features = useMemo(() => {
     if (!baseFeatures) return null;
