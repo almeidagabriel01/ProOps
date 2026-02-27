@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/hooks/useNotifications";
 import { Notification, NotificationType } from "@/types/notification";
+import { useTenant } from "@/providers/tenant-provider";
 
 /**
  * Retorna o ícone apropriado para cada tipo de notificação
@@ -49,9 +50,11 @@ function getNotificationLink(notification: Notification): string | undefined {
 export function NotificationBell() {
   const router = useRouter();
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const { isGlobalLoading } = useTenant();
   const {
     notifications,
     unreadCount,
+    isLoading: isNotifsLoading,
     isMarkingAllAsRead,
     isClearingAll,
     clearingIds,
@@ -60,6 +63,9 @@ export function NotificationBell() {
     clearNotification,
     clearAllNotifications,
   } = useNotifications();
+
+  // Combine local notification loading with global page loading
+  const showLoadingState = isGlobalLoading || isNotifsLoading;
 
   const handleNotificationClick = async (
     notification: Notification,
@@ -117,7 +123,7 @@ export function NotificationBell() {
           title="Notificações"
         >
           <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
+          {!showLoadingState && unreadCount > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"

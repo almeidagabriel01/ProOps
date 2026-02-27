@@ -22,6 +22,8 @@ interface TenantContextType {
   refreshTenant: () => void;
   clearViewingTenant: () => void;
   setViewingTenant: (tenant: Tenant) => void;
+  isGlobalLoading: boolean;
+  setGlobalLoading: (isLoading: boolean) => void;
 }
 
 const TenantContext = React.createContext<TenantContextType>({
@@ -31,6 +33,8 @@ const TenantContext = React.createContext<TenantContextType>({
   refreshTenant: () => {},
   clearViewingTenant: () => {},
   setViewingTenant: () => {},
+  isGlobalLoading: false,
+  setGlobalLoading: () => {},
 });
 
 function resolveSafeTenantColor(input: unknown): string {
@@ -76,6 +80,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isGlobalLoading, setGlobalLoading] = React.useState(false);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user } = useAuth();
 
@@ -121,7 +126,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         try {
           fetchedTenant = await TenantService.getTenantById(tenantIdToLoad);
         } catch (fetchTenantError) {
-          console.warn("Primary tenant fetch failed, trying local fallback.", fetchTenantError);
+          console.warn(
+            "Primary tenant fetch failed, trying local fallback.",
+            fetchTenantError,
+          );
         }
 
         if (!fetchedTenant && user?.role?.toLowerCase() === "superadmin") {
@@ -143,7 +151,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             try {
               const { AdminService } = await import("@/services/admin-service");
               const allTenants = await AdminService.getAllTenantsBilling();
-              const match = allTenants.find((item) => item.tenant.id === tenantIdToLoad);
+              const match = allTenants.find(
+                (item) => item.tenant.id === tenantIdToLoad,
+              );
               if (match?.tenant) {
                 fetchedTenant = {
                   id: match.tenant.id,
@@ -157,7 +167,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                 } as Tenant;
               }
             } catch (fallbackError) {
-              console.warn("Tenant fallback via admin API failed.", fallbackError);
+              console.warn(
+                "Tenant fallback via admin API failed.",
+                fallbackError,
+              );
             }
           }
         }
@@ -187,7 +200,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
               }
             } else if (isSuperAdmin) {
               try {
-                const { AdminService } = await import("@/services/admin-service");
+                const { AdminService } =
+                  await import("@/services/admin-service");
                 const allTenants = await AdminService.getAllTenantsBilling();
                 const targetTenant = allTenants.find(
                   (item) => item.tenant.id === fetchedTenant.id,
@@ -304,10 +318,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   React.useLayoutEffect(() => {
     if (tenant) {
       const safePrimaryColor = resolveSafeTenantColor(tenant.primaryColor);
-      document.documentElement.style.setProperty(
-        "--primary",
-        safePrimaryColor,
-      );
+      document.documentElement.style.setProperty("--primary", safePrimaryColor);
       // We could add more advanced theming here later
       const styleId = "tenant-styles";
       let styleTag = document.getElementById(styleId);
@@ -340,17 +351,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  const clearViewingTenant = () => {
+  const clearViewingTenant = React.useCallback(() => {
     sessionStorage.removeItem(VIEWING_AS_TENANT_KEY);
     sessionStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
     localStorage.removeItem(VIEWING_AS_TENANT_KEY);
     localStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
     setRefreshTrigger((prev) => prev + 1);
-  };
+  }, []);
 
   const setViewingTenant = (newTenant: Tenant) => {
     sessionStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
-    sessionStorage.setItem(VIEWING_AS_TENANT_DATA_KEY, JSON.stringify(newTenant));
+    sessionStorage.setItem(
+      VIEWING_AS_TENANT_DATA_KEY,
+      JSON.stringify(newTenant),
+    );
     localStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
     localStorage.setItem(VIEWING_AS_TENANT_DATA_KEY, JSON.stringify(newTenant));
     setTenant(newTenant); // Immediate update
@@ -368,6 +382,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         refreshTenant,
         clearViewingTenant,
         setViewingTenant,
+        isGlobalLoading,
+        setGlobalLoading,
       }}
     >
       {children}

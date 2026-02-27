@@ -35,12 +35,13 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  const { setViewingTenant } = useTenant();
+  const { setViewingTenant, setGlobalLoading } = useTenant();
   const router = useRouter();
 
   const loadTenants = React.useCallback(async () => {
     try {
       setIsLoading(true);
+      setGlobalLoading(true);
       const data = await AdminService.getAllTenantsBilling();
       setTenantsData(data);
     } catch (error) {
@@ -48,8 +49,9 @@ export function useTenantManagement(): UseTenantManagementReturn {
       toast.error("Erro ao carregar empresas");
     } finally {
       setIsLoading(false);
+      setGlobalLoading(false);
     }
-  }, []);
+  }, [setGlobalLoading]);
 
   React.useEffect(() => {
     loadTenants();

@@ -4,16 +4,25 @@ export function AppSkeleton({ children }: { children?: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-card">
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out bg-background m-1 overflow-hidden">
-        {/* Header Skeleton */}
-        <header className="h-16 border-b border-border/40 px-8 flex items-center justify-between bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <div className="flex-1 flex flex-col bg-background overflow-hidden">
+        {/* Header Skeleton (Matches Header.tsx exactly) */}
+        <header
+          className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
+          style={{ height: "64px", minHeight: "64px" }}
+        >
           <div className="flex items-center gap-4">
-            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-9 w-56 rounded-xl" />
           </div>
           <div className="flex items-center gap-4">
-            <Skeleton className="h-9 w-9" />
-            <Skeleton className="h-9 w-9" />
-            <Skeleton className="h-8 w-8" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <div className="h-8 w-px bg-border" />
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex flex-col items-end gap-1">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-9 w-9 rounded-full" />
+            </div>
           </div>
         </header>
 

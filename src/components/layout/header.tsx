@@ -54,7 +54,7 @@ function getInitials(name: string) {
   return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
 }
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,19 +77,38 @@ export function Header({}: HeaderProps) {
     tenantOwner,
     clearViewingTenant,
     isLoading: isTenantLoading,
+    isGlobalLoading,
+    setGlobalLoading,
   } = useTenant();
   const router = useRouter();
+  const pathname = usePathname();
   const isViewingAsTenant = user?.role === "superadmin" && !!tenant;
   const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isNavigating) {
+      if (pathname === "/admin") {
+        clearViewingTenant();
+        setIsNavigating(false);
+      }
+    }
+  }, [pathname, isNavigating, clearViewingTenant]);
 
   /* 
      Show skeleton if:
      1. Auth is loading
      2. Tenant is loading
      3. User exists but plan name hasn't been determined yet (prevents "Starter" flash)
+     4. Superadmin is navigating back to their panel
+     5. The destination page (like AdminPage) is still fetching its core data (isGlobalLoading)
   */
   const isLoading =
-    isAuthLoading || isTenantLoading || (!!user && userPlanName === null);
+    isAuthLoading ||
+    isTenantLoading ||
+    (!!user && userPlanName === null) ||
+    isNavigating ||
+    isGlobalLoading;
 
   // ... inside Header component ...
 
@@ -170,25 +189,32 @@ export function Header({}: HeaderProps) {
   ]);
 
   const handleBackToAdmin = () => {
-    clearViewingTenant();
-    // Use sessionStorage directly if needed, or rely on clearViewingTenant
+    setIsNavigating(true);
+    setGlobalLoading(true);
+
+    // Clear storage manually so future loads don't use it, but DO NOT
+    // trigger clearViewingTenant() yet to avoid Dashboard UI flash.
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("viewingAsTenant");
+      sessionStorage.removeItem("viewingAsTenantData");
+      localStorage.removeItem("viewingAsTenant");
+      localStorage.removeItem("viewingAsTenantData");
     }
+
     router.push("/admin");
   };
 
   if (isLoading) {
     return (
       <header
-        className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem]"
+        key="header-skeleton"
+        className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
         style={{ height: "64px", minHeight: "64px" }}
       >
         <div className="flex items-center gap-4">
           <Skeleton className="h-9 w-56 rounded-xl" />
         </div>
         <div className="flex items-center gap-4">
-          <Skeleton className="h-8 w-8 rounded-full" />
           <Skeleton className="h-8 w-8 rounded-full" />
           <div className="h-8 w-px bg-border" />
           <div className="flex items-center gap-3">
@@ -205,7 +231,8 @@ export function Header({}: HeaderProps) {
 
   return (
     <header
-      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem]"
+      key="header-content"
+      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
       style={{ height: "64px", minHeight: "64px" }}
     >
       <div className="flex items-center gap-4">
