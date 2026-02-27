@@ -11,6 +11,22 @@ interface AdminCredentialsData {
   phoneNumber?: string;
 }
 
+interface CreateTenantInput {
+  name: string;
+  slug: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  niche?: string;
+  whatsappEnabled?: boolean;
+  adminName: string;
+  adminEmail: string;
+  adminPassword: string;
+  adminPhoneNumber?: string;
+  planId?: string;
+  subscriptionStatus?: string;
+  currentPeriodEnd?: string;
+}
+
 export interface TenantBillingInfo {
   tenant: {
     id: string;
@@ -80,5 +96,19 @@ export const AdminService = {
     limits: Record<string, unknown>,
   ): Promise<void> => {
     await callApi(`/v1/admin/tenants/${tenantId}/limits`, "PUT", limits);
+  },
+
+  createTenant: async (
+    data: CreateTenantInput,
+  ): Promise<{ tenantId: string; adminUserId: string }> => {
+    return await callApi<{ tenantId: string; adminUserId: string }>(
+      "/v1/admin/tenants",
+      "POST",
+      data,
+    );
+  },
+
+  deleteTenant: async (tenantId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}`, "DELETE");
   },
 };

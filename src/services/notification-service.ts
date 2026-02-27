@@ -149,6 +149,33 @@ export const NotificationService = {
     isSuperAdmin: boolean = false,
   ): Unsubscribe => {
     try {
+      if (isSuperAdmin) {
+        let pollingInterval: ReturnType<typeof setInterval> | null = null;
+
+        const fetchByApi = async () => {
+          try {
+            const notifications = await NotificationService.getNotifications({
+              limit: 50,
+              targetTenantId: tenantId,
+            });
+            callback(notifications);
+          } catch (error) {
+            console.error("Error in superadmin notifications polling:", error);
+          }
+        };
+
+        void fetchByApi();
+        pollingInterval = setInterval(() => {
+          void fetchByApi();
+        }, 10000);
+
+        return () => {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+          }
+        };
+      }
       const tenantIds = isSuperAdmin
         ? tenantId
           ? [tenantId] // Se tem tenantId, Super Admin só ouve esse tenant (sem system)
@@ -258,3 +285,4 @@ export const NotificationService = {
     }
   },
 };
+

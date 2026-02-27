@@ -108,97 +108,28 @@ export function useTenantManagement(): UseTenantManagementReturn {
           return;
         }
 
-        const newTenant = await TenantService.createTenant({
+        await AdminService.createTenant({
           name: data.name,
-          primaryColor: data.color,
-          logoUrl: data.logoUrl,
-          niche: data.niche,
           slug: data.name
             .toLowerCase()
             .replace(/ /g, "-")
             .replace(/[^\w-]+/g, ""),
+          primaryColor: data.color,
+          logoUrl: data.logoUrl,
+          niche: data.niche,
           whatsappEnabled: data.whatsappEnabled,
-          createdAt: new Date().toISOString(),
+          adminName: data.userName,
+          adminEmail: data.email!,
+          adminPassword: data.password!,
+          adminPhoneNumber: data.phoneNumber,
+          planId: data.planId || "free",
+          subscriptionStatus: data.subscriptionStatus,
+          currentPeriodEnd: data.currentPeriodEnd,
         });
 
-        if (data.email && data.password) {
-          const { initializeApp, getApp, getApps, deleteApp } =
-            await import("firebase/app");
-          const { getAuth, createUserWithEmailAndPassword, signOut } =
-            await import("firebase/auth");
-          const { getFirestore, doc, setDoc } =
-            await import("firebase/firestore");
-
-          const config = {
-            apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-            authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-            messagingSenderId:
-              process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-            appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-          };
-
-          const secondaryAppName = "secondaryAppForUserCreation";
-          let secondaryApp;
-          if (getApps().some((app) => app.name === secondaryAppName)) {
-            secondaryApp = getApp(secondaryAppName);
-          } else {
-            secondaryApp = initializeApp(config, secondaryAppName);
-          }
-          const secondaryAuth = getAuth(secondaryApp);
-          const secondaryDb = getFirestore(secondaryApp);
-
-          try {
-            const userCredential = await createUserWithEmailAndPassword(
-              secondaryAuth,
-              data.email,
-              data.password,
-            );
-            const user = userCredential.user;
-            await setDoc(doc(secondaryDb, "users", user.uid), {
-              name: data.userName,
-              email: data.email,
-              role: "admin",
-              tenantId: newTenant.id,
-              planId: data.planId || "free",
-              subscriptionStatus: data.subscriptionStatus,
-              currentPeriodEnd: data.currentPeriodEnd,
-              isManualSubscription: data.planId !== "free",
-              createdAt: new Date().toISOString(),
-            });
-
-            // Index new admin phone number
-            if (data.phoneNumber && data.phoneNumber.trim().length > 0) {
-              await AdminService.updateAdminCredentials({
-                userId: user.uid,
-                phoneNumber: data.phoneNumber,
-              });
-            }
-
-            await signOut(secondaryAuth);
-            if (!getApps().every((app) => app.name !== secondaryAppName))
-              await deleteApp(secondaryApp);
-            toast.success(`Empresa "${data.name}" e usuário admin criados!`);
-          } catch (e: unknown) {
-            const error = e as Error;
-            console.error(error);
-            const errorMessage = error.message.includes("email-already-in-use")
-              ? "Este email já está em uso."
-              : error.message;
-            toast.error(`Erro ao criar usuário: ${errorMessage}`);
-            try {
-              await signOut(secondaryAuth);
-              if (!getApps().every((app) => app.name !== secondaryAppName))
-                await deleteApp(secondaryApp);
-            } catch {}
-            setIsSaving(false);
-            return;
-          }
-        } else {
-          toast.success(`Empresa "${data.name}" criada!`);
-        }
+        toast.success(`Empresa "${data.name}" e usuário admin criados!`);
       }
+
       setIsDialogOpen(false);
       loadTenants();
     } catch (error) {
@@ -211,7 +142,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
   const handleDelete = async (id: string) => {
     try {
-      await TenantService.deleteTenant(id);
+      await AdminService.deleteTenant(id);
       toast.success("Empresa removida com sucesso!");
       loadTenants();
     } catch (error) {
@@ -258,3 +189,4 @@ export function useTenantManagement(): UseTenantManagementReturn {
     isSaving,
   };
 }
+
