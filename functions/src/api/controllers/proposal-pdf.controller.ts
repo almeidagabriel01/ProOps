@@ -12,22 +12,22 @@ export async function downloadProposalPdf(req: Request, res: Response) {
       return res.status(400).json({ message: "ID da proposta invalido" });
     }
 
+    const isSuperAdmin =
+      req.user?.isSuperAdmin || req.user?.role === "SUPERADMIN";
     const authTenantId = String(req.user?.tenantId || "").trim();
-    if (!authTenantId) {
+    if (!isSuperAdmin && !authTenantId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     const result = await getOrGenerateProposalPdf(
       authTenantId,
       proposalId,
+      isSuperAdmin,
     );
     const filename = buildPdfFilename(result.proposalTitle);
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      buildPdfContentDisposition(filename),
-    );
+    res.setHeader("Content-Disposition", buildPdfContentDisposition(filename));
     res.setHeader("Cache-Control", "private, no-store");
     return res.status(200).send(result.buffer);
   } catch (error) {
@@ -44,7 +44,9 @@ export async function downloadProposalPdf(req: Request, res: Response) {
       return res.status(403).json({ message: "Acesso negado" });
     }
     if (message === "PDF_GENERATION_IN_PROGRESS") {
-      return res.status(409).json({ message: "PDF em geracao. Tente novamente." });
+      return res
+        .status(409)
+        .json({ message: "PDF em geracao. Tente novamente." });
     }
 
     console.error("downloadProposalPdf Error:", error);

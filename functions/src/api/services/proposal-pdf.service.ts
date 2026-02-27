@@ -189,7 +189,8 @@ async function acquirePdfGenerationLock(
     const currentLock = data.pdfGenerationLock;
     const lockDate = toDateValue(currentLock?.lockedAt);
     const lockIsStale =
-      !lockDate || Date.now() - lockDate.getTime() > PDF_GENERATION_LOCK_TIMEOUT_MS;
+      !lockDate ||
+      Date.now() - lockDate.getTime() > PDF_GENERATION_LOCK_TIMEOUT_MS;
     const lockOwnerValue = String(currentLock?.lockedBy || "").trim();
     const isLockedByOther =
       Boolean(lockOwnerValue) && !lockIsStale && lockOwnerValue !== lockOwner;
@@ -215,7 +216,9 @@ async function waitForPdfGeneratedByAnotherWorker(options: {
   versionHash: string;
 }): Promise<Buffer | null> {
   for (let attempt = 0; attempt < PDF_LOCK_WAIT_ATTEMPTS; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, PDF_LOCK_WAIT_INTERVAL_MS));
+    await new Promise((resolve) =>
+      setTimeout(resolve, PDF_LOCK_WAIT_INTERVAL_MS),
+    );
 
     const refreshed = await options.proposalRef.get();
     if (!refreshed.exists) {
@@ -249,6 +252,7 @@ async function generatePdfFromUrl(url: string): Promise<Buffer> {
 export async function getOrGenerateProposalPdf(
   tenantId: string,
   proposalId: string,
+  isSuperAdmin = false,
 ): Promise<{ buffer: Buffer; proposalTitle: string }> {
   const proposalRef = db.collection("proposals").doc(proposalId);
   const proposalSnap = await proposalRef.get();
@@ -258,14 +262,25 @@ export async function getOrGenerateProposalPdf(
 
   const proposalData = (proposalSnap.data() || {}) as ProposalDocData;
   const proposalTenantId = toStringValue(proposalData.tenantId);
-  if (!proposalTenantId || proposalTenantId !== tenantId) {
-    throw new Error("FORBIDDEN_TENANT_MISMATCH");
+  if (!isSuperAdmin) {
+    if (!proposalTenantId || proposalTenantId !== tenantId) {
+      throw new Error("FORBIDDEN_TENANT_MISMATCH");
+    }
   }
 
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+  const effectiveTenantId =
+    isSuperAdmin && proposalTenantId ? proposalTenantId : tenantId;
+
+  const tenantSnap = await db
+    .collection("tenants")
+    .doc(effectiveTenantId)
+    .get();
   const tenantData = (tenantSnap.data() || {}) as TenantDocData;
 
-  const storagePath = buildProposalPdfStoragePath(tenantId, proposalId);
+  const storagePath = buildProposalPdfStoragePath(
+    effectiveTenantId,
+    proposalId,
+  );
   const versionHash = buildVersionHash(proposalId, proposalData, tenantData);
   const proposalTitle = toStringValue(proposalData.title);
 
@@ -300,7 +315,11 @@ export async function getOrGenerateProposalPdf(
     }
 
     const postLockData = (postLockSnap.data() || {}) as ProposalDocData;
-    const postLockVersionHash = buildVersionHash(proposalId, postLockData, tenantData);
+    const postLockVersionHash = buildVersionHash(
+      proposalId,
+      postLockData,
+      tenantData,
+    );
     const postLockCachedBuffer = await getCachedPdfIfValid({
       metadata: postLockData.pdf,
       expectedPath: storagePath,
@@ -315,7 +334,7 @@ export async function getOrGenerateProposalPdf(
 
     const shareData = await SharedProposalService.createInternalRenderLink(
       proposalId,
-      tenantId,
+      effectiveTenantId,
       "system-pdf-generator",
     );
 
@@ -328,7 +347,7 @@ export async function getOrGenerateProposalPdf(
       metadata: {
         cacheControl: "private, max-age=3600",
         metadata: {
-          tenantId,
+          tenantId: effectiveTenantId,
           proposalId,
           versionHash: postLockVersionHash,
         },
@@ -365,7 +384,12 @@ export async function getOrGenerateProposalPdf(
 export async function getOrGenerateProposalPdfBuffer(
   tenantId: string,
   proposalId: string,
+  isSuperAdmin = false,
 ): Promise<Buffer> {
-  const result = await getOrGenerateProposalPdf(tenantId, proposalId);
+  const result = await getOrGenerateProposalPdf(
+    tenantId,
+    proposalId,
+    isSuperAdmin,
+  );
   return result.buffer;
 }
