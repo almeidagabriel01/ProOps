@@ -8,12 +8,12 @@ import {
   calculateSistemaBlockHeight,
   calculatePaymentTermsHeight,
   pdfDebugLog,
-} from "@/utils/pdf-helpers";
+} from "@/components/pdf/pdf-helpers";
 import {
   isProductVisibleInPdf,
   shouldCountInPdfTotals,
 } from "./product-visibility";
-export type { ContentItem } from "@/utils/pdf-helpers";
+export type { ContentItem } from "@/components/pdf/pdf-helpers";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,

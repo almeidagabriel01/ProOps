@@ -3,7 +3,7 @@ import type { Proposal as DomainProposal, ProposalProduct } from "@/types/propos
 import type { ProposalTemplate, Tenant, PdfDisplaySettings } from "@/types";
 import { mergePdfDisplaySettings } from "@/types";
 import { RenderPagedContent } from "@/components/pdf/render-paged-content";
-import { PdfCoverPage } from "@/components/features/proposal/pdf/pdf-cover-page";
+import { PdfCoverPage } from "@/components/pdf/pdf-cover-page";
 import {
   getContentStyles,
   PdfThemeDecorations,
@@ -13,76 +13,10 @@ import {
   DEFAULT_PDF_FONT_FAMILY,
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
+import type { PdfSection, CoverElement } from "@/types/pdf.types";
 
-export interface PdfSection {
-  id: string;
-  type: "title" | "text" | "image" | "divider" | "product-table";
-  content: string;
-  imageUrl?: string;
-  columnWidth?: number;
-  styles: {
-    fontSize?: string;
-    fontWeight?: string;
-    fontStyle?: string;
-    textAlign?: "left" | "center" | "right";
-    color?: string;
-    backgroundColor?: string;
-    padding?: string;
-    marginTop?: string;
-    marginBottom?: string;
-    imageWidth?: number;
-    imageAlign?: "left" | "center" | "right";
-    imageBorderRadius?: string;
-    borderRadius?: number;
-    imageBorder?: boolean;
-    verticalAlign?: "top" | "center" | "bottom";
-  };
-}
-
-export interface CoverElement {
-  id: string;
-  type:
-    | "title"
-    | "subtitle"
-    | "text"
-    | "label"
-    | "divider"
-    | "client-name"
-    | "proposal-title"
-    | "valid-until"
-    | "logo"
-    | "company-name"
-    | "image";
-  content: string;
-  imageUrl?: string;
-  prefix?: string;
-  suffix?: string;
-  x: number;
-  y: number;
-  order: number;
-  includesClientName?: boolean;
-  usesProposalTitle?: boolean;
-  styles: {
-    fontSize?: string;
-    fontWeight?: string;
-    fontStyle?: string;
-    textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-    letterSpacing?: string;
-    textAlign?: "left" | "center" | "right";
-    color?: string;
-    opacity?: number;
-    marginTop?: string;
-    marginBottom?: string;
-    borderRadius?: string | number;
-    imageWidth?: number;
-    imageHeight?: number;
-    imageFit?: "cover" | "contain";
-    imageBorder?: boolean;
-    width?: string;
-    height?: string;
-    backgroundColor?: string;
-  };
-}
+// Re-exportados para retrocompatibilidade com importadores existentes.
+export type { PdfSection, CoverElement, CoverElementPosition } from "@/types/pdf.types";
 
 export interface ProposalPdfCustomSettings {
   theme?: ThemeType;

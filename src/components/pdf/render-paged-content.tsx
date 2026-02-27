@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { pdfDebugLog } from "@/utils/pdf-helpers";
+import { pdfDebugLog } from "@/components/pdf/pdf-helpers";
 import { formatCurrency } from "@/utils/format-utils";
 import {
   ContentItem,

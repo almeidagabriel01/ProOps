@@ -2,8 +2,18 @@
 
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { savePdfBlob } from "@/services/pdf/render-to-pdf";
 import { buildProposalPdfFilename } from "@/services/pdf/pdf-filename";
+
+function savePdfBlob(blob: Blob, filename: string): void {
+  const blobUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(blobUrl);
+}
 
 export function getFilenameFromContentDisposition(
   headerValue: string | null,
