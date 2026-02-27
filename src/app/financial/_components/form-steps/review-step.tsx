@@ -7,11 +7,7 @@ import { ClientSelect } from "@/components/features/client-select";
 import { FormItem } from "@/components/ui/form-components";
 import { formatCurrency } from "@/utils/format";
 import { FormErrors } from "@/hooks/useFormValidation";
-import {
-  TrendingUp,
-  TrendingDown,
-  User,
-} from "lucide-react";
+import { TrendingUp, TrendingDown, User } from "lucide-react";
 import { TransactionFormData } from "../../_hooks/useTransactionForm";
 interface ReviewStepProps {
   formData: TransactionFormData;
@@ -134,7 +130,7 @@ export function ReviewStep({
               <p className="text-sm text-muted-foreground">
                 {isIncome ? "Receita" : "Despesa"}
               </p>
-              <p className="font-semibold text-lg">
+              <p className="font-semibold text-lg text-balance break-words pr-2">
                 {formData.description || "Sem descrição"}
               </p>
             </div>
@@ -275,4 +271,3 @@ export function ReviewStep({
     </div>
   );
 }
-

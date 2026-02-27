@@ -877,7 +877,7 @@ function ProductRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <h5
-            className={`font-medium text-sm truncate ${!isActive ? "text-muted-foreground" : ""}`}
+            className={`font-medium text-sm text-balance break-words pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
           >
             {product.productName}
           </h5>

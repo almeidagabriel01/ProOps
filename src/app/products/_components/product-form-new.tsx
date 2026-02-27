@@ -11,10 +11,7 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { useProductForm } from "../_hooks/useProductForm";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
-import {
-  StepWizard,
-  StepNavigation,
-} from "@/components/ui/step-wizard";
+import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   FormSection,
@@ -160,7 +157,10 @@ export function ProductFormNew({
             />
             {entityType === "product" && (
               <>
-                <FormStatic label="Markup" value={`${markupValue.toFixed(2)}%`} />
+                <FormStatic
+                  label="Markup"
+                  value={`${markupValue.toFixed(2)}%`}
+                />
                 <FormStatic label="Estoque" value={String(stockLevel)} />
               </>
             )}
@@ -353,7 +353,11 @@ export function ProductFormNew({
                     />
                   </FormItem>
 
-                  <FormItem label="Markup (%)" htmlFor="markup" error={errors.markup}>
+                  <FormItem
+                    label="Markup (%)"
+                    htmlFor="markup"
+                    error={errors.markup}
+                  >
                     <Input
                       id="markup"
                       name="markup"
@@ -369,7 +373,11 @@ export function ProductFormNew({
                     />
                   </FormItem>
 
-                  <FormItem label="Estoque Inicial" htmlFor="stock" error={errors.stock}>
+                  <FormItem
+                    label="Estoque Inicial"
+                    htmlFor="stock"
+                    error={errors.stock}
+                  >
                     <Input
                       id="stock"
                       name="stock"
@@ -387,26 +395,36 @@ export function ProductFormNew({
                 <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">Preço Bruto</span>
+                      <span className="font-medium text-muted-foreground">
+                        Preço Bruto
+                      </span>
                       <p className="font-semibold">R$ {basePrice.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">Markup</span>
+                      <span className="font-medium text-muted-foreground">
+                        Markup
+                      </span>
                       <p className="font-semibold">{markupValue.toFixed(2)}%</p>
                     </div>
                     <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">Lucro por unidade</span>
+                      <span className="font-medium text-muted-foreground">
+                        Lucro por unidade
+                      </span>
                       <p className="font-semibold text-green-700">
                         R$ {(basePrice * (markupValue / 100)).toFixed(2)}
                       </p>
                     </div>
                     <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">Estoque inicial</span>
+                      <span className="font-medium text-muted-foreground">
+                        Estoque inicial
+                      </span>
                       <p className="font-semibold">{stockLevel}</p>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-green-500/20 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Preço de Venda</span>
+                    <span className="text-sm font-medium text-foreground">
+                      Preço de Venda
+                    </span>
                     <span className="text-2xl font-bold text-green-600">
                       R$ {sellingPrice.toFixed(2)}
                     </span>
@@ -556,7 +574,9 @@ export function ProductFormNew({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Nome:</span>
-                  <p className="font-medium truncate">{formData.name || "—"}</p>
+                  <p className="font-medium text-balance break-words pr-2">
+                    {formData.name || "—"}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Categoria:</span>
@@ -566,16 +586,20 @@ export function ProductFormNew({
                   <span className="text-muted-foreground">
                     {entityType === "product" ? "Preço Bruto:" : "Preço Base:"}
                   </span>
-                  <p className="font-medium">
-                    R$ {basePrice.toFixed(2)}
-                  </p>
+                  <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">
-                    {entityType === "product" ? "Preço de Venda:" : "Valor final:"}
+                    {entityType === "product"
+                      ? "Preço de Venda:"
+                      : "Valor final:"}
                   </span>
                   <p className="font-medium text-green-600">
-                    R$ {(entityType === "product" ? sellingPrice : basePrice).toFixed(2)}
+                    R${" "}
+                    {(entityType === "product"
+                      ? sellingPrice
+                      : basePrice
+                    ).toFixed(2)}
                   </p>
                 </div>
                 {entityType === "product" && (
