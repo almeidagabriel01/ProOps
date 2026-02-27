@@ -36,6 +36,13 @@ interface DashboardData {
 
   // Computed
   chartData: BarChartDataItem[];
+  futureBalances: {
+    month: string;
+    monthYear: string;
+    income: number;
+    expense: number;
+    balance: number;
+  }[];
   currentMonthStats: {
     expensesByCategory: Record<string, number>;
     incomeByWallet: Record<string, number>;
@@ -65,6 +72,7 @@ const initialState: DashboardData = {
     pendingExpense: 0,
   },
   chartData: [],
+  futureBalances: [],
   currentMonthStats: {
     expensesByCategory: {},
     incomeByWallet: {},
@@ -145,7 +153,7 @@ export function useDashboardData(): DashboardData {
 
   // Compute all derived values
   const computed = React.useMemo(() => {
-    const { transactions, proposals, clients, financialSummary, wallets } =
+    const { transactions, proposals, clients, wallets } =
       rawData;
     const now = new Date();
 
@@ -174,6 +182,55 @@ export function useDashboardData(): DashboardData {
       }
     });
     const chartData = Object.values(months);
+
+    // Future Balances (Next 12 months including current)
+    const futureBalancesMap: {
+      [key: string]: {
+        month: string;
+        monthYear: string;
+        income: number;
+        expense: number;
+        balance: number;
+      };
+    } = {};
+
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      futureBalancesMap[key] = {
+        month: date
+          .toLocaleDateString("pt-BR", { month: "short" })
+          .replace(".", ""),
+        monthYear: key,
+        income: 0,
+        expense: 0,
+        balance: 0,
+      };
+    }
+
+    transactions.forEach((t) => {
+      if (t.status === "paid" || !t.dueDate) return;
+      const date = new Date(t.dueDate);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      
+      if (futureBalancesMap[key]) {
+        if (t.type === "income") futureBalancesMap[key].income += t.amount;
+        else futureBalancesMap[key].expense += t.amount;
+      }
+    });
+
+    const futureBalances = Object.values(futureBalancesMap);
+    const totalBalance = wallets
+      .filter((w) => w.status === "active")
+      .reduce((sum, w) => sum + w.balance, 0);
+
+    futureBalances.forEach((fb, index) => {
+      if (index === 0) {
+        fb.balance = totalBalance + fb.income - fb.expense;
+      } else {
+        fb.balance = fb.income - fb.expense;
+      }
+    });
 
     // Current Month Stats (Breakdown)
     const currentMonthExpensesByCategory: Record<string, number> = {};
@@ -240,6 +297,7 @@ export function useDashboardData(): DashboardData {
     return {
       wallets,
       chartData,
+      futureBalances,
       currentMonthStats: {
         expensesByCategory: currentMonthExpensesByCategory,
         incomeByWallet: currentMonthIncomeByWallet,
@@ -251,7 +309,7 @@ export function useDashboardData(): DashboardData {
       newClientsThisMonth,
       recentTransactions: transactions.slice(0, 5),
       recentProposals: proposals.slice(0, 5),
-      balance: financialSummary.totalIncome - financialSummary.totalExpense,
+      balance: totalBalance,
     };
   }, [rawData]);
 

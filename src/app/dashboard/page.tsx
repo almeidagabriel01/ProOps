@@ -7,21 +7,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { getGreeting } from "@/utils/format";
+import { getGreeting, formatCurrency } from "@/utils/format";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { SimpleBarChart } from "@/components/charts/simple-bar-chart";
 import {
-  FinancialMetricCards,
   AlertsCard,
   RecentTransactionsList,
   RecentProposalsList,
   QuickActionsCard,
   ProposalStatsCard,
   ClientsStatsCard,
-  WalletsGrid, // Import WalletsGrid
-  MonthStats, // Import MonthStats
+  MonthStats,
+  FutureBalanceChart,
 } from "./_components";
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
@@ -32,9 +31,9 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { tenantOwner, tenant } = useTenant();
   const {
-    financialSummary,
     clients,
     chartData,
+    futureBalances,
     proposalStats,
     overdueTransactions,
     upcomingDue,
@@ -42,7 +41,6 @@ export default function DashboardPage() {
     recentTransactions,
     recentProposals,
     balance,
-    wallets,
     currentMonthStats,
     isLoading,
   } = useDashboardData();
@@ -61,7 +59,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            <span className="bg-linear-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
               {getGreeting()}, {tenantOwner?.name || user?.name || "Usuário"}!
             </span>{" "}
             <span className="text-foreground">👋</span>
@@ -76,16 +74,23 @@ export default function DashboardPage() {
             })}
           </p>
         </div>
+
+        <div className="flex items-center gap-4 md:gap-8">
+          <div className="text-center md:text-right mt-2 md:mt-0">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
+              <Wallet className="w-4 h-4" />
+              <span className="text-xs font-medium uppercase tracking-wide">
+                Saldo Atual
+              </span>
+            </div>
+            <div
+              className={`text-2xl font-bold tracking-tight ${balance >= 0 ? "text-emerald-500" : "text-rose-500"}`}
+            >
+              {formatCurrency(balance)}
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Quick Actions */}
-      <QuickActionsCard />
-
-      {/* Financial Summary */}
-      <FinancialMetricCards
-        financialSummary={financialSummary}
-        balance={balance}
-      />
 
       {/* Alerts */}
       <AlertsCard
@@ -93,13 +98,13 @@ export default function DashboardPage() {
         upcomingDueCount={upcomingDue.length}
       />
 
-      {/* Wallets Grid - NEW */}
-      <WalletsGrid wallets={wallets} />
+      {/* Quick Actions */}
+      <QuickActionsCard />
 
-      {/* Charts & Monthly Breakdown */}
-      <div className="grid lg:grid-cols-7 gap-6">
+      {/* Charts (Fluxo de Caixa & Balanço Futuro) */}
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Fluxo de Caixa (Chart) */}
-        <Card className="lg:col-span-4 flex flex-col shadow-md bg-linear-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50">
+        <Card className="flex flex-col shadow-md bg-gradient-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50 h-full">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -129,13 +134,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Monthly Stats - NEW */}
-        <div className="lg:col-span-3 space-y-6 flex flex-col justify-center h-full">
-          <MonthStats currentMonthStats={currentMonthStats} />
-        </div>
+        {/* Future Balances (Chart) - NEW */}
+        <FutureBalanceChart data={futureBalances} />
       </div>
 
-      {/* Other Stats */}
+      {/* Recents & Walkthroughs */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <RecentProposalsList proposals={recentProposals} />
+        <MonthStats currentMonthStats={currentMonthStats} />
+      </div>
+
+      {/* Stats row */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="flex-1">
           <ProposalStatsCard stats={proposalStats} />
@@ -148,10 +157,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid md:grid-cols-2 gap-6 h-full">
+      {/* Recent Activity (Remaining) */}
+      <div className="grid gap-6">
         <RecentTransactionsList transactions={recentTransactions} />
-        <RecentProposalsList proposals={recentProposals} />
       </div>
     </div>
   );
