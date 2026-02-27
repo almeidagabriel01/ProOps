@@ -140,18 +140,19 @@ export const markAllAsRead = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
     const targetTenantId = req.query.targetTenantId as string;
 
-    // Resolver tenant do usuário
     let { tenantId, isSuperAdmin } = await resolveUserAndTenant(
       userId,
       req.user,
     );
 
+    let includeSystem = isSuperAdmin;
     if (isSuperAdmin && targetTenantId) {
       tenantId = targetTenantId;
+      includeSystem = false;
     }
 
     // Marcar todas como lidas
-    await NotificationService.markAllAsRead(tenantId);
+    await NotificationService.markAllAsRead(tenantId, includeSystem);
 
     return res.status(200).json({
       success: true,
@@ -222,8 +223,10 @@ export const clearAllNotifications = async (req: Request, res: Response) => {
       req.user,
     );
 
+    let includeSystem = isSuperAdmin;
     if (isSuperAdmin && targetTenantId) {
       tenantId = targetTenantId;
+      includeSystem = false;
     }
 
     console.log(`[clearAllNotifications] User: ${userId}, Tenant: ${tenantId}, IsSuperAdmin: ${isSuperAdmin}, TargetTenant: ${targetTenantId}`);
@@ -233,7 +236,7 @@ export const clearAllNotifications = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Tenant ID não identificado" });
     }
 
-    await NotificationService.clearAllNotifications(tenantId);
+    await NotificationService.clearAllNotifications(tenantId, includeSystem);
 
     return res.status(200).json({
       success: true,

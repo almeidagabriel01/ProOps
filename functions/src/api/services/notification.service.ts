@@ -199,13 +199,17 @@ export class NotificationService {
   /**
    * Marca todas as notificações de um tenant como lidas
    */
-  static async markAllAsRead(tenantId: string): Promise<void> {
+  static async markAllAsRead(tenantId: string, includeSystem: boolean = false): Promise<void> {
     try {
-      const snapshot = await db
-        .collection(this.COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .where("isRead", "==", false)
-        .get();
+      let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
+
+      if (includeSystem) {
+        query = query.where("tenantId", "in", [tenantId, "system"]);
+      } else {
+        query = query.where("tenantId", "==", tenantId);
+      }
+
+      const snapshot = await query.where("isRead", "==", false).get();
 
       const batch = db.batch();
       const readAt = new Date().toISOString();
@@ -227,7 +231,7 @@ export class NotificationService {
   /**
    * Remove todas as notificações de um tenant
    */
-  static async clearAllNotifications(tenantId: string): Promise<void> {
+  static async clearAllNotifications(tenantId: string, includeSystem: boolean = false): Promise<void> {
     try {
       console.log(`[NotificationService] Clearing all notifications for tenant: ${tenantId}`);
       const BATCH_SIZE = 400; // Firestore limit is 500 operations per batch
@@ -236,11 +240,15 @@ export class NotificationService {
 
       while (hasMore) {
         // Fetch a batch of notifications
-        const snapshot = await db
-          .collection(this.COLLECTION)
-          .where("tenantId", "==", tenantId)
-          .limit(BATCH_SIZE)
-          .get();
+        let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
+
+        if (includeSystem) {
+          query = query.where("tenantId", "in", [tenantId, "system"]);
+        } else {
+          query = query.where("tenantId", "==", tenantId);
+        }
+
+        const snapshot = await query.limit(BATCH_SIZE).get();
 
         if (snapshot.empty) {
           console.log(`[NotificationService] No more notifications to delete. Total deleted: ${totalDeleted}`);
