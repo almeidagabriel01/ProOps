@@ -95,6 +95,19 @@ function sanitizeSharedProposalPayload(
       safe[field] = source[field];
     }
   });
+
+  // Remover storagePath interno dos attachments — dado de infraestrutura nunca
+  // deve ser exposto em rotas públicas (evita enumeração de paths no Storage).
+  if (Array.isArray(safe.attachments)) {
+    safe.attachments = (safe.attachments as Array<Record<string, unknown>>).map(
+      ({ storagePath: _storagePath, ...publicFields }) => publicFields,
+    );
+  }
+
+  // Remover o campo pdf inteiro (contém storagePath e versionHash internos).
+  // O cliente público não precisa de metadados de cache do PDF.
+  delete safe.pdf;
+
   return safe;
 }
 

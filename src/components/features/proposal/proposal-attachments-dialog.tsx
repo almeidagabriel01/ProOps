@@ -40,6 +40,26 @@ const ACCEPTED_TYPES = {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+/**
+ * Domínios do Firebase Storage considerados internos/confiáveis.
+ * Arquivos hospedados aqui são enviados pelo próprio sistema.
+ */
+const TRUSTED_STORAGE_HOSTNAMES = new Set([
+  "storage.googleapis.com",
+  "firebasestorage.googleapis.com",
+]);
+
+/** Retorna true quando a URL aponta para armazenamento interno confiável. */
+function isInternalStorageUrl(value: string): boolean {
+  if (value.startsWith("data:")) return true;
+  try {
+    const parsed = new URL(value);
+    return TRUSTED_STORAGE_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function isSafeAttachmentOpenUrl(value: string, type: "image" | "pdf"): boolean {
   const trimmed = String(value || "").trim();
   if (!trimmed) return false;
@@ -273,6 +293,15 @@ export function ProposalAttachmentsDialog({
     if (!targetUrl || !isSafeAttachmentOpenUrl(targetUrl, attachment.type)) {
       toast.error("Anexo inválido");
       return;
+    }
+
+    // URLs externas (fora do Firebase Storage) exigem confirmação explícita
+    // para mitigar phishing — o usuário é avisado antes de sair do sistema.
+    if (!isInternalStorageUrl(targetUrl)) {
+      const confirmed = window.confirm(
+        `Você está prestes a abrir um link externo:\n${targetUrl}\n\nContinuar?`,
+      );
+      if (!confirmed) return;
     }
 
     window.open(targetUrl, "_blank", "noopener,noreferrer");

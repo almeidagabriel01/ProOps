@@ -4,8 +4,7 @@ import { useState } from "react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
 import { toast } from "@/lib/toast";
-import { SharedTransactionService } from "@/services/shared-transaction-service";
-import { downloadSharedTransactionPdf } from "@/services/pdf/download-shared-transaction-pdf";
+import { downloadTransactionPdfFromBackend } from "@/services/pdf/download-transaction-pdf";
 
 interface UseTransactionPdfGeneratorProps {
   transaction: Transaction;
@@ -13,6 +12,13 @@ interface UseTransactionPdfGeneratorProps {
   tenant?: Tenant | null;
 }
 
+/**
+ * Hook centralizado para download de PDF de recibo de lançamento financeiro.
+ *
+ * SEGURANÇA: usa endpoint autenticado (Bearer token) GET /v1/transactions/:id/pdf.
+ * Não cria mais share links públicos de 30 dias só para o download privado,
+ * evitando a mistura de "download privado" com "compartilhamento público".
+ */
 export function useTransactionPdfGenerator({
   transaction,
   tenant: _tenant,
@@ -21,26 +27,20 @@ export function useTransactionPdfGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async (
-    rootElementId?: string,
-    sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
+    _rootElementId?: string,
+    _sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
   ) => {
+    void _rootElementId;
+    void _sourceLabel;
+
     setIsGenerating(true);
     try {
-      const hasTransactionPayload = Boolean(transaction && transaction.id);
-
-      if (!hasTransactionPayload) {
+      if (!transaction?.id) {
         toast.error("Erro ao localizar dados do lancamento para gerar o PDF.");
         return;
       }
 
-      void rootElementId;
-      void sourceLabel;
-
-      const share = await SharedTransactionService.generateShareLink(
-        transaction.id,
-      );
-      await downloadSharedTransactionPdf(share.token, transaction.description);
-
+      await downloadTransactionPdfFromBackend(transaction.id, transaction.description);
       toast.success("PDF baixado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
@@ -52,3 +52,4 @@ export function useTransactionPdfGenerator({
 
   return { isGenerating, handleGenerate };
 }
+

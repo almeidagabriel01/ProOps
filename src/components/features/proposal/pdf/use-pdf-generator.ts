@@ -5,11 +5,7 @@ import { Proposal } from "@/services/proposal-service";
 import { ProposalTemplate, Tenant } from "@/types";
 import { toast } from "@/lib/toast";
 import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
-import { savePdfBlob } from "@/services/pdf/render-to-pdf";
-import {
-  generateProposalPdf,
-  ProposalPdfCustomSettings,
-} from "@/services/pdf/generate-proposal-pdf";
+import type { ProposalPdfCustomSettings } from "@/pdf/templates/ProposalPdfTemplate";
 
 type PdfViewerSettings = ProposalPdfCustomSettings;
 
@@ -23,63 +19,50 @@ interface UsePdfGeneratorProps {
   setIsOpen: (open: boolean) => void;
 }
 
+/**
+ * Hook centralizado para download de PDF de propostas.
+ *
+ * SEGURANÇA: toda geração é feita no backend via Playwright.
+ * Não existe mais fallback client-side (html2canvas / jspdf).
+ * Somente propostas salvas (com id) podem ser baixadas — o backend
+ * valida tenant ownership antes de gerar o arquivo.
+ */
 export function usePdfGenerator({
   proposal,
-  template,
-  tenant,
-  customSettings,
-  showCover = true,
-  canonicalSource = true,
+  // Os parâmetros abaixo são mantidos na interface para compatibilidade
+  // com consumidores existentes, mas o backend não os usa diretamente
+  // (ele lê os settings salvos no Firestore).
+  template: _template,
+  tenant: _tenant,
+  customSettings: _customSettings,
+  showCover: _showCover,
+  canonicalSource: _canonicalSource,
   setIsOpen,
 }: UsePdfGeneratorProps) {
+  void _template;
+  void _tenant;
+  void _customSettings;
+  void _showCover;
+  void _canonicalSource;
+
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = useCallback(
     async (
-      rootElementId?: string,
-      sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
+      _rootElementId?: string,
+      _sourceLabel: "download" | "view" | "edit-preview" | "shared" = "download",
     ) => {
+      void _rootElementId;
+      void _sourceLabel;
+
       setIsGenerating(true);
       try {
-        const hasProposalPayload = Boolean(
-          proposal &&
-          (proposal.id ||
-            (proposal.products && proposal.products.length > 0) ||
-            proposal.title),
-        );
-
-        if (!hasProposalPayload) {
-          toast.error("Erro ao localizar dados da proposta para gerar o PDF.");
+        if (!proposal?.id) {
+          toast.error("Salve a proposta antes de baixar o PDF.");
           return;
         }
 
-        const shouldUseBackendDownload =
-          sourceLabel === "download" || sourceLabel === "view";
-        if (shouldUseBackendDownload) {
-          if (!proposal?.id) {
-            toast.error("Salve a proposta antes de baixar o PDF.");
-            return;
-          }
-          await downloadProposalPdfFromBackend(proposal.id, proposal.title);
-          setIsOpen(false);
-          toast.success("PDF baixado com sucesso!");
-          return;
-        }
-
-        const result = await generateProposalPdf({
-          proposal,
-          template,
-          tenant,
-          customSettings,
-          showCover,
-          rootHint: rootElementId || "pdf-offscreen-content",
-          proposalTitle: proposal?.title,
-          tenantId: proposal?.tenantId,
-          sourceLabel,
-          canonicalSource,
-        });
-
-        savePdfBlob(result.blob, result.filename);
+        await downloadProposalPdfFromBackend(proposal.id, proposal.title);
         setIsOpen(false);
         toast.success("PDF baixado com sucesso!");
       } catch (error) {
@@ -90,16 +73,9 @@ export function usePdfGenerator({
         setIsGenerating(false);
       }
     },
-    [
-      canonicalSource,
-      customSettings,
-      proposal,
-      setIsOpen,
-      showCover,
-      template,
-      tenant,
-    ],
+    [proposal, setIsOpen],
   );
 
   return { isGenerating, handleGenerate };
 }
+

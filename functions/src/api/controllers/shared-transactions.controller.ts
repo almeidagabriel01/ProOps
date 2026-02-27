@@ -3,6 +3,31 @@ import { SharedTransactionService } from "../services/shared-transactions.servic
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 
+// Campos internos de infraestrutura que nunca devem ser expostos em rotas públicas.
+const INTERNAL_TRANSACTION_FIELDS = new Set([
+  "pdfPath",
+  "pdfUrl",
+  "storagePath",
+  "pdfGenerationLock",
+]);
+
+/**
+ * Remove campos internos sensíveis antes de responder em rotas públicas.
+ * Evita enumeração de paths internos do Firebase Storage e metadados de lock.
+ */
+function sanitizeSharedTransactionPayload(
+  id: string,
+  data: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = { id };
+  for (const [key, value] of Object.entries(data || {})) {
+    if (!INTERNAL_TRANSACTION_FIELDS.has(key)) {
+      safe[key] = value;
+    }
+  }
+  return safe;
+}
+
 export const createShareLink = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
@@ -134,11 +159,10 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      transaction: {
-        id: transactionSnap.id,
-        ...transactionData,
-      },
-      relatedTransactions,
+      transaction: sanitizeSharedTransactionPayload(transactionSnap.id, transactionData),
+      relatedTransactions: relatedTransactions.map((t) =>
+        sanitizeSharedTransactionPayload(String(t.id || ""), t as Record<string, unknown>),
+      ),
       tenant: tenantData
         ? {
             id: sharedTransaction.tenantId,
