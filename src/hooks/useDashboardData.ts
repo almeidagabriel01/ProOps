@@ -164,12 +164,12 @@ export function useDashboardData(): DashboardData {
       rawData;
     const now = new Date();
 
-    // Chart data - last 6 months
+    // Chart data - current month and next 5 months
     const months: {
       [key: string]: { receitas: number; despesas: number; name: string };
     } = {};
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    for (let i = 0; i < 6; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       months[key] = {
         name: date
@@ -180,8 +180,11 @@ export function useDashboardData(): DashboardData {
       };
     }
     transactions.forEach((t) => {
-      if (t.status !== "paid") return;
-      const date = new Date(t.date);
+      // Use actual date for paid, dueDate for pending/overdue to project correctly
+      const effectiveDateStr = t.status === "paid" ? t.date : (t.dueDate || t.date);
+      if (!effectiveDateStr) return;
+      
+      const date = new Date(effectiveDateStr);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       if (months[key]) {
         if (t.type === "income") months[key].receitas += t.amount;

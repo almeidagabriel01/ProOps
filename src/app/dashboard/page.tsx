@@ -110,7 +110,7 @@ export default function DashboardPage() {
               <div>
                 <CardTitle className="text-lg">Fluxo de Caixa</CardTitle>
                 <CardDescription>
-                  Receitas vs Despesas nos últimos 6 meses
+                  Receitas vs Despesas dos próximos 6 meses
                 </CardDescription>
               </div>
               <div className="flex gap-4 text-sm">
