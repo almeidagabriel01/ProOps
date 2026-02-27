@@ -40,9 +40,14 @@ service firebase.storage {
              && getAuthTenantId() == tenantId;
     }
     
-    // Helper function to check file size (5MB max)
-    function isValidFileSize() {
+    // Helper function to check image file size (5MB max)
+    function isValidImageFileSize() {
       return request.resource.size > 0 && request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // Helper function to check attachment file size (10MB max)
+    function isValidAttachmentFileSize() {
+      return request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024;
     }
     
     // Helper function to allow only raster images (blocks SVG/script payloads)
@@ -50,8 +55,13 @@ service firebase.storage {
       return request.resource.contentType.matches('image/(jpeg|jpg|png|gif|webp|avif)');
     }
 
-    function isAllowedFolder(folder) {
-      return folder == 'products' || folder == 'proposals';
+    function isAllowedImageFolder(folder) {
+      return folder == 'products' || folder == 'proposals' || folder == 'services';
+    }
+
+    function isAllowedAttachmentType() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|gif|webp|avif)')
+             || request.resource.contentType == 'application/pdf';
     }
 
     function canReadTenantPath(tenantId) {
@@ -62,27 +72,38 @@ service firebase.storage {
     // Path: tenants/{tenantId}/products/{productId}/{filename}
     // Path: tenants/{tenantId}/proposals/{proposalId}/{filename}
     match /tenants/{tenantId}/{folder}/{fileName} {
-      allow read: if isAllowedFolder(folder) && canReadTenantPath(tenantId);
-      allow write: if isAllowedFolder(folder)
+      allow read: if isAllowedImageFolder(folder) && canReadTenantPath(tenantId);
+      allow write: if isAllowedImageFolder(folder)
                    && canReadTenantPath(tenantId)
                    && hasTenantWriteRole()
-                   && isValidFileSize()
+                   && isValidImageFileSize()
                    && isAllowedImageType();
-      allow delete: if isAllowedFolder(folder)
+      allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
                     && hasTenantWriteRole();
     }
 
     match /tenants/{tenantId}/{folder}/{entityId}/{fileName} {
-      allow read: if isAllowedFolder(folder) && canReadTenantPath(tenantId);
-      allow write: if isAllowedFolder(folder)
+      allow read: if isAllowedImageFolder(folder) && canReadTenantPath(tenantId);
+      allow write: if isAllowedImageFolder(folder)
                    && canReadTenantPath(tenantId)
                    && hasTenantWriteRole()
-                   && isValidFileSize()
+                   && isValidImageFileSize()
                    && isAllowedImageType();
-      allow delete: if isAllowedFolder(folder)
+      allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
                     && hasTenantWriteRole();
+    }
+
+    // Proposal attachments:
+    // tenants/{tenantId}/proposals/{proposalId}/attachments/{fileName}
+    match /tenants/{tenantId}/proposals/{proposalId}/attachments/{fileName} {
+      allow read: if canReadTenantPath(tenantId);
+      allow write: if canReadTenantPath(tenantId)
+                   && hasTenantWriteRole()
+                   && isValidAttachmentFileSize()
+                   && isAllowedAttachmentType();
+      allow delete: if canReadTenantPath(tenantId) && hasTenantWriteRole();
     }
 
     match /{allPaths=**} {

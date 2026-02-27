@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import {
@@ -12,6 +13,10 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
+import {
+  enqueueStorageGcPath,
+  type StorageGcReason,
+} from "../../lib/storage-gc";
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
@@ -185,6 +190,152 @@ function sanitizeAttachmentsInput(rawValue: unknown): SanitizedAttachment[] {
       ...(storagePath ? { storagePath } : {}),
     };
   });
+}
+
+function parseStoragePathFromUrl(rawUrl: string): string {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+
+  if (value.startsWith("tenants/")) return value;
+  if (value.startsWith("gs://")) {
+    const noProtocol = value.slice(5);
+    const firstSlash = noProtocol.indexOf("/");
+    if (firstSlash > 0 && firstSlash < noProtocol.length - 1) {
+      return noProtocol.slice(firstSlash + 1);
+    }
+  }
+
+  try {
+    const url = new URL(value);
+    const pathname = decodeURIComponent(url.pathname || "");
+
+    if (
+      url.hostname.includes("firebasestorage.googleapis.com") ||
+      url.hostname.includes("firebasestorage.app")
+    ) {
+      const markerIndex = pathname.indexOf("/o/");
+      if (markerIndex >= 0) {
+        return pathname.slice(markerIndex + 3);
+      }
+    }
+
+    if (url.hostname.includes("storage.googleapis.com")) {
+      const parts = pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return parts.slice(1).join("/");
+      }
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function isManagedProposalPath(path: string, tenantId: string, proposalId: string): boolean {
+  const normalizedPath = String(path || "").trim();
+  if (!normalizedPath) return false;
+  if (normalizedPath.includes("..")) return false;
+  return (
+    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/attachments/`) ||
+    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/pdf/`)
+  );
+}
+
+function collectAttachmentStoragePaths(
+  rawAttachments: unknown,
+  tenantId: string,
+  proposalId: string,
+): string[] {
+  if (!Array.isArray(rawAttachments)) return [];
+
+  const result = new Set<string>();
+  rawAttachments.forEach((rawAttachment) => {
+    const attachment =
+      rawAttachment && typeof rawAttachment === "object"
+        ? (rawAttachment as Record<string, unknown>)
+        : null;
+    if (!attachment) return;
+
+    const explicitPath = sanitizeAttachmentStoragePath(attachment.storagePath);
+    if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+      result.add(explicitPath);
+      return;
+    }
+
+    const parsedPath = parseStoragePathFromUrl(String(attachment.url || ""));
+    if (parsedPath && isManagedProposalPath(parsedPath, tenantId, proposalId)) {
+      result.add(parsedPath);
+    }
+  });
+
+  return Array.from(result);
+}
+
+function collectProposalPdfStoragePaths(
+  proposalData: Record<string, unknown> | undefined,
+  tenantId: string,
+  proposalId: string,
+): string[] {
+  const result = new Set<string>();
+  if (!proposalData) return [];
+
+  const pdfData =
+    proposalData.pdf && typeof proposalData.pdf === "object"
+      ? (proposalData.pdf as Record<string, unknown>)
+      : {};
+
+  const explicitPath = String(pdfData.storagePath || "").trim();
+  if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+    result.add(explicitPath);
+  }
+
+  const legacyPdfPath = String(proposalData.pdfPath || "").trim();
+  if (legacyPdfPath && isManagedProposalPath(legacyPdfPath, tenantId, proposalId)) {
+    result.add(legacyPdfPath);
+  }
+
+  const legacyPdfUrlPath = parseStoragePathFromUrl(String(proposalData.pdfUrl || ""));
+  if (legacyPdfUrlPath && isManagedProposalPath(legacyPdfUrlPath, tenantId, proposalId)) {
+    result.add(legacyPdfUrlPath);
+  }
+
+  return Array.from(result);
+}
+
+type StorageCleanupContext = {
+  reason: StorageGcReason;
+  tenantId?: string;
+  proposalId?: string;
+};
+
+async function deleteStorageObjectsBestEffort(
+  paths: string[],
+  context: StorageCleanupContext,
+): Promise<void> {
+  const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+  if (uniquePaths.length === 0) return;
+
+  const bucket = getStorage().bucket();
+  await Promise.allSettled(
+    uniquePaths.map(async (path) => {
+      try {
+        await bucket.file(path).delete({ ignoreNotFound: true });
+      } catch (error) {
+        console.warn("[proposal-storage-cleanup] failed to delete object", {
+          path,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        await enqueueStorageGcPath({
+          path,
+          reason: context.reason,
+          tenantId: context.tenantId,
+          proposalId: context.proposalId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }),
+  );
 }
 
 export const createProposal = async (req: Request, res: Response) => {
@@ -516,6 +667,7 @@ export const updateProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
       const canEdit = await checkPermission(userId, "proposals", "canEdit");
@@ -526,6 +678,12 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
+    const previousAttachmentPaths = collectAttachmentStoragePaths(
+      proposalData?.attachments,
+      proposalTenantId,
+      id,
+    );
+
     let sanitizedAttachments: SanitizedAttachment[] | undefined;
     if (typeof updateData.attachments !== "undefined") {
       try {
@@ -534,6 +692,20 @@ export const updateProposal = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Anexos invalidos" });
       }
     }
+
+    const nextAttachmentPaths =
+      typeof sanitizedAttachments !== "undefined"
+        ? collectAttachmentStoragePaths(
+            sanitizedAttachments,
+            proposalTenantId,
+            id,
+          )
+        : [];
+    const nextAttachmentPathSet = new Set(nextAttachmentPaths);
+    const removedAttachmentPaths =
+      typeof sanitizedAttachments !== "undefined"
+        ? previousAttachmentPaths.filter((path) => !nextAttachmentPathSet.has(path))
+        : [];
 
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
@@ -595,6 +767,14 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     await proposalRef.update(safeUpdate);
 
+    if (removedAttachmentPaths.length > 0) {
+      await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
+        reason: "proposal_update_attachment_cleanup_failed",
+        tenantId: proposalTenantId,
+        proposalId: id,
+      });
+    }
+
     // Criar receita automaticamente quando a proposta for aprovada
     const isBeingApproved =
       updateData.status === "approved" && proposalData?.status !== "approved";
@@ -612,7 +792,6 @@ export const updateProposal = async (req: Request, res: Response) => {
       (!updateData.status || updateData.status === "approved");
 
     if (isAlreadyApproved) {
-      const proposalTenantId = proposalData?.tenantId || tenantId;
       const mergedData = { ...proposalData, ...safeUpdate } as any;
       const nowDateStr = new Date().toISOString().split("T")[0];
 
@@ -1236,6 +1415,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
       const canDelete = await checkPermission(userId, "proposals", "canDelete");
@@ -1274,7 +1454,22 @@ export const deleteProposal = async (req: Request, res: Response) => {
     }
 
     // Cleanup associated transactions (revenue) if they exist
-    await cleanupProposalTransactions(id, proposalData?.tenantId || tenantId);
+    await cleanupProposalTransactions(id, proposalTenantId);
+
+    const storagePathsToDelete = Array.from(
+      new Set([
+        ...collectAttachmentStoragePaths(
+          proposalData?.attachments,
+          proposalTenantId,
+          id,
+        ),
+        ...collectProposalPdfStoragePaths(
+          proposalData as Record<string, unknown> | undefined,
+          proposalTenantId,
+          id,
+        ),
+      ]),
+    );
 
     await db.runTransaction(async (t) => {
       const pSnap = await t.get(proposalRef);
@@ -1282,7 +1477,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
 
       const companyRef = db
         .collection("companies")
-        .doc(proposalData?.tenantId || tenantId);
+        .doc(proposalTenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
@@ -1294,6 +1489,14 @@ export const deleteProposal = async (req: Request, res: Response) => {
         t.update(companyRef, { "usage.proposals": FieldValue.increment(-1) });
       }
     });
+
+    if (storagePathsToDelete.length > 0) {
+      await deleteStorageObjectsBestEffort(storagePathsToDelete, {
+        reason: "proposal_delete_cleanup_failed",
+        tenantId: proposalTenantId,
+        proposalId: id,
+      });
+    }
 
     return res.json({ success: true, message: "Proposta excluída." });
   } catch (error: unknown) {
