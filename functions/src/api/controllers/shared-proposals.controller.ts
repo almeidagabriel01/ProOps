@@ -289,18 +289,21 @@ export const getSharedProposal = async (req: Request, res: Response) => {
 
     const tenantData = tenantSnap.exists ? tenantSnap.data() : null;
 
-    // Fire-and-forget: view recording is non-critical analytics
-    const viewerData = {
-      ip: req.ip || (req.headers["x-forwarded-for"] as string),
-      userAgent: req.headers["user-agent"],
-    };
-    void SharedProposalService.recordView(
-      sharedProposal.id,
-      sharedProposal.tenantId,
-      sharedProposal.proposalId,
-      viewerData,
-      enrichedProposalData?.title,
-    ).catch((err) => console.error("recordView failed (non-critical)", err));
+    // Skip view recording for PDF generation requests (automated Puppeteer)
+    const isPdfGenerator = req.headers["x-pdf-generator"] === "true";
+    if (!isPdfGenerator) {
+      const viewerData = {
+        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        userAgent: req.headers["user-agent"],
+      };
+      void SharedProposalService.recordView(
+        sharedProposal.id,
+        sharedProposal.tenantId,
+        sharedProposal.proposalId,
+        viewerData,
+        enrichedProposalData?.title,
+      ).catch((err) => console.error("recordView failed (non-critical)", err));
+    }
 
     // Retornar dados da proposta
     return res.status(200).json({
