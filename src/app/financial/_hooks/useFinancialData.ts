@@ -13,6 +13,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Wallet } from "@/types";
 import { normalize } from "@/utils/text";
+import { statusConfig } from "../_constants/config";
 
 type DateLike =
   | string
@@ -120,6 +121,9 @@ const formatTransactionLabel = (
   const description = transaction.description?.trim();
   return description ? `"${description}"` : `ID ${transaction.id}`;
 };
+
+const formatStatusLabel = (status: TransactionStatus): string =>
+  (statusConfig[status]?.label || status).toLocaleLowerCase("pt-BR");
 
 interface FinancialSummary {
   totalIncome: number;
@@ -921,7 +925,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         toast.success(
-          `Status do lancamento ${transactionLabel} atualizado para "${newStatus}".`,
+          `Status do lancamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
           { title: "Sucesso ao editar" },
         );
 
@@ -1085,7 +1089,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           toast.success(
-            `${groupTransactions.length} lancamentos da proposta ${transactionLabel} tiveram status atualizado para "${newStatus}".`,
+            `${groupTransactions.length} lancamentos da proposta ${transactionLabel} tiveram status atualizado para "${formatStatusLabel(newStatus)}".`,
             { title: "Sucesso ao editar" },
           );
         } else if (hasInstallmentGroup) {
@@ -1114,7 +1118,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           );
 
           toast.success(
-            `${groupTransactions.length} parcelas de ${transactionLabel} tiveram status atualizado para "${newStatus}".`,
+            `${groupTransactions.length} parcelas de ${transactionLabel} tiveram status atualizado para "${formatStatusLabel(newStatus)}".`,
             { title: "Sucesso ao editar" },
           );
         } else {
@@ -1132,7 +1136,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             ),
           );
           toast.success(
-            `Status do lancamento ${transactionLabel} atualizado para "${newStatus}".`,
+            `Status do lancamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
             { title: "Sucesso ao editar" },
           );
         }
@@ -1200,7 +1204,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         toast.success(
-          `Status do item extra ${extraCostLabel} em ${parentLabel} atualizado para "${newStatus}".`,
+          `Status do item extra ${extraCostLabel} em ${parentLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
           { title: "Sucesso ao editar" },
         );
 

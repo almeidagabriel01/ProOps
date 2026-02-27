@@ -360,4 +360,18 @@ html.theme-transitioning * {
 [data-sileo-viewport] [data-sileo-description] {
   color: var(--foreground) !important;
   opacity: 0.9 !important;
+  text-align: center !important;
+  margin-inline: auto;
+}
+
+/* Keep toast description centered in the middle of the card */
+[data-sileo-viewport] [data-sileo-content] {
+  display: flex;
+  justify-content: center;
+}
+
+[data-sileo-viewport] [data-sileo-description] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -18,6 +18,30 @@ const normalizeText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const statusLabelByCode: Record<string, string> = {
+  paid: "pago",
+  pending: "pendente",
+  overdue: "atrasado",
+  active: "ativo",
+  inactive: "inativo",
+  approved: "aprovado",
+  draft: "rascunho",
+  sent: "enviado",
+  canceled: "cancelado",
+  cancelled: "cancelado",
+  unpaid: "nao pago",
+  trialing: "em teste",
+};
+
+const localizeStatusCodes = (value: string) =>
+  value.replace(
+    /\b(paid|pending|overdue|active|inactive|approved|draft|sent|canceled|cancelled|unpaid|trialing)\b/gi,
+    (match) => {
+      const label = statusLabelByCode[match.toLowerCase()];
+      return label || match;
+    },
+  );
+
 const inferTitleByMessage = (
   message: string,
   variant: ToastVariant,
@@ -25,22 +49,25 @@ const inferTitleByMessage = (
 ) => {
   const text = normalizeText(message);
   const isDeleteAction = /(exclu|remov|delet)/.test(text);
-  const isEditAction = /(edit|atualiz|alter)/.test(text);
-  const isCreateAction = /(cri|cadast|adicion|inclu)/.test(text);
-  const isSaveAction = /(salv)/.test(text);
+  const isEditAction = /(edit|atualiz|alter|modif)/.test(text);
+  const isCreateAction = /(cri|cadast|adicion|inclu|creat|add)/.test(text);
+  const isSaveAction = /(salv|save)/.test(text);
+  const isLoadAction = /(carreg|load|fetch)/.test(text);
 
   if (variant === "success") {
     if (isDeleteAction) return "Sucesso ao excluir";
-    if (isEditAction || isSaveAction) return "Sucesso ao editar";
+    if (isEditAction) return "Sucesso ao editar";
     if (isCreateAction) return "Sucesso ao criar";
+    if (isSaveAction) return "Sucesso ao salvar";
     return "Sucesso";
   }
 
   if (variant === "error") {
     if (isDeleteAction) return "Erro ao excluir";
     if (isEditAction) return "Erro ao editar";
-    if (isSaveAction) return "Erro ao salvar";
     if (isCreateAction) return "Erro ao criar";
+    if (isSaveAction) return "Erro ao salvar";
+    if (isLoadAction) return "Erro ao carregar";
     return "Erro";
   }
 
@@ -53,13 +80,19 @@ const getToastConfig = (
   content: unknown,
   options?: ToastOptions,
 ) => {
-  const message = content instanceof Error ? content.message : String(content);
-  const inferredTitle = inferTitleByMessage(message, variant, defaultTitle);
+  const rawMessage = content instanceof Error ? content.message : String(content);
+  const message = localizeStatusCodes(rawMessage);
+  const title = options?.title ? localizeStatusCodes(options.title) : undefined;
+  const description = options?.description
+    ? localizeStatusCodes(options.description)
+    : undefined;
 
   return {
-    title: options?.title || inferredTitle,
-    description: options?.description || message,
     ...options,
+    title:
+      title ||
+      inferTitleByMessage(message, variant, defaultTitle),
+    description: description || message,
   };
 };
 
@@ -100,10 +133,18 @@ toastFn.promise = async <T>(
   return sileo.promise<T>(promise, {
     loading: {
       title: "Carregando...",
-      description: messages.pending || "Aguarde...",
+      description: localizeStatusCodes(messages.pending || "Aguarde..."),
     },
-    success: { title: "Sucesso", description: messages.success },
-    error: { title: "Erro", description: messages.error || "Ocorreu um erro." },
+    success: {
+      title: "Sucesso",
+      description: messages.success
+        ? localizeStatusCodes(messages.success)
+        : undefined,
+    },
+    error: {
+      title: "Erro",
+      description: localizeStatusCodes(messages.error || "Ocorreu um erro."),
+    },
   });
 };
 
@@ -129,10 +170,11 @@ toastFn.update = (
 ) => {
   sileo.dismiss(id.toString());
   if (options.render) {
-    if (options.type === "success") toastFn.success(options.render);
-    else if (options.type === "error") toastFn.error(options.render);
-    else if (options.type === "warning") toastFn.warning(options.render);
-    else toastFn.info(options.render);
+    const render = localizeStatusCodes(options.render);
+    if (options.type === "success") toastFn.success(render);
+    else if (options.type === "error") toastFn.error(render);
+    else if (options.type === "warning") toastFn.warning(render);
+    else toastFn.info(render);
   }
 };
 

@@ -509,7 +509,7 @@ export default function ProposalsPage() {
           ),
         );
         toast.success(
-          `Status da proposta ${proposalLabel} alterado para "${statusConfig[newStatus].label}".`,
+          `Status da proposta ${proposalLabel} alterado para "${statusConfig[newStatus].label.toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
       } catch (error) {
