@@ -14,13 +14,20 @@ import {
   getDefaultProposalColumns,
 } from "@/services/kanban-service";
 import { ProposalService } from "@/services/proposal-service";
-import { Proposal, ProposalStatus } from "@/types/proposal";
+import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
 import { KanbanBoardSkeleton } from "@/app/kanban/_components/kanban-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
-import { Plus, Pencil, Trash2, Search, ListFilter } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  ListFilter,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { normalize } from "@/utils/text";
 import {
@@ -53,6 +60,7 @@ export function ProposalKanbanTab() {
     null,
   );
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeletingColumn, setIsDeletingColumn] = React.useState(false);
   const [columnFilters, setColumnFilters] = React.useState<
     Record<
       string,
@@ -120,7 +128,11 @@ export function ProposalKanbanTab() {
   // Filter and Build board columns
   const boardColumns = React.useMemo((): KanbanColumn<Proposal>[] => {
     return columns.map((col) => {
-      let items = proposals.filter((p) => p.status === col.mappedStatus);
+      let items = proposals.filter(
+        (p) =>
+          p.status === col.id ||
+          (col.mappedStatus && p.status === col.mappedStatus),
+      );
       const filter = columnFilters[col.id] || {
         term: "",
         filterExpiration: "all",
@@ -203,7 +215,10 @@ export function ProposalKanbanTab() {
       const targetColumn = columns.find((c) => c.id === toColumnId);
       if (!targetColumn) return;
 
-      const newStatus = targetColumn.mappedStatus;
+      const newStatus =
+        targetColumn.id.startsWith("default_") && targetColumn.mappedStatus
+          ? targetColumn.mappedStatus
+          : targetColumn.id;
       const proposal = proposals.find((p) => p.id === itemId);
       if (!proposal || proposal.status === newStatus) return;
 
@@ -237,34 +252,147 @@ export function ProposalKanbanTab() {
     setIsDetailOpen(true);
   }, []);
 
+  // Helper to persist defaults if they haven't been saved yet
+  const persistDefaultsIfNeeded = React.useCallback(async (): Promise<
+    KanbanStatusColumn[] | null
+  > => {
+    if (!tenant?.id) return null;
+    const isUsingDefaults =
+      columns.length > 0 && columns.every((c) => c.id.startsWith("default_"));
+    if (!isUsingDefaults) return columns;
+
+    setIsSaving(true);
+    try {
+      const persistedColumns = await Promise.all(
+        columns.map((col, index) =>
+          KanbanService.createStatus({
+            tenantId: tenant.id,
+            label: col.label,
+            color: col.color,
+            order: index,
+            category: col.category,
+            mappedStatus: col.mappedStatus || undefined,
+          }),
+        ),
+      );
+      setColumns(persistedColumns);
+      return persistedColumns;
+    } catch (error) {
+      console.error("Error persisting defaults", error);
+      toast.error("Erro ao inicializar quadro Kanban.");
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [tenant?.id, columns]);
+
+  const handleRestoreDefaults = async () => {
+    if (!tenant?.id) return;
+    setIsSaving(true);
+    try {
+      const defaults = getDefaultProposalColumns();
+      const existingMapped = new Set(
+        columns.map((c) => c.mappedStatus).filter(Boolean),
+      );
+
+      const missingDefaults = defaults.filter(
+        (d) => d.mappedStatus && !existingMapped.has(d.mappedStatus),
+      );
+
+      if (missingDefaults.length === 0) {
+        toast.info("Todas as colunas padrão já existem no seu quadro.");
+        setIsSaving(false);
+        return;
+      }
+
+      const maxOrder = Math.max(...columns.map((c) => c.order), -1);
+
+      const restored = await Promise.all(
+        missingDefaults.map((col, index) =>
+          KanbanService.createStatus({
+            tenantId: tenant.id,
+            label: col.label,
+            color: col.color,
+            order: maxOrder + 1 + index,
+            category: col.category,
+            mappedStatus: col.mappedStatus || undefined,
+          }),
+        ),
+      );
+
+      setColumns((prev) => [...prev, ...restored]);
+      toast.success(`${restored.length} coluna(s) padrão restaurada(s).`);
+    } catch (e) {
+      console.error("Error restoring defaults", e);
+      toast.error("Erro ao restaurar colunas padrão.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const isMissingDefaults = React.useMemo(() => {
+    const defaults = getDefaultProposalColumns();
+    const existingMapped = new Set(
+      columns.map((c) => c.mappedStatus).filter(Boolean),
+    );
+    return defaults.some(
+      (d) => d.mappedStatus && !existingMapped.has(d.mappedStatus),
+    );
+  }, [columns]);
+
   // Handle create/edit column
   const handleSaveColumn = React.useCallback(
     async (data: {
       label: string;
       color: string;
-      mappedStatus: ProposalStatus;
+      category: "open" | "won" | "lost";
     }) => {
       if (!tenant?.id) return;
       setIsSaving(true);
 
       try {
+        // Persist defaults if this is the first mutation
+        let activeColumns = columns;
+        if (
+          columns.length > 0 &&
+          columns.every((c) => c.id.startsWith("default_"))
+        ) {
+          const persisted = await persistDefaultsIfNeeded();
+          if (persisted) activeColumns = persisted;
+        }
+
         if (editingColumn) {
-          if (editingColumn.id.startsWith("default_")) {
+          // If editing a default column, find its newly persisted ID
+          let targetId = editingColumn.id;
+          if (targetId.startsWith("default_")) {
+            const newlyPersisted = activeColumns.find(
+              (c) =>
+                c.mappedStatus === editingColumn.mappedStatus ||
+                c.label === editingColumn.label,
+            );
+            if (newlyPersisted) targetId = newlyPersisted.id;
+          }
+
+          if (targetId.startsWith("default_")) {
+            // Fallback in case persistence failed but we still try to create (shouldn't happen)
             const newColumn = await KanbanService.createStatus({
               tenantId: tenant.id,
               label: data.label,
               color: data.color,
               order: editingColumn.order,
-              mappedStatus: data.mappedStatus,
+              category: data.category,
+              mappedStatus: editingColumn.mappedStatus,
             });
             setColumns((prev) =>
-              prev.map((c) => (c.id === editingColumn.id ? newColumn : c)),
+              prev.map((c) =>
+                c.id === editingColumn.id || c.id === targetId ? newColumn : c,
+              ),
             );
           } else {
-            await KanbanService.updateStatus(editingColumn.id, data);
+            await KanbanService.updateStatus(targetId, data);
             setColumns((prev) =>
               prev.map((c) =>
-                c.id === editingColumn.id
+                c.id === targetId
                   ? { ...c, ...data, updatedAt: new Date().toISOString() }
                   : c,
               ),
@@ -278,7 +406,7 @@ export function ProposalKanbanTab() {
             label: data.label,
             color: data.color,
             order: maxOrder + 1,
-            mappedStatus: data.mappedStatus,
+            category: data.category,
           });
           setColumns((prev) => [...prev, newColumn]);
           toast.success("Coluna criada com sucesso.");
@@ -292,25 +420,113 @@ export function ProposalKanbanTab() {
         setEditingColumn(null);
       }
     },
-    [tenant?.id, editingColumn, columns],
+    [tenant?.id, editingColumn, columns, persistDefaultsIfNeeded],
   );
 
-  // Handle delete column
+  const onColumnDragEnd = React.useCallback(
+    async (activeColumnId: string, overColumnId: string) => {
+      if (!tenant?.id || activeColumnId === overColumnId) return;
+
+      let activeColumns = columns;
+      // Persist defaults first if needed
+      if (
+        columns.length > 0 &&
+        columns.every((c) => c.id.startsWith("default_"))
+      ) {
+        const persisted = await persistDefaultsIfNeeded();
+        if (persisted) activeColumns = persisted;
+      }
+
+      // Now find indexes in activeColumns
+      let activeId = activeColumnId;
+      if (activeId.startsWith("default_")) {
+        const colToMove = columns.find((c) => c.id === activeColumnId);
+        const newlyPersisted = activeColumns.find(
+          (c) =>
+            c.mappedStatus === colToMove?.mappedStatus ||
+            c.label === colToMove?.label,
+        );
+        if (newlyPersisted) activeId = newlyPersisted.id;
+      }
+
+      let overId = overColumnId;
+      if (overId.startsWith("default_")) {
+        const overCol = columns.find((c) => c.id === overColumnId);
+        const newlyPersisted = activeColumns.find(
+          (c) =>
+            c.mappedStatus === overCol?.mappedStatus ||
+            c.label === overCol?.label,
+        );
+        if (newlyPersisted) overId = newlyPersisted.id;
+      }
+
+      const oldIndex = activeColumns.findIndex((c) => c.id === activeId);
+      const newIndex = activeColumns.findIndex((c) => c.id === overId);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Create new array with shifted elements
+      const newColumns = [...activeColumns];
+      const [movedColumn] = newColumns.splice(oldIndex, 1);
+      newColumns.splice(newIndex, 0, movedColumn);
+
+      const reorderedColumns = newColumns.map((c, i) => ({ ...c, order: i }));
+
+      // Update local state immediately for optimistic UI
+      setColumns(reorderedColumns);
+
+      try {
+        // Send the reorder request
+        const statusIds = reorderedColumns.map((c) => c.id);
+        await KanbanService.reorderStatuses(statusIds);
+        toast.success("Colunas reordenadas com sucesso.");
+      } catch (error) {
+        console.error("Error reordering columns:", error);
+        toast.error("Erro ao reordenar colunas.");
+        setColumns(activeColumns); // revert
+      }
+    },
+    [columns, tenant?.id, persistDefaultsIfNeeded],
+  );
+
   const handleDeleteColumn = React.useCallback(async () => {
     if (!deletingColumnId) return;
+    setIsDeletingColumn(true);
     try {
-      if (!deletingColumnId.startsWith("default_")) {
-        await KanbanService.deleteStatus(deletingColumnId);
+      let activeColumns = columns;
+      if (
+        columns.length > 0 &&
+        columns.every((c) => c.id.startsWith("default_"))
+      ) {
+        const persisted = await persistDefaultsIfNeeded();
+        if (persisted) activeColumns = persisted;
       }
-      setColumns((prev) => prev.filter((c) => c.id !== deletingColumnId));
+
+      let targetId = deletingColumnId;
+      if (targetId.startsWith("default_")) {
+        const colToDelete = columns.find((c) => c.id === deletingColumnId);
+        const newlyPersisted = activeColumns.find(
+          (c) =>
+            c.mappedStatus === colToDelete?.mappedStatus ||
+            c.label === colToDelete?.label,
+        );
+        if (newlyPersisted) targetId = newlyPersisted.id;
+      }
+
+      if (!targetId.startsWith("default_")) {
+        await KanbanService.deleteStatus(targetId);
+      }
+      setColumns((prev) =>
+        prev.filter((c) => c.id !== targetId && c.id !== deletingColumnId),
+      );
       toast.success("Coluna removida com sucesso.");
     } catch (error) {
       console.error("Error deleting column:", error);
       toast.error("Erro ao remover coluna.");
     } finally {
+      setIsDeletingColumn(false);
       setDeletingColumnId(null);
     }
-  }, [deletingColumnId]);
+  }, [deletingColumnId, columns, persistDefaultsIfNeeded]);
 
   // Column header renderer
   const renderColumnHeader = React.useCallback(
@@ -613,7 +829,6 @@ export function ProposalKanbanTab() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-
               <button
                 type="button"
                 onClick={() => {
@@ -622,7 +837,7 @@ export function ProposalKanbanTab() {
                     setIsStatusDialogOpen(true);
                   }
                 }}
-                className="p-1.5 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="p-1.5 ml-1 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 title="Editar coluna"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -676,6 +891,17 @@ export function ProposalKanbanTab() {
             <Plus className="w-4 h-4" />
             Nova Coluna
           </Button>
+          {isMissingDefaults && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
+              onClick={handleRestoreDefaults}
+              disabled={isSaving}
+            >
+              Restaurar Padrões
+            </Button>
+          )}
 
           <p className="text-xs text-muted-foreground hidden sm:block">
             Arraste para alterar o status
@@ -687,6 +913,7 @@ export function ProposalKanbanTab() {
       <KanbanBoard<Proposal>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
+        onColumnDragEnd={onColumnDragEnd}
         onCardClick={handleCardClick}
         getItemId={(p) => p.id}
         showColumnTotals
@@ -734,7 +961,7 @@ export function ProposalKanbanTab() {
             ? {
                 label: editingColumn.label,
                 color: editingColumn.color,
-                mappedStatus: editingColumn.mappedStatus,
+                category: editingColumn.category,
               }
             : undefined
         }
@@ -744,7 +971,10 @@ export function ProposalKanbanTab() {
       {/* Delete Confirmation */}
       <AlertDialog
         open={!!deletingColumnId}
-        onOpenChange={(open: boolean) => !open && setDeletingColumnId(null)}
+        onOpenChange={(open: boolean) => {
+          if (isDeletingColumn) return;
+          if (!open) setDeletingColumnId(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -755,9 +985,24 @@ export function ProposalKanbanTab() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteColumn}>
-              Excluir
+            <AlertDialogCancel
+              disabled={isDeletingColumn}
+              onClick={(e) => {
+                if (isDeletingColumn) e.preventDefault();
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteColumn();
+              }}
+              disabled={isDeletingColumn}
+              className="bg-destructive hover:bg-destructive/90 gap-2"
+            >
+              {isDeletingColumn && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isDeletingColumn ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

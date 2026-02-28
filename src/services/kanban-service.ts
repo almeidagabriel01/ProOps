@@ -15,7 +15,8 @@ export interface KanbanStatusColumn {
   label: string;
   color: string;
   order: number;
-  mappedStatus: ProposalStatus;
+  mappedStatus?: string; // Kept for backward compatibility
+  category: "open" | "won" | "lost";
   createdAt: string;
   updatedAt: string;
 }
@@ -44,17 +45,18 @@ export function getDefaultProposalColumns(): Omit<
   KanbanStatusColumn,
   "id" | "tenantId" | "createdAt" | "updatedAt"
 >[] {
-  const statuses: ProposalStatus[] = [
-    "in_progress",
-    "sent",
-    "approved",
-    "rejected",
+  const statuses: { status: ProposalStatus; category: "open" | "won" | "lost" }[] = [
+    { status: "in_progress", category: "open" },
+    { status: "sent", category: "open" },
+    { status: "approved", category: "won" },
+    { status: "rejected", category: "lost" },
   ];
-  return statuses.map((status, index) => ({
+  return statuses.map(({ status, category }, index) => ({
     label: STATUS_LABELS[status],
     color: STATUS_COLORS[status],
     order: index,
     mappedStatus: status,
+    category,
   }));
 }
 
@@ -82,10 +84,20 @@ export const KanbanService = {
         orderBy("order", "asc"),
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as KanbanStatusColumn[];
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        let category = data.category;
+        if (!category) {
+          category = 
+            data.mappedStatus === "approved" ? "won" :
+            data.mappedStatus === "rejected" ? "lost" : "open";
+        }
+        return {
+          id: doc.id,
+          ...data,
+          category,
+        } as KanbanStatusColumn;
+      });
     } catch (error) {
       // If collection doesn't exist yet or rules haven't been deployed,
       // return empty array so the UI falls back to default columns

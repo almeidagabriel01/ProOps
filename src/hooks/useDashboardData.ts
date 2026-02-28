@@ -9,6 +9,7 @@ import { ProposalService, Proposal } from "@/services/proposal-service";
 import { ClientService, Client } from "@/services/client-service";
 import { WalletService } from "@/services/wallet-service"; // Import WalletService
 import { Wallet } from "@/types"; // Import Wallet type
+import { KanbanService, KanbanStatusColumn, getDefaultProposalColumns } from "@/services/kanban-service";
 import { useTenant } from "@/providers/tenant-provider";
 import type { BarChartDataItem } from "@/components/charts/simple-bar-chart";
 import { toast } from "@/lib/toast";
@@ -96,6 +97,7 @@ export function useDashboardData(): DashboardData {
     proposals: [] as Proposal[],
     clients: [] as Client[],
     wallets: [] as Wallet[],
+    kanbanColumns: [] as KanbanStatusColumn[],
     financialSummary: initialState.financialSummary,
   });
   const [isDataLoading, setIsDataLoading] = React.useState(true);
@@ -119,13 +121,14 @@ export function useDashboardData(): DashboardData {
     const fetchData = async () => {
       setIsDataLoading(true);
       try {
-        const [transactions, proposals, clients, financialSummary, wallets] =
+        const [transactions, proposals, clients, financialSummary, wallets, kanbanColumns] =
           await Promise.all([
             TransactionService.getTransactions(tenant.id),
             ProposalService.getProposals(tenant.id),
             ClientService.getClients(tenant.id),
             TransactionService.getSummary(tenant.id),
             WalletService.getWallets(tenant.id),
+            KanbanService.getStatuses(tenant.id),
           ]);
 
         if (!cancelled) {
@@ -135,6 +138,7 @@ export function useDashboardData(): DashboardData {
             clients,
             financialSummary,
             wallets,
+            kanbanColumns: kanbanColumns.length > 0 ? kanbanColumns : getDefaultProposalColumns().map((c, i) => ({ ...c, id: `default_${i}` } as KanbanStatusColumn)),
           });
         }
       } catch (error) {
@@ -160,7 +164,7 @@ export function useDashboardData(): DashboardData {
 
   // Compute all derived values
   const computed = React.useMemo(() => {
-    const { transactions, proposals, clients, wallets } =
+    const { transactions, proposals, clients, wallets, kanbanColumns } =
       rawData;
     const now = new Date();
 
@@ -274,12 +278,18 @@ export function useDashboardData(): DashboardData {
       }
     });
 
-    // Proposal stats
-    const approved = proposals.filter((p) => p.status === "approved").length;
-    const pending = proposals.filter(
-      (p) => p.status === "sent" || p.status === "draft"
-    ).length;
-    const total = proposals.length;
+    // Proposal stats based on dynamic categories
+    const approved = proposals.filter((p) => {
+      if (p.status === "approved") return true; // Legacy
+      const col = kanbanColumns.find(c => c.id === p.status || c.mappedStatus === p.status);
+      return col?.category === "won";
+    }).length;
+    const pending = proposals.filter((p) => {
+      if (p.status === "sent" || p.status === "in_progress") return true; // Legacy
+      const col = kanbanColumns.find(c => c.id === p.status || c.mappedStatus === p.status);
+      return col?.category === "open" || p.status === "draft";
+    }).length;
+    const total = proposals.filter(p => p.status !== "draft").length; // Exclude drafts from conversion rate
     const conversionRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
     // Alerts

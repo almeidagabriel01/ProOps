@@ -5,7 +5,9 @@ export type ProposalStatus =
   | "in_progress"
   | "sent"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | (string & {}); // Allows any custom standard from Kanban Column IDs
+
 
 export interface ProposalProduct {
   productId: string;

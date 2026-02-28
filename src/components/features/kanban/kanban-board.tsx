@@ -18,6 +18,7 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -38,6 +39,7 @@ export interface KanbanColumn<T> {
 interface KanbanBoardProps<T> {
   columns: KanbanColumn<T>[];
   onDragEnd: (itemId: string, fromColumnId: string, toColumnId: string) => void;
+  onColumnDragEnd?: (activeColumnId: string, overColumnId: string) => void;
   renderCard: (
     item: T,
     columnId: string,
@@ -173,12 +175,68 @@ function DroppableColumn<T>({
 }
 
 // ============================================
+// SORTABLE COLUMN WRAPPER
+// ============================================
+
+function SortableColumn<T>({
+  column,
+  children,
+  isDragEnabled,
+}: {
+  column: KanbanColumn<T>;
+  children: React.ReactNode;
+  isDragEnabled: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `col-container-${column.id}`,
+    data: { type: "column-container", columnId: column.id },
+    disabled: !isDragEnabled,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 40 : "auto",
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      layout
+      className={cn(
+        "shrink-0 w-[330px] flex flex-col rounded-xl transition-all duration-200 ease-out",
+        "bg-card/40 dark:bg-card/20 border border-border/40",
+        "backdrop-blur-md shadow-sm",
+      )}
+    >
+      <div
+        {...attributes}
+        {...(isDragEnabled ? listeners : {})}
+        className={cn(isDragEnabled && "cursor-grab active:cursor-grabbing")}
+      >
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
 // KANBAN BOARD
 // ============================================
 
 export function KanbanBoard<T>({
   columns,
   onDragEnd,
+  onColumnDragEnd,
   renderCard,
   renderColumnHeader,
   renderColumnFooter,
@@ -193,6 +251,9 @@ export function KanbanBoard<T>({
     item: T;
     columnId: string;
   } | null>(null);
+  const [activeColumnId, setActiveColumnId] = React.useState<string | null>(
+    null,
+  );
   const [overColumnId, setOverColumnId] = React.useState<string | null>(null);
 
   // Sensors with activation constraints to prevent accidental drags
@@ -213,14 +274,14 @@ export function KanbanBoard<T>({
 
   const onMouseDown = React.useCallback(
     (e: React.MouseEvent) => {
-      // Avoid if currently dragging a card
-      if (activeItem) return;
+      // Avoid if currently dragging a card or column
+      if (activeItem || activeColumnId) return;
       if (!scrollRef.current) return;
       setIsDragScrolling(true);
       startX.current = e.pageX - scrollRef.current.offsetLeft;
       scrollLeft.current = scrollRef.current.scrollLeft;
     },
-    [activeItem],
+    [activeItem, activeColumnId],
   );
 
   const onMouseLeave = React.useCallback(() => {
@@ -249,6 +310,8 @@ export function KanbanBoard<T>({
       | undefined;
     if (data?.type === "card") {
       setActiveItem({ item: data.item, columnId: data.columnId });
+    } else if (data?.type === "column-container") {
+      setActiveColumnId(data.columnId);
     }
   }, []);
 
@@ -278,6 +341,7 @@ export function KanbanBoard<T>({
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveItem(null);
+      setActiveColumnId(null);
       setOverColumnId(null);
 
       if (!over || !active.data.current) return;
@@ -286,9 +350,25 @@ export function KanbanBoard<T>({
         type: string;
         columnId: string;
       };
+
       const overData = over.data.current as
         | { type?: string; columnId?: string }
         | undefined;
+
+      // Check if we are dragging a column
+      if (activeData.type === "column-container" && onColumnDragEnd) {
+        let targetColId: string | null = null;
+        if (overData?.type === "column-container") {
+          targetColId = overData.columnId || null;
+        } else if (over.id.toString().startsWith("col-container-")) {
+          targetColId = over.id.toString().replace("col-container-", "");
+        }
+
+        if (targetColId && activeData.columnId !== targetColId) {
+          onColumnDragEnd(activeData.columnId, targetColId);
+        }
+        return;
+      }
 
       const fromColumnId = activeData.columnId;
       let toColumnId: string | null = null;
@@ -311,11 +391,12 @@ export function KanbanBoard<T>({
         onDragEnd(active.id as string, fromColumnId, toColumnId);
       }
     },
-    [onDragEnd],
+    [onDragEnd, onColumnDragEnd],
   );
 
   const handleDragCancel = React.useCallback(() => {
     setActiveItem(null);
+    setActiveColumnId(null);
     setOverColumnId(null);
   }, []);
 
@@ -343,106 +424,105 @@ export function KanbanBoard<T>({
           isDragScrolling ? "cursor-grabbing" : "cursor-auto",
         )}
       >
-        {columns.map((column) => {
-          const isDropTarget = overColumnId === column.id;
-          const columnTotal =
-            showColumnTotals && getItemValue
-              ? column.items.reduce(
-                  (sum, item) => sum + (getItemValue(item) || 0),
-                  0,
-                )
-              : 0;
-          const itemIds = column.items.map(getItemId);
+        <SortableContext
+          items={columns.map((c) => `col-container-${c.id}`)}
+          strategy={horizontalListSortingStrategy}
+        >
+          {columns.map((column) => {
+            const isDropTarget = overColumnId === column.id;
+            const columnTotal =
+              showColumnTotals && getItemValue
+                ? column.items.reduce(
+                    (sum, item) => sum + (getItemValue(item) || 0),
+                    0,
+                  )
+                : 0;
+            const itemIds = column.items.map(getItemId);
 
-          return (
-            <motion.div
-              key={column.id}
-              layout
-              className={cn(
-                "shrink-0 w-[330px] flex flex-col rounded-xl transition-all duration-200 ease-out",
-                "bg-card/40 dark:bg-card/20 border border-border/40",
-                "backdrop-blur-md shadow-sm",
-                isDropTarget &&
-                  "ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10 border-primary/40 shadow-lg shadow-primary/5",
-              )}
-            >
-              {/* Column Header */}
-              <div className="px-4 py-3 border-b border-border/30">
-                {renderColumnHeader ? (
-                  renderColumnHeader(column, column.items.length)
-                ) : (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-3 h-3 rounded-full shadow-sm"
-                          style={{
-                            backgroundColor: column.color,
-                            boxShadow: `0 0 8px ${column.color}40`,
-                          }}
-                        />
-                        <span className="text-sm font-semibold text-foreground">
-                          {column.label}
+            return (
+              <SortableColumn
+                key={column.id}
+                column={column}
+                isDragEnabled={isDragEnabled}
+              >
+                {/* Column Header */}
+                <div className="px-4 py-3 border-b border-border/30">
+                  {renderColumnHeader ? (
+                    renderColumnHeader(column, column.items.length)
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-3 h-3 rounded-full shadow-sm"
+                            style={{
+                              backgroundColor: column.color,
+                              boxShadow: `0 0 8px ${column.color}40`,
+                            }}
+                          />
+                          <span className="text-sm font-semibold text-foreground">
+                            {column.label}
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-full tabular-nums">
+                          {column.items.length}
                         </span>
                       </div>
-                      <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-full tabular-nums">
-                        {column.items.length}
-                      </span>
+                      {showColumnTotals && getItemValue && columnTotal > 0 && (
+                        <div className="text-xs font-medium text-muted-foreground pl-5.5">
+                          {formatTotal(columnTotal)}
+                        </div>
+                      )}
                     </div>
-                    {showColumnTotals && getItemValue && columnTotal > 0 && (
-                      <div className="text-xs font-medium text-muted-foreground pl-5.5">
-                        {formatTotal(columnTotal)}
-                      </div>
-                    )}
+                  )}
+                </div>
+
+                {/* Column Body — Droppable Container */}
+                <SortableContext
+                  items={itemIds}
+                  strategy={verticalListSortingStrategy}
+                  id={column.id}
+                >
+                  <DroppableColumn
+                    column={column}
+                    emptyMessage={emptyMessage}
+                    isOverColumn={isDropTarget}
+                    isDragEnabled={isDragEnabled}
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {column.items.map((item) => (
+                        <motion.div
+                          key={getItemId(item)}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          <SortableCard
+                            item={item}
+                            columnId={column.id}
+                            getItemId={getItemId}
+                            renderCard={renderCard}
+                            onCardClick={onCardClick}
+                            isDragEnabled={isDragEnabled}
+                          />
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </DroppableColumn>
+                </SortableContext>
+
+                {/* Column Footer */}
+                {renderColumnFooter && (
+                  <div className="px-3 py-2 border-t border-border/20">
+                    {renderColumnFooter(column)}
                   </div>
                 )}
-              </div>
-
-              {/* Column Body — Droppable Container */}
-              <SortableContext
-                items={itemIds}
-                strategy={verticalListSortingStrategy}
-                id={column.id}
-              >
-                <DroppableColumn
-                  column={column}
-                  emptyMessage={emptyMessage}
-                  isOverColumn={isDropTarget}
-                  isDragEnabled={isDragEnabled}
-                >
-                  <AnimatePresence mode="popLayout">
-                    {column.items.map((item) => (
-                      <motion.div
-                        key={getItemId(item)}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <SortableCard
-                          item={item}
-                          columnId={column.id}
-                          getItemId={getItemId}
-                          renderCard={renderCard}
-                          onCardClick={onCardClick}
-                          isDragEnabled={isDragEnabled}
-                        />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </DroppableColumn>
-              </SortableContext>
-
-              {/* Column Footer */}
-              {renderColumnFooter && (
-                <div className="px-3 py-2 border-t border-border/20">
-                  {renderColumnFooter(column)}
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+              </SortableColumn>
+            );
+          })}
+        </SortableContext>
       </div>
 
       {/* Drag Overlay — renders floating card while dragging */}

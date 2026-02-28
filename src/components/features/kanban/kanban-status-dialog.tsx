@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ProposalStatus } from "@/types/proposal";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -33,16 +33,22 @@ const COLOR_PRESETS = [
   "#84cc16", // lime
 ];
 
-// ============================================
-// STATUS OPTIONS
-// ============================================
-
-const PROPOSAL_STATUS_OPTIONS: { value: ProposalStatus; label: string }[] = [
-  { value: "draft", label: "Rascunho" },
-  { value: "in_progress", label: "Em Aberto" },
-  { value: "sent", label: "Enviada" },
-  { value: "approved", label: "Aprovada" },
-  { value: "rejected", label: "Rejeitada" },
+const PROPOSAL_CATEGORY_OPTIONS: {
+  value: "open" | "won" | "lost";
+  label: string;
+  description: string;
+}[] = [
+  { value: "open", label: "Em Aberto", description: "Propostas em andamento" },
+  {
+    value: "won",
+    label: "Ganha (Aprovada)",
+    description: "Conversão bem-sucedida",
+  },
+  {
+    value: "lost",
+    label: "Perdida (Rejeitada)",
+    description: "Propostas não aprovadas",
+  },
 ];
 
 // ============================================
@@ -55,12 +61,12 @@ interface KanbanStatusDialogProps {
   onSave: (data: {
     label: string;
     color: string;
-    mappedStatus: ProposalStatus;
+    category: "open" | "won" | "lost";
   }) => void;
   initialData?: {
     label: string;
     color: string;
-    mappedStatus: ProposalStatus;
+    category: "open" | "won" | "lost";
   };
   isSaving?: boolean;
 }
@@ -76,8 +82,8 @@ export function KanbanStatusDialog({
   const [color, setColor] = React.useState(
     initialData?.color ?? COLOR_PRESETS[0],
   );
-  const [mappedStatus, setMappedStatus] = React.useState<ProposalStatus>(
-    initialData?.mappedStatus ?? "in_progress",
+  const [category, setCategory] = React.useState<"open" | "won" | "lost">(
+    initialData?.category ?? "open",
   );
 
   const isEditing = !!initialData;
@@ -87,14 +93,14 @@ export function KanbanStatusDialog({
     if (open) {
       setLabel(initialData?.label ?? "");
       setColor(initialData?.color ?? COLOR_PRESETS[0]);
-      setMappedStatus(initialData?.mappedStatus ?? "in_progress");
+      setCategory(initialData?.category ?? "open");
     }
   }, [open, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!label.trim()) return;
-    onSave({ label: label.trim(), color, mappedStatus });
+    onSave({ label: label.trim(), color, category });
   };
 
   const canSubmit = label.trim().length > 0 && !isSaving;
@@ -108,7 +114,7 @@ export function KanbanStatusDialog({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Edite o nome, cor e status mapeado desta coluna."
+              ? "Edite o nome, cor e categoria desta coluna."
               : "Crie uma nova coluna para o seu Kanban de propostas."}
           </DialogDescription>
         </DialogHeader>
@@ -150,29 +156,41 @@ export function KanbanStatusDialog({
             </div>
           </div>
 
-          {/* Mapped Status */}
+          {/* Category */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
-              Status Mapeado
+              Categoria no Painel (Dashboard)
             </label>
             <p className="text-xs text-muted-foreground">
-              Ao arrastar uma proposta para esta coluna, ela receberá o status
-              selecionado.
+              Define como as propostas desta coluna impactam as métricas de
+              conversão gerais.
             </p>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {PROPOSAL_STATUS_OPTIONS.map((option) => (
+            <div className="grid grid-cols-1 gap-2 mt-2">
+              {PROPOSAL_CATEGORY_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => setMappedStatus(option.value)}
+                  onClick={() => setCategory(option.value)}
                   className={cn(
-                    "px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 border",
-                    mappedStatus === option.value
-                      ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
-                      : "bg-card border-border/40 text-muted-foreground hover:bg-muted/60 hover:border-border",
+                    "px-3 py-2.5 rounded-lg text-left transition-all duration-150 border gap-1 flex flex-col",
+                    category === option.value
+                      ? "bg-primary/10 border-primary/40 shadow-sm"
+                      : "bg-card border-border/40 hover:bg-muted/60 hover:border-border",
                   )}
                 >
-                  {option.label}
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      category === option.value
+                        ? "text-primary"
+                        : "text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {option.description}
+                  </span>
                 </button>
               ))}
             </div>
@@ -194,7 +212,7 @@ export function KanbanStatusDialog({
               <span className="text-xs text-muted-foreground ml-auto">
                 →{" "}
                 {
-                  PROPOSAL_STATUS_OPTIONS.find((o) => o.value === mappedStatus)
+                  PROPOSAL_CATEGORY_OPTIONS.find((o) => o.value === category)
                     ?.label
                 }
               </span>

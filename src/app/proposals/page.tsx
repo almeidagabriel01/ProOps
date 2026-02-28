@@ -19,9 +19,6 @@ import {
   ChevronDown,
   Loader2,
   Check,
-  Send,
-  XCircle,
-  Clock,
   Copy,
   Eye,
   FileDown,
@@ -34,7 +31,7 @@ import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,28 +53,19 @@ import {
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
-const statusConfig: Record<
-  ProposalStatus,
-  { label: string; variant: "default" | "success" | "warning" | "destructive" }
-> = {
-  draft: { label: "Rascunho", variant: "default" },
-  in_progress: { label: "Em Aberto", variant: "default" },
-  sent: { label: "Enviada", variant: "warning" },
-  approved: { label: "Aprovada", variant: "success" },
-  rejected: { label: "Rejeitada", variant: "destructive" },
-};
+import {
+  KanbanService,
+  KanbanStatusColumn,
+  getDefaultProposalColumns,
+} from "@/services/kanban-service";
 
-const statusOptions: {
-  value: ProposalStatus;
-  label: string;
-  icon: typeof Clock;
-}[] = [
-  // { value: "draft", label: "Rascunho", icon: Clock }, // Draft is auto-save only
-  { value: "in_progress", label: "Em Aberto", icon: Clock },
-  { value: "sent", label: "Enviada", icon: Send },
-  { value: "approved", label: "Aprovada", icon: Check },
-  { value: "rejected", label: "Rejeitada", icon: XCircle },
-];
+const LEGACY_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  draft: { label: "Rascunho", color: "#94a3b8" }, // gray-400
+  in_progress: { label: "Em Progresso", color: "#3b82f6" }, // blue-500
+  sent: { label: "Enviada", color: "#eab308" }, // yellow-500
+  approved: { label: "Aprovada", color: "#22c55e" }, // green-500
+  rejected: { label: "Rejeitada", color: "#ef4444" }, // red-500
+};
 
 import { ProposalService } from "@/services/proposal-service";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
@@ -92,7 +80,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-
 
 function PdfDownloader({
   proposal,
@@ -137,6 +124,65 @@ export default function ProposalsPage() {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
+  );
+  const [kanbanColumns, setKanbanColumns] = React.useState<
+    KanbanStatusColumn[]
+  >([]);
+
+  // Load kanban columns to show proper status labels
+  React.useEffect(() => {
+    if (!tenant?.id) return;
+    let cancelled = false;
+    KanbanService.getStatuses(tenant.id)
+      .then((columns) => {
+        if (cancelled) return;
+        if (columns.length === 0) {
+          setKanbanColumns(
+            getDefaultProposalColumns().map(
+              (c, i) => ({ ...c, id: `default_${i}` }) as KanbanStatusColumn,
+            ),
+          );
+        } else {
+          setKanbanColumns(columns);
+        }
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant?.id]);
+
+  const getStatusLabel = React.useCallback(
+    (status: string) => {
+      if (status === "draft") return "Rascunho";
+      const col =
+        kanbanColumns.find((c) => c.id === status) ||
+        kanbanColumns.find((c) => c.mappedStatus === status);
+
+      if (col) return col.label;
+
+      // Fallback to old hardcoded statuses
+      const fallback = LEGACY_STATUS_CONFIG[status];
+      return fallback ? fallback.label : "Desconhecido";
+    },
+    [kanbanColumns],
+  );
+
+  const getStatusColor = React.useCallback(
+    (status: string) => {
+      const defaultColor = "#94a3b8"; // draft gray
+      if (status === "draft") return defaultColor;
+      const col =
+        kanbanColumns.find((c) => c.id === status) ||
+        kanbanColumns.find((c) => c.mappedStatus === status);
+
+      if (col) return col.color;
+
+      // Fallback to old hardcoded colors
+      const fallback = LEGACY_STATUS_CONFIG[status];
+      return fallback ? fallback.color : defaultColor;
+    },
+    [kanbanColumns],
   );
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
@@ -240,11 +286,9 @@ export default function ProposalsPage() {
       (proposal) =>
         normalize(proposal.title).includes(term) ||
         normalize(proposal.clientName || "").includes(term) ||
-        normalize(
-          statusConfig[proposal.status as ProposalStatus]?.label || "",
-        ).includes(term),
+        normalize(getStatusLabel(proposal.status)).includes(term),
     );
-  }, [sortedProposals, searchTerm, isFiltering]);
+  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel]);
 
   /* isPageLoading is now false for search to prevent table blink. We use isLoading for Input spinner. */
   const isPageLoading = false;
@@ -389,9 +433,12 @@ export default function ProposalsPage() {
         setProposals(data);
       } catch (error) {
         console.error("Failed to fetch proposals", error);
-        toast.error("Erro ao carregar propostas. Verifique sua conexão e tente novamente.", {
-          title: "Erro ao carregar",
-        });
+        toast.error(
+          "Erro ao carregar propostas. Verifique sua conexão e tente novamente.",
+          {
+            title: "Erro ao carregar",
+          },
+        );
       } finally {
         setIsLoading(false);
       }
@@ -526,7 +573,7 @@ export default function ProposalsPage() {
           ),
         );
         toast.success(
-          `Status da proposta ${proposalLabel} alterado para "${statusConfig[newStatus].label.toLocaleLowerCase("pt-BR")}".`,
+          `Status da proposta ${proposalLabel} alterado para "${getStatusLabel(newStatus).toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
       } catch (error) {
@@ -543,7 +590,7 @@ export default function ProposalsPage() {
         setUpdatingStatusId(null);
       }
     },
-    [proposals],
+    [proposals, getStatusLabel],
   );
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
@@ -598,35 +645,38 @@ export default function ProposalsPage() {
                     disabled={updatingStatusId === proposal.id}
                   >
                     <Badge
-                      variant={
-                        statusConfig[proposal.status as ProposalStatus]
-                          ?.variant || "default"
-                      }
-                      className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-start"
+                      style={{
+                        backgroundColor: getStatusColor(proposal.status) + "20",
+                        color: getStatusColor(proposal.status),
+                        borderColor: getStatusColor(proposal.status) + "40",
+                      }}
+                      className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-start border"
                     >
                       {updatingStatusId === proposal.id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : null}
-                      {statusConfig[proposal.status as ProposalStatus]?.label ||
-                        "Rascunho"}
+                      {getStatusLabel(proposal.status)}
                       <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
                     </Badge>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="min-w-[140px]">
-                  {statusOptions.map((option) => {
-                    const Icon = option.icon;
-                    const isActive = proposal.status === option.value;
+                  {kanbanColumns.map((col) => {
+                    const isActive =
+                      proposal.status === col.id ||
+                      (col.mappedStatus &&
+                        proposal.status === col.mappedStatus);
                     return (
                       <DropdownMenuItem
-                        key={option.value}
-                        onClick={() =>
-                          handleStatusChange(proposal.id, option.value)
-                        }
+                        key={col.id}
+                        onClick={() => handleStatusChange(proposal.id, col.id)}
                         className={isActive ? "bg-muted" : ""}
                       >
-                        <Icon className="w-4 h-4 mr-2" />
-                        {option.label}
+                        <div
+                          className="w-3 h-3 rounded-full mr-2"
+                          style={{ backgroundColor: col.color }}
+                        />
+                        {col.label}
                         {isActive && <Check className="w-4 h-4 ml-auto" />}
                       </DropdownMenuItem>
                     );
@@ -635,13 +685,14 @@ export default function ProposalsPage() {
               </DropdownMenu>
             ) : (
               <Badge
-                variant={
-                  statusConfig[proposal.status as ProposalStatus]?.variant ||
-                  "default"
-                }
+                style={{
+                  backgroundColor: getStatusColor(proposal.status) + "20",
+                  color: getStatusColor(proposal.status),
+                  borderColor: getStatusColor(proposal.status) + "40",
+                }}
+                className="border"
               >
-                {statusConfig[proposal.status as ProposalStatus]?.label ||
-                  "Rascunho"}
+                {getStatusLabel(proposal.status)}
               </Badge>
             )}
           </div>
@@ -905,6 +956,9 @@ export default function ProposalsPage() {
       handleStatusChange,
       router,
       sortLabelsPtBr,
+      getStatusColor,
+      getStatusLabel,
+      kanbanColumns,
     ],
   );
 
@@ -956,115 +1010,116 @@ export default function ProposalsPage() {
         <SelectTenantState />
       ) : (
         <>
-      {showFullPageSkeleton && <ProposalsSkeleton />}
-      <div
-        className={cn(
-          "space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]",
-          showFullPageSkeleton && "hidden",
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie suas propostas comerciais
-            </p>
-          </div>
-          {canCreate && (
-            <Link href="/proposals/new">
-              <Button size="lg" className="gap-2">
-                <Plus className="w-5 h-5" />
-                Novo Proposta
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        {/* Search */}
-        {hasAnyProposals !== false && (
-          <div className="max-w-md">
-            <Input
-              placeholder="Buscar por título, contato ou status..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              icon={
-                isFiltering && isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )
-              }
-            />
-          </div>
-        )}
-
-        {isPageLoading ? (
-          <ProposalsTableSkeleton />
-        ) : hasAnyProposals === false ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-muted-foreground" />
+          {showFullPageSkeleton && <ProposalsSkeleton />}
+          <div
+            className={cn(
+              "space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]",
+              showFullPageSkeleton && "hidden",
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
+                <p className="text-muted-foreground mt-1">
+                  Gerencie suas propostas comerciais
+                </p>
               </div>
-              <h3 className="text-lg font-semibold mb-2">
-                Nenhuma proposta encontrada
-              </h3>
-              <p className="text-muted-foreground text-center mb-6 max-w-md">
-                Crie sua primeira proposta comercial e comece a fechar negócios!
-              </p>
               {canCreate && (
                 <Link href="/proposals/new">
-                  <Button className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Criar Primeira Proposta
+                  <Button size="lg" className="gap-2">
+                    <Plus className="w-5 h-5" />
+                    Novo Proposta
                   </Button>
                 </Link>
               )}
-            </CardContent>
-          </Card>
-        ) : isFiltering && filteredProposals.length === 0 && !isLoading ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Search className="w-12 h-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">
-                Nenhum resultado encontrado
-              </h3>
-              <p className="text-muted-foreground text-center">
-                Tente buscar por outro termo.
-              </p>
-            </CardContent>
-          </Card>
-        ) : isFiltering ? (
-          <DataTable
-            columns={columns}
-            data={filteredProposals}
-            keyExtractor={(proposal) => proposal.id}
-            gridClassName="grid-cols-7"
-            onSort={requestSort}
-            sortConfig={sortConfig}
-            minWidth="900px"
-          />
-        ) : (
-          <DataTable
-            columns={columns}
-            keyExtractor={(proposal) => proposal.id}
-            gridClassName="grid-cols-7"
-            fetchPage={fetchPage}
-            fetchEnabled={!!tenant && !isAwaitingPendingSave}
-            onResetRef={resetRef}
-            batchSize={12}
-            minWidth="900px"
-            onSort={requestSort}
-            sortConfig={sortConfig}
-            onInitialLoadComplete={() => setAsyncDataReady(true)}
-            onItemsChange={(items) => {
-              setProposals(items);
-            }}
-          />
-        )}
-      </div>
-      {renderDialogs()}
-      </>
+            </div>
+
+            {/* Search */}
+            {hasAnyProposals !== false && (
+              <div className="max-w-md">
+                <Input
+                  placeholder="Buscar por título, contato ou status..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  icon={
+                    isFiltering && isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )
+                  }
+                />
+              </div>
+            )}
+
+            {isPageLoading ? (
+              <ProposalsTableSkeleton />
+            ) : hasAnyProposals === false ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <FileText className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">
+                    Nenhuma proposta encontrada
+                  </h3>
+                  <p className="text-muted-foreground text-center mb-6 max-w-md">
+                    Crie sua primeira proposta comercial e comece a fechar
+                    negócios!
+                  </p>
+                  {canCreate && (
+                    <Link href="/proposals/new">
+                      <Button className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        Criar Primeira Proposta
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            ) : isFiltering && filteredProposals.length === 0 && !isLoading ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Search className="w-12 h-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    Nenhum resultado encontrado
+                  </h3>
+                  <p className="text-muted-foreground text-center">
+                    Tente buscar por outro termo.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : isFiltering ? (
+              <DataTable
+                columns={columns}
+                data={filteredProposals}
+                keyExtractor={(proposal) => proposal.id}
+                gridClassName="grid-cols-7"
+                onSort={requestSort}
+                sortConfig={sortConfig}
+                minWidth="900px"
+              />
+            ) : (
+              <DataTable
+                columns={columns}
+                keyExtractor={(proposal) => proposal.id}
+                gridClassName="grid-cols-7"
+                fetchPage={fetchPage}
+                fetchEnabled={!!tenant && !isAwaitingPendingSave}
+                onResetRef={resetRef}
+                batchSize={12}
+                minWidth="900px"
+                onSort={requestSort}
+                sortConfig={sortConfig}
+                onInitialLoadComplete={() => setAsyncDataReady(true)}
+                onItemsChange={(items) => {
+                  setProposals(items);
+                }}
+              />
+            )}
+          </div>
+          {renderDialogs()}
+        </>
       )}
 
       <PdfDownloader

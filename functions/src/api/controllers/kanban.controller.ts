@@ -4,6 +4,9 @@ import { db } from "../../init";
 const COLLECTION = "kanban_statuses";
 const MAX_COLUMNS_PER_TENANT = 20;
 
+// Allowed Kanban Categories
+const VALID_CATEGORIES = ["open", "won", "lost"];
+
 // Allowed ProposalStatus values
 const VALID_STATUSES = ["draft", "in_progress", "sent", "approved", "rejected"];
 
@@ -18,12 +21,12 @@ function isValidHexColor(color: string): boolean {
  */
 export async function createKanbanStatus(req: Request, res: Response) {
   try {
-    const tenantId = (req as any).tenantId;
+    const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
-    const { label, color, order, mappedStatus } = req.body;
+    const { label, color, order, category, mappedStatus } = req.body;
 
     // Validate required fields
     if (!label || typeof label !== "string" || label.trim().length === 0) {
@@ -42,7 +45,12 @@ export async function createKanbanStatus(req: Request, res: Response) {
     if (typeof order !== "number" || order < 0) {
       return res.status(400).json({ message: "Ordem inválida." });
     }
-    if (!mappedStatus || !VALID_STATUSES.includes(mappedStatus)) {
+    if (!category || !VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({
+        message: `Categoria inválida. Valores permitidos: ${VALID_CATEGORIES.join(", ")}`,
+      });
+    }
+    if (mappedStatus !== undefined && !VALID_STATUSES.includes(mappedStatus)) {
       return res.status(400).json({
         message: `Status mapeado inválido. Valores permitidos: ${VALID_STATUSES.join(", ")}`,
       });
@@ -68,7 +76,8 @@ export async function createKanbanStatus(req: Request, res: Response) {
       label: label.trim(),
       color,
       order,
-      mappedStatus,
+      category,
+      mappedStatus: mappedStatus || null,
       createdAt: now,
       updatedAt: now,
     };
@@ -91,7 +100,7 @@ export async function createKanbanStatus(req: Request, res: Response) {
  */
 export async function updateKanbanStatus(req: Request, res: Response) {
   try {
-    const tenantId = (req as any).tenantId;
+    const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
@@ -110,7 +119,7 @@ export async function updateKanbanStatus(req: Request, res: Response) {
     }
 
     const updates: Record<string, unknown> = {};
-    const { label, color, order, mappedStatus } = req.body;
+    const { label, color, order, category, mappedStatus } = req.body;
 
     if (label !== undefined) {
       if (typeof label !== "string" || label.trim().length === 0) {
@@ -142,8 +151,17 @@ export async function updateKanbanStatus(req: Request, res: Response) {
       updates.order = order;
     }
 
+    if (category !== undefined) {
+      if (!VALID_CATEGORIES.includes(category)) {
+        return res.status(400).json({
+          message: `Categoria inválida. Valores permitidos: ${VALID_CATEGORIES.join(", ")}`,
+        });
+      }
+      updates.category = category;
+    }
+
     if (mappedStatus !== undefined) {
-      if (!VALID_STATUSES.includes(mappedStatus)) {
+      if (mappedStatus !== null && !VALID_STATUSES.includes(mappedStatus)) {
         return res.status(400).json({
           message: `Status mapeado inválido. Valores permitidos: ${VALID_STATUSES.join(", ")}`,
         });
@@ -173,7 +191,7 @@ export async function updateKanbanStatus(req: Request, res: Response) {
  */
 export async function deleteKanbanStatus(req: Request, res: Response) {
   try {
-    const tenantId = (req as any).tenantId;
+    const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
@@ -206,7 +224,7 @@ export async function deleteKanbanStatus(req: Request, res: Response) {
  */
 export async function reorderKanbanStatuses(req: Request, res: Response) {
   try {
-    const tenantId = (req as any).tenantId;
+    const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }

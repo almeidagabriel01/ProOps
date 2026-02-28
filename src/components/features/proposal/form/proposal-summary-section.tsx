@@ -12,6 +12,12 @@ import { FileText } from "lucide-react";
 import { ProposalSummaryTable } from "./summary/proposal-summary-table";
 import { ProposalSummaryControls } from "./summary/proposal-summary-controls";
 import { PaymentConditionsSummary } from "./summary/payment-conditions-summary";
+import {
+  KanbanService,
+  KanbanStatusColumn,
+  getDefaultProposalColumns,
+} from "@/services/kanban-service";
+import { useTenant } from "@/providers/tenant-provider";
 
 const statusOptions: { value: ProposalStatus; label: string }[] = [
   { value: "draft", label: "Rascunho" },
@@ -52,6 +58,65 @@ export function ProposalSummarySection({
   calculateTotal,
   onFormChange,
 }: ProposalSummarySectionProps) {
+  const { tenant } = useTenant();
+  const [dynamicStatusOptions, setDynamicStatusOptions] = React.useState<
+    {
+      value: string;
+      label: string;
+    }[]
+  >([
+    { value: "draft", label: "Rascunho" },
+    ...statusOptions.filter((o) => o.value !== "draft"),
+  ]);
+
+  React.useEffect(() => {
+    if (!tenant?.id) return;
+    let cancelled = false;
+    KanbanService.getStatuses(tenant.id)
+      .then((columns) => {
+        if (cancelled) return;
+        let activeColumns = columns;
+        if (activeColumns.length === 0) {
+          activeColumns = getDefaultProposalColumns().map(
+            (c, i) => ({ ...c, id: `default_${i}` }) as KanbanStatusColumn,
+          );
+        }
+
+        const newOptions = [
+          { value: "draft", label: "Rascunho" },
+          ...activeColumns.map((c) => ({ value: c.id, label: c.label })),
+        ];
+
+        // If the current proposal has a status that isn't in the new columns, add it as a fallback
+        if (
+          formData.status &&
+          formData.status !== "draft" &&
+          !newOptions.some((o) => o.value === formData.status)
+        ) {
+          const fallback = statusOptions.find(
+            (o) => o.value === formData.status,
+          );
+          if (fallback) {
+            newOptions.push({
+              value: fallback.value,
+              label: fallback.label + " (Antigo)",
+            });
+          } else {
+            newOptions.push({
+              value: formData.status,
+              label: "Desconhecido (Antigo)",
+            });
+          }
+        }
+
+        setDynamicStatusOptions(newOptions);
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant?.id, formData.status]);
+
   if (selectedProducts.length === 0) {
     return null;
   }
@@ -93,7 +158,7 @@ export function ProposalSummarySection({
           status={formData.status || "draft"}
           customNotes={formData.customNotes || ""}
           onFormChange={onFormChange}
-          statusOptions={statusOptions}
+          statusOptions={dynamicStatusOptions}
         />
 
         {/* Payment Summary (read-only) */}
