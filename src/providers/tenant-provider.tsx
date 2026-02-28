@@ -14,6 +14,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { usePathname } from "next/navigation";
 
 interface TenantContextType {
   tenant: Tenant | null;
@@ -83,15 +84,37 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [isGlobalLoading, setGlobalLoading] = React.useState(false);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user } = useAuth();
+  const pathname = usePathname();
 
-  // Use ref to track current tenant ID without causing re-renders
   const currentTenantIdRef = React.useRef<string | null>(null);
   // Track the last refreshTrigger value to detect when explicit refresh was requested
   const lastRefreshTriggerRef = React.useRef(0);
+  // Track explicit tenant setting to avoid clearing during router transitions
+  const bypassAdminClearRef = React.useRef(false);
 
   const loadTenant = React.useCallback(async () => {
     // Check for "Viewing As" override (Super Admin feature)
-    const viewingAsId = readViewingTenantId();
+    let viewingAsId = readViewingTenantId();
+
+    // Reset bypass flag once we've safely left the admin routes
+    if (pathname && !pathname.startsWith("/admin")) {
+      bypassAdminClearRef.current = false;
+    }
+
+    // If superadmin is accessing any admin page, forcefully clear/ignore the tenant
+    if (
+      pathname &&
+      pathname.startsWith("/admin") &&
+      !bypassAdminClearRef.current
+    ) {
+      viewingAsId = null;
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem(VIEWING_AS_TENANT_KEY);
+        sessionStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
+        localStorage.removeItem(VIEWING_AS_TENANT_KEY);
+        localStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
+      }
+    }
 
     let tenantIdToLoad = viewingAsId;
 
@@ -294,7 +317,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, refreshTrigger]);
+  }, [user, refreshTrigger, pathname]);
 
   React.useEffect(() => {
     loadTenant();
@@ -360,6 +383,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setViewingTenant = (newTenant: Tenant) => {
+    bypassAdminClearRef.current = true;
     sessionStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
     sessionStorage.setItem(
       VIEWING_AS_TENANT_DATA_KEY,
