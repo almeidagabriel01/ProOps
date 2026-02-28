@@ -263,7 +263,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
       return matchesLabel || matchesDescription || matchesKeywords;
     });
-  }, [searchTerm, isMaster, hasFinancial, hasPermission]);
+  }, [searchTerm, isMaster, hasFinancial, hasKanban, hasPermission]);
 
   // Handle item selection
   const handleSelect = React.useCallback(
@@ -382,7 +382,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
                       : "hover:bg-accent/50",
                   )}
                 >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <div className="shrink-0 w-8 h-8 rounded-md bg-muted flex items-center justify-center">
                     <Icon className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
