@@ -61,12 +61,19 @@ function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatDate(val: any): string {
+function formatDate(
+  val:
+    | string
+    | Date
+    | { seconds?: number; _seconds?: number }
+    | null
+    | undefined,
+): string {
   if (!val) return "-";
   try {
     // Handle Firestore Timestamp
     if (typeof val === "object" && ("_seconds" in val || "seconds" in val)) {
-      const seconds = val._seconds ?? val.seconds;
+      const seconds = val._seconds ?? val.seconds ?? 0;
       return new Date(seconds * 1000).toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "long",

@@ -13,7 +13,7 @@ import {
   TransactionStatus,
 } from "@/services/transaction-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
+import { KanbanBoardSkeleton } from "@/app/kanban/_components/kanban-skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
@@ -25,7 +25,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Search,
-  X,
   ListFilter,
 } from "lucide-react";
 import {
@@ -307,7 +306,7 @@ export function TransactionKanbanTab() {
           | "dateEnd",
         value: string,
       ) => {
-        setColumnFilters((prev: any) => ({
+        setColumnFilters((prev) => ({
           ...prev,
           [column.id]: {
             ...(prev[column.id] || {
@@ -325,7 +324,7 @@ export function TransactionKanbanTab() {
       };
 
       const clearFilter = () => {
-        setColumnFilters((prev: any) => {
+        setColumnFilters((prev) => {
           const next = { ...prev };
           delete next[column.id];
           return next;
@@ -566,13 +565,13 @@ export function TransactionKanbanTab() {
         </div>
       );
     },
-    [],
+    [columnFilters, clientOptions],
   );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Spinner />
+      <div className="flex-1 w-full mt-4">
+        <KanbanBoardSkeleton />
       </div>
     );
   }

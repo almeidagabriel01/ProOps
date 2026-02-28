@@ -242,17 +242,6 @@ export function KanbanBoard<T>({
     [isDragScrolling, activeItem],
   );
 
-  // Build a map from itemId to columnId for fast lookup
-  const itemColumnMap = React.useMemo(() => {
-    const map = new Map<string, string>();
-    columns.forEach((col) => {
-      col.items.forEach((item) => {
-        map.set(getItemId(item), col.id);
-      });
-    });
-    return map;
-  }, [columns, getItemId]);
-
   const handleDragStart = React.useCallback((event: DragStartEvent) => {
     const { active } = event;
     const data = active.data.current as
@@ -370,7 +359,7 @@ export function KanbanBoard<T>({
               key={column.id}
               layout
               className={cn(
-                "flex-shrink-0 w-[330px] flex flex-col rounded-xl transition-all duration-200 ease-out",
+                "shrink-0 w-[330px] flex flex-col rounded-xl transition-all duration-200 ease-out",
                 "bg-card/40 dark:bg-card/20 border border-border/40",
                 "backdrop-blur-md shadow-sm",
                 isDropTarget &&
@@ -459,7 +448,7 @@ export function KanbanBoard<T>({
       {/* Drag Overlay — renders floating card while dragging */}
       <DragOverlay dropAnimation={{ duration: 200, easing: "ease-out" }}>
         {activeItem ? (
-          <div className="rotate-[2deg] scale-105 shadow-2xl shadow-black/20 pointer-events-none">
+          <div className="rotate-2 scale-105 shadow-2xl shadow-black/20 pointer-events-none">
             {renderCard(activeItem.item, activeItem.columnId, true)}
           </div>
         ) : null}

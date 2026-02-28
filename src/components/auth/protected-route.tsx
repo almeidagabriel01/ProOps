@@ -34,6 +34,7 @@ import { AutomationSkeleton } from "@/components/features/automation/automation-
 import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
+import { KanbanSkeleton } from "@/app/kanban/_components/kanban-skeleton";
 import { AppSkeleton } from "@/components/layout/app-skeleton";
 
 // Routes that handle their own auth logic
@@ -167,6 +168,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       pathname?.startsWith("/automation")
     ) {
       skeletonType = "automation";
+    } else if (pathname?.startsWith("/kanban")) {
+      skeletonType = "kanban";
     } else if (pathname === "/" || pathname?.startsWith("/dashboard")) {
       skeletonType = "dashboard";
     }
@@ -198,6 +201,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         return renderWithShell(<ContactsSkeleton />);
       case "automation":
         return renderWithShell(<AutomationSkeleton />);
+      case "kanban":
+        return renderWithShell(<KanbanSkeleton />);
       default:
         return renderWithShell(<DashboardSkeleton />);
     }

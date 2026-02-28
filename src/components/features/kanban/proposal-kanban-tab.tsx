@@ -16,11 +16,11 @@ import {
 import { ProposalService } from "@/services/proposal-service";
 import { Proposal, ProposalStatus } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
+import { KanbanBoardSkeleton } from "@/app/kanban/_components/kanban-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
-import { Plus, Pencil, Trash2, Search, X, ListFilter } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ListFilter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { normalize } from "@/utils/text";
 import {
@@ -355,7 +355,7 @@ export function ProposalKanbanTab() {
           | "dateEnd",
         value: string,
       ) => {
-        setColumnFilters((prev: any) => ({
+        setColumnFilters((prev) => ({
           ...prev,
           [column.id]: {
             ...(prev[column.id] || {
@@ -495,7 +495,7 @@ export function ProposalKanbanTab() {
                             className="h-8 text-xs bg-muted/30 w-full rounded-md"
                           />
                         </div>
-                        <span className="text-muted-foreground text-xs flex-shrink-0 w-4 text-center">
+                        <span className="text-muted-foreground text-xs shrink-0 w-4 text-center">
                           -
                         </span>
                         <div className="flex-1">
@@ -527,7 +527,7 @@ export function ProposalKanbanTab() {
                             className="h-8 text-xs bg-muted/30 w-full rounded-md px-3"
                           />
                         </div>
-                        <span className="text-muted-foreground text-xs flex-shrink-0 w-4 text-center">
+                        <span className="text-muted-foreground text-xs shrink-0 w-4 text-center">
                           a
                         </span>
                         <div className="flex-1">
@@ -648,13 +648,13 @@ export function ProposalKanbanTab() {
         </div>
       );
     },
-    [columns, columnFilters],
+    [columns, columnFilters, clientOptions],
   );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Spinner />
+      <div className="flex-1 w-full mt-4">
+        <KanbanBoardSkeleton />
       </div>
     );
   }

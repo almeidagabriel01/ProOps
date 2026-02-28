@@ -9,7 +9,7 @@ import { ProposalKanbanTab } from "@/components/features/kanban/proposal-kanban-
 import { TransactionKanbanTab } from "@/components/features/kanban/transaction-kanban-tab";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { LayoutDashboard, ReceiptText } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import KanbanSkeleton from "@/app/kanban/loading";
 
 export default function KanbanPage() {
   const { tenant } = useTenant();
@@ -27,11 +27,7 @@ export default function KanbanPage() {
   }
 
   if (isPlanLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Spinner />
-      </div>
-    );
+    return <KanbanSkeleton />;
   }
 
   if (!hasKanban && user.role !== "superadmin") {
@@ -48,7 +44,7 @@ export default function KanbanPage() {
   }
 
   return (
-    <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
+    <div className="space-y-6 flex flex-col h-[calc(100vh-180px)]">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Kanban
