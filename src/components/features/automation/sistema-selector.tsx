@@ -195,7 +195,9 @@ export function SistemaSelector({
 
   React.useEffect(() => {
     if (!selectedSistemaId) return;
-    const stillAvailable = availableSistemas.some((s) => s.id === selectedSistemaId);
+    const stillAvailable = availableSistemas.some(
+      (s) => s.id === selectedSistemaId,
+    );
     if (!stillAvailable) {
       setSelectedSistemaId("");
       setSelectedAmbienteId("");
@@ -317,7 +319,7 @@ export function SistemaSelector({
               id="proposal-sistema-select"
               name="proposal-sistema-select"
               value={selectedSistemaId}
-              onChange={(e) => handleSistemaChange(e.target.value)}
+              onValueChange={(val) => handleSistemaChange(val)}
               disabled={isLoading}
               options={availableSistemas.map((sistema) => ({
                 value: sistema.id,
@@ -325,8 +327,6 @@ export function SistemaSelector({
               }))}
               placeholder="Selecione um sistema..."
               searchPlaceholder="Buscar sistema..."
-              emptyMessage="Nenhum sistema disponível"
-              noResultsMessage="Nenhum sistema encontrado"
             />
           </div>
 
@@ -359,7 +359,7 @@ export function SistemaSelector({
             id="proposal-ambiente-select"
             name="proposal-ambiente-select"
             value={selectedAmbienteId}
-            onChange={(e) => handleAmbienteChange(e.target.value)}
+            onValueChange={(val) => handleAmbienteChange(val)}
             disabled={!selectedSistemaId}
             options={filteredAmbientes.map((ambiente) => ({
               value: ambiente.id,
@@ -375,12 +375,6 @@ export function SistemaSelector({
                 ? "Buscar ambiente..."
                 : "Selecione um sistema primeiro"
             }
-            emptyMessage={
-              selectedSistemaId
-                ? "Nenhum ambiente disponível"
-                : "Selecione um sistema primeiro"
-            }
-            noResultsMessage="Nenhum ambiente encontrado"
           />
         </div>
       </div>

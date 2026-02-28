@@ -15,6 +15,7 @@ import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 import { whatsappRoutes } from "./routes/whatsapp.routes";
+import { kanbanRoutes } from "./routes/kanban.routes";
 import {
   allowCorsFallbackInCurrentEnvironment,
   evaluateCorsDecision,
@@ -71,7 +72,9 @@ function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
     .split("?")[0]
     .trim();
-  const isProposalPdfRoute = /(?:^|\/)proposals\/[^/]+\/pdf$/.test(originalPath);
+  const isProposalPdfRoute = /(?:^|\/)proposals\/[^/]+\/pdf$/.test(
+    originalPath,
+  );
 
   if (isProposalPdfRoute) {
     return Number(
@@ -141,7 +144,11 @@ function createRateLimiter(options: {
         source: options.keyPrefix,
         ip: getClientIp(req),
       });
-      logSecurityEvent("ratelimit_store_error_allowing_request", context, "WARN");
+      logSecurityEvent(
+        "ratelimit_store_error_allowing_request",
+        context,
+        "WARN",
+      );
       return next();
     }
   };
@@ -299,36 +306,47 @@ app.use(
   }),
 );
 
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err?.message === "Origin not allowed by CORS policy") {
-    const context = buildSecurityLogContext(req, {
-      route: sanitizeLoggedPath(req.path),
-      status: 403,
-      reason: "origin_not_allowed",
-      source: "cors",
-      ip: getClientIp(req),
-    });
-    logSecurityEvent("cors_denied", context, "WARN");
-    void incrementSecurityCounter("cors_denied", context);
-    void writeSecurityAuditEvent({
-      eventType: "cors_denied",
-      requestId: context.requestId,
-      route: context.route,
-      status: context.status,
-      tenantId: context.tenantId,
-      uid: context.uid,
-      reason: context.reason,
-      source: context.source,
-    });
-    return res.status(403).json({ message: "Origin not allowed" });
-  }
-  return next(err);
-});
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    if (err?.message === "Origin not allowed by CORS policy") {
+      const context = buildSecurityLogContext(req, {
+        route: sanitizeLoggedPath(req.path),
+        status: 403,
+        reason: "origin_not_allowed",
+        source: "cors",
+        ip: getClientIp(req),
+      });
+      logSecurityEvent("cors_denied", context, "WARN");
+      void incrementSecurityCounter("cors_denied", context);
+      void writeSecurityAuditEvent({
+        eventType: "cors_denied",
+        requestId: context.requestId,
+        route: context.route,
+        status: context.status,
+        tenantId: context.tenantId,
+        uid: context.uid,
+        reason: context.reason,
+        source: context.source,
+      });
+      return res.status(403).json({ message: "Origin not allowed" });
+    }
+    return next(err);
+  },
+);
 
 // Public routes (no authentication required)
-app.get("/health", publicGeneralLimiter, (_req: express.Request, res: express.Response) => {
-  res.send("OK");
-});
+app.get(
+  "/health",
+  publicGeneralLimiter,
+  (_req: express.Request, res: express.Response) => {
+    res.send("OK");
+  },
+);
 
 // Proxy image - must be public for PDF generation
 app.get("/v1/aux/proxy-image", publicGeneralLimiter, proxyImage);
@@ -372,6 +390,7 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
+app.use("/v1", kanbanRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
 

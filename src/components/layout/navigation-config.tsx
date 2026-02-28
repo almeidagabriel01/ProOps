@@ -10,6 +10,7 @@ import {
   Bot,
   ReceiptText,
   UsersRound,
+  Kanban,
 } from "lucide-react";
 
 export type MenuItem = {
@@ -18,6 +19,7 @@ export type MenuItem = {
   href: string;
   pageId?: string;
   requiresFinancial?: boolean;
+  requiresEnterprise?: boolean;
   masterOnly?: boolean;
   children?: SubMenuItem[];
 };
@@ -36,24 +38,18 @@ export const menuItems: MenuItem[] = [
     href: "/dashboard",
     pageId: "dashboard",
   },
-  { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
-  { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+  {
+    icon: Kanban,
+    label: "Kanban",
+    href: "/kanban",
+    pageId: "kanban",
+    requiresEnterprise: true,
+  },
   {
     icon: FilePenLine,
     label: "Propostas",
     href: "/proposals",
     pageId: "proposals",
-  },
-  {
-    icon: Contact,
-    label: "Contatos",
-    href: "/contacts",
-    pageId: "clients",
-  },
-  {
-    icon: FileSpreadsheet,
-    label: "Planilhas",
-    href: "/spreadsheets",
   },
   {
     icon: Wallet,
@@ -73,6 +69,19 @@ export const menuItems: MenuItem[] = [
         href: "/wallets",
       },
     ],
+  },
+  {
+    icon: Contact,
+    label: "Contatos",
+    href: "/contacts",
+    pageId: "clients",
+  },
+  { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
+  { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+  {
+    icon: FileSpreadsheet,
+    label: "Planilhas",
+    href: "/spreadsheets",
   },
   {
     icon: Bot,

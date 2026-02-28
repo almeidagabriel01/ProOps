@@ -75,6 +75,7 @@ type DockEntry = {
   label: string;
   href: string;
   requiresFinancial?: boolean;
+  requiresEnterprise?: boolean;
   pageId?: string;
 };
 
@@ -82,7 +83,7 @@ export function BottomDock() {
   const pathname = usePathname();
   const { logout } = useAuth();
   const { tenant } = useTenant();
-  const { hasFinancial } = usePlanLimits();
+  const { hasFinancial, hasKanban } = usePlanLimits();
   const { isMaster } = usePermissions();
   const upgradeModal = useUpgradeModal();
 
@@ -243,6 +244,7 @@ export function BottomDock() {
         label: item.label,
         href: item.href,
         requiresFinancial: item.requiresFinancial,
+        requiresEnterprise: item.requiresEnterprise,
         pageId: item.pageId,
       });
     }
@@ -267,7 +269,9 @@ export function BottomDock() {
   }
 
   const renderMenuItem = (entry: DockEntry) => {
-    const isRestricted = !!entry.requiresFinancial && !hasFinancial;
+    const isFinancialRestricted = !!entry.requiresFinancial && !hasFinancial;
+    const isEnterpriseRestricted = !!entry.requiresEnterprise && !hasKanban;
+    const isRestricted = isFinancialRestricted || isEnterpriseRestricted;
     const active = !!activeHref && entry.href === activeHref;
 
     if (isRestricted) {
@@ -288,8 +292,10 @@ export function BottomDock() {
               onClick={() =>
                 upgradeModal.showUpgradeModal(
                   entry.label,
-                  "Controle suas finanças com nosso módulo completo.",
-                  "pro",
+                  isEnterpriseRestricted
+                    ? "Gerencie suas propostas e lançamentos com nosso Kanban visual."
+                    : "Controle suas finanças com nosso módulo completo.",
+                  isEnterpriseRestricted ? "enterprise" : "pro",
                 )
               }
               className="flex items-center justify-center w-full h-full cursor-pointer"

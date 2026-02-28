@@ -14,6 +14,8 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Wallet } from "@/types";
 import { normalize } from "@/utils/text";
 import { statusConfig } from "../_constants/config";
+import { ProposalService } from "@/services/proposal-service";
+import { getProposalTransactionDisplayName } from "../_lib/proposal-transaction";
 
 type DateLike =
   | string
@@ -118,7 +120,9 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 const formatTransactionLabel = (
   transaction: Pick<Transaction, "id" | "description">,
 ): string => {
-  const description = transaction.description?.trim();
+  const description = getProposalTransactionDisplayName(
+    transaction as Pick<Transaction, "description" | "proposalId">,
+  ).trim();
   return description ? `"${description}"` : `ID ${transaction.id}`;
 };
 
@@ -261,6 +265,12 @@ export function useFinancialData(): UseFinancialDataReturn {
 
   React.useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  React.useEffect(() => {
+    return ProposalService.subscribe(() => {
+      void fetchData(true);
+    });
   }, [fetchData]);
 
   const filteredTransactions = React.useMemo(() => {

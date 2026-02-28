@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { AdminSkeleton } from "./_components/admin-skeleton";
 
 export default function AdminLayout({
@@ -14,19 +14,14 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user || user.role !== "superadmin") {
-        router.replace("/dashboard");
-      }
+    // Only superadmins can access this layout's routes
+    if (!isLoading && (!user || user.role !== "superadmin")) {
+      router.push("/403");
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || !user || user.role !== "superadmin") {
     return <AdminSkeleton />;
-  }
-
-  if (!user || user.role !== "superadmin") {
-    return null; // Return null to prevent any flash of content
   }
 
   return <>{children}</>;

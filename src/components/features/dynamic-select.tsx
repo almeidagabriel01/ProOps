@@ -88,13 +88,22 @@ export function DynamicSelect({
       </div>
 
       <SearchableSelect
-        {...props}
         options={options.map((opt) => ({
           value: opt.label,
           label: opt.label,
         }))}
+        value={typeof props.value === "string" ? props.value : ""}
+        onValueChange={(val) => {
+          const event = {
+            target: { value: val, name: props.name ?? "" },
+          } as React.ChangeEvent<HTMLSelectElement>;
+          props.onChange?.(event);
+        }}
         placeholder="Selecione..."
         searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
+        disabled={props.disabled}
+        name={props.name}
+        id={props.id}
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
 

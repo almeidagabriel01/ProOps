@@ -16,6 +16,10 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import { Wallet } from "@/types";
+import {
+  getProposalTransactionDisplayName,
+  isProposalLinkedTransaction,
+} from "../_lib/proposal-transaction";
 
 import {
   Check,
@@ -31,6 +35,9 @@ import {
   ArrowDown,
   ChevronsUpDown,
   Split,
+  FileText,
+  Banknote,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -552,6 +559,8 @@ export function TransactionListByDueDate({
 
                 const statusInfo = statusConfig[tx.status];
                 const isSelected = selectedIds.has(tx.id);
+                const isProposalLinked = isProposalLinkedTransaction(tx);
+                const displayDescription = getProposalTransactionDisplayName(tx);
 
                 return (
                   <div
@@ -602,11 +611,33 @@ export function TransactionListByDueDate({
                       ) : (
                         <ArrowDownCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       )}
-                      <span className="truncate">{tx.description}</span>
+                      <span className="truncate">{displayDescription}</span>
+                      {isProposalLinked && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] h-4 px-1 shrink-0 gap-1"
+                        >
+                          <FileText className="h-3 w-3" />
+                          Proposta
+                        </Badge>
+                      )}
+                      {tx.isDownPayment && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-4 px-1 shrink-0 gap-1"
+                        >
+                          <Banknote className="h-3 w-3" />
+                          Entrada
+                        </Badge>
+                      )}
                       {tx.isInstallment && !tx.isDownPayment && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          ({tx.installmentNumber}/{tx.installmentCount})
-                        </span>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-4 px-1 shrink-0 gap-1"
+                        >
+                          <CreditCard className="h-3 w-3" />
+                          {tx.installmentNumber}/{tx.installmentCount}
+                        </Badge>
                       )}
                       {tx.isDownPayment && (
                         <Badge

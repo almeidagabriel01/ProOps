@@ -338,6 +338,430 @@ async function deleteStorageObjectsBestEffort(
   );
 }
 
+type ProposalLinkedTransactionDraft = {
+  tenantId: string;
+  type: "income";
+  description: string;
+  amount: number;
+  date: string;
+  dueDate: string;
+  status: "paid" | "pending" | "overdue";
+  clientId: string | null;
+  clientName: string | null;
+  proposalId: string;
+  proposalGroupId: string | null;
+  category: null;
+  wallet: string | null;
+  isDownPayment: boolean;
+  downPaymentType?: "value" | "percentage";
+  downPaymentPercentage?: number;
+  isInstallment: boolean;
+  installmentCount: number | null;
+  installmentNumber: number | null;
+  installmentGroupId: string | null;
+  notes: string;
+  createdById: string;
+};
+
+function normalizeProposalTransactionTitle(value: unknown): string {
+  return String(value || "").trim() || "Proposta";
+}
+
+function buildProposalGroupId(proposalId: string): string {
+  return `proposal_${proposalId}`;
+}
+
+function buildProposalInstallmentGroupId(proposalId: string): string {
+  return `proposal_installments_${proposalId}`;
+}
+
+async function resolveDefaultWalletNameForTenant(
+  tenantId: string,
+): Promise<string | null> {
+  const walletsQuery = await db
+    .collection("wallets")
+    .where("tenantId", "==", tenantId)
+    .where("isDefault", "==", true)
+    .limit(1)
+    .get();
+
+  if (!walletsQuery.empty) {
+    return walletsQuery.docs[0].data().name || null;
+  }
+
+  const anyWallet = await db
+    .collection("wallets")
+    .where("tenantId", "==", tenantId)
+    .where("status", "==", "active")
+    .limit(1)
+    .get();
+
+  if (!anyWallet.empty) {
+    return anyWallet.docs[0].data().name || null;
+  }
+
+  return null;
+}
+
+function buildApprovedProposalTransactionDrafts(params: {
+  proposalId: string;
+  proposalData: Record<string, unknown>;
+  userId: string;
+  defaultWalletName: string | null;
+  initialStatus?: "paid" | "pending" | "overdue";
+}): ProposalLinkedTransactionDraft[] {
+  const { proposalId, proposalData, userId, defaultWalletName } = params;
+  const initialStatus = params.initialStatus || "pending";
+  const title = normalizeProposalTransactionTitle(proposalData.title);
+  const tenantId = String(proposalData.tenantId || "").trim();
+  const clientId = proposalData.clientId ? String(proposalData.clientId) : null;
+  const clientName = proposalData.clientName
+    ? String(proposalData.clientName)
+    : null;
+  const downPaymentEnabled =
+    !!proposalData.downPaymentEnabled && Number(proposalData.downPaymentValue || 0) > 0;
+  const installmentsEnabled =
+    !!proposalData.installmentsEnabled &&
+    Number(proposalData.installmentsCount || 0) > 0 &&
+    Number(proposalData.installmentValue || 0) > 0;
+  const useProposalGrouping = downPaymentEnabled && installmentsEnabled;
+  const proposalGroupId = useProposalGrouping
+    ? buildProposalGroupId(proposalId)
+    : null;
+  const installmentGroupId = installmentsEnabled
+    ? buildProposalInstallmentGroupId(proposalId)
+    : null;
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const drafts: ProposalLinkedTransactionDraft[] = [];
+
+  if (downPaymentEnabled) {
+    drafts.push({
+      tenantId,
+      type: "income",
+      description: title,
+      amount: Number(proposalData.downPaymentValue || 0),
+      date: String(proposalData.downPaymentDueDate || todayStr),
+      dueDate: String(proposalData.downPaymentDueDate || todayStr),
+      status: initialStatus,
+      clientId,
+      clientName,
+      proposalId,
+      proposalGroupId,
+      category: null,
+      wallet: proposalData.downPaymentWallet
+        ? String(proposalData.downPaymentWallet)
+        : defaultWalletName,
+      isDownPayment: true,
+      downPaymentType:
+        String(proposalData.downPaymentType || "value") === "percentage"
+          ? "percentage"
+          : "value",
+      downPaymentPercentage: Number(proposalData.downPaymentPercentage || 0),
+      isInstallment: false,
+      installmentCount: null,
+      installmentNumber: null,
+      installmentGroupId: null,
+      notes: "Entrada gerada automaticamente pela proposta",
+      createdById: userId,
+    });
+  }
+
+  if (installmentsEnabled) {
+    const walletName = proposalData.installmentsWallet
+      ? String(proposalData.installmentsWallet)
+      : defaultWalletName;
+    const installmentsCount = Math.max(
+      0,
+      Number(proposalData.installmentsCount || 0),
+    );
+    let firstInstDate: Date;
+
+    if (proposalData.firstInstallmentDate) {
+      firstInstDate = new Date(
+        String(proposalData.firstInstallmentDate) + "T12:00:00",
+      );
+    } else {
+      firstInstDate = new Date(today);
+      firstInstDate.setDate(firstInstDate.getDate() + 30);
+    }
+
+    for (let i = 0; i < installmentsCount; i++) {
+      const installmentDate = new Date(firstInstDate);
+      installmentDate.setMonth(firstInstDate.getMonth() + i);
+      const dueDate = installmentDate.toISOString().split("T")[0];
+
+      drafts.push({
+        tenantId,
+        type: "income",
+        description: title,
+        amount: Number(proposalData.installmentValue || 0),
+        date: dueDate,
+        dueDate,
+        status: initialStatus,
+        clientId,
+        clientName,
+        proposalId,
+        proposalGroupId,
+        category: null,
+        wallet: walletName,
+        isDownPayment: false,
+        isInstallment: true,
+        installmentCount: installmentsCount,
+        installmentNumber: i + 1,
+        installmentGroupId,
+        notes: `Parcela ${i + 1}/${installmentsCount} gerada automaticamente`,
+        createdById: userId,
+      });
+    }
+  }
+
+  if (!downPaymentEnabled && !installmentsEnabled && Number(proposalData.totalValue || 0) > 0) {
+    let dueDate = proposalData.validUntil ? String(proposalData.validUntil) : "";
+    if (!dueDate) {
+      const fallbackDate = new Date(today);
+      fallbackDate.setDate(fallbackDate.getDate() + 30);
+      dueDate = fallbackDate.toISOString().split("T")[0];
+    }
+
+    drafts.push({
+      tenantId,
+      type: "income",
+      description: title,
+      amount: Number(proposalData.totalValue || 0),
+      date: todayStr,
+      dueDate,
+      status: initialStatus,
+      clientId,
+      clientName,
+      proposalId,
+      proposalGroupId: null,
+      category: null,
+      wallet: defaultWalletName,
+      isDownPayment: false,
+      isInstallment: false,
+      installmentCount: null,
+      installmentNumber: null,
+      installmentGroupId: null,
+      notes: "Receita gerada automaticamente pela aprovação da proposta",
+      createdById: userId,
+    });
+  }
+
+  return drafts;
+}
+
+function getProposalLinkedTransactionKey(
+  transaction: Record<string, unknown>,
+): string | null {
+  if (transaction.isPartialPayment || transaction.parentTransactionId) {
+    return null;
+  }
+  if (transaction.isDownPayment) return "down_payment";
+  if (transaction.isInstallment) {
+    return `installment_${Number(transaction.installmentNumber || 0)}`;
+  }
+  return "single";
+}
+
+async function syncApprovedProposalTransactions(params: {
+  proposalId: string;
+  proposalTenantId: string;
+  proposalData: Record<string, unknown>;
+  userId: string;
+  initialStatus?: "paid" | "pending" | "overdue";
+  metadataOnly?: boolean;
+}): Promise<void> {
+  const {
+    proposalId,
+    proposalTenantId,
+    proposalData,
+    userId,
+    initialStatus,
+    metadataOnly,
+  } = params;
+  const defaultWalletName = await resolveDefaultWalletNameForTenant(proposalTenantId);
+  const desiredDrafts = buildApprovedProposalTransactionDrafts({
+    proposalId,
+    proposalData,
+    userId,
+    defaultWalletName,
+    initialStatus,
+  });
+  const desiredByKey = new Map(
+    desiredDrafts.map((draft) => [
+      draft.isDownPayment
+        ? "down_payment"
+        : draft.isInstallment
+          ? `installment_${draft.installmentNumber || 0}`
+          : "single",
+      draft,
+    ]),
+  );
+
+  const transactionsQuery = await db
+    .collection("transactions")
+    .where("tenantId", "==", proposalTenantId)
+    .where("proposalId", "==", proposalId)
+    .get();
+
+  const existingByKey = new Map<
+    string,
+    FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>
+  >();
+  const duplicateKeys = new Set<string>();
+  const complexDocs = transactionsQuery.docs.filter((doc) => {
+    const data = doc.data();
+    if (data.isPartialPayment || data.parentTransactionId) {
+      return true;
+    }
+
+    const key = getProposalLinkedTransactionKey(data);
+    if (!key) return true;
+    if (existingByKey.has(key)) {
+      duplicateKeys.add(key);
+      return true;
+    }
+    existingByKey.set(key, doc);
+    return false;
+  });
+
+  if ((complexDocs.length > 0 || duplicateKeys.size > 0) && metadataOnly) {
+    const now = Timestamp.now();
+    const title = normalizeProposalTransactionTitle(proposalData.title);
+    const clientId = proposalData.clientId ? String(proposalData.clientId) : null;
+    const clientName = proposalData.clientName
+      ? String(proposalData.clientName)
+      : null;
+    const batch = db.batch();
+
+    transactionsQuery.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        description: title,
+        clientId,
+        clientName,
+        updatedAt: now,
+      });
+    });
+
+    await batch.commit();
+    return;
+  }
+
+  if (complexDocs.length > 0 || duplicateKeys.size > 0) {
+    throw new Error(
+      "Nao foi possivel sincronizar automaticamente os lancamentos desta proposta porque existem parcelas parciais ou multiplos registros para a mesma parcela.",
+    );
+  }
+
+  const now = Timestamp.now();
+  const batch = db.batch();
+  const walletAdjustments = new Map<string, number>();
+  const registerAdjustment = (walletName: unknown, amount: number) => {
+    const normalizedWallet = String(walletName || "").trim();
+    if (!normalizedWallet || amount === 0) return;
+    const current = walletAdjustments.get(normalizedWallet) || 0;
+    walletAdjustments.set(normalizedWallet, current + amount);
+  };
+
+  for (const [key, doc] of existingByKey.entries()) {
+    if (desiredByKey.has(key)) continue;
+
+    const data = doc.data();
+    if (data.status === "paid" && data.type === "income") {
+      throw new Error(
+        "Nao e possivel remover ou reduzir parcelas/entradas ja pagas de uma proposta aprovada.",
+      );
+    }
+
+    batch.delete(doc.ref);
+  }
+
+  desiredByKey.forEach((draft, key) => {
+    const existingDoc = existingByKey.get(key);
+    if (!existingDoc) {
+      const status =
+        initialStatus ||
+        (key === "down_payment"
+          ? String(
+              existingByKey.get("installment_1")?.data().status || "pending",
+            )
+          : "pending");
+
+      batch.set(db.collection("transactions").doc(), {
+        ...draft,
+        status,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return;
+    }
+
+    const existingData = existingDoc.data();
+    const nextWallet = String(draft.wallet || "").trim() || null;
+    const previousWallet = String(existingData.wallet || "").trim() || null;
+    const nextAmount = Number(draft.amount || 0);
+    const previousAmount = Number(existingData.amount || 0);
+
+    if (
+      existingData.status === "paid" &&
+      existingData.type === "income" &&
+      (previousAmount !== nextAmount || previousWallet !== nextWallet)
+    ) {
+      registerAdjustment(previousWallet, -previousAmount);
+      registerAdjustment(nextWallet, nextAmount);
+    }
+
+    const updatePayload = {
+      description: draft.description,
+      amount: nextAmount,
+      date: draft.date,
+      dueDate: draft.dueDate,
+      clientId: draft.clientId,
+      clientName: draft.clientName,
+      proposalId: draft.proposalId,
+      proposalGroupId: draft.proposalGroupId,
+      wallet: draft.wallet,
+      isDownPayment: draft.isDownPayment,
+      downPaymentType: draft.downPaymentType || null,
+      downPaymentPercentage: draft.downPaymentPercentage || 0,
+      isInstallment: draft.isInstallment,
+      installmentCount: draft.installmentCount,
+      installmentNumber: draft.installmentNumber,
+      installmentGroupId: draft.installmentGroupId,
+      notes: draft.notes,
+      updatedAt: now,
+    };
+
+    batch.update(existingDoc.ref, updatePayload);
+  });
+
+  if (walletAdjustments.size > 0) {
+    const walletNames = Array.from(walletAdjustments.keys());
+    const walletSnap = await db
+      .collection("wallets")
+      .where("tenantId", "==", proposalTenantId)
+      .where("name", "in", walletNames)
+      .get();
+
+    const walletRefMap = new Map(
+      walletSnap.docs.map((doc) => [doc.data().name as string, doc.ref]),
+    );
+
+    walletAdjustments.forEach((adjustment, walletName) => {
+      if (!adjustment) return;
+      const walletRef = walletRefMap.get(walletName);
+      if (!walletRef) return;
+      batch.update(walletRef, {
+        balance: FieldValue.increment(adjustment),
+        updatedAt: now,
+      });
+    });
+  }
+
+  await batch.commit();
+}
+
 export const createProposal = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
@@ -785,13 +1209,60 @@ export const updateProposal = async (req: Request, res: Response) => {
       updateData.status &&
       updateData.status !== "approved";
 
-    // Update existing transaction due dates if proposal is already approved
-    // and the user changed the due date fields
     const isAlreadyApproved =
       proposalData?.status === "approved" &&
       (!updateData.status || updateData.status === "approved");
+    const approvedSyncFields = new Set([
+      "title",
+      "clientId",
+      "clientName",
+      "totalValue",
+      "validUntil",
+      "downPaymentEnabled",
+      "downPaymentType",
+      "downPaymentPercentage",
+      "downPaymentValue",
+      "downPaymentWallet",
+      "downPaymentDueDate",
+      "installmentsEnabled",
+      "installmentsCount",
+      "installmentValue",
+      "installmentsWallet",
+      "firstInstallmentDate",
+      "products",
+      "discount",
+      "extraExpense",
+      "status",
+    ]);
+    const shouldSyncApprovedTransactions =
+      (isAlreadyApproved || isBeingApproved) &&
+      Object.keys(updateData || {}).some((field) => approvedSyncFields.has(field));
+    const structuralApprovedSyncFields = new Set([
+      "totalValue",
+      "validUntil",
+      "downPaymentEnabled",
+      "downPaymentType",
+      "downPaymentPercentage",
+      "downPaymentValue",
+      "downPaymentWallet",
+      "downPaymentDueDate",
+      "installmentsEnabled",
+      "installmentsCount",
+      "installmentValue",
+      "installmentsWallet",
+      "firstInstallmentDate",
+      "products",
+      "discount",
+      "extraExpense",
+      "status",
+    ]);
+    const approvedSyncIsMetadataOnly =
+      shouldSyncApprovedTransactions &&
+      !Object.keys(updateData || {}).some((field) =>
+        structuralApprovedSyncFields.has(field),
+      );
 
-    if (isAlreadyApproved) {
+    if (false && isAlreadyApproved) {
       const mergedData = { ...proposalData, ...safeUpdate } as any;
       const nowDateStr = new Date().toISOString().split("T")[0];
 
@@ -1062,7 +1533,7 @@ export const updateProposal = async (req: Request, res: Response) => {
           }
 
           if (!shouldHaveDownPayment && existingDownPaymentDoc) {
-            const existingData = existingDownPaymentDoc.data();
+            const existingData = existingDownPaymentDoc!.data();
 
             if (
               existingData.status === "paid" &&
@@ -1073,7 +1544,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               registerAdjustment(existingData.wallet, -existingData.amount);
             }
 
-            batch.delete(existingDownPaymentDoc.ref);
+            batch.delete(existingDownPaymentDoc!.ref);
           }
 
           // --- 3. Consolidate Wallet Updates ---
@@ -1094,7 +1565,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               if (!adjustment) continue;
               const ref = walletRefMap.get(wName);
               if (ref) {
-                batch.update(ref, {
+                batch.update(ref as FirebaseFirestore.DocumentReference, {
                   balance: FieldValue.increment(adjustment),
                   updatedAt: Timestamp.now(),
                 });
@@ -1114,7 +1585,23 @@ export const updateProposal = async (req: Request, res: Response) => {
       await cleanupProposalTransactions(id, proposalData?.tenantId || tenantId);
     }
 
-    if (isBeingApproved) {
+    if (shouldSyncApprovedTransactions) {
+      await syncApprovedProposalTransactions({
+        proposalId: id,
+        proposalTenantId,
+        proposalData: {
+          ...proposalData,
+          ...safeUpdate,
+        } as Record<string, unknown>,
+        userId,
+        initialStatus: isBeingApproved
+          ? (updateData.initialPaymentStatus || "pending")
+          : undefined,
+        metadataOnly: approvedSyncIsMetadataOnly,
+      });
+    }
+
+    if (false && isBeingApproved) {
       try {
         const mergedData = { ...proposalData, ...safeUpdate } as any;
         const proposalTenantId = mergedData.tenantId || tenantId;
@@ -1323,7 +1810,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               });
 
               if (initialStatus === "paid") {
-                trackAdjustment(wName, finalTotalValue, "income");
+                trackAdjustment(wName || "", finalTotalValue, "income");
               }
             }
           }
@@ -1363,7 +1850,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               if (adjustment === 0) continue;
               const wRef = walletRefMap.get(walletName);
               if (wRef) {
-                batch.update(wRef, {
+                batch.update(wRef as FirebaseFirestore.DocumentReference, {
                   balance: FieldValue.increment(adjustment),
                   updatedAt: now,
                 });

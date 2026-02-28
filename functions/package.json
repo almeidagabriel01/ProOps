@@ -6,8 +6,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "deploy:dev": "firebase deploy --only functions --project erp-softcode",
-    "deploy:prod": "firebase deploy --only functions --project erp-softcode-prod",
+    "deploy:dev": "firebase deploy --only functions,firestore:rules,firestore:indexes --project erp-softcode",
+    "deploy:prod": "firebase deploy --only functions,firestore:rules,firestore:indexes --project erp-softcode-prod",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -32,7 +32,9 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "dotenv": "^17.3.1",
     "firebase-tools": "^15.6.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.0"
   },
   "overrides": {

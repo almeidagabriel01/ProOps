@@ -27,6 +27,7 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       canCustomizeTheme: false,
       maxPdfTemplates: 1,
       canEditPdfSections: false,
+      hasKanban: false,
       maxImagesPerProduct: 2,
       maxStorageMB: 200,
     },
@@ -52,6 +53,7 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       canCustomizeTheme: true,
       maxPdfTemplates: 3,
       canEditPdfSections: false,
+      hasKanban: false,
       maxImagesPerProduct: 3,
       maxStorageMB: 2560, // 2.5GB
     },
@@ -76,6 +78,7 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       canCustomizeTheme: true,
       maxPdfTemplates: -1, // All templates
       canEditPdfSections: true,
+      hasKanban: true,
       maxImagesPerProduct: 3,
       maxStorageMB: -1, // Unlimited
     },

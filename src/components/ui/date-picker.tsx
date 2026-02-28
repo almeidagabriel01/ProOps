@@ -373,9 +373,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
           const placeAbove = spaceBelow < 300 && rect.top > 450;
 
           setCoords({
-            top: placeAbove
-              ? rect.top - estimatedHeight - 8
-              : rect.bottom + 8,
+            top: placeAbove ? rect.top - estimatedHeight - 8 : rect.bottom + 8,
             left: rect.left,
           });
         }
@@ -422,7 +420,8 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
             }
           }}
           className={cn(
-            "flex items-center h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm text-left cursor-pointer",
+            "flex items-center w-full border-2 border-border/60 bg-card px-4 py-3 text-sm text-left cursor-pointer",
+            "h-12 rounded-xl", // Default values
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
             "hover:border-primary/40 hover:shadow-md",
             "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",

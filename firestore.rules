@@ -274,6 +274,12 @@ service cloud.firestore {
       allow write: if false; // Managed by Stripe Webhooks
     }
 
+    // KANBAN STATUSES (Custom kanban columns per tenant)
+    match /kanban_statuses/{statusId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
+    }
+
     // ============================================
     // SYSTEM COLLECTIONS
     // ============================================

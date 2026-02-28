@@ -11,6 +11,8 @@ export interface SearchableSelectOption {
   description?: string;
 }
 
+export type SelectOption = SearchableSelectOption;
+
 export interface SearchableSelectProps extends Omit<
   React.SelectHTMLAttributes<HTMLSelectElement>,
   "onChange"
@@ -49,6 +51,7 @@ export const SearchableSelect = React.forwardRef<
     const containerRef = React.useRef<HTMLDivElement>(null);
     const inputRef = React.useRef<HTMLInputElement>(null);
     const innerRef = React.useRef<HTMLSelectElement>(null);
+    const noopSelectChange = React.useCallback(() => {}, []);
 
     const resolvedRef = (ref ||
       innerRef) as React.RefObject<HTMLSelectElement | null>;
@@ -145,7 +148,7 @@ export const SearchableSelect = React.forwardRef<
           ref={resolvedRef}
           className="sr-only"
           value={value}
-          onChange={onChange}
+          onChange={onChange || noopSelectChange}
           disabled={disabled}
           {...props}
         >

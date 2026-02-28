@@ -375,3 +375,19 @@ html.theme-transitioning * {
   align-items: center;
   justify-content: center;
 }
+
+/* Kanban scrollbar */
+.kanban-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.kanban-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--border) / 0.4);
+  border-radius: 9999px;
+}
+.kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border) / 0.7);
+}

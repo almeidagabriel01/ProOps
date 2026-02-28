@@ -53,6 +53,10 @@ import { TransactionService } from "@/services/transaction-service";
 import { SharedTransactionService } from "@/services/shared-transaction-service";
 import { useRouter } from "next/navigation";
 import { Wallet } from "@/types";
+import {
+  getProposalTransactionDisplayName,
+  isProposalLinkedTransaction,
+} from "../_lib/proposal-transaction";
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -176,6 +180,10 @@ export function TransactionCard({
   const typeInfo = typeConfig[transaction.type];
   const statusInfo = statusConfig[transaction.status];
   const TypeIcon = typeInfo.icon;
+  const isProposalLinked =
+    isProposalLinkedTransaction(transaction) ||
+    proposalGroupTransactions.some((item) => isProposalLinkedTransaction(item)) ||
+    relatedInstallments.some((item) => isProposalLinkedTransaction(item));
 
   // Check if this is a proposal group (has both down payment and installments)
   const isProposalGroup = proposalGroupTransactions.length > 1;
@@ -192,10 +200,9 @@ export function TransactionCard({
   );
 
   // For proposal groups, show the proposal title instead of individual transaction description
-  const displayDescription = isProposalGroup
-    ? downPayment?.description.replace("Entrada: ", "") ||
-      transaction.description
-    : transaction.description;
+  const displayDescription = getProposalTransactionDisplayName(
+    isProposalGroup ? downPayment || transaction : transaction,
+  );
 
   // For proposal groups or installment groups, show the total amount
   const displayAmount = React.useMemo(() => {
@@ -798,7 +805,7 @@ export function TransactionCard({
                 <span className="font-medium truncate">
                   {displayDescription}
                 </span>
-                {isProposalGroup && (
+                {isProposalLinked && (
                   <Badge variant="secondary" className="text-xs gap-1">
                     <FileText className="w-3 h-3" />
                     Proposta

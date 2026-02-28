@@ -31,6 +31,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   canCustomizeTheme: false,
   maxPdfTemplates: 1,
   canEditPdfSections: false,
+  hasKanban: false,
   maxImagesPerProduct: 2,
   maxStorageMB: 50, // 50MB for free users
 };
@@ -53,6 +54,7 @@ interface UsePlanLimitsReturn {
   pastDueAddons: AddonGracePeriodInfo[];
 
   hasFinancial: boolean;
+  hasKanban: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
 
@@ -107,6 +109,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
           canEditPdfSections: true,
+          hasKanban: true,
           maxImagesPerProduct: 3,
           maxStorageMB: -1, // Unlimited
         });
@@ -443,6 +446,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     pastDueAddons,
 
     hasFinancial: mergedFeatures?.hasFinancial ?? false,
+    hasKanban: mergedFeatures?.hasKanban ?? false,
     canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
     canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,
 
