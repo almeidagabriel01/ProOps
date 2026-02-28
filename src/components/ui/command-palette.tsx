@@ -16,6 +16,8 @@ import {
   CreditCard,
   UsersRound,
   Search,
+  Kanban,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -34,6 +36,7 @@ interface SearchItem {
   masterOnly?: boolean;
   requiresFinancial?: boolean;
   requiresCreate?: string; // pageId that requires create permission
+  requiresKanban?: boolean;
 }
 
 const searchItems: SearchItem[] = [
@@ -44,6 +47,23 @@ const searchItems: SearchItem[] = [
     path: "/dashboard",
     icon: LayoutDashboard,
     keywords: ["home", "início", "resumo", "visão geral"],
+  },
+  {
+    id: "kanban",
+    label: "Kanban",
+    description: "Visualização e gestão de processos",
+    path: "/kanban",
+    icon: Kanban,
+    keywords: ["quadro", "processos", "tarefas", "cartões"],
+    requiresKanban: true,
+  },
+  {
+    id: "spreadsheets",
+    label: "Planilhas",
+    description: "Gerenciar planilhas",
+    path: "/spreadsheets",
+    icon: FileSpreadsheet,
+    keywords: ["planilha", "excel", "tabela", "dados"],
   },
   {
     id: "products",
@@ -209,7 +229,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ className }: CommandPaletteProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { hasFinancial } = usePlanLimits();
+  const { hasFinancial, hasKanban } = usePlanLimits();
   const { hasPermission } = usePermissions();
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -225,6 +245,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
       // Check permission restrictions
       if (item.masterOnly && !isMaster) return false;
       if (item.requiresFinancial && !hasFinancial) return false;
+      if (item.requiresKanban && !hasKanban) return false;
       // Check create permission if required
       if (item.requiresCreate && !hasPermission(item.requiresCreate, "create"))
         return false;
