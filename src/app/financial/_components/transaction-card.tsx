@@ -17,8 +17,6 @@ import {
   Edit,
   Eye,
   Check,
-  Clock,
-  AlertTriangle,
   Loader2,
   ChevronDown,
   Banknote,

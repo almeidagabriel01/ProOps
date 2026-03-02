@@ -23,8 +23,6 @@ import {
 
 import {
   Check,
-  Clock,
-  AlertTriangle,
   Loader2,
   ChevronDown,
   Eye,

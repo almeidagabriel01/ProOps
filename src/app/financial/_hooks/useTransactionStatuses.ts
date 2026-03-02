@@ -64,7 +64,7 @@ export function useTransactionStatuses() {
 
     setStatuses(DEFAULT_STATUS_OPTIONS);
     setIsLoaded(true);
-  }, [tenant?.transactionStatusOrder]);
+  }, [tenant]);
 
   const reorderStatuses = React.useCallback(
     async (orderedIds: string[]) => {

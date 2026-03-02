@@ -15,8 +15,6 @@ import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import {
   Check,
-  Clock,
-  AlertTriangle,
   Loader2,
   ChevronDown,
   Edit2,
@@ -46,16 +44,6 @@ interface TransactionInstallmentsListProps {
   onPartialPayment?: (transaction: Transaction) => void;
   onUndoPartial?: (partialTransaction: Transaction) => Promise<void>;
 }
-
-const statusOptions: {
-  value: TransactionStatus;
-  label: string;
-  icon: typeof Check;
-}[] = [
-  { value: "paid", label: "Pago", icon: Check },
-  { value: "pending", label: "Pendente", icon: Clock },
-  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-];
 
 export function TransactionInstallmentsList({
   installments,
