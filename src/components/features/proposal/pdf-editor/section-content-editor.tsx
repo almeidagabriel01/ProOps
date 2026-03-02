@@ -11,5 +11,6 @@ export {
   TitleEditor,
   TextEditor,
   ProductTableEditor,
+  PaymentTermsEditor,
   ImageEditor,
 } from "./content-editor/section-editors";

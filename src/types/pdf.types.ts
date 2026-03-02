@@ -14,7 +14,14 @@
 
 export interface PdfSection {
   id: string;
-  type: "title" | "text" | "image" | "divider" | "product-table";
+  groupId?: string;
+  type:
+    | "title"
+    | "text"
+    | "image"
+    | "divider"
+    | "product-table"
+    | "payment-terms";
   content: string;
   imageUrl?: string;
   /** Largura da coluna em percentagem (10–100) */

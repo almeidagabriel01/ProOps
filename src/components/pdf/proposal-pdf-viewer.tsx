@@ -16,6 +16,7 @@ interface ProposalPdfViewerProps {
   noMargins?: boolean;
   skipCatalogEnrichment?: boolean;
   customSettings?: ProposalPdfCustomSettings;
+  enforceCanonicalStructure?: boolean;
 }
 
 export function ProposalPdfViewer({
@@ -25,6 +26,7 @@ export function ProposalPdfViewer({
   customSettings,
   showCover = true,
   skipCatalogEnrichment = false,
+  enforceCanonicalStructure = true,
 }: ProposalPdfViewerProps) {
   const { products, isLoading } = useEnrichedProducts(proposal, tenant?.id, {
     filterInactive: true,
@@ -44,6 +46,7 @@ export function ProposalPdfViewer({
         customSettings={customSettings}
         showCover={showCover}
         products={products}
+        enforceCanonicalStructure={enforceCanonicalStructure}
       />
     </>
   );

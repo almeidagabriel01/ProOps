@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { ArrowLeft, Save, Loader2, ZoomIn, ZoomOut, FileDown } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  ZoomIn,
+  ZoomOut,
+  FileDown,
+} from "lucide-react";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useEditPdfPage } from "@/components/features/proposal/edit-pdf/use-edit-pdf-page";
 import { PdfEditorTabs } from "@/components/features/proposal/edit-pdf/pdf-editor-tabs";
@@ -263,6 +270,7 @@ export default function EditPdfPage() {
                   <ProposalPdfViewer
                     proposal={proposal}
                     tenant={tenant}
+                    enforceCanonicalStructure={false}
                     customSettings={{
                       theme,
                       primaryColor,

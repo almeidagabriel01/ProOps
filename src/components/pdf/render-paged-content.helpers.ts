@@ -100,6 +100,118 @@ export interface RenderPagedContentProps {
   pdfDisplaySettings?: PdfDisplaySettings;
 }
 
+function buildSimplePaymentTermsText(): string {
+  return [
+    "• Pagamento à vista na entrega",
+    "• Formas de pagamento: PIX, boleto ou cartão",
+  ].join("\n");
+}
+
+function normalizePdfText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isPaymentSectionContent(content?: string): boolean {
+  const normalized = normalizePdfText(content || "");
+  return (
+    normalized.includes("condicoes de pagamento") ||
+    normalized.includes("condicao de pagamento") ||
+    normalized.includes("formas de pagamento") ||
+    normalized.includes("pagamento a vista") ||
+    normalized.includes("entrada:") ||
+    normalized.includes("parcelamento:") ||
+    normalized.includes("saldo:")
+  );
+}
+
+function isWarrantySectionContent(content?: string): boolean {
+  const normalized = normalizePdfText(content || "");
+  return normalized.includes("garantia");
+}
+
+function reorderPaymentTermsBlock(items: ContentItem[]): ContentItem[] {
+  const hasExplicitPaymentTermsSection = items.some(
+    (item) => item.type === "section" && item.data?.type === "payment-terms",
+  );
+
+  if (hasExplicitPaymentTermsSection) {
+    return items;
+  }
+
+  const dynamicPaymentItem = items.find((item) => item.type === "payment-terms");
+
+  if (!dynamicPaymentItem) {
+    return items;
+  }
+
+  const paymentItems = items.filter((item) => {
+    if (dynamicPaymentItem) {
+      return item.id === dynamicPaymentItem.id;
+    }
+
+    if (item.type !== "section") return false;
+    const content = (item.data as { content?: string } | undefined)?.content;
+    return isPaymentSectionContent(content);
+  });
+
+  if (paymentItems.length === 0) {
+    return items;
+  }
+
+  const baseItems = items.filter((item) => {
+    if (item.type === "payment-terms") return false;
+
+    if (dynamicPaymentItem && item.type === "section") {
+      const content = (item.data as { content?: string } | undefined)?.content;
+      if (isPaymentSectionContent(content)) {
+        return false;
+      }
+    }
+
+    if (item.type !== "section") return true;
+    const content = (item.data as { content?: string } | undefined)?.content;
+    return !isPaymentSectionContent(content);
+  });
+
+  const lastTotalsLikeIndex = (() => {
+    for (let i = baseItems.length - 1; i >= 0; i--) {
+      const type = baseItems[i].type;
+      if (
+        type === "totals" ||
+        type === "sistema-footer" ||
+        type === "ambiente-footer"
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  })();
+
+  const firstWarrantyIndex = baseItems.findIndex((item) => {
+    if (item.type !== "section") return false;
+    const content = (item.data as { content?: string } | undefined)?.content;
+    return isWarrantySectionContent(content);
+  });
+
+  let insertionIndex = baseItems.length;
+  if (firstWarrantyIndex !== -1) {
+    insertionIndex = firstWarrantyIndex;
+  }
+
+  if (lastTotalsLikeIndex !== -1) {
+    insertionIndex = Math.max(insertionIndex, lastTotalsLikeIndex + 1);
+  }
+
+  return [
+    ...baseItems.slice(0, insertionIndex),
+    ...paymentItems,
+    ...baseItems.slice(insertionIndex),
+  ];
+}
+
 /**
  * Builds the list of content items from sections and products
  */
@@ -120,6 +232,9 @@ export function buildContentItems(
   const generateId = (prefix: string) => `${prefix}-${idCounter++}`;
 
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
+  const hasExplicitPaymentTermsSection = sections.some(
+    (section) => section.type === "payment-terms",
+  );
   let hasAddedPaymentTerms = false;
   const shouldRenderProduct = (p: Product): boolean => isProductVisibleInPdf(p);
   const shouldCountProduct = (p: Product): boolean => shouldCountInPdfTotals(p);
@@ -130,8 +245,10 @@ export function buildContentItems(
       proposal.installmentsCount &&
       proposal.installmentsCount >= 1) ||
     (proposal.downPaymentEnabled &&
-      proposal.downPaymentValue &&
-      proposal.downPaymentValue > 0)
+      ((proposal.downPaymentType === "percentage"
+        ? ((proposal.totalValue || 0) * (proposal.downPaymentPercentage || 0)) /
+          100
+        : proposal.downPaymentValue || 0) > 0))
   );
 
   // Helper to identify payment sections based on keywords
@@ -140,13 +257,16 @@ export function buildContentItems(
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\\u0300-\\u036f]/g, "");
-    return (
-      content.includes("condies de pagamento") ||
-      content.includes("condicoes de pagamento") ||
-      content.includes("formas de pagamento") ||
-      (hasDynamicPaymentOptions &&
-        (content.includes("entrada:") || content.includes("saldo:")))
-    );
+      return (
+        content.includes("condies de pagamento") ||
+        content.includes("condicoes de pagamento") ||
+        content.includes("condicao de pagamento") ||
+        content.includes("formas de pagamento") ||
+        (hasDynamicPaymentOptions &&
+          (content.includes("entrada:") ||
+            content.includes("parcelamento:") ||
+            content.includes("saldo:")))
+      );
   };
 
   // Only skip manual payment sections when dynamic payment block is enabled
@@ -250,7 +370,9 @@ export function buildContentItems(
       id: generateId("totals"),
       height: ESTIMATED_HEIGHTS.TOTALS,
     });
-    addUnifiedPaymentBlock();
+    if (!hasExplicitPaymentTermsSection) {
+      addUnifiedPaymentBlock();
+    }
   };
 
   const addSistemaProducts = (
@@ -460,7 +582,9 @@ export function buildContentItems(
         id: generateId("totals"),
         height: ESTIMATED_HEIGHTS.TOTALS,
       });
-      addUnifiedPaymentBlock();
+      if (!hasExplicitPaymentTermsSection) {
+        addUnifiedPaymentBlock();
+      }
     }
   };
 
@@ -470,6 +594,44 @@ export function buildContentItems(
 
   if (productSectionIndex !== -1) {
     sections.forEach((section) => {
+      if (section.type === "payment-terms") {
+        if (hasDynamicPaymentOptions) {
+          addUnifiedPaymentBlock();
+        } else {
+          const manualPaymentText =
+            (section.content || "").trim() || buildSimplePaymentTermsText();
+          items.push({
+            type: "section",
+            id: generateId("section-payment-title"),
+            data: {
+              ...section,
+              type: "title",
+              content: "Condições de Pagamento",
+            },
+            height: calculateSectionHeight({
+              ...section,
+              type: "title",
+              content: "Condições de Pagamento",
+            }),
+          });
+          items.push({
+            type: "section",
+            id: generateId("section-payment-text"),
+            data: {
+              ...section,
+              type: "text",
+              content: manualPaymentText,
+            },
+            height: calculateSectionHeight({
+              ...section,
+              type: "text",
+              content: manualPaymentText,
+            }),
+          });
+        }
+        return;
+      }
+
       if (section.type === "product-table") {
         if (hasSistemas) {
           renderAllSistemas();
@@ -524,6 +686,44 @@ export function buildContentItems(
 
       const section = sections[i];
 
+      if (section.type === "payment-terms") {
+        if (hasDynamicPaymentOptions) {
+          addUnifiedPaymentBlock();
+        } else {
+          const manualPaymentText =
+            (section.content || "").trim() || buildSimplePaymentTermsText();
+          items.push({
+            type: "section",
+            id: generateId("section-payment-title"),
+            data: {
+              ...section,
+              type: "title",
+              content: "Condições de Pagamento",
+            },
+            height: calculateSectionHeight({
+              ...section,
+              type: "title",
+              content: "Condições de Pagamento",
+            }),
+          });
+          items.push({
+            type: "section",
+            id: generateId("section-payment-text"),
+            data: {
+              ...section,
+              type: "text",
+              content: manualPaymentText,
+            },
+            height: calculateSectionHeight({
+              ...section,
+              type: "text",
+              content: manualPaymentText,
+            }),
+          });
+        }
+        continue;
+      }
+
       // Skip static payment sections only when dynamic payment is enabled
       if (shouldSkipPaymentSection(section)) {
         continue;
@@ -548,9 +748,13 @@ export function buildContentItems(
   }
 
   // Final fallback: If payment terms still haven't been added (e.g. no Garantia section), add them at the end
-  addUnifiedPaymentBlock();
+  if (!hasExplicitPaymentTermsSection) {
+    addUnifiedPaymentBlock();
+  }
 
-  return items;
+  return hasExplicitPaymentTermsSection
+    ? items
+    : reorderPaymentTermsBlock(items);
 }
 
 /**

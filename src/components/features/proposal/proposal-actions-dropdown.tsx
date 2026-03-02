@@ -84,6 +84,43 @@ function DuplicateMenuItem({
   );
 }
 
+function ShareMenuItem({
+  canGeneratePdf,
+  isSharing,
+  onShare,
+}: {
+  canGeneratePdf: boolean;
+  isSharing?: boolean;
+  onShare: () => void;
+}) {
+  const { setOpen } = useDropdownMenuContext();
+  const wasHereSharing = React.useRef(false);
+
+  React.useEffect(() => {
+    if (isSharing) {
+      wasHereSharing.current = true;
+    } else if (wasHereSharing.current) {
+      wasHereSharing.current = false;
+      setOpen(false);
+    }
+  }, [isSharing, setOpen]);
+
+  return (
+    <DropdownMenuItem
+      onClick={canGeneratePdf ? onShare : undefined}
+      disabled={isSharing || !canGeneratePdf}
+      preventClose
+    >
+      {isSharing ? (
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      ) : (
+        <Share2 className="w-4 h-4 mr-2" />
+      )}
+      Compartilhar
+    </DropdownMenuItem>
+  );
+}
+
 export function ProposalActionsDropdown({
   proposal,
   canEdit,
@@ -177,17 +214,11 @@ export function ProposalActionsDropdown({
         )}
 
         {/* Compartilhar */}
-        <DropdownMenuItem
-          onClick={canGeneratePdf ? onShare : undefined}
-          disabled={isSharing || !canGeneratePdf}
-        >
-          {isSharing ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Share2 className="w-4 h-4 mr-2" />
-          )}
-          Compartilhar
-        </DropdownMenuItem>
+        <ShareMenuItem
+          canGeneratePdf={canGeneratePdf}
+          isSharing={isSharing}
+          onShare={onShare}
+        />
 
         {/* Duplicar */}
         {canCreate && (

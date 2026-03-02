@@ -12,12 +12,32 @@ import {
   Type,
   FileText,
   List,
+  Wallet,
 } from "lucide-react";
 import { PdfSection } from "../pdf-section-editor";
 import { SectionContentEditor } from "./section-content-editor";
 
+const normalizeText = (value?: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const isScopeProductsIntro = (section: PdfSection) => {
+  if (section.type !== "text") return false;
+  const content = normalizeText(section.content);
+  return (
+    (content.includes("esta proposta contempla") ||
+      content.includes("esta proposta comtempla")) &&
+    content.includes("produtos")
+  );
+};
+
 interface SectionCardProps {
   section: PdfSection;
+  linkedScopeTitleSection?: PdfSection;
+  linkedScopeTextSection?: PdfSection;
+  linkedPairedTextSection?: PdfSection;
   index: number;
   totalSections: number;
   isExpanded: boolean;
@@ -58,6 +78,8 @@ const getSectionIcon = (type: PdfSection["type"]) => {
       return <ImageIcon className="w-4 h-4" />;
     case "product-table":
       return <List className="w-4 h-4" />;
+    case "payment-terms":
+      return <Wallet className="w-4 h-4" />;
     case "divider":
       return <div className="w-4 h-0.5 bg-current" />;
   }
@@ -73,6 +95,8 @@ const getSectionLabel = (type: PdfSection["type"]) => {
       return "Imagem";
     case "product-table":
       return "Sistemas / Ambientes / Produtos";
+    case "payment-terms":
+      return "Condições de Pagamento";
     case "divider":
       return "Divisor";
   }
@@ -80,6 +104,9 @@ const getSectionLabel = (type: PdfSection["type"]) => {
 
 export function SectionCard({
   section,
+  linkedScopeTitleSection,
+  linkedScopeTextSection,
+  linkedPairedTextSection,
   index,
   totalSections,
   isExpanded,
@@ -101,7 +128,11 @@ export function SectionCard({
   onDrop,
   onDragEnd,
 }: SectionCardProps) {
-  const isFixedProductsCard = section.type === "product-table";
+  const isProductsLinkSection =
+    section.type === "product-table" ||
+    isScopeProductsIntro(section) ||
+    Boolean(linkedScopeTitleSection && linkedScopeTextSection) ||
+    Boolean(linkedPairedTextSection);
   const columnWidth = section.columnWidth || 100;
   const flexBasis =
     columnWidth === 100
@@ -163,12 +194,8 @@ export function SectionCard({
       >
         {/* Drag Handle */}
         <div
-          className={`p-1 rounded outline-none shrink-0 ${isFixedProductsCard ? "cursor-not-allowed opacity-40" : "cursor-grab active:cursor-grabbing hover:bg-muted-foreground/10"}`}
-          title={
-            isFixedProductsCard
-              ? "Este card tem posição fixa"
-              : "Arraste para reordenar"
-          }
+          className="p-1 rounded outline-none shrink-0 cursor-grab active:cursor-grabbing hover:bg-muted-foreground/10"
+          title="Arraste para reordenar"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground/50 hover:text-foreground transition-colors" />
         </div>
@@ -192,9 +219,9 @@ export function SectionCard({
               <span className="font-medium text-sm truncate text-foreground">
                 {getSectionLabel(section.type)}
               </span>
-              {isFixedProductsCard && (
+              {isProductsLinkSection && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground whitespace-nowrap">
-                  Fixo
+                  Vinculado
                 </span>
               )}
               {/* Width Badge */}
@@ -219,7 +246,17 @@ export function SectionCard({
                 </span>
               ) : section.type === "product-table" ? (
                 <span className="italic opacity-70">
-                  Bloco fixo com sistemas, ambientes e produtos
+                  Bloco com sistemas, ambientes e produtos (vinculado ao texto
+                  introdutório)
+                </span>
+              ) : isScopeProductsIntro(section) ? (
+                <span className="italic opacity-70">
+                  Texto introdutório vinculado ao bloco de
+                  Produtos/Sistemas/Ambientes
+                </span>
+              ) : section.type === "payment-terms" ? (
+                <span className="italic opacity-70">
+                  Tabela de pagamento + forma de pagamento (bloco único)
                 </span>
               ) : section.type === "image" ? (
                 <span className="italic opacity-70">
@@ -239,7 +276,7 @@ export function SectionCard({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
             onClick={() => onMove(section.id, "up")}
-            disabled={isFixedProductsCard || index === 0}
+            disabled={index === 0}
           >
             <ChevronUp className="w-4 h-4" />
           </Button>
@@ -248,7 +285,7 @@ export function SectionCard({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
             onClick={() => onMove(section.id, "down")}
-            disabled={isFixedProductsCard || index === totalSections - 1}
+            disabled={index === totalSections - 1}
           >
             <ChevronDown className="w-4 h-4" />
           </Button>
@@ -257,12 +294,7 @@ export function SectionCard({
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={() => onRemove(section.id)}
-            disabled={isFixedProductsCard}
-            title={
-              isFixedProductsCard
-                ? "Este card é fixo e não pode ser removido"
-                : "Remover seção"
-            }
+            title="Remover seção"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -274,6 +306,9 @@ export function SectionCard({
         <CardContent className="pt-4 border-t">
           <SectionContentEditor
             section={section}
+            linkedScopeTitleSection={linkedScopeTitleSection}
+            linkedScopeTextSection={linkedScopeTextSection}
+            linkedPairedTextSection={linkedPairedTextSection}
             primaryColor={primaryColor}
             updateSection={updateSection}
             updateStyle={updateStyle}
