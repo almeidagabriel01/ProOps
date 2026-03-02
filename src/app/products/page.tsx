@@ -279,7 +279,7 @@ export default function ProductsPage() {
     },
     {
       key: "price",
-      header: "PreÃ§o",
+      header: "Preço",
       className: "col-span-2",
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
@@ -301,7 +301,7 @@ export default function ProductsPage() {
     },
     {
       key: "actions",
-      header: "AÃ§Ãµes",
+      header: "Ações",
       className: "col-span-1 text-right",
       headerClassName: "col-span-1 flex justify-end",
       sortable: false,

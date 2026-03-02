@@ -19,8 +19,8 @@ function mapWalletErrorStatus(message: string): number {
   ) {
     return 403;
   }
-  if (message.includes("nÃ£o encontrada")) return 404;
-  if (message.includes("Dados invÃ¡lidos")) return 400;
+  if (message.includes("não encontrada")) return 404;
+  if (message.includes("Dados inválidos")) return 400;
   return 500;
 }
 
@@ -36,14 +36,12 @@ export const createWallet = async (req: Request, res: Response) => {
         .json({ message: "Nome, tipo e cor são obrigatórios." });
     }
 
-    const { tenantId: userTenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canCreate",
-      req.user
-    );
-    
+    const { tenantId: userTenantId, isSuperAdmin } =
+      await checkFinancialPermission(userId, "canCreate", req.user);
+
     // Super admin can specify target tenant
-    const tenantId = data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
+    const tenantId =
+      data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
     const walletsUsage = await getTenantWalletsUsage(tenantId);
     const walletLimitDecision = await enforceTenantPlanLimit({
       tenantId,
@@ -75,7 +73,7 @@ export const createWallet = async (req: Request, res: Response) => {
 
       const batch = db.batch();
       defaults.docs.forEach((d) =>
-        batch.update(d.ref, { isDefault: false, updatedAt: now })
+        batch.update(d.ref, { isDefault: false, updatedAt: now }),
       );
       if (!defaults.empty) await batch.commit();
     }
@@ -130,7 +128,7 @@ export const updateWallet = async (req: Request, res: Response) => {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
-      req.user
+      req.user,
     );
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
@@ -194,7 +192,7 @@ export const deleteWallet = async (req: Request, res: Response) => {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canDelete",
-      req.user
+      req.user,
     );
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
@@ -243,7 +241,7 @@ export const transferValues = async (req: Request, res: Response) => {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
-      req.user
+      req.user,
     );
 
     await db.runTransaction(async (t) => {
@@ -324,7 +322,7 @@ export const adjustBalance = async (req: Request, res: Response) => {
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
-      req.user
+      req.user,
     );
 
     const result = await db.runTransaction(async (t) => {

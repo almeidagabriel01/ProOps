@@ -25,16 +25,17 @@ export function ProposalFinancialSummary({
   onExtraExpenseChange,
   primaryColor,
 }: ProposalFinancialSummaryProps) {
+  const productItems = selectedProducts.filter(
+    (item) => (item.itemType || "product") !== "service",
+  );
+
   // Calculate total selling value (with markup)
   const totalValue = selectedProducts.reduce((sum, p) => {
     return sum + p.total;
   }, 0);
 
   // Calculate total profit (markup only)
-  const totalProfit = selectedProducts.reduce((sum, p) => {
-    if ((p.itemType || "product") === "service") {
-      return sum + p.total;
-    }
+  const totalProfit = productItems.reduce((sum, p) => {
     const basePrice = p.unitPrice * p.quantity;
     const profit = basePrice * ((p.markup || 0) / 100);
     return sum + profit;
@@ -140,12 +141,12 @@ export function ProposalFinancialSummary({
             <p>
               Margem de lucro média:{" "}
               <strong>
-                {selectedProducts.length > 0
+                {productItems.length > 0
                   ? (
-                      selectedProducts.reduce(
+                      productItems.reduce(
                         (sum, p) => sum + (p.markup || 0),
                         0,
-                      ) / selectedProducts.length
+                      ) / productItems.length
                     ).toFixed(2)
                   : 0}
                 %

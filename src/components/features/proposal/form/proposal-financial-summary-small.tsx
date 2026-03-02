@@ -16,6 +16,9 @@ export function ProposalFinancialSummarySmall({
 
   // Calculate total profit (markup only)
   const totalProfit = selectedProducts.reduce((sum, p) => {
+    if ((p.itemType || "product") === "service") {
+      return sum;
+    }
     const basePrice = p.unitPrice * p.quantity;
     const profit = basePrice * ((p.markup || 0) / 100);
     return sum + profit;

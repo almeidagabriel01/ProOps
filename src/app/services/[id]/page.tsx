@@ -6,7 +6,7 @@ import { Service, ServiceService } from "@/services/service-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Loader2, Wrench, AlertCircle } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
-import { ProductFormNew } from "@/app/products/_components/product-form-new";
+import { ServiceForm } from "../_components/service-form";
 
 export default function EditServicePage() {
   const params = useParams();
@@ -98,12 +98,7 @@ export default function EditServicePage() {
         icon={Wrench}
         onBack={() => router.push("/services")}
       />
-      <ProductFormNew
-        initialData={service}
-        productId={id}
-        isReadOnly={!canEdit}
-        entityType="service"
-      />
+      <ServiceForm initialData={service} serviceId={id} isReadOnly={!canEdit} />
     </FormContainer>
   );
 }

@@ -33,7 +33,10 @@ export function createToggleProduct({
       }));
     } else {
       const price = parseFloat(product.price) || 0;
-      const markup = parseFloat(product.markup || "0");
+      const markup =
+        itemType === "service"
+          ? 0
+          : parseFloat("manufacturer" in product ? product.markup || "0" : "0");
       const manufacturer =
         "manufacturer" in product ? product.manufacturer : undefined;
       const newProduct: ProposalProduct = {

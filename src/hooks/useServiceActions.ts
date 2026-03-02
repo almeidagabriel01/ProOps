@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { callApi } from "@/lib/api-client";
 
 export interface CreateServiceData {
   name: string;
   description?: string;
   price: string;
-  markup?: string;
-  manufacturer?: string;
   category?: string;
-  stock?: number;
   status?: string;
   images?: string[];
   targetTenantId?: string;
@@ -23,7 +20,6 @@ interface CreateServiceResult {
 
 interface UpdateServiceOptions {
   serviceName?: string;
-  context?: "general" | "stock";
 }
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -51,10 +47,7 @@ export function useServiceActions() {
         name: data.name,
         description: data.description || "",
         price: data.price,
-        markup: data.markup || "",
-        manufacturer: data.manufacturer || "",
         category: data.category || "",
-        stock: data.stock ?? 0,
         status: data.status || "active",
         images: data.images || [],
         targetTenantId: data.targetTenantId,
@@ -102,12 +95,9 @@ export function useServiceActions() {
       const serviceLabel = formatServiceLabel(
         options?.serviceName || data.name,
       );
-      const successMessage =
-        options?.context === "stock" && typeof data.stock === "number"
-          ? `Estoque do serviço ${serviceLabel} atualizado para ${data.stock}.`
-          : `Serviço ${serviceLabel} atualizado com sucesso.`;
-
-      toast.success(successMessage, { title: "Sucesso ao editar" });
+      toast.success(`Serviço ${serviceLabel} atualizado com sucesso.`, {
+        title: "Sucesso ao editar",
+      });
       return true;
     } catch (error: unknown) {
       console.error("Error updating service:", error);

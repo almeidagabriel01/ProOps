@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { Loader2, Wrench } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
-import { ProductFormNew } from "@/app/products/_components/product-form-new";
+import { ServiceForm } from "../_components/service-form";
 
 export default function NewServicePage() {
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function NewServicePage() {
         icon={Wrench}
         onBack={() => router.push("/services")}
       />
-      <ProductFormNew entityType="service" />
+      <ServiceForm />
     </FormContainer>
   );
 }

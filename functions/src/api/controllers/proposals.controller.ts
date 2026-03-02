@@ -70,9 +70,12 @@ function normalizeMonthlyUsageCount(value: unknown): number {
   return Math.max(0, Math.floor(parsed));
 }
 
-function sanitizeAttachmentName(value: unknown, fallbackType: "image" | "pdf"): string {
+function sanitizeAttachmentName(
+  value: unknown,
+  fallbackType: "image" | "pdf",
+): string {
   const normalized = String(value || "")
-    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
     .replace(/[<>:"/\\|?*]/g, "")
     .replace(/\s+/g, " ")
     .trim()
@@ -173,7 +176,11 @@ function sanitizeAttachmentsInput(rawValue: unknown): SanitizedAttachment[] {
     if (!isSafeAttachmentUrl(url, type)) {
       throw new Error("INVALID_ATTACHMENTS");
     }
-    if (!Number.isFinite(size) || size < 0 || size > MAX_ATTACHMENT_SIZE_BYTES) {
+    if (
+      !Number.isFinite(size) ||
+      size < 0 ||
+      size > MAX_ATTACHMENT_SIZE_BYTES
+    ) {
       throw new Error("INVALID_ATTACHMENTS");
     }
     if (!uploadedAtDate || Number.isNaN(uploadedAtDate.getTime())) {
@@ -232,13 +239,21 @@ function parseStoragePathFromUrl(rawUrl: string): string {
   return "";
 }
 
-function isManagedProposalPath(path: string, tenantId: string, proposalId: string): boolean {
+function isManagedProposalPath(
+  path: string,
+  tenantId: string,
+  proposalId: string,
+): boolean {
   const normalizedPath = String(path || "").trim();
   if (!normalizedPath) return false;
   if (normalizedPath.includes("..")) return false;
   return (
-    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/attachments/`) ||
-    normalizedPath.startsWith(`tenants/${tenantId}/proposals/${proposalId}/pdf/`)
+    normalizedPath.startsWith(
+      `tenants/${tenantId}/proposals/${proposalId}/attachments/`,
+    ) ||
+    normalizedPath.startsWith(
+      `tenants/${tenantId}/proposals/${proposalId}/pdf/`,
+    )
   );
 }
 
@@ -258,7 +273,10 @@ function collectAttachmentStoragePaths(
     if (!attachment) return;
 
     const explicitPath = sanitizeAttachmentStoragePath(attachment.storagePath);
-    if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+    if (
+      explicitPath &&
+      isManagedProposalPath(explicitPath, tenantId, proposalId)
+    ) {
       result.add(explicitPath);
       return;
     }
@@ -286,17 +304,28 @@ function collectProposalPdfStoragePaths(
       : {};
 
   const explicitPath = String(pdfData.storagePath || "").trim();
-  if (explicitPath && isManagedProposalPath(explicitPath, tenantId, proposalId)) {
+  if (
+    explicitPath &&
+    isManagedProposalPath(explicitPath, tenantId, proposalId)
+  ) {
     result.add(explicitPath);
   }
 
   const legacyPdfPath = String(proposalData.pdfPath || "").trim();
-  if (legacyPdfPath && isManagedProposalPath(legacyPdfPath, tenantId, proposalId)) {
+  if (
+    legacyPdfPath &&
+    isManagedProposalPath(legacyPdfPath, tenantId, proposalId)
+  ) {
     result.add(legacyPdfPath);
   }
 
-  const legacyPdfUrlPath = parseStoragePathFromUrl(String(proposalData.pdfUrl || ""));
-  if (legacyPdfUrlPath && isManagedProposalPath(legacyPdfUrlPath, tenantId, proposalId)) {
+  const legacyPdfUrlPath = parseStoragePathFromUrl(
+    String(proposalData.pdfUrl || ""),
+  );
+  if (
+    legacyPdfUrlPath &&
+    isManagedProposalPath(legacyPdfUrlPath, tenantId, proposalId)
+  ) {
     result.add(legacyPdfUrlPath);
   }
 
@@ -419,7 +448,8 @@ function buildApprovedProposalTransactionDrafts(params: {
     ? String(proposalData.clientName)
     : null;
   const downPaymentEnabled =
-    !!proposalData.downPaymentEnabled && Number(proposalData.downPaymentValue || 0) > 0;
+    !!proposalData.downPaymentEnabled &&
+    Number(proposalData.downPaymentValue || 0) > 0;
   const installmentsEnabled =
     !!proposalData.installmentsEnabled &&
     Number(proposalData.installmentsCount || 0) > 0 &&
@@ -516,8 +546,14 @@ function buildApprovedProposalTransactionDrafts(params: {
     }
   }
 
-  if (!downPaymentEnabled && !installmentsEnabled && Number(proposalData.totalValue || 0) > 0) {
-    let dueDate = proposalData.validUntil ? String(proposalData.validUntil) : "";
+  if (
+    !downPaymentEnabled &&
+    !installmentsEnabled &&
+    Number(proposalData.totalValue || 0) > 0
+  ) {
+    let dueDate = proposalData.validUntil
+      ? String(proposalData.validUntil)
+      : "";
     if (!dueDate) {
       const fallbackDate = new Date(today);
       fallbackDate.setDate(fallbackDate.getDate() + 30);
@@ -580,7 +616,8 @@ async function syncApprovedProposalTransactions(params: {
     initialStatus,
     metadataOnly,
   } = params;
-  const defaultWalletName = await resolveDefaultWalletNameForTenant(proposalTenantId);
+  const defaultWalletName =
+    await resolveDefaultWalletNameForTenant(proposalTenantId);
   const desiredDrafts = buildApprovedProposalTransactionDrafts({
     proposalId,
     proposalData,
@@ -629,7 +666,9 @@ async function syncApprovedProposalTransactions(params: {
   if ((complexDocs.length > 0 || duplicateKeys.size > 0) && metadataOnly) {
     const now = Timestamp.now();
     const title = normalizeProposalTransactionTitle(proposalData.title);
-    const clientId = proposalData.clientId ? String(proposalData.clientId) : null;
+    const clientId = proposalData.clientId
+      ? String(proposalData.clientId)
+      : null;
     const clientName = proposalData.clientName
       ? String(proposalData.clientName)
       : null;
@@ -1128,7 +1167,9 @@ export const updateProposal = async (req: Request, res: Response) => {
     const nextAttachmentPathSet = new Set(nextAttachmentPaths);
     const removedAttachmentPaths =
       typeof sanitizedAttachments !== "undefined"
-        ? previousAttachmentPaths.filter((path) => !nextAttachmentPathSet.has(path))
+        ? previousAttachmentPaths.filter(
+            (path) => !nextAttachmentPathSet.has(path),
+          )
         : [];
 
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
@@ -1236,7 +1277,9 @@ export const updateProposal = async (req: Request, res: Response) => {
     ]);
     const shouldSyncApprovedTransactions =
       (isAlreadyApproved || isBeingApproved) &&
-      Object.keys(updateData || {}).some((field) => approvedSyncFields.has(field));
+      Object.keys(updateData || {}).some((field) =>
+        approvedSyncFields.has(field),
+      );
     const structuralApprovedSyncFields = new Set([
       "totalValue",
       "validUntil",
@@ -1595,7 +1638,7 @@ export const updateProposal = async (req: Request, res: Response) => {
         } as Record<string, unknown>,
         userId,
         initialStatus: isBeingApproved
-          ? (updateData.initialPaymentStatus || "pending")
+          ? updateData.initialPaymentStatus || "pending"
           : undefined,
         metadataOnly: approvedSyncIsMetadataOnly,
       });
@@ -1962,9 +2005,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
       const pSnap = await t.get(proposalRef);
       if (!pSnap.exists) throw new Error("Proposta não encontrada.");
 
-      const companyRef = db
-        .collection("companies")
-        .doc(proposalTenantId);
+      const companyRef = db.collection("companies").doc(proposalTenantId);
       const companySnap = await t.get(companyRef);
 
       t.delete(proposalRef);
