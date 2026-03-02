@@ -1,7 +1,335 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { PdfSection } from "../pdf-section-editor";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module-level pure helpers — no React, no side-effects, easy to test
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normalizeStr(value?: string): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Is this section the "Escopo do Projeto" title? */
+function isScopeTitle(section: PdfSection): boolean {
+  return (
+    section.type === "title" &&
+    normalizeStr(section.content).includes("escopo")
+  );
+}
+
+/** Is this section the "Esta proposta contempla..." intro text? */
+function isScopeIntroText(section: PdfSection): boolean {
+  if (section.type !== "text") return false;
+  const n = normalizeStr(section.content);
+  return (
+    n.includes("esta proposta contempla") ||
+    n.includes("esta proposta comtempla")
+  );
+}
+
+function isPaymentTitleSection(section: PdfSection): boolean {
+  if (section.type !== "title") return false;
+  const n = normalizeStr(section.content);
+  return (
+    n.includes("condicoes de pagamento") ||
+    n.includes("condicao de pagamento") ||
+    n.includes("formas de pagamento")
+  );
+}
+
+function isPaymentTextSection(section: PdfSection): boolean {
+  if (section.type !== "text") return false;
+  const n = normalizeStr(section.content);
+  return (
+    n.includes("formas de pagamento") ||
+    n.includes("pagamento a vista") ||
+    n.includes("entrada:") ||
+    n.includes("parcelamento:") ||
+    n.includes("saldo:")
+  );
+}
+
+function isWarrantyOrPaymentGroupedTitle(section: PdfSection): boolean {
+  if (section.type !== "title") return false;
+  const n = normalizeStr(section.content);
+  return (
+    n.includes("garantia") ||
+    n.includes("condicoes de pagamento") ||
+    n.includes("condicao de pagamento")
+  );
+}
+
+/**
+ * Returns the CONTIGUOUS index range [start, end] that the product-table
+ * "block" occupies in the real sections array.
+ *
+ * The algorithm expands LEFT and RIGHT from productIndex, including only
+ * immediately adjacent sections that share the same groupId. This guarantees
+ * the range is always a contiguous slice — so sections with the same groupId
+ * that are elsewhere in the array (due to manual reordering or stale data)
+ * are never included and never cause the block to span the whole list.
+ *
+ * If the product-table has no groupId the range is just itself.
+ */
+function computeProductBlockRange(
+  sections: PdfSection[],
+  productIndex: number,
+): { start: number; end: number } {
+  const productSection = sections[productIndex];
+  if (!productSection?.groupId) {
+    return { start: productIndex, end: productIndex };
+  }
+
+  const groupId = productSection.groupId;
+
+  // Expand LEFT — stop as soon as a section does NOT share the groupId
+  let start = productIndex;
+  while (start > 0 && sections[start - 1]?.groupId === groupId) {
+    start -= 1;
+  }
+
+  // Expand RIGHT — stop as soon as a section does NOT share the groupId
+  let end = productIndex;
+  while (end < sections.length - 1 && sections[end + 1]?.groupId === groupId) {
+    end += 1;
+  }
+
+  return { start, end };
+}
+
+function createDefaultProductTableSection(): PdfSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "product-table",
+    content: "Sistemas / Ambientes / Produtos",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      fontWeight: "normal",
+      textAlign: "left",
+      color: "#374151",
+      marginTop: "16px",
+      marginBottom: "8px",
+    },
+  };
+}
+
+function createDefaultPaymentTermsSection(): PdfSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "payment-terms",
+    content: "Condicoes de Pagamento",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      fontWeight: "normal",
+      textAlign: "left",
+      color: "#374151",
+      marginTop: "16px",
+      marginBottom: "8px",
+    },
+  };
+}
+
+/**
+ * Full normalization pass — called only from the useEffect guard and after
+ * structural changes (add/remove section).
+ *
+ * Responsibilities:
+ *  1. Deduplicate product-table and payment-terms (keep first occurrence)
+ *  2. Remove legacy payment text blocks when a payment-terms card is present
+ *  3. Ensure product-table has correct content + columnWidth
+ *  4. GUARANTEE the scope block is physically contiguous:
+ *       [scopeTitle?] + [scopeIntroText?] + [product-table]
+ *     Members are identified purely by content (position-independent), then
+ *     physically reordered so they always sit together in the array.
+ *     This is the authoritative fix for stale/corrupted proposals where
+ *     scope title/intro had the right groupId but were far from the product-table.
+ *  5. Assign a stable single groupId to the contiguous scope block
+ *  6. Strip that groupId from any section that does not belong to the block
+ *  7. Inject missing product-table / payment-terms if absent
+ */
+function normalizeSections(sections: PdfSection[]): PdfSection[] {
+  const hasPaymentTermsCard = sections.some((s) => s.type === "payment-terms");
+
+  // ── Identify scope block members by content (position-independent) ────────
+  const scopeTitleSection = sections.find(isScopeTitle) ?? null;
+  const scopeIntroSection = sections.find(isScopeIntroText) ?? null;
+  const scopeMemberIds = new Set<string>(
+    [scopeTitleSection?.id, scopeIntroSection?.id].filter(
+      Boolean,
+    ) as string[],
+  );
+
+  // ── Single pass: route every section into before/after the product-table ──
+  let firstProductTable: PdfSection | null = null;
+  let firstPaymentTerms: PdfSection | null = null;
+  const before: PdfSection[] = []; // non-scope sections that appeared before PT
+  const after: PdfSection[] = [];  // non-scope sections that appeared after PT
+
+  for (const section of sections) {
+    // product-table — marks the split point; deduplicate extras
+    if (section.type === "product-table") {
+      if (firstProductTable) continue;
+      firstProductTable = {
+        ...section,
+        content: "Sistemas / Ambientes / Produtos",
+        columnWidth: 100,
+      };
+      continue;
+    }
+
+    // Scope members: skip here — placed contiguously below
+    if (scopeMemberIds.has(section.id)) continue;
+
+    // payment-terms — deduplicate
+    if (section.type === "payment-terms") {
+      if (firstPaymentTerms) continue;
+      firstPaymentTerms = { ...section, columnWidth: 100 };
+      (!firstProductTable ? before : after).push(firstPaymentTerms);
+      continue;
+    }
+
+    // Legacy manual payment blocks — drop when a payment-terms card is present
+    if (hasPaymentTermsCard && isPaymentTitleSection(section)) continue;
+    if (hasPaymentTermsCard && isPaymentTextSection(section)) continue;
+
+    // Everything else: route by position relative to product-table
+    (!firstProductTable ? before : after).push(section);
+  }
+
+  // ── Build the contiguous scope block with a stable groupId ────────────────
+  const productTable = firstProductTable ?? createDefaultProductTableSection();
+  const scopeGroupId = productTable.groupId || crypto.randomUUID();
+
+  const scopeBlock: PdfSection[] = [];
+  if (scopeTitleSection) {
+    scopeBlock.push({ ...scopeTitleSection, groupId: scopeGroupId });
+  }
+  if (scopeIntroSection) {
+    scopeBlock.push({ ...scopeIntroSection, groupId: scopeGroupId });
+  }
+  scopeBlock.push({ ...productTable, groupId: scopeGroupId });
+
+  // ── Inject missing payment-terms at the end ───────────────────────────────
+  if (hasPaymentTermsCard && !firstPaymentTerms) {
+    after.push(createDefaultPaymentTermsSection());
+  }
+
+  // ── Re-assemble: [before] + [scope block] + [after] ──────────────────────
+  const result: PdfSection[] = [...before, ...scopeBlock, ...after];
+
+  // ── Strip stale scope groupId from non-scope sections ────────────────────
+  const scopeBlockIds = new Set(scopeBlock.map((s) => s.id));
+  return result.map((s) => {
+    if (scopeBlockIds.has(s.id)) return s;
+    if (s.groupId === scopeGroupId) return { ...s, groupId: undefined };
+    return s;
+  });
+}
+
+/**
+ * Returns true when the sections array needs a normalization pass.
+ * Cheap check — avoids triggering useEffect on every stable render.
+ */
+function needsNormalization(sections: PdfSection[]): boolean {
+  const productTables = sections.filter((s) => s.type === "product-table");
+  const paymentTerms = sections.filter((s) => s.type === "payment-terms");
+  const hasPaymentTermsCard = paymentTerms.length > 0;
+
+  if (productTables.length !== 1) return true;
+  if (hasPaymentTermsCard && paymentTerms.length !== 1) return true;
+
+  const [pt] = productTables;
+
+  if (pt.content !== "Sistemas / Ambientes / Produtos") return true;
+  if (pt.columnWidth !== 100) return true;
+  if (!pt.groupId) return true;
+
+  if (hasPaymentTermsCard && sections.some(isPaymentTitleSection)) return true;
+  if (hasPaymentTermsCard && sections.some(isPaymentTextSection)) return true;
+
+  const scopeGroupId = pt.groupId;
+  const scopeTitleSection = sections.find(isScopeTitle);
+  const scopeIntroSection = sections.find(isScopeIntroText);
+
+  if (scopeTitleSection && scopeTitleSection.groupId !== scopeGroupId)
+    return true;
+  if (scopeIntroSection && scopeIntroSection.groupId !== scopeGroupId)
+    return true;
+
+  const scopeIds = new Set<string>(
+    [pt.id, scopeTitleSection?.id, scopeIntroSection?.id].filter(
+      Boolean,
+    ) as string[],
+  );
+
+  if (sections.some((s) => s.groupId === scopeGroupId && !scopeIds.has(s.id)))
+    return true;
+
+  // ── Adjacency check ───────────────────────────────────────────────────────
+  // Scope block members must be physically contiguous and immediately before
+  // the product-table in this order: [scopeTitle?][scopeIntroText?][product-table].
+  // If they are anywhere else in the array (stale / corrupted data from old bugs)
+  // needsNormalization returns true so normalizeSections can reposition them.
+  const ptIdx = sections.indexOf(pt);
+  let expectedIdx = ptIdx;
+  if (scopeIntroSection) {
+    expectedIdx -= 1;
+    if (sections[expectedIdx] !== scopeIntroSection) return true;
+  }
+  if (scopeTitleSection) {
+    expectedIdx -= 1;
+    if (sections[expectedIdx] !== scopeTitleSection) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Repairs column-width layout only.
+ * Deliberately does NOT touch groupIds or re-run normalizeSections —
+ * keeping these concerns separate prevents re-normalization loops during moves.
+ */
+function repairColumnLayout(sections: PdfSection[]): PdfSection[] {
+  return sections.map((section, index) => {
+    if (section.type === "product-table") {
+      const needsFix =
+        section.content !== "Sistemas / Ambientes / Produtos" ||
+        section.columnWidth !== 100;
+      return needsFix
+        ? { ...section, content: "Sistemas / Ambientes / Produtos", columnWidth: 100 }
+        : section;
+    }
+
+    if (section.type === "payment-terms") {
+      return section.columnWidth !== 100
+        ? { ...section, columnWidth: 100 }
+        : section;
+    }
+
+    if (!section.columnWidth || section.columnWidth === 100) return section;
+
+    const prev = sections[index - 1];
+    const next = sections[index + 1];
+    const prevIsPartial = prev && (prev.columnWidth ?? 100) < 100;
+    const nextIsPartial = next && (next.columnWidth ?? 100) < 100;
+
+    if (!prevIsPartial && !nextIsPartial) {
+      return { ...section, columnWidth: 100 };
+    }
+    return section;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interfaces
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface UsePdfSectionEditorProps {
   sections: PdfSection[];
@@ -38,6 +366,10 @@ export interface UsePdfSectionEditorReturn {
   handleDragEnd: () => void;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Hook
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function usePdfSectionEditor({
   sections,
   onChange,
@@ -55,369 +387,62 @@ export function usePdfSectionEditor({
     null,
   );
 
-  const normalizeText = React.useCallback((value?: string): string => {
-    return (value || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }, []);
-
-  const isPaymentTitle = React.useCallback(
-    (section: PdfSection): boolean => {
-      if (section.type !== "title") return false;
-      const content = normalizeText(section.content);
-      return (
-        content.includes("condicoes de pagamento") ||
-        content.includes("condicao de pagamento") ||
-        content.includes("formas de pagamento")
-      );
-    },
-    [normalizeText],
-  );
-
-  const isPaymentText = React.useCallback(
-    (section: PdfSection): boolean => {
-      if (section.type !== "text") return false;
-      const content = normalizeText(section.content);
-      return (
-        content.includes("formas de pagamento") ||
-        content.includes("pagamento a vista") ||
-        content.includes("entrada:") ||
-        content.includes("parcelamento:") ||
-        content.includes("saldo:")
-      );
-    },
-    [normalizeText],
-  );
-
-  const isGroupedTitle = React.useCallback(
-    (section: PdfSection): boolean => {
-      if (section.type !== "title") return false;
-      const content = normalizeText(section.content);
-      return (
-        content.includes("garantia") ||
-        content.includes("condicoes de pagamento") ||
-        content.includes("condicao de pagamento")
-      );
-    },
-    [normalizeText],
-  );
-
-  const createFixedProductTableSection = React.useCallback(
-    (): PdfSection => ({
-      id: crypto.randomUUID(),
-      type: "product-table",
-      content: "Sistemas / Ambientes / Produtos",
-      columnWidth: 100,
-      styles: {
-        fontSize: "14px",
-        fontWeight: "normal",
-        textAlign: "left",
-        color: "#374151",
-        marginTop: "16px",
-        marginBottom: "8px",
-      },
-    }),
-    [],
-  );
-
-  const createPaymentTermsSection = React.useCallback(
-    (): PdfSection => ({
-      id: crypto.randomUUID(),
-      type: "payment-terms",
-      content: "Condições de Pagamento",
-      columnWidth: 100,
-      styles: {
-        fontSize: "14px",
-        fontWeight: "normal",
-        textAlign: "left",
-        color: "#374151",
-        marginTop: "16px",
-        marginBottom: "8px",
-      },
-    }),
-    [],
-  );
-
-  const ensureScopeGroupId = React.useCallback(
-    (inputSections: PdfSection[]) => {
-      const sectionsWithGroups = inputSections.map((section) => ({
-        ...section,
-      }));
-
-      sectionsWithGroups.forEach((section, index) => {
-        if (section.type !== "product-table") return;
-
-        const previous = sectionsWithGroups[index - 1];
-        const previousTwo = sectionsWithGroups[index - 2];
-
-        if (section.groupId) {
-          if (previous?.type === "text") {
-            previous.groupId = previous.groupId || section.groupId;
-          }
-          if (previousTwo?.type === "title") {
-            previousTwo.groupId = previousTwo.groupId || section.groupId;
-          }
-          return;
-        }
-
-        if (previous?.type === "text" && previousTwo?.type === "title") {
-          const groupId = crypto.randomUUID();
-          section.groupId = groupId;
-          previous.groupId = previous.groupId || groupId;
-          previousTwo.groupId = previousTwo.groupId || groupId;
-        } else {
-          section.groupId = crypto.randomUUID();
-        }
-      });
-
-      return sectionsWithGroups;
-    },
-    [],
-  );
-
-  const getLinkedProductBlockRange = React.useCallback(
-    (currentSections: PdfSection[], productIndex: number) => {
-      const productSection = currentSections[productIndex];
-
-      if (productSection?.groupId) {
-        const groupedIndexes = currentSections
-          .map((section, index) => ({ section, index }))
-          .filter(
-            ({ section }) =>
-              section.groupId === productSection.groupId &&
-              (section.type === "title" ||
-                section.type === "text" ||
-                section.type === "product-table"),
-          )
-          .map(({ index }) => index);
-
-        if (groupedIndexes.length > 0) {
-          return {
-            start: Math.min(...groupedIndexes),
-            end: Math.max(...groupedIndexes),
-          };
-        }
-      }
-
-      if (
-        productIndex >= 2 &&
-        currentSections[productIndex]?.type === "product-table" &&
-        currentSections[productIndex - 1]?.type === "text" &&
-        currentSections[productIndex - 2]?.type === "title"
-      ) {
-        return { start: productIndex - 2, end: productIndex };
-      }
-
-      return { start: productIndex, end: productIndex };
-    },
-    [],
-  );
-
-  const getLinkedTitleTextRange = React.useCallback(
-    (currentSections: PdfSection[], titleIndex: number) => {
-      if (
-        currentSections[titleIndex]?.type === "title" &&
-        isGroupedTitle(currentSections[titleIndex]) &&
-        currentSections[titleIndex + 1]?.type === "text"
-      ) {
-        return { start: titleIndex, end: titleIndex + 1 };
-      }
-
-      return { start: titleIndex, end: titleIndex };
-    },
-    [isGroupedTitle],
-  );
-
-  const getRangeForSectionAt = React.useCallback(
-    (currentSections: PdfSection[], index: number) => {
-      const section = currentSections[index];
-      if (!section) return { start: index, end: index };
-
-      if (section.type === "product-table") {
-        return getLinkedProductBlockRange(currentSections, index);
-      }
-
-      if (section.type === "title") {
-        return getLinkedTitleTextRange(currentSections, index);
-      }
-
-      return { start: index, end: index };
-    },
-    [getLinkedProductBlockRange, getLinkedTitleTextRange],
-  );
-
-  const normalizeSections = React.useCallback(
-    (currentSections: PdfSection[]): PdfSection[] => {
-      const sectionsWithGroups = ensureScopeGroupId(currentSections);
-      const hasPaymentTermsCard = sectionsWithGroups.some(
-        (section) => section.type === "payment-terms",
-      );
-
-      let firstProductTable: PdfSection | null = null;
-      let firstPaymentTerms: PdfSection | null = null;
-      const normalized: PdfSection[] = [];
-
-      sectionsWithGroups.forEach((section) => {
-        if (section.type === "product-table") {
-          if (firstProductTable) return;
-          firstProductTable = {
-            ...section,
-            content: "Sistemas / Ambientes / Produtos",
-            columnWidth: 100,
-          };
-          normalized.push(firstProductTable);
-          return;
-        }
-
-        if (section.type === "payment-terms") {
-          if (firstPaymentTerms) return;
-          firstPaymentTerms = {
-            ...section,
-            columnWidth: 100,
-          };
-          normalized.push(firstPaymentTerms);
-          return;
-        }
-
-        if (
-          hasPaymentTermsCard &&
-          (isPaymentTitle(section) || isPaymentText(section))
-        ) {
-          return;
-        }
-
-        normalized.push(section);
-      });
-
-      if (!firstProductTable) {
-        normalized.push(createFixedProductTableSection());
-      }
-
-      const hadPaymentTerms = hasPaymentTermsCard;
-      if (hadPaymentTerms && !firstPaymentTerms) {
-        normalized.push(createPaymentTermsSection());
-      }
-
-      return normalized;
-    },
-    [
-      createFixedProductTableSection,
-      createPaymentTermsSection,
-      ensureScopeGroupId,
-      isPaymentText,
-      isPaymentTitle,
-    ],
-  );
-
-  const needsNormalization = React.useCallback(
-    (currentSections: PdfSection[]): boolean => {
-      const productTableSections = currentSections.filter(
-        (section) => section.type === "product-table",
-      );
-      const paymentTermsSections = currentSections.filter(
-        (section) => section.type === "payment-terms",
-      );
-      const shouldExpectPaymentTerms = paymentTermsSections.length > 0;
-
-      if (productTableSections.length !== 1) return true;
-      if (shouldExpectPaymentTerms && paymentTermsSections.length !== 1) {
-        return true;
-      }
-
-      const [productTable] = productTableSections;
-      const [paymentTerms] = paymentTermsSections;
-
-      const productTableIsValid =
-        productTable.content === "Sistemas / Ambientes / Produtos" &&
-        productTable.columnWidth === 100;
-      const paymentTermsIsValid = shouldExpectPaymentTerms
-        ? Boolean(paymentTerms && paymentTerms.columnWidth === 100)
-        : true;
-      const missingScopeGroupId = !productTable.groupId;
-
-      const hasLegacyPaymentBlocks = currentSections.some(
-        (section) => isPaymentTitle(section) || isPaymentText(section),
-      );
-      const shouldRemoveLegacyPaymentBlocks =
-        shouldExpectPaymentTerms && hasLegacyPaymentBlocks;
-
-      return (
-        !productTableIsValid ||
-        !paymentTermsIsValid ||
-        missingScopeGroupId ||
-        shouldRemoveLegacyPaymentBlocks
-      );
-    },
-    [isPaymentText, isPaymentTitle],
-  );
-
+  // ── Auto-normalize on load / when external data changes ──────────────────
   React.useEffect(() => {
     if (needsNormalization(sections)) {
       onChange(normalizeSections(sections));
     }
-  }, [needsNormalization, normalizeSections, onChange, sections]);
+  }, [sections, onChange]);
+
+  // ── Range helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Returns the index range that a section "logically owns" for the purposes
+   * of move/remove operations:
+   *  - product-table  → its full scope block (groupId-based, via computeProductBlockRange)
+   *  - warranty/payment title → title + its paired text
+   *  - everything else → just itself
+   */
+  const getRangeForSection = React.useCallback(
+    (
+      currentSections: PdfSection[],
+      index: number,
+    ): { start: number; end: number } => {
+      const section = currentSections[index];
+      if (!section) return { start: index, end: index };
+
+      if (section.type === "product-table") {
+        return computeProductBlockRange(currentSections, index);
+      }
+
+      if (isWarrantyOrPaymentGroupedTitle(section)) {
+        const next = currentSections[index + 1];
+        if (next?.type === "text") return { start: index, end: index + 1 };
+      }
+
+      return { start: index, end: index };
+    },
+    [],
+  );
+
+  // ── Structural mutations ──────────────────────────────────────────────────
 
   const toggleSection = (id: string) => {
     setExpandedSections((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const healLayout = React.useCallback(
-    (currentSections: PdfSection[]) => {
-      const healed = currentSections.map((section, index) => {
-        if (section.type === "product-table") {
-          return {
-            ...section,
-            content: "Sistemas / Ambientes / Produtos",
-            columnWidth: 100,
-          };
-        }
-
-        if (section.type === "payment-terms") {
-          return {
-            ...section,
-            columnWidth: 100,
-          };
-        }
-
-        if (!section.columnWidth || section.columnWidth === 100) return section;
-
-        const prev = currentSections[index - 1];
-        const next = currentSections[index + 1];
-
-        const prevIsPartial =
-          prev && prev.columnWidth && prev.columnWidth < 100;
-        const nextIsPartial =
-          next && next.columnWidth && next.columnWidth < 100;
-
-        if (!prevIsPartial && !nextIsPartial) {
-          return { ...section, columnWidth: 100 };
-        }
-
-        return section;
-      });
-
-      return normalizeSections(healed);
-    },
-    [normalizeSections],
-  );
-
   const addSection = (type: PdfSection["type"]) => {
     if (type === "product-table") {
-      alert("Este bloco é fixo e já existe na proposta.");
+      alert("Este bloco e fixo e ja existe na proposta.");
       return;
     }
-
     if (type === "payment-terms") {
-      alert("Este bloco é gerenciado automaticamente.");
+      alert("Este bloco e gerenciado automaticamente.");
       return;
     }
 
@@ -426,9 +451,9 @@ export function usePdfSectionEditor({
       type,
       content:
         type === "title"
-          ? "Novo Título"
+          ? "Novo Titulo"
           : type === "text"
-            ? "Novo parágrafo de texto..."
+            ? "Novo paragrafo de texto..."
             : "",
       styles: {
         fontSize: type === "title" ? "24px" : "14px",
@@ -440,76 +465,97 @@ export function usePdfSectionEditor({
       },
     };
 
-    onChange(healLayout([...sections, newSection]));
+    onChange(normalizeSections([...sections, newSection]));
     setExpandedSections((prev) => new Set(prev).add(newSection.id));
   };
 
   const removeSection = (id: string) => {
-    const sectionIndex = sections.findIndex((s) => s.id === id);
-    if (sectionIndex === -1) return;
+    const idx = sections.findIndex((s) => s.id === id);
+    if (idx === -1) return;
 
-    const { start, end } = getRangeForSectionAt(sections, sectionIndex);
-    const idsToRemove = new Set(
-      sections.slice(start, end + 1).map((item) => item.id),
-    );
-    const nextSections = sections.filter(
-      (section) => !idsToRemove.has(section.id),
-    );
+    const { start, end } = getRangeForSection(sections, idx);
+    const idsToRemove = new Set(sections.slice(start, end + 1).map((s) => s.id));
+    const next = sections.filter((s) => !idsToRemove.has(s.id));
 
-    onChange(healLayout(nextSections));
+    onChange(normalizeSections(next));
   };
 
   const moveSection = (id: string, direction: "up" | "down") => {
-    const currentIndex = sections.findIndex((s) => s.id === id);
-    if (currentIndex === -1) return;
+    const idx = sections.findIndex((s) => s.id === id);
+    if (idx === -1) return;
 
-    const movingRange = getRangeForSectionAt(sections, currentIndex);
+    const movingRange = getRangeForSection(sections, idx);
     const block = sections.slice(movingRange.start, movingRange.end + 1);
 
     if (direction === "up") {
       if (movingRange.start === 0) return;
 
-      const anchorIndex = movingRange.start - 1;
-      const targetRange = getRangeForSectionAt(sections, anchorIndex);
-      const beforeTarget = sections.slice(0, targetRange.start);
-      const targetBlock = sections.slice(
-        targetRange.start,
-        targetRange.end + 1,
-      );
-      const between = sections.slice(targetRange.end + 1, movingRange.start);
-      const afterMoving = sections.slice(movingRange.end + 1);
+      const anchorIdx = movingRange.start - 1;
+      const targetRange = getRangeForSection(sections, anchorIdx);
 
-      onChange(
-        healLayout([
-          ...beforeTarget,
-          ...block,
-          ...targetBlock,
-          ...between,
-          ...afterMoving,
-        ]),
-      );
+      const before = sections.slice(0, targetRange.start);
+      const targetBlock = sections.slice(targetRange.start, targetRange.end + 1);
+      const between = sections.slice(targetRange.end + 1, movingRange.start);
+      const after = sections.slice(movingRange.end + 1);
+
+      // repairColumnLayout only — groupIds remain stable across moves
+      onChange(repairColumnLayout([...before, ...block, ...targetBlock, ...between, ...after]));
       return;
     }
 
+    // direction === "down"
     if (movingRange.end === sections.length - 1) return;
 
-    const anchorIndex = movingRange.end + 1;
-    const targetRange = getRangeForSectionAt(sections, anchorIndex);
-    const beforeMoving = sections.slice(0, movingRange.start);
+    const anchorIdx = movingRange.end + 1;
+    const targetRange = getRangeForSection(sections, anchorIdx);
+
+    const before = sections.slice(0, movingRange.start);
     const between = sections.slice(movingRange.end + 1, targetRange.start);
     const targetBlock = sections.slice(targetRange.start, targetRange.end + 1);
-    const afterTarget = sections.slice(targetRange.end + 1);
+    const after = sections.slice(targetRange.end + 1);
 
+    onChange(repairColumnLayout([...before, ...between, ...targetBlock, ...block, ...after]));
+  };
+
+  // ── Field updates ─────────────────────────────────────────────────────────
+
+  const updateSection = (id: string, updates: Partial<PdfSection>) => {
+    onChange(sections.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  };
+
+  const updateStyle = (
+    id: string,
+    styleKey: keyof PdfSection["styles"],
+    value: string,
+  ) => {
     onChange(
-      healLayout([
-        ...beforeMoving,
-        ...between,
-        ...targetBlock,
-        ...block,
-        ...afterTarget,
-      ]),
+      sections.map((s) =>
+        s.id === id ? { ...s, styles: { ...s.styles, [styleKey]: value } } : s,
+      ),
     );
   };
+
+  const handleImageUpload = (
+    id: string,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("A imagem da secao deve ter no maximo 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updateSection(id, { imageUrl: event.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── Drag-and-drop ─────────────────────────────────────────────────────────
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedId(id);
@@ -527,15 +573,10 @@ export function usePdfSectionEditor({
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
-    if (offsetX < rect.width * 0.3) {
-      setDropPlacement("left");
-    } else if (offsetX > rect.width * 0.7) {
-      setDropPlacement("right");
-    } else if (offsetY < rect.height * 0.5) {
-      setDropPlacement("top");
-    } else {
-      setDropPlacement("bottom");
-    }
+    if (offsetX < rect.width * 0.3) setDropPlacement("left");
+    else if (offsetX > rect.width * 0.7) setDropPlacement("right");
+    else if (offsetY < rect.height * 0.5) setDropPlacement("top");
+    else setDropPlacement("bottom");
   };
 
   const handleDragLeave = () => {
@@ -549,24 +590,20 @@ export function usePdfSectionEditor({
 
     if (!draggedId || draggedId === targetId) return;
 
-    const draggedIndex = sections.findIndex((s) => s.id === draggedId);
-    const targetIndex = sections.findIndex((s) => s.id === targetId);
-    if (draggedIndex === -1 || targetIndex === -1) return;
+    const draggedIdx = sections.findIndex((s) => s.id === draggedId);
+    const targetIdx = sections.findIndex((s) => s.id === targetId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
 
-    const movingRange = getRangeForSectionAt(sections, draggedIndex);
+    const movingRange = getRangeForSection(sections, draggedIdx);
     const movingBlock = sections.slice(movingRange.start, movingRange.end + 1);
+
     const withoutMoving = [...sections];
     withoutMoving.splice(movingRange.start, movingBlock.length);
 
-    const adjustedTargetIndex = withoutMoving.findIndex(
-      (s) => s.id === targetId,
-    );
-    if (adjustedTargetIndex === -1) return;
+    const adjustedTargetIdx = withoutMoving.findIndex((s) => s.id === targetId);
+    if (adjustedTargetIdx === -1) return;
 
-    const targetRange = getRangeForSectionAt(
-      withoutMoving,
-      adjustedTargetIndex,
-    );
+    const targetRange = getRangeForSection(withoutMoving, adjustedTargetIdx);
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
@@ -577,9 +614,10 @@ export function usePdfSectionEditor({
       movingBlock[0].type !== "product-table" &&
       movingBlock[0].type !== "payment-terms";
     const isSideDrop =
-      canSideDrop && (offsetX < rect.width * 0.3 || offsetX > rect.width * 0.7);
+      canSideDrop &&
+      (offsetX < rect.width * 0.3 || offsetX > rect.width * 0.7);
 
-    const computedPlacement: "top" | "bottom" | "left" | "right" = isSideDrop
+    const placement: "top" | "bottom" | "left" | "right" = isSideDrop
       ? offsetX < rect.width * 0.5
         ? "left"
         : "right"
@@ -590,31 +628,26 @@ export function usePdfSectionEditor({
     if (isSideDrop) {
       const moving = movingBlock[0];
       moving.columnWidth = 50;
-
-      const targetSection = withoutMoving[adjustedTargetIndex];
+      const targetSection = withoutMoving[adjustedTargetIdx];
       if (!targetSection.columnWidth || targetSection.columnWidth === 100) {
-        withoutMoving[adjustedTargetIndex] = {
-          ...targetSection,
-          columnWidth: 50,
-        };
+        withoutMoving[adjustedTargetIdx] = { ...targetSection, columnWidth: 50 };
       } else {
         moving.columnWidth = targetSection.columnWidth;
       }
     } else {
-      movingBlock.forEach((section) => {
-        section.columnWidth = 100;
+      movingBlock.forEach((s) => {
+        s.columnWidth = 100;
       });
     }
 
-    const shouldInsertAfter =
-      computedPlacement === "bottom" || computedPlacement === "right";
-    const insertIndex = shouldInsertAfter
-      ? targetRange.end + 1
-      : targetRange.start;
+    const insertIndex =
+      placement === "bottom" || placement === "right"
+        ? targetRange.end + 1
+        : targetRange.start;
 
     withoutMoving.splice(insertIndex, 0, ...movingBlock);
 
-    onChange(healLayout(withoutMoving));
+    onChange(repairColumnLayout(withoutMoving));
     setDraggedId(null);
     setDragOverId(null);
     setDropPlacement(null);
@@ -624,21 +657,19 @@ export function usePdfSectionEditor({
     e.preventDefault();
     if (!draggedId) return;
 
-    const draggedIndex = sections.findIndex((s) => s.id === draggedId);
-    if (draggedIndex === -1) return;
+    const draggedIdx = sections.findIndex((s) => s.id === draggedId);
+    if (draggedIdx === -1) return;
 
-    const movingRange = getRangeForSectionAt(sections, draggedIndex);
+    const movingRange = getRangeForSection(sections, draggedIdx);
     const block = sections.slice(movingRange.start, movingRange.end + 1);
-    const nextSections = [...sections];
-    nextSections.splice(movingRange.start, block.length);
-
-    block.forEach((section) => {
-      section.columnWidth = 100;
+    const rest = [...sections];
+    rest.splice(movingRange.start, block.length);
+    block.forEach((s) => {
+      s.columnWidth = 100;
     });
+    rest.push(...block);
 
-    nextSections.push(...block);
-    onChange(healLayout(nextSections));
-
+    onChange(repairColumnLayout(rest));
     setDraggedId(null);
     setDragOverId(null);
     setDropPlacement(null);
@@ -650,47 +681,7 @@ export function usePdfSectionEditor({
     setDropPlacement(null);
   };
 
-  const updateSection = (id: string, updates: Partial<PdfSection>) => {
-    onChange(
-      sections.map((section) =>
-        section.id === id ? { ...section, ...updates } : section,
-      ),
-    );
-  };
-
-  const updateStyle = (
-    id: string,
-    styleKey: keyof PdfSection["styles"],
-    value: string,
-  ) => {
-    onChange(
-      sections.map((section) =>
-        section.id === id
-          ? { ...section, styles: { ...section.styles, [styleKey]: value } }
-          : section,
-      ),
-    );
-  };
-
-  const handleImageUpload = (
-    id: string,
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      alert("A imagem da seção deve ter no máximo 2MB.");
-      e.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      updateSection(id, { imageUrl: event.target?.result as string });
-    };
-    reader.readAsDataURL(file);
-  };
+  // ── Return ────────────────────────────────────────────────────────────────
 
   return {
     expandedSections,

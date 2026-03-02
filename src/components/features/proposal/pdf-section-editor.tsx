@@ -166,6 +166,24 @@ export function normalizeCoverElements(
   return normalizedElements;
 }
 
+// Module-level helpers (pure functions, no React state)
+const normalizeTextContent = (value?: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const isScopeIntroText = (content?: string) => {
+  const norm = normalizeTextContent(content);
+  return (
+    norm.includes("esta proposta contempla") ||
+    norm.includes("esta proposta comtempla")
+  );
+};
+
+const isScopeTitleText = (content?: string) =>
+  normalizeTextContent(content).includes("escopo");
+
 interface PdfSectionEditorProps {
   sections: PdfSection[];
   onChange: (sections: PdfSection[]) => void;
@@ -220,15 +238,20 @@ export function PdfSectionEditor({
           )
         : undefined;
 
+      // Only hide a title section if it genuinely looks like a scope title
       const isLinkedScopeTitle =
         section.type === "title" &&
         Boolean(groupedProduct) &&
-        section.groupId === groupedProduct?.groupId;
+        section.groupId === groupedProduct?.groupId &&
+        isScopeTitleText(section.content);
 
+      // Only hide a text section if it genuinely looks like a scope intro text
+      // (not footer/thanks text that may have the wrong groupId)
       const isLinkedScopeText =
         section.type === "text" &&
         Boolean(groupedProduct) &&
-        section.groupId === groupedProduct?.groupId;
+        section.groupId === groupedProduct?.groupId &&
+        isScopeIntroText(section.content);
 
       const normalizedTitle =
         section.type === "title"
@@ -273,7 +296,9 @@ export function PdfSectionEditor({
           ? section.groupId
             ? sections.find(
                 (item) =>
-                  item.groupId === section.groupId && item.type === "title",
+                  item.groupId === section.groupId &&
+                  item.type === "title" &&
+                  isScopeTitleText(item.content),
               )
             : prev?.type === "text" && prevTwo?.type === "title"
               ? prevTwo
@@ -285,9 +310,13 @@ export function PdfSectionEditor({
           ? section.groupId
             ? sections.find(
                 (item) =>
-                  item.groupId === section.groupId && item.type === "text",
+                  item.groupId === section.groupId &&
+                  item.type === "text" &&
+                  isScopeIntroText(item.content),
               )
-            : prev?.type === "text" && prevTwo?.type === "title"
+            : prev?.type === "text" &&
+                prevTwo?.type === "title" &&
+                isScopeIntroText(prev.content)
               ? prev
               : undefined
           : undefined;

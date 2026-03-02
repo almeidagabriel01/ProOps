@@ -610,6 +610,13 @@ export function buildContentItems(
         } else {
           const manualPaymentText =
             (section.content || "").trim() || buildSimplePaymentTermsText();
+          const paymentTitleStyles: PdfSection["styles"] = {
+            fontSize: "20px",
+            fontWeight: "bold",
+            color: primaryColor,
+            marginTop: "24px",
+            marginBottom: "8px",
+          };
           items.push({
             type: "section",
             id: generateId("section-payment-title"),
@@ -617,25 +624,13 @@ export function buildContentItems(
               ...section,
               type: "title",
               content: "Condições de Pagamento",
-              styles: {
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: primaryColor,
-                marginTop: "24px",
-                marginBottom: "8px",
-              } as any,
+              styles: paymentTitleStyles,
             },
             height: calculateSectionHeight({
               ...section,
               type: "title",
               content: "Condições de Pagamento",
-              styles: {
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: primaryColor,
-                marginTop: "24px",
-                marginBottom: "8px",
-              } as any,
+              styles: paymentTitleStyles,
             }),
           });
           items.push({
@@ -716,6 +711,13 @@ export function buildContentItems(
         } else {
           const manualPaymentText =
             (section.content || "").trim() || buildSimplePaymentTermsText();
+          const paymentTitleStyles2: PdfSection["styles"] = {
+            fontSize: "20px",
+            fontWeight: "bold",
+            color: primaryColor,
+            marginTop: "24px",
+            marginBottom: "8px",
+          };
           items.push({
             type: "section",
             id: generateId("section-payment-title"),
@@ -723,25 +725,13 @@ export function buildContentItems(
               ...section,
               type: "title",
               content: "Condições de Pagamento",
-              styles: {
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: primaryColor,
-                marginTop: "24px",
-                marginBottom: "8px",
-              } as any,
+              styles: paymentTitleStyles2,
             },
             height: calculateSectionHeight({
               ...section,
               type: "title",
               content: "Condições de Pagamento",
-              styles: {
-                fontSize: "20px",
-                fontWeight: "bold",
-                color: primaryColor,
-                marginTop: "24px",
-                marginBottom: "8px",
-              } as any,
+              styles: paymentTitleStyles2,
             }),
           });
           items.push({
