@@ -2,6 +2,7 @@ import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 import { getContrastTextColor } from "@/utils/color-utils";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
+import { Package, Wrench } from "lucide-react";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -29,6 +30,19 @@ interface PdfExtraProductsBlockProps {
   products: PdfProduct[];
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
+}
+
+function ItemImagePlaceholder({
+  itemType,
+}: {
+  itemType?: "product" | "service";
+}) {
+  const Icon = itemType === "service" ? Wrench : Package;
+  return (
+    <div className="w-16 h-16 bg-white rounded-md flex items-center justify-center shrink-0 border">
+      <Icon className="w-5 h-5 text-muted-foreground" />
+    </div>
+  );
 }
 
 /**
@@ -174,8 +188,8 @@ export function PdfExtraProductsBlock({
                                 <div className="flex items-start gap-2">
                                   {settings.showProductImages &&
                                     (left.productImage ||
-                                      (left.productImages &&
-                                        left.productImages.length > 0)) && (
+                                    (left.productImages &&
+                                      left.productImages.length > 0) ? (
                                       <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
@@ -187,7 +201,11 @@ export function PdfExtraProductsBlock({
                                           className="w-full h-full object-contain p-1"
                                         />
                                       </div>
-                                    )}
+                                    ) : (
+                                      <ItemImagePlaceholder
+                                        itemType={left.itemType}
+                                      />
+                                    ))}
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-semibold text-gray-900 truncate">
                                       {left.productName}
@@ -246,8 +264,8 @@ export function PdfExtraProductsBlock({
                                 <div className="flex items-start gap-2">
                                   {settings.showProductImages &&
                                     (right.productImage ||
-                                      (right.productImages &&
-                                        right.productImages.length > 0)) && (
+                                    (right.productImages &&
+                                      right.productImages.length > 0) ? (
                                       <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
@@ -259,7 +277,11 @@ export function PdfExtraProductsBlock({
                                           className="w-full h-full object-contain p-1"
                                         />
                                       </div>
-                                    )}
+                                    ) : (
+                                      <ItemImagePlaceholder
+                                        itemType={right.itemType}
+                                      />
+                                    ))}
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-semibold text-gray-900 truncate">
                                       {right.productName}
@@ -317,8 +339,8 @@ export function PdfExtraProductsBlock({
                               <div className="flex items-start gap-2">
                                 {settings.showProductImages &&
                                   (left.productImage ||
-                                    (left.productImages &&
-                                      left.productImages.length > 0)) && (
+                                  (left.productImages &&
+                                    left.productImages.length > 0) ? (
                                     <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
@@ -330,7 +352,11 @@ export function PdfExtraProductsBlock({
                                         className="w-full h-full object-contain p-1"
                                       />
                                     </div>
-                                  )}
+                                  ) : (
+                                    <ItemImagePlaceholder
+                                      itemType={left.itemType}
+                                    />
+                                  ))}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <h4 className="font-semibold text-gray-900 truncate">

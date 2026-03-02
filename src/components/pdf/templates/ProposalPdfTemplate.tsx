@@ -459,10 +459,11 @@ function normalizeProposalProducts(
     const quantity = Number(product.quantity || 0);
     const normalizedImages = Array.isArray(product.productImages)
       ? product.productImages.filter(
-          (image) => typeof image === "string" && image,
+          (image) => typeof image === "string" && image.trim(),
         )
       : [];
-    const fallbackImage = product.productImage || normalizedImages[0] || "";
+    const fallbackImage =
+      product.productImage?.trim() || normalizedImages[0] || "";
     const isGhost = quantity <= 0;
     const isInactive = product.status === "inactive";
 

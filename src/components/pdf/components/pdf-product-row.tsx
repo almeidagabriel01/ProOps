@@ -1,6 +1,7 @@
 import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
+import { Package, Wrench } from "lucide-react";
 
 interface ProductData {
   productName: string;
@@ -40,6 +41,12 @@ export function PdfProductRow({
   pdfDisplaySettings,
 }: PdfProductRowProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
+  const imageSources =
+    product.productImages?.filter(
+      (image) => typeof image === "string" && image,
+    ) || [];
+  const hasImage = imageSources.length > 0 || Boolean(product.productImage);
+  const PlaceholderIcon = product.itemType === "service" ? Wrench : Package;
 
   // Calculate selling price (unitPrice with markup applied)
   const sellingPrice = product.unitPrice * (1 + (product.markup || 0) / 100);
@@ -56,8 +63,8 @@ export function PdfProductRow({
       {/* Image Row - Horizontal - Conditionally Rendered */}
       {settings.showProductImages && (
         <div className="flex flex-row gap-4 overflow-hidden justify-center mb-4">
-          {product.productImages && product.productImages.length > 0 ? (
-            product.productImages.map((img: string, idx: number) => (
+          {imageSources.length > 0 ? (
+            imageSources.map((img: string, idx: number) => (
               <div
                 key={idx}
                 className="w-48 h-48 bg-white rounded-lg border overflow-hidden shrink-0"
@@ -70,16 +77,22 @@ export function PdfProductRow({
                 />
               </div>
             ))
-          ) : product.productImage || product.productImages?.[0] ? (
+          ) : hasImage ? (
             <div className="w-48 h-48 bg-white rounded-lg border overflow-hidden shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={product.productImages?.[0] || product.productImage || ""}
+                src={product.productImage || ""}
                 alt={product.description || ""}
                 className="w-full h-full object-contain p-2"
               />
             </div>
-          ) : null}
+          ) : (
+            <div className="w-48 h-48 bg-white rounded-lg border overflow-hidden shrink-0 flex items-center justify-center">
+              <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center border">
+                <PlaceholderIcon className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 

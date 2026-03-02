@@ -322,16 +322,13 @@ export function useEditPdfPage() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               p.products = p.products.map((prod: any) => ({
                 ...prod,
-                productImage:
-                  prod.productImage ||
-                  "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
+                productImage: prod.productImage || "",
                 productImages:
                   prod.productImages && prod.productImages.length > 0
                     ? prod.productImages
-                    : [
-                        prod.productImage ||
-                          "https://placehold.co/200x200/e2e8f0/64748b?text=Produto",
-                      ],
+                    : prod.productImage
+                      ? [prod.productImage]
+                      : [],
               }));
             } else {
               p.products = [];

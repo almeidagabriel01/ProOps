@@ -3,6 +3,7 @@ import { PdfDisplaySettings } from "@/types/pdf-display-settings";
 import { PdfExtraBadge } from "./pdf-extra-badge";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
+import { Package, Wrench } from "lucide-react";
 
 export function PdfProductTitle({ productName }: { productName: string }) {
   return (
@@ -139,6 +140,7 @@ export function PdfSistemaProductCard({
     : product.productImage
       ? [product.productImage]
       : [];
+  const PlaceholderIcon = product.itemType === "service" ? Wrench : Package;
 
   return (
     <div
@@ -177,25 +179,31 @@ export function PdfSistemaProductCard({
           </div>
         </div>
 
-        {settings.showProductImages && allImages.length > 0 && (
+        {settings.showProductImages && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {allImages.map((imgSrc: string, imgIdx: number) => (
-              <div
-                key={imgIdx}
-                className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
-                style={{
-                  flexBasis: "calc(25% - 4.5px)",
-                  maxWidth: "84px",
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imgSrc}
-                  alt=""
-                  className="w-full h-full object-contain p-0.5"
-                />
+            {allImages.length > 0 ? (
+              allImages.map((imgSrc: string, imgIdx: number) => (
+                <div
+                  key={imgIdx}
+                  className="w-16 h-16 bg-white rounded border overflow-hidden shadow-sm"
+                  style={{
+                    flexBasis: "calc(25% - 4.5px)",
+                    maxWidth: "84px",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imgSrc}
+                    alt=""
+                    className="w-full h-full object-contain p-0.5"
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="w-16 h-16 bg-white rounded-md flex items-center justify-center shadow-sm border">
+                <PlaceholderIcon className="w-5 h-5 text-muted-foreground" />
               </div>
-            ))}
+            )}
           </div>
         )}
 
