@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -11,15 +12,46 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { LayoutDashboard, ReceiptText } from "lucide-react";
 import KanbanSkeleton from "@/app/kanban/loading";
 
+type KanbanTab = "proposals" | "transactions";
+
 export default function KanbanPage() {
   const { tenant } = useTenant();
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { hasKanban, isLoading: isPlanLoading } = usePlanLimits();
-  const [activeTab, setActiveTab] = React.useState("proposals");
+
+  const tabParam = searchParams.get("tab");
+  const tabFromUrl: KanbanTab =
+    tabParam === "lancamentos" ? "transactions" : "proposals";
+  const [activeTab, setActiveTab] = React.useState<KanbanTab>(tabFromUrl);
+
+  React.useEffect(() => {
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  const handleTabChange = React.useCallback(
+    (tab: string) => {
+      const nextTab = tab as KanbanTab;
+      setActiveTab(nextTab);
+
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextTab === "proposals") {
+        params.delete("tab");
+      } else {
+        params.set("tab", "lancamentos");
+      }
+
+      const query = params.toString();
+      router.replace(query ? `/kanban?${query}` : "/kanban", {
+        scroll: false,
+      });
+    },
+    [router, searchParams],
+  );
 
   if (!user) return null;
 
-  // Super admin tenant selector
   if (user.role === "superadmin" && !tenant) {
     return (
       <SelectTenantState title="Selecione uma empresa para ver o Kanban" />
@@ -56,7 +88,7 @@ export default function KanbanPage() {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="w-full space-y-6 flex-1 flex flex-col"
       >
         <TabsList className="w-fit bg-muted/50 p-1 rounded-xl h-auto">

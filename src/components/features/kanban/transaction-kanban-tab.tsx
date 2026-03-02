@@ -22,8 +22,6 @@ import { cn } from "@/lib/utils";
 import { normalize } from "@/utils/text";
 import {
   Clock,
-  CheckCircle2,
-  AlertTriangle,
   Search,
   ListFilter,
 } from "lucide-react";
@@ -179,7 +177,7 @@ export function TransactionKanbanTab() {
         toast.error("Erro ao atualizar o status do lançamento.");
       }
     },
-    [transactions],
+    [statuses, transactions],
   );
 
   // Derived unique clients for the filter dropdown

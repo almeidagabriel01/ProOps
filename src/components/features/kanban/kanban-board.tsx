@@ -428,7 +428,7 @@ export function KanbanBoard<T>({
         onDragEnd(active.id as string, fromColumnId, toColumnId);
       }
     },
-    [onDragEnd, onColumnDragEnd],
+    [columns, onDragEnd, onColumnDragEnd],
   );
 
   const handleDragCancel = React.useCallback(() => {
