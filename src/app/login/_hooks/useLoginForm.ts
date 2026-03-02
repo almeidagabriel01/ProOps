@@ -114,12 +114,11 @@ export function useLoginForm(): UseLoginFormReturn {
         handleCodeInApp: true,
       };
       await sendPasswordResetEmail(auth, email, actionCodeSettings);
+    } catch (err: unknown) {
+      console.warn("Password reset request finished with non-fatal error", err);
+    } finally {
       setResetSent(true);
       setError("");
-    } catch (err: unknown) {
-      console.error("Reset password error:", err);
-      setError("Erro ao enviar email. Verifique se o email está correto.");
-    } finally {
       setIsResetting(false);
     }
   };

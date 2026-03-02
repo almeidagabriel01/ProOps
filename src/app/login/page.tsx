@@ -468,7 +468,8 @@ function LoginContent() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Redefinir Senha</CardTitle>
               <CardDescription>
-                Digite seu email para receber o link de redefinição.
+                Digite seu email. Se ele estiver cadastrado, enviaremos o link
+                de redefinição.
               </CardDescription>
             </CardHeader>
             <form onSubmit={handleForgotPassword}>
@@ -477,11 +478,11 @@ function LoginContent() {
                   <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col items-center text-center gap-2 animate-in fade-in zoom-in-95">
                     <CheckCircle className="w-10 h-10 text-green-500" />
                     <h3 className="font-semibold text-green-600">
-                      Email Enviado!
+                      Solicitação recebida!
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Verifique sua caixa de entrada (e spam) para redefinir sua
-                      senha.
+                      Se o email estiver cadastrado, você receberá instruções
+                      para redefinir sua senha. Verifique também o spam.
                     </p>
                   </div>
                 ) : (
