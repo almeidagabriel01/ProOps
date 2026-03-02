@@ -40,10 +40,14 @@ export function buildPdfFilename(
 }
 
 export function buildProposalPdfFilename(title?: string): string {
-  return buildPdfFilename(title, {
+  const filename = buildPdfFilename(title, {
     prefix: "Proposta",
     fallbackName: "Proposta.pdf",
   });
+
+  return /^roposta\b/i.test(filename) && !/^proposta\b/i.test(filename)
+    ? `P${filename}`
+    : filename;
 }
 
 export function buildReceiptPdfFilename(title?: string): string {
