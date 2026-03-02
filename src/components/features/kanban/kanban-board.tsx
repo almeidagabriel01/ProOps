@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ export interface KanbanColumn<T> {
 interface KanbanBoardProps<T> {
   columns: KanbanColumn<T>[];
   onDragEnd: (itemId: string, fromColumnId: string, toColumnId: string) => void;
-  onColumnDragEnd?: (activeColumnId: string, overColumnId: string) => void;
+  onColumnDragEnd?: (orderedIds: string[]) => void;
   renderCard: (
     item: T,
     columnId: string,
@@ -187,35 +188,32 @@ function SortableColumn<T>({
   children: React.ReactNode;
   isDragEnabled: boolean;
 }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: `col-container-${column.id}`,
-    data: { type: "column-container", columnId: column.id },
-    disabled: !isDragEnabled,
-  });
+  const { attributes, listeners, setNodeRef, transition, isDragging } =
+    useSortable({
+      id: `col-container-${column.id}`,
+      data: { type: "column-container", columnId: column.id },
+      disabled: !isDragEnabled,
+    });
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    // Only apply z-index and opacity when dragging.
+    // The visual follow movement will be handled by DragOverlay.
+    // We intentionally ignore transform when dragging a column
+    // to prevent the flex container from shifting chaotically.
     transition,
-    zIndex: isDragging ? 40 : "auto",
-    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : "auto",
+    opacity: isDragging ? 0.3 : 1,
   };
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
-      layout
       className={cn(
-        "shrink-0 w-[330px] flex flex-col rounded-xl transition-all duration-200 ease-out",
+        "shrink-0 w-[330px] flex flex-col rounded-xl",
         "bg-card/40 dark:bg-card/20 border border-border/40",
         "backdrop-blur-md shadow-sm",
+        isDragging && "pointer-events-none",
       )}
     >
       <div
@@ -225,7 +223,7 @@ function SortableColumn<T>({
       >
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -254,6 +252,9 @@ export function KanbanBoard<T>({
   const [activeColumnId, setActiveColumnId] = React.useState<string | null>(
     null,
   );
+  const [activeColumnRect, setActiveColumnRect] = React.useState<{
+    height: number;
+  } | null>(null);
   const [overColumnId, setOverColumnId] = React.useState<string | null>(null);
 
   // Sensors with activation constraints to prevent accidental drags
@@ -312,6 +313,9 @@ export function KanbanBoard<T>({
       setActiveItem({ item: data.item, columnId: data.columnId });
     } else if (data?.type === "column-container") {
       setActiveColumnId(data.columnId);
+      if (active.rect.current.initial) {
+        setActiveColumnRect({ height: active.rect.current.initial.height });
+      }
     }
   }, []);
 
@@ -343,6 +347,7 @@ export function KanbanBoard<T>({
       setActiveItem(null);
       setActiveColumnId(null);
       setOverColumnId(null);
+      setActiveColumnRect(null);
 
       if (!over || !active.data.current) return;
 
@@ -358,14 +363,26 @@ export function KanbanBoard<T>({
       // Check if we are dragging a column
       if (activeData.type === "column-container" && onColumnDragEnd) {
         let targetColId: string | null = null;
-        if (overData?.type === "column-container") {
+        if (
+          overData?.type === "column-container" ||
+          overData?.type === "column"
+        ) {
           targetColId = overData.columnId || null;
         } else if (over.id.toString().startsWith("col-container-")) {
           targetColId = over.id.toString().replace("col-container-", "");
+        } else if (overData?.type === "card" && overData.columnId) {
+          targetColId = overData.columnId;
         }
 
         if (targetColId && activeData.columnId !== targetColId) {
-          onColumnDragEnd(activeData.columnId, targetColId);
+          const oldIndex = columns.findIndex(
+            (c) => c.id === activeData.columnId,
+          );
+          const newIndex = columns.findIndex((c) => c.id === targetColId);
+          if (oldIndex !== -1 && newIndex !== -1) {
+            const newColumns = arrayMove(columns, oldIndex, newIndex);
+            onColumnDragEnd(newColumns.map((c: KanbanColumn<T>) => c.id));
+          }
         }
         return;
       }
@@ -373,7 +390,27 @@ export function KanbanBoard<T>({
       const fromColumnId = activeData.columnId;
       let toColumnId: string | null = null;
 
-      if (overData?.type === "column") {
+      if (activeData?.type === "column-container") {
+        let targetColId: string | null = null;
+        if (
+          overData?.type === "column-container" ||
+          overData?.type === "column"
+        ) {
+          targetColId = overData.columnId || null;
+        } else if (over.id.toString().startsWith("col-container-")) {
+          targetColId = over.id.toString().replace("col-container-", "");
+        } else if (overData?.type === "card" && overData.columnId) {
+          // If hovering over a card while dragging a column, the target is still the card's column
+          targetColId = overData.columnId;
+        }
+        setOverColumnId(targetColId);
+        return;
+      }
+
+      if (
+        overData?.type === "column" ||
+        overData?.type === "column-container"
+      ) {
         // Dropped on a column droppable
         toColumnId = overData.columnId || null;
       } else if (overData?.type === "card" && overData.columnId) {
@@ -398,6 +435,7 @@ export function KanbanBoard<T>({
     setActiveItem(null);
     setActiveColumnId(null);
     setOverColumnId(null);
+    setActiveColumnRect(null);
   }, []);
 
   // Format value for column total
@@ -525,12 +563,101 @@ export function KanbanBoard<T>({
         </SortableContext>
       </div>
 
-      {/* Drag Overlay — renders floating card while dragging */}
-      <DragOverlay dropAnimation={{ duration: 200, easing: "ease-out" }}>
+      {/* Drag Overlay — renders floating card or column while dragging */}
+      <DragOverlay
+        dropAnimation={{
+          duration: 250,
+          easing: "cubic-bezier(0.18, 0.67, 0.6, 1)",
+        }}
+        style={{ height: "100%", zIndex: 30 }}
+      >
         {activeItem ? (
           <div className="rotate-2 scale-105 shadow-2xl shadow-black/20 pointer-events-none">
             {renderCard(activeItem.item, activeItem.columnId, true)}
           </div>
+        ) : activeColumnId ? (
+          (() => {
+            const column = columns.find((c) => c.id === activeColumnId);
+            if (!column) return null;
+            const columnTotal =
+              showColumnTotals && getItemValue
+                ? column.items.reduce(
+                    (sum, item) => sum + (getItemValue(item) || 0),
+                    0,
+                  )
+                : 0;
+
+            return (
+              <div
+                className={cn(
+                  "shrink-0 w-[330px] flex flex-col rounded-xl overflow-hidden",
+                  "bg-card/90 dark:bg-card/90 border border-primary/30",
+                  "backdrop-blur-md shadow-2xl shadow-black/20 pointer-events-none rotate-2 scale-[1.02]",
+                )}
+                // Use the exact height of the dragged column to prevent it from shrinking
+                style={{
+                  height: activeColumnRect
+                    ? `${activeColumnRect.height}px`
+                    : "100%",
+                  maxHeight: "calc(100vh - 100px)",
+                }}
+              >
+                {/* Column Header */}
+                <div className="px-4 py-3 border-b border-border/30">
+                  {renderColumnHeader ? (
+                    renderColumnHeader(column, column.items.length)
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-3 h-3 rounded-full shadow-sm"
+                            style={{
+                              backgroundColor: column.color,
+                              boxShadow: `0 0 8px ${column.color}40`,
+                            }}
+                          />
+                          <span className="text-sm font-semibold text-foreground">
+                            {column.label}
+                          </span>
+                        </div>
+                        <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-full tabular-nums">
+                          {column.items.length}
+                        </span>
+                      </div>
+                      {showColumnTotals && getItemValue && columnTotal > 0 && (
+                        <div className="text-xs font-medium text-muted-foreground pl-5.5">
+                          {formatTotal(columnTotal)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Column Body Snapshot */}
+                <div className="flex-1 p-2.5 space-y-2 overflow-y-hidden max-h-[calc(100vh-300px)] opacity-60 kanban-scrollbar">
+                  {column.items.length === 0 ? (
+                    <div className="flex items-center justify-center py-10 text-xs text-muted-foreground/50 select-none border-2 border-dashed border-border/20 rounded-lg min-h-[100px]">
+                      {emptyMessage}
+                    </div>
+                  ) : (
+                    column.items.map((item) => (
+                      <div key={getItemId(item)}>
+                        {renderCard(item, column.id, false)}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Column Footer */}
+                {renderColumnFooter && (
+                  <div className="px-3 py-2 border-t border-border/20">
+                    {renderColumnFooter(column)}
+                  </div>
+                )}
+              </div>
+            );
+          })()
         ) : null}
       </DragOverlay>
     </DndContext>

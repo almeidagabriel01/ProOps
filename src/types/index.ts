@@ -21,8 +21,8 @@ export type Tenant = {
   whatsappAllowOverage?: boolean;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
-  whatsappOveragePriceId?: string;
   whatsappOverageSubscriptionItemId?: string;
+  transactionStatusOrder?: string[];
 };
 
 export type User = {

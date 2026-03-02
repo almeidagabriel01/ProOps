@@ -27,6 +27,7 @@ import {
 import { toast } from '@/lib/toast';
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
+import { useTransactionStatuses } from "@/app/financial/_hooks/useTransactionStatuses";
 
 interface TransactionInstallmentsListProps {
   installments: Transaction[];
@@ -66,6 +67,7 @@ export function TransactionInstallmentsList({
   onPartialPayment,
   onUndoPartial,
 }: TransactionInstallmentsListProps) {
+  const { statuses: statusOptions } = useTransactionStatuses();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<number>(0);
@@ -313,13 +315,13 @@ export function TransactionInstallmentsList({
           <DropdownMenuContent align="end" className="w-[130px]">
             {statusOptions.map((option) => (
               <DropdownMenuItem
-                key={option.value}
-                onClick={() => handleStatusChange(transaction, option.value)}
+                key={option.id}
+                onClick={() => handleStatusChange(transaction, option.id)}
                 className="gap-2 cursor-pointer text-xs"
               >
                 <option.icon className="h-3.5 w-3.5" />
                 <span>{option.label}</span>
-                {transaction.status === option.value && (
+                {transaction.status === option.id && (
                   <Check className="h-3 w-3 ml-auto opacity-50" />
                 )}
               </DropdownMenuItem>
@@ -678,3 +680,4 @@ export function TransactionInstallmentsList({
     </div>
   );
 }
+

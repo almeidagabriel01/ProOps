@@ -35,22 +35,7 @@ import {
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/ui/date-picker";
 
-// ============================================
-// FIXED TRANSACTION COLUMNS
-// ============================================
-
-interface TransactionColumnDef {
-  id: TransactionStatus;
-  label: string;
-  color: string;
-  icon: typeof Clock;
-}
-
-const TRANSACTION_COLUMNS: TransactionColumnDef[] = [
-  { id: "pending", label: "Pendente", color: "#f59e0b", icon: Clock },
-  { id: "overdue", label: "Atrasado", color: "#ef4444", icon: AlertTriangle },
-  { id: "paid", label: "Pago", color: "#22c55e", icon: CheckCircle2 },
-];
+import { useTransactionStatuses } from "@/app/financial/_hooks/useTransactionStatuses";
 
 // ============================================
 // STORAGE KEY
@@ -59,6 +44,7 @@ const TRANSACTION_COLUMNS: TransactionColumnDef[] = [
 const AUTO_OVERDUE_KEY = "kanban_auto_overdue";
 
 export function TransactionKanbanTab() {
+  const { statuses, isLoaded, reorderStatuses } = useTransactionStatuses();
   const { tenant } = useTenant();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -159,7 +145,7 @@ export function TransactionKanbanTab() {
 
       const oldStatus = transaction.status;
       const targetLabel =
-        TRANSACTION_COLUMNS.find((c) => c.id === newStatus)?.label || newStatus;
+        statuses.find((c) => c.id === newStatus)?.label || newStatus;
 
       // Optimistic update
       setTransactions((prev) =>
@@ -209,7 +195,7 @@ export function TransactionKanbanTab() {
 
   // Build board columns
   const boardColumns = React.useMemo((): KanbanColumn<Transaction>[] => {
-    return TRANSACTION_COLUMNS.map((col) => {
+    return statuses.map((col) => {
       let items = processedTransactions.filter((t) => t.status === col.id);
 
       const filter = columnFilters[col.id] || {
@@ -267,12 +253,12 @@ export function TransactionKanbanTab() {
         items,
       };
     });
-  }, [processedTransactions, columnFilters]);
+  }, [processedTransactions, columnFilters, statuses]);
 
   // Column header renderer with icons and totals
   const renderColumnHeader = React.useCallback(
     (column: KanbanColumn<Transaction>, count: number) => {
-      const colConfig = TRANSACTION_COLUMNS.find((c) => c.id === column.id);
+      const colConfig = statuses.find((c) => c.id === column.id);
       const Icon = colConfig?.icon || Clock;
       const total = column.items.reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -565,10 +551,10 @@ export function TransactionKanbanTab() {
         </div>
       );
     },
-    [columnFilters, clientOptions],
+    [columnFilters, clientOptions, statuses],
   );
 
-  if (isLoading) {
+  if (isLoading || !isLoaded) {
     return (
       <div className="flex-1 w-full mt-4">
         <KanbanBoardSkeleton />
@@ -604,6 +590,7 @@ export function TransactionKanbanTab() {
       <KanbanBoard<Transaction>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
+        onColumnDragEnd={reorderStatuses}
         onCardClick={handleCardClick}
         getItemId={(t) => t.id}
         isDragEnabled={true}

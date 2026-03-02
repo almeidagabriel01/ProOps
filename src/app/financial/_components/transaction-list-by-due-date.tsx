@@ -43,8 +43,9 @@ import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
 import { TransactionService } from "@/services/transaction-service";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
+import { useTransactionStatuses } from "@/app/financial/_hooks/useTransactionStatuses";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,16 +97,6 @@ interface TransactionListByDueDateProps {
   allTransactions?: Transaction[];
 }
 
-const statusOptions: {
-  value: TransactionStatus;
-  label: string;
-  icon: typeof Check;
-}[] = [
-  { value: "paid", label: "Pago", icon: Check },
-  { value: "pending", label: "Pendente", icon: Clock },
-  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-];
-
 export function TransactionListByDueDate({
   transactions,
   canEdit,
@@ -124,6 +115,7 @@ export function TransactionListByDueDate({
   wallets = [],
   allTransactions = [],
 }: TransactionListByDueDateProps) {
+  const { statuses: statusOptions } = useTransactionStatuses();
   const [updatingState, setUpdatingState] = React.useState<{
     id: string;
     field: "status" | "wallet";
@@ -560,7 +552,8 @@ export function TransactionListByDueDate({
                 const statusInfo = statusConfig[tx.status];
                 const isSelected = selectedIds.has(tx.id);
                 const isProposalLinked = isProposalLinkedTransaction(tx);
-                const displayDescription = getProposalTransactionDisplayName(tx);
+                const displayDescription =
+                  getProposalTransactionDisplayName(tx);
 
                 return (
                   <div
@@ -762,8 +755,7 @@ export function TransactionListByDueDate({
                                 <>
                                   {(() => {
                                     const opt = statusOptions.find(
-                                      (o) =>
-                                        o.value === (tx.status || "pending"),
+                                      (o) => o.id === (tx.status || "pending"),
                                     );
                                     const Icon = opt?.icon || Check;
                                     return <Icon className="h-3 w-3" />;
@@ -785,15 +777,15 @@ export function TransactionListByDueDate({
                           >
                             {statusOptions.map((option) => (
                               <DropdownMenuItem
-                                key={option.value}
+                                key={option.id}
                                 onClick={() =>
-                                  handleStatusChange(tx, option.value)
+                                  handleStatusChange(tx, option.id)
                                 }
                                 className="gap-2 cursor-pointer text-xs"
                               >
                                 <option.icon className="h-3 w-3" />
                                 <span>{option.label}</span>
-                                {tx.status === option.value && (
+                                {tx.status === option.id && (
                                   <Check className="h-3 w-3 ml-auto opacity-50" />
                                 )}
                               </DropdownMenuItem>

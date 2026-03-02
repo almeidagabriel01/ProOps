@@ -424,8 +424,8 @@ export function ProposalKanbanTab() {
   );
 
   const onColumnDragEnd = React.useCallback(
-    async (activeColumnId: string, overColumnId: string) => {
-      if (!tenant?.id || activeColumnId === overColumnId) return;
+    async (orderedIds: string[]) => {
+      if (!tenant?.id) return;
 
       let activeColumns = columns;
       // Persist defaults first if needed
@@ -437,39 +437,23 @@ export function ProposalKanbanTab() {
         if (persisted) activeColumns = persisted;
       }
 
-      // Now find indexes in activeColumns
-      let activeId = activeColumnId;
-      if (activeId.startsWith("default_")) {
-        const colToMove = columns.find((c) => c.id === activeColumnId);
-        const newlyPersisted = activeColumns.find(
-          (c) =>
-            c.mappedStatus === colToMove?.mappedStatus ||
-            c.label === colToMove?.label,
-        );
-        if (newlyPersisted) activeId = newlyPersisted.id;
-      }
+      // Map ordered IDs back to columns and set new order
+      const reorderedColumns = orderedIds
+        .map((id) => {
+          if (id.startsWith("default_")) {
+            const defaultCol = columns.find((c) => c.id === id);
+            return activeColumns.find(
+              (c) =>
+                c.mappedStatus === defaultCol?.mappedStatus ||
+                c.label === defaultCol?.label,
+            );
+          }
+          return activeColumns.find((c) => c.id === id);
+        })
+        .filter((c): c is KanbanStatusColumn => c !== undefined)
+        .map((c, i) => ({ ...c, order: i }));
 
-      let overId = overColumnId;
-      if (overId.startsWith("default_")) {
-        const overCol = columns.find((c) => c.id === overColumnId);
-        const newlyPersisted = activeColumns.find(
-          (c) =>
-            c.mappedStatus === overCol?.mappedStatus ||
-            c.label === overCol?.label,
-        );
-        if (newlyPersisted) overId = newlyPersisted.id;
-      }
-
-      const oldIndex = activeColumns.findIndex((c) => c.id === activeId);
-      const newIndex = activeColumns.findIndex((c) => c.id === overId);
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      // Create new array with shifted elements
-      const newColumns = [...activeColumns];
-      const [movedColumn] = newColumns.splice(oldIndex, 1);
-      newColumns.splice(newIndex, 0, movedColumn);
-
-      const reorderedColumns = newColumns.map((c, i) => ({ ...c, order: i }));
+      if (reorderedColumns.length !== activeColumns.length) return;
 
       // Update local state immediately for optimistic UI
       setColumns(reorderedColumns);
@@ -478,7 +462,6 @@ export function ProposalKanbanTab() {
         // Send the reorder request
         const statusIds = reorderedColumns.map((c) => c.id);
         await KanbanService.reorderStatuses(statusIds);
-        toast.success("Colunas reordenadas com sucesso.");
       } catch (error) {
         console.error("Error reordering columns:", error);
         toast.error("Erro ao reordenar colunas.");

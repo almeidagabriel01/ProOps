@@ -47,6 +47,7 @@ export const updateTenant = async (req: Request, res: Response) => {
       "primaryColor",
       "logoUrl",
       "proposalDefaults",
+      "transactionStatusOrder",
     ];
 
     if (isSuperAdmin) {

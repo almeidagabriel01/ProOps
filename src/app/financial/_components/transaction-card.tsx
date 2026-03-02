@@ -43,12 +43,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 
 import { TransactionInstallmentsList } from "./transaction-installments-list";
 import { EditBlockDialog } from "./edit-block-dialog";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
 import { ExtraCostDialog } from "./extra-cost-dialog";
+import { useTransactionStatuses } from "@/app/financial/_hooks/useTransactionStatuses";
 import { TransactionService } from "@/services/transaction-service";
 import { SharedTransactionService } from "@/services/shared-transaction-service";
 import { useRouter } from "next/navigation";
@@ -99,16 +100,6 @@ interface TransactionCardProps {
   wallets?: Wallet[];
 }
 
-const statusOptions: {
-  value: TransactionStatus;
-  label: string;
-  icon: typeof Check;
-}[] = [
-  { value: "paid", label: "Pago", icon: Check },
-  { value: "pending", label: "Pendente", icon: Clock },
-  { value: "overdue", label: "Atrasado", icon: AlertTriangle },
-];
-
 export function TransactionCard({
   transaction,
   relatedInstallments = [],
@@ -131,6 +122,7 @@ export function TransactionCard({
   onToggleExpand,
   wallets = [],
 }: TransactionCardProps) {
+  const { statuses: statusOptions } = useTransactionStatuses();
   const extraCostLabel =
     transaction.type === "income" ? "Acréscimo" : "Custo Extra";
   const [isUpdating, setIsUpdating] = React.useState(false);
@@ -182,7 +174,9 @@ export function TransactionCard({
   const TypeIcon = typeInfo.icon;
   const isProposalLinked =
     isProposalLinkedTransaction(transaction) ||
-    proposalGroupTransactions.some((item) => isProposalLinkedTransaction(item)) ||
+    proposalGroupTransactions.some((item) =>
+      isProposalLinkedTransaction(item),
+    ) ||
     relatedInstallments.some((item) => isProposalLinkedTransaction(item));
 
   // Check if this is a proposal group (has both down payment and installments)
@@ -1031,15 +1025,15 @@ export function TransactionCard({
                             </div>
                             {statusOptions.map((option) => (
                               <DropdownMenuItem
-                                key={`all-${option.value}`}
+                                key={`all-${option.id}`}
                                 onClick={() => {
-                                  handleStatusChange(option.value);
+                                  handleStatusChange(option.id);
                                 }}
                                 className="gap-2 cursor-pointer"
                               >
                                 <option.icon className="h-4 w-4" />
                                 <span>{option.label}</span>
-                                {transaction.status === option.value && (
+                                {transaction.status === option.id && (
                                   <Check className="h-3 w-3 ml-auto opacity-50" />
                                 )}
                               </DropdownMenuItem>
@@ -1049,15 +1043,15 @@ export function TransactionCard({
                         {!isProposalGroup &&
                           statusOptions.map((option) => (
                             <DropdownMenuItem
-                              key={option.value}
+                              key={option.id}
                               onClick={() => {
-                                handleStatusChange(option.value);
+                                handleStatusChange(option.id);
                               }}
                               className="gap-2 cursor-pointer"
                             >
                               <option.icon className="h-4 w-4" />
                               <span>{option.label}</span>
-                              {transaction.status === option.value && (
+                              {transaction.status === option.id && (
                                 <Check className="h-3 w-3 ml-auto opacity-50" />
                               )}
                             </DropdownMenuItem>
@@ -1240,18 +1234,18 @@ export function TransactionCard({
                         <DropdownMenuContent align="end" className="w-[130px]">
                           {statusOptions.map((option) => (
                             <DropdownMenuItem
-                              key={option.value}
+                              key={option.id}
                               onClick={() =>
                                 handleIndividualStatusChange(
                                   downPayment,
-                                  option.value,
+                                  option.id,
                                 )
                               }
                               className="gap-2 cursor-pointer text-xs"
                             >
                               <option.icon className="h-3.5 w-3.5" />
                               <span>{option.label}</span>
-                              {downPayment.status === option.value && (
+                              {downPayment.status === option.id && (
                                 <Check className="h-3 w-3 ml-auto opacity-50" />
                               )}
                             </DropdownMenuItem>
@@ -1356,18 +1350,18 @@ export function TransactionCard({
                               >
                                 {statusOptions.map((option) => (
                                   <DropdownMenuItem
-                                    key={option.value}
+                                    key={option.id}
                                     onClick={() =>
                                       handleIndividualStatusChange(
                                         inst,
-                                        option.value,
+                                        option.id,
                                       )
                                     }
                                     className="gap-2 cursor-pointer text-xs"
                                   >
                                     <option.icon className="h-3.5 w-3.5" />
                                     <span>{option.label}</span>
-                                    {inst.status === option.value && (
+                                    {inst.status === option.id && (
                                       <Check className="h-3 w-3 ml-auto opacity-50" />
                                     )}
                                   </DropdownMenuItem>
@@ -1503,19 +1497,18 @@ export function TransactionCard({
                               >
                                 {statusOptions.map((option) => (
                                   <DropdownMenuItem
-                                    key={option.value}
+                                    key={option.id}
                                     onClick={() =>
                                       handleExtraCostStatusChange(
                                         ec.id,
-                                        option.value,
+                                        option.id,
                                       )
                                     }
                                     className="gap-2 cursor-pointer text-xs"
                                   >
                                     <option.icon className="h-3.5 w-3.5" />
                                     <span>{option.label}</span>
-                                    {(ec.status || "pending") ===
-                                      option.value && (
+                                    {(ec.status || "pending") === option.id && (
                                       <Check className="h-3 w-3 ml-auto opacity-50" />
                                     )}
                                   </DropdownMenuItem>
@@ -1707,11 +1700,11 @@ export function TransactionCard({
                                   >
                                     {statusOptions.map((option) => (
                                       <DropdownMenuItem
-                                        key={option.value}
+                                        key={option.id}
                                         onClick={() =>
                                           handleExtraCostStatusChange(
                                             ec.id,
-                                            option.value,
+                                            option.id,
                                           )
                                         }
                                         className="gap-2 cursor-pointer text-xs"
@@ -1719,7 +1712,7 @@ export function TransactionCard({
                                         <option.icon className="h-3.5 w-3.5" />
                                         <span>{option.label}</span>
                                         {(ec.status || "pending") ===
-                                          option.value && (
+                                          option.id && (
                                           <Check className="h-3 w-3 ml-auto opacity-50" />
                                         )}
                                       </DropdownMenuItem>
@@ -1856,3 +1849,4 @@ export function TransactionCard({
     </div>
   );
 }
+
