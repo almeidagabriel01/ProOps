@@ -7,7 +7,7 @@ import { renderPageToPdfBuffer, resolveAppBaseUrl } from "./core-pdf.service";
 
 // Incrementar esta constante quando o template de recibo mudar estruturalmente,
 // forçando regeneração de todos os PDFs em cache.
-const PDF_TEMPLATE_VERSION = "receipt-pdf-v1-playwright";
+const PDF_TEMPLATE_VERSION = "receipt-pdf-v2-playwright";
 
 // ---------------------------------------------------------------------------
 // Tipos internos
@@ -202,10 +202,15 @@ async function resolveTransactionPdf(options: {
   /** URL completa da página de renderização (share link já resolvido) */
   renderUrl: string;
 }): Promise<Buffer> {
-  const { tenantId, transactionId, transactionData, tenantData, renderUrl } = options;
+  const { tenantId, transactionId, transactionData, tenantData, renderUrl } =
+    options;
 
   const storagePath = buildTransactionPdfStoragePath(tenantId, transactionId);
-  const versionHash = buildVersionHash(transactionId, transactionData, tenantData);
+  const versionHash = buildVersionHash(
+    transactionId,
+    transactionData,
+    tenantData,
+  );
 
   // Tenta servir do cache
   const cached = await getCachedPdfIfValid({
@@ -220,7 +225,13 @@ async function resolveTransactionPdf(options: {
 
   // Persiste em background (sem bloquear a resposta ao cliente em caso de falha)
   Promise.all([
-    savePdfToStorage({ buffer, storagePath, tenantId, transactionId, versionHash }),
+    savePdfToStorage({
+      buffer,
+      storagePath,
+      tenantId,
+      transactionId,
+      versionHash,
+    }),
     updateTransactionPdfMetadata(transactionId, storagePath, versionHash),
   ]).catch((err) => {
     console.warn(
@@ -265,7 +276,11 @@ export async function generateAuthenticatedTransactionPdf(
 
   // Verifica cache antes de criar share link (evita side-effects desnecessários)
   const storagePath = buildTransactionPdfStoragePath(tenantId, transactionId);
-  const versionHash = buildVersionHash(transactionId, transactionData, tenantData);
+  const versionHash = buildVersionHash(
+    transactionId,
+    transactionData,
+    tenantData,
+  );
   const cached = await getCachedPdfIfValid({
     metadata: transactionData.pdf,
     expectedPath: storagePath,
@@ -309,7 +324,8 @@ export async function generateSharedTransactionPdf(token: string): Promise<{
   buffer: Buffer;
   transactionDescription: string;
 }> {
-  const sharedTransaction = await SharedTransactionService.getSharedTransaction(token);
+  const sharedTransaction =
+    await SharedTransactionService.getSharedTransaction(token);
   if (!sharedTransaction) {
     throw new Error("SHARED_TRANSACTION_NOT_FOUND");
   }
