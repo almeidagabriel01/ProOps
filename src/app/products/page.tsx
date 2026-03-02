@@ -2,7 +2,15 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Package,
+  Wallet,
+  TrendingUp,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -32,6 +40,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
+import { formatCurrency } from "@/utils/format";
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -48,6 +57,20 @@ export default function ProductsPage() {
   const resetRef = useRef<(() => void) | null>(null);
 
   const isFiltering = searchTerm.trim() !== "";
+  const inventoryBalances = (allProducts ?? []).reduce(
+    (totals, product) => {
+      const unitCost = Number.parseFloat(product.price || "0");
+      const markup = Number.parseFloat(product.markup || "0");
+      const stock = Number(product.stock || 0);
+      const sellingPrice = unitCost * (1 + markup / 100);
+
+      totals.cost += unitCost * stock;
+      totals.withMarkup += sellingPrice * stock;
+
+      return totals;
+    },
+    { cost: 0, withMarkup: 0 },
+  );
 
   const handleStockUpdate = async (product: Product, newStock: string) => {
     const numericStock = parseInt(newStock, 10);
@@ -65,9 +88,7 @@ export default function ProductsPage() {
     );
 
     if (success) {
-      // Trigger re-fetch
       resetRef.current?.();
-      // Optimistic update
       if (allProducts) {
         setAllProducts(
           (prev) =>
@@ -87,7 +108,6 @@ export default function ProductsPage() {
     sortConfig,
   } = useSort(allProducts ?? []);
 
-  // Check if we have any products (for empty state)
   useEffect(() => {
     const check = async () => {
       if (!tenant) return;
@@ -101,9 +121,8 @@ export default function ProductsPage() {
     check();
   }, [tenant]);
 
-  // Fetch all products when searching
   useEffect(() => {
-    if (!isFiltering || !tenant) {
+    if (!tenant) {
       setAllProducts(null);
       return;
     }
@@ -125,13 +144,14 @@ export default function ProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [isFiltering, tenant]);
+  }, [tenant]);
 
-  // fetchPage callback for async pagination
   const fetchPage = useCallback(
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
-      if (!tenant)
+      if (!tenant) {
         return { data: [] as Product[], lastDoc: null, hasMore: false };
+      }
+
       return ProductService.getProductsPaginated(
         tenant.id,
         12,
@@ -147,7 +167,6 @@ export default function ProductsPage() {
     [tenant, sortConfig],
   );
 
-  // Reset pagination when sort changes
   useEffect(() => {
     resetRef.current?.();
   }, [sortConfig]);
@@ -164,7 +183,6 @@ export default function ProductsPage() {
       const productLabel = selectedProduct?.name?.trim()
         ? `"${selectedProduct.name.trim()}"`
         : "selecionado";
-      // Check if product is used in any proposal
       const isUsed = await ProposalService.isProductUsedInProposal(
         deleteId,
         tenant.id,
@@ -179,7 +197,6 @@ export default function ProductsPage() {
         return;
       }
 
-      // await ProductService.deleteProduct(deleteId);
       const success = await deleteProduct(deleteId, selectedProduct?.name);
       if (success) {
         resetRef.current?.();
@@ -193,7 +210,6 @@ export default function ProductsPage() {
       setDeleteId(null);
     } catch (error) {
       console.error("Error deleting product:", error);
-      // alert("Erro ao excluir produto. Tente novamente."); // Hook handles error
     } finally {
       setIsDeleting(false);
     }
@@ -263,7 +279,7 @@ export default function ProductsPage() {
     },
     {
       key: "price",
-      header: "Preço",
+      header: "PreÃ§o",
       className: "col-span-2",
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
@@ -285,7 +301,7 @@ export default function ProductsPage() {
     },
     {
       key: "actions",
-      header: "Ações",
+      header: "AÃ§Ãµes",
       className: "col-span-1 text-right",
       headerClassName: "col-span-1 flex justify-end",
       sortable: false,
@@ -323,8 +339,8 @@ export default function ProductsPage() {
     <AlertDialog
       open={!!deleteId}
       onOpenChange={(open) => {
-        if (!isDeleting) {
-          if (!open) setDeleteId(null);
+        if (!isDeleting && !open) {
+          setDeleteId(null);
         }
       }}
     >
@@ -352,14 +368,6 @@ export default function ProductsPage() {
     </AlertDialog>
   );
 
-  // if (isPageLoading) {
-  //   return (
-  //     <>
-  //       <ProductsSkeleton />
-  //       {renderDialogs()}
-  //     </>
-  //   );
-  // }
   return (
     <>
       {!tenantLoading && !tenant && user?.role === "superadmin" ? (
@@ -399,7 +407,54 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* Search */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-border/60 bg-gradient-to-br from-background via-amber-50/40 to-background">
+                <CardContent className="flex items-start justify-between gap-4 p-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Saldo de custo em estoque
+                    </p>
+                    <p className="text-3xl font-bold tracking-tight">
+                      {allProducts === null && hasAnyProducts !== false ? (
+                        <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                          <Spinner className="w-4 h-4" />
+                          Calculando...
+                        </span>
+                      ) : (
+                        formatCurrency(inventoryBalances.cost)
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                    <Wallet className="h-6 w-6" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/60 bg-gradient-to-br from-background via-emerald-50/50 to-background">
+                <CardContent className="flex items-start justify-between gap-4 p-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Saldo com markup em estoque
+                    </p>
+                    <p className="text-3xl font-bold tracking-tight">
+                      {allProducts === null && hasAnyProducts !== false ? (
+                        <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                          <Spinner className="w-4 h-4" />
+                          Calculando...
+                        </span>
+                      ) : (
+                        formatCurrency(inventoryBalances.withMarkup)
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                    <TrendingUp className="h-6 w-6" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {hasAnyProducts !== false && (
               <div className="max-w-md">
                 <Input
