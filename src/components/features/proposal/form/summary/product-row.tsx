@@ -7,6 +7,11 @@ interface ProductRowProps {
 }
 
 export function ProductRow({ product, isInactive }: ProductRowProps) {
+  const isService = (product.itemType || "product") === "service";
+  const unitValue = isService
+    ? product.unitPrice || 0
+    : (product.unitPrice || 0) * (1 + (product.markup || 0) / 100);
+
   return (
     <tr className="border-t">
       <td className="p-3 font-medium pl-6">
@@ -44,10 +49,7 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
       </td>
       <td className="p-3 text-center">{product.quantity}</td>
       <td className="p-3 text-right whitespace-nowrap">
-        R${" "}
-        {((product.unitPrice || 0) * (1 + (product.markup || 0) / 100)).toFixed(
-          2,
-        )}
+        R$ {unitValue.toFixed(2)}
       </td>
       <td className="p-3 text-right font-medium whitespace-nowrap">
         R$ {(product.total || 0).toFixed(2)}

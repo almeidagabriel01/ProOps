@@ -139,7 +139,7 @@ export function buildContentItems(
     const content = (section.content || "")
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .replace(/[\\u0300-\\u036f]/g, "");
     return (
       content.includes("condies de pagamento") ||
       content.includes("condicoes de pagamento") ||

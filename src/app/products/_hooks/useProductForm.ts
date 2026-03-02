@@ -37,6 +37,29 @@ export interface ProductFormData {
 type CatalogEntityType = "product" | "service";
 type CatalogItem = Product | Service;
 
+function getInitialProductMarkup(
+  initialData: CatalogItem | undefined,
+  entityType: CatalogEntityType,
+  fallbackValue: string,
+): string {
+  if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
+    return fallbackValue;
+  }
+
+  return initialData.markup || fallbackValue;
+}
+
+function getInitialProductStock(
+  initialData: CatalogItem | undefined,
+  entityType: CatalogEntityType,
+): string {
+  if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
+    return "";
+  }
+
+  return normalizeInitialStock(initialData.stock);
+}
+
 function normalizeInitialStock(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
   const parsed =
@@ -137,15 +160,13 @@ export function useProductForm(
     name: initialData?.name || "",
     description: initialData?.description || "",
     price: initialData?.price || "",
-    markup:
-      entityType === "product" ? (initialData?.markup || "30") : "",
+    markup: getInitialProductMarkup(initialData, entityType, productId ? "" : "30"),
     manufacturer:
       "manufacturer" in (initialData || {})
         ? (initialData as Product).manufacturer
         : "",
     category: initialData?.category || "",
-    stock:
-      entityType === "product" ? normalizeInitialStock(initialData?.stock) : "",
+    stock: getInitialProductStock(initialData, entityType),
     status: initialData?.status || "active",
     image: null,
     images: [],
@@ -175,17 +196,17 @@ export function useProductForm(
           name: initialData?.name || "",
           description: initialData?.description || "",
           price: initialData?.price || "",
-          markup:
-            entityType === "product" ? (initialData?.markup || "30") : "",
+          markup: getInitialProductMarkup(
+            initialData,
+            entityType,
+            productId ? "" : "30",
+          ),
           manufacturer:
             "manufacturer" in (initialData || {})
               ? (initialData as Product).manufacturer
               : "",
           category: initialData?.category || "",
-          stock:
-            entityType === "product"
-              ? normalizeInitialStock(initialData?.stock)
-              : "",
+          stock: getInitialProductStock(initialData, entityType),
           status: initialData?.status || "active",
           image: null,
           images: [],
@@ -204,16 +225,13 @@ export function useProductForm(
         name: initialData.name || "",
         description: initialData.description || "",
         price: initialData.price || "",
-        markup: entityType === "product" ? (initialData.markup || "") : "",
+        markup: getInitialProductMarkup(initialData, entityType, ""),
         manufacturer:
           entityType === "product" && "manufacturer" in initialData
             ? (initialData as Product).manufacturer
             : "",
         category: initialData.category || "",
-        stock:
-          entityType === "product"
-            ? normalizeInitialStock(initialData.stock)
-            : "",
+        stock: getInitialProductStock(initialData, entityType),
         status: initialData.status || "active",
         image: null,
         images: [],

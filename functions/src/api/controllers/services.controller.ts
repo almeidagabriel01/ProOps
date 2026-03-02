@@ -8,13 +8,29 @@ import {
 } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
 
+const sanitizeServicePayload = (input: Record<string, unknown>) => ({
+  name: typeof input.name === "string" ? input.name.trim() : "",
+  description: typeof input.description === "string" ? input.description : "",
+  price: typeof input.price === "string" ? input.price : "",
+  category: typeof input.category === "string" ? input.category : "",
+  status: input.status === "inactive" ? "inactive" : "active",
+  images: Array.isArray(input.images)
+    ? input.images.filter((value): value is string => typeof value === "string")
+    : [],
+});
+
 export const createService = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const input = req.body;
+    const input = req.body as Record<string, unknown>;
+    const sanitizedInput = sanitizeServicePayload(input);
 
-    if (!input.name || input.name.trim().length < 2) {
+    if (!sanitizedInput.name || sanitizedInput.name.length < 2) {
       return res.status(400).json({ message: "Nome inválido." });
+    }
+
+    if (!sanitizedInput.price) {
+      return res.status(400).json({ message: "Preço do serviço inválido." });
     }
 
     const { masterData, masterRef, tenantId, isMaster, isSuperAdmin } =
@@ -30,7 +46,9 @@ export const createService = async (req: Request, res: Response) => {
     }
 
     const targetTenantId =
-      input.targetTenantId && isSuperAdmin ? input.targetTenantId : tenantId;
+      typeof input.targetTenantId === "string" && isSuperAdmin
+        ? input.targetTenantId
+        : tenantId;
 
     let targetMasterRef = masterRef;
     let targetMasterData = masterData;
@@ -76,14 +94,7 @@ export const createService = async (req: Request, res: Response) => {
 
       transaction.set(newServiceRef, {
         tenantId: targetTenantId,
-        name: input.name.trim(),
-        description: input.description || "",
-        price: input.price,
-        markup: input.markup || "0",
-        category: input.category || "",
-        stock: input.stock || "0",
-        status: input.status || "active",
-        images: input.images || [],
+        ...sanitizedInput,
         createdAt: now,
         updatedAt: now,
       });
@@ -120,10 +131,11 @@ export const updateService = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = req.body as Record<string, unknown>;
 
-    if (!id)
+    if (!id) {
       return res.status(400).json({ message: "ID do serviço inválido." });
+    }
 
     const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
       userId,
@@ -154,25 +166,28 @@ export const updateService = async (req: Request, res: Response) => {
       }
     }
 
+    const sanitizedInput = sanitizeServicePayload(updateData);
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),
+      markup: FieldValue.delete(),
+      manufacturer: FieldValue.delete(),
+      stock: FieldValue.delete(),
     };
 
-    const allowedFields = [
-      "name",
-      "description",
-      "price",
-      "markup",
-      "category",
-      "stock",
-      "images",
-      "image",
-      "status",
-    ];
-    for (const field of allowedFields) {
-      if (updateData[field] !== undefined)
-        safeUpdate[field] = updateData[field];
+    if (updateData.name !== undefined) safeUpdate.name = sanitizedInput.name;
+    if (updateData.description !== undefined) {
+      safeUpdate.description = sanitizedInput.description;
     }
+    if (updateData.price !== undefined) safeUpdate.price = sanitizedInput.price;
+    if (updateData.category !== undefined) {
+      safeUpdate.category = sanitizedInput.category;
+    }
+    if (updateData.images !== undefined) safeUpdate.images = sanitizedInput.images;
+    if (updateData.image !== undefined) {
+      safeUpdate.image =
+        typeof updateData.image === "string" ? updateData.image : null;
+    }
+    if (updateData.status !== undefined) safeUpdate.status = sanitizedInput.status;
 
     await serviceRef.update(safeUpdate);
 
@@ -193,8 +208,9 @@ export const deleteService = async (req: Request, res: Response) => {
     const userId = req.user!.uid;
     const { id } = req.params;
 
-    if (!id)
+    if (!id) {
       return res.status(400).json({ message: "ID do serviço obrigatório." });
+    }
 
     const { tenantId, isMaster, isSuperAdmin, masterRef } =
       await resolveUserAndTenant(userId, req.user);

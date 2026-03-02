@@ -64,7 +64,7 @@ export function usePdfSectionEditor({
     return (value || "")
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .replace(/[\\u0300-\\u036f]/g, "");
   }, []);
 
   const isPaymentTitle = React.useCallback(

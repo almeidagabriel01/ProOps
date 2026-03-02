@@ -14,11 +14,11 @@ function mapTransactionErrorStatus(message: string): number {
   ) {
     return 403;
   }
-  if (message.includes("nÃ£o encontrada")) return 404;
+  if (message.includes("não encontrada")) return 404;
   if (
-    message.includes("Dados invÃ¡lidos") ||
-    message.includes("Status invÃ¡lido") ||
-    message.includes("ID invÃ¡lido")
+    message.includes("Dados inválidos") ||
+    message.includes("Status inválido") ||
+    message.includes("ID inválido")
   ) {
     return 400;
   }

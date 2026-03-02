@@ -169,14 +169,14 @@ export default function TeamPage() {
         );
       } else {
         // The hook already displays a toast; this is a fallback for unexpected responses
-        toast.error("NÃ£o foi possÃ­vel atualizar a permissÃ£o.");
+        toast.error("Não foi possível atualizar a permissão.");
       }
     } catch (error: unknown) {
       console.error("Unexpected error while updating permission:", error);
       const message =
         error instanceof Error
           ? error.message
-          : "Erro inesperado ao atualizar permissÃ£o.";
+          : "Erro inesperado ao atualizar permissão.";
       toast.error(message);
     } finally {
       setUpdatingKey(null);

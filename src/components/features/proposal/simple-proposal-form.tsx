@@ -643,7 +643,9 @@ export function SimpleProposalForm({
               itemType === "service"
                 ? 0
                 : productDef
-                  ? parseFloat(productDef.markup || "0")
+                  ? parseFloat(
+                      "manufacturer" in productDef ? productDef.markup || "0" : "0",
+                    )
                   : 0;
             return {
               productId: sp.productId,

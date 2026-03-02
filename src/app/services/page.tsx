@@ -12,7 +12,6 @@ import { useAuth } from "@/providers/auth-provider";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { Service, ServiceService } from "@/services/service-service";
 import { useServiceActions } from "@/hooks/useServiceActions";
-import { StockEditableCell } from "@/app/products/_components/stock-editable-cell";
 import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,7 @@ export default function ServicesPage() {
   const [allServices, setAllServices] = useState<Service[] | null>(null);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [hasAnyServices, setHasAnyServices] = useState<boolean | null>(null);
-  const { deleteService, updateService } = useServiceActions();
+  const { deleteService } = useServiceActions();
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -49,36 +48,6 @@ export default function ServicesPage() {
   const resetRef = useRef<(() => void) | null>(null);
 
   const isFiltering = searchTerm.trim() !== "";
-
-  const handleStockUpdate = async (service: Service, newStock: string) => {
-    const numericStock = parseInt(newStock, 10);
-    if (isNaN(numericStock)) return false;
-
-    const success = await updateService(
-      service.id,
-      {
-        stock: numericStock,
-      },
-      {
-        serviceName: service.name,
-        context: "stock",
-      },
-    );
-
-    if (success) {
-      resetRef.current?.();
-      if (allServices) {
-        setAllServices(
-          (prev) =>
-            prev?.map((p) =>
-              p.id === service.id ? { ...p, stock: numericStock } : p,
-            ) ?? null,
-        );
-      }
-    }
-
-    return success;
-  };
 
   const {
     items: sortedServices,
@@ -126,8 +95,10 @@ export default function ServicesPage() {
 
   const fetchPage = useCallback(
     async (cursor: QueryDocumentSnapshot<DocumentData> | null) => {
-      if (!tenant)
+      if (!tenant) {
         return { data: [] as Service[], lastDoc: null, hasMore: false };
+      }
+
       return ServiceService.getServicesPaginated(
         tenant.id,
         12,
@@ -154,7 +125,7 @@ export default function ServicesPage() {
     setIsDeleting(true);
     try {
       const selectedService = (allServices ?? []).find(
-        (p) => p.id === deleteId,
+        (service) => service.id === deleteId,
       );
       const serviceLabel = selectedService?.name?.trim()
         ? `"${selectedService.name.trim()}"`
@@ -164,12 +135,12 @@ export default function ServicesPage() {
         tenant.id,
         "service",
       );
+
       if (isUsed) {
         toast.error(
-          `Nao foi possivel excluir o serviço ${serviceLabel} porque ele esta vinculado a uma ou mais propostas.`,
+          `Não foi possível excluir o serviço ${serviceLabel} porque ele está vinculado a uma ou mais propostas.`,
           { title: "Erro ao excluir" },
         );
-        setIsDeleting(false);
         setDeleteId(null);
         return;
       }
@@ -180,7 +151,7 @@ export default function ServicesPage() {
         setHasAnyServices(null);
         if (allServices) {
           setAllServices(
-            (prev) => prev?.filter((p) => p.id !== deleteId) ?? null,
+            (prev) => prev?.filter((service) => service.id !== deleteId) ?? null,
           );
         }
       }
@@ -198,7 +169,10 @@ export default function ServicesPage() {
       )
     : [];
 
-  const serviceToDelete = (allServices ?? []).find((p) => p.id === deleteId);
+  const serviceToDelete = (allServices ?? []).find(
+    (service) => service.id === deleteId,
+  );
+
   const columns: DataTableColumn<Service>[] = [
     {
       key: "image",
@@ -240,42 +214,19 @@ export default function ServicesPage() {
     {
       key: "category",
       header: "Categoria",
-      className: "col-span-2",
+      className: "col-span-3",
       render: (service) => (
         <div className="text-sm text-muted-foreground">{service.category}</div>
       ),
     },
     {
-      key: "stock",
-      header: "Estoque",
-      className: "col-span-2",
-      render: (service) => (
-        <StockEditableCell
-          initialValue={service.stock}
-          onUpdate={(val) => handleStockUpdate(service, val)}
-        />
-      ),
-    },
-    {
       key: "price",
       header: "Preço",
-      className: "col-span-2",
+      className: "col-span-3",
       render: (service) => (
-        <div className="flex flex-col items-start gap-0.5">
-          <span className="text-sm font-medium">
-            R${" "}
-            {(
-              parseFloat(service.price) +
-              (parseFloat(service.price) * parseFloat(service.markup || "0")) /
-                100
-            ).toFixed(2)}
-          </span>
-          {service.markup && parseFloat(service.markup) > 0 && (
-            <span className="text-xs text-muted-foreground">
-              (+{parseFloat(service.markup).toFixed(0)}% markup)
-            </span>
-          )}
-        </div>
+        <span className="text-sm font-medium">
+          R$ {parseFloat(service.price || "0").toFixed(2)}
+        </span>
       ),
     },
     {
@@ -318,18 +269,18 @@ export default function ServicesPage() {
     <AlertDialog
       open={!!deleteId}
       onOpenChange={(open) => {
-        if (!isDeleting) {
-          if (!open) setDeleteId(null);
+        if (!isDeleting && !open) {
+          setDeleteId(null);
         }
       }}
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Excluir Serviço</AlertDialogTitle>
+          <AlertDialogTitle>{"Excluir Serviço"}</AlertDialogTitle>
           <AlertDialogDescription>
-            Tem certeza que deseja excluir o serviço{" "}
-            <strong>{serviceToDelete?.name}</strong>? Essa ação não pode ser
-            desfeita.
+            {"Tem certeza que deseja excluir o serviço "}
+            <strong>{serviceToDelete?.name}</strong>
+            {"? Essa ação não pode ser desfeita."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -369,9 +320,11 @@ export default function ServicesPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Serviços</h1>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  {"Serviços"}
+                </h1>
                 <p className="text-muted-foreground mt-1">
-                  Gerencie o catálogo de serviços, margem e preços.
+                  {"Gerencie o catálogo de serviços e seus valores de venda."}
                 </p>
               </div>
               {canCreate && (
@@ -379,7 +332,7 @@ export default function ServicesPage() {
                   <Link href="/services/new">
                     <Button size="lg" className="gap-2">
                       <Plus className="w-5 h-5" />
-                      Novo Serviço
+                      {"Novo Serviço"}
                     </Button>
                   </Link>
                 </div>
@@ -412,17 +365,16 @@ export default function ServicesPage() {
                     <Wrench className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Nenhum serviço cadastrado
+                    {"Nenhum serviço cadastrado"}
                   </h3>
                   <p className="text-muted-foreground text-center mb-6 max-w-md">
-                    Cadastre seus serviços para criar propostas com receita e
-                    margem.
+                    {"Cadastre seus serviços para usar nas propostas e no seu catálogo comercial."}
                   </p>
                   {canCreate && (
                     <Link href="/services/new">
                       <Button className="gap-2">
                         <Plus className="w-4 h-4" />
-                        Cadastrar primeiro serviço
+                        {"Cadastrar primeiro serviço"}
                       </Button>
                     </Link>
                   )}

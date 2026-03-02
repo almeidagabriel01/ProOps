@@ -1,15 +1,9 @@
 ﻿import { Request, Response } from "express";
 import { db, auth } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import {
-  generateRandomPassword,
-  isValidEmail,
-} from "../../lib/admin-helpers";
+import { generateRandomPassword, isValidEmail } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
-import {
-  isSuperAdminClaim,
-  isTenantAdminClaim,
-} from "../../lib/request-auth";
+import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import {
   enforceTenantPlanLimit,
   getTenantUsersUsage,
@@ -87,7 +81,7 @@ export const createMember = async (req: Request, res: Response) => {
         .json({ message: "Nome deve ter pelo menos 2 caracteres" });
     }
     if (!input.email || !isValidEmail(input.email)) {
-      return res.status(400).json({ message: "Email invÃ¡lido" });
+      return res.status(400).json({ message: "Email inválido" });
     }
 
     const isSuperAdmin = isSuperAdminClaim(req);
@@ -107,7 +101,9 @@ export const createMember = async (req: Request, res: Response) => {
     const masterSnap = await masterRef.get();
 
     if (!masterSnap.exists) {
-      return res.status(404).json({ message: "Conta administradora nao encontrada." });
+      return res
+        .status(404)
+        .json({ message: "Conta administradora nao encontrada." });
     }
 
     const masterData = masterSnap.data() as UserDoc;
@@ -116,7 +112,7 @@ export const createMember = async (req: Request, res: Response) => {
 
     if (!tenantId) {
       return res.status(412).json({
-        message: "Erro na conta: Identificador do tenant nÃ£o encontrado.",
+        message: "Erro na conta: Identificador do tenant não encontrado.",
       });
     }
 
@@ -144,7 +140,7 @@ export const createMember = async (req: Request, res: Response) => {
       await auth.getUserByEmail(input.email);
       return res
         .status(409)
-        .json({ message: "Este email jÃ¡ estÃ¡ cadastrado no sistema" });
+        .json({ message: "Este email já está cadastrado no sistema" });
     } catch (err: unknown) {
       if (
         err &&
@@ -168,7 +164,7 @@ export const createMember = async (req: Request, res: Response) => {
       });
     } catch (err) {
       console.error("Error creating Auth user:", err);
-      return res.status(500).json({ message: "Erro ao criar usuÃ¡rio." });
+      return res.status(500).json({ message: "Erro ao criar usuário." });
     }
 
     const memberId = memberAuthUser.uid;
@@ -238,7 +234,7 @@ export const createMember = async (req: Request, res: Response) => {
       return res.status(201).json({
         success: true,
         memberId,
-        message: `UsuÃ¡rio ${input.name} criado com sucesso!`,
+        message: `Usuário ${input.name} criado com sucesso!`,
       });
     } catch (err) {
       console.error("Transaction failed, rolling back:", err);
@@ -249,11 +245,11 @@ export const createMember = async (req: Request, res: Response) => {
         console.error("Rollback failed", e);
       }
       if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
-        return res.status(409).json({ message: "Telefone jÃ¡ vinculado" });
+        return res.status(409).json({ message: "Telefone já vinculado" });
       }
       return res
         .status(500)
-        .json({ message: "Erro ao salvar dados do usuÃ¡rio." });
+        .json({ message: "Erro ao salvar dados do usuário." });
     }
   } catch (error: unknown) {
     console.error("createMember Error:", error);
@@ -268,20 +264,20 @@ export const updateMember = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { name, email, password, phoneNumber } = req.body;
 
-    if (!id) return res.status(400).json({ message: "ID obrigatÃ³rio." });
+    if (!id) return res.status(400).json({ message: "ID obrigatório." });
 
     const memberSnap = await db.collection("users").doc(id).get();
 
     if (!memberSnap.exists)
-      return res.status(404).json({ message: "Membro nÃ£o encontrado" });
+      return res.status(404).json({ message: "Membro não encontrado" });
 
     const memberData = memberSnap.data();
 
     const isSuperAdmin = isSuperAdminClaim(req);
     if (!isSuperAdmin && !isTenantAdminClaim(req))
-      return res.status(403).json({ message: "PermissÃ£o negada." });
+      return res.status(403).json({ message: "Permissão negada." });
     if (!isSuperAdmin && memberData?.masterId !== masterId)
-      return res.status(403).json({ message: "PermissÃ£o negada." });
+      return res.status(403).json({ message: "Permissão negada." });
 
     // Update Auth
     const authUpdates: {
@@ -303,7 +299,7 @@ export const updateMember = async (req: Request, res: Response) => {
           "code" in err &&
           (err as { code: string }).code === "auth/email-already-exists"
         ) {
-          return res.status(409).json({ message: "Email jÃ¡ em uso." });
+          return res.status(409).json({ message: "Email já em uso." });
         }
         return res
           .status(500)
@@ -346,7 +342,7 @@ export const updateMember = async (req: Request, res: Response) => {
       });
     } catch (err) {
       if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
-        return res.status(409).json({ message: "Telefone jÃ¡ vinculado" });
+        return res.status(409).json({ message: "Telefone já vinculado" });
       }
       throw err;
     }
@@ -367,11 +363,11 @@ export const deleteMember = async (req: Request, res: Response) => {
     const loggedUserId = req.user!.uid;
     const { id } = req.params;
 
-    if (!id) return res.status(400).json({ message: "ID obrigatÃ³rio." });
+    if (!id) return res.status(400).json({ message: "ID obrigatório." });
 
     const memberSnap = await db.collection("users").doc(id).get();
     if (!memberSnap.exists)
-      return res.status(404).json({ message: "Membro nÃ£o encontrado" });
+      return res.status(404).json({ message: "Membro não encontrado" });
 
     const memberData = memberSnap.data();
     const isSuperAdmin = isSuperAdminClaim(req);
@@ -379,9 +375,9 @@ export const deleteMember = async (req: Request, res: Response) => {
     // Super admin can delete any member; otherwise check permissions
     if (!isSuperAdmin) {
       if (!isTenantAdminClaim(req))
-        return res.status(403).json({ message: "PermissÃ£o negada." });
+        return res.status(403).json({ message: "Permissão negada." });
       if (memberData?.masterId !== loggedUserId)
-        return res.status(403).json({ message: "PermissÃ£o negada." });
+        return res.status(403).json({ message: "Permissão negada." });
     }
 
     // Get the actual master of this member for decrementing usage
@@ -404,7 +400,7 @@ export const deleteMember = async (req: Request, res: Response) => {
       ) {
         return res
           .status(500)
-          .json({ message: "Erro ao remover acesso do usuÃ¡rio." });
+          .json({ message: "Erro ao remover acesso do usuário." });
       }
     }
 
@@ -461,7 +457,7 @@ export const updatePermissions = async (req: Request, res: Response) => {
     console.log("[updatePermissions] actualMemberId:", actualMemberId);
 
     if (!actualMemberId) {
-      return res.status(400).json({ message: "ID do membro Ã© obrigatÃ³rio." });
+      return res.status(400).json({ message: "ID do membro é obrigatório." });
     }
 
     const memberSnap = await db.collection("users").doc(actualMemberId).get();
@@ -473,17 +469,17 @@ export const updatePermissions = async (req: Request, res: Response) => {
         "[updatePermissions] Member not found with ID:",
         actualMemberId,
       );
-      return res.status(404).json({ message: "Membro nÃ£o encontrado." });
+      return res.status(404).json({ message: "Membro não encontrado." });
     }
 
     const memberData = memberSnap.data();
     const isSuperAdmin = isSuperAdminClaim(req);
 
     if (!isSuperAdmin && !isTenantAdminClaim(req)) {
-      return res.status(403).json({ message: "PermissÃ£o negada." });
+      return res.status(403).json({ message: "Permissão negada." });
     }
     if (!isSuperAdmin && memberData?.masterId !== masterId) {
-      return res.status(403).json({ message: "PermissÃ£o negada." });
+      return res.status(403).json({ message: "Permissão negada." });
     }
 
     const permissionsRef = db
@@ -512,12 +508,12 @@ export const updatePermissions = async (req: Request, res: Response) => {
         { merge: true },
       );
 
-      return res.json({ success: true, message: "PermissÃ£o atualizada." });
+      return res.json({ success: true, message: "Permissão atualizada." });
     }
 
     // Handle bulk permissions update
     if (!permissions) {
-      return res.status(400).json({ message: "PermissÃµes sÃ£o obrigatÃ³rias." });
+      return res.status(400).json({ message: "Permissões são obrigatórias." });
     }
 
     const batch = db.batch();
@@ -539,7 +535,7 @@ export const updatePermissions = async (req: Request, res: Response) => {
     }
 
     await batch.commit();
-    return res.json({ success: true, message: "PermissÃµes atualizadas." });
+    return res.json({ success: true, message: "Permissões atualizadas." });
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
@@ -597,7 +593,9 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
       .get();
 
-    console.log(`[getAllTenantsBilling] Found ${usersSnapshot.docs.length} master users`);
+    console.log(
+      `[getAllTenantsBilling] Found ${usersSnapshot.docs.length} master users`,
+    );
 
     // Collect unique tenant IDs and plan IDs for batch fetch
     const tenantIds = new Set<string>();
@@ -634,7 +632,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           }
         }
       } catch (err) {
-        console.warn("[getAllTenantsBilling] Batch tenant fetch failed, continuing without tenant data:", err);
+        console.warn(
+          "[getAllTenantsBilling] Batch tenant fetch failed, continuing without tenant data:",
+          err,
+        );
       }
     }
 
@@ -661,7 +662,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           }
         }
       } catch (err) {
-        console.warn("[getAllTenantsBilling] Batch plan fetch failed, continuing without plan names:", err);
+        console.warn(
+          "[getAllTenantsBilling] Batch plan fetch failed, continuing without plan names:",
+          err,
+        );
       }
     }
 
@@ -748,7 +752,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
         const planId = tierToName[rawPlanId.toLowerCase()]
           ? rawPlanId.toLowerCase()
-          : (planTierMap.get(rawPlanId) || rawPlanId.toLowerCase());
+          : planTierMap.get(rawPlanId) || rawPlanId.toLowerCase();
         let planName = tierToName[planId.toLowerCase()];
         if (!planName && planId !== "free") {
           planName = planNameMap.get(planId) || planId;
@@ -759,9 +763,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         tenantsData.push({
           tenant: {
             id: tenantId || userDoc.id,
-            name: (tenantData as TenantData).name || userData.companyName || "Sem nome",
+            name:
+              (tenantData as TenantData).name ||
+              userData.companyName ||
+              "Sem nome",
             slug: (tenantData as TenantData).slug,
-            createdAt: (tenantData as TenantData).createdAt || userData.createdAt,
+            createdAt:
+              (tenantData as TenantData).createdAt || userData.createdAt,
             logoUrl: (tenantData as TenantData).logoUrl,
             primaryColor: (tenantData as TenantData).primaryColor,
             niche: (tenantData as TenantData).niche,
@@ -787,11 +795,16 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           },
         });
       } catch (docErr) {
-        console.error(`[getAllTenantsBilling] Error processing user doc ${userDoc.id}, skipping:`, docErr);
+        console.error(
+          `[getAllTenantsBilling] Error processing user doc ${userDoc.id}, skipping:`,
+          docErr,
+        );
       }
     }
 
-    console.log(`[getAllTenantsBilling] Returning ${tenantsData.length} tenants`);
+    console.log(
+      `[getAllTenantsBilling] Returning ${tenantsData.length} tenants`,
+    );
     return res.json(tenantsData);
   } catch (error: unknown) {
     console.error("Error getting tenants:", error);
@@ -804,13 +817,15 @@ export const updateCredentials = async (req: Request, res: Response) => {
     const { userId, email, password, phoneNumber } = req.body;
 
     if (!userId) {
-      return res.status(400).json({ message: "ID do usuÃ¡rio Ã© obrigatÃ³rio" });
+      return res
+        .status(400)
+        .json({ message: "ID do usuário é obrigatório" });
     }
 
     if (!isSuperAdminClaim(req)) {
       return res.status(403).json({
         message:
-          "PermissÃ£o negada. Apenas super admins podem alterar credenciais.",
+          "Permissão negada. Apenas super admins podem alterar credenciais.",
       });
     }
 
@@ -852,7 +867,7 @@ export const updateCredentials = async (req: Request, res: Response) => {
           if (err instanceof Error && err.message === "PHONE_ALREADY_LINKED") {
             return res
               .status(409)
-              .json({ message: "Telefone jÃ¡ vinculado a outro usuÃ¡rio." });
+              .json({ message: "Telefone já vinculado a outro usuário." });
           }
           throw err;
         }
@@ -880,12 +895,12 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     if (!userId || !planId) {
       return res
         .status(400)
-        .json({ message: "ID do usuÃ¡rio e Plan ID sÃ£o obrigatÃ³rios" });
+        .json({ message: "ID do usuário e Plan ID são obrigatórios" });
     }
 
     if (!isSuperAdminClaim(req)) {
       return res.status(403).json({
-        message: "PermissÃ£o negada. Apenas super admins podem alterar planos.",
+        message: "Permissão negada. Apenas super admins podem alterar planos.",
       });
     }
 
@@ -912,13 +927,15 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     const updates = req.body;
 
     if (!userId) {
-      return res.status(400).json({ message: "ID do usuÃ¡rio Ã© obrigatÃ³rio" });
+      return res
+        .status(400)
+        .json({ message: "ID do usuário é obrigatório" });
     }
 
     if (!isSuperAdminClaim(req)) {
       return res.status(403).json({
         message:
-          "PermissÃ£o negada. Apenas super admins podem alterar assinaturas.",
+          "Permissão negada. Apenas super admins podem alterar assinaturas.",
       });
     }
 
@@ -939,7 +956,7 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     if (Object.keys(safeUpdates).length === 0) {
       return res
         .status(400)
-        .json({ message: "Nenhum campo vÃ¡lido para atualizaÃ§Ã£o" });
+        .json({ message: "Nenhum campo válido para atualização" });
     }
 
     safeUpdates.updatedAt = FieldValue.serverTimestamp();
@@ -1039,19 +1056,21 @@ export const createTenant = async (req: Request, res: Response) => {
     }
 
     if (!adminName || adminName.length < 2) {
-      return res
-        .status(400)
-        .json({ message: "Nome do administrador deve ter pelo menos 2 caracteres." });
+      return res.status(400).json({
+        message: "Nome do administrador deve ter pelo menos 2 caracteres.",
+      });
     }
 
     if (!isValidEmail(adminEmail)) {
-      return res.status(400).json({ message: "Email do administrador inválido." });
+      return res
+        .status(400)
+        .json({ message: "Email do administrador inválido." });
     }
 
     if (adminPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ message: "Senha do administrador deve ter no mínimo 6 caracteres." });
+      return res.status(400).json({
+        message: "Senha do administrador deve ter no mínimo 6 caracteres.",
+      });
     }
 
     try {
@@ -1171,7 +1190,10 @@ export const createTenant = async (req: Request, res: Response) => {
       try {
         await auth.deleteUser(createdAuthUid);
       } catch (rollbackError) {
-        console.error("[createTenant] rollback auth delete failed:", rollbackError);
+        console.error(
+          "[createTenant] rollback auth delete failed:",
+          rollbackError,
+        );
       }
     }
     console.error("[createTenant] error:", error);
@@ -1185,7 +1207,8 @@ export const deleteTenant = async (req: Request, res: Response) => {
   try {
     if (!isSuperAdminClaim(req)) {
       return res.status(403).json({
-        message: "Permissão negada. Apenas super admins podem remover empresas.",
+        message:
+          "Permissão negada. Apenas super admins podem remover empresas.",
       });
     }
 
@@ -1284,14 +1307,14 @@ export const testWhatsAppBilling = async (req: Request, res: Response) => {
 
     if (!isSuperAdminClaim(req)) {
       return res.status(403).json({
-        message: "PermissÃ£o negada. Apenas super admins podem testar billing.",
+        message: "Permissão negada. Apenas super admins podem testar billing.",
       });
     }
 
     if (!tenantId || !month) {
       return res
         .status(400)
-        .json({ message: "tenantId e month sÃ£o obrigatÃ³rios" });
+        .json({ message: "tenantId e month são obrigatórios" });
     }
 
     const result = await reportWhatsAppOverage(tenantId, month);

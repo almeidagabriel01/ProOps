@@ -21,10 +21,7 @@ export type Service = {
   name: string;
   description: string;
   price: string;
-  markup?: string;
-
   category: string;
-  stock: number;
   images: string[];
   image?: string | null;
   status?: "active" | "inactive";
@@ -39,9 +36,14 @@ function mapServiceDoc(d: QueryDocumentSnapshot<DocumentData>): Service {
   const data = d.data();
   return {
     id: d.id,
-    ...data,
-    stock:
-      typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+    tenantId: data.tenantId,
+    name: data.name || "",
+    description: data.description || "",
+    price: data.price || "",
+    category: data.category || "",
+    images: Array.isArray(data.images) ? data.images : [],
+    image: data.image || null,
+    status: data.status,
     itemType: "service",
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
@@ -49,50 +51,7 @@ function mapServiceDoc(d: QueryDocumentSnapshot<DocumentData>): Service {
     updatedAt: data.updatedAt?.toDate
       ? data.updatedAt.toDate().toISOString()
       : data.updatedAt,
-  } as Service;
-}
-
-function compareServicesByField(
-  a: QueryDocumentSnapshot<DocumentData>,
-  b: QueryDocumentSnapshot<DocumentData>,
-  sortField: string,
-  sortDirection: "asc" | "desc",
-): number {
-  const dataA = a.data();
-  const dataB = b.data();
-
-  const rawA = dataA[sortField];
-  const rawB = dataB[sortField];
-
-  let valueA: unknown = rawA;
-  let valueB: unknown = rawB;
-
-  if (sortField === "stock") {
-    valueA = typeof rawA === "number" ? rawA : Number(rawA ?? 0);
-    valueB = typeof rawB === "number" ? rawB : Number(rawB ?? 0);
-  }
-
-  if (valueA === valueB) {
-    return 0;
-  }
-
-  if (valueA === null || valueA === undefined) {
-    return 1;
-  }
-  if (valueB === null || valueB === undefined) {
-    return -1;
-  }
-
-  if (typeof valueA === "string" && typeof valueB === "string") {
-    return sortDirection === "asc"
-      ? valueA.localeCompare(valueB, undefined, { numeric: true })
-      : valueB.localeCompare(valueA, undefined, { numeric: true });
-  }
-
-  if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-  if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-
-  return 0;
+  };
 }
 
 export const ServiceService = {
@@ -120,33 +79,6 @@ export const ServiceService = {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
-
-      const needsClientSort = sortField === "stock";
-
-      if (needsClientSort) {
-        const baseQuery = query(
-          collection(db, COLLECTION_NAME),
-          where("tenantId", "==", tenantId),
-        );
-
-        const allSnapshot = await getDocs(baseQuery);
-        const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
-          compareServicesByField(a, b, sortField, sortDirection),
-        );
-
-        const startIndex = cursor
-          ? sortedDocs.findIndex((doc) => doc.id === cursor.id) + 1
-          : 0;
-
-        const pageDocs = sortedDocs.slice(startIndex, startIndex + pageSize);
-        const hasMore = startIndex + pageSize < sortedDocs.length;
-
-        return {
-          data: pageDocs.map(mapServiceDoc),
-          lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
-          hasMore,
-        };
-      }
 
       const q = cursor
         ? query(
@@ -184,22 +116,29 @@ export const ServiceService = {
       const docRef = doc(db, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        return {
-          id: docSnap.id,
-          ...data,
-          itemType: "service",
-          createdAt: data.createdAt?.toDate
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-          updatedAt: data.updatedAt?.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt,
-        } as Service;
-      } else {
+      if (!docSnap.exists()) {
         return null;
       }
+
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        tenantId: data.tenantId,
+        name: data.name || "",
+        description: data.description || "",
+        price: data.price || "",
+        category: data.category || "",
+        images: Array.isArray(data.images) ? data.images : [],
+        image: data.image || null,
+        status: data.status,
+        itemType: "service",
+        createdAt: data.createdAt?.toDate
+          ? data.createdAt.toDate().toISOString()
+          : data.createdAt,
+        updatedAt: data.updatedAt?.toDate
+          ? data.updatedAt.toDate().toISOString()
+          : data.updatedAt,
+      };
     } catch (error) {
       console.error("Error fetching service:", error);
       throw error;

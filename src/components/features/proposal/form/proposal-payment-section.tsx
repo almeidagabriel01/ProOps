@@ -39,6 +39,9 @@ export function ProposalPaymentSection({
   // Calculate components
   const productsValue = selectedProducts.reduce((sum, p) => sum + p.total, 0);
   const totalProfit = selectedProducts.reduce((sum, p) => {
+    if ((p.itemType || "product") === "service") {
+      return sum;
+    }
     const basePrice = p.unitPrice * p.quantity;
     const profit = basePrice * ((p.markup || 0) / 100);
     return sum + profit;

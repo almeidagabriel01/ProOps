@@ -93,7 +93,7 @@ function normalizeText(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\\u0300-\\u036f]/g, "");
 }
 
 function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
