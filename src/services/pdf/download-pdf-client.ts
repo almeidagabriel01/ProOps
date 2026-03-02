@@ -4,11 +4,34 @@ import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { buildProposalPdfFilename } from "@/services/pdf/pdf-filename";
 
+function sanitizeResolvedFilename(value: string): string {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/[<>:"/\\|?*]/g, "")
+    .trim();
+}
+
+function parseFilenameStarParam(value: string): string | null {
+  const cleaned = value.trim().replace(/^"|"$/g, "");
+  const rfc5987 = cleaned.match(/^([^']*)'([^']*)'(.*)$/);
+  const encodedPart = rfc5987 ? rfc5987[3] : cleaned;
+
+  try {
+    return decodeURIComponent(encodedPart);
+  } catch {
+    return encodedPart;
+  }
+}
+
 function savePdfBlob(blob: Blob, filename: string): void {
   const blobUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = blobUrl;
-  anchor.download = filename;
+  const normalizedFilename =
+    /^roposta\b/i.test(filename) && !/^proposta\b/i.test(filename)
+      ? `P${filename}`
+      : filename;
+  anchor.download = normalizedFilename;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
@@ -21,18 +44,29 @@ export function getFilenameFromContentDisposition(
   fallbackFilename?: string,
 ): string {
   if (headerValue) {
-    const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+    const utf8Match = headerValue.match(/filename\*\s*=\s*([^;]+)/i);
     if (utf8Match?.[1]) {
-      try {
-        return decodeURIComponent(utf8Match[1]);
-      } catch {
-        // Ignore invalid encoding and continue fallback parsing.
+      const parsed = parseFilenameStarParam(utf8Match[1]);
+      const safeParsed = parsed ? sanitizeResolvedFilename(parsed) : "";
+      if (safeParsed) {
+        return safeParsed;
       }
     }
 
-    const simpleMatch = headerValue.match(/filename="([^"]+)"/i);
-    if (simpleMatch?.[1]) {
-      return simpleMatch[1];
+    const simpleQuotedMatch = headerValue.match(/filename\s*=\s*"([^"]+)"/i);
+    if (simpleQuotedMatch?.[1]) {
+      const safeParsed = sanitizeResolvedFilename(simpleQuotedMatch[1]);
+      if (safeParsed) {
+        return safeParsed;
+      }
+    }
+
+    const simpleUnquotedMatch = headerValue.match(/filename\s*=\s*([^;\s]+)/i);
+    if (simpleUnquotedMatch?.[1]) {
+      const safeParsed = sanitizeResolvedFilename(simpleUnquotedMatch[1]);
+      if (safeParsed) {
+        return safeParsed;
+      }
     }
   }
 
@@ -76,6 +110,7 @@ export async function downloadPdfFromApiEndpoint(options: {
   endpointPath: string;
   fallbackTitle?: string;
   fallbackFilename?: string;
+  forceFilename?: string;
   requiresAuth?: boolean;
 }): Promise<void> {
   const endpoint = `${getApiBaseUrl()}${options.endpointPath}`;
@@ -102,11 +137,13 @@ export async function downloadPdfFromApiEndpoint(options: {
   }
 
   const blob = await response.blob();
-  const filename = getFilenameFromContentDisposition(
-    response.headers.get("content-disposition"),
-    options.fallbackTitle,
-    options.fallbackFilename,
-  );
+  const filename =
+    options.forceFilename ||
+    getFilenameFromContentDisposition(
+      response.headers.get("content-disposition"),
+      options.fallbackTitle,
+      options.fallbackFilename,
+    );
 
   savePdfBlob(blob, filename);
 }
