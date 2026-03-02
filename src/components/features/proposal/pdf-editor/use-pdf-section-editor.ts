@@ -139,35 +139,42 @@ export function usePdfSectionEditor({
     [],
   );
 
-  const ensureScopeGroupId = React.useCallback((inputSections: PdfSection[]) => {
-    const sectionsWithGroups = inputSections.map((section) => ({ ...section }));
+  const ensureScopeGroupId = React.useCallback(
+    (inputSections: PdfSection[]) => {
+      const sectionsWithGroups = inputSections.map((section) => ({
+        ...section,
+      }));
 
-    sectionsWithGroups.forEach((section, index) => {
-      if (section.type !== "product-table") return;
+      sectionsWithGroups.forEach((section, index) => {
+        if (section.type !== "product-table") return;
 
-      const previous = sectionsWithGroups[index - 1];
-      const previousTwo = sectionsWithGroups[index - 2];
+        const previous = sectionsWithGroups[index - 1];
+        const previousTwo = sectionsWithGroups[index - 2];
 
-      if (section.groupId) {
-        if (previous?.type === "text") {
-          previous.groupId = previous.groupId || section.groupId;
+        if (section.groupId) {
+          if (previous?.type === "text") {
+            previous.groupId = previous.groupId || section.groupId;
+          }
+          if (previousTwo?.type === "title") {
+            previousTwo.groupId = previousTwo.groupId || section.groupId;
+          }
+          return;
         }
-        if (previousTwo?.type === "title") {
-          previousTwo.groupId = previousTwo.groupId || section.groupId;
+
+        if (previous?.type === "text" && previousTwo?.type === "title") {
+          const groupId = crypto.randomUUID();
+          section.groupId = groupId;
+          previous.groupId = previous.groupId || groupId;
+          previousTwo.groupId = previousTwo.groupId || groupId;
+        } else {
+          section.groupId = crypto.randomUUID();
         }
-        return;
-      }
+      });
 
-      if (previous?.type === "text" && previousTwo?.type === "title") {
-        const groupId = crypto.randomUUID();
-        section.groupId = groupId;
-        previous.groupId = previous.groupId || groupId;
-        previousTwo.groupId = previousTwo.groupId || groupId;
-      }
-    });
-
-    return sectionsWithGroups;
-  }, []);
+      return sectionsWithGroups;
+    },
+    [],
+  );
 
   const getLinkedProductBlockRange = React.useCallback(
     (currentSections: PdfSection[], productIndex: number) => {
@@ -273,7 +280,10 @@ export function usePdfSectionEditor({
           return;
         }
 
-        if (hasPaymentTermsCard && (isPaymentTitle(section) || isPaymentText(section))) {
+        if (
+          hasPaymentTermsCard &&
+          (isPaymentTitle(section) || isPaymentText(section))
+        ) {
           return;
         }
 
@@ -383,8 +393,10 @@ export function usePdfSectionEditor({
         const prev = currentSections[index - 1];
         const next = currentSections[index + 1];
 
-        const prevIsPartial = prev && prev.columnWidth && prev.columnWidth < 100;
-        const nextIsPartial = next && next.columnWidth && next.columnWidth < 100;
+        const prevIsPartial =
+          prev && prev.columnWidth && prev.columnWidth < 100;
+        const nextIsPartial =
+          next && next.columnWidth && next.columnWidth < 100;
 
         if (!prevIsPartial && !nextIsPartial) {
           return { ...section, columnWidth: 100 };
@@ -437,8 +449,12 @@ export function usePdfSectionEditor({
     if (sectionIndex === -1) return;
 
     const { start, end } = getRangeForSectionAt(sections, sectionIndex);
-    const idsToRemove = new Set(sections.slice(start, end + 1).map((item) => item.id));
-    const nextSections = sections.filter((section) => !idsToRemove.has(section.id));
+    const idsToRemove = new Set(
+      sections.slice(start, end + 1).map((item) => item.id),
+    );
+    const nextSections = sections.filter(
+      (section) => !idsToRemove.has(section.id),
+    );
 
     onChange(healLayout(nextSections));
   };
@@ -456,12 +472,21 @@ export function usePdfSectionEditor({
       const anchorIndex = movingRange.start - 1;
       const targetRange = getRangeForSectionAt(sections, anchorIndex);
       const beforeTarget = sections.slice(0, targetRange.start);
-      const targetBlock = sections.slice(targetRange.start, targetRange.end + 1);
+      const targetBlock = sections.slice(
+        targetRange.start,
+        targetRange.end + 1,
+      );
       const between = sections.slice(targetRange.end + 1, movingRange.start);
       const afterMoving = sections.slice(movingRange.end + 1);
 
       onChange(
-        healLayout([...beforeTarget, ...block, ...targetBlock, ...between, ...afterMoving]),
+        healLayout([
+          ...beforeTarget,
+          ...block,
+          ...targetBlock,
+          ...between,
+          ...afterMoving,
+        ]),
       );
       return;
     }
@@ -476,7 +501,13 @@ export function usePdfSectionEditor({
     const afterTarget = sections.slice(targetRange.end + 1);
 
     onChange(
-      healLayout([...beforeMoving, ...between, ...targetBlock, ...block, ...afterTarget]),
+      healLayout([
+        ...beforeMoving,
+        ...between,
+        ...targetBlock,
+        ...block,
+        ...afterTarget,
+      ]),
     );
   };
 
@@ -527,10 +558,15 @@ export function usePdfSectionEditor({
     const withoutMoving = [...sections];
     withoutMoving.splice(movingRange.start, movingBlock.length);
 
-    const adjustedTargetIndex = withoutMoving.findIndex((s) => s.id === targetId);
+    const adjustedTargetIndex = withoutMoving.findIndex(
+      (s) => s.id === targetId,
+    );
     if (adjustedTargetIndex === -1) return;
 
-    const targetRange = getRangeForSectionAt(withoutMoving, adjustedTargetIndex);
+    const targetRange = getRangeForSectionAt(
+      withoutMoving,
+      adjustedTargetIndex,
+    );
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const offsetX = e.clientX - rect.left;
@@ -557,7 +593,10 @@ export function usePdfSectionEditor({
 
       const targetSection = withoutMoving[adjustedTargetIndex];
       if (!targetSection.columnWidth || targetSection.columnWidth === 100) {
-        withoutMoving[adjustedTargetIndex] = { ...targetSection, columnWidth: 50 };
+        withoutMoving[adjustedTargetIndex] = {
+          ...targetSection,
+          columnWidth: 50,
+        };
       } else {
         moving.columnWidth = targetSection.columnWidth;
       }
@@ -569,7 +608,9 @@ export function usePdfSectionEditor({
 
     const shouldInsertAfter =
       computedPlacement === "bottom" || computedPlacement === "right";
-    const insertIndex = shouldInsertAfter ? targetRange.end + 1 : targetRange.start;
+    const insertIndex = shouldInsertAfter
+      ? targetRange.end + 1
+      : targetRange.start;
 
     withoutMoving.splice(insertIndex, 0, ...movingBlock);
 
@@ -610,7 +651,11 @@ export function usePdfSectionEditor({
   };
 
   const updateSection = (id: string, updates: Partial<PdfSection>) => {
-    onChange(sections.map((section) => (section.id === id ? { ...section, ...updates } : section)));
+    onChange(
+      sections.map((section) =>
+        section.id === id ? { ...section, ...updates } : section,
+      ),
+    );
   };
 
   const updateStyle = (

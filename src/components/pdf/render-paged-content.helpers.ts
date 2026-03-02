@@ -141,7 +141,9 @@ function reorderPaymentTermsBlock(items: ContentItem[]): ContentItem[] {
     return items;
   }
 
-  const dynamicPaymentItem = items.find((item) => item.type === "payment-terms");
+  const dynamicPaymentItem = items.find(
+    (item) => item.type === "payment-terms",
+  );
 
   if (!dynamicPaymentItem) {
     return items;
@@ -245,10 +247,10 @@ export function buildContentItems(
       proposal.installmentsCount &&
       proposal.installmentsCount >= 1) ||
     (proposal.downPaymentEnabled &&
-      ((proposal.downPaymentType === "percentage"
+      (proposal.downPaymentType === "percentage"
         ? ((proposal.totalValue || 0) * (proposal.downPaymentPercentage || 0)) /
           100
-        : proposal.downPaymentValue || 0) > 0))
+        : proposal.downPaymentValue || 0) > 0)
   );
 
   // Helper to identify payment sections based on keywords
@@ -257,16 +259,16 @@ export function buildContentItems(
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\\u0300-\\u036f]/g, "");
-      return (
-        content.includes("condies de pagamento") ||
-        content.includes("condicoes de pagamento") ||
-        content.includes("condicao de pagamento") ||
-        content.includes("formas de pagamento") ||
-        (hasDynamicPaymentOptions &&
-          (content.includes("entrada:") ||
-            content.includes("parcelamento:") ||
-            content.includes("saldo:")))
-      );
+    return (
+      content.includes("condies de pagamento") ||
+      content.includes("condicoes de pagamento") ||
+      content.includes("condicao de pagamento") ||
+      content.includes("formas de pagamento") ||
+      (hasDynamicPaymentOptions &&
+        (content.includes("entrada:") ||
+          content.includes("parcelamento:") ||
+          content.includes("saldo:")))
+    );
   };
 
   // Only skip manual payment sections when dynamic payment block is enabled
@@ -345,8 +347,12 @@ export function buildContentItems(
         !sistemaProductIds.has(p.productId) &&
         shouldCountProduct(p),
     );
-    const onlyProductsExtra = extraProductsTemp.filter((p) => p.itemType !== "service");
-    const onlyServicesExtra = extraProductsTemp.filter((p) => p.itemType === "service");
+    const onlyProductsExtra = extraProductsTemp.filter(
+      (p) => p.itemType !== "service",
+    );
+    const onlyServicesExtra = extraProductsTemp.filter(
+      (p) => p.itemType === "service",
+    );
     const extraProducts = [...onlyProductsExtra, ...onlyServicesExtra];
 
     if (extraProducts.length > 0) {
@@ -419,10 +425,10 @@ export function buildContentItems(
         );
 
         // Filter out hidden products for height calculation and rendering
-        const visibleSortedProductsTemp = sortedProducts.filter(
-          (p) => shouldRenderProduct(p),
+        const visibleSortedProductsTemp = sortedProducts.filter((p) =>
+          shouldRenderProduct(p),
         );
-        
+
         const onlyProducts = visibleSortedProductsTemp.filter(
           (p) => p.itemType !== "service",
         );
@@ -489,9 +495,7 @@ export function buildContentItems(
           const left = visibleProducts[idx];
           const right = visibleProducts[idx + 1];
           const h1 = calculateProductHeight(left, 80, settings);
-          const h2 = right
-            ? calculateProductHeight(right, 80, settings)
-            : 0;
+          const h2 = right ? calculateProductHeight(right, 80, settings) : 0;
           const rowHeight = Math.max(h1, h2);
 
           items.push({
@@ -556,10 +560,16 @@ export function buildContentItems(
   };
 
   const addRegularProducts = (productsToAdd: Product[]) => {
-    const visibleProductsTemp = productsToAdd.filter((p) => shouldRenderProduct(p));
-    
-    const onlyProducts = visibleProductsTemp.filter((p) => p.itemType !== "service");
-    const onlyServices = visibleProductsTemp.filter((p) => p.itemType === "service");
+    const visibleProductsTemp = productsToAdd.filter((p) =>
+      shouldRenderProduct(p),
+    );
+
+    const onlyProducts = visibleProductsTemp.filter(
+      (p) => p.itemType !== "service",
+    );
+    const onlyServices = visibleProductsTemp.filter(
+      (p) => p.itemType === "service",
+    );
     const visibleProducts = [...onlyProducts, ...onlyServices];
 
     if (visibleProducts.length > 0) {
@@ -607,11 +617,25 @@ export function buildContentItems(
               ...section,
               type: "title",
               content: "Condições de Pagamento",
+              styles: {
+                fontSize: "20px",
+                fontWeight: "bold",
+                color: primaryColor,
+                marginTop: "24px",
+                marginBottom: "8px",
+              } as any,
             },
             height: calculateSectionHeight({
               ...section,
               type: "title",
               content: "Condições de Pagamento",
+              styles: {
+                fontSize: "20px",
+                fontWeight: "bold",
+                color: primaryColor,
+                marginTop: "24px",
+                marginBottom: "8px",
+              } as any,
             }),
           });
           items.push({
@@ -699,11 +723,25 @@ export function buildContentItems(
               ...section,
               type: "title",
               content: "Condições de Pagamento",
+              styles: {
+                fontSize: "20px",
+                fontWeight: "bold",
+                color: primaryColor,
+                marginTop: "24px",
+                marginBottom: "8px",
+              } as any,
             },
             height: calculateSectionHeight({
               ...section,
               type: "title",
               content: "Condições de Pagamento",
+              styles: {
+                fontSize: "20px",
+                fontWeight: "bold",
+                color: primaryColor,
+                marginTop: "24px",
+                marginBottom: "8px",
+              } as any,
             }),
           });
           items.push({
@@ -882,5 +920,3 @@ export function distributeIntoPages(
   pdfDebugLog(`Distribution complete: ${pages.length} pages created`);
   return pages;
 }
-
-
