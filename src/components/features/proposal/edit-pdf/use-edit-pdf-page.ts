@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useParams } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { useTenant } from "@/providers/tenant-provider";
@@ -37,6 +43,205 @@ interface PdfSettings {
   sections?: unknown[];
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
+}
+
+function normalizeText(value?: string): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isLegacyPaymentTitle(section: PdfSection): boolean {
+  if (section.type !== "title") return false;
+  const content = normalizeText(section.content);
+  return (
+    content.includes("condicoes de pagamento") ||
+    content.includes("condicao de pagamento") ||
+    content.includes("formas de pagamento")
+  );
+}
+
+function isLegacyPaymentText(section: PdfSection): boolean {
+  if (section.type !== "text") return false;
+  const content = normalizeText(section.content);
+  return (
+    content.includes("formas de pagamento") ||
+    content.includes("pagamento a vista") ||
+    content.includes("entrada:") ||
+    content.includes("parcelamento:") ||
+    content.includes("saldo:")
+  );
+}
+
+function createPaymentTermsSection(): PdfSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "payment-terms",
+    content: "Condições de Pagamento",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      fontWeight: "normal",
+      textAlign: "left",
+      color: "#374151",
+      marginTop: "24px",
+      marginBottom: "16px",
+    },
+  };
+}
+
+function hasDynamicPaymentOptions(proposal: Proposal | null): boolean {
+  if (!proposal) return false;
+
+  const downPaymentType = proposal.downPaymentType || "value";
+  const downPaymentPercentage = proposal.downPaymentPercentage || 0;
+  const downPaymentValue =
+    downPaymentType === "percentage"
+      ? ((proposal.totalValue || 0) * downPaymentPercentage) / 100
+      : proposal.downPaymentValue || 0;
+
+  const hasDownPayment = proposal.downPaymentEnabled && downPaymentValue > 0;
+  const hasInstallments =
+    !!proposal.installmentsEnabled && (proposal.installmentsCount || 0) >= 1;
+
+  return hasDownPayment || hasInstallments;
+}
+
+function normalizePaymentSections(
+  sections: PdfSection[],
+  proposal: Proposal | null,
+): PdfSection[] {
+  const dynamicPayment = hasDynamicPaymentOptions(proposal);
+  const paymentTextContent = proposal
+    ? generatePaymentTerms(proposal)
+    : "• Pagamento à vista na entrega\n• Formas de pagamento: PIX, boleto ou cartão";
+
+  const hasPaymentTerms = sections.some((section) => section.type === "payment-terms");
+  const hasLegacy = sections.some(
+    (section) => isLegacyPaymentTitle(section) || isLegacyPaymentText(section),
+  );
+
+  if (!hasPaymentTerms && !hasLegacy) {
+    if (!dynamicPayment) return sections;
+    return [...sections, createPaymentTermsSection()];
+  }
+
+  if (!dynamicPayment) {
+    let firstPaymentSection: PdfSection | null = null;
+    let firstPaymentIndex = -1;
+    const baseSections: PdfSection[] = [];
+
+    sections.forEach((section, index) => {
+      const isLegacy =
+        isLegacyPaymentTitle(section) || isLegacyPaymentText(section);
+      const isPaymentTerms = section.type === "payment-terms";
+
+      if (isLegacy || isPaymentTerms) {
+        if (firstPaymentIndex === -1) {
+          firstPaymentIndex = index;
+        }
+
+        if (!firstPaymentSection) {
+          firstPaymentSection = isPaymentTerms
+            ? {
+                ...section,
+                columnWidth: 100,
+                content: section.content || paymentTextContent,
+              }
+            : createPaymentTermsSection();
+        }
+
+        if (
+          firstPaymentSection &&
+          isLegacyPaymentText(section) &&
+          section.content?.trim()
+        ) {
+          firstPaymentSection = {
+            ...firstPaymentSection,
+            content: section.content,
+          };
+        }
+        return;
+      }
+
+      baseSections.push(section);
+    });
+
+    if (firstPaymentIndex === -1) {
+      return sections;
+    }
+
+    const paymentSectionBase: PdfSection =
+      firstPaymentSection ?? createPaymentTermsSection();
+    const paymentSection: PdfSection = {
+      ...paymentSectionBase,
+      columnWidth: 100,
+      content: paymentSectionBase.content || paymentTextContent,
+    };
+
+    const insertIndex = sections
+      .slice(0, firstPaymentIndex)
+      .filter(
+        (section) =>
+          section.type !== "payment-terms" &&
+          !isLegacyPaymentTitle(section) &&
+          !isLegacyPaymentText(section),
+      ).length;
+
+    return [
+      ...baseSections.slice(0, insertIndex),
+      paymentSection,
+      ...baseSections.slice(insertIndex),
+    ];
+  }
+
+  let firstPaymentSection: PdfSection | null = null;
+  let firstPaymentIndex = -1;
+  const baseSections: PdfSection[] = [];
+
+  sections.forEach((section, index) => {
+    const isLegacy =
+      isLegacyPaymentTitle(section) || isLegacyPaymentText(section);
+    const isPaymentTerms = section.type === "payment-terms";
+
+    if (isLegacy || isPaymentTerms) {
+      if (!firstPaymentSection) {
+        firstPaymentSection = isPaymentTerms
+          ? {
+              ...section,
+              content: "Condições de Pagamento",
+              columnWidth: 100,
+            }
+          : createPaymentTermsSection();
+        firstPaymentIndex = index;
+      }
+      return;
+    }
+
+    baseSections.push(section);
+  });
+
+  const paymentSection = firstPaymentSection || createPaymentTermsSection();
+
+  if (firstPaymentIndex === -1) {
+    return [...baseSections, paymentSection];
+  }
+
+  const insertIndex = sections
+    .slice(0, firstPaymentIndex)
+    .filter(
+      (section) =>
+        section.type !== "payment-terms" &&
+        !isLegacyPaymentTitle(section) &&
+        !isLegacyPaymentText(section),
+    ).length;
+
+  return [
+    ...baseSections.slice(0, insertIndex),
+    paymentSection,
+    ...baseSections.slice(insertIndex),
+  ];
 }
 
 export function useEditPdfPage() {
@@ -79,6 +284,15 @@ export function useEditPdfPage() {
 
   // Editable sections
   const [sections, setSections] = useState<PdfSection[]>([]);
+  const setSectionsNormalized = useCallback<Dispatch<SetStateAction<PdfSection[]>>>(
+    (value) => {
+    setSections((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      return normalizePaymentSections(next, proposal);
+    });
+    },
+    [proposal],
+  );
   const [repeatHeader, setRepeatHeader] = useState(false);
 
   // Cover elements
@@ -229,7 +443,12 @@ export function useEditPdfPage() {
               // Load sections
               if (s.sections && s.sections.length > 0) {
                 // Hydrate saved sections to ensure dynamic text is up to date
-                setSections(hydrateSections(s.sections as PdfSection[], p));
+                setSections(
+                  normalizePaymentSections(
+                    hydrateSections(s.sections as PdfSection[], p),
+                    p,
+                  ),
+                );
               } else {
                 const t = ProposalDefaults.createDefaultTemplate(
                   tenant.id,
@@ -238,7 +457,12 @@ export function useEditPdfPage() {
                 );
                 // Override payment terms with dynamic ones
                 t.paymentTerms = generatePaymentTerms(p);
-                setSections(createDefaultSections(t, t.primaryColor));
+                setSections(
+                  normalizePaymentSections(
+                    createDefaultSections(t, t.primaryColor),
+                    p,
+                  ),
+                );
               }
 
               // Load cover elements
@@ -285,7 +509,12 @@ export function useEditPdfPage() {
               // Load sections from tenant defaults
               if (s.sections && s.sections.length > 0) {
                 // Hydrate tenant default sections
-                setSections(hydrateSections(s.sections as PdfSection[], p));
+                setSections(
+                  normalizePaymentSections(
+                    hydrateSections(s.sections as PdfSection[], p),
+                    p,
+                  ),
+                );
               } else {
                 // Inject dynamic payment terms into baseTemplate before creating sections
                 const dynamicTemplate = {
@@ -293,9 +522,12 @@ export function useEditPdfPage() {
                   paymentTerms: generatePaymentTerms(p),
                 };
                 setSections(
-                  createDefaultSections(
-                    dynamicTemplate,
-                    dynamicTemplate.primaryColor,
+                  normalizePaymentSections(
+                    createDefaultSections(
+                      dynamicTemplate,
+                      dynamicTemplate.primaryColor,
+                    ),
+                    p,
                   ),
                 );
               }
@@ -333,7 +565,12 @@ export function useEditPdfPage() {
 
                 // Dynamic terms
                 t.paymentTerms = generatePaymentTerms(p);
-                setSections(createDefaultSections(t, t.primaryColor));
+                setSections(
+                  normalizePaymentSections(
+                    createDefaultSections(t, t.primaryColor),
+                    p,
+                  ),
+                );
                 setCoverElements(createDefaultCoverElements());
               }
             }
@@ -490,7 +727,7 @@ export function useEditPdfPage() {
 
     // Sections
     sections,
-    setSections,
+    setSections: setSectionsNormalized,
     repeatHeader,
     setRepeatHeader,
     canEditPdfSections,

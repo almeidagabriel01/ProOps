@@ -19,7 +19,6 @@ import {
   ChevronDown,
   Loader2,
   Check,
-  Copy,
   Eye,
   FileDown,
   Trash2,
@@ -73,13 +72,6 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 
 function PdfDownloader({
   proposal,
@@ -188,10 +180,7 @@ export default function ProposalsPage() {
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [sharingId, setSharingId] = React.useState<string | null>(null);
-  const [isGeneratingShareLink, setIsGeneratingShareLink] =
-    React.useState(false);
-  const [shareLink, setShareLink] = React.useState<string | null>(null);
-  const [isShareDialogOpen, setIsShareDialogOpen] = React.useState(false);
+  const [, setIsGeneratingShareLink] = React.useState(false);
   const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
     string | null
   >(null);
@@ -242,32 +231,50 @@ export default function ProposalsPage() {
   const handleShare = async (proposalId: string) => {
     setSharingId(proposalId);
     setIsGeneratingShareLink(true);
-    setIsShareDialogOpen(false);
-    setShareLink(null);
     try {
       const result = await SharedProposalService.generateShareLink(proposalId);
-      setShareLink(result.shareUrl);
-      setIsShareDialogOpen(true);
-      toast.success("Link gerado com sucesso!");
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(result.shareUrl);
+          toast.success("Link copiado para a área de transferência!");
+        } else {
+          throw new Error("Clipboard API not available");
+        }
+      } catch (clipboardError) {
+        console.warn("Clipboard API failed, trying fallback", clipboardError);
+        try {
+          const textArea = document.createElement("textarea");
+          textArea.value = result.shareUrl;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          textArea.style.top = "0";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+
+          const successful = document.execCommand("copy");
+          textArea.remove();
+
+          if (successful) {
+            toast.success("Link copiado para a área de transferência!");
+          } else {
+            throw new Error("Fallback copy failed");
+          }
+        } catch (fallbackError) {
+          console.error("Fallback copy also failed", fallbackError);
+          toast.warning(
+            "Link gerado, mas não copiado. Por favor, tente novamente.",
+            { autoClose: 5000 },
+          );
+        }
+      }
     } catch (error) {
       console.error("Error generating share link:", error);
       toast.error("Erro ao gerar link de compartilhamento");
-      setIsGeneratingShareLink(false);
     } finally {
-      setSharingId(null);
-    }
-  };
-
-  React.useEffect(() => {
-    if (isShareDialogOpen && shareLink) {
       setIsGeneratingShareLink(false);
-    }
-  }, [isShareDialogOpen, shareLink]);
-
-  const handleCopyLink = () => {
-    if (shareLink) {
-      navigator.clipboard.writeText(shareLink);
-      toast.success("Link copiado para a área de transferência!");
+      setSharingId(null);
     }
   };
 
@@ -1128,52 +1135,6 @@ export default function ProposalsPage() {
         isOpen={!!downloadingId}
         onClose={() => setDownloadingId(null)}
       />
-
-      <Dialog open={isGeneratingShareLink}>
-        <DialogContent className="sm:max-w-sm [&>button]:hidden">
-          <DialogHeader>
-            <DialogTitle>Gerando link</DialogTitle>
-            <DialogDescription>
-              Aguarde enquanto preparamos o link de compartilhamento da
-              proposta.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Share Link Dialog */}
-      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Compartilhar Proposta</DialogTitle>
-            <DialogDescription>
-              Copie o link abaixo para compartilhar esta proposta com seu
-              cliente. O link é válido por 30 dias.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center space-x-2">
-            <div className="grid flex-1 gap-2">
-              <Input
-                id="share-link"
-                value={shareLink || ""}
-                readOnly
-                className="font-mono text-sm"
-              />
-            </div>
-            <Button
-              type="button"
-              size="icon"
-              onClick={handleCopyLink}
-              title="Copiar link"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Attachments Dialog */}
       {attachmentsProposalId &&

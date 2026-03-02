@@ -8,21 +8,41 @@ import {
   TitleEditor,
   TextEditor,
   ProductTableEditor,
+  PaymentTermsEditor,
   ImageEditor,
 } from "./section-editors";
 
+const normalizeText = (value?: string) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const isScopeProductsIntro = (section: PdfSection) => {
+  if (section.type !== "text") return false;
+  const content = normalizeText(section.content);
+  return (
+    (content.includes("esta proposta contempla") ||
+      content.includes("esta proposta comtempla")) &&
+    content.includes("produtos")
+  );
+};
+
 interface SectionContentEditorProps {
   section: PdfSection;
+  linkedScopeTitleSection?: PdfSection;
+  linkedScopeTextSection?: PdfSection;
+  linkedPairedTextSection?: PdfSection;
   primaryColor: string;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
   updateStyle: (
     id: string,
     styleKey: keyof PdfSection["styles"],
-    value: string
+    value: string,
   ) => void;
   handleImageUpload: (
     id: string,
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => void;
 }
 
@@ -31,14 +51,35 @@ interface SectionContentEditorProps {
  */
 export function SectionContentEditor({
   section,
+  linkedScopeTitleSection,
+  linkedScopeTextSection,
+  linkedPairedTextSection,
   primaryColor,
   updateSection,
   updateStyle,
   handleImageUpload,
 }: SectionContentEditorProps) {
+  const showProductsLinkHint =
+    section.type === "product-table" || isScopeProductsIntro(section);
+
+  const normalizedTitle = normalizeText(section.content);
+  const linkedTextLabel = normalizedTitle.includes("garantia")
+    ? "Texto da Garantia"
+    : normalizedTitle.includes("condicoes de pagamento") ||
+        normalizedTitle.includes("condicao de pagamento")
+      ? "Texto das Condições de Pagamento"
+      : "Texto complementar";
+
   return (
     <div className="space-y-4">
-      {section.type !== "product-table" && (
+      {showProductsLinkHint && (
+        <div className="p-3 rounded-md border bg-muted/40 text-xs text-muted-foreground">
+          Este bloco é vinculado ao conteúdo de Produtos/Sistemas/Ambientes para
+          facilitar a organização visual no PDF.
+        </div>
+      )}
+
+      {section.type !== "product-table" && section.type !== "payment-terms" && (
         <ColumnLayoutControl section={section} updateSection={updateSection} />
       )}
 
@@ -50,7 +91,25 @@ export function SectionContentEditor({
         <TextEditor section={section} updateSection={updateSection} />
       )}
 
-      {section.type === "product-table" && <ProductTableEditor />}
+      {linkedPairedTextSection && (
+        <TextEditor
+          section={linkedPairedTextSection}
+          updateSection={updateSection}
+          label={linkedTextLabel}
+        />
+      )}
+
+      {section.type === "product-table" && (
+        <ProductTableEditor
+          linkedScopeTitleSection={linkedScopeTitleSection}
+          linkedScopeTextSection={linkedScopeTextSection}
+          updateSection={updateSection}
+        />
+      )}
+
+      {section.type === "payment-terms" && (
+        <PaymentTermsEditor section={section} updateSection={updateSection} />
+      )}
 
       {section.type === "image" && (
         <ImageEditor

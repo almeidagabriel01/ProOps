@@ -57,22 +57,83 @@ export const hydrateSections = (
   p: Proposal,
 ): PdfSection[] => {
   const paymentTerms = generatePaymentTerms(p);
+  const hasDynamicPaymentOptions = hasDynamicPaymentBlock(p);
+  let hasPaymentTermsCard = false;
+  let hasLegacyPaymentContent = false;
+
   const hydratedSections = sectionsToHydrate.map((s) => {
+    if (s.type === "payment-terms") {
+      hasPaymentTermsCard = true;
+      return {
+        ...s,
+        content: hasDynamicPaymentOptions
+          ? "Condições de Pagamento"
+          : s.content || paymentTerms,
+        columnWidth: 100,
+      };
+    }
+
     // Determine if this is a payment terms section
-    if (
-      s.type === "text" &&
-      (s.content.includes("Formas de pagamento") ||
-        s.content.includes("Entrada:") ||
-        s.content.includes("Parcelamento:") ||
-        s.content.includes("Pagamento à vista"))
-    ) {
+    if (isPaymentTitle(s) || isPaymentText(s)) {
+      hasLegacyPaymentContent = true;
       return { ...s, content: paymentTerms };
     }
     return s;
   });
 
-  return ensureCanonicalSectionStructure(hydratedSections);
+  let sectionsWithoutManualPayment = hasDynamicPaymentOptions
+    ? hydratedSections.filter(
+        (section) =>
+          section.type === "payment-terms" ||
+          (!isPaymentTitle(section) && !isPaymentText(section)),
+      )
+    : hydratedSections;
+
+  if (hasDynamicPaymentOptions && (hasLegacyPaymentContent || hasPaymentTermsCard)) {
+    const paymentTermsAlreadyExists = sectionsWithoutManualPayment.some(
+      (section) => section.type === "payment-terms",
+    );
+
+    if (!paymentTermsAlreadyExists) {
+      sectionsWithoutManualPayment = [
+        ...sectionsWithoutManualPayment,
+        createPaymentTermsSection(),
+      ];
+    }
+  }
+
+  return sectionsWithoutManualPayment;
 };
+
+function createPaymentTermsSection(): PdfSection {
+  return {
+    id: crypto.randomUUID(),
+    type: "payment-terms",
+    content: "Condições de Pagamento",
+    columnWidth: 100,
+    styles: {
+      fontSize: "14px",
+      color: "#374151",
+      marginTop: "24px",
+      marginBottom: "16px",
+    },
+  };
+}
+
+function hasDynamicPaymentBlock(proposal: Proposal): boolean {
+  const downPaymentType = proposal.downPaymentType || "value";
+  const downPaymentPercentage = proposal.downPaymentPercentage || 0;
+  const downPaymentValue =
+    downPaymentType === "percentage"
+      ? ((proposal.totalValue || 0) * downPaymentPercentage) / 100
+      : proposal.downPaymentValue || 0;
+
+  const hasDownPayment = proposal.downPaymentEnabled && downPaymentValue > 0;
+  const hasInstallments =
+    !!proposal.installmentsEnabled && (proposal.installmentsCount || 0) >= 1;
+
+  return hasDownPayment || hasInstallments;
+}
 
 function createProductTableSection(): PdfSection {
   return {
@@ -101,6 +162,15 @@ function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
   const baseSections: PdfSection[] = [];
 
   sections.forEach((section) => {
+    if (section.type === "payment-terms") {
+      baseSections.push({
+        ...section,
+        content: "Condições de Pagamento",
+        columnWidth: 100,
+      });
+      return;
+    }
+
     if (section.type !== "product-table") {
       baseSections.push(section);
       return;
@@ -139,18 +209,21 @@ function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
 }
 
 function isPaymentTitle(section: PdfSection): boolean {
+  if (section.type !== "title") return false;
+  const content = normalizeText(section.content || "");
   return (
-    section.type === "title" &&
-    section.content.toLowerCase().includes("condições de pagamento")
+    content.includes("condicoes de pagamento") ||
+    content.includes("condicao de pagamento") ||
+    content.includes("formas de pagamento")
   );
 }
 
 function isPaymentText(section: PdfSection): boolean {
   if (section.type !== "text") return false;
-  const content = section.content.toLowerCase();
+  const content = normalizeText(section.content || "");
   return (
     content.includes("formas de pagamento") ||
-    content.includes("pagamento à vista") ||
+    content.includes("pagamento a vista") ||
     content.includes("entrada:") ||
     content.includes("parcelamento:") ||
     content.includes("saldo:")

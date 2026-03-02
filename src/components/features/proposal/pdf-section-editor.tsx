@@ -199,6 +199,114 @@ export function PdfSectionEditor({
     handleDragEnd,
   } = usePdfSectionEditor({ sections, onChange, primaryColor });
 
+  const visibleSections = React.useMemo(() => {
+    const mapped: Array<{
+      section: PdfSection;
+      linkedScopeTitleSection?: PdfSection;
+      linkedScopeTextSection?: PdfSection;
+      linkedPairedTextSection?: PdfSection;
+    }> = [];
+
+    for (let index = 0; index < sections.length; index += 1) {
+      const section = sections[index];
+      const next = sections[index + 1];
+      const prev = sections[index - 1];
+      const prevTwo = sections[index - 2];
+
+      const groupedProduct = section.groupId
+        ? sections.find(
+            (item) =>
+              item.groupId === section.groupId && item.type === "product-table",
+          )
+        : undefined;
+
+      const isLinkedScopeTitle =
+        section.type === "title" &&
+        Boolean(groupedProduct) &&
+        section.groupId === groupedProduct?.groupId;
+
+      const isLinkedScopeText =
+        section.type === "text" &&
+        Boolean(groupedProduct) &&
+        section.groupId === groupedProduct?.groupId;
+
+      const normalizedTitle =
+        section.type === "title"
+          ? section.content
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+          : "";
+
+      const isWarrantyOrPaymentTitleWithText =
+        section.type === "title" &&
+        next?.type === "text" &&
+        (normalizedTitle.includes("garantia") ||
+          normalizedTitle.includes("condicoes de pagamento") ||
+          normalizedTitle.includes("condicao de pagamento"));
+
+      const isPairedWarrantyOrPaymentText =
+        section.type === "text" &&
+        prev?.type === "title" &&
+        (() => {
+          const prevNormalized = (prev.content || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+          return (
+            prevNormalized.includes("garantia") ||
+            prevNormalized.includes("condicoes de pagamento") ||
+            prevNormalized.includes("condicao de pagamento")
+          );
+        })();
+
+      if (isLinkedScopeTitle || isLinkedScopeText) {
+        continue;
+      }
+
+      if (isPairedWarrantyOrPaymentText) {
+        continue;
+      }
+
+      const linkedScopeTitleSection =
+        section.type === "product-table"
+          ? section.groupId
+            ? sections.find(
+                (item) =>
+                  item.groupId === section.groupId && item.type === "title",
+              )
+            : prev?.type === "text" && prevTwo?.type === "title"
+              ? prevTwo
+              : undefined
+          : undefined;
+
+      const linkedScopeTextSection =
+        section.type === "product-table"
+          ? section.groupId
+            ? sections.find(
+                (item) =>
+                  item.groupId === section.groupId && item.type === "text",
+              )
+            : prev?.type === "text" && prevTwo?.type === "title"
+              ? prev
+              : undefined
+          : undefined;
+
+      const linkedPairedTextSection = isWarrantyOrPaymentTitleWithText
+        ? next
+        : undefined;
+
+      mapped.push({
+        section,
+        linkedScopeTitleSection,
+        linkedScopeTextSection,
+        linkedPairedTextSection,
+      });
+    }
+
+    return mapped;
+  }, [sections]);
+
   return (
     <div className="space-y-4">
       {/* Section list with flex layout to match PDF */}
@@ -223,31 +331,34 @@ export function PdfSectionEditor({
           );
         }}
       >
-        {sections.map((section, index) => (
+        {visibleSections.map((item, index) => (
           <SectionCard
-            key={section.id}
-            section={section}
+            key={item.section.id}
+            section={item.section}
+            linkedScopeTitleSection={item.linkedScopeTitleSection}
+            linkedScopeTextSection={item.linkedScopeTextSection}
+            linkedPairedTextSection={item.linkedPairedTextSection}
             index={index}
-            totalSections={sections.length}
-            isExpanded={expandedSections.has(section.id)}
-            isDragging={draggedId === section.id}
-            isDragOver={dragOverId === section.id}
-            dropPlacement={dragOverId === section.id ? dropPlacement : null}
+            totalSections={visibleSections.length}
+            isExpanded={expandedSections.has(item.section.id)}
+            isDragging={draggedId === item.section.id}
+            isDragOver={dragOverId === item.section.id}
+            dropPlacement={
+              dragOverId === item.section.id ? dropPlacement : null
+            }
             primaryColor={primaryColor}
-            onExpand={() => toggleSection(section.id)}
+            onExpand={() => toggleSection(item.section.id)}
             onMove={moveSection}
             onRemove={removeSection}
             onHoverHandle={setHoveredHandleId}
             updateSection={updateSection}
             updateStyle={updateStyle}
             handleImageUpload={handleImageUpload}
-            draggable={
-              section.type !== "product-table" && hoveredHandleId === section.id
-            }
-            onDragStart={(e) => handleDragStart(e, section.id)}
-            onDragOver={(e) => handleDragOver(e, section.id)}
+            draggable={hoveredHandleId === item.section.id}
+            onDragStart={(e) => handleDragStart(e, item.section.id)}
+            onDragOver={(e) => handleDragOver(e, item.section.id)}
             onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, section.id)}
+            onDrop={(e) => handleDrop(e, item.section.id)}
             onDragEnd={handleDragEnd}
           />
         ))}
@@ -271,6 +382,7 @@ export function createDefaultSections(
   primaryColor: string,
 ): PdfSection[] {
   const sections: PdfSection[] = [];
+  const scopeGroupId = crypto.randomUUID();
 
   if (template.introductionText) {
     sections.push({
@@ -284,6 +396,7 @@ export function createDefaultSections(
   if (template.scopeText) {
     sections.push({
       id: crypto.randomUUID(),
+      groupId: scopeGroupId,
       type: "title",
       content: "Escopo do Projeto",
       styles: {
@@ -296,6 +409,7 @@ export function createDefaultSections(
     });
     sections.push({
       id: crypto.randomUUID(),
+      groupId: scopeGroupId,
       type: "text",
       content: template.scopeText,
       styles: { fontSize: "14px", color: "#374151", marginBottom: "16px" },
@@ -304,6 +418,7 @@ export function createDefaultSections(
 
   sections.push({
     id: crypto.randomUUID(),
+    groupId: scopeGroupId,
     type: "product-table",
     content: "Sistemas / Ambientes / Produtos",
     columnWidth: 100,
@@ -318,21 +433,17 @@ export function createDefaultSections(
   if (template.paymentTerms) {
     sections.push({
       id: crypto.randomUUID(),
-      type: "title",
+      type: "payment-terms",
       content: "Condições de Pagamento",
+      columnWidth: 100,
       styles: {
-        fontSize: "20px",
-        fontWeight: "bold",
-        color: primaryColor,
+        fontSize: "14px",
+        fontWeight: "normal",
+        textAlign: "left",
+        color: "#374151",
         marginTop: "24px",
-        marginBottom: "8px",
+        marginBottom: "16px",
       },
-    });
-    sections.push({
-      id: crypto.randomUUID(),
-      type: "text",
-      content: template.paymentTerms,
-      styles: { fontSize: "14px", color: "#374151", marginBottom: "16px" },
     });
   }
 

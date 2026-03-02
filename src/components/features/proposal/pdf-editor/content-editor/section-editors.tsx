@@ -112,12 +112,17 @@ export function TitleEditor({ section, updateSection }: TitleEditorProps) {
 interface TextEditorProps {
   section: PdfSection;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
+  label?: string;
 }
 
-export function TextEditor({ section, updateSection }: TextEditorProps) {
+export function TextEditor({
+  section,
+  updateSection,
+  label = "Conteúdo",
+}: TextEditorProps) {
   return (
     <div className="grid gap-2">
-      <Label>Conteúdo</Label>
+      <Label>{label}</Label>
       <Textarea
         value={section.content}
         onChange={(e) => updateSection(section.id, { content: e.target.value })}
@@ -132,11 +137,85 @@ export function TextEditor({ section, updateSection }: TextEditorProps) {
 // PRODUCT TABLE PLACEHOLDER
 // ============================================
 
-export function ProductTableEditor() {
+interface ProductTableEditorProps {
+  linkedScopeTitleSection?: PdfSection;
+  linkedScopeTextSection?: PdfSection;
+  updateSection: (id: string, updates: Partial<PdfSection>) => void;
+}
+
+export function ProductTableEditor({
+  linkedScopeTitleSection,
+  linkedScopeTextSection,
+  updateSection,
+}: ProductTableEditorProps) {
   return (
-    <div className="p-4 bg-muted/40 rounded border border-dashed text-center text-sm text-muted-foreground">
-      A lista de produtos será renderizada aqui automaticamente. Posicione esta
-      seção onde desejar que os produtos apareçam.
+    <div className="space-y-4">
+      {linkedScopeTitleSection && (
+        <div className="grid gap-2">
+          <Label>Título do Escopo</Label>
+          <Input
+            value={linkedScopeTitleSection.content}
+            onChange={(e) =>
+              updateSection(linkedScopeTitleSection.id, {
+                content: e.target.value,
+              })
+            }
+            placeholder="Ex.: Escopo do Projeto"
+          />
+        </div>
+      )}
+
+      {linkedScopeTextSection && (
+        <div className="grid gap-2">
+          <Label>Texto Introdutório do Escopo</Label>
+          <Textarea
+            value={linkedScopeTextSection.content}
+            onChange={(e) =>
+              updateSection(linkedScopeTextSection.id, {
+                content: e.target.value,
+              })
+            }
+            placeholder="Ex.: Esta proposta contempla os seguintes produtos e serviços..."
+            rows={4}
+          />
+        </div>
+      )}
+
+      <div className="p-4 bg-muted/40 rounded border border-dashed text-center text-sm text-muted-foreground">
+        A lista de produtos será renderizada aqui automaticamente. Posicione
+        esta seção onde desejar que os produtos apareçam.
+      </div>
+    </div>
+  );
+}
+
+interface PaymentTermsEditorProps {
+  section: PdfSection;
+  updateSection: (id: string, updates: Partial<PdfSection>) => void;
+}
+
+export function PaymentTermsEditor({
+  section,
+  updateSection,
+}: PaymentTermsEditorProps) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2">
+        <Label>Texto das Condições de Pagamento</Label>
+        <Textarea
+          value={section.content || ""}
+          onChange={(e) =>
+            updateSection(section.id, { content: e.target.value })
+          }
+          placeholder="Digite as condições de pagamento..."
+          rows={5}
+        />
+      </div>
+
+      <div className="p-4 bg-muted/40 rounded border border-dashed text-center text-sm text-muted-foreground">
+        Quando houver entrada/parcelamento configurados, o PDF renderiza a
+        tabela dinâmica automaticamente.
+      </div>
     </div>
   );
 }
@@ -151,11 +230,11 @@ interface ImageEditorProps {
   updateStyle: (
     id: string,
     styleKey: keyof PdfSection["styles"],
-    value: string
+    value: string,
   ) => void;
   handleImageUpload: (
     id: string,
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => void;
 }
 
@@ -202,7 +281,7 @@ export function ImageEditor({
                   const file = e.target.files?.[0];
                   if (file && !ALLOWED_TYPES.includes(file.type)) {
                     alert(
-                      "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG)."
+                      "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
                     );
                     e.target.value = "";
                     return;

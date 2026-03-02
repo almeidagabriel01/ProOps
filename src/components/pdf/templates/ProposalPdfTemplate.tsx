@@ -1,5 +1,8 @@
 import * as React from "react";
-import type { Proposal as DomainProposal, ProposalProduct } from "@/types/proposal";
+import type {
+  Proposal as DomainProposal,
+  ProposalProduct,
+} from "@/types/proposal";
 import type { ProposalTemplate, Tenant, PdfDisplaySettings } from "@/types";
 import { mergePdfDisplaySettings } from "@/types";
 import { RenderPagedContent } from "@/components/pdf/render-paged-content";
@@ -16,7 +19,11 @@ import {
 import type { PdfSection, CoverElement } from "@/types/pdf.types";
 
 // Re-exportados para retrocompatibilidade com importadores existentes.
-export type { PdfSection, CoverElement, CoverElementPosition } from "@/types/pdf.types";
+export type {
+  PdfSection,
+  CoverElement,
+  CoverElementPosition,
+} from "@/types/pdf.types";
 
 export interface ProposalPdfCustomSettings {
   theme?: ThemeType;
@@ -42,10 +49,14 @@ export interface ProposalPdfTemplateProps {
   showCover?: boolean;
   customSettings?: ProposalPdfCustomSettings;
   products?: ProposalProduct[];
+  enforceCanonicalStructure?: boolean;
 }
 
 function createRuntimeId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -109,21 +120,17 @@ function createDefaultSections(
   if (template.paymentTerms) {
     sections.push({
       id: createRuntimeId(),
-      type: "title",
+      type: "payment-terms",
       content: "Condicoes de Pagamento",
+      columnWidth: 100,
       styles: {
-        fontSize: "20px",
-        fontWeight: "bold",
-        color: primaryColor,
+        fontSize: "14px",
+        fontWeight: "normal",
+        textAlign: "left",
+        color: "#374151",
         marginTop: "24px",
-        marginBottom: "8px",
+        marginBottom: "16px",
       },
-    });
-    sections.push({
-      id: createRuntimeId(),
-      type: "text",
-      content: template.paymentTerms,
-      styles: { fontSize: "14px", color: "#374151", marginBottom: "16px" },
     });
   }
 
@@ -174,7 +181,13 @@ function normalizeText(value: string): string {
 }
 
 function isPaymentTitle(section: PdfSection): boolean {
-  return section.type === "title" && normalizeText(section.content).includes("condicoes de pagamento");
+  if (section.type !== "title") return false;
+  const content = normalizeText(section.content);
+  return (
+    content.includes("condicoes de pagamento") ||
+    content.includes("condicao de pagamento") ||
+    content.includes("formas de pagamento")
+  );
 }
 
 function isPaymentText(section: PdfSection): boolean {
@@ -190,19 +203,29 @@ function isPaymentText(section: PdfSection): boolean {
 }
 
 function isWarrantyTitle(section: PdfSection): boolean {
-  return section.type === "title" && normalizeText(section.content) === "garantia";
+  return (
+    section.type === "title" && normalizeText(section.content) === "garantia"
+  );
 }
 
 function isWarrantyText(section: PdfSection): boolean {
-  return section.type === "text" && normalizeText(section.content).includes("garantia");
+  return (
+    section.type === "text" &&
+    normalizeText(section.content).includes("garantia")
+  );
 }
 
 function isFooterText(section: PdfSection): boolean {
-  return section.type === "text" && normalizeText(section.content).includes("atenciosamente");
+  return (
+    section.type === "text" &&
+    normalizeText(section.content).includes("atenciosamente")
+  );
 }
 
 function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
-  const firstProductTable = sections.find((section) => section.type === "product-table") || {
+  const firstProductTable = sections.find(
+    (section) => section.type === "product-table",
+  ) || {
     id: createRuntimeId(),
     type: "product-table" as const,
     content: "Sistemas / Ambientes / Produtos",
@@ -215,7 +238,9 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
     },
   };
 
-  const withoutProductTables = sections.filter((section) => section.type !== "product-table");
+  const withoutProductTables = sections.filter(
+    (section) => section.type !== "product-table",
+  );
   const insertionIndex = withoutProductTables.findIndex((section) => {
     if (isPaymentTitle(section) || isPaymentText(section)) return true;
     if (isWarrantyTitle(section) || isWarrantyText(section)) return true;
@@ -251,7 +276,8 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
     }
 
     if (isFooterText(section)) {
-      const previous = index > 0 ? withSingleProductTable[index - 1] : undefined;
+      const previous =
+        index > 0 ? withSingleProductTable[index - 1] : undefined;
       if (previous?.type === "divider" && !fixedIds.has(previous.id)) {
         footerBlock.push(previous);
         fixedIds.add(previous.id);
@@ -261,21 +287,34 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
     }
   });
 
-  const baseSections = withSingleProductTable.filter((section) => !fixedIds.has(section.id));
-  const lastProductTableIndex = baseSections.map((section) => section.type).lastIndexOf("product-table");
+  const baseSections = withSingleProductTable.filter(
+    (section) => !fixedIds.has(section.id),
+  );
+  const lastProductTableIndex = baseSections
+    .map((section) => section.type)
+    .lastIndexOf("product-table");
   if (lastProductTableIndex === -1) {
     return withSingleProductTable;
   }
 
   const normalized = [...baseSections];
-  normalized.splice(lastProductTableIndex + 1, 0, ...paymentBlock, ...warrantyBlock, ...footerBlock);
+  normalized.splice(
+    lastProductTableIndex + 1,
+    0,
+    ...paymentBlock,
+    ...warrantyBlock,
+    ...footerBlock,
+  );
   return normalized;
 }
 
 function generatePaymentTerms(proposal: DomainProposal): string {
   const lines: string[] = [];
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
 
   const downPaymentType = proposal.downPaymentType || "value";
   const downPaymentPercentage = proposal.downPaymentPercentage || 0;
@@ -286,8 +325,11 @@ function generatePaymentTerms(proposal: DomainProposal): string {
 
   if (proposal.downPaymentEnabled && downPaymentValue > 0) {
     const total = proposal.totalValue || 0;
-    const percentage = total > 0 ? Math.round((downPaymentValue / total) * 100) : 0;
-    lines.push(`- Entrada: ${formatCurrency(downPaymentValue)} (${percentage}%) na aprovacao`);
+    const percentage =
+      total > 0 ? Math.round((downPaymentValue / total) * 100) : 0;
+    lines.push(
+      `- Entrada: ${formatCurrency(downPaymentValue)} (${percentage}%) na aprovacao`,
+    );
   }
 
   if (
@@ -295,7 +337,9 @@ function generatePaymentTerms(proposal: DomainProposal): string {
     (proposal.installmentsCount || 0) > 0 &&
     (proposal.installmentValue || 0) > 0
   ) {
-    lines.push(`- Parcelamento: ${proposal.installmentsCount}x de ${formatCurrency(proposal.installmentValue || 0)}`);
+    lines.push(
+      `- Parcelamento: ${proposal.installmentsCount}x de ${formatCurrency(proposal.installmentValue || 0)}`,
+    );
   } else if (proposal.downPaymentEnabled && downPaymentValue > 0) {
     lines.push("- Saldo: na entrega");
   } else {
@@ -306,9 +350,33 @@ function generatePaymentTerms(proposal: DomainProposal): string {
   return lines.join("\n");
 }
 
-function hydrateSections(sections: PdfSection[], proposal: DomainProposal): PdfSection[] {
+function hydrateSections(
+  sections: PdfSection[],
+  proposal: DomainProposal,
+  enforceCanonicalStructure: boolean,
+): PdfSection[] {
   const paymentTerms = generatePaymentTerms(proposal);
+  const hasDynamicPaymentOptions = !!(
+    (proposal.installmentsEnabled &&
+      (proposal.installmentsCount || 0) >= 1 &&
+      (proposal.installmentValue || 0) > 0) ||
+    (proposal.downPaymentEnabled &&
+      (proposal.downPaymentType === "percentage"
+        ? ((proposal.totalValue || 0) * (proposal.downPaymentPercentage || 0)) /
+          100
+        : proposal.downPaymentValue || 0) > 0)
+  );
   const hydrated = sections.map((section) => {
+    if (section.type === "payment-terms") {
+      return {
+        ...section,
+        content: hasDynamicPaymentOptions
+          ? "Condicoes de Pagamento"
+          : section.content || paymentTerms,
+        columnWidth: 100,
+      };
+    }
+
     if (section.type !== "text") {
       return section;
     }
@@ -321,7 +389,9 @@ function hydrateSections(sections: PdfSection[], proposal: DomainProposal): PdfS
     return isPaymentSection ? { ...section, content: paymentTerms } : section;
   });
 
-  return ensureCanonicalSectionStructure(hydrated);
+  return enforceCanonicalStructure
+    ? ensureCanonicalSectionStructure(hydrated)
+    : hydrated;
 }
 
 function normalizeCoverElements(elements: CoverElement[]): CoverElement[] {
@@ -356,7 +426,9 @@ function normalizeCoverElements(elements: CoverElement[]): CoverElement[] {
     return element;
   });
 
-  const hasValidUntil = normalized.some((element) => element.type === "valid-until");
+  const hasValidUntil = normalized.some(
+    (element) => element.type === "valid-until",
+  );
   if (hasLegacyTypes && !hasValidUntil) {
     const maxOrder = Math.max(0, ...normalized.map((element) => element.order));
     normalized.push({
@@ -380,11 +452,15 @@ function normalizeCoverElements(elements: CoverElement[]): CoverElement[] {
   return normalized;
 }
 
-function normalizeProposalProducts(products: ProposalProduct[]): ProposalProduct[] {
+function normalizeProposalProducts(
+  products: ProposalProduct[],
+): ProposalProduct[] {
   return products.map((product) => {
     const quantity = Number(product.quantity || 0);
     const normalizedImages = Array.isArray(product.productImages)
-      ? product.productImages.filter((image) => typeof image === "string" && image)
+      ? product.productImages.filter(
+          (image) => typeof image === "string" && image,
+        )
       : [];
     const fallbackImage = product.productImage || normalizedImages[0] || "";
     const isGhost = quantity <= 0;
@@ -394,7 +470,12 @@ function normalizeProposalProducts(products: ProposalProduct[]): ProposalProduct
       ...product,
       quantity,
       productImage: fallbackImage,
-      productImages: normalizedImages.length > 0 ? normalizedImages : fallbackImage ? [fallbackImage] : [],
+      productImages:
+        normalizedImages.length > 0
+          ? normalizedImages
+          : fallbackImage
+            ? [fallbackImage]
+            : [],
       _isInactive: isInactive,
       _isGhost: isGhost,
       _shouldHide: Boolean(product._shouldHide || isGhost || isInactive),
@@ -409,15 +490,24 @@ export function ProposalPdfTemplate({
   showCover = true,
   customSettings,
   products,
+  enforceCanonicalStructure = true,
 }: ProposalPdfTemplateProps) {
   const proposalData = proposal as DomainProposal;
-  const normalizedProducts = normalizeProposalProducts(products || proposalData.products || []);
+  const normalizedProducts = normalizeProposalProducts(
+    products || proposalData.products || [],
+  );
 
-  const savedPdfSettings = proposal.pdfSettings as ProposalPdfCustomSettings | undefined;
-  const savedSections = (proposal.sections as unknown as PdfSection[]) || [];
+  const savedPdfSettings = proposal.pdfSettings as
+    | ProposalPdfCustomSettings
+    | undefined;
+  const savedSections =
+    (savedPdfSettings?.sections as unknown as PdfSection[]) || [];
 
   const theme =
-    customSettings?.theme || savedPdfSettings?.theme || (template?.theme as ThemeType) || "modern";
+    customSettings?.theme ||
+    savedPdfSettings?.theme ||
+    (template?.theme as ThemeType) ||
+    "modern";
 
   const primaryColor =
     customSettings?.primaryColor ||
@@ -433,7 +523,11 @@ export function ProposalPdfTemplate({
       DEFAULT_PDF_FONT_FAMILY,
   );
 
-  const coverTitle = customSettings?.coverTitle || savedPdfSettings?.coverTitle || proposal.title || "";
+  const coverTitle =
+    customSettings?.coverTitle ||
+    savedPdfSettings?.coverTitle ||
+    proposal.title ||
+    "";
   const coverImage =
     customSettings?.coverImage !== undefined
       ? customSettings.coverImage
@@ -446,25 +540,31 @@ export function ProposalPdfTemplate({
       ? customSettings.coverLogo
       : savedPdfSettings?.coverLogo !== undefined
         ? savedPdfSettings.coverLogo
-        : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo || tenant?.logoUrl || "";
+        : (template as ProposalTemplate & { coverLogo?: string })?.coverLogo ||
+          tenant?.logoUrl ||
+          "";
 
   const templateSettings =
-    (template as ProposalTemplate & {
-      coverImageSettings?: {
-        opacity?: number;
-        fit?: "cover" | "contain";
-        position?: string;
-      };
-    })?.coverImageSettings || {};
+    (
+      template as ProposalTemplate & {
+        coverImageSettings?: {
+          opacity?: number;
+          fit?: "cover" | "contain";
+          position?: string;
+        };
+      }
+    )?.coverImageSettings || {};
 
   const savedCoverImageSettings =
-    (savedPdfSettings as ProposalPdfCustomSettings & {
-      coverImageSettings?: {
-        opacity?: number;
-        fit?: "cover" | "contain";
-        position?: string;
-      };
-    })?.coverImageSettings || {};
+    (
+      savedPdfSettings as ProposalPdfCustomSettings & {
+        coverImageSettings?: {
+          opacity?: number;
+          fit?: "cover" | "contain";
+          position?: string;
+        };
+      }
+    )?.coverImageSettings || {};
 
   const coverImageOpacity =
     customSettings?.coverImageOpacity ??
@@ -488,23 +588,42 @@ export function ProposalPdfTemplate({
     "center";
 
   const repeatHeader =
-    customSettings?.repeatHeader ?? savedPdfSettings?.repeatHeader ?? template?.repeatHeader ?? false;
+    customSettings?.repeatHeader ??
+    savedPdfSettings?.repeatHeader ??
+    template?.repeatHeader ??
+    false;
 
   let sectionsToUse: PdfSection[] = [];
+  let sectionsSource: "custom" | "saved" | "template" | "none" = "none";
 
   if (customSettings?.sections && customSettings.sections.length > 0) {
-    sectionsToUse = hydrateSections(customSettings.sections, proposalData);
+    sectionsSource = "custom";
+    sectionsToUse = hydrateSections(
+      customSettings.sections,
+      proposalData,
+      false,
+    );
   } else if (Array.isArray(savedSections) && savedSections.length > 0) {
-    sectionsToUse = hydrateSections(savedSections, proposalData);
+    sectionsSource = "saved";
+    sectionsToUse = hydrateSections(savedSections, proposalData, false);
   } else if (template) {
+    sectionsSource = "template";
     const templateWithDynamicPaymentTerms = {
       ...template,
       paymentTerms: generatePaymentTerms(proposalData),
     };
-    sectionsToUse = createDefaultSections(templateWithDynamicPaymentTerms, primaryColor);
+    sectionsToUse = createDefaultSections(
+      templateWithDynamicPaymentTerms,
+      primaryColor,
+    );
   }
 
-  sectionsToUse = ensureCanonicalSectionStructure(sectionsToUse);
+  const shouldEnforceCanonical =
+    enforceCanonicalStructure && sectionsSource === "template";
+
+  if (shouldEnforceCanonical) {
+    sectionsToUse = ensureCanonicalSectionStructure(sectionsToUse);
+  }
 
   const contentStyles = getContentStyles(theme, primaryColor);
   const pdfDisplaySettings: PdfDisplaySettings = mergePdfDisplaySettings(
@@ -533,7 +652,11 @@ export function ProposalPdfTemplate({
           logoStyle={
             customSettings?.logoStyle ||
             savedPdfSettings?.logoStyle ||
-            (template as ProposalTemplate & { logoStyle?: "original" | "rounded" | "circle" })?.logoStyle
+            (
+              template as ProposalTemplate & {
+                logoStyle?: "original" | "rounded" | "circle";
+              }
+            )?.logoStyle
           }
           validUntil={proposal.validUntil}
         />
@@ -544,10 +667,16 @@ export function ProposalPdfTemplate({
         fontFamily={fontFamily}
         contentStyles={contentStyles}
         primaryColor={primaryColor}
-        renderThemeDecorations={() => <PdfThemeDecorations theme={theme} primaryColor={primaryColor} />}
+        renderThemeDecorations={() => (
+          <PdfThemeDecorations theme={theme} primaryColor={primaryColor} />
+        )}
         tenant={tenant}
         coverTitle={coverTitle}
-        proposal={proposalData as unknown as Parameters<typeof RenderPagedContent>[0]["proposal"]}
+        proposal={
+          proposalData as unknown as Parameters<
+            typeof RenderPagedContent
+          >[0]["proposal"]
+        }
         repeatHeader={repeatHeader}
         pdfDisplaySettings={pdfDisplaySettings}
       />
