@@ -5,6 +5,7 @@ import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -18,7 +19,10 @@ import { User, SubscriptionStatus } from "@/types";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<boolean>;
+  login: (
+    email: string,
+    pass: string,
+  ) => Promise<{ success: boolean; code?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -26,7 +30,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
-  login: async () => false,
+  login: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -226,11 +230,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      return true;
+
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await currentUser.reload();
+        if (!currentUser.emailVerified) {
+          try {
+            if (typeof window !== "undefined") {
+              await sendEmailVerification(currentUser, {
+                url: `${window.location.origin}/login`,
+              });
+            } else {
+              await sendEmailVerification(currentUser);
+            }
+          } catch (verificationError) {
+            console.error(
+              "Failed to send email verification on login:",
+              verificationError,
+            );
+          }
+
+          await signOut(auth);
+          setIsLoading(false);
+          return { success: false, code: "email-not-verified" };
+        }
+      }
+
+      return { success: true };
     } catch (error) {
       console.error("Login failed", error);
       setIsLoading(false);
-      return false;
+      return { success: false, code: "invalid-credentials" };
     }
   };
 
