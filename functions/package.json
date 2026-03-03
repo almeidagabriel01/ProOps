@@ -6,8 +6,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "deploy:dev": "firebase deploy --only functions,firestore:rules",
-    "deploy:prod": "firebase deploy --only functions,firestore:rules",
+    "deploy:dev": "firebase deploy --project dev --only functions,firestore:rules",
+    "deploy:prod": "firebase deploy --project prod --only functions,firestore:rules",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",

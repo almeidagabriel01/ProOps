@@ -5,12 +5,26 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 
-// Parse the service account from environment variables
-// Note: We use process.env directly for server-side
+function getRequiredServerProjectId(): string {
+    const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
+    if (projectId) {
+        return projectId;
+    }
+
+    const legacyFallback = String(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "").trim();
+    if (legacyFallback) {
+        console.warn(
+            "Firebase Admin is falling back to NEXT_PUBLIC_FIREBASE_PROJECT_ID. Set FIREBASE_PROJECT_ID in server envs.",
+        );
+        return legacyFallback;
+    }
+
+    throw new Error("Firebase Admin missing FIREBASE_PROJECT_ID.");
+}
+
 const serviceAccount: ServiceAccount = {
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    projectId: getRequiredServerProjectId(),
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    // Handle private key newlines correctly
     privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
 };
 
@@ -29,7 +43,9 @@ export function getAdminApp() {
 
     return initializeApp({
         credential: cert(serviceAccount),
-        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        storageBucket:
+            process.env.FIREBASE_STORAGE_BUCKET ||
+            process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     });
 }
 

@@ -6,6 +6,7 @@
  */
 
 import Stripe from "stripe";
+import { resolveFrontendAppUrl } from "../lib/frontend-app-url";
 
 // Lazy initialization to avoid issues during deployment
 let stripeInstance: Stripe | null = null;
@@ -118,13 +119,5 @@ export function getPriceIdForAddon(addonType: string): string | null {
  * Get the app URL for redirects
  */
 export function getAppUrl(): string {
-  const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
-
-  if (appUrl) {
-    return appUrl.endsWith("/") ? appUrl : `${appUrl}/`;
-  }
-
-  const isLocal = process.env.FUNCTIONS_EMULATOR === "true" || process.env.NODE_ENV === "development";
-
-  return isLocal ? "http://localhost:3000/" : "https://proops.com.br/";
+  return resolveFrontendAppUrl();
 }

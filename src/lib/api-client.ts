@@ -2,22 +2,10 @@ import { auth } from "./firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 /**
- * Get API base URL from environment.
- * Set NEXT_PUBLIC_API_URL in:
- * - .env.local for local development
- * - Vercel Environment Variables for deployments
+ * Browser-side application API always uses the same-origin Next.js proxy.
  */
 const getBaseUrl = (): string => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-  if (!apiUrl) {
-    throw new Error(
-      "NEXT_PUBLIC_API_URL is not defined. " +
-        "Set it in .env.local or Vercel Environment Variables.",
-    );
-  }
-
-  return apiUrl;
+  return "/api/backend";
 };
 
 export class ApiError extends Error {
@@ -108,7 +96,15 @@ export const callApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    console.error(`API Call Failed [${method} ${url}]:`, error);
+    console.error(
+      `API Call Failed [${method} ${url}]`,
+      {
+        baseUrl,
+        origin:
+          typeof window !== "undefined" ? window.location.origin : "server",
+      },
+      error,
+    );
     throw error;
   }
 };
@@ -170,7 +166,15 @@ export const callPublicApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    console.error(`Public API Call Failed [${method} ${url}]:`, error);
+    console.error(
+      `Public API Call Failed [${method} ${url}]`,
+      {
+        baseUrl,
+        origin:
+          typeof window !== "undefined" ? window.location.origin : "server",
+      },
+      error,
+    );
     throw error;
   }
 };

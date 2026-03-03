@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,6 +15,8 @@
     "security:claims:backfill": "node scripts/backfill-custom-claims.mjs",
     "security:claims:validate": "node scripts/validate-custom-claims.mjs",
     "firestore:ttl:stripe-events": "node scripts/enable-firestore-ttl-stripe-events.mjs",
+    "deploy:dev": "npx firebase deploy --project dev --only functions,firestore:rules",
+    "deploy:prod": "npx firebase deploy --project prod --only functions,firestore:rules",
     "security:audit:runtime": "npm audit --omit=dev --audit-level=high",
     "security:audit:functions": "npm --prefix functions run security:audit:runtime",
     "security:scan": "npm run security:audit:runtime && npm run security:audit:functions"
@@ -53,6 +56,7 @@
     "@types/uuid": "^10.0.0",
     "babel-plugin-react-compiler": "1.0.0",
     "baseline-browser-mapping": "^2.9.19",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "patch-package": "^8.0.1",

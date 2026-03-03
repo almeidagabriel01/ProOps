@@ -77,13 +77,7 @@ export function getFilenameFromContentDisposition(
 }
 
 function getApiBaseUrl(): string {
-  const apiBaseUrl = String(process.env.NEXT_PUBLIC_API_URL || "")
-    .trim()
-    .replace(/\/+$/, "");
-  if (!apiBaseUrl) {
-    throw new Error("NEXT_PUBLIC_API_URL is not configured.");
-  }
-  return apiBaseUrl;
+  return "/api/backend";
 }
 
 async function getAuthenticatedUser(): Promise<FirebaseUser | null> {

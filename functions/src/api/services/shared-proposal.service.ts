@@ -2,6 +2,7 @@ import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { v4 as uuidv4 } from "uuid";
 import { NotificationService } from "./notification.service";
+import { resolveFrontendAppUrl } from "../../lib/frontend-app-url";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_LINK_EXPIRATION_DAYS = 30;
@@ -36,17 +37,7 @@ export interface ShareLinkResponse {
 
 export class SharedProposalService {
   private static getBaseAppUrl(): string {
-    const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
-
-    if (configuredUrl) {
-      return configuredUrl;
-    }
-
-    const isLocal =
-      process.env.FUNCTIONS_EMULATOR === "true" ||
-      process.env.NODE_ENV === "development";
-
-    return isLocal ? "http://localhost:3000/" : "https://proops.com.br/";
+    return resolveFrontendAppUrl();
   }
 
   private static getExpirationDate(days = SHARED_LINK_EXPIRATION_DAYS): Date {

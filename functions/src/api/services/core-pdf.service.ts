@@ -21,6 +21,7 @@
 
 import { chromium } from "playwright-core";
 import chromiumPackage from "@sparticuz/chromium";
+import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 
 // ---------------------------------------------------------------------------
 // Constantes
@@ -238,10 +239,5 @@ export async function renderPageToPdfBuffer(options: RenderPdfOptions): Promise<
  * Centralizado aqui para evitar duplicação entre os serviços.
  */
 export function resolveAppBaseUrl(): string {
-  const configured = String(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "").trim();
-  if (configured) return configured.replace(/\/+$/, "");
-  const isLocal =
-    process.env.FUNCTIONS_EMULATOR === "true" ||
-    process.env.NODE_ENV === "development";
-  return isLocal ? "http://localhost:3000" : "https://proops.com.br";
+  return resolveFrontendAppOrigin();
 }

@@ -1,8 +1,14 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getFunctions } from "firebase/functions";
-import { getStorage } from "firebase/storage";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { connectStorageEmulator, getStorage } from "firebase/storage";
+
+declare global {
+  interface Window {
+    __templateErpFirebaseEmulatorsConnected?: boolean;
+  }
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -23,9 +29,21 @@ const storage = getStorage(app);
 // Cloud Functions are deployed to 'southamerica-east1' (São Paulo)
 const functions = getFunctions(app, "southamerica-east1");
 
-// Connect to emulator in development (optional)
-// if (process.env.NODE_ENV === "development") {
-//   connectFunctionsEmulator(functions, "localhost", 5001);
-// }
+const useFirebaseEmulators =
+  String(process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS || "")
+    .trim()
+    .toLowerCase() === "true";
+
+if (useFirebaseEmulators && typeof window !== "undefined") {
+  if (!window.__templateErpFirebaseEmulatorsConnected) {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", {
+      disableWarnings: true,
+    });
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+    connectStorageEmulator(storage, "127.0.0.1", 9199);
+    window.__templateErpFirebaseEmulatorsConnected = true;
+  }
+}
 
 export { app, auth, db, functions, storage };
