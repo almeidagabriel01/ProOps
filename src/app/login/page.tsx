@@ -61,6 +61,13 @@ function LoginContent() {
     error,
     setError,
     errors, // New
+    registerSuccessMessage,
+    smsCode,
+    setSmsCode,
+    requiresPhoneVerification,
+    isAwaitingPhoneVerification,
+    isSendingSms,
+    isVerifyingSmsCode,
     isLoggingIn,
     isRegistering,
     mode,
@@ -73,6 +80,8 @@ function LoginContent() {
     handleRegister,
     handleForgotPassword,
     handleLogoUpload,
+    handleConfirmPhoneCode,
+    handleResendPhoneCode,
   } = useLoginForm();
 
   // Estado para erros de validação do cadastro
@@ -451,12 +460,60 @@ function LoginContent() {
                       </p>
                     )}
 
-                    <StepNavigation
-                      onSubmit={handleRegister}
-                      onBeforeNext={validateRegisterStep2}
-                      isSubmitting={isRegistering}
-                      submitLabel="Criar Conta"
-                    />
+                    {registerSuccessMessage && (
+                      <p className="text-sm text-green-600 font-medium mt-2">
+                        {registerSuccessMessage}
+                      </p>
+                    )}
+
+                    {requiresPhoneVerification && (
+                      <div className="mt-4 p-4 border border-border rounded-xl bg-muted/20 space-y-3">
+                        <p className="text-sm font-medium">
+                          Confirmação de telefone por SMS
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Digite o código enviado por SMS para confirmar que
+                          este número é seu.
+                        </p>
+                        <Input
+                          value={smsCode}
+                          onChange={(e) => setSmsCode(e.target.value)}
+                          placeholder="Código de 6 dígitos"
+                          inputMode="numeric"
+                          maxLength={6}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            onClick={handleConfirmPhoneCode}
+                            disabled={isVerifyingSmsCode || !smsCode.trim()}
+                            className="flex-1"
+                          >
+                            {isVerifyingSmsCode
+                              ? "Confirmando..."
+                              : "Confirmar Telefone"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleResendPhoneCode}
+                            disabled={isSendingSms}
+                          >
+                            {isSendingSms ? "Enviando..." : "Reenviar SMS"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!isAwaitingPhoneVerification &&
+                      !requiresPhoneVerification && (
+                        <StepNavigation
+                          onSubmit={handleRegister}
+                          onBeforeNext={validateRegisterStep2}
+                          isSubmitting={isRegistering}
+                          submitLabel="Criar Conta"
+                        />
+                      )}
                   </form>
                 </div>
               </StepCard>
@@ -606,6 +663,7 @@ function LoginContent() {
           </Card>
         )}
       </div>
+      <div id="recaptcha-container" className="hidden" />
     </div>
   );
 }
