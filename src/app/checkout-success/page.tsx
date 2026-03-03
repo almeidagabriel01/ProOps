@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/firebase";
+import { ApiError } from "@/lib/api-client";
 
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
@@ -12,7 +14,7 @@ function CheckoutSuccessContent() {
   const { user, isLoading: authLoading, refreshUser } = useAuth();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
+    "loading",
   );
   const [planName, setPlanName] = useState<string>("");
   const hasProcessed = useRef(false);
@@ -28,10 +30,12 @@ function CheckoutSuccessContent() {
       return;
     }
 
-    const confirmAndRedirect = async () => {
+    const confirmAndRedirect = async (retryCount = 0) => {
       // Prevent double execution
-      if (hasProcessed.current) return;
-      hasProcessed.current = true;
+      if (hasProcessed.current && retryCount === 0) return;
+      if (retryCount === 0) {
+        hasProcessed.current = true;
+      }
 
       const sessionId = searchParams.get("session_id");
 
@@ -42,6 +46,17 @@ function CheckoutSuccessContent() {
       }
 
       try {
+        const currentAuthUser = auth.currentUser;
+        if (currentAuthUser) {
+          const idToken = await currentAuthUser.getIdToken(true);
+          await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ idToken }),
+          });
+        }
+
         // Call Cloud Function to confirm checkout and update user in Firestore
         const { StripeService } = await import("@/services/stripe-service");
         const data = await StripeService.confirmCheckout({ sessionId });
@@ -60,6 +75,31 @@ function CheckoutSuccessContent() {
         }, 2000);
       } catch (error) {
         console.error("Error confirming checkout:", error);
+
+        const isForbidden = error instanceof ApiError && error.status === 403;
+        if (isForbidden && retryCount < 1) {
+          try {
+            const currentAuthUser = auth.currentUser;
+            if (currentAuthUser) {
+              const idToken = await currentAuthUser.getIdToken(true);
+              await fetch("/api/auth/session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ idToken }),
+              });
+            }
+          } catch (sessionRetryError) {
+            console.warn(
+              "Session refresh retry failed during checkout confirmation",
+              sessionRetryError,
+            );
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          return confirmAndRedirect(retryCount + 1);
+        }
+
         setStatus("error");
       }
     };
@@ -116,7 +156,10 @@ function CheckoutSuccessContent() {
               <Button onClick={() => window.location.reload()}>
                 Tentar novamente
               </Button>
-              <Button variant="outline" onClick={() => router.push("/dashboard")}> 
+              <Button
+                variant="outline"
+                onClick={() => router.push("/dashboard")}
+              >
                 Ir para dashboard
               </Button>
             </div>

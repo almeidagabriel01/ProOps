@@ -123,8 +123,6 @@ export function useLoginForm(): UseLoginFormReturn {
     React.useState(false);
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
-  const [registeredPhoneNumber, setRegisteredPhoneNumber] =
-    React.useState("");
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -267,7 +265,26 @@ export function useLoginForm(): UseLoginFormReturn {
   // Get redirect URL from query params
   const redirectUrl = searchParams.get("redirect");
 
+  const buildEmailPendingPath = React.useCallback(() => {
+    const params = new URLSearchParams();
+
+    if (redirectUrl) {
+      params.set("redirect", redirectUrl);
+    }
+
+    const query = params.toString();
+    return query
+      ? `/email-verification-pending?${query}`
+      : "/email-verification-pending";
+  }, [redirectUrl]);
+
   const handleRedirectAfterAuth = React.useCallback(() => {
+    const currentUser = auth.currentUser;
+    if (currentUser && !currentUser.emailVerified) {
+      router.replace(buildEmailPendingPath());
+      return;
+    }
+
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
@@ -329,7 +346,7 @@ export function useLoginForm(): UseLoginFormReturn {
         }
       }
     }
-  }, [redirectUrl, router, user]);
+  }, [buildEmailPendingPath, redirectUrl, router, user]);
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -524,30 +541,15 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: new Date().toISOString(),
       });
 
+      const emailPendingPath = buildEmailPendingPath();
+
       await sendEmailVerification(firebaseUser, {
-        url: `${window.location.origin}/login`,
+        url: `${window.location.origin}${emailPendingPath}`,
       });
 
-      if (phoneNumber && phoneNumber.trim().length > 0) {
-        setRequiresPhoneVerification(true);
-        setRegisteredPhoneNumber(phoneNumber);
-        const sent = await sendPhoneVerificationCode(phoneNumber);
-
-        if (!sent) {
-          setRegisterSuccessMessage(
-            "Conta criada. Verifique seu email e reenviе o SMS para confirmar o telefone.",
-          );
-        }
-
-        setIsRegistering(false);
-        return;
-      }
-
-      await signOut(auth);
-      setMode("login");
-      setError(
-        "Conta criada com sucesso! Verifique seu email no link enviado antes de entrar.",
-      );
+      setIsRegistering(false);
+      router.replace(emailPendingPath);
+      return;
     } catch (err: unknown) {
       const error = err as { code?: string };
       console.error("Registration error:", err);
@@ -588,7 +590,7 @@ export function useLoginForm(): UseLoginFormReturn {
 
       const { UserService } = await import("@/services/user-service");
       await UserService.updateProfile({
-        phoneNumber: registeredPhoneNumber || phoneNumber,
+        phoneNumber: phoneNumber,
       });
 
       setIsAwaitingPhoneVerification(false);
@@ -619,7 +621,7 @@ export function useLoginForm(): UseLoginFormReturn {
   };
 
   const handleResendPhoneCode = async () => {
-    const phone = registeredPhoneNumber || phoneNumber;
+    const phone = phoneNumber;
     if (!phone) {
       setError("Informe um telefone para reenviar o SMS.");
       return;

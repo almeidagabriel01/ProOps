@@ -54,6 +54,12 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     name: 'Redefinir Senha',
     requiresAuth: false,
   },
+  '/email-verification-pending': {
+    pageId: 'email-verification-pending',
+    slug: '/email-verification-pending',
+    name: 'Confirmação de E-mail',
+    requiresAuth: false,
+  },
   '/subscribe': {
     pageId: 'subscribe',
     slug: '/subscribe',

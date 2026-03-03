@@ -301,7 +301,14 @@ function assertSubscriptionOwnership(
   }
 }
 
-async function resolveStripeUserContext(req: Request): Promise<{
+type ResolveStripeUserContextOptions = {
+  allowFreeOwnerCheckout?: boolean;
+};
+
+async function resolveStripeUserContext(
+  req: Request,
+  options: ResolveStripeUserContextOptions = {},
+): Promise<{
   userId: string;
   tenantId: string;
   customerId?: string;
@@ -310,7 +317,16 @@ async function resolveStripeUserContext(req: Request): Promise<{
   tenantRef: FirebaseFirestore.DocumentReference;
   tenantSnap: FirebaseFirestore.DocumentSnapshot;
 }> {
-  assertTenantAdminClaim(req);
+  const role = String(req.user?.role || "")
+    .trim()
+    .toUpperCase();
+  const hasMasterId = Boolean(String(req.user?.masterId || "").trim());
+  const isFreeOwnerCheckout =
+    options.allowFreeOwnerCheckout === true && role === "FREE" && !hasMasterId;
+
+  if (!isFreeOwnerCheckout) {
+    assertTenantAdminClaim(req);
+  }
 
   const userId = req.user?.uid;
   if (!userId) {
@@ -694,7 +710,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       tenantRef,
       tenantSnap,
       customerId: contextCustomerId,
-    } = await resolveStripeUserContext(req);
+    } = await resolveStripeUserContext(req, { allowFreeOwnerCheckout: true });
     const planTier = String(req.body?.planTier || "").trim();
     const userEmail = req.body?.userEmail;
     const rawBillingInterval = String(req.body?.billingInterval || "monthly")
@@ -937,7 +953,7 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       userRef,
       userSnap,
       tenantRef,
-    } = await resolveStripeUserContext(req);
+    } = await resolveStripeUserContext(req, { allowFreeOwnerCheckout: true });
     const { sessionId } = req.body as { sessionId?: string };
 
     if (!sessionId) {

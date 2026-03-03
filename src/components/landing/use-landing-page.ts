@@ -56,8 +56,14 @@ export function useLandingPage() {
 
         const data = await res.json();
         if (!cancelled && data.authenticated) {
-          // Session is valid on the server — show loader immediately
-          setIsRedirecting(true);
+          const role = String(data.role || "").toLowerCase();
+          const isKnownNonFreeRole = role !== "" && role !== "free";
+
+          // Only show immediate redirect loader for known non-free users.
+          // Free users should stay on home and must not enter redirect loader.
+          if (isKnownNonFreeRole) {
+            setIsRedirecting(true);
+          }
         }
       } catch {
         // Network error or server unavailable — fall through to Firebase client check
@@ -70,6 +76,17 @@ export function useLandingPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCheckingAuth) return;
+
+    const timeout = window.setTimeout(() => {
+      setIsCheckingAuth(false);
+      setIsRedirecting(false);
+    }, 10000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isCheckingAuth]);
 
   // ──────────────────────────────────────────────
   // 2. Fetch plans on mount

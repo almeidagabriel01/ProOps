@@ -1,4 +1,4 @@
-import { db } from "../init";
+import { auth, db } from "../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 
@@ -25,6 +25,20 @@ export async function updateUserPlan(
   const planId = await getPlanIdByTier(planTier);
   const billingInterval = interval === "year" ? "yearly" : "monthly";
   const userRef = db.collection("users").doc(userId);
+  const existingUserSnap = await userRef.get();
+  const existingUserData = existingUserSnap.exists
+    ? (existingUserSnap.data() as Record<string, unknown> | undefined)
+    : undefined;
+
+  const currentRole = String(existingUserData?.role || "")
+    .trim()
+    .toLowerCase();
+  const hasMasterId = Boolean(String(existingUserData?.masterId || "").trim());
+  const tenantIdForClaims = String(
+    existingUserData?.tenantId || existingUserData?.companyId || "",
+  ).trim();
+  const stripeIdForClaims = String(existingUserData?.stripeId || "").trim();
+  const shouldPromoteFreeOwner = currentRole === "free" && !hasMasterId;
 
   const updatePayload: Record<string, unknown> = {
     billingInterval: billingInterval,
@@ -46,7 +60,38 @@ export async function updateUserPlan(
     updatePayload["subscription.currentPeriodEnd"] = currentPeriodEnd;
   }
 
+  if (shouldPromoteFreeOwner) {
+    updatePayload.role = "admin";
+  }
+
   await userRef.update(updatePayload);
+
+  if (shouldPromoteFreeOwner && tenantIdForClaims) {
+    try {
+      const userRecord = await auth.getUser(userId);
+      const previousClaims = (userRecord.customClaims || {}) as Record<
+        string,
+        unknown
+      >;
+
+      const nextClaims: Record<string, unknown> = {
+        ...previousClaims,
+        role: "ADMIN",
+        tenantId: tenantIdForClaims,
+      };
+
+      if (stripeIdForClaims) {
+        nextClaims.stripeId = stripeIdForClaims;
+      }
+
+      await auth.setCustomUserClaims(userId, nextClaims);
+    } catch (claimsError) {
+      console.error(
+        `[updateUserPlan] Failed to set custom claims for user ${userId}`,
+        claimsError,
+      );
+    }
+  }
 
   try {
     const userSnap = await userRef.get();

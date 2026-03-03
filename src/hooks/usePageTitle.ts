@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/login": "Login",
   "/register": "Criar Conta",
   "/forgot-password": "Redefinir Senha",
+  "/email-verification-pending": "Confirmação de E-mail",
   "/403": "Acesso Negado",
 
   // ERP pages

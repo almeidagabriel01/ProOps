@@ -82,6 +82,7 @@ export default function RootLayout({
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/forgot-password" ||
+    pathname.startsWith("/email-verification-pending") ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
     pathname.startsWith("/auth") ||
@@ -100,31 +101,29 @@ export default function RootLayout({
           ) : pathname.startsWith("/share/") ? (
             // Public shared proposal pages - no authentication required
             <main className="min-h-screen">{children}</main>
+          ) : isAuthOnlyPage ? (
+            <AuthProvider>
+              <main className="min-h-screen flex flex-col">{children}</main>
+            </AuthProvider>
           ) : (
             <AuthProvider>
               <PermissionsProvider>
                 <TenantProvider>
                   <ProtectedRoute>
-                    {isAuthOnlyPage ? (
-                      <main className="min-h-screen flex flex-col">
-                        {children}
-                      </main>
-                    ) : (
-                      <div className="flex h-screen overflow-hidden bg-card">
-                        <div className="flex-1 flex flex-col bg-background overflow-hidden">
-                          <Header sidebarWidth={0} />
-                          <SubscriptionGuard>
-                            <main
-                              id="main-content"
-                              className="flex-1 p-8 overflow-y-auto"
-                            >
-                              {children}
-                            </main>
-                          </SubscriptionGuard>
-                        </div>
-                        <BottomDock />
+                    <div className="flex h-screen overflow-hidden bg-card">
+                      <div className="flex-1 flex flex-col bg-background overflow-hidden">
+                        <Header sidebarWidth={0} />
+                        <SubscriptionGuard>
+                          <main
+                            id="main-content"
+                            className="flex-1 p-8 overflow-y-auto"
+                          >
+                            {children}
+                          </main>
+                        </SubscriptionGuard>
                       </div>
-                    )}
+                      <BottomDock />
+                    </div>
                   </ProtectedRoute>
                 </TenantProvider>
               </PermissionsProvider>

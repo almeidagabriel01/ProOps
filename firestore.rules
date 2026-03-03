@@ -46,6 +46,38 @@ service cloud.firestore {
     }
 
     /**
+     * User-document tenant fallback for cases where custom claims are stale.
+     */
+    function getUserDocTenantId() {
+      return isAuthenticated()
+             && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             ? get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.get('tenantId',
+                           get(/databases/$(database)/documents/users/$(request.auth.uid))
+                             .data.get('companyId', ''))
+             : '';
+    }
+
+    /**
+     * Effective tenant source: prefer trusted claim, fallback to user document.
+     */
+    function getEffectiveTenantId() {
+      let claimTenantId = getAuthTenantId();
+      return claimTenantId != '' ? claimTenantId : getUserDocTenantId();
+    }
+
+    /**
+     * User-document role fallback for stale claims.
+     */
+    function getUserDocRole() {
+      return isAuthenticated()
+             && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             ? get(/databases/$(database)/documents/users/$(request.auth.uid))
+                 .data.get('role', '')
+             : '';
+    }
+
+    /**
      * Firestore role fallback for superadmin checks.
      * This avoids hard failures when production tokens are temporarily stale
      * while still requiring an authenticated, server-controlled user document.
@@ -76,9 +108,9 @@ service cloud.firestore {
      */
     function belongsToTenant(resourceTenantId) {
        return isAuthenticated()
-              && getAuthTenantId() != ''
+            && getEffectiveTenantId() != ''
               && resourceTenantId != ''
-              && getAuthTenantId() == resourceTenantId;
+            && getEffectiveTenantId() == resourceTenantId;
     }
 
     /**
@@ -86,7 +118,10 @@ service cloud.firestore {
      */
     function hasTenantAdminRole() {
       return isAuthenticated()
-             && getAuthRole() in ['admin', 'ADMIN', 'master', 'MASTER', 'wk', 'WK'];
+             && (
+               getAuthRole() in ['admin', 'ADMIN', 'master', 'MASTER', 'wk', 'WK']
+               || getUserDocRole() in ['admin', 'ADMIN', 'master', 'MASTER', 'wk', 'WK']
+             );
     }
 
     /**
@@ -289,7 +324,7 @@ service cloud.firestore {
       // Only members of the company can view its details
       allow read: if isSuperAdmin()
                   || (isAuthenticated()
-                      && (companyId == getAuthTenantId()
+                      && (companyId == getEffectiveTenantId()
                           || companyId == request.auth.token.get('companyId', '')));
       allow write: if false;
     }
@@ -358,13 +393,13 @@ service cloud.firestore {
                     || (isAuthenticated()
                         && hasTenantAdminRole()
                         && request.resource.data.get('tenantId', '') != ''
-                        && request.resource.data.get('tenantId', '') == getAuthTenantId());
+              && request.resource.data.get('tenantId', '') == getEffectiveTenantId());
       allow update: if isSuperAdmin()
                     || (isAuthenticated()
                         && hasTenantAdminRole()
                         && belongsToTenant(resource.data.get('tenantId', ''))
                         && request.resource.data.get('tenantId', '') == resource.data.get('tenantId', '')
-                        && request.resource.data.get('tenantId', '') == getAuthTenantId());
+              && request.resource.data.get('tenantId', '') == getEffectiveTenantId());
       allow delete: if isSuperAdmin()
                     || (isAuthenticated()
                         && hasTenantAdminRole()

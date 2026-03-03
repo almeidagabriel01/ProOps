@@ -2,226 +2,317 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { confirmPasswordReset, verifyPasswordResetCode, signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Ensure this import path is correct for your project
+import {
+  applyActionCode,
+  confirmPasswordReset,
+  signOut,
+  verifyPasswordResetCode,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, Lock, CheckCircle, XCircle } from "lucide-react";
-import { toast } from '@/lib/toast';
+import { CheckCircle, Loader2, Lock, MailCheck, XCircle } from "lucide-react";
+import { toast } from "@/lib/toast";
+
+type ActionMode = "resetPassword" | "verifyEmail";
 
 function AuthActionContent() {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const mode = searchParams.get("mode");
-    const oobCode = searchParams.get("oobCode");
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-    const [newPassword, setNewPassword] = useState("");
-    const [confirmNewPassword, setConfirmNewPassword] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
-    const [email, setEmail] = useState<string | null>(null);
+  const mode = searchParams.get("mode") as ActionMode | null;
+  const oobCode = searchParams.get("oobCode");
 
-    useEffect(() => {
-        if (!oobCode) {
-            setError("Código de verificação inválido ou ausente.");
-            setIsVerifying(false);
-            return;
-        }
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
 
-        // Verify the code immediately on load
-        verifyPasswordResetCode(auth, oobCode)
-            .then((email) => {
-                setEmail(email);
-                setIsVerifying(false);
-            })
-            .catch((error) => {
-                console.error(error);
-                setError("O link de redefinição de senha é inválido ou expirou.");
-                setIsVerifying(false);
-            });
-    }, [oobCode]);
-
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (newPassword !== confirmNewPassword) {
-            toast.error("As senhas não coincidem.");
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            toast.error("A senha deve ter pelo menos 6 caracteres.");
-            return;
-        }
-
-        if (!oobCode) return;
-
-        setIsLoading(true);
-        try {
-            await confirmPasswordReset(auth, oobCode, newPassword);
-            // Sign out the user to ensure they log in with the new password
-            await signOut(auth);
-
-            setSuccess(true);
-            toast.success("Senha alterada com sucesso! Faça login com a nova senha.");
-            setTimeout(() => {
-                router.push("/login");
-            }, 3000);
-        } catch (error: unknown) {
-            console.error(error);
-            const message = error instanceof Error ? error.message : "Erro desconhecido";
-            toast.error(message || "Erro ao redefinir senha.");
-            setError(message || "Ocorreu um erro ao redefinir sua senha.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    if (mode !== "resetPassword") {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle className="text-destructive flex items-center gap-2">
-                            <XCircle className="w-5 h-5" />
-                            Ação Inválida
-                        </CardTitle>
-                        <CardDescription>
-                            O tipo de ação solicitada não é suportado ou o link está incorreto.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardFooter>
-                        <Button onClick={() => router.push("/login")} className="w-full">
-                            Voltar para o Login
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        );
+  useEffect(() => {
+    if (!oobCode) {
+      setError("Código de verificação inválido ou ausente.");
+      setIsVerifying(false);
+      return;
     }
 
-    if (isVerifying) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-                <Card className="w-full max-w-md text-center py-10">
-                    <CardContent>
-                        <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary mb-4" />
-                        <p className="text-muted-foreground">Verificando seu link...</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
+    if (mode === "resetPassword") {
+      verifyPasswordResetCode(auth, oobCode)
+        .then((resolvedEmail) => {
+          setEmail(resolvedEmail);
+          setIsVerifying(false);
+        })
+        .catch((verificationError) => {
+          console.error(verificationError);
+          setError("O link de redefinição de senha é inválido ou expirou.");
+          setIsVerifying(false);
+        });
+      return;
     }
 
-    if (error) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle className="text-destructive flex items-center gap-2">
-                            <XCircle className="w-5 h-5" />
-                            Link Inválido
-                        </CardTitle>
-                        <CardDescription>{error}</CardDescription>
-                    </CardHeader>
-                    <CardFooter>
-                        <Button onClick={() => router.push("/login")} className="w-full">
-                            Voltar para o Login
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        );
+    if (mode === "verifyEmail") {
+      applyActionCode(auth, oobCode)
+        .then(async () => {
+          try {
+            if (auth.currentUser) {
+              await auth.currentUser.reload();
+            }
+          } catch (reloadError) {
+            console.warn(
+              "Could not reload current user after email verification",
+              reloadError,
+            );
+          }
+
+          setSuccess(true);
+          setIsVerifying(false);
+        })
+        .catch((verificationError) => {
+          console.error(verificationError);
+          setError("O link de confirmação é inválido ou expirou.");
+          setIsVerifying(false);
+        });
+      return;
     }
 
-    if (success) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle className="text-green-600 flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5" />
-                            Senha Alterada!
-                        </CardTitle>
-                        <CardDescription>
-                            Sua senha foi atualizada com sucesso. Você será redirecionado para o login em instantes.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardFooter>
-                        <Button onClick={() => router.push("/login")} className="w-full">
-                            Ir para o Login
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Lock className="w-5 h-5 text-primary" />
-                        Redefinir Senha
-                    </CardTitle>
-                    <CardDescription>
-                        Defina uma nova senha para sua conta {email ? `(${email})` : ""}.
-                    </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleResetPassword}>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="newPassword">Nova Senha</Label>
-                            <Input
-                                id="newPassword"
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                                minLength={6}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
-                            <Input
-                                id="confirmNewPassword"
-                                type="password"
-                                value={confirmNewPassword}
-                                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                                minLength={6}
-                            />
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Alterando...
-                                </>
-                            ) : (
-                                "Alterar Senha"
-                            )}
-                        </Button>
-                    </CardFooter>
-                </form>
-            </Card>
-        </div>
+    setError(
+      "O tipo de ação solicitada não é suportado ou o link está incorreto.",
     );
+    setIsVerifying(false);
+  }, [mode, oobCode]);
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmNewPassword) {
+      toast.error("As senhas não coincidem.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (!oobCode) return;
+
+    setIsLoading(true);
+
+    try {
+      await confirmPasswordReset(auth, oobCode, newPassword);
+      await signOut(auth);
+
+      setSuccess(true);
+      toast.success("Senha alterada com sucesso! Faça login com a nova senha.");
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
+    } catch (resetError: unknown) {
+      console.error(resetError);
+      const message =
+        resetError instanceof Error ? resetError.message : "Erro desconhecido";
+      toast.error(message || "Erro ao redefinir senha.");
+      setError(message || "Ocorreu um erro ao redefinir sua senha.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (mode !== "resetPassword" && mode !== "verifyEmail") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <XCircle className="w-5 h-5" />
+              Ação Inválida
+            </CardTitle>
+            <CardDescription>
+              O tipo de ação solicitada não é suportado ou o link está
+              incorreto.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.push("/login")} className="w-full">
+              Voltar para o Login
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isVerifying) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md text-center py-10">
+          <CardContent>
+            <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary mb-4" />
+            <p className="text-muted-foreground">
+              {mode === "verifyEmail"
+                ? "Validando confirmação do seu e-mail..."
+                : "Verificando seu link..."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <XCircle className="w-5 h-5" />
+              Link Inválido
+            </CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button
+              onClick={() =>
+                router.push(
+                  mode === "verifyEmail"
+                    ? "/email-verification-pending"
+                    : "/login",
+                )
+              }
+              className="w-full"
+            >
+              {mode === "verifyEmail"
+                ? "Voltar para confirmação"
+                : "Voltar para o Login"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  if (success && mode === "verifyEmail") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-green-600 flex items-center gap-2">
+              <MailCheck className="w-5 h-5" />
+              E-mail confirmado!
+            </CardTitle>
+            <CardDescription>
+              Sua confirmação foi concluída. Retorne para a aba anterior
+              (confirmação pendente) e clique em &nbsp;&quot;Já confirmei meu
+              e-mail&quot; para continuar.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-green-600 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              Senha Alterada!
+            </CardTitle>
+            <CardDescription>
+              Sua senha foi atualizada com sucesso. Você será redirecionado para
+              o login em instantes.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => router.push("/login")} className="w-full">
+              Ir para o Login
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-primary" />
+            Redefinir Senha
+          </CardTitle>
+          <CardDescription>
+            Defina uma nova senha para sua conta {email ? `(${email})` : ""}.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleResetPassword}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
+              <Input
+                id="confirmNewPassword"
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Alterando...
+                </>
+              ) : (
+                "Alterar Senha"
+              )}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
 }
 
 export default function AuthActionPage() {
-    return (
-        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-            <AuthActionContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      }
+    >
+      <AuthActionContent />
+    </Suspense>
+  );
 }

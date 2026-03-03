@@ -6,6 +6,8 @@ import { useAuth } from "@/providers/auth-provider";
 import { Loader2, CreditCard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { auth } from "@/lib/firebase";
+import { ApiError } from "@/lib/api-client";
 
 const PLAN_NAMES: Record<string, string> = {
   starter: "Starter",
@@ -43,7 +45,7 @@ function SubscribeContent() {
     // If not logged in, redirect to login with return URL
     if (!user) {
       const returnUrl = encodeURIComponent(
-        `/subscribe?plan=${planTier}&interval=${billingInterval}`
+        `/subscribe?plan=${planTier}&interval=${billingInterval}`,
       );
       router.push(`/login?redirect=${returnUrl}`);
       return;
@@ -67,6 +69,17 @@ function SubscribeContent() {
     }
 
     try {
+      const currentAuthUser = auth.currentUser;
+      if (currentAuthUser) {
+        const idToken = await currentAuthUser.getIdToken(true);
+        await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ idToken }),
+        });
+      }
+
       const { StripeService } = await import("@/services/stripe-service");
 
       const data = await StripeService.createCheckout({
@@ -102,9 +115,29 @@ function SubscribeContent() {
         return initiateCheckout(retryCount + 1);
       }
 
+      const isForbidden = err instanceof ApiError && err.status === 403;
+      if (isForbidden && retryCount < 1) {
+        try {
+          const currentAuthUser = auth.currentUser;
+          if (currentAuthUser) {
+            const idToken = await currentAuthUser.getIdToken(true);
+            await fetch("/api/auth/session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ idToken }),
+            });
+          }
+        } catch (sessionRetryError) {
+          console.warn("Session refresh retry failed", sessionRetryError);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return initiateCheckout(retryCount + 1);
+      }
 
       setError(
-        err instanceof Error ? err.message : "Erro ao processar assinatura"
+        err instanceof Error ? err.message : "Erro ao processar assinatura",
       );
       // Reset ref so user can retry manually
       checkoutInitiatedRef.current = false;
