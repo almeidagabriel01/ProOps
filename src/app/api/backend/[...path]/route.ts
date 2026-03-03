@@ -93,7 +93,34 @@ async function proxyRequest(
       (init as RequestInit & { duplex?: "half" }).duplex = "half";
     }
 
-    const upstreamResponse = await fetch(upstreamUrl, init);
+    let upstreamResponse = await fetch(upstreamUrl, init);
+
+    // Auto-retry specifically for local Firebase emulator cold starts
+    if (upstream.target === "local" && upstreamResponse.status === 404) {
+      const cloned = upstreamResponse.clone();
+      const text = await cloned.text().catch(() => "");
+
+      // If the emulator is up but functions are still loading, it returns this specific string
+      if (text.includes("does not exist, valid functions are")) {
+        let retries = 5;
+        while (retries > 0) {
+          console.warn(
+            `[Proxy] Firebase emulator not fully loaded, retrying ${req.method} ${upstreamUrl}... (${retries} attempts left)`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          upstreamResponse = await fetch(upstreamUrl, init);
+          if (upstreamResponse.status !== 404) break;
+
+          const retryCloned = upstreamResponse.clone();
+          const retryText = await retryCloned.text().catch(() => "");
+          if (!retryText.includes("does not exist, valid functions are")) break;
+
+          retries--;
+        }
+      }
+    }
+
     const body = await upstreamResponse.arrayBuffer();
     const response = new NextResponse(body, {
       status: upstreamResponse.status,
