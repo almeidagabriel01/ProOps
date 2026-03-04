@@ -244,6 +244,32 @@ function normalizePaymentSections(
   ];
 }
 
+export function cleanForFirestore(obj: unknown): unknown {
+  if (obj === undefined) return null;
+  if (obj === null) return null;
+  if (obj instanceof Blob || obj instanceof File) return null;
+  if (obj instanceof Element) return null;
+  if (typeof obj !== "object") return obj;
+
+  // Check for nativeEvent (React SyntheticEvent)
+  const objRecord = obj as Record<string, unknown>;
+  if ("nativeEvent" in objRecord) return null;
+
+  if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
+  if (obj instanceof Date) return obj.toISOString();
+
+  const newObj: Record<string, unknown> = {};
+  for (const key in objRecord) {
+    if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
+      const val = objRecord[key];
+      if (typeof val === "function" || typeof val === "symbol") continue;
+      newObj[key] = cleanForFirestore(val);
+    }
+  }
+  return newObj;
+}
+
+
 export function useEditPdfPage() {
   const params = useParams();
   const { tenant, refreshTenant } = useTenant();
@@ -307,6 +333,39 @@ export function useEditPdfPage() {
 
   // Pro and Enterprise can access (maxPdfTemplates > 1 or unlimited)
   const canAccessPage = maxPdfTemplates === -1 || maxPdfTemplates > 1;
+
+  // Unsaved changes tracking
+  const [initialSettingsJson, setInitialSettingsJson] = useState<string | null>(null);
+
+  const currentSettingsObj = {
+    theme,
+    primaryColor,
+    fontFamily,
+    coverTitle,
+    coverImage,
+    coverLogo,
+    logoStyle,
+    coverImageOpacity,
+    coverImageFit,
+    coverImagePosition,
+    repeatHeader,
+    sections,
+    coverElements,
+  };
+
+  const currentSettingsJson = JSON.stringify(cleanForFirestore(currentSettingsObj));
+
+  useEffect(() => {
+    if (!isLoading && initialSettingsJson === null) {
+      const timer = setTimeout(() => {
+        setInitialSettingsJson(currentSettingsJson);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, initialSettingsJson, currentSettingsJson]);
+
+  const isDirty = initialSettingsJson !== null && currentSettingsJson !== initialSettingsJson;
+
 
   useEffect(() => {
     // Only fetch if user has access
@@ -601,48 +660,7 @@ export function useEditPdfPage() {
     if (!suppressLoading) setIsSaving(true);
 
     try {
-      const cleanForFirestore = (obj: unknown): unknown => {
-        if (obj === undefined) return null;
-        if (obj === null) return null;
-        if (obj instanceof Blob || obj instanceof File) return null;
-        if (obj instanceof Element) return null;
-        if (typeof obj !== "object") return obj;
-
-        // Check for nativeEvent (React SyntheticEvent)
-        const objRecord = obj as Record<string, unknown>;
-        if ("nativeEvent" in objRecord) return null;
-
-        if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
-        if (obj instanceof Date) return obj.toISOString();
-
-        const newObj: Record<string, unknown> = {};
-        for (const key in objRecord) {
-          if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
-            const val = objRecord[key];
-            if (typeof val === "function" || typeof val === "symbol") continue;
-            newObj[key] = cleanForFirestore(val);
-          }
-        }
-        return newObj;
-      };
-
-      const settings = {
-        theme,
-        primaryColor,
-        fontFamily,
-        coverTitle,
-        coverImage,
-        coverLogo,
-        logoStyle,
-        coverImageOpacity,
-        coverImageFit,
-        coverImagePosition,
-        repeatHeader,
-        sections,
-        coverElements,
-      };
-
-      const sanitizedSettings = cleanForFirestore(settings);
+      const sanitizedSettings = cleanForFirestore(currentSettingsObj);
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
         alert(
@@ -658,6 +676,8 @@ export function useEditPdfPage() {
         title: coverTitle,
         pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
       });
+
+      setInitialSettingsJson(JSON.stringify(sanitizedSettings));
 
       if (!suppressToast) {
         toast.success("Proposta e personalizações salvas com sucesso!");
@@ -738,6 +758,9 @@ export function useEditPdfPage() {
     previewZoom,
     setPreviewZoom,
 
+    // Unsaved Changes
+    isDirty,
+
     // Actions
     handleSave,
     handleGeneratePdf,
@@ -745,49 +768,7 @@ export function useEditPdfPage() {
       if (!tenant || !proposal) return;
       setIsSavingDefault(true);
       try {
-        const cleanForFirestore = (obj: unknown): unknown => {
-          if (obj === undefined) return null;
-          if (obj === null) return null;
-          if (obj instanceof Blob || obj instanceof File) return null;
-          if (obj instanceof Element) return null;
-          if (typeof obj !== "object") return obj;
-
-          // Check for nativeEvent (React SyntheticEvent)
-          const objRecord = obj as Record<string, unknown>;
-          if ("nativeEvent" in objRecord) return null;
-
-          if (Array.isArray(obj)) return obj.map((v) => cleanForFirestore(v));
-          if (obj instanceof Date) return obj.toISOString();
-
-          const newObj: Record<string, unknown> = {};
-          for (const key in objRecord) {
-            if (Object.prototype.hasOwnProperty.call(objRecord, key)) {
-              const val = objRecord[key];
-              if (typeof val === "function" || typeof val === "symbol")
-                continue;
-              newObj[key] = cleanForFirestore(val);
-            }
-          }
-          return newObj;
-        };
-
-        const settings = {
-          theme,
-          primaryColor,
-          fontFamily,
-          // IMPORTANTE: coverTitle NÃO é salvo como padrão pois é específico de cada proposta
-          coverImage,
-          coverLogo,
-          logoStyle,
-          coverImageOpacity,
-          coverImageFit,
-          coverImagePosition,
-          repeatHeader,
-          sections,
-          coverElements,
-        };
-
-        const sanitizedSettings = cleanForFirestore(settings);
+        const sanitizedSettings = cleanForFirestore(currentSettingsObj);
 
         // PASSO 1: Salva as configurações como padrão no tenant
         // Essas configurações serão aplicadas automaticamente em NOVAS propostas criadas no futuro

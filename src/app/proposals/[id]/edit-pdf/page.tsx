@@ -19,11 +19,13 @@ import { useEditPdfPage } from "@/components/features/proposal/edit-pdf/use-edit
 import { PdfEditorTabs } from "@/components/features/proposal/edit-pdf/pdf-editor-tabs";
 import { lightenColor } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/save-confirmation-modal";
+import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 
 export default function EditPdfPage() {
   // Modal states
   const [showSaveModal, setShowSaveModal] = React.useState(false);
   const [showSaveDefaultModal, setShowSaveDefaultModal] = React.useState(false);
+  const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
   const {
     proposal,
     template,
@@ -81,9 +83,20 @@ export default function EditPdfPage() {
     handleGeneratePdf,
     handleSaveDefault,
     isSavingDefault,
+
+    // Unsaved Changes
+    isDirty,
   } = useEditPdfPage();
 
   const router = useRouter();
+
+  const handleBack = () => {
+    if (isDirty) {
+      setShowUnsavedModal(true);
+    } else {
+      router.push(`/proposals/${proposal?.id}/view`);
+    }
+  };
 
   // Premium color based on tenant theme
   const premiumColor = tenant?.primaryColor
@@ -123,11 +136,7 @@ export default function EditPdfPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push(`/proposals/${proposal?.id}/view`)}
-          >
+          <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -325,6 +334,22 @@ export default function EditPdfPage() {
         }}
         type="saveDefault"
         isLoading={isSavingDefault}
+      />
+
+      {/* Unsaved Changes Modal */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedModal}
+        onClose={() => setShowUnsavedModal(false)}
+        onDiscard={() => {
+          setShowUnsavedModal(false);
+          router.push(`/proposals/${proposal?.id}/view`);
+        }}
+        onSave={async () => {
+          await handleSave();
+          setShowUnsavedModal(false);
+          router.push(`/proposals/${proposal?.id}/view`);
+        }}
+        isSaving={isSaving}
       />
     </div>
   );
