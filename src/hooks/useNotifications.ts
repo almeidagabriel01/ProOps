@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
-import { useTenant } from "@/providers/tenant-provider";
-import { useAuth } from "@/providers/auth-provider";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
+import { useNotificationScope } from "@/hooks/useNotificationScope";
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -14,181 +19,246 @@ export function useNotifications() {
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [clearingIds, setClearingIds] = useState<string[]>([]);
-  const { tenant } = useTenant();
-  const { user } = useAuth();
+  const { scope, scopeKey } = useNotificationScope();
 
-  // Track IDs that were deleted locally but might still be returned by the server
-  // This prevents the "flicker" where a deleted notification reappears briefly
+  const notificationsRef = useRef<Notification[]>([]);
+  const activeScopeKeyRef = useRef<string | null>(scopeKey);
+  const subscriptionVersionRef = useRef(0);
   const optimisticDeletedIds = useRef<Set<string>>(new Set());
+  const clearingIdsRef = useRef<Set<string>>(new Set());
 
-  // Subscribe em tempo real às notificações
   useEffect(() => {
-    const isSuperAdmin = user?.role?.toLowerCase() === "superadmin";
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
-    if (!tenant && !isSuperAdmin) {
+  useEffect(() => {
+    activeScopeKeyRef.current = scopeKey;
+  }, [scopeKey]);
+
+  useEffect(() => {
+    activeScopeKeyRef.current = scopeKey;
+    optimisticDeletedIds.current = new Set();
+    clearingIdsRef.current = new Set();
+    notificationsRef.current = [];
+    setNotifications([]);
+    setUnreadCount(0);
+    setClearingIds([]);
+    setIsMarkingAllAsRead(false);
+    setIsClearingAll(false);
+
+    if (!scope || !scopeKey) {
       setIsLoading(false);
       return;
     }
 
-    // setIsLoading(true); // Removing to avoid sync state update
+    setIsLoading(true);
 
-    // Keep track of initial load to avoid toast spam
+    const subscriptionVersion = ++subscriptionVersionRef.current;
+    let isActive = true;
     let isInitialLoad = true;
     let previousIds = new Set<string>();
 
-    const tenantId = tenant?.id;
+    const applyNotifications = (serverNotifications: Notification[]) => {
+      if (
+        !isActive ||
+        activeScopeKeyRef.current !== scopeKey ||
+        subscriptionVersionRef.current !== subscriptionVersion
+      ) {
+        return;
+      }
 
-    const unsubscribe = NotificationService.subscribe(
-      tenantId,
-      async (serverNotifs) => {
-        // 1. Clean up optimisticDeletedIds:
-        // If an ID is in our ignore list BUT NOT in the server list, it means it was truly deleted
-        // so we can stop tracking it.
-        const serverIds = new Set(serverNotifs.map((n) => n.id));
-        optimisticDeletedIds.current.forEach((id) => {
-          if (!serverIds.has(id)) {
-            optimisticDeletedIds.current.delete(id);
-          }
-        });
+      const serverIds = new Set(serverNotifications.map((notification) => notification.id));
+      optimisticDeletedIds.current.forEach((id) => {
+        if (!serverIds.has(id)) {
+          optimisticDeletedIds.current.delete(id);
+        }
+      });
 
-        // 2. Filter out notifications that we have locally deleted
-        const notifs = serverNotifs.filter(
-          (n) => !optimisticDeletedIds.current.has(n.id),
-        );
-
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter((n) => !n.isRead).length);
-
-        const newNotifs = notifs.filter(
-          (n) => !previousIds.has(n.id) && !n.isRead,
-        );
-
-        if (!isInitialLoad) {
-          const otherNotifs = newNotifs.filter(
-            (n) =>
-              n.type !== NotificationType.PROPOSAL_EXPIRING &&
-              n.type !== NotificationType.TRANSACTION_DUE_REMINDER,
+      const nextNotifications = serverNotifications.filter(
+        (notification) => !optimisticDeletedIds.current.has(notification.id),
+      );
+      const nextUnreadCount = nextNotifications.filter((notification) => !notification.isRead).length;
+      const newUnreadNotifications = isInitialLoad
+        ? []
+        : nextNotifications.filter(
+            (notification) => !notification.isRead && !previousIds.has(notification.id),
           );
 
-          otherNotifs.forEach((n) => {
-            toast.info(n.title || "Nova notificação", {
-              position: "top-center",
-              autoClose: 5000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
-          });
-        }
-
-        // Update tracking set
-        previousIds = new Set(notifs.map((n) => n.id));
-        isInitialLoad = false;
+      startTransition(() => {
+        notificationsRef.current = nextNotifications;
+        setNotifications(nextNotifications);
+        setUnreadCount(nextUnreadCount);
         setIsLoading(false);
-      },
-      isSuperAdmin,
-    );
+      });
+
+      if (!isInitialLoad) {
+        const toastableNotifications = newUnreadNotifications.filter(
+          (notification) =>
+            notification.type !== NotificationType.PROPOSAL_EXPIRING &&
+            notification.type !== NotificationType.TRANSACTION_DUE_REMINDER,
+        );
+
+        toastableNotifications.forEach((notification) => {
+          toast.info(notification.title || "Nova notificacao", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          });
+        });
+      }
+
+      previousIds = new Set(nextNotifications.map((notification) => notification.id));
+      isInitialLoad = false;
+    };
+
+    const unsubscribe = NotificationService.subscribe(scope, applyNotifications);
 
     return () => {
+      isActive = false;
       unsubscribe();
     };
-  }, [tenant, user]);
+  }, [scope, scopeKey]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
+    if (!scope || !scopeKey) return;
+
+    const operationScope = scope;
+    const operationScopeKey = scopeKey;
+    const targetNotification = notificationsRef.current.find(
+      (notification) => notification.id === notificationId,
+    );
+
     try {
-      await NotificationService.markAsRead(notificationId);
-      // Atualização local otimista
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notificationId
-            ? { ...n, isRead: true, readAt: new Date().toISOString() }
-            : n,
-        ),
+      await NotificationService.markAsRead(notificationId, operationScope);
+
+      if (activeScopeKeyRef.current !== operationScopeKey) {
+        return;
+      }
+
+      notificationsRef.current = notificationsRef.current.map((notification) =>
+        notification.id === notificationId
+          ? {
+              ...notification,
+              isRead: true,
+              readAt: new Date().toISOString(),
+            }
+          : notification,
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+
+      setNotifications(notificationsRef.current);
+      if (targetNotification && !targetNotification.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
-  }, []);
+  }, [scope, scopeKey]);
 
   const markAllAsRead = useCallback(async () => {
-    if (isMarkingAllAsRead) return;
+    if (!scope || !scopeKey || isMarkingAllAsRead) return;
+
+    const operationScope = scope;
+    const operationScopeKey = scopeKey;
 
     try {
       setIsMarkingAllAsRead(true);
-      await NotificationService.markAllAsRead(tenant?.id);
-      // Atualização local otimista
-      setNotifications((prev) =>
-        prev.map((n) => ({
-          ...n,
-          isRead: true,
-          readAt: new Date().toISOString(),
-        })),
-      );
+      await NotificationService.markAllAsRead(operationScope);
+
+      if (activeScopeKeyRef.current !== operationScopeKey) {
+        return;
+      }
+
+      const readAt = new Date().toISOString();
+      notificationsRef.current = notificationsRef.current.map((notification) => ({
+        ...notification,
+        isRead: true,
+        readAt,
+      }));
+      setNotifications(notificationsRef.current);
       setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
     } finally {
-      setIsMarkingAllAsRead(false);
+      if (activeScopeKeyRef.current === operationScopeKey) {
+        setIsMarkingAllAsRead(false);
+      }
     }
-  }, [isMarkingAllAsRead, tenant]);
+  }, [isMarkingAllAsRead, scope, scopeKey]);
 
-  const clearNotification = useCallback(
-    async (notificationId: string) => {
-      if (clearingIds.includes(notificationId)) return;
+  const clearNotification = useCallback(async (notificationId: string) => {
+    if (!scope || !scopeKey || clearingIdsRef.current.has(notificationId)) return;
 
-      try {
-        setClearingIds((prev) => [...prev, notificationId]);
+    const operationScope = scope;
+    const operationScopeKey = scopeKey;
+    const targetNotification = notificationsRef.current.find(
+      (notification) => notification.id === notificationId,
+    );
 
-        // Add to optimistic ignore list immediately
-        optimisticDeletedIds.current.add(notificationId);
+    try {
+      clearingIdsRef.current.add(notificationId);
+      setClearingIds((prev) => [...prev, notificationId]);
+      optimisticDeletedIds.current.add(notificationId);
 
-        const targetNotification = notifications.find(
-          (n) => n.id === notificationId,
-        );
-        await NotificationService.deleteNotification(notificationId);
+      await NotificationService.deleteNotification(notificationId, operationScope);
 
-        // Optimistic update
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-        if (targetNotification && !targetNotification.isRead) {
-          setUnreadCount((prev) => Math.max(0, prev - 1));
-        }
-      } catch (error) {
-        console.error("Error clearing notification:", error);
-        // Rollback optimistic add if error (optional, but good practice)
-        optimisticDeletedIds.current.delete(notificationId);
-      } finally {
+      if (activeScopeKeyRef.current !== operationScopeKey) {
+        return;
+      }
+
+      notificationsRef.current = notificationsRef.current.filter(
+        (notification) => notification.id !== notificationId,
+      );
+      setNotifications(notificationsRef.current);
+      if (targetNotification && !targetNotification.isRead) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error clearing notification:", error);
+      optimisticDeletedIds.current.delete(notificationId);
+    } finally {
+      clearingIdsRef.current.delete(notificationId);
+      if (activeScopeKeyRef.current === operationScopeKey) {
         setClearingIds((prev) => prev.filter((id) => id !== notificationId));
       }
-    },
-    [clearingIds, notifications],
-  );
+    }
+  }, [scope, scopeKey]);
 
   const clearAllNotifications = useCallback(async () => {
-    if (isClearingAll) return;
+    if (!scope || !scopeKey || isClearingAll) return;
+
+    const operationScope = scope;
+    const operationScopeKey = scopeKey;
 
     try {
       setIsClearingAll(true);
+      notificationsRef.current.forEach((notification) => {
+        optimisticDeletedIds.current.add(notification.id);
+      });
 
-      // Add ALL current notifications to ignore list
-      notifications.forEach((n) => optimisticDeletedIds.current.add(n.id));
+      await NotificationService.clearAllNotifications(operationScope);
 
-      await NotificationService.clearAllNotifications(tenant?.id);
+      if (activeScopeKeyRef.current !== operationScopeKey) {
+        return;
+      }
 
-      // Optimistic update
+      notificationsRef.current = [];
       setNotifications([]);
       setUnreadCount(0);
     } catch (error) {
       console.error("Error clearing all notifications:", error);
-      // We could try to clear the set here, but it's tricky to know which ones failed.
-      // Simplest is to leave them, they will reappear if the next sync brings them back.
     } finally {
-      setIsClearingAll(false);
+      if (activeScopeKeyRef.current === operationScopeKey) {
+        setIsClearingAll(false);
+      }
     }
-  }, [isClearingAll, tenant, notifications]);
+  }, [isClearingAll, scope, scopeKey]);
 
   return {
+    scope,
+    scopeKey,
     notifications,
     unreadCount,
     isLoading,

@@ -15,10 +15,16 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePathname } from "next/navigation";
+import {
+  clearViewingTenantId,
+  readViewingTenantId,
+  writeViewingTenantId,
+} from "@/lib/viewing-tenant-session";
 
 interface TenantContextType {
   tenant: Tenant | null;
   tenantOwner: User | null;
+  tenantOwnerPlanName: string | null;
   isLoading: boolean;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
@@ -30,6 +36,7 @@ interface TenantContextType {
 const TenantContext = React.createContext<TenantContextType>({
   tenant: null,
   tenantOwner: null,
+  tenantOwnerPlanName: null,
   isLoading: true,
   refreshTenant: () => {},
   clearViewingTenant: () => {},
@@ -66,33 +73,28 @@ function normalizePlanId(input?: string): string | undefined {
   return normalized;
 }
 
-const VIEWING_AS_TENANT_KEY = "viewingAsTenant";
-const VIEWING_AS_TENANT_DATA_KEY = "viewingAsTenantData";
-
-function readViewingTenantId(): string | null {
-  if (typeof window === "undefined") return null;
-  const fromSession = sessionStorage.getItem(VIEWING_AS_TENANT_KEY);
-  if (fromSession) return fromSession;
-  const fromLocal = localStorage.getItem(VIEWING_AS_TENANT_KEY);
-  return fromLocal || null;
-}
-
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
+  const [tenantOwnerPlanName, setTenantOwnerPlanName] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isGlobalLoading, setGlobalLoading] = React.useState(false);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const pathname = usePathname();
 
   const currentTenantIdRef = React.useRef<string | null>(null);
+  const lastResolvedContextKeyRef = React.useRef<string | null>(null);
   // Track the last refreshTrigger value to detect when explicit refresh was requested
   const lastRefreshTriggerRef = React.useRef(0);
   // Track explicit tenant setting to avoid clearing during router transitions
   const bypassAdminClearRef = React.useRef(false);
 
   const loadTenant = React.useCallback(async () => {
+    if (isAuthLoading) {
+      return;
+    }
+
     // Check for "Viewing As" override (Super Admin feature)
     let viewingAsId = readViewingTenantId();
 
@@ -108,12 +110,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       !bypassAdminClearRef.current
     ) {
       viewingAsId = null;
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(VIEWING_AS_TENANT_KEY);
-        sessionStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
-        localStorage.removeItem(VIEWING_AS_TENANT_KEY);
-        localStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
-      }
+      clearViewingTenantId();
+    }
+
+    if (viewingAsId && user?.role?.toLowerCase() !== "superadmin") {
+      clearViewingTenantId();
+      viewingAsId = null;
     }
 
     let tenantIdToLoad = viewingAsId;
@@ -131,12 +133,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // Check if this is a forced refresh (refreshTrigger changed)
     const isForceRefresh = refreshTrigger !== lastRefreshTriggerRef.current;
     lastRefreshTriggerRef.current = refreshTrigger;
+    const contextKey = [
+      tenantIdToLoad || "no-tenant",
+      user?.id || "anonymous",
+      user?.role || "no-role",
+      pathname || "no-path",
+    ].join(":");
+    const needsSuperAdminHydration =
+      user?.role?.toLowerCase() === "superadmin" &&
+      !!tenantIdToLoad &&
+      !tenantOwnerPlanName;
 
     // Skip if we already have the correct tenant loaded AND this is not a forced refresh
     if (
       currentTenantIdRef.current === tenantIdToLoad &&
+      lastResolvedContextKeyRef.current === contextKey &&
       !isLoading &&
-      !isForceRefresh
+      !isForceRefresh &&
+      !needsSuperAdminHydration
     ) {
       return;
     }
@@ -156,51 +170,36 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!fetchedTenant && user?.role?.toLowerCase() === "superadmin") {
-          const rawStoredTenant = sessionStorage.getItem(
-            VIEWING_AS_TENANT_DATA_KEY,
-          );
-          if (rawStoredTenant) {
-            try {
-              const parsed = JSON.parse(rawStoredTenant) as Tenant;
-              if (parsed?.id === tenantIdToLoad) {
-                fetchedTenant = parsed;
-              }
-            } catch {
-              // Ignore malformed session data and continue with normal fallback flow.
+          try {
+            const { AdminService } = await import("@/services/admin-service");
+            const allTenants = await AdminService.getAllTenantsBilling();
+            const match = allTenants.find(
+              (item) => item.tenant.id === tenantIdToLoad,
+            );
+            if (match?.tenant) {
+              fetchedTenant = {
+                id: match.tenant.id,
+                name: match.tenant.name,
+                slug: match.tenant.slug,
+                createdAt: match.tenant.createdAt,
+                logoUrl: match.tenant.logoUrl,
+                primaryColor: match.tenant.primaryColor,
+                niche: match.tenant.niche,
+                whatsappEnabled: match.tenant.whatsappEnabled,
+              } as Tenant;
             }
-          }
-
-          if (!fetchedTenant) {
-            try {
-              const { AdminService } = await import("@/services/admin-service");
-              const allTenants = await AdminService.getAllTenantsBilling();
-              const match = allTenants.find(
-                (item) => item.tenant.id === tenantIdToLoad,
-              );
-              if (match?.tenant) {
-                fetchedTenant = {
-                  id: match.tenant.id,
-                  name: match.tenant.name,
-                  slug: match.tenant.slug,
-                  createdAt: match.tenant.createdAt,
-                  logoUrl: match.tenant.logoUrl,
-                  primaryColor: match.tenant.primaryColor,
-                  niche: match.tenant.niche,
-                  whatsappEnabled: match.tenant.whatsappEnabled,
-                } as Tenant;
-              }
-            } catch (fallbackError) {
-              console.warn(
-                "Tenant fallback via admin API failed.",
-                fallbackError,
-              );
-            }
+          } catch (fallbackError) {
+            console.warn(
+              "Tenant fallback via admin API failed.",
+              fallbackError,
+            );
           }
         }
 
         if (fetchedTenant) {
           setTenant(fetchedTenant);
           currentTenantIdRef.current = fetchedTenant.id;
+          setTenantOwnerPlanName(null);
 
           // Fetch Tenant Owner
           try {
@@ -218,8 +217,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                   id: masterDoc.id,
                   ...masterDoc.data(),
                 } as User);
+                setTenantOwnerPlanName(null);
               } else {
                 setTenantOwner(null);
+                setTenantOwnerPlanName(null);
               }
             } else if (isSuperAdmin) {
               try {
@@ -248,8 +249,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                         ? "yearly"
                         : "monthly",
                   } as User);
+                  setTenantOwnerPlanName(targetTenant.planName || null);
                 } else {
                   setTenantOwner(null);
+                  setTenantOwnerPlanName(null);
                 }
               } catch (superAdminOwnerError) {
                 console.warn(
@@ -257,6 +260,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                   superAdminOwnerError,
                 );
                 setTenantOwner(null);
+                setTenantOwnerPlanName(null);
               }
             } else if (!user?.masterId) {
               // Admin/Master/SuperAdmin: query users in tenant to find owner
@@ -276,6 +280,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
                 if (owner) {
                   setTenantOwner(owner);
+                  setTenantOwnerPlanName(null);
                 } else {
                   // Fallback: pick the first one or one with admin role?
                   setTenantOwner(
@@ -283,59 +288,64 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                       (d) => ({ id: d.id, ...d.data() }) as User,
                     )[0],
                   );
+                  setTenantOwnerPlanName(null);
                   console.warn(
                     `Could not identify explicit owner for tenant ${fetchedTenant.id}, using first user.`,
                   );
                 }
               } else {
                 setTenantOwner(null);
+                setTenantOwnerPlanName(null);
               }
             } else {
               setTenantOwner(null);
+              setTenantOwnerPlanName(null);
             }
           } catch (ownerErr) {
             console.error("Error fetching tenant owner", ownerErr);
             setTenantOwner(null);
+            setTenantOwnerPlanName(null);
           }
+          lastResolvedContextKeyRef.current = contextKey;
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
+          if (viewingAsId === tenantIdToLoad) {
+            clearViewingTenantId();
+          }
           setTenant(null);
           setTenantOwner(null);
+          setTenantOwnerPlanName(null);
           currentTenantIdRef.current = null;
+          lastResolvedContextKeyRef.current = contextKey;
         }
       } catch (error) {
         console.error("Error loading tenant", error);
         setTenant(null);
         setTenantOwner(null);
+        setTenantOwnerPlanName(null);
         currentTenantIdRef.current = null;
+        lastResolvedContextKeyRef.current = null;
       }
     } else {
       setTenant(null);
       setTenantOwner(null);
+      setTenantOwnerPlanName(null);
       currentTenantIdRef.current = null;
+      lastResolvedContextKeyRef.current = contextKey;
     }
 
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, refreshTrigger, pathname]);
+  }, [user, refreshTrigger, pathname, isAuthLoading, tenantOwnerPlanName]);
 
   React.useEffect(() => {
+    if (isAuthLoading) {
+      setIsLoading(true);
+      return;
+    }
+
     loadTenant();
-  }, [loadTenant]);
-
-  React.useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (
-        event.key === VIEWING_AS_TENANT_KEY ||
-        event.key === VIEWING_AS_TENANT_DATA_KEY
-      ) {
-        setRefreshTrigger((prev) => prev + 1);
-      }
-    };
-
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [isAuthLoading, loadTenant]);
 
   // Apply tenant theme synchronously to avoid flash
   React.useLayoutEffect(() => {
@@ -375,22 +385,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearViewingTenant = React.useCallback(() => {
-    sessionStorage.removeItem(VIEWING_AS_TENANT_KEY);
-    sessionStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
-    localStorage.removeItem(VIEWING_AS_TENANT_KEY);
-    localStorage.removeItem(VIEWING_AS_TENANT_DATA_KEY);
+    clearViewingTenantId();
     setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   const setViewingTenant = (newTenant: Tenant) => {
     bypassAdminClearRef.current = true;
-    sessionStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
-    sessionStorage.setItem(
-      VIEWING_AS_TENANT_DATA_KEY,
-      JSON.stringify(newTenant),
-    );
-    localStorage.setItem(VIEWING_AS_TENANT_KEY, newTenant.id);
-    localStorage.setItem(VIEWING_AS_TENANT_DATA_KEY, JSON.stringify(newTenant));
+    writeViewingTenantId(newTenant.id);
     setTenant(newTenant); // Immediate update
     // We don't trigger refresh here because we just manually set the state
     // ideally we should also fetch owner here or trigger refresh
@@ -402,6 +403,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       value={{
         tenant,
         tenantOwner,
+        tenantOwnerPlanName,
         isLoading,
         refreshTenant,
         clearViewingTenant,

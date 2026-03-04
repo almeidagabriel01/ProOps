@@ -2,21 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Bell, FileText, Clock, AlertTriangle, Loader2, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, Bell, Clock, FileText, Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Notification, NotificationType } from "@/types/notification";
 import { useTenant } from "@/providers/tenant-provider";
+import { Notification, NotificationType } from "@/types/notification";
 
-/**
- * Retorna o ícone apropriado para cada tipo de notificação
- */
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
     case NotificationType.TRANSACTION_DUE_REMINDER:
@@ -28,9 +25,6 @@ function getNotificationIcon(type: NotificationType) {
   }
 }
 
-/**
- * Retorna o link de navegação apropriado para cada tipo de notificação
- */
 function getNotificationLink(notification: Notification): string | undefined {
   switch (notification.type) {
     case NotificationType.TRANSACTION_DUE_REMINDER:
@@ -47,11 +41,29 @@ function getNotificationLink(notification: Notification): string | undefined {
   }
 }
 
+function NotificationListSkeleton() {
+  return (
+    <div className="p-6 space-y-3">
+      {[0, 1].map((item) => (
+        <div key={item} className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+            <div className="h-3 w-full rounded bg-muted animate-pulse" />
+            <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function NotificationBell() {
   const router = useRouter();
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
   const { isGlobalLoading } = useTenant();
   const {
+    scopeKey,
     notifications,
     unreadCount,
     isLoading: isNotifsLoading,
@@ -64,7 +76,10 @@ export function NotificationBell() {
     clearAllNotifications,
   } = useNotifications();
 
-  // Combine local notification loading with global page loading
+  React.useEffect(() => {
+    setExpandedIds(new Set());
+  }, [scopeKey]);
+
   const showLoadingState = isGlobalLoading || isNotifsLoading;
 
   const handleNotificationClick = async (
@@ -101,9 +116,9 @@ export function NotificationBell() {
       const diffDays = Math.floor(diffMs / 86400000);
 
       if (diffMins < 1) return "agora";
-      if (diffMins < 60) return `há ${diffMins}min`;
-      if (diffHours < 24) return `há ${diffHours}h`;
-      if (diffDays < 7) return `há ${diffDays}d`;
+      if (diffMins < 60) return `ha ${diffMins}min`;
+      if (diffHours < 24) return `ha ${diffHours}h`;
+      if (diffDays < 7) return `ha ${diffDays}d`;
       return date.toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "short",
@@ -120,9 +135,19 @@ export function NotificationBell() {
           variant="ghost"
           size="icon"
           className="relative"
-          title="Notificações"
+          title="Notificacoes"
+          aria-busy={showLoadingState}
         >
-          <Bell className="w-5 h-5" />
+          <Bell
+            className={`w-5 h-5 transition-opacity ${
+              showLoadingState ? "opacity-40" : "opacity-100"
+            }`}
+          />
+          {showLoadingState && (
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </span>
+          )}
           {!showLoadingState && unreadCount > 0 && (
             <Badge
               variant="destructive"
@@ -136,17 +161,17 @@ export function NotificationBell() {
 
       <DropdownMenuContent align="end" className="w-[24rem] p-0">
         <div className="p-3 border-b space-y-2">
-          <h3 className="font-semibold">Notificações</h3>
-          {notifications.length > 0 && (
+          <h3 className="font-semibold">Notificacoes</h3>
+          {!showLoadingState && notifications.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {unreadCount > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   disabled={isMarkingAllAsRead || isClearingAll}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                     markAllAsRead();
                   }}
                   className="text-xs h-7 px-2"
@@ -166,9 +191,9 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 disabled={isClearingAll || isMarkingAllAsRead}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
                   clearAllNotifications();
                 }}
                 className="text-xs h-7 px-2"
@@ -187,27 +212,25 @@ export function NotificationBell() {
         </div>
 
         <div className="max-h-96 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {showLoadingState ? (
+            <NotificationListSkeleton />
+          ) : notifications.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              Nenhuma notificação
+              Nenhuma notificacao
             </div>
           ) : (
             notifications.map((notification) => {
-              const Icon = getNotificationIcon(
-                notification.type as NotificationType,
-              );
+              const Icon = getNotificationIcon(notification.type as NotificationType);
               const linkHref = getNotificationLink(notification);
               const isExpanded = expandedIds.has(notification.id);
               const canExpand = notification.message.length > 120;
 
-              const content = (
-                <div className="flex gap-3 p-3 hover:bg-muted/50 transition-colors">
+              return (
+                <div key={notification.id} className="flex gap-3 p-3 hover:bg-muted/50 transition-colors">
                   <div
                     className="flex-1 min-w-0 cursor-pointer"
-                    onClick={() =>
-                      handleNotificationClick(notification, linkHref)
-                    }
+                    onClick={() => handleNotificationClick(notification, linkHref)}
                   >
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 mt-1">
@@ -218,9 +241,7 @@ export function NotificationBell() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="font-medium text-sm">
-                            {notification.title}
-                          </p>
+                          <p className="font-medium text-sm">{notification.title}</p>
                           {!notification.isRead && (
                             <div className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0 mt-1.5" />
                           )}
@@ -236,9 +257,9 @@ export function NotificationBell() {
                           <button
                             type="button"
                             className="text-xs text-muted-foreground hover:text-foreground mt-1"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
                               setExpandedIds((prev) => {
                                 const next = new Set(prev);
                                 if (next.has(notification.id)) {
@@ -264,11 +285,11 @@ export function NotificationBell() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 mt-0.5"
-                    title="Remover notificação"
+                    title="Remover notificacao"
                     disabled={clearingIds.includes(notification.id)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
                       clearNotification(notification.id);
                     }}
                   >
@@ -280,8 +301,6 @@ export function NotificationBell() {
                   </Button>
                 </div>
               );
-
-              return <div key={notification.id}>{content}</div>;
             })
           )}
         </div>
