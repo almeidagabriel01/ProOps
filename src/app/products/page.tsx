@@ -408,7 +408,7 @@ export default function ProductsPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-border/60 bg-gradient-to-br from-background via-amber-50/40 to-background">
+              <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
                 <CardContent className="flex items-start justify-between gap-4 p-6">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">
@@ -425,13 +425,13 @@ export default function ProductsPage() {
                       )}
                     </p>
                   </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
                     <Wallet className="h-6 w-6" />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60 bg-gradient-to-br from-background via-emerald-50/50 to-background">
+              <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
                 <CardContent className="flex items-start justify-between gap-4 p-6">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">
@@ -448,7 +448,7 @@ export default function ProductsPage() {
                       )}
                     </p>
                   </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
                     <TrendingUp className="h-6 w-6" />
                   </div>
                 </CardContent>
