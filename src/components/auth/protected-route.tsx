@@ -14,6 +14,7 @@ import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useRouter, usePathname } from "next/navigation";
+import { auth } from "@/lib/firebase";
 import {
   getPageConfig,
   pageRequiresAuth,
@@ -61,7 +62,7 @@ const PUBLIC_ROUTES = [
 ];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, forceSyncSession } = useAuth();
   const {
     permissions,
     isLoading: isPermLoading,
@@ -69,6 +70,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   } = usePermissions();
   const router = useRouter();
   const pathname = usePathname();
+  const isRecoveringRef = React.useRef(false);
 
   const isSelfHandled = SELF_HANDLED_ROUTES.some(
     (r) => pathname === r || pathname.startsWith(r + "/"),
@@ -86,7 +88,47 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
     if (!user) {
       if (!isPublic && pageRequiresAuth(pathname)) {
-        router.push("/login");
+        // Check if Firebase client-side auth is still alive.
+        // If so, the session cookie expired but the user is still
+        // authenticated — attempt session recovery instead of redirecting.
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser && !isRecoveringRef.current) {
+          const skipEmailVerification =
+            process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
+          if (!firebaseUser.emailVerified && !skipEmailVerification) {
+            // User is authenticated but hasn't verified email.
+            // Redirect directly to the pending page instead of recovering.
+            const url = new URL(
+              "/email-verification-pending",
+              window.location.href,
+            );
+            url.searchParams.set("redirect", pathname);
+            router.push(url.toString().replace(window.location.origin, ""));
+            return;
+          }
+
+          isRecoveringRef.current = true;
+          forceSyncSession()
+            .then((synced) => {
+              if (synced) {
+                // Session cookie is now valid — reload to let the
+                // middleware pass the request through normally.
+                window.location.reload();
+              } else {
+                // Recovery failed — user's auth state is truly broken.
+                router.push("/login");
+              }
+            })
+            .catch(() => {
+              router.push("/login");
+            })
+            .finally(() => {
+              isRecoveringRef.current = false;
+            });
+        } else if (!firebaseUser) {
+          router.push("/login");
+        }
       }
       return;
     }
@@ -118,6 +160,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isPublic,
     pageConfig,
     hasPermission,
+    forceSyncSession,
   ]);
 
   if (isSelfHandled) {

@@ -95,7 +95,9 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("__session")?.value;
   const legacyAuthHint = request.cookies.get("firebase-auth-token")?.value;
   const defaultLegacyFallback =
-    String(process.env.NODE_ENV || "").trim().toLowerCase() === "production"
+    String(process.env.NODE_ENV || "")
+      .trim()
+      .toLowerCase() === "production"
       ? "false"
       : "true";
   const acceptLegacyCookieHint =
@@ -107,6 +109,7 @@ export async function middleware(request: NextRequest) {
   if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("redirect_reason", "session_expired");
     return NextResponse.redirect(loginUrl);
   }
 

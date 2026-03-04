@@ -80,6 +80,8 @@ interface UseLoginFormReturn {
   isAwaitingPhoneVerification: boolean;
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
+  /** True while attempting transparent session recovery (session_expired redirect). */
+  isAutoRecovering: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -149,9 +151,13 @@ export function useLoginForm(): UseLoginFormReturn {
     }
 
     if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-      });
+      recaptchaRef.current = new RecaptchaVerifier(
+        auth,
+        "recaptcha-container",
+        {
+          size: "invisible",
+        },
+      );
     }
 
     return recaptchaRef.current;
@@ -214,7 +220,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, user, isLoading } = useAuth();
+  const { login, user, isLoading, forceSyncSession } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -264,6 +270,44 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // Get redirect URL from query params
   const redirectUrl = searchParams.get("redirect");
+  const redirectReason = searchParams.get("redirect_reason");
+
+  // ── Auto-recovery for session-expired redirects ──
+  // When the middleware redirects to /login?redirect_reason=session_expired,
+  // the user may still be authenticated client-side (Firebase Auth SDK keeps
+  // the token in IndexedDB). If so, we can transparently re-create the
+  // session cookie and redirect back without showing the login form.
+  const autoRecoveryAttemptedRef = React.useRef(false);
+  const [isAutoRecovering, setIsAutoRecovering] = React.useState(false);
+
+  React.useEffect(() => {
+    if (autoRecoveryAttemptedRef.current) return;
+    if (redirectReason !== "session_expired") return;
+    if (!redirectUrl) return;
+    // Wait for auth provider to finish loading so auth.currentUser is populated
+    if (isLoading) return;
+
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return; // Not authenticated client-side — show login form
+
+    autoRecoveryAttemptedRef.current = true;
+    setIsAutoRecovering(true);
+
+    forceSyncSession()
+      .then((synced) => {
+        if (synced) {
+          // Session cookie restored — redirect back to the intended page
+          const target = decodeURIComponent(redirectUrl);
+          window.location.replace(target);
+        } else {
+          // Recovery failed — show login form
+          setIsAutoRecovering(false);
+        }
+      })
+      .catch(() => {
+        setIsAutoRecovering(false);
+      });
+  }, [redirectReason, redirectUrl, isLoading, forceSyncSession]);
 
   const buildEmailPendingPath = React.useCallback(() => {
     const params = new URLSearchParams();
@@ -672,5 +716,6 @@ export function useLoginForm(): UseLoginFormReturn {
     handleResendPhoneCode,
     resetSent,
     isResetting,
+    isAutoRecovering,
   };
 }

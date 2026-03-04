@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -17,10 +17,11 @@ import {
 import { Loader2, MailCheck } from "lucide-react";
 
 const RESEND_COOLDOWN_MS = 60_000;
-export default function EmailVerificationPendingPage() {
+
+function EmailVerificationPendingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoading: isAuthLoading } = useAuth();
+  const { isLoading: isAuthLoading, forceSyncSession } = useAuth();
 
   const [isChecking, setIsChecking] = useState(true);
   const [isResending, setIsResending] = useState(false);
@@ -58,7 +59,7 @@ export default function EmailVerificationPendingPage() {
       : "/email-verification-pending";
   }, [redirectParam]);
 
-  const verifyAndRedirectIfConfirmed = async () => {
+  const verifyAndRedirectIfConfirmed = useCallback(async () => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -66,17 +67,18 @@ export default function EmailVerificationPendingPage() {
       return false;
     }
 
-    await currentUser.reload();
+    try {
+      await currentUser.reload();
+    } catch (e) {
+      console.warn("Could not reload user", e);
+    }
 
-    if (currentUser.emailVerified) {
+    const skipEmailVerification =
+      process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
+    if (currentUser.emailVerified || skipEmailVerification) {
       try {
-        const idToken = await currentUser.getIdToken(true);
-        await fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ idToken }),
-        });
+        await forceSyncSession();
       } catch (sessionError) {
         console.warn(
           "Could not refresh server session after email verification",
@@ -90,12 +92,13 @@ export default function EmailVerificationPendingPage() {
 
     setIsChecking(false);
     return false;
-  };
+  }, [forceSyncSession, nextPath, router]);
 
   useEffect(() => {
     if (isAuthLoading) return;
-    setIsChecking(false);
-  }, [isAuthLoading]);
+
+    verifyAndRedirectIfConfirmed();
+  }, [isAuthLoading, verifyAndRedirectIfConfirmed]);
 
   useEffect(() => {
     if (!lastSentAt) {
@@ -258,5 +261,26 @@ export default function EmailVerificationPendingPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function EmailVerificationPendingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md text-center">
+            <CardContent className="py-10">
+              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Carregando...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <EmailVerificationPendingContent />
+    </Suspense>
   );
 }

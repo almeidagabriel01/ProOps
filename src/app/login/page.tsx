@@ -82,6 +82,7 @@ function LoginContent() {
     handleLogoUpload,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
+    isAutoRecovering,
   } = useLoginForm();
 
   // Estado para erros de validação do cadastro
@@ -183,10 +184,15 @@ function LoginContent() {
     }
   }, [companyName]);
 
-  // Show loading during initial auth check (but not during login/register action)
+  // Show loading during initial auth check, auto-recovery, or (but not during login/register action)
   // For users being redirected after login, don't show anything - the button spinner handles it
-  if (isLoading && !isLoggingIn && !isRegistering && !user) {
-    // Initial page load - show simple spinner
+  if (
+    (isLoading || isAutoRecovering) &&
+    !isLoggingIn &&
+    !isRegistering &&
+    !user
+  ) {
+    // Initial page load or session recovery - show simple spinner
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -194,33 +200,22 @@ function LoginContent() {
     );
   }
 
-  // User is logged in and being redirected - show appropriate loading
-  if (user) {
-    // Free users go to landing page - don't show skeleton (redirect is fast)
+  // User is logged in but not actively logging in right now - show spinner during redirect
+  if (user && !isLoggingIn && !isRegistering) {
     if (user.role === "free") {
       return null;
     }
 
-    // For users going to ERP, show appropriate skeleton
-    let content = <DashboardSkeleton />;
-
-    if (user?.role === "superadmin") {
-      content = <AdminSkeleton />;
-    } else if (user?.role === "user" || user?.role === "member") {
-      const perms = (user?.permissions || {}) as Record<
-        string,
-        { canView?: boolean }
-      >;
-      if (perms.dashboard && perms.dashboard.canView === false) {
-        if (perms.proposals?.canView) content = <ProposalsSkeleton />;
-        else if (perms.products?.canView) content = <ProductsSkeleton />;
-        else if (perms.clients?.canView) content = <ContactsSkeleton />;
-        else content = <ProposalsSkeleton />;
-      }
-    }
-
-    return <AppSkeleton>{content}</AppSkeleton>;
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">Redirecionando...</p>
+      </div>
+    );
   }
+
+  // If user IS actively logging in (isLoggingIn === true), we fall through
+  // and keep rendering the form with the "Entrando..." spinning button until the page unmounts!
 
   const steps = [
     {

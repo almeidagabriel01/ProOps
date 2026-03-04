@@ -96,17 +96,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
         <ThemeProvider>
-          {isLandingPage ? (
-            <main className="min-h-screen">{children}</main>
-          ) : pathname.startsWith("/share/") ? (
-            // Public shared proposal pages - no authentication required
-            <main className="min-h-screen">{children}</main>
-          ) : isAuthOnlyPage ? (
-            <AuthProvider>
+          <AuthProvider>
+            {isLandingPage ? (
+              <main className="min-h-screen">{children}</main>
+            ) : pathname.startsWith("/share/") ? (
+              // Public shared proposal pages - no authentication required
+              <main className="min-h-screen">{children}</main>
+            ) : isAuthOnlyPage ? (
               <main className="min-h-screen flex flex-col">{children}</main>
-            </AuthProvider>
-          ) : (
-            <AuthProvider>
+            ) : (
               <PermissionsProvider>
                 <TenantProvider>
                   <ProtectedRoute>
@@ -127,8 +125,8 @@ export default function RootLayout({
                   </ProtectedRoute>
                 </TenantProvider>
               </PermissionsProvider>
-            </AuthProvider>
-          )}
+            )}
+          </AuthProvider>
           <ToastProvider />
         </ThemeProvider>
       </body>

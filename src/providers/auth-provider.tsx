@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   User as FirebaseUser,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   sendEmailVerification,
   signOut,
@@ -19,26 +20,39 @@ import { User, SubscriptionStatus } from "@/types";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  /** Whether the __session cookie is known to be in sync with the current token. */
+  isSessionSynced: boolean;
   login: (
     email: string,
     pass: string,
   ) => Promise<{ success: boolean; code?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** Force-refresh the ID token and re-sync the session cookie. */
+  forceSyncSession: () => Promise<boolean>;
 }
 
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
+  isSessionSynced: false,
   login: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
+  forceSyncSession: async () => false,
 });
+
+/** Delay helper */
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSessionSynced, setIsSessionSynced] = React.useState(false);
   const router = useRouter();
+
+  // Guards against concurrent syncServerSession calls
+  const syncInProgressRef = React.useRef(false);
 
   const createServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser) => {
@@ -66,7 +80,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Failed to clear server session:", error);
     }
+    setIsSessionSynced(false);
   }, []);
+
+  /**
+   * Sync the __session cookie with the current Firebase ID token.
+   * - Deduplicates concurrent calls (only one in-flight at a time).
+   * - Retries once on failure after a short delay.
+   * - Updates `isSessionSynced` state so other components can react.
+   */
+  const syncServerSession = React.useCallback(
+    async (firebaseUser: FirebaseUser): Promise<boolean> => {
+      if (syncInProgressRef.current) return false;
+      syncInProgressRef.current = true;
+
+      const attempt = async (): Promise<boolean> => {
+        try {
+          await createServerSession(firebaseUser);
+          setIsSessionSynced(true);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+
+      try {
+        // First attempt
+        if (await attempt()) return true;
+
+        // Retry once after a short delay with a fresh token
+        await wait(2000);
+        try {
+          // Force-refresh the ID token before retrying
+          await firebaseUser.getIdToken(true);
+        } catch {
+          // If token refresh fails, the user's auth state is truly broken
+          setIsSessionSynced(false);
+          return false;
+        }
+        const success = await attempt();
+        if (!success) {
+          console.warn(
+            "[AuthProvider] Failed to sync session cookie after retry. " +
+              "The next server-side navigation may redirect to /login.",
+          );
+          setIsSessionSynced(false);
+        }
+        return success;
+      } finally {
+        syncInProgressRef.current = false;
+      }
+    },
+    [createServerSession],
+  );
 
   const fetchUserData = async (
     firebaseUser: FirebaseUser,
@@ -186,26 +252,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // ── Primary auth state listener (login / logout transitions) ──
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
           const skipEmailVerification =
             process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
 
-          // Only create a server session for email-verified users.
-          // Exception: dev mode with NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION=true.
           if (firebaseUser.emailVerified || skipEmailVerification) {
             const userData = await fetchUserData(firebaseUser);
             setUser(userData);
-            try {
-              await createServerSession(firebaseUser);
-            } catch (error) {
-              console.error("Unable to sync server session:", error);
-            }
+            await syncServerSession(firebaseUser);
           } else {
-            // Email not verified — do NOT create a session cookie.
-            // The login() function will call signOut() which triggers this
-            // callback again with firebaseUser=null to clear the session.
             setUser(null);
           }
         } else {
@@ -213,22 +271,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             await clearServerSession();
           } catch (error) {
-            // Falha ao limpar sessão do servidor (ex.: sem rede) — ignorar para não
-            // bloquear o estado de loading indefinidamente.
             console.error("Unable to clear server session:", error);
           }
         }
       } catch (error) {
-        // Garante que qualquer erro inesperado no callback não trave o isLoading.
         console.error("Unexpected error in onAuthStateChanged handler:", error);
       } finally {
-        // SEMPRE libera o loading, independente de erros de rede ou sessão.
         setIsLoading(false);
       }
     });
 
-    return () => unsubscribe();
-  }, [clearServerSession, createServerSession]);
+    // ── Token refresh listener ──
+    // Firebase SDK silently refreshes the ID token every ~55 min.
+    // We must keep the __session cookie in sync so the middleware
+    // doesn't reject the next server-side navigation.
+    const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) return;
+      const skipEmailVerification =
+        process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+      if (firebaseUser.emailVerified || skipEmailVerification) {
+        await syncServerSession(firebaseUser);
+      }
+    });
+
+    // ── Visibility change listener ──
+    // When the user returns to the tab after being idle, the ID token
+    // may have been refreshed in the background but the session cookie
+    // sync could have failed (e.g. the device was sleeping). Re-sync.
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== "visible") return;
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) return;
+      const skipEmailVerification =
+        process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+      if (firebaseUser.emailVerified || skipEmailVerification) {
+        // Force a fresh token to ensure the session cookie stays valid
+        try {
+          await firebaseUser.getIdToken(true);
+        } catch {
+          // Token refresh failed — likely offline or auth revoked; skip.
+          return;
+        }
+        await syncServerSession(firebaseUser);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeToken();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [clearServerSession, syncServerSession]);
 
   const refreshUser = async () => {
     const firebaseUser = auth.currentUser;
@@ -237,6 +331,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(userData);
     }
   };
+
+  /**
+   * Exposed to child components (e.g. ProtectedRoute) so they can
+   * attempt a session recovery instead of redirecting to /login.
+   */
+  const forceSyncSession = React.useCallback(async (): Promise<boolean> => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return false;
+    try {
+      await firebaseUser.getIdToken(true);
+    } catch {
+      return false;
+    }
+    return syncServerSession(firebaseUser);
+  }, [syncServerSession]);
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
@@ -307,7 +416,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoading, login, logout, refreshUser }}
+      value={{
+        user,
+        isLoading,
+        isSessionSynced,
+        login,
+        logout,
+        refreshUser,
+        forceSyncSession,
+      }}
     >
       {children}
     </AuthContext.Provider>
