@@ -45,6 +45,7 @@ export type Transaction = {
   installmentCount?: number; // Total number of installments
   installmentNumber?: number; // Current installment (1, 2, 3...)
   installmentGroupId?: string; // ID to group related installments
+  installmentInterval?: number; // Interval between installments in months
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -68,6 +69,7 @@ export type UpdateFinancialEntryWithInstallmentsPayload = {
   notes?: string;
   isInstallment: boolean;
   installmentCount: number;
+  installmentInterval?: number;
   paymentMode: "total" | "installmentValue";
   installmentValue: string;
   firstInstallmentDate: string;
@@ -151,6 +153,7 @@ export const TransactionService = {
           installmentCount: transaction.installmentCount,
           installmentNumber: transaction.installmentNumber,
           installmentGroupId: transaction.installmentGroupId,
+          installmentInterval: transaction.installmentInterval,
           notes: transaction.notes,
           targetTenantId: transaction.tenantId, // Pass tenantId to backend (for super admin)
         },

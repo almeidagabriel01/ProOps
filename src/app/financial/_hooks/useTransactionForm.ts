@@ -43,6 +43,7 @@ export interface TransactionFormData {
   downPaymentValue: string;
   downPaymentWallet: string;
   downPaymentDueDate: string;
+  installmentInterval: number; // New field for interval between installments
 }
 
 const initialFormData: TransactionFormData = {
@@ -70,6 +71,7 @@ const initialFormData: TransactionFormData = {
   downPaymentValue: "",
   downPaymentWallet: "",
   downPaymentDueDate: "",
+  installmentInterval: 1, // Default to 1 month (Mensal)
 };
 
 // Helpers
@@ -85,6 +87,7 @@ const getTotalFields = (data: TransactionFormData) => ({
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
+  installmentInterval: data.installmentInterval,
 });
 
 const getInstallmentFields = (data: TransactionFormData) => ({
@@ -99,6 +102,7 @@ const getInstallmentFields = (data: TransactionFormData) => ({
   downPaymentValue: data.downPaymentValue,
   downPaymentWallet: data.downPaymentWallet,
   downPaymentDueDate: data.downPaymentDueDate,
+  installmentInterval: data.installmentInterval,
 });
 
 interface UseTransactionFormReturn {
@@ -229,6 +233,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.wallet, // Default to main wallet
           downPaymentDueDate: formData.date,
+          installmentInterval: formData.installmentInterval || 1,
         };
       } else {
         // Installment -> Total
@@ -251,6 +256,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
           downPaymentValue: formData.downPaymentValue,
           downPaymentWallet: formData.downPaymentWallet,
           downPaymentDueDate: formData.downPaymentDueDate,
+          installmentInterval: formData.installmentInterval || 1,
         };
       }
     }
@@ -528,6 +534,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
           installmentNumber: 0,
           installmentCount: formData.installmentCount + 1,
           installmentGroupId,
+          installmentInterval: formData.installmentInterval || 1,
           notes: formData.notes || undefined,
           createdAt: now,
           updatedAt: now,
@@ -550,6 +557,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         isInstallment: formData.isInstallment,
         installmentCount: formData.installmentCount,
         installmentGroupId,
+        installmentInterval: formData.installmentInterval || 1,
         notes: formData.notes || undefined,
         createdAt: now,
         updatedAt: now,

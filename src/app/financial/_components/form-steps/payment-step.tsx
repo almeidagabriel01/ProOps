@@ -19,7 +19,10 @@ import {
   Check,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TransactionFormData, PaymentMode } from "../../_hooks/useTransactionForm";
+import {
+  TransactionFormData,
+  PaymentMode,
+} from "../../_hooks/useTransactionForm";
 interface PaymentStepProps {
   formData: TransactionFormData;
   onFormDataChange: React.Dispatch<React.SetStateAction<TransactionFormData>>;
@@ -531,6 +534,29 @@ export function PaymentStep({
                   </Select>
                 </FormItem>
 
+                <FormItem
+                  label="Intervalo (meses)"
+                  htmlFor="installmentInterval"
+                >
+                  <Input
+                    id="installmentInterval"
+                    name="installmentInterval"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Ex: 1"
+                    value={formData.installmentInterval || ""}
+                    onChange={(e) => {
+                      const value =
+                        e.target.value === "" ? 0 : parseInt(e.target.value);
+                      onFormDataChange((prev) => ({
+                        ...prev,
+                        installmentInterval: isNaN(value) ? 1 : value,
+                      }));
+                    }}
+                  />
+                </FormItem>
+
                 <FormItem label="Valor/Parcela">
                   <div className="h-11 px-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-primary" />
@@ -543,7 +569,6 @@ export function PaymentStep({
                 <FormItem
                   label="Vencimento da 1ª Parcela"
                   htmlFor="dueDateInstallment"
-                  className="col-span-2"
                   required={formData.type === "income"}
                   error={errors.dueDate}
                 >
@@ -854,6 +879,32 @@ export function PaymentStep({
                       }}
                     />
                   </div>
+
+                  <div className="field-gap">
+                    <div className="min-h-5">
+                      <Label htmlFor="installmentIntervalAdvanced">
+                        Intervalo (meses)
+                      </Label>
+                    </div>
+                    <Input
+                      id="installmentIntervalAdvanced"
+                      name="installmentInterval"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Ex: 1"
+                      value={formData.installmentInterval || ""}
+                      onChange={(e) => {
+                        const value =
+                          e.target.value === "" ? 0 : parseInt(e.target.value);
+                        onFormDataChange((prev) => ({
+                          ...prev,
+                          installmentInterval: isNaN(value) ? 1 : value,
+                        }));
+                      }}
+                    />
+                  </div>
+
                   <div className="field-gap">
                     <div className="min-h-5">
                       <Label htmlFor="installmentValue">
@@ -980,5 +1031,3 @@ export function PaymentStep({
 // ============================================
 // STEP 4: REVIEW
 // ============================================
-
-

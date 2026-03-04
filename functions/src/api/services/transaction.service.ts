@@ -36,6 +36,7 @@ interface UpdateFinancialEntryWithInstallmentsDTO {
   expectedUpdatedAt?: string | number;
   targetTenantId?: string;
   extraTransactionIds?: string[];
+  installmentInterval?: number;
 }
 
 type TransactionDoc = {
@@ -64,6 +65,7 @@ const UPDATABLE_TRANSACTION_FIELDS = new Set([
   "installmentCount",
   "installmentNumber",
   "installmentGroupId",
+  "installmentInterval",
   "notes",
   "extraCosts",
 ]);
@@ -222,7 +224,8 @@ export class TransactionService {
           // DueDate (vencimento) increments by month for each installment
           // If no dueDate provided, use date as base
           const baseDueDate = data.dueDate || data.date;
-          const currentDueDate = addMonths(baseDueDate, i);
+          const interval = data.installmentInterval || 1;
+          const currentDueDate = addMonths(baseDueDate, i * interval);
 
           const newTx = {
             tenantId,
@@ -246,6 +249,7 @@ export class TransactionService {
             installmentCount: count,
             installmentNumber: i + 1,
             installmentGroupId: groupId,
+            installmentInterval: data.installmentInterval || 1,
             notes: data.notes || null,
             extraCosts: data.extraCosts || [],
             createdAt: now,
@@ -284,6 +288,7 @@ export class TransactionService {
           installmentCount: data.installmentCount || null,
           installmentNumber: data.installmentNumber || null,
           installmentGroupId: data.installmentGroupId || null,
+          installmentInterval: data.installmentInterval || null,
           notes: data.notes || null,
           extraCosts: data.extraCosts || [],
           createdAt: now,
@@ -584,13 +589,15 @@ export class TransactionService {
 
       for (let i = 0; i < targetInstallmentCount; i++) {
         const existing = existingInstallments[i] || null;
+        const interval = payload.installmentInterval || 1;
+        
         const nextInstallment = {
           tenantId: txTenantId,
           type,
           description,
           amount: installmentAmounts[i] ?? 0,
           date: launchDate,
-          dueDate: addMonths(baseInstallmentDueDate, i),
+          dueDate: addMonths(baseInstallmentDueDate, i * interval),
           status:
             existing?.data?.status ||
             (i === 0
@@ -609,6 +616,7 @@ export class TransactionService {
           installmentCount: targetInstallmentCount,
           installmentNumber: i + 1,
           installmentGroupId: effectiveGroupId,
+          installmentInterval: payload.installmentInterval || 1,
           notes,
           updatedAt: now,
         };
@@ -660,6 +668,7 @@ export class TransactionService {
           installmentCount: targetInstallmentCount,
           installmentNumber: 0,
           installmentGroupId: effectiveGroupId,
+          installmentInterval: payload.installmentInterval || 1,
           notes,
           updatedAt: now,
         };

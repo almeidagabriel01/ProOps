@@ -8,10 +8,7 @@ import {
   EditTransactionFormData,
 } from "../_hooks/useEditTransaction";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
-import {
-  StepWizard,
-  StepNavigation,
-} from "@/components/ui/step-wizard";
+import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   TypeSelectorStep,
@@ -92,6 +89,7 @@ export default function EditTransactionPage() {
       downPaymentValue: formData.downPaymentValue,
       downPaymentWallet: formData.downPaymentWallet,
       downPaymentDueDate: formData.downPaymentDueDate,
+      installmentInterval: formData.installmentInterval,
     }),
     [formData],
   );
@@ -132,7 +130,9 @@ export default function EditTransactionPage() {
 
     if (adaptedFormData.downPaymentEnabled) {
       if (adaptedFormData.downPaymentType === "percentage") {
-        const percentage = parseFloat(adaptedFormData.downPaymentPercentage || "0");
+        const percentage = parseFloat(
+          adaptedFormData.downPaymentPercentage || "0",
+        );
         if (!adaptedFormData.downPaymentPercentage || percentage <= 0) {
           errors.downPaymentPercentage =
             "Percentual da entrada deve ser maior que 0";
@@ -145,7 +145,10 @@ export default function EditTransactionPage() {
       }
     }
 
-    if (adaptedFormData.downPaymentEnabled && !adaptedFormData.downPaymentDueDate) {
+    if (
+      adaptedFormData.downPaymentEnabled &&
+      !adaptedFormData.downPaymentDueDate
+    ) {
       errors.downPaymentDueDate = "Data da entrada é obrigatória";
     }
 
