@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/lib/toast";
 
 import {
@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, UserPlan, PurchasedAddon, PlanFeatures } from "@/types";
+import { WhatsAppBotCard } from "./WhatsAppBotCard";
+import { User, UserPlan, PurchasedAddon, PlanFeatures, Tenant } from "@/types";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
@@ -44,6 +45,7 @@ import {
 
 interface MySubscriptionTabProps {
   user: User | null;
+  tenant: Tenant | null;
   userPlan: UserPlan | null;
   purchasedAddons: string[];
   addonsData: PurchasedAddon[];
@@ -116,6 +118,7 @@ const featuresList: {
 
 export function MySubscriptionTab({
   user,
+  tenant,
   userPlan,
   purchasedAddons,
   addonsData,
@@ -739,6 +742,11 @@ export function MySubscriptionTab({
           })()}
         </CardContent>
       </Card>
+
+      {/* WhatsApp Bot Card — gerencia bot number + phone verification internamente */}
+      {tenant?.whatsappEnabled && (
+        <WhatsAppBotCard userPhoneNumber={user?.phoneNumber || ""} />
+      )}
 
       <AlertDialog
         open={!!addonToCancel}

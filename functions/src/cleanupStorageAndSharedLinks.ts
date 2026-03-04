@@ -5,8 +5,11 @@ import { processStorageGcQueue } from "./lib/storage-gc";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
+const PHONE_OTP_COLLECTION = "phoneOtp";
+
 const MAX_LINKS_PER_BATCH = 250;
 const MAX_LINKS_PER_COLLECTION_PER_RUN = 1500;
+const MAX_OTP_PER_RUN = 1000;
 const MAX_STORAGE_GC_ITEMS_PER_RUN = 500;
 
 async function cleanupExpiredLinksInCollection(
@@ -37,6 +40,33 @@ async function cleanupExpiredLinksInCollection(
   return deleted;
 }
 
+async function cleanupExpiredPhoneOtps(nowMs: number): Promise<number> {
+  let deleted = 0;
+
+  while (deleted < MAX_OTP_PER_RUN) {
+    const remaining = MAX_OTP_PER_RUN - deleted;
+    const batchSize = Math.min(MAX_LINKS_PER_BATCH, remaining);
+
+    // expiresAt no phoneOtp é um Timestamp (number, ms since epoch)
+    const expiredSnap = await db
+      .collection(PHONE_OTP_COLLECTION)
+      .where("expiresAt", "<", nowMs)
+      .limit(batchSize)
+      .get();
+
+    if (expiredSnap.empty) break;
+
+    const batch = db.batch();
+    expiredSnap.docs.forEach((docSnap) => batch.delete(docSnap.ref));
+    await batch.commit();
+    deleted += expiredSnap.size;
+
+    if (expiredSnap.size < batchSize) break;
+  }
+
+  return deleted;
+}
+
 export const cleanupStorageAndSharedLinks = onSchedule(
   {
     ...SCHEDULE_OPTIONS,
@@ -46,16 +76,26 @@ export const cleanupStorageAndSharedLinks = onSchedule(
   },
   async () => {
     const nowIso = new Date().toISOString();
-    console.log("[cleanupStorageAndSharedLinks] job started", { nowIso });
+    const nowMs = Date.now();
+    console.log("[cleanupStorageAndSharedLinks] job started", {
+      nowIso,
+      nowMs,
+    });
 
     let deletedSharedProposals = 0;
     let deletedSharedTransactions = 0;
+    let deletedPhoneOtps = 0;
 
     try {
-      [deletedSharedProposals, deletedSharedTransactions] = await Promise.all([
-        cleanupExpiredLinksInCollection(SHARED_PROPOSALS_COLLECTION, nowIso),
-        cleanupExpiredLinksInCollection(SHARED_TRANSACTIONS_COLLECTION, nowIso),
-      ]);
+      [deletedSharedProposals, deletedSharedTransactions, deletedPhoneOtps] =
+        await Promise.all([
+          cleanupExpiredLinksInCollection(SHARED_PROPOSALS_COLLECTION, nowIso),
+          cleanupExpiredLinksInCollection(
+            SHARED_TRANSACTIONS_COLLECTION,
+            nowIso,
+          ),
+          cleanupExpiredPhoneOtps(nowMs),
+        ]);
     } catch (error) {
       console.error(
         "[cleanupStorageAndSharedLinks] failed during expired link cleanup",
@@ -81,6 +121,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
     console.log("[cleanupStorageAndSharedLinks] job finished", {
       deletedSharedProposals,
       deletedSharedTransactions,
+      deletedPhoneOtps,
       storageGcProcessed: gcStats.processed,
       storageGcDeleted: gcStats.deleted,
       storageGcFailed: gcStats.failed,

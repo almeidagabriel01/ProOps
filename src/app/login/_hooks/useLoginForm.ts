@@ -6,11 +6,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
 import {
   createUserWithEmailAndPassword,
-  linkWithCredential,
-  PhoneAuthProvider,
-  RecaptchaVerifier,
   sendEmailVerification,
-  signOut,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -63,7 +59,7 @@ interface UseLoginFormReturn {
   // State
   error: string;
   setError: (value: string) => void;
-  errors: Record<string, string>; // New: specific field errors
+  errors: Record<string, string>;
   setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   isLoggingIn: boolean;
   isRegistering: boolean;
@@ -74,20 +70,12 @@ interface UseLoginFormReturn {
   resetSent: boolean;
   user: User | null;
   registerSuccessMessage: string;
-  smsCode: string;
-  setSmsCode: (value: string) => void;
-  requiresPhoneVerification: boolean;
-  isAwaitingPhoneVerification: boolean;
-  isSendingSms: boolean;
-  isVerifyingSmsCode: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleConfirmPhoneCode: () => Promise<void>;
-  handleResendPhoneCode: () => Promise<void>;
 }
 
 export function useLoginForm(): UseLoginFormReturn {
@@ -115,80 +103,6 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isResetting, setIsResetting] = React.useState(false);
   const [registerSuccessMessage, setRegisterSuccessMessage] =
     React.useState("");
-  const [smsCode, setSmsCode] = React.useState("");
-  const [smsVerificationId, setSmsVerificationId] = React.useState("");
-  const [requiresPhoneVerification, setRequiresPhoneVerification] =
-    React.useState(false);
-  const [isAwaitingPhoneVerification, setIsAwaitingPhoneVerification] =
-    React.useState(false);
-  const [isSendingSms, setIsSendingSms] = React.useState(false);
-  const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
-  const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
-
-  const normalizePhoneToE164 = React.useCallback((value: string): string => {
-    let digits = String(value || "").replace(/\D/g, "");
-
-    if (digits.length === 10 || digits.length === 11) {
-      digits = `55${digits}`;
-    }
-
-    if (digits.length === 12 && digits.startsWith("55")) {
-      const ddd = digits.substring(2, 4);
-      const subscriber = digits.substring(4);
-      if (!subscriber.startsWith("9") && subscriber.length === 8) {
-        digits = `55${ddd}9${subscriber}`;
-      }
-    }
-
-    return digits.startsWith("+") ? digits : `+${digits}`;
-  }, []);
-
-  const getRecaptchaVerifier = React.useCallback((): RecaptchaVerifier => {
-    if (typeof window === "undefined") {
-      throw new Error("RECAPTCHA_UNAVAILABLE");
-    }
-
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-      });
-    }
-
-    return recaptchaRef.current;
-  }, []);
-
-  const sendPhoneVerificationCode = React.useCallback(
-    async (rawPhone: string): Promise<boolean> => {
-      try {
-        setIsSendingSms(true);
-        setError("");
-
-        const e164Phone = normalizePhoneToE164(rawPhone);
-        const appVerifier = getRecaptchaVerifier();
-        const provider = new PhoneAuthProvider(auth);
-        const verificationId = await provider.verifyPhoneNumber(
-          e164Phone,
-          appVerifier,
-        );
-
-        setSmsVerificationId(verificationId);
-        setIsAwaitingPhoneVerification(true);
-        setRegisterSuccessMessage(
-          "Enviamos um SMS com código para confirmar seu telefone.",
-        );
-        return true;
-      } catch (smsError) {
-        console.error("Failed to send SMS verification:", smsError);
-        setError(
-          "Não foi possível enviar o SMS de confirmação agora. Tente reenviar.",
-        );
-        return false;
-      } finally {
-        setIsSendingSms(false);
-      }
-    },
-    [getRecaptchaVerifier, normalizePhoneToE164],
-  );
 
   const handleForgotPassword = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -536,6 +450,7 @@ export function useLoginForm(): UseLoginFormReturn {
       await setDoc(doc(db, "users", firebaseUser.uid), {
         name: name.trim(),
         email: email,
+        phoneNumber: phoneNumber || null,
         role: "free",
         tenantId: tenantId,
         createdAt: new Date().toISOString(),
@@ -565,70 +480,7 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   };
 
-  const handleConfirmPhoneCode = async () => {
-    if (!smsVerificationId || !smsCode.trim()) {
-      setError("Digite o código SMS para confirmar o telefone.");
-      return;
-    }
-
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      setError("Sua sessão expirou. Faça login novamente para confirmar.");
-      return;
-    }
-
-    try {
-      setIsVerifyingSmsCode(true);
-      setError("");
-
-      const credential = PhoneAuthProvider.credential(
-        smsVerificationId,
-        smsCode.trim(),
-      );
-
-      await linkWithCredential(currentUser, credential);
-
-      const { UserService } = await import("@/services/user-service");
-      await UserService.updateProfile({
-        phoneNumber: phoneNumber,
-      });
-
-      setIsAwaitingPhoneVerification(false);
-      setRequiresPhoneVerification(false);
-      setSmsCode("");
-      setSmsVerificationId("");
-      await signOut(auth);
-      setMode("login");
-      setError(
-        "Telefone confirmado com sucesso! Agora confirme o email no link enviado para finalizar seu acesso.",
-      );
-    } catch (verifyError: unknown) {
-      console.error("Phone verification confirmation failed:", verifyError);
-      const code = (verifyError as { code?: string })?.code;
-
-      if (code === "auth/invalid-verification-code") {
-        setError("Código SMS inválido. Confira e tente novamente.");
-      } else if (code === "auth/code-expired") {
-        setError("Código expirado. Solicite um novo SMS.");
-      } else if (code === "auth/provider-already-linked") {
-        setError("Telefone já confirmado nesta conta.");
-      } else {
-        setError("Não foi possível confirmar o telefone. Tente novamente.");
-      }
-    } finally {
-      setIsVerifyingSmsCode(false);
-    }
-  };
-
-  const handleResendPhoneCode = async () => {
-    const phone = phoneNumber;
-    if (!phone) {
-      setError("Informe um telefone para reenviar o SMS.");
-      return;
-    }
-
-    await sendPhoneVerificationCode(phone);
-  };
+  // Phone verification removed - implemented via backend Just-in-Time for WhatsApp Addon
 
   return {
     email,
@@ -658,18 +510,10 @@ export function useLoginForm(): UseLoginFormReturn {
     isLoading,
     user,
     registerSuccessMessage,
-    smsCode,
-    setSmsCode,
-    requiresPhoneVerification,
-    isAwaitingPhoneVerification,
-    isSendingSms,
-    isVerifyingSmsCode,
     handleLogin,
     handleRegister,
     handleForgotPassword,
     handleLogoUpload,
-    handleConfirmPhoneCode,
-    handleResendPhoneCode,
     resetSent,
     isResetting,
   };

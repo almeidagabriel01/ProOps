@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -17,7 +17,8 @@ import {
 import { Loader2, MailCheck } from "lucide-react";
 
 const RESEND_COOLDOWN_MS = 60_000;
-export default function EmailVerificationPendingPage() {
+
+function EmailVerificationPendingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoading: isAuthLoading } = useAuth();
@@ -258,5 +259,26 @@ export default function EmailVerificationPendingPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function EmailVerificationPendingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-md text-center">
+            <CardContent className="py-10">
+              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Carregando verificação...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <EmailVerificationPendingContent />
+    </Suspense>
   );
 }

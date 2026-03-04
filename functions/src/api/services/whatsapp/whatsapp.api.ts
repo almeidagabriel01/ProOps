@@ -68,6 +68,92 @@ export async function sendWhatsAppMessage(to: string, body: string) {
   }
 }
 
+export async function sendWhatsAppAuthTemplate(
+  to: string,
+  code: string,
+  templateName: string = "codigo_verificacao",
+) {
+  const formattedTo = formatOutboundNumber(to);
+  console.log(
+    `[WhatsApp] Sending Auth Template '${templateName}' to ${formattedTo}`,
+  );
+
+  const config = getWhatsAppApiConfig();
+  if (!config) {
+    return;
+  }
+  const { token, phoneNumberId, tokenDiagnostics } = config;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedTo,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: "pt_BR" },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: code,
+                  },
+                ],
+              },
+              {
+                type: "button",
+                sub_type: "url",
+                index: "0",
+                parameters: [
+                  {
+                    type: "text",
+                    text: code,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(
+        `[WhatsApp] Meta API Error sending Auth template to ${formattedTo}:`,
+        errorData,
+        { phoneNumberId, tokenDiagnostics },
+      );
+    } else {
+      const successData = (await response
+        .json()
+        .catch(() => null)) as WhatsAppSendApiResponse | null;
+      console.log(
+        `[WhatsApp] Successfully sent Auth template to ${formattedTo}`,
+        {
+          messageId: successData?.messages?.[0]?.id,
+        },
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[WhatsApp] Exception sending Auth template to ${formattedTo}:`,
+      error,
+    );
+  }
+}
+
 export async function uploadMediaToWhatsApp(
   buffer: Buffer,
   token: string,

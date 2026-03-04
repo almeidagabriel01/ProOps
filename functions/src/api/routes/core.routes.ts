@@ -63,4 +63,12 @@ router.put("/tenants/:id", updateTenant);
 import { updateProfile } from "../controllers/users.controller";
 router.put("/profile", updateProfile);
 
+// Phone OTP via WhatsApp
+import {
+  sendPhoneOtp,
+  verifyPhoneOtp,
+} from "../controllers/phone-otp.controller";
+router.post("/phone-otp/send", sendPhoneOtp);
+router.post("/phone-otp/verify", verifyPhoneOtp);
+
 export const coreRoutes = router;
