@@ -12,14 +12,11 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/shared/toast-provider";
-import { Header } from "@/components/layout/header";
-import { BottomDock } from "@/components/layout/bottom-dock";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import { SubscriptionGuard } from "@/components/shared/subscription-guard";
 import { usePageTitle } from "@/hooks/usePageTitle";
 
 const geistSans = Geist({
@@ -107,22 +104,7 @@ export default function RootLayout({
             ) : (
               <PermissionsProvider>
                 <TenantProvider>
-                  <ProtectedRoute>
-                    <div className="flex h-screen overflow-hidden bg-card">
-                      <div className="flex-1 flex flex-col bg-background overflow-hidden">
-                        <Header sidebarWidth={0} />
-                        <SubscriptionGuard>
-                          <main
-                            id="main-content"
-                            className="flex-1 p-8 overflow-y-auto"
-                          >
-                            {children}
-                          </main>
-                        </SubscriptionGuard>
-                      </div>
-                      <BottomDock />
-                    </div>
-                  </ProtectedRoute>
+                  <ProtectedRoute>{children}</ProtectedRoute>
                 </TenantProvider>
               </PermissionsProvider>
             )}

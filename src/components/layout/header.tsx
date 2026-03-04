@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { LogOut, User as UserIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/providers/auth-provider";
+import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
-import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 
 interface HeaderProps {
   sidebarWidth?: number;
@@ -87,38 +87,25 @@ function HeaderSkeleton() {
 
 export function Header({}: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isLoading: isPermLoading } = usePermissions();
   const {
     tenant,
     clearViewingTenant,
     isLoading: isTenantLoading,
     isGlobalLoading,
-    setGlobalLoading,
   } = useTenant();
   const { companyName, planLabel, logoUrl, avatarSeed, isViewingAsTenant } =
     useHeaderPresentation();
   const router = useRouter();
-  const pathname = usePathname();
-  const [isNavigating, setIsNavigating] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isNavigating) {
-      return;
-    }
-
-    if (pathname === "/admin") {
-      clearViewingTenant();
-      setIsNavigating(false);
-    }
-  }, [clearViewingTenant, isNavigating, pathname]);
 
   const isHeaderBlocked =
-    isAuthLoading || isTenantLoading || isNavigating || isGlobalLoading;
+    isAuthLoading || isPermLoading || isTenantLoading || isGlobalLoading;
 
   const handleBackToAdmin = () => {
-    setIsNavigating(true);
-    setGlobalLoading(true);
-    clearViewingTenantId();
-    router.push("/admin");
+    clearViewingTenant();
+    React.startTransition(() => {
+      router.push("/admin");
+    });
   };
 
   if (isHeaderBlocked) {

@@ -20,12 +20,6 @@ import {
   Mail,
 } from "lucide-react";
 import Link from "next/link";
-import { AppSkeleton } from "@/components/layout/app-skeleton";
-import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
-import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
-import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
-import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
-import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
 import {

@@ -13,6 +13,7 @@
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { useRouter, usePathname } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
@@ -20,23 +21,8 @@ import {
   pageRequiresAuth,
   pageIsMasterOnly,
 } from "@/lib/page-config";
-import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
-import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
-import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
-import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
-import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
-import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
-import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
-import { ServicesSkeleton } from "@/app/services/_components/services-skeleton";
-import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
-import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
-import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
-import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
-import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
-import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
-import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
-import { KanbanSkeleton } from "@/app/kanban/_components/kanban-skeleton";
-import { AppSkeleton } from "@/components/layout/app-skeleton";
+import { ProtectedAppShell } from "@/components/layout/protected-app-shell";
+import { RouteContentSkeleton } from "@/components/layout/route-content-skeleton";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
@@ -68,6 +54,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isLoading: isPermLoading,
     hasPermission,
   } = usePermissions();
+  const {
+    isLoading: isTenantLoading,
+    isGlobalLoading,
+  } = useTenant();
   const router = useRouter();
   const pathname = usePathname();
   const isRecoveringRef = React.useRef(false);
@@ -80,7 +70,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
   const pageConfig = getPageConfig(pathname);
 
-  const isLoading = isAuthLoading || (user && isPermLoading);
+  const isLoading =
+    isAuthLoading ||
+    (!!user && (isPermLoading || isTenantLoading || isGlobalLoading));
 
   React.useEffect(() => {
     if (isSelfHandled) return;
@@ -172,98 +164,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isLoading) {
-    const renderWithShell = (content: React.ReactNode) => (
-      <AppSkeleton>{content}</AppSkeleton>
+    return (
+      <ProtectedAppShell>
+        <RouteContentSkeleton pathname={pathname} />
+      </ProtectedAppShell>
     );
-
-    if (pathname?.startsWith("/spreadsheets/")) {
-      return renderWithShell(<SpreadsheetEditorSkeleton />);
-    }
-
-    if (pathname === "/spreadsheets") {
-      return renderWithShell(<SpreadsheetsSkeleton />);
-    }
-
-    let skeletonType = "dashboard";
-
-    if (pathname?.startsWith("/profile/addons")) {
-      skeletonType = "addons";
-    } else if (pathname?.startsWith("/profile")) {
-      skeletonType = "profile";
-    } else if (pathname === "/wallets") {
-      skeletonType = "wallets";
-    } else if (pathname?.startsWith("/financial")) {
-      skeletonType = "financial";
-    } else if (pathname?.startsWith("/products")) {
-      skeletonType = "products";
-    } else if (pathname?.startsWith("/services")) {
-      skeletonType = "services";
-    } else if (pathname?.startsWith("/proposals")) {
-      skeletonType = "proposals";
-    } else if (pathname?.startsWith("/contacts")) {
-      skeletonType = "clients";
-    } else if (pathname?.startsWith("/team")) {
-      skeletonType = "team";
-    } else if (pathname?.startsWith("/admin/overview")) {
-      skeletonType = "adminOverview";
-    } else if (pathname?.startsWith("/admin")) {
-      skeletonType = "admin";
-    } else if (
-      pathname?.startsWith("/solutions") ||
-      pathname?.startsWith("/automation")
-    ) {
-      skeletonType = "automation";
-    } else if (pathname?.startsWith("/kanban")) {
-      skeletonType = "kanban";
-    } else if (pathname === "/" || pathname?.startsWith("/dashboard")) {
-      skeletonType = "dashboard";
-    }
-
-    switch (skeletonType) {
-      case "dashboard":
-        return renderWithShell(<DashboardSkeleton />);
-      case "profile":
-        return renderWithShell(<ProfileSkeleton />);
-      case "addons":
-        return renderWithShell(<AddonsSkeleton />);
-      case "financial":
-        return renderWithShell(<FinancialSkeleton />);
-      case "wallets":
-        return renderWithShell(<WalletsSkeleton />);
-      case "team":
-        return renderWithShell(<TeamSkeleton />);
-      case "admin":
-        return renderWithShell(<AdminSkeleton />);
-      case "adminOverview":
-        return renderWithShell(<AdminOverviewSkeleton />);
-      case "products":
-        return renderWithShell(<ProductsSkeleton />);
-      case "services":
-        return renderWithShell(<ServicesSkeleton />);
-      case "proposals":
-        return renderWithShell(<ProposalsSkeleton />);
-      case "clients":
-        return renderWithShell(<ContactsSkeleton />);
-      case "automation":
-        return renderWithShell(<AutomationSkeleton />);
-      case "kanban":
-        return renderWithShell(<KanbanSkeleton />);
-      default:
-        return renderWithShell(<DashboardSkeleton />);
-    }
   }
 
   if (!user) {
-    if (pathname?.startsWith("/spreadsheets/")) {
-      return <SpreadsheetEditorSkeleton />;
-    }
-
-    if (pathname === "/spreadsheets") {
-      return <SpreadsheetsSkeleton />;
-    }
-
     return null;
   }
 
-  return <>{children}</>;
+  return <ProtectedAppShell>{children}</ProtectedAppShell>;
 }

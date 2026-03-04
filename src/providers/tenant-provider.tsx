@@ -30,7 +30,9 @@ interface TenantContextType {
   clearViewingTenant: () => void;
   setViewingTenant: (tenant: Tenant) => void;
   isGlobalLoading: boolean;
-  setGlobalLoading: (isLoading: boolean) => void;
+  setGlobalLoading: (isLoading: boolean, reason?: string) => void;
+  beginGlobalLoading: (reason?: string) => void;
+  endGlobalLoading: (reason?: string) => void;
 }
 
 const TenantContext = React.createContext<TenantContextType>({
@@ -43,6 +45,8 @@ const TenantContext = React.createContext<TenantContextType>({
   setViewingTenant: () => {},
   isGlobalLoading: false,
   setGlobalLoading: () => {},
+  beginGlobalLoading: () => {},
+  endGlobalLoading: () => {},
 });
 
 function resolveSafeTenantColor(input: unknown): string {
@@ -74,11 +78,20 @@ function normalizePlanId(input?: string): string | undefined {
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const shellBlockingLoadingReasons = React.useMemo(
+    () => new Set(["tenant-switch", "return-admin"]),
+    [],
+  );
+  const routeTransitionTargetsRef = React.useRef<
+    Partial<Record<"tenant-switch" | "return-admin", string>>
+  >({});
+  const [globalLoadingReasons, setGlobalLoadingReasons] = React.useState<
+    Record<string, true>
+  >({});
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
   const [tenantOwnerPlanName, setTenantOwnerPlanName] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isGlobalLoading, setGlobalLoading] = React.useState(false);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user, isLoading: isAuthLoading } = useAuth();
   const pathname = usePathname();
@@ -89,6 +102,50 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const lastRefreshTriggerRef = React.useRef(0);
   // Track explicit tenant setting to avoid clearing during router transitions
   const bypassAdminClearRef = React.useRef(false);
+  const isGlobalLoading = React.useMemo(
+    () =>
+      Object.keys(globalLoadingReasons).some((reason) =>
+        shellBlockingLoadingReasons.has(reason),
+      ),
+    [globalLoadingReasons, shellBlockingLoadingReasons],
+  );
+
+  const beginGlobalLoading = React.useCallback((reason = "manual") => {
+    setGlobalLoadingReasons((currentReasons) => {
+      if (currentReasons[reason]) {
+        return currentReasons;
+      }
+
+      return {
+        ...currentReasons,
+        [reason]: true,
+      };
+    });
+  }, []);
+
+  const endGlobalLoading = React.useCallback((reason = "manual") => {
+    setGlobalLoadingReasons((currentReasons) => {
+      if (!currentReasons[reason]) {
+        return currentReasons;
+      }
+
+      const nextReasons = { ...currentReasons };
+      delete nextReasons[reason];
+      return nextReasons;
+    });
+  }, []);
+
+  const setGlobalLoading = React.useCallback(
+    (nextIsLoading: boolean, reason = "manual") => {
+      if (nextIsLoading) {
+        beginGlobalLoading(reason);
+        return;
+      }
+
+      endGlobalLoading(reason);
+    },
+    [beginGlobalLoading, endGlobalLoading],
+  );
 
   const loadTenant = React.useCallback(async () => {
     if (isAuthLoading) {
@@ -336,7 +393,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, refreshTrigger, pathname, isAuthLoading, tenantOwnerPlanName]);
+  }, [
+    user,
+    refreshTrigger,
+    pathname,
+    isAuthLoading,
+    tenantOwnerPlanName,
+    endGlobalLoading,
+  ]);
 
   React.useEffect(() => {
     if (isAuthLoading) {
@@ -346,6 +410,31 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     loadTenant();
   }, [isAuthLoading, loadTenant]);
+
+  React.useEffect(() => {
+    const tenantSwitchTarget = routeTransitionTargetsRef.current["tenant-switch"];
+    if (
+      tenantSwitchTarget &&
+      pathname === tenantSwitchTarget &&
+      !pathname.startsWith("/admin") &&
+      !isLoading &&
+      !!tenant
+    ) {
+      endGlobalLoading("tenant-switch");
+      delete routeTransitionTargetsRef.current["tenant-switch"];
+    }
+
+    const returnAdminTarget = routeTransitionTargetsRef.current["return-admin"];
+    if (
+      returnAdminTarget &&
+      pathname === returnAdminTarget &&
+      !isLoading &&
+      !tenant
+    ) {
+      endGlobalLoading("return-admin");
+      delete routeTransitionTargetsRef.current["return-admin"];
+    }
+  }, [pathname, isLoading, tenant, endGlobalLoading]);
 
   // Apply tenant theme synchronously to avoid flash
   React.useLayoutEffect(() => {
@@ -385,17 +474,18 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearViewingTenant = React.useCallback(() => {
+    routeTransitionTargetsRef.current["return-admin"] = "/admin";
+    beginGlobalLoading("return-admin");
     clearViewingTenantId();
     setRefreshTrigger((prev) => prev + 1);
-  }, []);
+  }, [beginGlobalLoading]);
 
   const setViewingTenant = (newTenant: Tenant) => {
     bypassAdminClearRef.current = true;
+    routeTransitionTargetsRef.current["tenant-switch"] = "/dashboard";
+    beginGlobalLoading("tenant-switch");
     writeViewingTenantId(newTenant.id);
-    setTenant(newTenant); // Immediate update
-    // We don't trigger refresh here because we just manually set the state
-    // ideally we should also fetch owner here or trigger refresh
-    refreshTenant(); // Trigger full refresh to get owner data
+    refreshTenant();
   };
 
   return (
@@ -410,6 +500,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         setViewingTenant,
         isGlobalLoading,
         setGlobalLoading,
+        beginGlobalLoading,
+        endGlobalLoading,
       }}
     >
       {children}
