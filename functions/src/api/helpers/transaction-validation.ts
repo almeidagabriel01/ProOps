@@ -21,6 +21,7 @@ export interface CreateTransactionDTO {
   installmentCount?: number;
   installmentNumber?: number;
   installmentGroupId?: string;
+  installmentInterval?: number;
   
   notes?: string;
   extraCosts?: any[];

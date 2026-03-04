@@ -65,6 +65,7 @@ export interface EditTransactionFormData {
   notes: string;
   isInstallment: boolean;
   installmentCount: number;
+  installmentInterval: number;
   paymentMode: "total" | "installmentValue";
   installmentValue: string;
   firstInstallmentDate: string;
@@ -84,6 +85,7 @@ const getTotalFields = (data: EditTransactionFormData) => ({
   dueDate: data.dueDate,
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
+  installmentInterval: data.installmentInterval,
   downPaymentEnabled: data.downPaymentEnabled,
   downPaymentType: data.downPaymentType,
   downPaymentPercentage: data.downPaymentPercentage,
@@ -99,6 +101,7 @@ const getInstallmentFields = (data: EditTransactionFormData) => ({
   firstInstallmentDate: data.firstInstallmentDate,
   isInstallment: data.isInstallment,
   installmentCount: data.installmentCount,
+  installmentInterval: data.installmentInterval,
   downPaymentEnabled: data.downPaymentEnabled,
   downPaymentType: data.downPaymentType,
   downPaymentPercentage: data.downPaymentPercentage,
@@ -122,6 +125,7 @@ const buildEditTransactionSnapshot = (data: EditTransactionFormData): string =>
     notes: data.notes,
     isInstallment: data.isInstallment,
     installmentCount: data.installmentCount,
+    installmentInterval: data.installmentInterval,
     paymentMode: data.paymentMode,
     installmentValue: data.installmentValue,
     firstInstallmentDate: data.firstInstallmentDate,
@@ -170,6 +174,7 @@ export function useEditTransaction() {
     notes: "",
     isInstallment: false,
     installmentCount: 1,
+    installmentInterval: 1,
     paymentMode: "total",
     installmentValue: "",
     firstInstallmentDate: "",
@@ -337,6 +342,8 @@ export function useEditTransaction() {
         notes: safeData.notes || "",
         isInstallment: hasGroup || (safeData.isInstallment ?? false),
         installmentCount: instCount > 0 ? instCount : 1,
+        installmentInterval:
+          (hasGroup ? firstRegular?.installmentInterval : safeData.installmentInterval) || 1,
         paymentMode: "total",
         downPaymentEnabled: !!downPaymentItem,
         downPaymentType:
@@ -428,6 +435,7 @@ export function useEditTransaction() {
           firstInstallmentDate: formData.date, // Default
           isInstallment: true,
           installmentCount: count,
+          installmentInterval: formData.installmentInterval || 1,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
           downPaymentPercentage: formData.downPaymentPercentage,
@@ -449,6 +457,7 @@ export function useEditTransaction() {
           // Keep these for potential switch back
           isInstallment: true,
           installmentCount: count,
+          installmentInterval: formData.installmentInterval || 1,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
           downPaymentPercentage: formData.downPaymentPercentage,
@@ -482,6 +491,10 @@ export function useEditTransaction() {
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??
+              1,
+            installmentInterval:
+              targetBuffer.installmentInterval ??
+              computedValues.installmentInterval ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
@@ -531,6 +544,10 @@ export function useEditTransaction() {
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??
+              1,
+            installmentInterval:
+              targetBuffer.installmentInterval ??
+              computedValues.installmentInterval ??
               1,
             downPaymentEnabled:
               targetBuffer.downPaymentEnabled ??
@@ -614,6 +631,7 @@ export function useEditTransaction() {
         notes: formData.notes,
         isInstallment: formData.isInstallment,
         installmentCount: formData.installmentCount,
+        installmentInterval: formData.installmentInterval || 1,
         paymentMode: formData.paymentMode,
         installmentValue: formData.installmentValue,
         firstInstallmentDate: formData.firstInstallmentDate,
