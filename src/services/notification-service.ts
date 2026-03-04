@@ -1,35 +1,43 @@
 "use client";
 
 import { callApi } from "@/lib/api-client";
+import {
+  appendNotificationScopeSearchParams,
+  NotificationScope,
+} from "@/lib/notifications/scope";
 import { Notification } from "@/types/notification";
 import { db } from "@/lib/firebase";
 import {
   collection,
-  query,
-  where,
-  orderBy,
   onSnapshot,
+  orderBy,
+  query,
   Unsubscribe,
+  where,
 } from "firebase/firestore";
 
+function buildScopeQueryString(scope: NotificationScope): string {
+  const params = appendNotificationScopeSearchParams(new URLSearchParams(), scope);
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 export const NotificationService = {
-  /**
-   * Busca notificações do tenant
-   */
-  getNotifications: async (
-    options: {
-      limit?: number;
-      offset?: number;
-      unreadOnly?: boolean;
-      targetTenantId?: string;
-    } = {},
-  ): Promise<Notification[]> => {
+  async getNotifications(options: {
+    scope: NotificationScope;
+    limit?: number;
+    offset?: number;
+    unreadOnly?: boolean;
+  }): Promise<Notification[]> {
     try {
-      const params = new URLSearchParams();
+      const params = appendNotificationScopeSearchParams(
+        new URLSearchParams(),
+        options.scope,
+      );
+
       if (options.limit) params.append("limit", options.limit.toString());
       if (options.offset) params.append("offset", options.offset.toString());
       if (options.unreadOnly) params.append("unreadOnly", "true");
-      if (options.targetTenantId) params.append("targetTenantId", options.targetTenantId);
 
       const response = await callApi<{
         success: boolean;
@@ -43,27 +51,27 @@ export const NotificationService = {
     }
   },
 
-  /**
-   * Marca uma notificação como lida
-   */
-  markAsRead: async (notificationId: string): Promise<void> => {
+  async markAsRead(
+    notificationId: string,
+    scope: NotificationScope,
+  ): Promise<void> {
     try {
-      await callApi(`/v1/notifications/${notificationId}/read`, "PUT");
+      await callApi(
+        `/v1/notifications/${notificationId}/read${buildScopeQueryString(scope)}`,
+        "PUT",
+      );
     } catch (error) {
       console.error("Error marking notification as read:", error);
       throw error;
     }
   },
 
-  /**
-   * Busca contador de notificações não lidas
-   */
-  getUnreadCount: async (): Promise<number> => {
+  async getUnreadCount(scope: NotificationScope): Promise<number> {
     try {
       const response = await callApi<{
         success: boolean;
         unreadCount: number;
-      }>("/v1/notifications/unread-count", "GET");
+      }>(`/v1/notifications/unread-count${buildScopeQueryString(scope)}`, "GET");
 
       return response.unreadCount;
     } catch (error) {
@@ -72,57 +80,48 @@ export const NotificationService = {
     }
   },
 
-  /**
-   * Marca todas as notificações como lidas
-   */
-  markAllAsRead: async (tenantId?: string): Promise<void> => {
+  async markAllAsRead(scope: NotificationScope): Promise<void> {
     try {
-      const params = new URLSearchParams();
-      if (tenantId) params.append("targetTenantId", tenantId);
-
-      const queryString = params.toString() ? `?${params.toString()}` : "";
-      await callApi(`/v1/notifications/mark-all-read${queryString}`, "PUT");
+      await callApi(
+        `/v1/notifications/mark-all-read${buildScopeQueryString(scope)}`,
+        "PUT",
+      );
     } catch (error) {
       console.error("Error marking all as read:", error);
       throw error;
     }
   },
 
-  /**
-   * Remove uma notificação
-   */
-  deleteNotification: async (notificationId: string): Promise<void> => {
+  async deleteNotification(
+    notificationId: string,
+    scope: NotificationScope,
+  ): Promise<void> {
     try {
-      await callApi(`/v1/notifications/${notificationId}`, "DELETE");
+      await callApi(
+        `/v1/notifications/${notificationId}${buildScopeQueryString(scope)}`,
+        "DELETE",
+      );
     } catch (error) {
       console.error("Error deleting notification:", error);
       throw error;
     }
   },
 
-  /**
-   * Remove todas as notificações
-   */
-  clearAllNotifications: async (tenantId?: string): Promise<void> => {
+  async clearAllNotifications(scope: NotificationScope): Promise<void> {
     try {
-      const params = new URLSearchParams();
-      if (tenantId) params.append("targetTenantId", tenantId);
-
-      const queryString = params.toString() ? `?${params.toString()}` : "";
-      await callApi(`/v1/notifications/clear-all${queryString}`, "DELETE");
+      await callApi(
+        `/v1/notifications/clear-all${buildScopeQueryString(scope)}`,
+        "DELETE",
+      );
     } catch (error) {
       console.error("Error clearing all notifications:", error);
       throw error;
     }
   },
 
-  /**
-   * Solicita ao backend claim diário para exibição de toast por tipo.
-   * Retorna true apenas na primeira exibição do dia.
-   */
-  claimDailyDueToast: async (
+  async claimDailyDueToast(
     type: "transaction_due_reminder" | "proposal_expiring",
-  ): Promise<boolean> => {
+  ): Promise<boolean> {
     try {
       const response = await callApi<{
         success: boolean;
@@ -136,66 +135,47 @@ export const NotificationService = {
     }
   },
 
-  /**
-   * Subscreve a notificações em tempo real
-   * @param tenantId ID do tenant
-   * @param isSuperAdmin Se o usuário é super admin (para ouvir 'system')
-   * @param callback Função chamada quando há mudanças
-   * @returns Função para cancelar subscription
-   */
-  subscribe: (
-    tenantId: string | undefined,
+  subscribe(
+    scope: NotificationScope,
     callback: (notifications: Notification[]) => void,
-    isSuperAdmin: boolean = false,
-  ): Unsubscribe => {
-    try {
-      if (isSuperAdmin) {
-        let pollingInterval: ReturnType<typeof setInterval> | null = null;
+  ): Unsubscribe {
+    const startPollingSubscription = (): Unsubscribe => {
+      let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
-        const fetchByApi = async () => {
-          try {
-            const notifications = await NotificationService.getNotifications({
-              limit: 50,
-              targetTenantId: tenantId,
-            });
-            callback(notifications);
-          } catch (error) {
-            console.error("Error in superadmin notifications polling:", error);
-          }
-        };
+      const fetchByApi = async () => {
+        try {
+          const notifications = await NotificationService.getNotifications({
+            scope,
+            limit: 50,
+          });
+          callback(notifications);
+        } catch (error) {
+          console.error("Error in notifications polling:", error);
+        }
+      };
 
+      void fetchByApi();
+      pollingInterval = setInterval(() => {
         void fetchByApi();
-        pollingInterval = setInterval(() => {
-          void fetchByApi();
-        }, 10000);
+      }, 10000);
 
-        return () => {
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-          }
-        };
-      }
-      const tenantIds = isSuperAdmin
-        ? tenantId
-          ? [tenantId] // Se tem tenantId, Super Admin só ouve esse tenant (sem system)
-          : ["system"] // Se não tem tenantId (painel geral), ouve system
-        : tenantId
-          ? [tenantId]
-          : [];
+      return () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+      };
+    };
 
-      if (tenantIds.length === 0) {
-        callback([]);
-        return () => {};
-      }
-
+    try {
       const notificationsRef = collection(db, "notifications");
-      
-      // Se for super admin, ouve tenantId OU system (usando 'in')
-      // Se for usuário normal, APENAS tenantId
-      const q = query(
+      const notificationsQuery = query(
         notificationsRef,
-        where("tenantId", "in", tenantIds),
+        where(
+          "tenantId",
+          "==",
+          scope.kind === "system" ? "system" : scope.tenantId,
+        ),
         orderBy("createdAt", "desc"),
       );
 
@@ -211,6 +191,7 @@ export const NotificationService = {
       const fetchByApi = async () => {
         try {
           const notifications = await NotificationService.getNotifications({
+            scope,
             limit: 50,
           });
           callback(notifications);
@@ -229,7 +210,7 @@ export const NotificationService = {
       };
 
       const unsubscribeSnapshot = onSnapshot(
-        q,
+        notificationsQuery,
         (snapshot) => {
           stopPolling();
 
@@ -237,16 +218,11 @@ export const NotificationService = {
             id: doc.id,
             ...doc.data(),
           })) as Notification[];
+
           callback(notifications);
         },
         (error) => {
           console.error("Error in notifications subscription:", error);
-          // Se der erro de permissão (ex: tenant normal tentando ler system), 
-          // tenta fallback apenas para o tenant dele se a query falhou
-          if (isSuperAdmin && error.code === 'permission-denied') {
-             console.warn("SuperAdmin permission denied on 'system' check. Falling back to tenant only.");
-             // Aqui poderiamos tentar refazer a query sem 'system', mas o fallback via API deve resolver
-          }
           startPollingFallback();
         },
       );
@@ -257,32 +233,7 @@ export const NotificationService = {
       };
     } catch (error) {
       console.error("Error subscribing to notifications:", error);
-      let pollingInterval: ReturnType<typeof setInterval> | null = null;
-
-      const fetchByApi = async () => {
-        try {
-          const notifications = await NotificationService.getNotifications({
-            limit: 50,
-            targetTenantId: tenantId,
-          });
-          callback(notifications);
-        } catch (pollError) {
-          console.error("Error in notifications startup fallback:", pollError);
-        }
-      };
-
-      void fetchByApi();
-      pollingInterval = setInterval(() => {
-        void fetchByApi();
-      }, 10000);
-
-      return () => {
-        if (pollingInterval) {
-          clearInterval(pollingInterval);
-          pollingInterval = null;
-        }
-      };
+      return startPollingSubscription();
     }
   },
 };
-

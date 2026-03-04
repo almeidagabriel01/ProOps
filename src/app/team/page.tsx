@@ -12,6 +12,7 @@
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useUpdatePermissions } from "@/hooks/useUpdatePermissions";
@@ -31,6 +32,7 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 
 export default function TeamPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { tenant, tenantOwner } = useTenant();
   const { isMaster, isLoading: permLoading } = usePermissions();
 
   const [members, setMembers] = React.useState<TeamMember[]>([]);
@@ -55,21 +57,14 @@ export default function TeamPage() {
   const fetchMembers = React.useCallback(
     async (forceLoader?: boolean) => {
       if (!user?.id) return;
+      if (user.role === "superadmin" && tenant?.id && !tenantOwner?.id) return;
 
       try {
         if (isFirstLoad.current || forceLoader) setIsLoading(true);
 
-        // Check if super admin is viewing another tenant
-        const viewingAsTenant =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem("viewingAsTenant")
-            : null;
-
-        // Determine the master ID to query
         let masterId = user.id;
-        if (user.role === "superadmin" && viewingAsTenant) {
-          // Extract owner ID from tenant ID (format: tenant_{userId})
-          masterId = viewingAsTenant.replace("tenant_", "");
+        if (user.role === "superadmin" && tenant?.id && tenantOwner?.id) {
+          masterId = tenantOwner.id;
         }
 
         const membersQuery = query(
@@ -115,7 +110,7 @@ export default function TeamPage() {
         isFirstLoad.current = false;
       }
     },
-    [user?.id, user?.role],
+    [tenant?.id, tenantOwner?.id, user?.id, user?.role],
   );
 
   React.useEffect(() => {

@@ -12,6 +12,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
+import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -397,10 +398,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signOut(auth);
       setUser(null);
 
-      sessionStorage.removeItem("viewingAsTenant");
-      sessionStorage.removeItem("viewingAsTenantData");
-      localStorage.removeItem("viewingAsTenant");
-      localStorage.removeItem("viewingAsTenantData");
+      clearViewingTenantId();
 
       document.documentElement.style.removeProperty("--primary");
       const styleTag = document.getElementById("tenant-styles");

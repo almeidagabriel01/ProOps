@@ -1,8 +1,10 @@
 import { db } from "../../init";
+import {
+  getNotificationScopeTenantId,
+  isNotificationInScope,
+  NotificationScope,
+} from "../helpers/notification-scope";
 
-/**
- * Tipos de notificações
- */
 export type NotificationType =
   | "proposal_viewed"
   | "proposal_approved"
@@ -13,13 +15,10 @@ export type NotificationType =
 
 export type DueToastType = "transaction_due_reminder" | "proposal_expiring";
 
-/**
- * Interface para Notificação
- */
 export interface Notification {
   id: string;
   tenantId: string;
-  userId?: string; // Opcional: notificação para usuário específico
+  userId?: string;
   type: NotificationType;
   title: string;
   message: string;
@@ -42,16 +41,27 @@ export interface CreateNotificationData {
   transactionId?: string;
 }
 
-/**
- * Service para gerenciar notificações do sistema
- */
 export class NotificationService {
   private static COLLECTION = "notifications";
   private static DUE_TOAST_CLAIMS_COLLECTION = "notification_due_toast_claims";
 
-  /**
-   * Cria uma nova notificação
-   */
+  private static buildScopeQuery(
+    scope: NotificationScope,
+  ): FirebaseFirestore.Query {
+    return db
+      .collection(this.COLLECTION)
+      .where("tenantId", "==", getNotificationScopeTenantId(scope));
+  }
+
+  private static assertNotificationScope(
+    scope: NotificationScope,
+    notification: Notification,
+  ): void {
+    if (!isNotificationInScope(scope, notification)) {
+      throw new Error("Unauthorized: Notification is outside the active scope");
+    }
+  }
+
   static async createNotification(
     data: CreateNotificationData,
   ): Promise<Notification> {
@@ -74,37 +84,26 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Busca notificações de um tenant com paginação
-   */
   static async getNotifications(
-    tenantId: string,
+    scope: NotificationScope,
     options: {
       limit?: number;
       offset?: number;
       unreadOnly?: boolean;
-      isSuperAdmin?: boolean;
     } = {},
   ): Promise<Notification[]> {
     try {
-      const { limit = 20, offset = 0, unreadOnly = false, isSuperAdmin = false } = options;
+      const { limit = 20, offset = 0, unreadOnly = false } = options;
 
-      let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
-
-      if (isSuperAdmin) {
-        // Super Admin vê notificações do tenant atual E do sistema
-        query = query.where("tenantId", "in", [tenantId, "system"]);
-      } else {
-        query = query.where("tenantId", "==", tenantId);
-      }
-        
-      query = query.orderBy("createdAt", "desc");
+      let notificationsQuery = this.buildScopeQuery(scope);
 
       if (unreadOnly) {
-        query = query.where("isRead", "==", false);
+        notificationsQuery = notificationsQuery.where("isRead", "==", false);
       }
 
-      const snapshot = await query.limit(limit).offset(offset).get();
+      notificationsQuery = notificationsQuery.orderBy("createdAt", "desc");
+
+      const snapshot = await notificationsQuery.limit(limit).offset(offset).get();
 
       return snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -116,13 +115,9 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Marca uma notificação como lida
-   */
   static async markAsRead(
     notificationId: string,
-    tenantId: string,
-    isSuperAdmin: boolean = false,
+    scope: NotificationScope,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -133,12 +128,7 @@ export class NotificationService {
       }
 
       const data = doc.data() as Notification;
-
-      // Validar que a notificação pertence ao tenant
-      // Se for notificação de sistema (sem tenantId fixo) ou superadmin, permite
-      if (data.tenantId !== tenantId && !isSuperAdmin && data.type !== 'system') {
-        throw new Error("Unauthorized: Notification does not belong to tenant");
-      }
+      this.assertNotificationScope(scope, data);
 
       await docRef.update({
         isRead: true,
@@ -150,13 +140,9 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Remove uma notificação de um tenant
-   */
   static async deleteNotification(
     notificationId: string,
-    tenantId: string,
-    isSuperAdmin: boolean = false,
+    scope: NotificationScope,
   ): Promise<void> {
     try {
       const docRef = db.collection(this.COLLECTION).doc(notificationId);
@@ -167,9 +153,7 @@ export class NotificationService {
       }
 
       const data = doc.data() as Notification;
-      if (data.tenantId !== tenantId && !isSuperAdmin) {
-        throw new Error("Unauthorized: Notification does not belong to tenant");
-      }
+      this.assertNotificationScope(scope, data);
 
       await docRef.delete();
     } catch (error) {
@@ -178,14 +162,9 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Conta notificações não lidas de um tenant
-   */
-  static async getUnreadCount(tenantId: string): Promise<number> {
+  static async getUnreadCount(scope: NotificationScope): Promise<number> {
     try {
-      const snapshot = await db
-        .collection(this.COLLECTION)
-        .where("tenantId", "==", tenantId)
+      const snapshot = await this.buildScopeQuery(scope)
         .where("isRead", "==", false)
         .get();
 
@@ -196,20 +175,11 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Marca todas as notificações de um tenant como lidas
-   */
-  static async markAllAsRead(tenantId: string, includeSystem: boolean = false): Promise<void> {
+  static async markAllAsRead(scope: NotificationScope): Promise<void> {
     try {
-      let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
-
-      if (includeSystem) {
-        query = query.where("tenantId", "in", [tenantId, "system"]);
-      } else {
-        query = query.where("tenantId", "==", tenantId);
-      }
-
-      const snapshot = await query.where("isRead", "==", false).get();
+      const snapshot = await this.buildScopeQuery(scope)
+        .where("isRead", "==", false)
+        .get();
 
       const batch = db.batch();
       const readAt = new Date().toISOString();
@@ -228,35 +198,18 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Remove todas as notificações de um tenant
-   */
-  static async clearAllNotifications(tenantId: string, includeSystem: boolean = false): Promise<void> {
+  static async clearAllNotifications(scope: NotificationScope): Promise<void> {
     try {
-      console.log(`[NotificationService] Clearing all notifications for tenant: ${tenantId}`);
-      const BATCH_SIZE = 400; // Firestore limit is 500 operations per batch
+      const batchSize = 400;
       let hasMore = true;
-      let totalDeleted = 0;
 
       while (hasMore) {
-        // Fetch a batch of notifications
-        let query: FirebaseFirestore.Query = db.collection(this.COLLECTION);
-
-        if (includeSystem) {
-          query = query.where("tenantId", "in", [tenantId, "system"]);
-        } else {
-          query = query.where("tenantId", "==", tenantId);
-        }
-
-        const snapshot = await query.limit(BATCH_SIZE).get();
+        const snapshot = await this.buildScopeQuery(scope).limit(batchSize).get();
 
         if (snapshot.empty) {
-          console.log(`[NotificationService] No more notifications to delete. Total deleted: ${totalDeleted}`);
           hasMore = false;
-          break;
+          continue;
         }
-        
-        console.log(`[NotificationService] Found batch of ${snapshot.size} notifications. Deleting...`);
 
         const batch = db.batch();
         snapshot.docs.forEach((doc) => {
@@ -264,14 +217,10 @@ export class NotificationService {
         });
 
         await batch.commit();
-        totalDeleted += snapshot.size;
 
-        // If we fetched less than the limit, we're done
-        if (snapshot.size < BATCH_SIZE) {
+        if (snapshot.size < batchSize) {
           hasMore = false;
         }
-        
-        console.log(`[NotificationService] Deleted batch. Total so far: ${totalDeleted}`);
       }
     } catch (error) {
       console.error("Error clearing all notifications:", error);
@@ -279,10 +228,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Encontra lembretes ativos (não lidos) para um recurso específico.
-   * Usado para desduplicação (remover antigos antes de criar novos).
-   */
   static async findActiveReminders(
     tenantId: string,
     type: NotificationType,
@@ -305,10 +250,6 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Verifica se já existe uma notificação do mesmo tipo para o mesmo recurso no dia atual.
-   * Usado para evitar duplicação no mesmo dia, mas permitir novo lembrete no dia seguinte.
-   */
   static async findExistingReminder(
     tenantId: string,
     type: NotificationType,
@@ -316,7 +257,7 @@ export class NotificationService {
     resourceField: "transactionId" | "proposalId",
   ): Promise<boolean> {
     try {
-      const todayPrefix = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+      const todayPrefix = new Date().toISOString().split("T")[0];
 
       const snapshot = await db
         .collection(this.COLLECTION)
@@ -335,17 +276,13 @@ export class NotificationService {
     }
   }
 
-  /**
-   * Registra de forma atômica a exibição diária de toast para lembretes de vencimento.
-   * Retorna true somente na primeira tentativa do dia para tenant+tipo.
-   */
   static async claimDailyDueToast(
     tenantId: string,
     type: DueToastType,
     userId: string,
   ): Promise<boolean> {
     try {
-      const dateKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD (UTC)
+      const dateKey = new Date().toISOString().split("T")[0];
       const claimId = `${tenantId}_${type}_${dateKey}`;
       const claimRef = db
         .collection(this.DUE_TOAST_CLAIMS_COLLECTION)

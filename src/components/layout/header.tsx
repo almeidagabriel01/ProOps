@@ -1,60 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { User as UserIcon, LogOut } from "lucide-react";
+import { LogOut, User as UserIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/ui/command-palette";
-import { useAuth } from "@/providers/auth-provider";
-import { useTenant } from "@/providers/tenant-provider";
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-
-// Helper to generate consistent colors based on string
-function getUserColor(name: string) {
-  const colors = [
-    "#ef4444", // red-500
-    "#f97316", // orange-500
-    "#f59e0b", // amber-500
-    "#84cc16", // lime-500
-    "#22c55e", // green-500
-    "#10b981", // emerald-500
-    "#14b8a6", // teal-500
-    "#06b6d4", // cyan-500
-    "#0ea5e9", // sky-500
-    "#3b82f6", // blue-500
-    "#6366f1", // indigo-500
-    "#8b5cf6", // violet-500
-    "#a855f7", // purple-500
-    "#d946ef", // fuchsia-500
-    "#ec4899", // pink-500
-    "#f43f5e", // rose-500
-  ];
-
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function getInitials(name: string) {
-  const names = name.trim().split(" ");
-  if (names.length === 0) return "U";
-  if (names.length === 1) return names[0].charAt(0).toUpperCase();
-  return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
-}
-
-import { useRouter, usePathname } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,186 +14,119 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
+import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 
 interface HeaderProps {
   sidebarWidth?: number;
+}
+
+function getUserColor(name: string) {
+  const colors = [
+    "#ef4444",
+    "#f97316",
+    "#f59e0b",
+    "#84cc16",
+    "#22c55e",
+    "#10b981",
+    "#14b8a6",
+    "#06b6d4",
+    "#0ea5e9",
+    "#3b82f6",
+    "#6366f1",
+    "#8b5cf6",
+    "#a855f7",
+    "#d946ef",
+    "#ec4899",
+    "#f43f5e",
+  ];
+
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) {
+    hash = name.charCodeAt(index) + ((hash << 5) - hash);
+  }
+
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function getInitials(name: string) {
+  const names = name.trim().split(" ").filter(Boolean);
+  if (names.length === 0) return "U";
+  if (names.length === 1) return names[0].charAt(0).toUpperCase();
+  return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
+}
+
+function HeaderSkeleton() {
+  return (
+    <header
+      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
+      style={{ height: "64px", minHeight: "64px" }}
+    >
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-56 rounded-xl" />
+      </div>
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-8 w-8 rounded-full" />
+        <div className="h-8 w-px bg-border" />
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex flex-col items-end gap-1">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <Skeleton className="h-9 w-9 rounded-full" />
+        </div>
+      </div>
+    </header>
+  );
 }
 
 export function Header({}: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const {
     tenant,
-    tenantOwner,
     clearViewingTenant,
     isLoading: isTenantLoading,
     isGlobalLoading,
     setGlobalLoading,
   } = useTenant();
+  const { companyName, planLabel, logoUrl, avatarSeed, isViewingAsTenant } =
+    useHeaderPresentation();
   const router = useRouter();
   const pathname = usePathname();
-  const isViewingAsTenant = user?.role === "superadmin" && !!tenant;
-  const [userPlanName, setUserPlanName] = React.useState<string | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
 
   React.useEffect(() => {
-    if (isNavigating) {
-      if (pathname === "/admin") {
-        clearViewingTenant();
-        setIsNavigating(false);
-      }
+    if (!isNavigating) {
+      return;
     }
-  }, [pathname, isNavigating, clearViewingTenant]);
 
-  /* 
-     Show skeleton if:
-     1. Auth is loading
-     2. Tenant is loading
-     3. User exists but plan name hasn't been determined yet (prevents "Starter" flash)
-     4. Superadmin is navigating back to their panel
-     5. The destination page (like AdminPage) is still fetching its core data (isGlobalLoading)
-  */
-  const isLoading =
-    isAuthLoading ||
-    isTenantLoading ||
-    (!!user && userPlanName === null) ||
-    isNavigating ||
-    isGlobalLoading;
+    if (pathname === "/admin") {
+      clearViewingTenant();
+      setIsNavigating(false);
+    }
+  }, [clearViewingTenant, isNavigating, pathname]);
 
-  // ... inside Header component ...
-
-  // Fetch user's plan name
-  React.useEffect(() => {
-    setUserPlanName(null); // Reset when dependencies change
-
-    const fetchPlanName = async () => {
-      // Determine which user's plan to fetch
-      // If superadmin impersonating -> use tenantOwner
-      // If normal user -> use user
-      // If member user -> their planId is actually null/free in their own object but they should inherit the master's,
-      // which we can get by fetching the master if we don't have tenantOwner easily available, or just rely on tenantOwner if provided by useTenant
-      const isMember = user?.role === "member" || !!user?.masterId;
-      let targetUser = isViewingAsTenant && tenant?.id ? tenantOwner : user;
-
-      // If the current user is a member, their true plan is the tenantOwner's plan
-      // (which the tenant provider fetches when loading the tenant).
-      if (isMember && tenantOwner) {
-        targetUser = tenantOwner;
-      }
-
-      // Wait tenant owner when impersonating or member. If still missing after loading, fallback safely.
-      if (!targetUser) {
-        if ((isViewingAsTenant || isMember) && !isTenantLoading) {
-          setUserPlanName("Sem Plano");
-        }
-        return;
-      }
-
-      if (!targetUser?.planId) {
-        if (targetUser?.role === "superadmin") {
-          setUserPlanName("Super Admin");
-        } else if (targetUser?.role === "free") {
-          setUserPlanName("Gratuito");
-        } else {
-          setUserPlanName("Sem Plano");
-        }
-        return;
-      }
-      try {
-        // 1. Try fetching by ID
-        const planDoc = await getDoc(doc(db, "plans", targetUser.planId));
-        if (planDoc.exists()) {
-          const planData = planDoc.data();
-          setUserPlanName(planData.name || planData.tier);
-          return;
-        }
-
-        // 2. Fallback: Try fetching by tier (if planId is a tier name like 'starter')
-        const q = query(
-          collection(db, "plans"),
-          where("tier", "==", targetUser.planId),
-        );
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const planData = querySnapshot.docs[0].data();
-          setUserPlanName(planData.name || planData.tier);
-          return;
-        }
-
-        // 3. Static fallback
-        const PLAN_NAMES: Record<string, string> = {
-          free: "Gratuito",
-          starter: "Starter",
-          pro: "Profissional",
-          enterprise: "Enterprise",
-        };
-        if (PLAN_NAMES[targetUser.planId]) {
-          setUserPlanName(PLAN_NAMES[targetUser.planId]);
-        } else {
-          setUserPlanName("Sem Plano");
-        }
-      } catch (error) {
-        console.error("Error fetching plan:", error);
-        setUserPlanName("Sem Plano");
-      }
-    };
-    fetchPlanName();
-  }, [
-    user,
-    user?.planId,
-    user?.role,
-    isViewingAsTenant,
-    tenantOwner,
-    tenantOwner?.planId,
-    tenant?.id,
-    isTenantLoading,
-  ]);
+  const isHeaderBlocked =
+    isAuthLoading || isTenantLoading || isNavigating || isGlobalLoading;
 
   const handleBackToAdmin = () => {
     setIsNavigating(true);
     setGlobalLoading(true);
-
-    // Clear storage manually so future loads don't use it, but DO NOT
-    // trigger clearViewingTenant() yet to avoid Dashboard UI flash.
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("viewingAsTenant");
-      sessionStorage.removeItem("viewingAsTenantData");
-      localStorage.removeItem("viewingAsTenant");
-      localStorage.removeItem("viewingAsTenantData");
-    }
-
+    clearViewingTenantId();
     router.push("/admin");
   };
 
-  if (isLoading) {
-    return (
-      <header
-        key="header-skeleton"
-        className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
-        style={{ height: "64px", minHeight: "64px" }}
-      >
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-9 w-56 rounded-xl" />
-        </div>
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-8 w-8 rounded-full" />
-          <div className="h-8 w-px bg-border" />
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end gap-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-            <Skeleton className="h-9 w-9 rounded-full" />
-          </div>
-        </div>
-      </header>
-    );
+  if (isHeaderBlocked) {
+    return <HeaderSkeleton />;
   }
 
   return (
     <header
-      key="header-content"
       className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
       style={{ height: "64px", minHeight: "64px" }}
     >
@@ -250,13 +134,12 @@ export function Header({}: HeaderProps) {
         <CommandPalette />
       </div>
 
-      {/* Super Admin Viewing Banner - Centered & Minimalist */}
       {isViewingAsTenant && user?.role === "superadmin" && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500" />
             </span>
             <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
               Modo Super Admin
@@ -289,35 +172,24 @@ export function Header({}: HeaderProps) {
                 className="relative h-fit py-2 pr-2 pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="hidden md:flex flex-col items-end">
-                  <span className="text-sm font-medium">
-                    {isViewingAsTenant && tenantOwner
-                      ? tenantOwner.name
-                      : tenant?.name || "Minha Empresa"}
-                  </span>
+                  <span className="text-sm font-medium">{companyName}</span>
                   <span className="text-xs text-muted-foreground capitalize">
-                    {userPlanName || "Sem Plano"}
+                    {planLabel}
                   </span>
                 </div>
-                <Avatar
-                  className="h-9 w-9 border border-border"
-                  key={tenant?.id || user?.id}
-                >
-                  {tenant?.logoUrl ? (
+                <Avatar className="h-9 w-9 border border-border" key={tenant?.id || user?.id}>
+                  {logoUrl ? (
                     <AvatarImage
-                      src={tenant.logoUrl}
-                      alt={tenant.name || "Company Logo"}
+                      src={logoUrl}
+                      alt={companyName || "Company Logo"}
                       className="object-cover"
                     />
                   ) : (
                     <AvatarFallback
                       className="text-xs font-medium text-white"
-                      style={{
-                        backgroundColor: getUserColor(
-                          tenant?.name || user?.name || "U",
-                        ),
-                      }}
+                      style={{ backgroundColor: getUserColor(avatarSeed) }}
                     >
-                      {getInitials(tenant?.name || user?.name || "U")}
+                      {getInitials(avatarSeed)}
                     </AvatarFallback>
                   )}
                 </Avatar>
