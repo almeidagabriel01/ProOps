@@ -46,6 +46,9 @@ export type Transaction = {
   installmentNumber?: number; // Current installment (1, 2, 3...)
   installmentGroupId?: string; // ID to group related installments
   installmentInterval?: number; // Interval between installments in months
+  isRecurring?: boolean; // True if this transaction is part of a recurring series
+  recurringGroupId?: string; // ID to group recurring transactions
+  paymentMode?: "total" | "installmentValue"; // The UI mode used to create this transaction
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +73,7 @@ export type UpdateFinancialEntryWithInstallmentsPayload = {
   isInstallment: boolean;
   installmentCount: number;
   installmentInterval?: number;
+  isRecurring?: boolean;
   paymentMode: "total" | "installmentValue";
   installmentValue: string;
   firstInstallmentDate: string;
@@ -150,10 +154,13 @@ export const TransactionService = {
           downPaymentType: transaction.downPaymentType,
           downPaymentPercentage: transaction.downPaymentPercentage,
           isInstallment: transaction.isInstallment,
+          isRecurring: transaction.isRecurring,
           installmentCount: transaction.installmentCount,
           installmentNumber: transaction.installmentNumber,
           installmentGroupId: transaction.installmentGroupId,
+          recurringGroupId: transaction.recurringGroupId,
           installmentInterval: transaction.installmentInterval,
+          paymentMode: transaction.paymentMode,
           notes: transaction.notes,
           targetTenantId: transaction.tenantId, // Pass tenantId to backend (for super admin)
         },

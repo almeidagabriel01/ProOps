@@ -51,7 +51,7 @@ const matchesGroupByHeuristic = (
   if (!isDownPaymentLike(orphan)) return false;
   const matchingGroups = grouped.filter(
     (g) =>
-      !!g.installmentGroupId &&
+      (!!g.installmentGroupId || !!g.recurringGroupId) &&
       !g.proposalGroupId &&
       g.type === orphan.type &&
       baseDesc(g.description || "") === baseDesc(orphan.description || "") &&
@@ -368,8 +368,8 @@ export function useFinancialData(): UseFinancialDataReturn {
 
             // Also mark the installmentGroupId as processed to avoid duplicates
             const installmentGroupIds = proposalGroup
-              .filter((g) => g.installmentGroupId)
-              .map((g) => g.installmentGroupId!);
+              .filter((g) => g.installmentGroupId || g.recurringGroupId)
+              .map((g) => (g.installmentGroupId || g.recurringGroupId)!);
             installmentGroupIds.forEach((id) =>
               processedInstallmentGroups.add(id),
             );
@@ -377,14 +377,15 @@ export function useFinancialData(): UseFinancialDataReturn {
           return;
         }
 
-        // CASE 2: Transaction is part of an installment group (without proposal group)
+        // CASE 2: Transaction is part of an installment or recurring group (without proposal group)
         // This includes both regular installments AND down payments (isDownPayment = true)
-        if (t.installmentGroupId) {
-          if (processedInstallmentGroups.has(t.installmentGroupId)) return;
+        const groupId = t.installmentGroupId || t.recurringGroupId;
+        if (groupId) {
+          if (processedInstallmentGroups.has(groupId)) return;
 
           // Find all belonging to this group (both installments and down payments)
           const group = transactions.filter(
-            (g) => g.installmentGroupId === t.installmentGroupId,
+            (g) => (g.installmentGroupId || g.recurringGroupId) === groupId,
           );
 
           // Sort group: down payment first (explicit flag or installmentNumber 0), then by installment number
@@ -414,7 +415,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             };
 
             effectiveTransactions.push(representative);
-            processedInstallmentGroups.add(t.installmentGroupId);
+            processedInstallmentGroups.add(groupId);
           }
           return;
         }
@@ -425,7 +426,7 @@ export function useFinancialData(): UseFinancialDataReturn {
       // so heuristic matching can correctly find them.
       sortedRaw.forEach((t) => {
         // Skip already-processed grouped transactions
-        if (t.proposalGroupId || t.installmentGroupId) return;
+        if (t.proposalGroupId || t.installmentGroupId || t.recurringGroupId) return;
 
         // Orphan down payment — check if it matches a group representative
         if (
@@ -478,15 +479,16 @@ export function useFinancialData(): UseFinancialDataReturn {
     // Filter by date range
     if (filterStartDate || filterEndDate) {
       filtered = filtered.filter((t) => {
-        // For installment transactions in GROUPED mode, check if ANY installment in the group matches the date range
+        // For installment/recurring transactions in GROUPED mode, check if ANY in the group matches the date range
         if (
           viewMode === "grouped" &&
           filterDateType === "dueDate" &&
-          t.installmentGroupId
+          (t.installmentGroupId || t.recurringGroupId)
         ) {
-          // Get all installments in this group
+          const groupId = t.installmentGroupId || t.recurringGroupId;
+          // Get all elements in this group
           const group = transactions.filter(
-            (g) => g.installmentGroupId === t.installmentGroupId,
+            (g) => (g.installmentGroupId || g.recurringGroupId) === groupId,
           );
 
           // Check if ANY installment has dueDate in the range
@@ -837,10 +839,11 @@ export function useFinancialData(): UseFinancialDataReturn {
       const transactionLabel = formatTransactionLabel(transaction);
 
       try {
-        // If it's an installment, delete all in the group
-        if (transaction.installmentGroupId) {
+        // If it's an installment or recurrence, delete all in the group
+        const groupId = transaction.installmentGroupId || transaction.recurringGroupId;
+        if (groupId) {
           const groupTransactions = transactions.filter(
-            (t) => t.installmentGroupId === transaction.installmentGroupId,
+            (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
           );
 
           // Delete all installments
@@ -1076,8 +1079,8 @@ export function useFinancialData(): UseFinancialDataReturn {
         // Check if this is a proposal group (has proposalGroupId)
         const hasProposalGroup = transaction.proposalGroupId && updateAll;
 
-        // Check if this is an installment group
-        const hasInstallmentGroup = transaction.installmentGroupId && updateAll;
+        // Check if this is an installment or recurring group
+        const hasInstallmentGroup = (transaction.installmentGroupId || transaction.recurringGroupId) && updateAll;
 
         if (hasProposalGroup) {
           // Update all transactions in the proposal group (down payment + all installments)
@@ -1109,9 +1112,10 @@ export function useFinancialData(): UseFinancialDataReturn {
             { title: "Sucesso ao editar" },
           );
         } else if (hasInstallmentGroup) {
-          // Update all installments in the installment group
+          // Update all elements in the installment or recurring group
+          const groupId = transaction.installmentGroupId || transaction.recurringGroupId;
           const groupTransactions = transactions.filter(
-            (t) => t.installmentGroupId === transaction.installmentGroupId,
+            (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
           );
 
           await TransactionService.updateTransactionsStatusBatch(

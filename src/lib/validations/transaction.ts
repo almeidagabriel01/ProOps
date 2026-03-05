@@ -30,6 +30,7 @@ export const transactionSchema = z
     isInstallment: z.boolean().default(false),
     installmentCount: z.number().min(1).max(24).default(2),
     installmentInterval: z.number().min(1).max(12).default(1),
+    isRecurring: z.boolean().default(false),
     notes: z.string().optional().or(z.literal("")),
     // New fields for advanced payment mode
     paymentMode: z.enum(["total", "installmentValue"]).default("total"),

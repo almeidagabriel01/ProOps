@@ -21,8 +21,9 @@ import {
   Banknote,
   CreditCard,
   Split,
+  RefreshCw,
 } from "lucide-react";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
 import { useTransactionStatuses } from "@/app/financial/_hooks/useTransactionStatuses";
@@ -58,11 +59,14 @@ export function TransactionInstallmentsList({
   const { statuses: statusOptions } = useTransactionStatuses();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [undoingId, setUndoingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<number>(0);
   const [isSaving, setIsSaving] = React.useState(false);
   const [expandedGroups, setExpandedGroups] = React.useState<Set<number>>(
     new Set(),
   );
+
+  const isRecurringGroup = installments.some((i) => i.isRecurring);
 
   const toggleGroup = (installmentNumber: number) => {
     const newExpanded = new Set(expandedGroups);
@@ -335,8 +339,6 @@ export function TransactionInstallmentsList({
     );
   };
 
-  const [undoingId, setUndoingId] = React.useState<string | null>(null);
-
   const handleUndoClick = async (partialTx: Transaction) => {
     if (!onUndoPartial) return;
     setUndoingId(partialTx.id);
@@ -415,10 +417,21 @@ export function TransactionInstallmentsList({
           <div className="space-y-1">
             {/* Only show header if there are installments */}
             <div className="flex items-center gap-2 px-1">
-              <CreditCard className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Parcelas ({groupedInstallments.length}x)
-              </span>
+              {installments.some((i) => i.isRecurring) ? (
+                <>
+                  <RefreshCw className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Recorrências ({groupedInstallments.length})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Parcelas ({groupedInstallments.length}x)
+                  </span>
+                </>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -500,19 +513,29 @@ export function TransactionInstallmentsList({
 
                           {!hasSubs && (
                             <div className="p-1.5 rounded-full bg-muted">
-                              <CreditCard className="w-4 h-4 text-muted-foreground" />
+                              {group.main.isRecurring ? (
+                                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                              )}
                             </div>
                           )}
 
                           <div>
                             <div className="font-medium text-sm">
                               {hasSubs
-                                ? `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`
+                                ? group.main.isRecurring
+                                  ? `Recorrência #${group.main.installmentNumber}`
+                                  : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`
                                 : group.main.isPartialPayment // If single item is partial (rare/impossible in this flow?)
-                                  ? `Parcela ${group.main.installmentNumber}/${group.main.installmentCount} (Parcial)`
+                                  ? group.main.isRecurring
+                                    ? `Recorrência #${group.main.installmentNumber} (Parcial)`
+                                    : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount} (Parcial)`
                                   : group.main.description === "Restante"
                                     ? "Restante"
-                                    : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`}
+                                    : group.main.isRecurring
+                                      ? `Recorrência #${group.main.installmentNumber}`
+                                      : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Venc:{" "}
@@ -623,8 +646,9 @@ export function TransactionInstallmentsList({
                                   <div>
                                     <div className="font-medium text-sm flex items-center gap-2">
                                       <span>
-                                        Parcela {subItem.installmentNumber}/
-                                        {subItem.installmentCount}
+                                        {subItem.isRecurring
+                                          ? `Recorrência #${subItem.installmentNumber}`
+                                          : `Parcela ${subItem.installmentNumber}/${subItem.installmentCount}`}
                                       </span>
                                       <Badge
                                         variant="secondary"
@@ -661,6 +685,19 @@ export function TransactionInstallmentsList({
                   );
                 })}
               </div>
+
+              {/* Footer for recurring payments */}
+              {isRecurringGroup && (
+                <div className="flex items-center gap-3 px-3 py-3 border border-dashed rounded-lg bg-muted/20 opacity-70 mt-4">
+                  <div className="p-1.5 rounded-full bg-muted">
+                    <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Essa é uma assinatura contínua. A próxima cobrança será
+                    gerada automaticamente quando a atual for liquidada.
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -668,4 +705,3 @@ export function TransactionInstallmentsList({
     </div>
   );
 }
-

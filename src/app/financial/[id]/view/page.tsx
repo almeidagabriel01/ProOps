@@ -55,7 +55,7 @@ export default function ViewTransactionPage() {
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [transaction, setTransaction] = React.useState<Transaction | null>(
-    null
+    null,
   );
   const [relatedInstallments, setRelatedInstallments] = React.useState<
     Transaction[]
@@ -68,16 +68,19 @@ export default function ViewTransactionPage() {
         if (data) {
           setTransaction(data);
 
-          // If this is an installment, fetch all related installments
-          if (data.isInstallment && data.installmentGroupId) {
+          // If this is an installment or recurring, fetch all related
+          const groupId = data.installmentGroupId || data.recurringGroupId;
+          if ((data.isInstallment || data.isRecurring) && groupId) {
             const allTransactions = await TransactionService.getTransactions(
-              data.tenantId
+              data.tenantId,
             );
             const related = allTransactions
-              .filter((t) => t.installmentGroupId === data.installmentGroupId)
+              .filter(
+                (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
+              )
               .sort(
                 (a, b) =>
-                  (a.installmentNumber || 0) - (b.installmentNumber || 0)
+                  (a.installmentNumber || 0) - (b.installmentNumber || 0),
               );
             setRelatedInstallments(related);
           }
@@ -105,7 +108,9 @@ export default function ViewTransactionPage() {
     if (!dateString) return "";
 
     // Extract date part if ISO format
-    const datePart = dateString.includes("T") ? dateString.split("T")[0] : dateString;
+    const datePart = dateString.includes("T")
+      ? dateString.split("T")[0]
+      : dateString;
 
     // Parse date parts manually to avoid timezone issues
     const parts = datePart.split("-").map(Number);
@@ -152,8 +157,8 @@ export default function ViewTransactionPage() {
   const paidAmount =
     relatedInstallments.length > 0
       ? relatedInstallments
-        .filter((t) => t.status === "paid")
-        .reduce((sum, t) => sum + t.amount, 0)
+          .filter((t) => t.status === "paid")
+          .reduce((sum, t) => sum + t.amount, 0)
       : transaction.status === "paid"
         ? transaction.amount
         : 0;
@@ -211,6 +216,11 @@ export default function ViewTransactionPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Parcela {transaction.installmentNumber} de{" "}
                   {transaction.installmentCount}
+                </p>
+              )}
+              {transaction.isRecurring && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Recorrência #{transaction.installmentNumber}
                 </p>
               )}
             </div>
@@ -306,7 +316,9 @@ export default function ViewTransactionPage() {
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Parcelas ({relatedInstallments.length}x)
+                {transaction.isRecurring
+                  ? `Recorrências (${relatedInstallments.length})`
+                  : `Parcelas (${relatedInstallments.length}x)`}
               </span>
               <div className="text-sm font-normal text-muted-foreground">
                 Total: {formatCurrency(totalAmount)} | Pago:{" "}
@@ -325,8 +337,9 @@ export default function ViewTransactionPage() {
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium w-8">
-                        {installment.installmentNumber}/
-                        {installment.installmentCount}
+                        {transaction.isRecurring
+                          ? `#${installment.installmentNumber}`
+                          : `${installment.installmentNumber}/${installment.installmentCount}`}
                       </span>
                       <span className="text-sm text-muted-foreground">
                         {formatDate(installment.dueDate || installment.date)}

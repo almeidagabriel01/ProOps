@@ -7,7 +7,7 @@ import { ClientSelect } from "@/components/features/client-select";
 import { FormItem } from "@/components/ui/form-components";
 import { formatCurrency } from "@/utils/format";
 import { FormErrors } from "@/hooks/useFormValidation";
-import { TrendingUp, TrendingDown, User } from "lucide-react";
+import { TrendingUp, TrendingDown, User, RefreshCw } from "lucide-react";
 import { TransactionFormData } from "../../_hooks/useTransactionForm";
 interface ReviewStepProps {
   formData: TransactionFormData;
@@ -53,8 +53,13 @@ export function ReviewStep({
 
     if (formData.paymentMode === "installmentValue") {
       const installmentValue = parseFloat(formData.installmentValue || "0");
-      const installmentCount = formData.installmentCount || 1;
       const downPayment = getDownPaymentAmount();
+
+      if (formData.isRecurring) {
+        return installmentValue + downPayment;
+      }
+
+      const installmentCount = formData.installmentCount || 1;
       return installmentValue * installmentCount + downPayment;
     }
 
@@ -157,7 +162,13 @@ export function ReviewStep({
             </div>
             <div>
               <span className="text-muted-foreground">Data:</span>
-              <p className="font-medium">{formData.date || "—"}</p>
+              <p className="font-medium">
+                {formData.date
+                  ? new Date(formData.date + "T12:00:00").toLocaleDateString(
+                      "pt-BR",
+                    )
+                  : "—"}
+              </p>
             </div>
             <div>
               <span className="text-muted-foreground">Status:</span>
@@ -166,7 +177,9 @@ export function ReviewStep({
           </div>
 
           {/* Payment Structure Breakdown */}
-          {(formData.isInstallment || formData.downPaymentEnabled) && (
+          {(formData.isInstallment ||
+            formData.isRecurring ||
+            formData.downPaymentEnabled) && (
             <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-3">
               {/* Down Payment */}
               {formData.downPaymentEnabled && (
@@ -212,6 +225,52 @@ export function ReviewStep({
                     <p className="font-semibold text-primary">
                       {formData.installmentCount}x de{" "}
                       {formatCurrency(getInstallmentDisplayValue())}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      1ª:{" "}
+                      {formData.paymentMode === "installmentValue"
+                        ? formData.firstInstallmentDate
+                          ? new Date(
+                              formData.firstInstallmentDate + "T12:00:00",
+                            ).toLocaleDateString("pt-BR")
+                          : "Data não definida"
+                        : formData.dueDate
+                          ? new Date(
+                              formData.dueDate + "T12:00:00",
+                            ).toLocaleDateString("pt-BR")
+                          : "Data não definida"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Recurring */}
+              {formData.isRecurring && (
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-4 h-4 text-green-500" />
+                    <div>
+                      <span className="text-sm font-medium text-green-500">
+                        Pagamento Recorrente
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {formData.installmentInterval === 1
+                          ? "Mensal"
+                          : formData.installmentInterval === 2
+                            ? "Bimestral"
+                            : formData.installmentInterval === 3
+                              ? "Trimestral"
+                              : formData.installmentInterval === 6
+                                ? "Semestral"
+                                : formData.installmentInterval === 12
+                                  ? "Anual"
+                                  : `A cada ${formData.installmentInterval} meses`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-green-500">
+                      {formatCurrency(getInstallmentDisplayValue())} / mês
                     </p>
                     <p className="text-xs text-muted-foreground">
                       1ª:{" "}

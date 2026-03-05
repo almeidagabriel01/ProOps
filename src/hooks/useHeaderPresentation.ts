@@ -37,6 +37,12 @@ export function useHeaderPresentation(): HeaderPresentation {
       return tenantOwner;
     }
 
+    // For regular admins, prefer tenantOwner (fetched from Firestore with planId)
+    // over the auth-provided user which may lack the planId field
+    if (tenantOwner?.planId) {
+      return tenantOwner;
+    }
+
     return user;
   }, [isMember, isViewingAsTenant, tenantOwner, user]);
 
