@@ -37,6 +37,8 @@ interface UpdateFinancialEntryWithInstallmentsDTO {
   targetTenantId?: string;
   extraTransactionIds?: string[];
   installmentInterval?: number;
+  isRecurring?: boolean;
+  recurringGroupId?: string;
 }
 
 type TransactionDoc = {
@@ -66,6 +68,9 @@ const UPDATABLE_TRANSACTION_FIELDS = new Set([
   "installmentNumber",
   "installmentGroupId",
   "installmentInterval",
+  "isRecurring",
+  "recurringGroupId",
+  "paymentMode",
   "notes",
   "extraCosts",
 ]);
@@ -180,6 +185,86 @@ function normalizeOptionalString(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
+type DbOp = { type: "set"; ref: FirebaseFirestore.DocumentReference; data: any } | { type: "delete"; ref: FirebaseFirestore.DocumentReference };
+
+/**
+ * Handles reading the next recurrence to determine if it should be generated/destroyed.
+ * Returns the write operations to avoid Firestore "read after write" errors.
+ */
+async function getNextRecurringTransactionOps(
+  t: FirebaseFirestore.Transaction,
+  db: FirebaseFirestore.Firestore,
+  txTenantId: string,
+  now: Timestamp,
+  userId: string,
+  currentData: any,
+  nextStatus: "paid" | "pending" | "overdue"
+): Promise<DbOp[]> {
+  if (!currentData.isRecurring || !currentData.recurringGroupId) return [];
+
+  const currentNumber = toNumber(currentData.installmentNumber, 1);
+  const nextNumber = currentNumber + 1;
+  const groupId = currentData.recurringGroupId;
+
+  const nextQuery = db
+    .collection("transactions")
+    .where("tenantId", "==", txTenantId)
+    .where("recurringGroupId", "==", groupId)
+    .where("installmentNumber", "==", nextNumber)
+    .limit(1);
+
+  const nextSnap = await t.get(nextQuery);
+
+  if (nextStatus === "paid" && nextSnap.empty) {
+    // Generate next recurrence
+    const interval = currentData.installmentInterval || 1;
+    const nextDueDate = addMonths(currentData.dueDate || currentData.date, interval);
+    
+    const nextTx = {
+      tenantId: txTenantId,
+      type: currentData.type,
+      description: currentData.description, // Kept stable without counter for recurrences
+      amount: currentData.amount,
+      date: currentData.date, // Launch date is constant
+      dueDate: nextDueDate,
+      status: "pending",
+      clientId: currentData.clientId || null,
+      clientName: currentData.clientName || null,
+      proposalId: currentData.proposalId || null,
+      category: currentData.category || null,
+      wallet: currentData.installmentsWallet || currentData.wallet || null,
+      isInstallment: false,
+      isRecurring: true,
+      downPaymentType: null,
+      downPaymentPercentage: null,
+      // Pass the count down in case we want to retain whatever the base was, but strictly 1 by 1 UI
+      installmentCount: currentData.installmentCount,
+      installmentNumber: nextNumber,
+      installmentGroupId: null,
+      recurringGroupId: groupId,
+      installmentInterval: interval,
+      paymentMode: currentData.paymentMode || null,
+      notes: currentData.notes || null,
+      extraCosts: [], // Don't forward manual extra costs automatically
+      createdAt: now,
+      updatedAt: now,
+      createdById: userId,
+    };
+
+    const ref = db.collection("transactions").doc();
+    return [{ type: "set", ref, data: nextTx }];
+  } else if (nextStatus !== "paid" && !nextSnap.empty) {
+    // Revered payment -> Delete the automatically generated future one IF it is still pending
+    const nextDoc = nextSnap.docs[0];
+    const nextData = nextDoc.data();
+    if (nextData.status === "pending" || nextData.status === "overdue") {
+       return [{ type: "delete", ref: nextDoc.ref }];
+    }
+  }
+  return [];
+}
+
+
 export class TransactionService {
   /**
    * Creates a transaction or multiple installments.
@@ -204,14 +289,21 @@ export class TransactionService {
       const transactionsToCreate: Record<string, unknown>[] = [];
       const walletAdjustments = new Map<string, number>();
 
+      const generatedGroupId = `gen_${now.toMillis()}`;
+      const groupId = data.installmentGroupId || data.recurringGroupId || generatedGroupId;
+
       const shouldGenerateInstallments =
         data.isInstallment &&
         (data.installmentCount || 0) > 1 &&
         (!data.installmentNumber || data.installmentNumber === 1);
 
-      if (shouldGenerateInstallments) {
+      const shouldGenerateRecurrences =
+        data.isRecurring &&
+        (data.installmentCount || 0) > 1 &&
+        (!data.installmentNumber || data.installmentNumber === 1);
+
+      if (shouldGenerateInstallments || shouldGenerateRecurrences) {
         const count = data.installmentCount!;
-        const groupId = data.installmentGroupId || `gen_${now.toMillis()}`;
         const baseAmount = data.amount;
 
         for (let i = 0; i < count; i++) {
@@ -243,13 +335,16 @@ export class TransactionService {
             proposalId: data.proposalId || null,
             category: data.category || null,
             wallet: data.wallet || null,
-            isInstallment: true,
+            isInstallment: !!data.isInstallment,
+            isRecurring: !!data.isRecurring,
             downPaymentType: data.downPaymentType || null,
             downPaymentPercentage: data.downPaymentPercentage || null,
             installmentCount: count,
             installmentNumber: i + 1,
-            installmentGroupId: groupId,
+            installmentGroupId: data.isInstallment ? groupId : null,
+            recurringGroupId: data.isRecurring ? groupId : null,
             installmentInterval: data.installmentInterval || 1,
+            paymentMode: data.paymentMode || null,
             notes: data.notes || null,
             extraCosts: data.extraCosts || [],
             createdAt: now,
@@ -285,10 +380,13 @@ export class TransactionService {
           downPaymentType: data.downPaymentType || null,
           downPaymentPercentage: data.downPaymentPercentage || null,
           isInstallment: !!data.isInstallment,
+          isRecurring: !!data.isRecurring,
           installmentCount: data.installmentCount || null,
-          installmentNumber: data.installmentNumber || null,
-          installmentGroupId: data.installmentGroupId || null,
+          installmentNumber: data.isRecurring ? (data.installmentNumber || 1) : (data.installmentNumber || null),
+          installmentGroupId: data.isInstallment ? groupId : (data.installmentGroupId || null),
+          recurringGroupId: data.isRecurring ? groupId : (data.recurringGroupId || null),
           installmentInterval: data.installmentInterval || null,
+          paymentMode: data.paymentMode || null,
           notes: data.notes || null,
           extraCosts: data.extraCosts || [],
           createdAt: now,
@@ -860,6 +958,19 @@ export class TransactionService {
         if (walletInfo) walletRefs.set(wallet, walletInfo.ref);
       }
 
+      let recurOps: DbOp[] = [];
+      if (safeUpdateData.status && safeUpdateData.status !== currentData.status) {
+        recurOps = await getNextRecurringTransactionOps(
+          t,
+          db,
+          txTenantId,
+          now,
+          userId,
+          currentData,
+          safeUpdateData.status as "paid" | "pending" | "overdue"
+        );
+      }
+
       for (const [wallet, adjustment] of walletAdjustments.entries()) {
         if (adjustment === 0) continue;
         const walletRef = walletRefs.get(wallet);
@@ -891,7 +1002,12 @@ export class TransactionService {
         t.update(proposalRef, proposalUpdate);
       }
 
-      t.update(ref, { ...safeUpdateData, updatedAt: Timestamp.now() });
+      t.update(ref, { ...safeUpdateData, updatedAt: now });
+
+      for (const op of recurOps) {
+        if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "delete") t.delete(op.ref);
+      }
     });
   }
 
@@ -913,7 +1029,7 @@ export class TransactionService {
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
-      const transactionsToUpdate: FirebaseFirestore.DocumentReference[] = [];
+      const transactionsToUpdateWithData: { txRef: FirebaseFirestore.DocumentReference, txData: any }[] = [];
       const walletAdjustments = new Map<
         string,
         { tenantId: string; wallet: string; delta: number }
@@ -962,7 +1078,7 @@ export class TransactionService {
           });
         }
 
-        transactionsToUpdate.push(txRef);
+        transactionsToUpdateWithData.push({ txRef, txData });
       }
 
       // 2) Read all wallets before any write
@@ -980,8 +1096,25 @@ export class TransactionService {
         }
       }
 
-      // 3) Write transaction statuses + paidAt timestamp
-      for (const txRef of transactionsToUpdate) {
+      // 2.5) Read recurrences ops
+      const recurOps: DbOp[] = [];
+      for (const { txData } of transactionsToUpdateWithData) {
+        if (txData.status !== newStatus) {
+            const ops = await getNextRecurringTransactionOps(
+              t,
+              db,
+              txData.tenantId || tenantId,
+              now,
+              userId,
+              txData,
+              newStatus
+            );
+            recurOps.push(...ops);
+        }
+      }
+
+      // 3) Write transaction statuses + paidAt timestamp & sync recurrences
+      for (const { txRef } of transactionsToUpdateWithData) {
         const statusUpdate: Record<string, any> = {
           status: newStatus,
           updatedAt: now,
@@ -1004,6 +1137,12 @@ export class TransactionService {
           balance: FieldValue.increment(adj.delta),
           updatedAt: now,
         });
+      }
+
+      // 5) Write recurrences
+      for (const op of recurOps) {
+        if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "delete") t.delete(op.ref);
       }
 
       return uniqueIds.length;

@@ -23,6 +23,10 @@ export interface CreateTransactionDTO {
   installmentGroupId?: string;
   installmentInterval?: number;
   
+  isRecurring?: boolean;
+  recurringGroupId?: string;
+  paymentMode?: "total" | "installmentValue";
+  
   notes?: string;
   extraCosts?: any[];
 }

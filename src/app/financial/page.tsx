@@ -100,17 +100,22 @@ function TransactionListInfinite({
     <div className="flex flex-col gap-3 flex-1">
       {displayedItems.map((transaction) => {
         const groupId =
-          transaction.proposalGroupId || transaction.installmentGroupId;
+          transaction.proposalGroupId ||
+          transaction.installmentGroupId ||
+          transaction.recurringGroupId;
 
         if (groupId) {
           const groupMembers = transactions.filter(
             (t) =>
-              t.proposalGroupId === groupId || t.installmentGroupId === groupId,
+              t.proposalGroupId === groupId ||
+              t.installmentGroupId === groupId ||
+              t.recurringGroupId === groupId,
           );
 
           const orphanDownPayments = transactions.filter(
             (t) =>
               !t.installmentGroupId &&
+              !t.recurringGroupId &&
               !t.proposalGroupId &&
               isDownPaymentLike(t) &&
               !transaction.proposalGroupId &&
@@ -264,7 +269,8 @@ export default function FinancialPage() {
   // Helper to get stable ID for expansion
   const getExpansionKey = React.useCallback((t: Transaction) => {
     if (t.proposalGroupId) return `proposal-${t.proposalGroupId}`;
-    if (t.installmentGroupId) return `installment-${t.installmentGroupId}`;
+    if (t.installmentGroupId || t.recurringGroupId)
+      return `installment-${t.installmentGroupId || t.recurringGroupId}`;
     return `transaction-${t.id}`;
   }, []);
 
@@ -318,10 +324,15 @@ export default function FinancialPage() {
         });
       }
       // Add installment group members (for non-proposal groups)
-      else if (transaction.installmentGroupId && !transaction.proposalGroupId) {
+      else if (
+        (transaction.installmentGroupId || transaction.recurringGroupId) &&
+        !transaction.proposalGroupId
+      ) {
         transactions.forEach((t) => {
           if (
-            t.installmentGroupId === transaction.installmentGroupId &&
+            (t.installmentGroupId || t.recurringGroupId) ===
+              (transaction.installmentGroupId ||
+                transaction.recurringGroupId) &&
             t.id !== transaction.id
           ) {
             relatedIds.push(t.id);

@@ -26,6 +26,7 @@ import {
   Split,
   DollarSign,
   Share2,
+  RefreshCw,
 } from "lucide-react";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { typeConfig, statusConfig } from "../_constants/config";
@@ -197,9 +198,10 @@ export function TransactionCard({
   );
 
   // For proposal groups or installment groups, show the total amount
+  // For recurring transactions, do NOT sum the future projected instances, just show the base amount
   const displayAmount = React.useMemo(() => {
     if (isProposalGroup) return proposalTotalAmount + totalExtraCosts;
-    if (relatedInstallments.length > 0) {
+    if (relatedInstallments.length > 0 && !transaction.isRecurring) {
       return (
         relatedInstallments.reduce((sum, t) => sum + t.amount, 0) +
         totalExtraCosts
@@ -210,6 +212,7 @@ export function TransactionCard({
     isProposalGroup,
     proposalTotalAmount,
     relatedInstallments,
+    transaction.isRecurring,
     transaction.amount,
     totalExtraCosts,
   ]);
@@ -810,7 +813,9 @@ export function TransactionCard({
                 )}
               </div>
               <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                <span>{formatDate(transaction.date)}</span>
+                <span>
+                  {formatDate(transaction.date || transaction.dueDate || "")}
+                </span>
                 {displayWallet && (
                   <>
                     <span>•</span>
@@ -876,10 +881,38 @@ export function TransactionCard({
                     </div>
                   </>
                 )}
+
+                {/* Show recurring info for standalone recurring items */}
+                {!isProposalGroup &&
+                  transaction.isRecurring &&
+                  relatedInstallments.length === 0 && (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary font-medium flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3" />
+                          Recorrente (
+                          {transaction.installmentInterval === 1
+                            ? "Mensal"
+                            : transaction.installmentInterval === 2
+                              ? "Bimestral"
+                              : transaction.installmentInterval === 3
+                                ? "Trimestral"
+                                : transaction.installmentInterval === 6
+                                  ? "Semestral"
+                                  : transaction.installmentInterval === 12
+                                    ? "Anual"
+                                    : `${transaction.installmentInterval || 1} Meses`}
+                          )
+                        </span>
+                      </div>
+                    </>
+                  )}
                 {/* Manual Installment Group Badges */}
                 {!isProposalGroup &&
                   relatedInstallments.length > 0 &&
-                  !transaction.isInstallment && (
+                  !transaction.isInstallment &&
+                  !transaction.isRecurring && (
                     <>
                       <span>•</span>
                       <div className="flex items-center gap-2">
@@ -909,6 +942,42 @@ export function TransactionCard({
                               x
                             </>
                           )}
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                {/* Manual Recurring Group Badges */}
+                {!isProposalGroup &&
+                  relatedInstallments.length > 0 &&
+                  transaction.isRecurring && (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center gap-2">
+                        {/* Show Down Payment Badge if present */}
+                        {relatedInstallments.some((t) => t.isDownPayment) && (
+                          <span className="text-blue-500 font-medium flex items-center gap-1">
+                            <Banknote className="w-3 h-3" />
+                            Entrada
+                          </span>
+                        )}
+
+                        {/* Show Recurring Badge */}
+                        <span className="text-primary font-medium flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3" />
+                          Recorrente (
+                          {transaction.installmentInterval === 1
+                            ? "Mensal"
+                            : transaction.installmentInterval === 2
+                              ? "Bimestral"
+                              : transaction.installmentInterval === 3
+                                ? "Trimestral"
+                                : transaction.installmentInterval === 6
+                                  ? "Semestral"
+                                  : transaction.installmentInterval === 12
+                                    ? "Anual"
+                                    : `${transaction.installmentInterval || 1} Meses`}
+                          )
                         </span>
                       </div>
                     </>
@@ -1847,4 +1916,3 @@ export function TransactionCard({
     </div>
   );
 }
-

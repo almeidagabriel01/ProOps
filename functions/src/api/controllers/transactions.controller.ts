@@ -37,7 +37,7 @@ export const createTransaction = async (req: Request, res: Response) => {
     }
 
     // Safety Lock: Prevent ghost installments
-    if (!data.isInstallment && !data.isDownPayment) {
+    if (!data.isInstallment && !data.isDownPayment && !data.isRecurring) {
       data.installmentCount = 1;
       delete data.installmentNumber;
       delete data.installmentGroupId;
@@ -73,7 +73,7 @@ export const updateTransaction = async (req: Request, res: Response) => {
     if (!id) return res.status(400).json({ message: "ID inválido." });
 
     // Safety Lock: Prevent ghost installments on update
-    if (updateData.isInstallment === false && updateData.isDownPayment !== true) {
+    if (updateData.isInstallment === false && updateData.isDownPayment !== true && updateData.isRecurring !== true) {
       updateData.installmentCount = 1;
       updateData.installmentNumber = null;
       updateData.installmentGroupId = null;

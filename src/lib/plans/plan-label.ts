@@ -31,6 +31,7 @@ export function getImmediatePlanLabel(input: {
     return "Super Admin";
   }
 
+  const originalPlanId = String(input.planId || "").trim();
   const normalizedPlanId = normalizePlanKey(input.planId);
   if (!normalizedPlanId) {
     return role === "free" ? "Gratuito" : "Sem Plano";
@@ -46,25 +47,30 @@ export function getImmediatePlanLabel(input: {
     return defaultPlan.name;
   }
 
-  const cachedLabel = planLabelCache.get(normalizedPlanId);
+  // Check cache with both normalized key and original (case-sensitive) key
+  const cachedLabel = planLabelCache.get(normalizedPlanId) || planLabelCache.get(originalPlanId);
   return cachedLabel || null;
 }
 
 export async function resolvePlanLabel(planId?: string | null): Promise<string | null> {
+  const originalPlanId = String(planId || "").trim();
   const normalizedPlanId = normalizePlanKey(planId);
   if (!normalizedPlanId) {
     return null;
   }
 
-  const immediateLabel = getImmediatePlanLabel({ planId: normalizedPlanId });
+  const immediateLabel = getImmediatePlanLabel({ planId });
   if (immediateLabel && immediateLabel !== "Sem Plano") {
     planLabelCache.set(normalizedPlanId, immediateLabel);
+    planLabelCache.set(originalPlanId, immediateLabel);
     return immediateLabel;
   }
 
   try {
-    const plan = await PlanService.getPlanById(normalizedPlanId);
+    // Use the ORIGINAL case-sensitive planId for Firestore lookup
+    const plan = await PlanService.getPlanById(originalPlanId);
     if (plan?.name) {
+      planLabelCache.set(originalPlanId, plan.name);
       planLabelCache.set(normalizedPlanId, plan.name);
       const normalizedTier = normalizePlanKey(plan.tier);
       if (normalizedTier) {

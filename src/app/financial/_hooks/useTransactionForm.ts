@@ -30,6 +30,7 @@ export interface TransactionFormData {
   category: string;
   wallet: string;
   isInstallment: boolean;
+  isRecurring: boolean;
   installmentCount: number;
   notes: string;
   // New fields for advanced payment mode
@@ -58,6 +59,7 @@ const initialFormData: TransactionFormData = {
   category: "",
   wallet: "",
   isInstallment: false,
+  isRecurring: false,
   installmentCount: 2,
   notes: "",
   // New fields defaults
@@ -80,6 +82,7 @@ const getTotalFields = (data: TransactionFormData) => ({
   wallet: data.wallet,
   dueDate: data.dueDate,
   isInstallment: data.isInstallment,
+  isRecurring: data.isRecurring,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
   downPaymentType: data.downPaymentType,
@@ -95,6 +98,7 @@ const getInstallmentFields = (data: TransactionFormData) => ({
   installmentsWallet: data.installmentsWallet,
   firstInstallmentDate: data.firstInstallmentDate,
   isInstallment: data.isInstallment,
+  isRecurring: data.isRecurring,
   installmentCount: data.installmentCount,
   downPaymentEnabled: data.downPaymentEnabled,
   downPaymentType: data.downPaymentType,
@@ -224,8 +228,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
         computedValues = {
           installmentValue: installmentVal,
           installmentsWallet: formData.wallet, // Propagate wallet
-          firstInstallmentDate: formData.date, // Default to transaction date
-          isInstallment: true,
+          firstInstallmentDate: formData.dueDate || formData.date, // Default to due date or transaction date
+          isInstallment: formData.isRecurring ? false : true,
+          isRecurring: formData.isRecurring,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
@@ -246,9 +251,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
         computedValues = {
           amount: total.toFixed(2),
           wallet: formData.installmentsWallet || formData.wallet, // Try to keep some wallet
-          dueDate: formData.firstInstallmentDate || formData.date,
+          dueDate: formData.firstInstallmentDate || formData.dueDate || formData.date,
           // Keep installment settings in case we switch back
-          isInstallment: true,
+          isInstallment: formData.isRecurring ? false : true,
+          isRecurring: formData.isRecurring,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
@@ -280,6 +286,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
             isInstallment:
               targetBuffer.isInstallment ??
               computedValues.isInstallment ??
+              false,
+            isRecurring:
+              targetBuffer.isRecurring ??
+              computedValues.isRecurring ??
               false,
             installmentCount:
               targetBuffer.installmentCount ??
@@ -330,6 +340,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
               targetBuffer.isInstallment ??
               computedValues.isInstallment ??
               true,
+            isRecurring:
+              targetBuffer.isRecurring ??
+              computedValues.isRecurring ??
+              false,
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??
@@ -498,8 +512,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
       }
 
       // Generate Group ID
+      const submitDbCount = formData.isRecurring ? 1 : formData.installmentCount;
       if (
-        (formData.isInstallment && formData.installmentCount >= 1) ||
+        (formData.isInstallment && submitDbCount >= 1) ||
+        (formData.isRecurring && submitDbCount >= 1) ||
         (formData.downPaymentEnabled &&
           downPaymentAmount > 0)
       ) {
@@ -525,6 +541,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
           category: formData.category || undefined,
           wallet: formData.downPaymentWallet || walletToUse,
           isInstallment: false,
+          isRecurring: false,
           isDownPayment: true,
           downPaymentType: formData.downPaymentType,
           downPaymentPercentage:
@@ -532,9 +549,10 @@ export function useTransactionForm(): UseTransactionFormReturn {
               ? parseFloat(formData.downPaymentPercentage || "0")
               : 0,
           installmentNumber: 0,
-          installmentCount: formData.installmentCount + 1,
+          installmentCount: submitDbCount + 1,
           installmentGroupId,
           installmentInterval: formData.installmentInterval || 1,
+          paymentMode: formData.paymentMode,
           notes: formData.notes || undefined,
           createdAt: now,
           updatedAt: now,
@@ -554,10 +572,13 @@ export function useTransactionForm(): UseTransactionFormReturn {
         clientName: formData.clientName || undefined,
         category: formData.category || undefined,
         wallet: walletToUse || undefined,
-        isInstallment: formData.isInstallment,
-        installmentCount: formData.installmentCount,
-        installmentGroupId,
+        isInstallment: formData.isInstallment && !formData.isRecurring,
+        isRecurring: formData.isRecurring,
+        installmentCount: submitDbCount,
+        installmentGroupId: formData.isInstallment ? installmentGroupId : undefined,
+        recurringGroupId: formData.isRecurring ? installmentGroupId : undefined,
         installmentInterval: formData.installmentInterval || 1,
+        paymentMode: formData.paymentMode,
         notes: formData.notes || undefined,
         createdAt: now,
         updatedAt: now,

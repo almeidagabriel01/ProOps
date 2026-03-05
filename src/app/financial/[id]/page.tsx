@@ -77,6 +77,7 @@ export default function EditTransactionPage() {
       ...formData,
       clientId: formData.clientId || "",
       isInstallment: formData.isInstallment,
+      isRecurring: formData.isRecurring,
       installmentCount: formData.installmentCount,
       // Pass through new fields instead of resetting them
       paymentMode: formData.paymentMode,
@@ -176,7 +177,10 @@ export default function EditTransactionPage() {
 
   // Calculate total amount (sum of all installments) for display
   const totalValueOverride = React.useMemo(() => {
-    if (!transaction?.isInstallment || relatedInstallments.length === 0)
+    if (
+      !(transaction?.isInstallment || transaction?.isRecurring) ||
+      relatedInstallments.length === 0
+    )
       return undefined;
 
     // If it's a proposal group, use the explicit group total value
@@ -184,7 +188,7 @@ export default function EditTransactionPage() {
       return groupTotalValue;
     }
 
-    // For standard installment groups (or new ones), formData.amount IS now the total
+    // For standard installment/recurring groups (or new ones), formData.amount IS now the total
     return parseFloat(formData.amount || "0");
   }, [
     transaction,
