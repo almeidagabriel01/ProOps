@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Loader2 } from "lucide-react";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/financial/_components/financial-skeleton";
@@ -17,6 +18,18 @@ import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 import { KanbanSkeleton } from "@/app/kanban/_components/kanban-skeleton";
+
+/** Simple spinner used for create/edit sub-routes instead of the full page skeleton */
+function SpinnerFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      </div>
+    </div>
+  );
+}
 
 export function RouteContentSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/spreadsheets/")) {
@@ -39,24 +52,46 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return <WalletsSkeleton />;
   }
 
+  // For modules with create/edit sub-routes, show spinner on sub-pages
+  // and the full skeleton only on the list page itself
   if (pathname.startsWith("/financial")) {
-    return <FinancialSkeleton />;
+    return pathname === "/financial" ? (
+      <FinancialSkeleton />
+    ) : (
+      <SpinnerFallback />
+    );
   }
 
   if (pathname.startsWith("/products")) {
-    return <ProductsSkeleton />;
+    return pathname === "/products" ? (
+      <ProductsSkeleton />
+    ) : (
+      <SpinnerFallback />
+    );
   }
 
   if (pathname.startsWith("/services")) {
-    return <ServicesSkeleton />;
+    return pathname === "/services" ? (
+      <ServicesSkeleton />
+    ) : (
+      <SpinnerFallback />
+    );
   }
 
   if (pathname.startsWith("/proposals")) {
-    return <ProposalsSkeleton />;
+    return pathname === "/proposals" ? (
+      <ProposalsSkeleton />
+    ) : (
+      <SpinnerFallback />
+    );
   }
 
   if (pathname.startsWith("/contacts")) {
-    return <ContactsSkeleton />;
+    return pathname === "/contacts" ? (
+      <ContactsSkeleton />
+    ) : (
+      <SpinnerFallback />
+    );
   }
 
   if (pathname.startsWith("/team")) {
