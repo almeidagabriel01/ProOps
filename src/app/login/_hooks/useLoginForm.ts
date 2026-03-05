@@ -14,6 +14,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
 import { callPublicApi } from "@/lib/api-client";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
@@ -324,7 +325,7 @@ export function useLoginForm(): UseLoginFormReturn {
 
   const handleRedirectAfterAuth = React.useCallback(() => {
     const currentUser = auth.currentUser;
-    if (currentUser && !currentUser.emailVerified) {
+    if (shouldBlockUnverifiedEmail(currentUser)) {
       router.replace(buildEmailPendingPath());
       return;
     }
@@ -432,9 +433,9 @@ export function useLoginForm(): UseLoginFormReturn {
     const result = await login(email, password);
     if (!result.success) {
       if (result.code === "email-not-verified") {
-        setError(
-          "Seu email ainda não foi confirmado. Enviamos um novo link de verificação.",
-        );
+        setIsLoggingIn(false);
+        router.replace(buildEmailPendingPath());
+        return;
       } else {
         setError("Falha no login. Verifique suas credenciais.");
       }
@@ -719,3 +720,4 @@ export function useLoginForm(): UseLoginFormReturn {
     isAutoRecovering,
   };
 }
+

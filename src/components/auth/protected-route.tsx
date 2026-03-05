@@ -23,6 +23,7 @@ import {
 } from "@/lib/page-config";
 import { ProtectedAppShell } from "@/components/layout/protected-app-shell";
 import { RouteContentSkeleton } from "@/components/layout/route-content-skeleton";
+import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
@@ -85,10 +86,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         // authenticated — attempt session recovery instead of redirecting.
         const firebaseUser = auth.currentUser;
         if (firebaseUser && !isRecoveringRef.current) {
-          const skipEmailVerification =
-            process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
-
-          if (!firebaseUser.emailVerified && !skipEmailVerification) {
+          if (shouldBlockUnverifiedEmail(firebaseUser)) {
             // User is authenticated but hasn't verified email.
             // Redirect directly to the pending page instead of recovering.
             const url = new URL(

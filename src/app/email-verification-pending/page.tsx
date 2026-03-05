@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
+import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -73,10 +74,7 @@ function EmailVerificationPendingContent() {
       console.warn("Could not reload user", e);
     }
 
-    const skipEmailVerification =
-      process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
-
-    if (currentUser.emailVerified || skipEmailVerification) {
+    if (!shouldBlockUnverifiedEmail(currentUser)) {
       try {
         await forceSyncSession();
       } catch (sessionError) {
@@ -253,10 +251,10 @@ function EmailVerificationPendingContent() {
             variant="ghost"
             onClick={async () => {
               await signOut(auth);
-              router.replace("/");
+              router.replace("/login");
             }}
           >
-            Cancelar cadastro
+            Sair da conta
           </Button>
         </CardFooter>
       </Card>
