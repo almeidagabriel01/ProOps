@@ -53,9 +53,7 @@ export default function KanbanPage() {
   if (!user) return null;
 
   if (user.role === "superadmin" && !tenant) {
-    return (
-      <SelectTenantState title="Selecione uma empresa para ver o Kanban" />
-    );
+    return <SelectTenantState title="Selecione uma empresa para ver o CRM" />;
   }
 
   if (isPlanLoading) {
@@ -66,7 +64,7 @@ export default function KanbanPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
-          <p className="text-lg font-medium text-foreground">Módulo Kanban</p>
+          <p className="text-lg font-medium text-foreground">Módulo CRM</p>
           <p className="text-sm text-muted-foreground">
             Este módulo está disponível apenas no plano Enterprise.
           </p>
@@ -79,7 +77,7 @@ export default function KanbanPage() {
     <div className="space-y-6 flex flex-col h-[calc(100vh-180px)]">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Kanban
+          CRM
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Visualize suas propostas e lançamentos em um quadro visual

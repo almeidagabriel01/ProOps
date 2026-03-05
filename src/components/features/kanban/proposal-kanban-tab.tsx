@@ -113,7 +113,7 @@ export function ProposalKanbanTab() {
         }
       } catch (error) {
         console.error("Failed to load kanban data:", error);
-        toast.error("Erro ao carregar dados do Kanban.");
+        toast.error("Erro ao carregar dados do CRM.");
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -279,7 +279,7 @@ export function ProposalKanbanTab() {
       return persistedColumns;
     } catch (error) {
       console.error("Error persisting defaults", error);
-      toast.error("Erro ao inicializar quadro Kanban.");
+      toast.error("Erro ao inicializar quadro CRM.");
       return null;
     } finally {
       setIsSaving(false);

@@ -28,7 +28,7 @@ export const AVAILABLE_PAGES = [
   },
   {
     id: "kanban",
-    name: "Kanban",
+    name: "CRM",
     description: "Gestão de tarefas e fluxos",
   },
   {

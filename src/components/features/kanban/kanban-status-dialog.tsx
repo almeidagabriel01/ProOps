@@ -115,7 +115,7 @@ export function KanbanStatusDialog({
           <DialogDescription>
             {isEditing
               ? "Edite o nome, cor e categoria desta coluna."
-              : "Crie uma nova coluna para o seu Kanban de propostas."}
+              : "Crie uma nova coluna para o seu CRM de propostas."}
           </DialogDescription>
         </DialogHeader>
 
