@@ -50,11 +50,11 @@ const searchItems: SearchItem[] = [
   },
   {
     id: "kanban",
-    label: "Kanban",
+    label: "CRM",
     description: "Visualização e gestão de processos",
     path: "/kanban",
     icon: Kanban,
-    keywords: ["quadro", "processos", "tarefas", "cartões"],
+    keywords: ["quadro", "processos", "tarefas", "cartões", "crm", "kanban"],
     requiresKanban: true,
   },
   {

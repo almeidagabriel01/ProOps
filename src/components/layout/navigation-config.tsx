@@ -41,7 +41,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: Kanban,
-    label: "Kanban",
+    label: "CRM",
     href: "/kanban",
     pageId: "kanban",
     requiresEnterprise: true,

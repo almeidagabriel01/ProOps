@@ -293,7 +293,7 @@ export function BottomDock() {
                 upgradeModal.showUpgradeModal(
                   entry.label,
                   isEnterpriseRestricted
-                    ? "Gerencie suas propostas e lançamentos com nosso Kanban visual."
+                    ? "Gerencie suas propostas e lançamentos com nosso CRM visual."
                     : "Controle suas finanças com nosso módulo completo.",
                   isEnterpriseRestricted ? "enterprise" : "pro",
                 )
