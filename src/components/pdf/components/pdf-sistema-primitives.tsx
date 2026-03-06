@@ -228,7 +228,12 @@ export function PdfSistemaProductCard({
               }}
             >
               <span className="text-[10px] text-gray-500 block">
-                {product.quantity}x {formatCurrency(product.unitPrice)}
+                {product.quantity}x{" "}
+                {formatCurrency(
+                  product.quantity > 0
+                    ? product.total / product.quantity
+                    : product.unitPrice,
+                )}
               </span>
               <span
                 className="font-semibold text-sm"

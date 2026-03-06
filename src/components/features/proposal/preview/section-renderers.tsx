@@ -148,7 +148,12 @@ export function ProductTableSection({
                   {item.quantity}
                 </td>
                 <td className="px-3 py-2 border-b border-gray-200 text-right">
-                  R$ {(item.unitPrice || 0).toFixed(2)}
+                  R${" "}
+                  {(item.quantity > 0
+                    ? (item.total || item.quantity * (item.unitPrice || 0)) /
+                      item.quantity
+                    : item.unitPrice || 0
+                  ).toFixed(2)}
                 </td>
                 <td className="px-3 py-2 border-b border-gray-200 text-right font-medium">
                   R$ {(item.total || item.quantity * item.unitPrice).toFixed(2)}
