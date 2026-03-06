@@ -136,18 +136,8 @@ export function NotificationBell() {
           size="icon"
           className="relative"
           title="Notificacoes"
-          aria-busy={showLoadingState}
         >
-          <Bell
-            className={`w-5 h-5 transition-opacity ${
-              showLoadingState ? "opacity-40" : "opacity-100"
-            }`}
-          />
-          {showLoadingState && (
-            <span className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            </span>
-          )}
+          <Bell className="w-5 h-5 transition-opacity opacity-100" />
           {!showLoadingState && unreadCount > 0 && (
             <Badge
               variant="destructive"

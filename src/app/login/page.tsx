@@ -76,7 +76,6 @@ function LoginContent() {
     handleLogoUpload,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
-    isAutoRecovering,
   } = useLoginForm();
 
   // Estado para erros de validação do cadastro
@@ -178,14 +177,9 @@ function LoginContent() {
     }
   }, [companyName]);
 
-  // Show loading during initial auth check, auto-recovery, or (but not during login/register action)
+  // Show loading during initial auth check (but not during login/register action)
   // For users being redirected after login, don't show anything - the button spinner handles it
-  if (
-    (isLoading || isAutoRecovering) &&
-    !isLoggingIn &&
-    !isRegistering &&
-    !user
-  ) {
+  if (isLoading && !isLoggingIn && !isRegistering && !user) {
     // Initial page load or session recovery - show simple spinner
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
