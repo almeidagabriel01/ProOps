@@ -1,10 +1,8 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,12 +13,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, MailCheck } from "lucide-react";
+import { useAuth } from "@/providers/auth-provider";
+import { useRouter } from "next/navigation";
 
 const RESEND_COOLDOWN_MS = 60_000;
 
-function EmailVerificationPendingContent() {
+interface EmailVerificationPendingProps {
+  onVerified?: () => void;
+  onCancel?: () => void;
+  email?: string;
+}
+
+export function EmailVerificationPending({
+  onVerified,
+  onCancel,
+  email: initialEmail,
+}: EmailVerificationPendingProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { isLoading: isAuthLoading, forceSyncSession } = useAuth();
 
   const [isChecking, setIsChecking] = useState(true);
@@ -33,33 +42,7 @@ function EmailVerificationPendingContent() {
     "Enviamos um link de confirmação para o seu e-mail.",
   );
 
-  const redirectParam = searchParams.get("redirect");
-
-  const nextPath = useMemo(() => {
-    if (!redirectParam) return "/";
-
-    try {
-      const decoded = decodeURIComponent(redirectParam);
-      return decoded.startsWith("/") ? decoded : "/";
-    } catch {
-      return "/";
-    }
-  }, [redirectParam]);
-
-  const currentPathWithParams = useMemo(() => {
-    const params = new URLSearchParams();
-
-    if (redirectParam) {
-      params.set("redirect", redirectParam);
-    }
-
-    const query = params.toString();
-    return query
-      ? `/email-verification-pending?${query}`
-      : "/email-verification-pending";
-  }, [redirectParam]);
-
-  const verifyAndRedirectIfConfirmed = useCallback(async () => {
+  const verifyIfConfirmed = useCallback(async () => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -86,19 +69,21 @@ function EmailVerificationPendingContent() {
         );
       }
 
-      router.replace(nextPath);
+      if (onVerified) {
+        onVerified();
+      }
       return true;
     }
 
     setIsChecking(false);
     return false;
-  }, [forceSyncSession, nextPath, router]);
+  }, [forceSyncSession, onVerified]);
 
   useEffect(() => {
     if (isAuthLoading) return;
 
-    verifyAndRedirectIfConfirmed();
-  }, [isAuthLoading, verifyAndRedirectIfConfirmed]);
+    verifyIfConfirmed();
+  }, [isAuthLoading, verifyIfConfirmed]);
 
   useEffect(() => {
     if (!lastSentAt) {
@@ -133,7 +118,7 @@ function EmailVerificationPendingContent() {
 
     try {
       await sendEmailVerification(currentUser, {
-        url: `${window.location.origin}${currentPathWithParams}`,
+        url: `${window.location.origin}/login`,
       });
 
       setLastSentAt(Date.now());
@@ -164,7 +149,7 @@ function EmailVerificationPendingContent() {
 
   const handleContinue = async () => {
     setIsChecking(true);
-    const isVerified = await verifyAndRedirectIfConfirmed();
+    const isVerified = await verifyIfConfirmed();
     if (!isVerified) {
       setMessage(
         "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
@@ -172,12 +157,21 @@ function EmailVerificationPendingContent() {
     }
   };
 
+  const handleCancelClick = async () => {
+    await signOut(auth);
+    if (onCancel) {
+      onCancel();
+    } else {
+      router.replace("/login");
+    }
+  };
+
   const canResend = cooldownLeft === 0;
 
   if (isAuthLoading || isChecking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md text-center">
+      <div className="flex items-center justify-center p-4">
+        <Card className="w-full max-w-md text-center shadow-xl border-border bg-card">
           <CardContent className="py-10">
             <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
             <p className="mt-4 text-sm text-muted-foreground">
@@ -189,10 +183,12 @@ function EmailVerificationPendingContent() {
     );
   }
 
+  const displayEmail = auth.currentUser?.email || initialEmail;
+
   if (!auth.currentUser) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
+      <div className="flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-border bg-card">
           <CardHeader>
             <CardTitle>Sessão expirada</CardTitle>
             <CardDescription>
@@ -200,7 +196,7 @@ function EmailVerificationPendingContent() {
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button className="w-full" onClick={() => router.replace("/login")}>
+            <Button className="w-full" onClick={handleCancelClick}>
               Ir para login
             </Button>
           </CardFooter>
@@ -210,15 +206,16 @@ function EmailVerificationPendingContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl border-border bg-card">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 rounded-full bg-primary/10 p-3 w-fit">
             <MailCheck className="h-6 w-6 text-primary" />
           </div>
           <CardTitle>Confirmação de e-mail pendente</CardTitle>
           <CardDescription>
-            Abra o link enviado para <strong>{auth.currentUser.email}</strong>.
+            Abra o link enviado para{" "}
+            {displayEmail ? <strong>{displayEmail}</strong> : "seu e-mail"}.
           </CardDescription>
         </CardHeader>
 
@@ -251,36 +248,12 @@ function EmailVerificationPendingContent() {
           <Button
             className="w-full"
             variant="ghost"
-            onClick={async () => {
-              await signOut(auth);
-              router.replace("/");
-            }}
+            onClick={handleCancelClick}
           >
-            Cancelar cadastro
+            Sair
           </Button>
         </CardFooter>
       </Card>
     </div>
-  );
-}
-
-export default function EmailVerificationPendingPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-          <Card className="w-full max-w-md text-center">
-            <CardContent className="py-10">
-              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
-              <p className="mt-4 text-sm text-muted-foreground">
-                Carregando...
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      }
-    >
-      <EmailVerificationPendingContent />
-    </Suspense>
   );
 }

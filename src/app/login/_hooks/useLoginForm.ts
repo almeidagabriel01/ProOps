@@ -78,6 +78,8 @@ interface UseLoginFormReturn {
   setSmsCode: (value: string) => void;
   requiresPhoneVerification: boolean;
   isAwaitingPhoneVerification: boolean;
+  isEmailVerificationPending: boolean;
+  setIsEmailVerificationPending: (value: boolean) => void;
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
 
@@ -120,6 +122,8 @@ export function useLoginForm(): UseLoginFormReturn {
   const [requiresPhoneVerification, setRequiresPhoneVerification] =
     React.useState(false);
   const [isAwaitingPhoneVerification, setIsAwaitingPhoneVerification] =
+    React.useState(false);
+  const [isEmailVerificationPending, setIsEmailVerificationPending] =
     React.useState(false);
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
@@ -270,23 +274,12 @@ export function useLoginForm(): UseLoginFormReturn {
   const redirectUrl = searchParams.get("redirect");
   const redirectReason = searchParams.get("redirect_reason");
 
-  const buildEmailPendingPath = React.useCallback(() => {
-    const params = new URLSearchParams();
-
-    if (redirectUrl) {
-      params.set("redirect", redirectUrl);
-    }
-
-    const query = params.toString();
-    return query
-      ? `/email-verification-pending?${query}`
-      : "/email-verification-pending";
-  }, [redirectUrl]);
-
   const handleRedirectAfterAuth = React.useCallback(() => {
     const currentUser = auth.currentUser;
-    if (currentUser && !currentUser.emailVerified) {
-      router.replace(buildEmailPendingPath());
+    const skipEmailVerification =
+      process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+    if (currentUser && !currentUser.emailVerified && !skipEmailVerification) {
+      setIsEmailVerificationPending(true);
       return;
     }
 
@@ -355,17 +348,25 @@ export function useLoginForm(): UseLoginFormReturn {
         }
       }
     }
-  }, [buildEmailPendingPath, redirectUrl, redirectReason, router, user]);
+  }, [redirectUrl, redirectReason, router, user]);
 
   // If already logged in, redirect
   React.useEffect(() => {
-    if (!isLoading && user) {
-      // For session_expired, we MUST wait until the session cookie is synced back
-      if (redirectReason === "session_expired" && !isSessionSynced) {
-        return;
-      }
+    if (!isLoading) {
+      if (user) {
+        // For session_expired, we MUST wait until the session cookie is synced back
+        if (redirectReason === "session_expired" && !isSessionSynced) {
+          return;
+        }
 
-      handleRedirectAfterAuth();
+        handleRedirectAfterAuth();
+      } else if (auth.currentUser) {
+        const skipEmailVerification =
+          process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+        if (!auth.currentUser.emailVerified && !skipEmailVerification) {
+          setIsEmailVerificationPending(true);
+        }
+      }
     }
   }, [
     user,
@@ -373,6 +374,7 @@ export function useLoginForm(): UseLoginFormReturn {
     isSessionSynced,
     redirectReason,
     handleRedirectAfterAuth,
+    setIsEmailVerificationPending,
   ]);
 
   const handleLogin = async (e?: React.FormEvent) => {
@@ -408,9 +410,7 @@ export function useLoginForm(): UseLoginFormReturn {
     const result = await login(email, password);
     if (!result.success) {
       if (result.code === "email-not-verified") {
-        setError(
-          "Seu email ainda não foi confirmado. Enviamos um novo link de verificação.",
-        );
+        setIsEmailVerificationPending(true);
       } else {
         setError("Falha no login. Verifique suas credenciais.");
       }
@@ -561,14 +561,12 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: new Date().toISOString(),
       });
 
-      const emailPendingPath = buildEmailPendingPath();
-
       await sendEmailVerification(firebaseUser, {
-        url: `${window.location.origin}${emailPendingPath}`,
+        url: `${window.location.origin}/login`,
       });
 
       setIsRegistering(false);
-      router.replace(emailPendingPath);
+      setIsEmailVerificationPending(true);
       return;
     } catch (err: unknown) {
       const error = err as { code?: string };
@@ -682,6 +680,8 @@ export function useLoginForm(): UseLoginFormReturn {
     setSmsCode,
     requiresPhoneVerification,
     isAwaitingPhoneVerification,
+    isEmailVerificationPending,
+    setIsEmailVerificationPending,
     isSendingSms,
     isVerifyingSmsCode,
     handleLogin,

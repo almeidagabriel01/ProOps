@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
+import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
 import {
   StepWizard,
   StepCard,
@@ -62,6 +63,8 @@ function LoginContent() {
     isAwaitingPhoneVerification,
     isSendingSms,
     isVerifyingSmsCode,
+    isEmailVerificationPending,
+    setIsEmailVerificationPending,
     isLoggingIn,
     isRegistering,
     mode,
@@ -204,6 +207,26 @@ function LoginContent() {
 
   // If user IS actively logging in (isLoggingIn === true), we fall through
   // and keep rendering the form with the "Entrando..." spinning button until the page unmounts!
+
+  if (isEmailVerificationPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
+        <div className="absolute top-4 right-4 z-50">
+          <AnimatedThemeToggler className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground" />
+        </div>
+        <EmailVerificationPending
+          email={email}
+          onCancel={() => {
+            setIsEmailVerificationPending(false);
+            setMode("login");
+          }}
+          onVerified={() => {
+            window.location.reload();
+          }}
+        />
+      </div>
+    );
+  }
 
   const steps = [
     {

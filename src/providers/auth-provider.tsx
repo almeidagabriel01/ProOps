@@ -374,10 +374,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
 
-          // Sign out the unverified user and explicitly clear the server session
-          // before returning, so there's no stale cookie that could cause an
-          // infinite loader if the user navigates to the home page immediately.
-          await signOut(auth);
+          // We intentionally DO NOT sign out the unverified user here.
+          // This allows the EmailVerificationPending component to see auth.currentUser
+          // and allow the user to click "Resend email".
+          // We DO clear the server session to prevent backend access.
           await clearServerSession().catch(() => {});
           setIsLoading(false);
           return { success: false, code: "email-not-verified" };
