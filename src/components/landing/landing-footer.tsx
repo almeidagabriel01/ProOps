@@ -8,7 +8,7 @@ export function LandingFooter() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
           <div className="col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-6">
+            <Link href="/" className="flex items-center gap-2 mb-6 cursor-pointer">
               <div className="w-6 h-6 rounded bg-brand-500 flex items-center justify-center">
                 <Layers className="text-white w-4 h-4" />
               </div>
@@ -28,7 +28,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#recursos"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Funcionalidades
                 </Link>
@@ -36,7 +36,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#pricing"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Preços & Planos
                 </Link>
@@ -44,7 +44,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#integrations"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Integrações
                 </Link>
@@ -52,7 +52,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#updates"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Atualizações
                 </Link>
@@ -65,7 +65,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#sobre"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Sobre Nós
                 </Link>
@@ -73,7 +73,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#recursos"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Centro de Recursos
                 </Link>
@@ -81,7 +81,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#carreiras"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Carreiras
                 </Link>
@@ -89,7 +89,7 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#contato"
-                  className="hover:text-foreground transition-colors"
+                  className="hover:text-foreground transition-colors cursor-pointer"
                 >
                   Fale Connosco
                 </Link>
@@ -105,13 +105,13 @@ export function LandingFooter() {
           <div className="flex gap-6">
             <Link
               href="/privacy"
-              className="hover:text-foreground transition-colors"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               Política de Privacidade
             </Link>
             <Link
               href="/terms"
-              className="hover:text-foreground transition-colors"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               Termos de Serviço
             </Link>

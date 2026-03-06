@@ -133,7 +133,7 @@ export function LandingPricing({
 
             <button
               onClick={handleToggle}
-              className="relative w-14 h-8 bg-muted border border-border rounded-full transition-colors duration-300 focus:outline-none flex items-center px-1"
+              className="relative w-14 h-8 bg-muted border border-border rounded-full transition-colors duration-300 focus:outline-none flex items-center px-1 cursor-pointer"
             >
               <div
                 className={`w-6 h-6 bg-brand-500 rounded-full shadow-md transform transition-transform duration-300 ${
@@ -178,7 +178,7 @@ export function LandingPricing({
               </span>
               <span className="text-muted-foreground text-sm">/mês</span>
             </div>
-            <button className="w-full py-3 px-4 rounded-full border border-border text-foreground hover:bg-muted transition-colors font-medium mb-8">
+            <button className="w-full py-3 px-4 rounded-full border border-border text-foreground hover:bg-muted transition-colors font-medium mb-8 cursor-pointer">
               Começar Essencial
             </button>
             <div className="space-y-4 flex-1">
@@ -229,7 +229,7 @@ export function LandingPricing({
               </span>
               <span className="text-muted-foreground text-sm">/mês</span>
             </div>
-            <button className="w-full py-3 px-4 rounded-full bg-white text-black hover:bg-gray-200 transition-colors font-semibold mb-8">
+            <button className="w-full py-3 px-4 rounded-full bg-white text-black hover:bg-gray-200 transition-colors font-semibold mb-8 cursor-pointer">
               Testar Profissional Grátis
             </button>
             <div className="space-y-4 flex-1">
@@ -277,7 +277,7 @@ export function LandingPricing({
             <div className="mb-8">
               <span className="text-4xl font-bold text-foreground">Custom</span>
             </div>
-            <button className="w-full py-3 px-4 rounded-full border border-border text-foreground hover:bg-muted transition-colors font-medium mb-8">
+            <button className="w-full py-3 px-4 rounded-full border border-border text-foreground hover:bg-muted transition-colors font-medium mb-8 cursor-pointer">
               Falar com Consultor
             </button>
             <div className="space-y-4 flex-1">
