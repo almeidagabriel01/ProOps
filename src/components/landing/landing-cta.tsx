@@ -59,7 +59,7 @@ export function LandingCTA() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 gsap-fade-up">
           <Link
             href="/register"
-            className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-lg shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105"
+            className="w-full sm:w-auto px-8 py-4 bg-white text-black rounded-full font-bold hover:bg-gray-200 transition-all flex items-center justify-center gap-2 text-lg shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:scale-105 cursor-pointer"
           >
             Agendar Demonstração Gratuita
             <ArrowRight className="w-5 h-5" />

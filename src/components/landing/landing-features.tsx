@@ -19,18 +19,18 @@ export function LandingFeatures() {
         const element = el as Element;
         gsap.fromTo(
           element,
-          { y: 30, opacity: 0, autoAlpha: 0 },
+          { y: 16, opacity: 0, autoAlpha: 0 },
           {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.55,
+            duration: 0.3,
             ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 98%",
+              start: "top bottom",
               end: "bottom 10%",
-              toggleActions: "play none none reverse",
+              toggleActions: "play reverse play reverse",
               fastScrollEnd: true,
             },
           },
@@ -57,7 +57,7 @@ export function LandingFeatures() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up cursor-pointer hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
             <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="w-12 h-12 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
@@ -73,7 +73,7 @@ export function LandingFeatures() {
             </div>
           </div>
 
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up cursor-pointer hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
             <div className="absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="w-12 h-12 rounded-lg bg-muted border border-border flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
@@ -89,7 +89,7 @@ export function LandingFeatures() {
             </div>
           </div>
 
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up cursor-pointer hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
             <div className="absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="w-12 h-12 rounded-lg bg-muted border border-border flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">

@@ -80,7 +80,10 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
         >
           <div className="h-full px-6 flex items-center justify-between gap-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 group shrink-0 cursor-pointer"
+            >
               <motion.div
                 whileHover={{ rotate: 12, scale: 1.1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 15 }}
@@ -104,7 +107,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                 >
                   <Link
                     href={link.href}
-                    className="relative px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 rounded-full hover:bg-foreground/5 group"
+                    className="relative px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 rounded-full hover:bg-foreground/5 group cursor-pointer"
                   >
                     {link.label}
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-brand-500 group-hover:w-3/5 transition-all duration-300 rounded-full" />
@@ -124,13 +127,13 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                   <>
                     <Link
                       href="/dashboard"
-                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300"
+                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 cursor-pointer"
                     >
                       Dashboard
                     </Link>
                     <button
                       onClick={onSignOut}
-                      className="bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98]"
+                      className="bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                     >
                       Sair
                     </button>
@@ -139,13 +142,13 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                   <>
                     <Link
                       href="/login"
-                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300"
+                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 cursor-pointer"
                     >
                       Entrar
                     </Link>
                     <Link
                       href="/register"
-                      className="group relative inline-flex items-center bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98] overflow-hidden"
+                      className="group relative inline-flex items-center bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98] overflow-hidden cursor-pointer"
                     >
                       <span className="relative z-10">Demonstração</span>
                       <span className="absolute inset-0 bg-gradient-to-r from-brand-500 to-brand-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
@@ -157,7 +160,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-300"
+                className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-300 cursor-pointer"
                 aria-label="Toggle menu"
               >
                 {mobileOpen ? (
@@ -193,7 +196,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                   <Link
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="text-2xl font-semibold text-foreground hover:text-brand-400 transition-colors duration-300"
+                    className="text-2xl font-semibold text-foreground hover:text-brand-400 transition-colors duration-300 cursor-pointer"
                   >
                     {link.label}
                   </Link>
@@ -212,7 +215,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                     <Link
                       href="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="text-lg text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
                       Dashboard
                     </Link>
@@ -221,7 +224,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                         onSignOut();
                         setMobileOpen(false);
                       }}
-                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold"
+                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold cursor-pointer"
                     >
                       Sair
                     </button>
@@ -231,14 +234,14 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                     <Link
                       href="/login"
                       onClick={() => setMobileOpen(false)}
-                      className="text-lg text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     >
                       Iniciar Sessão
                     </Link>
                     <Link
                       href="/register"
                       onClick={() => setMobileOpen(false)}
-                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-gray-100 transition-colors"
+                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
                     >
                       Agendar Demonstração
                     </Link>
