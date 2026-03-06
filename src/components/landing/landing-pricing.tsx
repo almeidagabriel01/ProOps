@@ -1,226 +1,302 @@
 "use client";
 
-import Link from "next/link";
-import { motion } from "motion/react";
-import { Check, ArrowRight, Sparkles } from "lucide-react";
-import {
-  AnimatedText,
-  AnimatedGradientText,
-} from "@/components/ui/animated-text";
+import React, { useRef, useEffect } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
+import { Check } from "lucide-react";
 
-import { BillingToggle } from "@/components/ui/billing-toggle";
-
-interface Plan {
-  name: string;
-  description: string;
-  features: string[];
-  tier: string;
-  cta: string;
-  popular?: boolean;
-  prices: {
-    monthly: number;
-    yearly: number;
-  };
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
 }
 
 interface LandingPricingProps {
-  plans: Plan[];
-  billingInterval: "monthly" | "yearly";
-  setBillingInterval: (interval: "monthly" | "yearly") => void;
+  plans?: any;
+  billingInterval?: "monthly" | "yearly";
+  setBillingInterval?: (interval: "monthly" | "yearly") => void;
   isLoading?: boolean;
 }
 
 export function LandingPricing({
-  plans,
-  billingInterval,
+  billingInterval = "monthly",
   setBillingInterval,
-  isLoading = false,
 }: LandingPricingProps) {
+  const containerRef = useRef<HTMLElement>(null);
+  const isAnnual = billingInterval === "yearly";
+
+  useGSAP(
+    () => {
+      // Fade Up
+      gsap.utils.toArray(".gsap-fade-up").forEach((element: any) => {
+        gsap.fromTo(
+          element,
+          { y: 30, opacity: 0, autoAlpha: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            autoAlpha: 1,
+            duration: 0.8,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: element,
+              start: "top 90%",
+              end: "bottom 10%",
+              toggleActions: "play reverse play reverse",
+            },
+          },
+        );
+      });
+
+      // Pricing Cards Cascade
+      gsap.fromTo(
+        ".pricing-card",
+        { y: 50, opacity: 0, autoAlpha: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          autoAlpha: 1,
+          duration: 0.8,
+          stagger: 0.15,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: "top 80%",
+            end: "bottom 20%",
+            toggleActions: "play reverse play reverse",
+          },
+        },
+      );
+    },
+    { scope: containerRef },
+  );
+
+  // Price animation effect when toggling
+  useEffect(() => {
+    const priceElements = document.querySelectorAll(".price-value");
+    gsap.to(priceElements, {
+      opacity: 0,
+      y: -10,
+      duration: 0.2,
+      onComplete: () => {
+        gsap.to(priceElements, {
+          opacity: 1,
+          y: 0,
+          duration: 0.3,
+          ease: "back.out(1.5)",
+        });
+      },
+    });
+  }, [isAnnual]);
+
+  const handleToggle = () => {
+    if (setBillingInterval) {
+      setBillingInterval(isAnnual ? "monthly" : "yearly");
+    }
+  };
+
   return (
     <section
+      ref={containerRef}
       id="pricing"
-      className="py-16 md:py-24 px-4 bg-muted/30 relative overflow-hidden"
+      className="py-32 relative border-y border-white/5 bg-[#020202] overflow-hidden"
     >
-      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(20,184,166,0.03)_0,transparent_70%)]"></div>
 
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center mb-12 md:mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 text-foreground">
-              <AnimatedText text="Planos para todos os tamanhos" />
-            </h2>
-          </motion.div>
-          <motion.p
-            className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto px-4"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            Escolha o plano ideal para sua empresa e comece a transformar sua
-            gestão hoje mesmo.
-          </motion.p>
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="text-center mb-16">
+          <h2 className="text-sm font-semibold text-brand-500 uppercase tracking-wider mb-3 gsap-fade-up">
+            Planos & Preços
+          </h2>
+          <h3 className="text-4xl md:text-5xl font-bold mb-6 text-white gsap-fade-up">
+            Escale sem surpresas.
+          </h3>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto gsap-fade-up">
+            Escolha o plano perfeito para o momento da sua empresa. Faça upgrade
+            a qualquer momento conforme a sua operação cresce.
+          </p>
 
-          {/* Billing Interval Toggle */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-8"
-          >
-            <BillingToggle
-              id="home-toggle"
-              value={billingInterval}
-              onChange={setBillingInterval}
-            />
-          </motion.div>
+          <div className="flex items-center justify-center gap-4 mt-10 gsap-fade-up">
+            <span
+              onClick={() =>
+                setBillingInterval && setBillingInterval("monthly")
+              }
+              className={`font-medium transition-colors duration-300 cursor-pointer ${
+                !isAnnual ? "text-white" : "text-gray-500"
+              }`}
+            >
+              Mensal
+            </span>
+
+            <button
+              onClick={handleToggle}
+              className="relative w-14 h-8 bg-white/10 border border-white/20 rounded-full transition-colors duration-300 focus:outline-none flex items-center px-1"
+            >
+              <div
+                className={`w-6 h-6 bg-brand-500 rounded-full shadow-md transform transition-transform duration-300 ${
+                  isAnnual ? "translate-x-6" : ""
+                }`}
+              ></div>
+            </button>
+
+            <span
+              onClick={() => setBillingInterval && setBillingInterval("yearly")}
+              className={`font-medium transition-colors duration-300 flex items-center gap-2 cursor-pointer ${
+                isAnnual ? "text-white" : "text-gray-500"
+              }`}
+            >
+              Anual
+              <span className="text-[10px] bg-brand-500/10 border border-brand-500/20 text-brand-400 px-2 py-1 rounded-full uppercase tracking-wider font-bold">
+                Poupe 20%
+              </span>
+            </span>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="p-6 md:p-8 rounded-2xl border border-border bg-card flex flex-col h-full animate-pulse"
-              >
-                <div className="h-8 bg-muted rounded w-1/2 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-3/4 mb-6"></div>
-                <div className="h-10 bg-muted rounded w-1/3 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-1/4 mb-1"></div>
-                <div className="space-y-3 mb-8 flex-grow mt-6">
-                  {[1, 2, 3, 4, 5].map((j) => (
-                    <div key={j} className="flex items-center gap-3">
-                      <div className="w-5 h-5 bg-muted rounded-full"></div>
-                      <div className="h-4 bg-muted rounded w-2/3"></div>
-                    </div>
-                  ))}
-                </div>
-                <div className="h-12 bg-muted rounded-xl w-full mt-auto"></div>
-              </div>
-            ))}
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto"
+          id="pricing-cards-container"
+        >
+          {/* Plano 1: Essencial */}
+          <div className="pricing-card relative flex flex-col p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-[#0a0a0a] to-[#050505] transition-all duration-500 h-full group hover:border-white/20 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.05)]">
+            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/20 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
+            </div>
+
+            <h4 className="text-xl font-medium text-white mb-2">Essencial</h4>
+            <p className="text-gray-500 text-sm mb-6 h-10">
+              Para pequenas empresas e equipas a começar a organizar a operação.
+            </p>
+            <div className="mb-8">
+              <span className="text-4xl font-bold text-white">
+                €<span className="price-value">{isAnnual ? "39" : "49"}</span>
+              </span>
+              <span className="text-gray-500 text-sm">/mês</span>
+            </div>
+            <button className="w-full py-3 px-4 rounded-full border border-white/20 text-white hover:bg-white/5 transition-colors font-medium mb-8">
+              Começar Essencial
+            </button>
+            <div className="space-y-4 flex-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                O que está incluído
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Até 3 utilizadores
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Emissão de faturas (limite 500/mês)
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Gestão Financeira básica
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Suporte por email
+                </li>
+              </ul>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            {plans.map((plan, index) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{
-                  duration: 0.5,
-                  delay: index * 0.15,
-                  ease: [0.21, 0.47, 0.32, 0.98],
-                }}
-                whileHover={{
-                  y: -8,
-                  scale: 1.02,
-                  transition: { duration: 0.2 },
-                }}
-                className={`relative p-6 md:p-8 rounded-2xl border flex flex-col h-full group/card ${
-                  plan.popular
-                    ? "border-primary bg-gradient-to-b from-primary/20 to-primary/5 shadow-xl shadow-primary/20 md:scale-105 hover:shadow-primary/40"
-                    : "border-border bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
-                } transition-all duration-300`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full shadow-md shadow-primary/30">
-                      <Sparkles className="w-3 h-3" />
-                      Mais Popular
-                    </span>
-                  </div>
-                )}
 
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold mb-2 text-foreground">
-                    {plan.name.charAt(0).toUpperCase() + plan.name.slice(1)}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {plan.description}
-                  </p>
-                </div>
+          {/* Plano 2: Profissional */}
+          <div className="pricing-card relative flex flex-col p-8 rounded-3xl border border-brand-500/50 bg-gradient-to-b from-[#0a0a0a] to-[#041210] shadow-[0_0_40px_rgba(20,184,166,0.1)] transform md:-translate-y-4 transition-all duration-500 h-full z-10 group hover:border-brand-500 hover:shadow-[0_20px_60px_-15px_rgba(20,184,166,0.3)] hover:md:-translate-y-6">
+            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-brand-500 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
+            </div>
 
-                <div className="mb-6">
-                  {billingInterval === "yearly" && (
-                    <div className="text-sm text-muted-foreground line-through mb-1">
-                      R${(plan.prices.monthly * 12).toLocaleString("pt-BR")}/ano
-                    </div>
-                  )}
-                  <span className="text-3xl md:text-4xl font-bold text-foreground">
-                    <AnimatedGradientText>
-                      R$
-                      {billingInterval === "yearly"
-                        ? plan.prices.yearly.toLocaleString("pt-BR")
-                        : plan.prices.monthly.toLocaleString("pt-BR")}
-                    </AnimatedGradientText>
-                  </span>
-                  <span className="text-muted-foreground">
-                    {billingInterval === "yearly" ? "/ano" : "/mês"}
-                  </span>
-                  {billingInterval === "yearly" && (
-                    <div className="text-sm text-emerald-500 mt-1">
-                      Equivale a R$
-                      {Math.round(plan.prices.yearly / 12).toLocaleString(
-                        "pt-BR",
-                      )}
-                      /mês
-                    </div>
-                  )}
-                </div>
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-brand-500 text-black text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-full z-20 shadow-lg">
+              Mais Popular
+            </div>
 
-                {/* Features list with flex-grow to push button to bottom */}
-                <ul className="space-y-3 mb-8 flex-grow">
-                  {plan.features.map(
-                    (feature: string, featureIndex: number) => (
-                      <motion.li
-                        key={feature}
-                        className="flex items-center gap-3"
-                        initial={{ opacity: 0, x: -10 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{
-                          duration: 0.3,
-                          delay: index * 0.15 + featureIndex * 0.05,
-                        }}
-                      >
-                        <div
-                          className={`p-1 rounded-full ${plan.popular ? "bg-primary/20" : "bg-muted dark:bg-primary/10"}`}
-                        >
-                          <Check className="w-4 h-4 text-primary shrink-0" />
-                        </div>
-                        <span className="text-sm text-foreground/80">
-                          {feature}
-                        </span>
-                      </motion.li>
-                    ),
-                  )}
-                </ul>
-
-                {/* Button always at bottom */}
-                <Link
-                  href={`/register?plan=${plan.tier}&interval=${billingInterval}`}
-                  className="mt-auto"
-                >
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="group w-full py-3.5 rounded-xl font-medium transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-primary/50"
-                  >
-                    <span>{plan.cta}</span>
-                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                  </motion.button>
-                </Link>
-              </motion.div>
-            ))}
+            <h4 className="text-xl font-medium text-white mb-2 mt-2">
+              Profissional
+            </h4>
+            <p className="text-gray-400 text-sm mb-6 h-10">
+              Para negócios em crescimento estruturado que precisam de
+              automação.
+            </p>
+            <div className="mb-8">
+              <span className="text-5xl font-bold text-white">
+                €<span className="price-value">{isAnnual ? "79" : "99"}</span>
+              </span>
+              <span className="text-gray-500 text-sm">/mês</span>
+            </div>
+            <button className="w-full py-3 px-4 rounded-full bg-white text-black hover:bg-gray-200 transition-colors font-semibold mb-8">
+              Testar Profissional Grátis
+            </button>
+            <div className="space-y-4 flex-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Tudo do Essencial, mais:
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Utilizadores ilimitados
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Faturação e Stock ilimitados
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Acesso total à API Aberta
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Dashboards B.I. Avançados
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Suporte Prioritário (Chat 24/7)
+                </li>
+              </ul>
+            </div>
           </div>
-        )}
+
+          {/* Plano 3: Enterprise */}
+          <div className="pricing-card relative flex flex-col p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-[#0a0a0a] to-[#050505] transition-all duration-500 h-full group hover:border-white/20 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.05)]">
+            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/20 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
+            </div>
+
+            <h4 className="text-xl font-medium text-white mb-2">Enterprise</h4>
+            <p className="text-gray-500 text-sm mb-6 h-10">
+              Para corporações com necessidades de compliance e arquitetura
+              dedicada.
+            </p>
+            <div className="mb-8">
+              <span className="text-4xl font-bold text-white">Custom</span>
+            </div>
+            <button className="w-full py-3 px-4 rounded-full border border-white/20 text-white hover:bg-white/5 transition-colors font-medium mb-8">
+              Falar com Consultor
+            </button>
+            <div className="space-y-4 flex-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Tudo do Profissional, mais:
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Servidor Dedicado em Cloud Privada
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  SLA com Garantia de 99.99%
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Account Manager (CS) Dedicado
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-300">
+                  <Check className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />{" "}
+                  Onboarding in-loco pela nossa equipa
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

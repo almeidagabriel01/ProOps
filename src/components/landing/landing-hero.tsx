@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { useMemo, useEffect, useState } from "react";
-import { HeroParallax } from "@/components/ui/hero-parallax";
+import { HeroParallaxModern } from "@/components/ui/hero-parallax-modern";
 
 // Imagens base que existem em ambas as pastas
 const baseProducts = [
@@ -81,16 +81,5 @@ export function LandingHero() {
     return getProducts(folder);
   }, [resolvedTheme, mounted]);
 
-  return (
-    <HeroParallax
-      products={products}
-      title={
-        <>
-          O ERP completo para <br />{" "}
-          <span className="text-primary">sua empresa</span>
-        </>
-      }
-      subtitle="Gerencie propostas, clientes, produtos e finanças em um só lugar. Simplifique sua operação e aumente sua produtividade com nossa plataforma intuitiva e moderna."
-    />
-  );
+  return <HeroParallaxModern products={products} />;
 }
