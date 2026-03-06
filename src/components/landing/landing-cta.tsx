@@ -25,13 +25,14 @@ export function LandingCTA() {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.8,
-            ease: "power3.out",
+            duration: 0.55,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 90%",
+              start: "top 98%",
               end: "bottom 10%",
-              toggleActions: "play reverse play reverse",
+              toggleActions: "play none none reverse",
+              fastScrollEnd: true,
             },
           },
         );

@@ -209,14 +209,14 @@ export function LandingHeroFrames() {
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center relative p-8">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08)_0,transparent_100%)]"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.08)_0,transparent_100%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08)_0,transparent_100%)]"></div>
             <div className="w-full h-full flex items-center justify-center">
               <Image
                 src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
                 alt="System Core"
                 width={2070}
                 height={1380}
-                className="w-full h-full object-cover opacity-30 mix-blend-luminosity rounded"
+                className="w-full h-full object-cover rounded"
               />
             </div>
           </div>

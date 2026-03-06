@@ -38,8 +38,8 @@ export function LandingFAQ() {
               key={index}
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
+              viewport={{ once: true, amount: 0.12 }}
+              transition={{ duration: 0.35, delay: index * 0.03 }}
               className="group p-6 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
             >
               <h3 className="text-lg font-bold text-white mb-2">

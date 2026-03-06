@@ -29,9 +29,9 @@ export function LandingShowcase() {
       gsap.to("#dashboard-mockup", {
         scrollTrigger: {
           trigger: containerRef.current,
-          start: "top 80%",
+          start: "top 92%",
           end: "top 30%",
-          scrub: 1.5,
+          scrub: 0.7,
         },
         rotationX: 0,
         rotationY: 0,
@@ -51,13 +51,14 @@ export function LandingShowcase() {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.8,
-            ease: "power3.out",
+            duration: 0.55,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 90%",
+              start: "top 98%",
               end: "bottom 10%",
-              toggleActions: "play reverse play reverse",
+              toggleActions: "play none none reverse",
+              fastScrollEnd: true,
             },
           },
         );
@@ -106,10 +107,10 @@ export function LandingShowcase() {
                 alt="Dashboard ERP"
                 width={2070}
                 height={1380}
-                className="w-full h-full object-cover opacity-80 mix-blend-screen transition-transform duration-1000 group-hover:scale-105"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-background/35 via-transparent to-transparent"></div>
             </div>
           </div>
         </div>

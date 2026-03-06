@@ -33,13 +33,14 @@ export function LandingModules() {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.8,
-            ease: "power3.out",
+            duration: 0.55,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 90%",
+              start: "top 98%",
               end: "bottom 10%",
-              toggleActions: "play reverse play reverse",
+              toggleActions: "play none none reverse",
+              fastScrollEnd: true,
             },
           },
         );
@@ -55,13 +56,14 @@ export function LandingModules() {
             x: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 1,
-            ease: "power3.out",
+            duration: 0.65,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 80%",
+              start: "top 95%",
               end: "bottom 20%",
-              toggleActions: "play reverse play reverse",
+              toggleActions: "play none none reverse",
+              fastScrollEnd: true,
             },
           },
         );
@@ -77,13 +79,14 @@ export function LandingModules() {
             x: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 1,
-            ease: "power3.out",
+            duration: 0.65,
+            ease: "power2.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 80%",
+              start: "top 95%",
               end: "bottom 20%",
-              toggleActions: "play reverse play reverse",
+              toggleActions: "play none none reverse",
+              fastScrollEnd: true,
             },
           },
         );
@@ -137,7 +140,7 @@ export function LandingModules() {
                 alt="Módulo Financeiro"
                 width={2015}
                 height={1340}
-                className="w-full h-auto object-cover opacity-70 grayscale hover:grayscale-0 transition-all duration-700"
+                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
               />
             </div>
           </div>
@@ -181,7 +184,7 @@ export function LandingModules() {
                 alt="Módulo de Stock"
                 width={2070}
                 height={1380}
-                className="w-full h-auto object-cover opacity-70 grayscale hover:grayscale-0 transition-all duration-700"
+                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
               />
             </div>
           </div>
@@ -227,7 +230,7 @@ export function LandingModules() {
                 alt="Equipa RH"
                 width={2070}
                 height={1380}
-                className="w-full h-auto object-cover opacity-70 grayscale hover:grayscale-0 transition-all duration-700"
+                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
               />
             </div>
           </div>
