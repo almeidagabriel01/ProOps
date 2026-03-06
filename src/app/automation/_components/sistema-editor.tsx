@@ -53,6 +53,7 @@ import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import { compareDisplayText } from "@/lib/sort-text";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface SistemaEditorProps {
   sistema: Sistema | null;
@@ -208,27 +209,38 @@ export function SistemaEditor({
   const productListRef = React.useRef<HTMLDivElement>(null);
   const productSearchInputRef = React.useRef<HTMLInputElement>(null);
 
-  React.useEffect(() => {
-    if (tenant?.id) {
-      Promise.all([
+  const loadCatalog = React.useCallback(async () => {
+    if (!tenant?.id) return;
+    try {
+      const [loadedProducts, loadedServices] = await Promise.all([
         ProductService.getProducts(tenant.id),
         ServiceService.getServices(tenant.id),
-      ])
-        .then(([loadedProducts, loadedServices]) =>
-          setProducts([
-            ...loadedProducts.map((item) => ({
-              ...item,
-              itemType: "product" as const,
-            })),
-            ...loadedServices.map((item) => ({
-              ...item,
-              itemType: "service" as const,
-            })),
-          ]),
-        )
-        .catch(console.error);
+      ]);
+      setProducts([
+        ...loadedProducts.map((item) => ({
+          ...item,
+          itemType: "product" as const,
+        })),
+        ...loadedServices.map((item) => ({
+          ...item,
+          itemType: "service" as const,
+        })),
+      ]);
+    } catch (e) {
+      console.error(e);
     }
   }, [tenant?.id]);
+
+  React.useEffect(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+
+  useWindowFocus(() => {
+    if (tenant?.id) {
+      ProductService.invalidateTenantCache(tenant.id);
+      loadCatalog();
+    }
+  });
 
   // Click Outside Handler
   React.useEffect(() => {

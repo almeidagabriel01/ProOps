@@ -16,8 +16,9 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface AmbienteProductsDialogProps {
   isOpen: boolean;
@@ -80,6 +81,21 @@ export function AmbienteProductsDialog({
 
     loadData();
   }, [isOpen, tenant?.id, ambiente, props.initialProducts]);
+
+  useWindowFocus(() => {
+    if (isOpen && tenant?.id) {
+      ProductService.invalidateTenantCache(tenant.id);
+      const refreshCatalog = async () => {
+        try {
+          const catalogProducts = await ProductService.getProducts(tenant.id);
+          setProducts(catalogProducts.filter((p) => p.status === "active"));
+        } catch (e) {
+          console.error("Failed to refresh catalog on focus", e);
+        }
+      };
+      refreshCatalog();
+    }
+  });
 
   // Close product list when clicking outside
   React.useEffect(() => {

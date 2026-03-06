@@ -248,12 +248,27 @@ export function useProposalFormLoadingEffects(
 
     try {
       isFetchingRef.current = true;
-      const [freshAmbientes, freshSistemas] = await Promise.all([
+      ProductService.invalidateTenantCache(tenant.id); // Add this hook to break memory cache
+      const [freshAmbientes, freshSistemas, loadedProducts, loadedServices] = await Promise.all([
         AmbienteService.getAmbientes(tenant.id),
         SistemaService.getSistemas(tenant.id),
+        ProductService.getProducts(tenant.id),
+        ServiceService.getServices(tenant.id),
       ]);
 
       if (!isMountedRef.current) return;
+
+      const mergedCatalog = [
+        ...loadedProducts.map((item) => ({
+          ...item,
+          itemType: "product" as const,
+        })),
+        ...loadedServices.map((item) => ({
+          ...item,
+          itemType: "service" as const,
+        })),
+      ];
+      setProducts(mergedCatalog);
 
       if (freshAmbientes.length === 0 && freshSistemas.length === 0) {
         return;
@@ -268,7 +283,7 @@ export function useProposalFormLoadingEffects(
     } finally {
       isFetchingRef.current = false;
     }
-  }, [tenant, setLocalAmbientes, setLocalSistemas, syncSystemsWithMasterData]);
+  }, [tenant, setLocalAmbientes, setLocalSistemas, syncSystemsWithMasterData, setProducts]);
 
   React.useEffect(() => {
     const fetchProposal = async () => {
