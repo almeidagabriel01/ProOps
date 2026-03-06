@@ -8,7 +8,6 @@ import {
   MotionValue,
   useMotionTemplate,
 } from "motion/react";
-import { cn } from "@/lib/utils";
 
 export const HeroParallaxModern = ({
   products,

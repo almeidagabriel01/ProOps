@@ -9,7 +9,7 @@ import { PlanService } from "@/services/plan-service";
 import { User, UserPlan } from "@/types";
 
 // Define the UI Plan type used by the landing page
-interface LandingPlan {
+export interface LandingPlan {
   name: string;
   tier: string;
   prices: {

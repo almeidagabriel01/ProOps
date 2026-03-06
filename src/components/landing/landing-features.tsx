@@ -15,7 +15,8 @@ export function LandingFeatures() {
 
   useGSAP(
     () => {
-      gsap.utils.toArray(".gsap-fade-up").forEach((element: any) => {
+      gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
+        const element = el as Element;
         gsap.fromTo(
           element,
           { y: 30, opacity: 0, autoAlpha: 0 },
@@ -42,7 +43,7 @@ export function LandingFeatures() {
     <section
       ref={containerRef}
       id="recursos"
-      className="py-32 relative bg-[#030303]"
+      className="py-32 relative bg-card"
     >
       <div className="max-w-7xl mx-auto px-6">
         <div className="mb-20 text-center">
@@ -55,7 +56,7 @@ export function LandingFeatures() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-white/5 bg-gradient-to-br from-[#080808] to-[#030303] transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-white/10 hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
             <div className="absolute inset-0 bg-gradient-to-br from-brand-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="w-12 h-12 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
@@ -64,39 +65,39 @@ export function LandingFeatures() {
               <h4 className="text-xl font-semibold mb-3 transition-colors">
                 Sincronização Tempo Real
               </h4>
-              <p className="text-gray-400 text-sm leading-relaxed transition-colors">
+              <p className="text-muted-foreground text-sm leading-relaxed transition-colors">
                 Esqueça a necessidade de atualizar a página. Alterações feitas
                 por um utilizador refletem-se instantaneamente no ecrã de todos.
               </p>
             </div>
           </div>
 
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-white/5 bg-gradient-to-br from-[#080808] to-[#030303] transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-white/10 hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+            <div className="absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                <ShieldCheck className="text-white w-6 h-6" />
+              <div className="w-12 h-12 rounded-lg bg-muted border border-border flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <ShieldCheck className="text-foreground w-6 h-6" />
               </div>
               <h4 className="text-xl font-semibold mb-3 transition-colors">
                 Segurança Bancária
               </h4>
-              <p className="text-gray-400 text-sm leading-relaxed transition-colors">
+              <p className="text-muted-foreground text-sm leading-relaxed transition-colors">
                 Criptografia ponta a ponta, backups automáticos de hora em hora
                 e conformidade total com as rigorosas normas da RGPD.
               </p>
             </div>
           </div>
 
-          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-white/5 bg-gradient-to-br from-[#080808] to-[#030303] transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-white/10 hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+          <div className="feature-card relative overflow-hidden p-8 rounded-2xl border border-border bg-gradient-to-br from-secondary to-card transition-all duration-500 group gsap-fade-up hover:-translate-y-2 hover:border-border hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_15px_30px_-10px_rgba(255,255,255,0.05)]">
+            <div className="absolute inset-0 bg-gradient-to-br from-muted to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             <div className="relative z-10">
-              <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
-                <Plug className="text-white w-6 h-6" />
+              <div className="w-12 h-12 rounded-lg bg-muted border border-border flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                <Plug className="text-foreground w-6 h-6" />
               </div>
               <h4 className="text-xl font-semibold mb-3 transition-colors">
                 API Aberta (Headless)
               </h4>
-              <p className="text-gray-400 text-sm leading-relaxed transition-colors">
+              <p className="text-muted-foreground text-sm leading-relaxed transition-colors">
                 Conecte a sua loja online, CRM externo ou aplicação móvel
                 através da nossa API RESTful totalmente documentada.
               </p>

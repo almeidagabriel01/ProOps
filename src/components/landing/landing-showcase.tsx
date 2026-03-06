@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
+import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -41,7 +42,8 @@ export function LandingShowcase() {
       });
 
       // Simple wrapper for fade ups inside this component
-      gsap.utils.toArray(".gsap-fade-up").forEach((element: any) => {
+      gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
+        const element = el as Element;
         gsap.fromTo(
           element,
           { y: 30, opacity: 0, autoAlpha: 0 },
@@ -74,7 +76,7 @@ export function LandingShowcase() {
         <h2 className="text-3xl md:text-5xl font-bold mb-6 gsap-fade-up">
           Visibilidade total do seu negócio
         </h2>
-        <p className="text-gray-400 text-lg max-w-2xl mx-auto gsap-fade-up">
+        <p className="text-muted-foreground text-lg max-w-2xl mx-auto gsap-fade-up">
           O nosso painel principal não é apenas um conjunto de gráficos. É o
           centro de comando neural da sua empresa, atualizado em tempo real.
         </p>
@@ -84,28 +86,30 @@ export function LandingShowcase() {
         <div style={{ perspective: "2000px" }}>
           <div
             id="dashboard-mockup"
-            className="relative rounded-2xl border border-white/10 bg-dark-card shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden will-change-transform"
+            className="relative rounded-2xl border border-border bg-card shadow-[0_0_50px_rgba(0,0,0,0.1)] dark:shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden will-change-transform"
           >
-            <div className="h-12 border-b border-white/10 flex items-center px-6 gap-2 bg-[#050505]">
+            <div className="h-12 border-b border-border flex items-center px-6 gap-2 bg-card">
               <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-white/20"></div>
-                <div className="w-3 h-3 rounded-full bg-white/20"></div>
-                <div className="w-3 h-3 rounded-full bg-white/20"></div>
+                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
+                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
+                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
               </div>
-              <div className="mx-auto px-4 py-1 rounded-md bg-white/5 border border-white/5 text-xs text-gray-500 font-mono flex items-center gap-2">
+              <div className="mx-auto px-4 py-1 rounded-md bg-muted border border-border text-xs text-muted-foreground font-mono flex items-center gap-2">
                 <Lock className="w-3 h-3" />
                 app.nexerp.com/dashboard
               </div>
             </div>
 
-            <div className="aspect-[16/9] bg-[#000] relative overflow-hidden group">
-              <img
+            <div className="aspect-[16/9] bg-background relative overflow-hidden group">
+              <Image
                 src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
                 alt="Dashboard ERP"
+                width={2070}
+                height={1380}
                 className="w-full h-full object-cover opacity-80 mix-blend-screen transition-transform duration-1000 group-hover:scale-105"
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-80"></div>
             </div>
           </div>
         </div>

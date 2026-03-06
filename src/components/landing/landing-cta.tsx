@@ -16,7 +16,8 @@ export function LandingCTA() {
 
   useGSAP(
     () => {
-      gsap.utils.toArray(".gsap-fade-up").forEach((element: any) => {
+      gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
+        const element = el as Element;
         gsap.fromTo(
           element,
           { y: 30, opacity: 0, autoAlpha: 0 },
@@ -42,15 +43,15 @@ export function LandingCTA() {
   return (
     <section
       ref={containerRef}
-      className="py-32 relative overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-black to-black"
+      className="py-32 relative overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-900/20 via-background to-background"
     >
       <div className="absolute inset-0 z-0 grid-bg opacity-20"></div>
 
       <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
-        <h2 className="text-4xl md:text-6xl font-bold mb-6 text-white gsap-fade-up">
+        <h2 className="text-4xl md:text-6xl font-bold mb-6 text-foreground gsap-fade-up">
           Pronto para assumir o controlo?
         </h2>
-        <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto gsap-fade-up">
+        <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto gsap-fade-up">
           Junte-se a centenas de empresas que abandonaram sistemas lentos e
           confusos. Beneficie de uma migração guiada e suporte premium dedicado.
         </p>
@@ -63,7 +64,7 @@ export function LandingCTA() {
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
-        <p className="mt-8 text-sm text-gray-600 gsap-fade-up">
+        <p className="mt-8 text-sm text-muted-foreground gsap-fade-up">
           Implementação rápida. Sem fidelizações ocultas.
         </p>
       </div>

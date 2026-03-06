@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
+import Image from "next/image";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 
 export function LandingHeroFrames() {
@@ -58,7 +59,10 @@ export function LandingHeroFrames() {
   const gridOpacity = useTransform(smoothProgress, [0.85, 0.95], [0.2, 0]);
 
   return (
-    <section ref={containerRef} className="relative w-full h-[500vh] bg-black">
+    <section
+      ref={containerRef}
+      className="relative w-full h-[500vh] bg-background"
+    >
       <div
         className="sticky top-0 w-full h-screen flex items-center justify-center overflow-hidden"
         style={{ perspective: "1500px" }}
@@ -81,21 +85,21 @@ export function LandingHeroFrames() {
           }}
           className="relative z-10 text-center flex flex-col items-center max-w-5xl px-6"
         >
-          <div className="hero-badge inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-xs text-gray-400 mb-8 uppercase tracking-[0.2em] font-medium animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="hero-badge inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted text-xs text-muted-foreground mb-8 uppercase tracking-[0.2em] font-medium animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse"></span>
             O Padrão Ouro em SaaS
           </div>
           <h1 className="text-6xl md:text-8xl lg:text-[7rem] font-bold tracking-tighter mb-6 leading-[0.9] text-white animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
             <span className="block hero-title-line">Precisão em</span>
-            <span className="block hero-title-line text-gray-600">
+            <span className="block hero-title-line text-muted-foreground">
               cada detalhe.
             </span>
           </h1>
-          <p className="hero-desc text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 font-light leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
+          <p className="hero-desc text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 font-light leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
             Um ERP despido de complexidade. Construído matematicamente para a
             performance e controlo absoluto da sua operação.
           </p>
-          <div className="hero-line flex items-center justify-center gap-3 text-sm text-gray-500 mt-12 opacity-60 animate-in fade-in zoom-in duration-1000 delay-500"></div>
+          <div className="hero-line flex items-center justify-center gap-3 text-sm text-muted-foreground mt-12 opacity-60 animate-in fade-in zoom-in duration-1000 delay-500"></div>
         </motion.div>
 
         {/* Frame 2: The 3D Programmatic Frame Animation Alternative */}
@@ -110,10 +114,10 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-10 w-[90vw] md:w-[70vw] aspect-video rounded-2xl border border-white/10 bg-black/40 backdrop-blur-2xl shadow-2xl shadow-blue-900/20 overflow-hidden flex flex-col"
+          className="absolute z-10 w-[90vw] md:w-[70vw] aspect-video rounded-2xl border border-border bg-card/80 backdrop-blur-2xl shadow-2xl shadow-blue-900/20 overflow-hidden flex flex-col"
         >
           {/* Mock Dashboard Topbar */}
-          <div className="h-12 w-full border-b border-white/10 flex items-center px-4 gap-2">
+          <div className="h-12 w-full border-b border-border flex items-center px-4 gap-2">
             <div className="flex gap-1.5">
               <div className="h-3 w-3 rounded-full bg-red-500/20" />
               <div className="h-3 w-3 rounded-full bg-yellow-500/20" />
@@ -126,7 +130,7 @@ export function LandingHeroFrames() {
             <div className="col-span-2 flex flex-col gap-6">
               <motion.div
                 style={{ opacity: feature1Opacity }}
-                className="flex-1 rounded-xl bg-gradient-to-br from-white/5 to-transparent border border-white/5 p-6 flex flex-col justify-end relative overflow-hidden"
+                className="flex-1 rounded-xl bg-gradient-to-br from-muted to-transparent border border-border p-6 flex flex-col justify-end relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-[50px] rounded-full" />
                 <h3 className="text-2xl font-bold text-white mb-2">
@@ -136,7 +140,7 @@ export function LandingHeroFrames() {
                   Visão panorâmica da saúde da sua empresa.
                 </p>
               </motion.div>
-              <div className="h-32 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
+              <div className="h-32 rounded-xl bg-muted border border-border flex items-center justify-center">
                 <motion.div
                   style={{
                     width: useTransform(
@@ -155,7 +159,7 @@ export function LandingHeroFrames() {
                   opacity: feature2Opacity,
                   y: useTransform(smoothProgress, [0.25, 0.3], [50, 0]),
                 }}
-                className="h-48 rounded-xl bg-white/5 border border-white/5 p-6 flex items-center justify-center relative overflow-hidden group"
+                className="h-48 rounded-xl bg-muted border border-border p-6 flex items-center justify-center relative overflow-hidden group"
               >
                 <div className="w-24 h-24 rounded-full border-4 border-dashed border-blue-500/30 animate-[spin_10s_linear_infinite]" />
                 <div className="absolute font-bold text-blue-400 text-xl">
@@ -167,7 +171,7 @@ export function LandingHeroFrames() {
                   opacity: feature3Opacity,
                   x: useTransform(smoothProgress, [0.3, 0.35], [50, 0]),
                 }}
-                className="flex-1 rounded-xl bg-gradient-to-tl from-purple-500/10 to-transparent border border-white/5 p-6"
+                className="flex-1 rounded-xl bg-gradient-to-tl from-purple-500/10 to-transparent border border-border p-6"
               >
                 <h3 className="text-lg font-bold text-white mb-2">
                   Automático
@@ -192,25 +196,27 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-20 w-[90vw] max-w-4xl aspect-[21/9] border border-white/10 bg-[#030303] rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
+          className="absolute z-20 w-[90vw] max-w-4xl aspect-[21/9] border border-border bg-card rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col"
         >
-          <div className="h-12 border-b border-white/10 flex items-center px-6 justify-between bg-[#050505]">
+          <div className="h-12 border-b border-border flex items-center px-6 justify-between bg-card">
             <div className="flex gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10"></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-white/10"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/20"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/20"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/20"></div>
             </div>
-            <div className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">
+            <div className="text-[10px] text-muted-foreground font-mono tracking-[0.2em] uppercase">
               NexERP_Core
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center relative p-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08)_0,transparent_100%)]"></div>
             <div className="w-full h-full flex items-center justify-center">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
-                className="w-full h-full object-cover opacity-30 mix-blend-luminosity rounded"
                 alt="System Core"
+                width={2070}
+                height={1380}
+                className="w-full h-full object-cover opacity-30 mix-blend-luminosity rounded"
               />
             </div>
           </div>
@@ -218,7 +224,7 @@ export function LandingHeroFrames() {
 
         {/* Global fade out when leaving the 500vh section */}
         <motion.div
-          className="absolute inset-0 bg-black pointer-events-none z-30"
+          className="absolute inset-0 bg-background pointer-events-none z-30"
           style={{ opacity: useTransform(smoothProgress, [0.95, 1], [0, 1]) }}
         />
       </div>
