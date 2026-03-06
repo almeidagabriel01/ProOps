@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Layers, Menu, X } from "lucide-react";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import {
-  motion,
-  AnimatePresence,
-  useMotionValueEvent,
-  useScroll,
-} from "framer-motion";
+import { Menu, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { User } from "@/types";
+import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -18,37 +14,70 @@ interface LandingNavbarProps {
 }
 
 const navLinks = [
-  { href: "#showcase", label: "A Plataforma" },
+  { href: "#showcase", label: "Plataforma" },
   { href: "#modulos", label: "Módulos" },
-  { href: "#recursos", label: "Funcionalidades" },
-  { href: "#pricing", label: "Preços" },
+  { href: "#recursos", label: "Recursos" },
+  { href: "#pricing", label: "Planos" },
 ];
 
 export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
   const [hidden, setHidden] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const lastScrollY = useRef(0);
+  const navRef = useRef<HTMLElement>(null);
 
-  const { scrollY } = useScroll();
+  const handleAnchorClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    closeMobile = false,
+  ) => {
+    if (!href.startsWith("#")) return;
 
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    const direction = latest > lastScrollY.current ? "down" : "up";
-    lastScrollY.current = latest;
+    const target = document.querySelector<HTMLElement>(href);
+    if (!target) return;
 
-    if (latest > 80 && direction === "down") {
-      setHidden(true);
-    } else if (direction === "up") {
-      setHidden(false);
+    event.preventDefault();
+
+    const navHeight = navRef.current?.offsetHeight ?? 64;
+    const top = target.getBoundingClientRect().top + window.scrollY - (navHeight + 20);
+
+    window.scrollTo({
+      top: Math.max(top, 0),
+      behavior: "smooth",
+    });
+
+    window.history.replaceState(null, "", href);
+
+    if (closeMobile) {
+      setMobileOpen(false);
     }
-  });
+  };
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    const handleScroll = () => {
+      const latest = window.scrollY;
+      const direction = latest > lastScrollY.current ? "down" : "up";
+      lastScrollY.current = latest;
+
+      if (latest > 80 && direction === "down") {
+        setHidden(true);
+        return;
+      }
+
+      if (direction === "up") {
+        setHidden(false);
+      }
+    };
+
+    lastScrollY.current = window.scrollY;
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
@@ -56,84 +85,68 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
 
   return (
     <>
-      {/* Pill container */}
       <motion.div
         initial={{ y: -100, opacity: 0 }}
-        animate={{
-          y: hidden ? -6 : 0,
-          opacity: 1,
-        }}
+        animate={{ y: hidden ? -8 : 0, opacity: 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-3 px-4"
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 px-4"
       >
         <nav
-          id="navbar"
-          className="w-full max-w-[1200px] h-14 rounded-full transition-colors duration-400"
-          style={{
-            background:
-              "color-mix(in srgb, var(--background) 70%, transparent)",
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            border: "1px solid var(--border)",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.2)",
-          }}
+          ref={navRef}
+          className="w-full max-w-[1200px] h-16 rounded-full border border-black/10 dark:border-white/10 bg-white/90 dark:bg-neutral-950/85 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
         >
-          <div className="h-full px-6 flex items-center justify-between gap-4">
-            {/* Logo */}
+          <div className="h-full px-4 md:px-6 flex items-center justify-between gap-4">
             <Link
               href="/"
-              className="flex items-center gap-2.5 group shrink-0 cursor-pointer"
+              className="flex items-center shrink-0 cursor-pointer"
+              aria-label="ProOps"
             >
-              <motion.div
-                whileHover={{ rotate: 12, scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                className="w-[30px] h-[30px] rounded-lg bg-brand-500 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.25)]"
-              >
-                <Layers className="text-white w-4 h-4" />
-              </motion.div>
-              <span className="font-bold text-base tracking-tight text-foreground group-hover:text-brand-400 transition-colors duration-300 hidden sm:inline">
-                NexERP
-              </span>
+              <ProOpsLogo
+                variant="symbol"
+                width={116}
+                height={116}
+                priority
+                className="h-[3.7rem] w-[3.7rem] md:h-[4.3rem] md:w-[4.3rem] -my-1 md:-my-2"
+              />
             </Link>
 
-            {/* Desktop Links */}
             <div className="hidden md:flex items-center gap-1">
               {navLinks.map((link, i) => (
                 <motion.div
                   key={link.href}
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.07, duration: 0.4 }}
+                  transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
                 >
                   <Link
                     href={link.href}
-                    className="relative px-3.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 rounded-full hover:bg-foreground/5 group cursor-pointer"
+                    onClick={(event) => handleAnchorClick(event, link.href)}
+                    className="relative px-3.5 py-1.5 text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors duration-200 rounded-full hover:bg-black/[0.03] dark:hover:bg-white/[0.06] group cursor-pointer"
                   >
                     {link.label}
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-brand-500 group-hover:w-3/5 transition-all duration-300 rounded-full" />
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-black dark:bg-white group-hover:w-3/5 transition-all duration-200 rounded-full" />
                   </Link>
                 </motion.div>
               ))}
             </div>
 
-            {/* Right Side */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Theme Toggle */}
-              <AnimatedThemeToggler className="w-[34px] h-[34px] flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-300 [&_svg]:w-[18px] [&_svg]:h-[18px]" />
-
-              {/* Auth Buttons */}
               <div className="hidden sm:flex items-center gap-3">
+                <AnimatedThemeToggler
+                  className="h-8 w-8 inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                  aria-label="Alternar tema"
+                />
                 {currentUser ? (
                   <>
                     <Link
                       href="/dashboard"
-                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 cursor-pointer"
+                      className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Dashboard
                     </Link>
                     <button
                       onClick={onSignOut}
-                      className="bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                      className="bg-black dark:bg-white text-white dark:text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
                     >
                       Sair
                     </button>
@@ -142,31 +155,23 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                   <>
                     <Link
                       href="/login"
-                      className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-300 cursor-pointer"
+                      className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Entrar
-                    </Link>
-                    <Link
-                      href="/register"
-                      className="group relative inline-flex items-center bg-white text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-gray-100 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.06)] hover:shadow-[0_0_25px_rgba(255,255,255,0.12)] hover:scale-[1.02] active:scale-[0.98] overflow-hidden cursor-pointer"
-                    >
-                      <span className="relative z-10">Demonstração</span>
-                      <span className="absolute inset-0 bg-gradient-to-r from-brand-500 to-brand-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
                     </Link>
                   </>
                 )}
               </div>
 
-              {/* Mobile Menu Toggle */}
               <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all duration-300 cursor-pointer"
-                aria-label="Toggle menu"
+                onClick={() => setMobileOpen((prev) => !prev)}
+                className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                aria-label="Abrir menu"
               >
                 {mobileOpen ? (
-                  <X className="w-4.5 h-4.5" />
+                  <X className="w-[18px] h-[18px]" />
                 ) : (
-                  <Menu className="w-4.5 h-4.5" />
+                  <Menu className="w-[18px] h-[18px]" />
                 )}
               </button>
             </div>
@@ -174,29 +179,32 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
         </nav>
       </motion.div>
 
-      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 bg-background/95 backdrop-blur-2xl md:hidden"
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-2xl md:hidden"
           >
             <div className="flex flex-col items-center justify-center h-full gap-8">
+              <AnimatedThemeToggler
+                className="h-10 w-10 inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                aria-label="Alternar tema"
+              />
               {navLinks.map((link, i) => (
                 <motion.div
                   key={link.href}
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 24 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: i * 0.08, duration: 0.4 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{ delay: i * 0.06, duration: 0.3 }}
                 >
                   <Link
                     href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="text-2xl font-semibold text-foreground hover:text-brand-400 transition-colors duration-300 cursor-pointer"
+                    onClick={(event) => handleAnchorClick(event, link.href, true)}
+                    className="text-2xl font-semibold text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors cursor-pointer"
                   >
                     {link.label}
                   </Link>
@@ -204,10 +212,10 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
               ))}
 
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: 0.4, duration: 0.4 }}
+                exit={{ opacity: 0, y: -14 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
                 className="flex flex-col items-center gap-4 mt-4"
               >
                 {currentUser ? (
@@ -215,7 +223,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                     <Link
                       href="/dashboard"
                       onClick={() => setMobileOpen(false)}
-                      className="text-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Dashboard
                     </Link>
@@ -224,7 +232,7 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                         onSignOut();
                         setMobileOpen(false);
                       }}
-                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold cursor-pointer"
+                      className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-sm font-semibold cursor-pointer"
                     >
                       Sair
                     </button>
@@ -234,16 +242,16 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                     <Link
                       href="/login"
                       onClick={() => setMobileOpen(false)}
-                      className="text-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
                     >
-                      Iniciar Sessão
+                      Entrar
                     </Link>
                     <Link
                       href="/register"
                       onClick={() => setMobileOpen(false)}
-                      className="bg-white text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
+                      className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
                     >
-                      Agendar Demonstração
+                      Solicitar demonstração
                     </Link>
                   </>
                 )}

@@ -1,11 +1,12 @@
 {
   "name": "functions",
   "version": "1.0.0",
-  "description": "Firebase Cloud Functions for Template-ERP",
+  "description": "Firebase Cloud Functions for ProOps",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "lint": "eslint .",
     "deploy:dev": "firebase deploy --project dev --only functions,firestore:rules",
     "deploy:prod": "firebase deploy --project prod --only functions,firestore:rules",
     "serve": "npm run build && firebase emulators:start --only functions",
@@ -30,9 +31,12 @@
     "ts-morph": "^27.0.2"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.46.2",
+    "@typescript-eslint/parser": "^8.46.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "dotenv": "^17.3.1",
+    "eslint": "^9.39.3",
     "firebase-tools": "^15.6.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.0"
@@ -44,3 +48,4 @@
   },
   "private": true
 }
+

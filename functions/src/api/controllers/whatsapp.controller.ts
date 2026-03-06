@@ -340,7 +340,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           if (index === 0) {
             await sendWhatsAppMessage(
               from,
-              "Retornando ao menu...\n\nOlá! Sou seu assistente ERP. Posso ajudar com:\n\n1. 'Ver propostas'\n2. 'Financeiro de hoje'\n3. 'Saldo atual'",
+              "Retornando ao menu...\n\nOlá! Sou seu assistente ProOps. Posso ajudar com:\n\n1. 'Ver propostas'\n2. 'Financeiro de hoje'\n3. 'Saldo atual'",
             );
             await updateSession(from, {
               lastAction: "idle",
@@ -455,7 +455,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
                 text: "📌 Menu Principal",
               },
               body: {
-                text: "Olá! Sou seu assistente ERP. Selecione uma das opções abaixo:",
+                text: "Olá! Sou seu assistente ProOps. Selecione uma das opções abaixo:",
               },
               footer: {
                 text: "Selecione a opção",
@@ -485,7 +485,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             interactivePayload = {
               type: "button",
               body: {
-                text: "Olá! Sou seu assistente ERP. Selecione uma das opções abaixo:",
+                text: "Olá! Sou seu assistente ProOps. Selecione uma das opções abaixo:",
               },
               action: {
                 buttons: buttons,
@@ -514,3 +514,4 @@ export const handleWebhook = async (req: Request, res: Response) => {
     return res.status(500).send("Internal Server Error");
   }
 };
+

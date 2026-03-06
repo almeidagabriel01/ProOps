@@ -143,20 +143,19 @@ export const Header = () => {
       <div className="flex flex-col items-start justify-center">
         <div className="inline-flex items-center rounded-full border border-neutral-200 dark:border-neutral-800 bg-white/50 dark:bg-black/50 backdrop-blur-sm px-3 py-1 mb-8 text-sm text-neutral-600 dark:text-neutral-400">
           <span className="flex h-2 w-2 rounded-full bg-primary mr-2 animate-pulse"></span>
-          O ERP do Futuro
+          Plataforma ProOps
         </div>
 
         <h1 className="text-4xl md:text-8xl font-black dark:text-white tracking-tighter max-w-5xl leading-[1.1]">
-          Gestão inteligente para{" "}
+          Gestao inteligente para{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600 dark:to-blue-400">
-            empresas modernas
+            operações modernas
           </span>
         </h1>
 
         <p className="max-w-2xl text-lg md:text-2xl mt-8 text-neutral-600 dark:text-neutral-400 font-medium leading-relaxed">
-          Tenha controle absoluto sobre propostas, clientes, finanças e
-          produtos. Uma plataforma veloz, minimalista e construída para
-          impulsionar seus resultados.
+          Tenha controle sobre propostas, CRM, financeiro, catálogo e equipe.
+          Uma plataforma única para acelerar sua operação comercial.
         </p>
 
         <div className="mt-10 flex gap-4 flex-col sm:flex-row">

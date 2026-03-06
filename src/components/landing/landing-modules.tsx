@@ -5,88 +5,129 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import {
-  PieChart,
-  CheckCircle2,
-  Package,
-  Users,
-  FileText,
-  Calendar,
-} from "lucide-react";
+import { CheckCircle2, FileText, Kanban, Wallet } from "lucide-react";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
+
+type ModuleHighlight = {
+  title: string;
+  description: string;
+  bullets: string[];
+  imageSrc: string;
+  imageAlt: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const MODULES: ModuleHighlight[] = [
+  {
+    title: "Financeiro e carteiras em tempo real.",
+    description:
+      "Controle receitas e despesas, acompanhe saldos por carteira e execute transferências internas com visão consolidada da operação financeira.",
+    bullets: [
+      "Lançamentos com filtros por tipo, status e período",
+      "Carteiras com ajuste de saldo e histórico detalhado",
+      "Resumo financeiro com saldo total e indicadores rápidos",
+    ],
+    imageSrc: "/hero/generic-document-workflow.jpg",
+    imageAlt: "Análise financeira com gráficos de desempenho e indicadores",
+    icon: Wallet,
+  },
+  {
+    title: "CRM visual para propostas e lançamentos.",
+    description:
+      "Acompanhe o funil em quadro kanban com colunas configuráveis para propostas e cobranças, atualizando status por arraste e com visão instantânea da carteira.",
+    bullets: [
+      "Quadro kanban para propostas e lançamentos",
+      "Atualização de status com arraste entre colunas",
+      "Organização de prioridades e atrasos em um único fluxo",
+    ],
+    imageSrc: "/hero/generic-team-analytics.jpg",
+    imageAlt: "Equipe acompanhando evolução do pipeline comercial",
+    icon: Kanban,
+  },
+  {
+    title: "Propostas comerciais com editor de PDF.",
+    description:
+      "Monte propostas com produtos, serviços, soluções e ambientes, personalize capa e seções e gere PDF com preview em tempo real para envio imediato.",
+    bullets: [
+      "Editor visual de capa, conteúdo e estilo",
+      "Preview em tempo real com exportação em PDF",
+      "Compartilhamento por link e rastreio do documento",
+    ],
+    imageSrc: "/hero/generic-strategy-meeting.jpg",
+    imageAlt: "Reunião comercial para revisão de propostas e aprovações",
+    icon: FileText,
+  },
+];
 
 export function LandingModules() {
   const containerRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      // Fade Up
       gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
         const element = el as Element;
         gsap.fromTo(
           element,
-          { y: 30, opacity: 0, autoAlpha: 0 },
+          { y: 32, opacity: 0, autoAlpha: 0 },
           {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.55,
-            ease: "power2.out",
+            duration: 1.05,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 98%",
-              end: "bottom 10%",
+              start: "top 94%",
+              end: "bottom 50%",
               toggleActions: "play none none reverse",
-              fastScrollEnd: true,
+              invalidateOnRefresh: true,
             },
           },
         );
       });
 
-      // Slide Right
-      gsap.utils.toArray(".gsap-slide-right").forEach((el: unknown) => {
+      gsap.utils.toArray(".gsap-media-right").forEach((el: unknown) => {
         const element = el as Element;
         gsap.fromTo(
           element,
-          { x: 50, opacity: 0, autoAlpha: 0 },
+          { x: 56, opacity: 0, autoAlpha: 0 },
           {
             x: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.65,
-            ease: "power2.out",
+            duration: 1.1,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 95%",
-              end: "bottom 20%",
+              start: "top 93%",
+              end: "bottom 46%",
               toggleActions: "play none none reverse",
-              fastScrollEnd: true,
+              invalidateOnRefresh: true,
             },
           },
         );
       });
 
-      // Slide Left
-      gsap.utils.toArray(".gsap-slide-left").forEach((el: unknown) => {
+      gsap.utils.toArray(".gsap-media-left").forEach((el: unknown) => {
         const element = el as Element;
         gsap.fromTo(
           element,
-          { x: -50, opacity: 0, autoAlpha: 0 },
+          { x: -56, opacity: 0, autoAlpha: 0 },
           {
             x: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.65,
-            ease: "power2.out",
+            duration: 1.1,
+            ease: "power3.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 95%",
-              end: "bottom 20%",
+              start: "top 93%",
+              end: "bottom 46%",
               toggleActions: "play none none reverse",
-              fastScrollEnd: true,
+              invalidateOnRefresh: true,
             },
           },
         );
@@ -99,142 +140,70 @@ export function LandingModules() {
     <section
       ref={containerRef}
       id="modulos"
-      className="py-20 relative border-t border-border"
+      className="py-20 relative border-y border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950"
     >
       <div className="max-w-7xl mx-auto px-6">
-        {/* Módulo 1: Financeiro */}
-        <div className="flex flex-col lg:flex-row items-center gap-16 py-20">
-          <div className="w-full lg:w-1/2 space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm font-medium gsap-fade-up">
-              <PieChart className="w-4 h-4" /> Gestão Financeira
-            </div>
-            <h3 className="text-3xl md:text-5xl font-bold leading-tight gsap-fade-up">
-              Fluxo de caixa inteligente e automatizado.
-            </h3>
-            <p className="text-muted-foreground text-lg leading-relaxed gsap-fade-up">
-              Abandone as folhas de cálculo fragmentadas. O módulo financeiro do
-              NexERP reconcilia contas bancárias automaticamente, emite faturas
-              com um clique e projeta o seu cenário de liquidez para os próximos
-              12 meses utilizando algoritmos preditivos.
-            </p>
-            <ul className="space-y-4 pt-4 gsap-fade-up">
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-brand-500" /> Faturação
-                eletrónica certificada.
-              </li>
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-brand-500" /> Contas a
-                pagar e receber em tempo real.
-              </li>
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-brand-500" /> Relatórios
-                DRE e Balanço interativos.
-              </li>
-            </ul>
-          </div>
-          <div className="w-full lg:w-1/2 relative gsap-slide-right">
-            <div className="absolute -inset-20 bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.15)_0,transparent_60%)] opacity-100 z-0"></div>
-            <div className="relative rounded-2xl border border-border overflow-hidden bg-card z-10">
-              <Image
-                src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop"
-                alt="Módulo Financeiro"
-                width={2015}
-                height={1340}
-                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
-              />
-            </div>
-          </div>
-        </div>
+        {MODULES.map((module, index) => {
+          const isReversed = index % 2 === 1;
+          const Icon = module.icon;
 
-        {/* Módulo 2: Operações e Stock (Invertido) */}
-        <div className="flex flex-col lg:flex-row-reverse items-center gap-16 py-20 border-t border-border">
-          <div className="w-full lg:w-1/2 space-y-8 pl-0 lg:pl-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium gsap-fade-up">
-              <Package className="w-4 h-4" /> Logística & Stock
-            </div>
-            <h3 className="text-3xl md:text-5xl font-bold leading-tight gsap-fade-up">
-              Rastreamento de ponta a ponta.
-            </h3>
-            <p className="text-muted-foreground text-lg leading-relaxed gsap-fade-up">
-              Saiba exatamente onde está cada item do seu inventário. Desde a
-              entrada de matérias-primas até à expedição do produto final,
-              garantimos rastreabilidade total, gestão de lotes, validades e
-              alertas de rutura de stock.
-            </p>
-            <ul className="space-y-4 pt-4 gsap-fade-up">
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-blue-500" /> Inventário
-                multi-armazém.
-              </li>
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-blue-500" /> Sugestão de
-                compras baseada em IA.
-              </li>
-              <li className="flex items-center gap-3 text-foreground/80">
-                <CheckCircle2 className="w-5 h-5 text-blue-500" /> Leitura por
-                código de barras e RFID.
-              </li>
-            </ul>
-          </div>
-          <div className="w-full lg:w-1/2 relative gsap-slide-left">
-            <div className="absolute -inset-20 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15)_0,transparent_60%)] opacity-100 z-0"></div>
-            <div className="relative rounded-2xl border border-border overflow-hidden bg-card z-10">
-              <Image
-                src="https://images.unsplash.com/photo-1586528116311-ad8ed7c508b0?q=80&w=2070&auto=format&fit=crop"
-                alt="Módulo de Stock"
-                width={2070}
-                height={1380}
-                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
-              />
-            </div>
-          </div>
-        </div>
+          return (
+            <div
+              key={module.title}
+              className={`flex flex-col items-center gap-14 py-16 ${
+                isReversed ? "lg:flex-row-reverse" : "lg:flex-row"
+              } ${index > 0 ? "border-t border-black/10 dark:border-white/10" : ""}`}
+            >
+              <div
+                className={`w-full lg:w-1/2 space-y-7 ${
+                  isReversed ? "lg:pl-8" : ""
+                }`}
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/15 dark:border-white/15 bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white text-sm font-medium gsap-fade-up">
+                  <Icon className="w-4 h-4" />
+                  Módulo ProOps
+                </div>
 
-        {/* Módulo 3: RH e Equipa */}
-        <div className="flex flex-col lg:flex-row items-center gap-16 py-20 border-t border-border">
-          <div className="w-full lg:w-1/2 space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium gsap-fade-up">
-              <Users className="w-4 h-4" /> Recursos Humanos
-            </div>
-            <h3 className="text-3xl md:text-5xl font-bold leading-tight gsap-fade-up">
-              O talento humano no centro da gestão.
-            </h3>
-            <p className="text-muted-foreground text-lg leading-relaxed gsap-fade-up">
-              Centralize os processos de recrutamento, processamento salarial,
-              avaliações de desempenho e portal do colaborador. Liberte a sua
-              equipa de RH da burocracia para focar no desenvolvimento das
-              pessoas.
-            </p>
-            <div className="grid grid-cols-2 gap-6 pt-4 gsap-fade-up">
-              <div className="p-4 rounded-xl border border-border bg-muted">
-                <FileText className="w-6 h-6 text-foreground mb-2" />
-                <h4 className="font-medium mb-1">Processamento Salarial</h4>
-                <p className="text-sm text-muted-foreground">
-                  Cálculo automático de impostos e bónus.
+                <h3 className="text-3xl md:text-5xl font-bold leading-tight text-black dark:text-white gsap-fade-up">
+                  {module.title}
+                </h3>
+
+                <p className="text-black/65 dark:text-white/70 text-lg leading-relaxed gsap-fade-up">
+                  {module.description}
                 </p>
+
+                <ul className="space-y-3 pt-2 gsap-fade-up">
+                  {module.bullets.map((bullet) => (
+                    <li
+                      key={bullet}
+                      className="flex items-center gap-3 text-black/80 dark:text-white/80"
+                    >
+                      <CheckCircle2 className="w-5 h-5 text-black dark:text-white" />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
-                <Calendar className="w-6 h-6 text-white mb-2" />
-                <h4 className="font-medium mb-1">Gestão de Férias</h4>
-                <p className="text-sm text-muted-foreground">
-                  Aprovações e mapa de férias integrado.
-                </p>
+
+              <div
+                className={`w-full lg:w-1/2 relative ${
+                  isReversed ? "gsap-media-left" : "gsap-media-right"
+                }`}
+              >
+                <div className="absolute -inset-10 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.07)_0,transparent_65%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08)_0,transparent_65%)] z-0" />
+                <div className="relative rounded-2xl border border-black/15 dark:border-white/15 overflow-hidden bg-white dark:bg-neutral-900 z-10 shadow-[0_20px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <Image
+                    src={module.imageSrc}
+                    alt={module.imageAlt}
+                    width={1920}
+                    height={944}
+                    className="w-full h-auto object-contain object-top transition-transform duration-700 hover:scale-[1.01]"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="w-full lg:w-1/2 relative gsap-slide-right">
-            <div className="absolute -inset-20 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0,transparent_60%)] opacity-100 z-0"></div>
-            <div className="relative rounded-2xl border border-border overflow-hidden bg-card z-10">
-              <Image
-                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop"
-                alt="Equipa RH"
-                width={2070}
-                height={1380}
-                className="w-full h-auto object-cover saturate-110 contrast-105 transition-transform duration-700 hover:scale-[1.01]"
-              />
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
     </section>
   );

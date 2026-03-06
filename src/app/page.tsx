@@ -52,9 +52,8 @@ export default function LandingPage() {
     );
   }
 
-  // Entire page wrapper enforcing the new dark-luxury aesthetic
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-white text-black dark:bg-neutral-950 dark:text-neutral-100 selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
       <LandingNavbar currentUser={currentUser} onSignOut={handleSignOut} />
 
       <main>
@@ -63,8 +62,7 @@ export default function LandingPage() {
         <LandingModules />
         <LandingFeatures />
 
-        {/* Subtle separator inside main content */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent max-w-7xl mx-auto" />
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15 max-w-7xl mx-auto" />
 
         <LandingPricing
           plans={plans}
@@ -73,7 +71,7 @@ export default function LandingPage() {
           isLoading={isLoadingPlans}
         />
 
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent max-w-7xl mx-auto" />
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15 max-w-7xl mx-auto" />
 
         <LandingCTA />
       </main>
@@ -82,3 +80,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

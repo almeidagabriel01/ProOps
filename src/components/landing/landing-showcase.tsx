@@ -16,52 +16,55 @@ export function LandingShowcase() {
 
   useGSAP(
     () => {
-      // Setup initial 3D position
-      gsap.set("#dashboard-mockup", {
-        rotationX: 25,
-        rotationY: -10,
-        scale: 0.85,
-        y: 100,
-        opacity: 0.5,
+      const section = containerRef.current;
+      if (!section) return;
+
+      const headingItems = section.querySelectorAll<HTMLElement>(".showcase-heading");
+      headingItems.forEach((item) => {
+        gsap.fromTo(
+          item,
+          { y: 26, opacity: 0, autoAlpha: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            autoAlpha: 1,
+            ease: "none",
+            scrollTrigger: {
+              trigger: item,
+              start: "top 95%",
+              end: "top 72%",
+              scrub: true,
+              invalidateOnRefresh: true,
+            },
+          },
+        );
       });
 
-      // Animate on scroll
-      gsap.to("#dashboard-mockup", {
+      const mockupElement = section.querySelector<HTMLElement>(".showcase-mockup");
+      if (!mockupElement) return;
+
+      gsap.set(mockupElement, {
+        rotationX: 22,
+        rotationY: -10,
+        scale: 0.84,
+        y: 110,
+        opacity: 0.35,
+      });
+
+      gsap.to(mockupElement, {
         scrollTrigger: {
-          trigger: containerRef.current,
+          trigger: mockupElement,
           start: "top 92%",
-          end: "top 30%",
-          scrub: 0.7,
+          end: "top 58%",
+          scrub: true,
+          invalidateOnRefresh: true,
         },
         rotationX: 0,
         rotationY: 0,
         scale: 1,
         y: 0,
         opacity: 1,
-        ease: "power2.out",
-      });
-
-      // Simple wrapper for fade ups inside this component
-      gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
-        const element = el as Element;
-        gsap.fromTo(
-          element,
-          { y: 30, opacity: 0, autoAlpha: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            duration: 0.55,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: element,
-              start: "top 98%",
-              end: "bottom 10%",
-              toggleActions: "play none none reverse",
-              fastScrollEnd: true,
-            },
-          },
-        );
+        ease: "none",
       });
     },
     { scope: containerRef },
@@ -71,15 +74,16 @@ export function LandingShowcase() {
     <section
       ref={containerRef}
       id="showcase"
-      className="relative py-32 px-6 z-20"
+      className="relative py-28 px-6 bg-white dark:bg-neutral-950"
     >
-      <div className="max-w-6xl mx-auto text-center mb-16">
-        <h2 className="text-3xl md:text-5xl font-bold mb-6 gsap-fade-up">
-          Visibilidade total do seu negócio
+      <div className="max-w-6xl mx-auto text-center mb-14">
+        <h2 className="[font-family:var(--font-pdf-montserrat)] text-4xl md:text-6xl font-semibold tracking-[-0.03em] mb-6 text-black dark:text-white showcase-heading">
+          Um painel para decidir rápido
         </h2>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto gsap-fade-up">
-          O nosso painel principal não é apenas um conjunto de gráficos. É o
-          centro de comando neural da sua empresa, atualizado em tempo real.
+        <p className="[font-family:var(--font-pdf-inter)] text-black/65 dark:text-white/70 text-lg md:text-[1.15rem] leading-relaxed max-w-3xl mx-auto showcase-heading">
+          A visualização operacional da ProOps reúne dados financeiros,
+          andamento comercial e prioridades do time para decisões rápidas no
+          dia a dia.
         </p>
       </div>
 
@@ -87,30 +91,31 @@ export function LandingShowcase() {
         <div style={{ perspective: "2000px" }}>
           <div
             id="dashboard-mockup"
-            className="relative rounded-2xl border border-border bg-card shadow-[0_0_50px_rgba(0,0,0,0.1)] dark:shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden will-change-transform"
+            className="showcase-mockup relative rounded-2xl border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 shadow-[0_20px_60px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] overflow-hidden will-change-transform"
           >
-            <div className="h-12 border-b border-border flex items-center px-6 gap-2 bg-card">
+            <div className="h-12 border-b border-black/10 dark:border-white/10 flex items-center px-6 gap-2 bg-black/[0.015] dark:bg-white/[0.02]">
               <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
-                <div className="w-3 h-3 rounded-full bg-muted-foreground/30"></div>
+                <div className="w-3 h-3 rounded-full bg-black/15 dark:bg-white/15" />
+                <div className="w-3 h-3 rounded-full bg-black/15 dark:bg-white/15" />
+                <div className="w-3 h-3 rounded-full bg-black/15 dark:bg-white/15" />
               </div>
-              <div className="mx-auto px-4 py-1 rounded-md bg-muted border border-border text-xs text-muted-foreground font-mono flex items-center gap-2">
+              <div className="mx-auto px-4 py-1 rounded-md bg-white dark:bg-neutral-900 border border-black/10 dark:border-white/10 text-xs text-black/55 dark:text-white/55 font-mono flex items-center gap-2">
                 <Lock className="w-3 h-3" />
-                app.nexerp.com/dashboard
+                proops.com.br
               </div>
             </div>
 
-            <div className="aspect-[16/9] bg-background relative overflow-hidden group">
+            <div className="aspect-[16/9] bg-white dark:bg-neutral-900 relative overflow-hidden group">
               <Image
-                src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
-                alt="Dashboard ERP"
-                width={2070}
-                height={1380}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                src="/hero/Dashboard.png"
+                alt="Dashboard real da ProOps com visão financeira e operacional"
+                width={1920}
+                height={944}
+                className="w-full h-full object-cover object-left-top transition-transform duration-700 group-hover:scale-[1.01]"
+                priority
               />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-background/35 via-transparent to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-white/35 dark:from-black/45 via-transparent to-transparent" />
             </div>
           </div>
         </div>
@@ -118,3 +123,4 @@ export function LandingShowcase() {
     </section>
   );
 }
+
