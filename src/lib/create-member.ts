@@ -1,7 +1,7 @@
 /**
  * Cloud Function: Create Member User
  * 
- * Creates a MEMBER user linked to a MASTER user in a multi-tenant ERP SaaS.
+ * Creates a MEMBER user linked to a MASTER user in a multi-tenant ProOps SaaS.
  * This can be used as a standalone Firebase Cloud Function OR as the core
  * logic for a Next.js API route.
  * 
@@ -316,3 +316,4 @@ export async function createMemberUser(
     message: `Usuário ${input.name} criado com sucesso!`,
   };
 }
+

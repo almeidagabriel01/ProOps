@@ -27,7 +27,6 @@ export function getStripe(): Stripe {
 
     stripeInstance = new Stripe(secretKey, {
       // Use the latest stable API version
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apiVersion: "2024-11-20.acacia" as any,
       typescript: true,
     });

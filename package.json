@@ -1,5 +1,5 @@
 {
-  "name": "template-erp",
+  "name": "proops",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -70,3 +70,4 @@
     "minimatch": "10.2.1"
   }
 }
+
