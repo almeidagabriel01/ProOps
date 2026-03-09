@@ -298,6 +298,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
         hasFinancial: baseFeatures.hasFinancial,
         canEditPdfSections: baseFeatures.canEditPdfSections,
         maxPdfTemplates: baseFeatures.maxPdfTemplates,
+        hasKanban: baseFeatures.hasKanban,
         canCustomizeTheme: baseFeatures.canCustomizeTheme,
         maxUsers: baseFeatures.maxUsers,
       },
@@ -313,6 +314,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
       hasFinancial: features.hasFinancial,
       canEditPdfSections: features.canEditPdfSections,
       maxPdfTemplates: features.maxPdfTemplates,
+      hasKanban: features.hasKanban,
       canCustomizeTheme: features.canCustomizeTheme,
       maxUsers: features.maxUsers,
     };

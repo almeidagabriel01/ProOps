@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/utils/format";
 
 interface AddonCardProps {
   addon: AddonDefinition;
@@ -137,7 +138,7 @@ export function AddonCard({
                     className="text-2xl font-bold"
                     style={{ color: primaryColor }}
                   >
-                    R$ {(monthlyPrice / 100).toFixed(0)}
+                    {formatCurrency(monthlyPrice / 100)}
                   </span>
                   <span className="text-muted-foreground">/mês</span>
                 </>

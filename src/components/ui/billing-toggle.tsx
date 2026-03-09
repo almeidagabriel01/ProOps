@@ -111,7 +111,7 @@ export function BillingToggle({
         isActive={value === "yearly"}
         onClick={() => onChange("yearly")}
         label="Anual"
-        badge="-20%"
+        badge="-15%"
       />
     </div>
   );

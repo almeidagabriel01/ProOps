@@ -8,6 +8,8 @@
 import { useState } from "react";
 import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
+import { useTenant } from "@/providers/tenant-provider";
+import { ProductService } from "@/services/product-service";
 
 // ============================================
 // TYPES
@@ -56,6 +58,7 @@ const formatProductLabel = (name?: string, fallback = "produto"): string => {
 
 export function useProductActions() {
   const [isLoading, setIsLoading] = useState(false);
+  const { tenant } = useTenant();
 
   const createProduct = async (
     data: CreateProductData,
@@ -80,6 +83,10 @@ export function useProductActions() {
         "POST",
         payload,
       );
+
+      if (tenant) {
+        ProductService.invalidateTenantCache(tenant.id);
+      }
 
       const productLabel = formatProductLabel(data.name, "novo produto");
       toast.success(`Produto ${productLabel} criado com sucesso.`, {
@@ -115,6 +122,10 @@ export function useProductActions() {
         "PUT",
         data,
       );
+
+      if (tenant) {
+        ProductService.invalidateTenantCache(tenant.id);
+      }
 
       const productLabel = formatProductLabel(
         options?.productName || data.name,
@@ -152,6 +163,10 @@ export function useProductActions() {
         `v1/products/${productId}`,
         "DELETE",
       );
+
+      if (tenant) {
+        ProductService.invalidateTenantCache(tenant.id);
+      }
 
       const productLabel = formatProductLabel(productName);
       toast.success(`Produto ${productLabel} foi excluido com sucesso.`, {

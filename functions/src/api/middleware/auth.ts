@@ -32,7 +32,7 @@ function getAuthErrorMessage(errorMessage: string): string {
 
 // Extend Express Request type to include current auth context.
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
+   
   namespace Express {
     interface Request {
       user?: AuthContext;

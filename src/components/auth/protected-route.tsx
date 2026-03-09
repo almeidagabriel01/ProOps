@@ -23,14 +23,13 @@ import {
 } from "@/lib/page-config";
 import { ProtectedAppShell } from "@/components/layout/protected-app-shell";
 import { RouteContentSkeleton } from "@/components/layout/route-content-skeleton";
-import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
+import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
   "/login",
   "/register",
   "/forgot-password",
-  "/email-verification-pending",
   "/subscribe",
   "/checkout-success",
   "/",
@@ -42,7 +41,6 @@ const PUBLIC_ROUTES = [
   "/login",
   "/register",
   "/forgot-password",
-  "/email-verification-pending",
   "/subscribe",
   "/pricing",
   "/auth",
@@ -55,13 +53,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isLoading: isPermLoading,
     hasPermission,
   } = usePermissions();
-  const {
-    isLoading: isTenantLoading,
-    isGlobalLoading,
-  } = useTenant();
+  const { isLoading: isTenantLoading, isGlobalLoading } = useTenant();
   const router = useRouter();
   const pathname = usePathname();
   const isRecoveringRef = React.useRef(false);
+  const [showVerificationPending, setShowVerificationPending] =
+    React.useState(false);
 
   const isSelfHandled = SELF_HANDLED_ROUTES.some(
     (r) => pathname === r || pathname.startsWith(r + "/"),
@@ -86,15 +83,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         // authenticated — attempt session recovery instead of redirecting.
         const firebaseUser = auth.currentUser;
         if (firebaseUser && !isRecoveringRef.current) {
-          if (shouldBlockUnverifiedEmail(firebaseUser)) {
+          const skipEmailVerification =
+            process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
+          if (!firebaseUser.emailVerified && !skipEmailVerification) {
             // User is authenticated but hasn't verified email.
-            // Redirect directly to the pending page instead of recovering.
-            const url = new URL(
-              "/email-verification-pending",
-              window.location.href,
-            );
-            url.searchParams.set("redirect", pathname);
-            router.push(url.toString().replace(window.location.origin, ""));
+            // Show inline verification component instead of redirecting.
+            setShowVerificationPending(true);
             return;
           }
 
@@ -155,6 +150,21 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isSelfHandled) {
     return <>{children}</>;
+  }
+
+  if (showVerificationPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
+        <EmailVerificationPending
+          onVerified={() => {
+            window.location.reload();
+          }}
+          onCancel={() => {
+            router.push("/login");
+          }}
+        />
+      </div>
+    );
   }
 
   if (isPublic && !user && !isAuthLoading) {

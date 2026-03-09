@@ -383,4 +383,10 @@ export const ProductService = {
       throw error;
     }
   },
+
+  invalidateTenantCache: (tenantId: string) => {
+    if (tenantId) {
+      tenantProductCache.delete(tenantId);
+    }
+  },
 };

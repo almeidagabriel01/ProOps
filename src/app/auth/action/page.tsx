@@ -182,18 +182,9 @@ function AuthActionContent() {
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button
-              onClick={() =>
-                router.push(
-                  mode === "verifyEmail"
-                    ? "/email-verification-pending"
-                    : "/login",
-                )
-              }
-              className="w-full"
-            >
+            <Button onClick={() => router.push("/login")} className="w-full">
               {mode === "verifyEmail"
-                ? "Voltar para confirmação"
+                ? "Voltar para o Login"
                 : "Voltar para o Login"}
             </Button>
           </CardFooter>
@@ -212,9 +203,9 @@ function AuthActionContent() {
               E-mail confirmado!
             </CardTitle>
             <CardDescription>
-              Sua confirmação foi concluída. Retorne para a aba anterior
-              (confirmação pendente) e clique em &nbsp;&quot;Já confirmei meu
-              e-mail&quot; para continuar.
+              Sua confirmação foi concluída. Retorne para a aba anterior e
+              clique em &nbsp;&quot;Já confirmei meu e-mail&quot; para
+              continuar.
             </CardDescription>
           </CardHeader>
         </Card>

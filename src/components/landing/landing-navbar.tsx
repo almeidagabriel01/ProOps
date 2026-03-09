@@ -1,10 +1,12 @@
 "use client";
 
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkles, Users, ChevronDown, LogOut, ArrowRight } from "lucide-react";
-import { MobileMenu } from "@/components/ui/mobile-menu";
+import Image from "next/image";
+import { Menu, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { User } from "@/types";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -12,111 +14,243 @@ interface LandingNavbarProps {
 }
 
 const navLinks = [
-  { label: "Recursos", href: "#features" },
-  { label: "Planos", href: "#pricing" },
-  { label: "Contato", href: "#contact" },
+  { href: "#showcase", label: "Plataforma" },
+  { href: "#modulos", label: "Módulos" },
+  { href: "#recursos", label: "Recursos" },
+  { href: "#pricing", label: "Planos" },
 ];
 
 export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
-  // const { theme, setTheme } = useTheme(); // Removed unused
-  // const [mounted, setMounted] = useState(false); // Removed unused, AnimatedThemeToggler handles it
+  const [hidden, setHidden] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const lastScrollY = useRef(0);
+  const navRef = useRef<HTMLElement>(null);
 
-  // Only show theme icon after mounting to prevent hydration mismatch
-  // useEffect(() => {
-  //   setMounted(true);
-  // }, []);
+  const handleAnchorClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    closeMobile = false,
+  ) => {
+    if (!href.startsWith("#")) return;
 
-  // const toggleTheme = () => {
-  //   setTheme(theme === "dark" ? "light" : "dark");
-  // };
+    const target = document.querySelector<HTMLElement>(href);
+    if (!target) return;
+
+    event.preventDefault();
+
+    const navHeight = navRef.current?.offsetHeight ?? 64;
+    const top =
+      target.getBoundingClientRect().top + window.scrollY - (navHeight + 20);
+
+    window.scrollTo({
+      top: Math.max(top, 0),
+      behavior: "smooth",
+    });
+
+    window.history.replaceState(null, "", href);
+
+    if (closeMobile) {
+      setMobileOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const latest = window.scrollY;
+      const direction = latest > lastScrollY.current ? "down" : "up";
+      lastScrollY.current = latest;
+
+      if (latest > 80 && direction === "down") {
+        setHidden(true);
+        return;
+      }
+
+      if (direction === "up") {
+        setHidden(false);
+      }
+    };
+
+    lastScrollY.current = window.scrollY;
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/50">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-3 group cursor-pointer">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold text-foreground">ERP PRO</span>
-        </div>
-
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all duration-200 cursor-pointer"
+    <>
+      <motion.div
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: hidden ? -8 : 0, opacity: 1 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-4 px-4"
+      >
+        <nav
+          ref={navRef}
+          className="w-full max-w-[1200px] h-16 rounded-full border border-black/10 dark:border-white/10 bg-white/90 dark:bg-neutral-950/85 backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+        >
+          <div className="h-full px-4 md:px-6 flex items-center justify-between gap-4">
+            <Link
+              href="/"
+              className="group relative inline-flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center overflow-hidden rounded-full -ml-1 md:-ml-2 cursor-pointer leading-none"
+              aria-label="ProOps"
             >
-              {link.label}
-            </a>
-          ))}
-        </nav>
+              <Image
+                src="/logo/logo2-transparent.svg"
+                alt="ProOps"
+                width={116}
+                height={116}
+                priority
+                className="block h-full w-full object-contain dark:invert scale-[2.55] md:scale-[2.7] transition-all duration-300 group-hover:scale-[2.7] md:group-hover:scale-[2.85] group-hover:-translate-y-0.5 group-hover:drop-shadow-[0_10px_18px_rgba(0,0,0,0.22)]"
+              />
+            </Link>
 
-        {/* Buttons / User Menu */}
-        <div className="flex items-center gap-3">
-          {/* Theme Toggle */}
-          <AnimatedThemeToggler className="p-2.5 rounded-xl bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all duration-200" />
-
-          {currentUser ? (
-            <div className="relative group">
-              <button className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-all duration-200 cursor-pointer">
-                <div className="flex flex-col items-end hidden sm:flex">
-                  <span className="text-sm font-medium text-foreground">
-                    {currentUser.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground capitalize">
-                    {currentUser.role === "free"
-                      ? "Conta Gratuita"
-                      : currentUser.role}
-                  </span>
-                </div>
-                <div className="h-9 w-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
-              </button>
-              {/* Dropdown */}
-              <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div className="p-3 border-b border-border">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {currentUser.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {currentUser.email}
-                  </p>
-                </div>
-                <div className="p-2">
-                  <button
-                    onClick={onSignOut}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+            <div className="hidden md:flex items-center gap-1">
+              {navLinks.map((link, i) => (
+                <motion.div
+                  key={link.href}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
+                >
+                  <Link
+                    href={link.href}
+                    onClick={(event) => handleAnchorClick(event, link.href)}
+                    className="relative px-3.5 py-1.5 text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors duration-200 rounded-full hover:bg-black/[0.03] dark:hover:bg-white/[0.06] group cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4" />
-                    Sair
-                  </button>
-                </div>
-              </div>
+                    {link.label}
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2px] bg-black dark:bg-white group-hover:w-3/5 transition-all duration-200 rounded-full" />
+                  </Link>
+                </motion.div>
+              ))}
             </div>
-          ) : (
-            <>
-              <Link href="/login" className="hidden md:block">
-                <button className="px-4 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg font-medium transition-all duration-200 cursor-pointer">
-                  Entrar
-                </button>
-              </Link>
-              <Link href="/register" className="hidden md:block">
-                <button className="group relative px-5 py-2.5 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-xl font-medium flex items-center gap-2 transition-all duration-300 cursor-pointer shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-105">
-                  <span>Começar Agora</span>
-                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </button>
-              </Link>
-            </>
-          )}
-          {/* Mobile Menu */}
-          <MobileMenu links={navLinks} />
-        </div>
-      </div>
-    </header>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="hidden sm:flex items-center gap-3">
+                <AnimatedThemeToggler
+                  className="h-8 w-8 inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                  aria-label="Alternar tema"
+                />
+                {currentUser ? (
+                  <>
+                    <button
+                      onClick={onSignOut}
+                      className="bg-black dark:bg-white text-white dark:text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
+                    >
+                      Sair
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Entrar
+                    </Link>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setMobileOpen((prev) => !prev)}
+                className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                aria-label="Abrir menu"
+              >
+                {mobileOpen ? (
+                  <X className="w-[18px] h-[18px]" />
+                ) : (
+                  <Menu className="w-[18px] h-[18px]" />
+                )}
+              </button>
+            </div>
+          </div>
+        </nav>
+      </motion.div>
+
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-2xl md:hidden"
+          >
+            <div className="flex flex-col items-center justify-center h-full gap-8">
+              <AnimatedThemeToggler
+                className="h-10 w-10 inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                aria-label="Alternar tema"
+              />
+              {navLinks.map((link, i) => (
+                <motion.div
+                  key={link.href}
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{ delay: i * 0.06, duration: 0.3 }}
+                >
+                  <Link
+                    href={link.href}
+                    onClick={(event) =>
+                      handleAnchorClick(event, link.href, true)
+                    }
+                    className="text-2xl font-semibold text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors cursor-pointer"
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              ))}
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -14 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+                className="flex flex-col items-center gap-4 mt-4"
+              >
+                {currentUser ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        onSignOut();
+                        setMobileOpen(false);
+                      }}
+                      className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-sm font-semibold cursor-pointer"
+                    >
+                      Sair
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Entrar
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileOpen(false)}
+                      className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
+                    >
+                      Solicitar demonstração
+                    </Link>
+                  </>
+                )}
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

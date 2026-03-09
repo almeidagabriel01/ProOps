@@ -14,7 +14,6 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
 import { callPublicApi } from "@/lib/api-client";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
@@ -79,10 +78,10 @@ interface UseLoginFormReturn {
   setSmsCode: (value: string) => void;
   requiresPhoneVerification: boolean;
   isAwaitingPhoneVerification: boolean;
+  isEmailVerificationPending: boolean;
+  setIsEmailVerificationPending: (value: boolean) => void;
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
-  /** True while attempting transparent session recovery (session_expired redirect). */
-  isAutoRecovering: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -123,6 +122,8 @@ export function useLoginForm(): UseLoginFormReturn {
   const [requiresPhoneVerification, setRequiresPhoneVerification] =
     React.useState(false);
   const [isAwaitingPhoneVerification, setIsAwaitingPhoneVerification] =
+    React.useState(false);
+  const [isEmailVerificationPending, setIsEmailVerificationPending] =
     React.useState(false);
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
@@ -221,7 +222,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, user, isLoading, forceSyncSession } = useAuth();
+  const { login, user, isLoading, isSessionSynced } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -273,67 +274,23 @@ export function useLoginForm(): UseLoginFormReturn {
   const redirectUrl = searchParams.get("redirect");
   const redirectReason = searchParams.get("redirect_reason");
 
-  // ── Auto-recovery for session-expired redirects ──
-  // When the middleware redirects to /login?redirect_reason=session_expired,
-  // the user may still be authenticated client-side (Firebase Auth SDK keeps
-  // the token in IndexedDB). If so, we can transparently re-create the
-  // session cookie and redirect back without showing the login form.
-  const autoRecoveryAttemptedRef = React.useRef(false);
-  const [isAutoRecovering, setIsAutoRecovering] = React.useState(false);
-
-  React.useEffect(() => {
-    if (autoRecoveryAttemptedRef.current) return;
-    if (redirectReason !== "session_expired") return;
-    if (!redirectUrl) return;
-    // Wait for auth provider to finish loading so auth.currentUser is populated
-    if (isLoading) return;
-
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) return; // Not authenticated client-side — show login form
-
-    autoRecoveryAttemptedRef.current = true;
-    setIsAutoRecovering(true);
-
-    forceSyncSession()
-      .then((synced) => {
-        if (synced) {
-          // Session cookie restored — redirect back to the intended page
-          const target = decodeURIComponent(redirectUrl);
-          window.location.replace(target);
-        } else {
-          // Recovery failed — show login form
-          setIsAutoRecovering(false);
-        }
-      })
-      .catch(() => {
-        setIsAutoRecovering(false);
-      });
-  }, [redirectReason, redirectUrl, isLoading, forceSyncSession]);
-
-  const buildEmailPendingPath = React.useCallback(() => {
-    const params = new URLSearchParams();
-
-    if (redirectUrl) {
-      params.set("redirect", redirectUrl);
-    }
-
-    const query = params.toString();
-    return query
-      ? `/email-verification-pending?${query}`
-      : "/email-verification-pending";
-  }, [redirectUrl]);
-
   const handleRedirectAfterAuth = React.useCallback(() => {
     const currentUser = auth.currentUser;
-    if (shouldBlockUnverifiedEmail(currentUser)) {
-      router.replace(buildEmailPendingPath());
+    const skipEmailVerification =
+      process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+    if (currentUser && !currentUser.emailVerified && !skipEmailVerification) {
+      setIsEmailVerificationPending(true);
       return;
     }
 
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
-      router.replace(target);
+      if (redirectReason === "session_expired") {
+        window.location.replace(target);
+      } else {
+        router.replace(target);
+      }
       return;
     }
 
@@ -391,14 +348,34 @@ export function useLoginForm(): UseLoginFormReturn {
         }
       }
     }
-  }, [buildEmailPendingPath, redirectUrl, router, user]);
+  }, [redirectUrl, redirectReason, router, user]);
 
   // If already logged in, redirect
   React.useEffect(() => {
-    if (!isLoading && user) {
-      handleRedirectAfterAuth();
+    if (!isLoading) {
+      if (user) {
+        // For session_expired, we MUST wait until the session cookie is synced back
+        if (redirectReason === "session_expired" && !isSessionSynced) {
+          return;
+        }
+
+        handleRedirectAfterAuth();
+      } else if (auth.currentUser) {
+        const skipEmailVerification =
+          process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+        if (!auth.currentUser.emailVerified && !skipEmailVerification) {
+          setIsEmailVerificationPending(true);
+        }
+      }
     }
-  }, [user, isLoading, handleRedirectAfterAuth]);
+  }, [
+    user,
+    isLoading,
+    isSessionSynced,
+    redirectReason,
+    handleRedirectAfterAuth,
+    setIsEmailVerificationPending,
+  ]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -433,9 +410,7 @@ export function useLoginForm(): UseLoginFormReturn {
     const result = await login(email, password);
     if (!result.success) {
       if (result.code === "email-not-verified") {
-        setIsLoggingIn(false);
-        router.replace(buildEmailPendingPath());
-        return;
+        setIsEmailVerificationPending(true);
       } else {
         setError("Falha no login. Verifique suas credenciais.");
       }
@@ -586,14 +561,12 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: new Date().toISOString(),
       });
 
-      const emailPendingPath = buildEmailPendingPath();
-
       await sendEmailVerification(firebaseUser, {
-        url: `${window.location.origin}${emailPendingPath}`,
+        url: `${window.location.origin}/login`,
       });
 
       setIsRegistering(false);
-      router.replace(emailPendingPath);
+      setIsEmailVerificationPending(true);
       return;
     } catch (err: unknown) {
       const error = err as { code?: string };
@@ -707,6 +680,8 @@ export function useLoginForm(): UseLoginFormReturn {
     setSmsCode,
     requiresPhoneVerification,
     isAwaitingPhoneVerification,
+    isEmailVerificationPending,
+    setIsEmailVerificationPending,
     isSendingSms,
     isVerifyingSmsCode,
     handleLogin,
@@ -717,7 +692,5 @@ export function useLoginForm(): UseLoginFormReturn {
     handleResendPhoneCode,
     resetSent,
     isResetting,
-    isAutoRecovering,
   };
 }
-

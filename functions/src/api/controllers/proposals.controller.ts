@@ -147,25 +147,52 @@ function sanitizeAttachmentStoragePath(value: unknown): string | undefined {
   return normalized;
 }
 
+function normalizeStatusIdentifier(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
 async function isStatusApproved(
   statusId: string | undefined | null,
+  tenantId?: string | null,
 ): Promise<boolean> {
-  if (!statusId) return false;
+  const normalizedStatus = normalizeStatusIdentifier(statusId);
+  if (!normalizedStatus) return false;
 
-  // Classic mapped names
-  if (statusId === "approved") return true;
-  if (["draft", "in_progress", "sent", "rejected"].includes(statusId))
+  // Legacy canonical values persisted directly in proposal.status
+  if (normalizedStatus === "approved") return true;
+  if (["draft", "in_progress", "sent", "rejected"].includes(normalizedStatus)) {
     return false;
+  }
 
   try {
     const statusDoc = await db
       .collection("kanban_statuses")
-      .doc(statusId)
+      .doc(String(statusId))
       .get();
-    if (statusDoc.exists) {
-      const mapped = statusDoc.data()?.mappedStatus;
-      return mapped === "approved";
+    if (!statusDoc.exists) return false;
+
+    const statusData = statusDoc.data() as
+      | {
+          tenantId?: string;
+          mappedStatus?: string | null;
+          category?: string | null;
+        }
+      | undefined;
+    const statusTenantId = String(statusData?.tenantId || "").trim();
+
+    // Hard guard: never infer approval from a kanban column owned by another tenant.
+    if (tenantId && statusTenantId && statusTenantId !== tenantId) {
+      return false;
     }
+
+    const mappedStatus = normalizeStatusIdentifier(statusData?.mappedStatus);
+    if (mappedStatus === "approved") return true;
+
+    // Newer status model is category-based; "won" semantically means approved.
+    const category = normalizeStatusIdentifier(statusData?.category);
+    return category === "won";
   } catch (err) {
     console.error("isStatusApproved error checking kanban_statuses", err);
   }
@@ -1137,7 +1164,12 @@ export const createProposal = async (req: Request, res: Response) => {
         };
       });
 
-      if (await isStatusApproved(createdProposal.data.status as string)) {
+      if (
+        await isStatusApproved(
+          createdProposal.data.status as string,
+          createdProposal.data.tenantId as string,
+        )
+      ) {
         await syncApprovedProposalTransactions({
           proposalId: createdProposal.id,
           proposalTenantId: createdProposal.data.tenantId as string,
@@ -1318,10 +1350,11 @@ export const updateProposal = async (req: Request, res: Response) => {
     // Criar receita automaticamente quando a proposta for aprovada
     const isCurrentlyApproved = await isStatusApproved(
       proposalData?.status as string | undefined,
+      proposalTenantId,
     );
     const willBeApproved =
       updateData.status !== undefined
-        ? await isStatusApproved(updateData.status as string)
+        ? await isStatusApproved(updateData.status as string, proposalTenantId)
         : isCurrentlyApproved;
 
     const isBeingApproved = willBeApproved && !isCurrentlyApproved;

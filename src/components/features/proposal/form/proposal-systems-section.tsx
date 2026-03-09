@@ -877,7 +877,7 @@ function ProductRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <h5
-            className={`font-medium text-sm text-balance break-words pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
+            className={`font-medium text-sm text-balance wrap-break-word pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
           >
             {product.productName}
           </h5>
@@ -1024,7 +1024,8 @@ function ProductRow({
           <span className="text-[10px] text-muted-foreground">
             (R${" "}
             {(
-              product.unitPrice || 0 * (1 + (product.markup || 0) / 100)
+              (product.unitPrice || 0) *
+              (1 + (product.markup || 0) / 100)
             ).toFixed(2)}{" "}
             un)
           </span>

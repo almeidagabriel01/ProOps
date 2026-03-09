@@ -27,7 +27,6 @@ export function getStripe(): Stripe {
 
     stripeInstance = new Stripe(secretKey, {
       // Use the latest stable API version
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       apiVersion: "2024-11-20.acacia" as any,
       typescript: true,
     });
@@ -88,6 +87,9 @@ export function getPriceConfig(): StripePriceConfig {
       },
       pdf_editor_full: {
         monthly: process.env.STRIPE_ADDON_PDF_FULL_MONTHLY || "",
+      },
+      crm: {
+        monthly: process.env.STRIPE_ADDON_CRM_MONTHLY || "",
       },
       whatsapp_overage: {
         monthly: "price_1T20T7GrkF9UfsqcEtdBX9fY",

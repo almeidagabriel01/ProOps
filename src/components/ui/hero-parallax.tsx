@@ -119,13 +119,13 @@ export const Header = ({
       <h1 className="text-2xl md:text-7xl font-bold dark:text-white">
         {title || (
           <>
-            O ERP completo para <br /> sua empresa
+            A plataforma ProOps para <br /> sua empresa
           </>
         )}
       </h1>
       <p className="max-w-2xl text-base md:text-xl mt-8 dark:text-neutral-200">
         {subtitle ||
-          "Gerencie propostas, clientes, produtos e finanças em um só lugar. Simplifique sua operação e aumente sua produtividade."}
+          "Gerencie propostas, CRM, financeiro, equipe e catálogo em um único lugar."}
       </p>
     </div>
   );

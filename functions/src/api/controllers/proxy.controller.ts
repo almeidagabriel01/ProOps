@@ -6,7 +6,7 @@ import {
 } from "../security/url-security";
 
 const DEFAULT_USER_AGENT =
-  "TemplateERP-ProxyImage/1.0 (+https://proops.com.br)";
+  "ProOps-ProxyImage/1.0 (+https://proops.com.br)";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 8000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -374,3 +374,4 @@ export const proxyImage = async (
     return res.status(500).send("Error proxying image.");
   }
 };
+

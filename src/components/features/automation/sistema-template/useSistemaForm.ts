@@ -9,6 +9,7 @@ import { ServiceService, Service } from "@/services/service-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from '@/lib/toast';
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface UseSistemaFormProps {
   isOpen: boolean;
@@ -117,6 +118,13 @@ export function useSistemaForm({
       setIsLoading(false);
     }
   }, [tenant?.id, managedAmbientes]);
+
+  useWindowFocus(() => {
+    if (isOpen && tenant?.id) {
+      ProductService.invalidateTenantCache(tenant.id);
+      loadData();
+    }
+  });
 
   React.useEffect(() => {
     if (isOpen) {

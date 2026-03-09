@@ -471,6 +471,9 @@ export function useProductForm(
           await ServiceService.updateService(productId, dataToSave);
         } else {
           await ProductService.updateProduct(productId, dataToSave);
+          if (tenant) {
+            ProductService.invalidateTenantCache(tenant.id);
+          }
         }
         toast.success(
           `${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)} ${productLabel} foi atualizado com sucesso.`,

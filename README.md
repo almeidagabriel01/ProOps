@@ -1,4 +1,4 @@
-# 🚀 Template ERP
+# 🚀 ProOps
 
 O sistema de gestão empresarial moderno e intuitivo para transformar a forma como você gerencia seu negócio.
 
@@ -6,7 +6,7 @@ O sistema de gestão empresarial moderno e intuitivo para transformar a forma co
 
 ---
 
-## ✨ O que é o Template ERP?
+## ✨ O que é o ProOps?
 
 Uma plataforma completa de gestão empresarial desenvolvida para simplificar suas operações diárias. Centralize propostas, clientes, produtos e finanças em um único lugar, aumentando sua produtividade e profissionalizando sua operação.
 
@@ -14,7 +14,7 @@ Uma plataforma completa de gestão empresarial desenvolvida para simplificar sua
 
 ## 🎯 Arquitetura de Integração (WhatsApp e Stripe)
 
-O Template ERP possui um backend unificado no **Firebase Functions (Cloud Run)** para garantir máxima segurança e centralização de credenciais, incluindo fluxos de Webhooks e Cron Jobs:
+O ProOps possui um backend unificado no **Firebase Functions (Cloud Run)** para garantir máxima segurança e centralização de credenciais, incluindo fluxos de Webhooks e Cron Jobs:
 
 ### WhatsApp Webhook
 
@@ -81,6 +81,7 @@ Adicione membros à sua equipe com diferentes níveis de permissão. Controle qu
 
 **Simplifique sua gestão. Aumente sua produtividade.**
 
-_Template ERP - O sistema de gestão que sua empresa precisa_
+_ProOps - O sistema de gestão que sua empresa precisa_
 
 </div>
+

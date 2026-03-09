@@ -13,7 +13,6 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
-import { shouldBlockUnverifiedEmail } from "@/lib/auth/email-verification";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -258,7 +257,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
-          if (!shouldBlockUnverifiedEmail(firebaseUser)) {
+          const skipEmailVerification =
+            process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+
+          if (firebaseUser.emailVerified || skipEmailVerification) {
             const userData = await fetchUserData(firebaseUser);
             setUser(userData);
             await syncServerSession(firebaseUser);
@@ -286,7 +288,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // doesn't reject the next server-side navigation.
     const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
-      if (!shouldBlockUnverifiedEmail(firebaseUser)) {
+      const skipEmailVerification =
+        process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+      if (firebaseUser.emailVerified || skipEmailVerification) {
         await syncServerSession(firebaseUser);
       }
     });
@@ -299,7 +303,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (document.visibilityState !== "visible") return;
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return;
-      if (!shouldBlockUnverifiedEmail(firebaseUser)) {
+      const skipEmailVerification =
+        process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+      if (firebaseUser.emailVerified || skipEmailVerification) {
         // Force a fresh token to ensure the session cookie stays valid
         try {
           await firebaseUser.getIdToken(true);
@@ -350,7 +356,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const currentUser = auth.currentUser;
       if (currentUser) {
         await currentUser.reload();
-        if (shouldBlockUnverifiedEmail(currentUser)) {
+        const skipEmailVerification =
+          process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+        if (!currentUser.emailVerified && !skipEmailVerification) {
           try {
             if (typeof window !== "undefined") {
               await sendEmailVerification(currentUser, {
@@ -366,9 +374,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
 
-          // Keep Firebase auth user signed in so the pending-verification page
-          // can resend verification email and poll verification status.
-          // We still clear the server session to keep protected routes blocked.
+          // We intentionally DO NOT sign out the unverified user here.
+          // This allows the EmailVerificationPending component to see auth.currentUser
+          // and allow the user to click "Resend email".
+          // We DO clear the server session to prevent backend access.
           await clearServerSession().catch(() => {});
           setIsLoading(false);
           return { success: false, code: "email-not-verified" };
