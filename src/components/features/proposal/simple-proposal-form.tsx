@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   User,
   Package,
@@ -17,6 +16,7 @@ import {
   CreditCard,
   Settings2,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SistemaSelector } from "@/components/features/automation";
@@ -850,21 +850,14 @@ export function SimpleProposalForm({
   // Loading state
   if (isLoading) {
     return (
-      <FormContainer>
-        <div className="flex items-center justify-between mb-8">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-          <Skeleton className="h-10 w-24" />
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">
+            Carregando Proposta...
+          </p>
         </div>
-        <div className="grid gap-6">
-          <div className="grid gap-4">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        </div>
-      </FormContainer>
+      </div>
     );
   }
 

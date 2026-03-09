@@ -340,7 +340,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative w-64">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-2.5 top-2.5 z-10 h-4 w-4 text-muted-foreground" />
         <Input
           ref={inputRef}
           placeholder="Buscar... (Ctrl+K)"
