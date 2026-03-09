@@ -17,6 +17,7 @@ export function LandingFooter() {
                 width={230}
                 height={80}
                 invertOnDark
+                interactive={false}
                 className="h-12 w-auto origin-left scale-[1.35]"
               />
             </Link>
