@@ -159,6 +159,11 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                 )}
               </div>
 
+              <AnimatedThemeToggler
+                className="h-8 w-8 md:hidden inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
+                aria-label="Alternar tema"
+              />
+
               <button
                 onClick={() => setMobileOpen((prev) => !prev)}
                 className="md:hidden flex items-center justify-center w-8 h-8 rounded-full text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
@@ -185,10 +190,6 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
             className="fixed inset-0 z-40 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-2xl md:hidden"
           >
             <div className="flex flex-col items-center justify-center h-full gap-8">
-              <AnimatedThemeToggler
-                className="h-10 w-10 inline-flex items-center justify-center text-black/75 dark:text-white/80 hover:text-black dark:hover:text-white transition-colors"
-                aria-label="Alternar tema"
-              />
               {navLinks.map((link, i) => (
                 <motion.div
                   key={link.href}
@@ -236,13 +237,6 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                       className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
                     >
                       Entrar
-                    </Link>
-                    <Link
-                      href="/register"
-                      onClick={() => setMobileOpen(false)}
-                      className="bg-black dark:bg-white text-white dark:text-black px-8 py-3 rounded-full text-sm font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
-                    >
-                      Solicitar demonstração
                     </Link>
                   </>
                 )}

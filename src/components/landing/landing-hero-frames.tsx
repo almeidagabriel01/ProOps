@@ -112,21 +112,21 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-10 w-[92vw] md:w-[72vw] aspect-video rounded-2xl border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 shadow-[0_35px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
+          className="absolute z-10 w-[94vw] sm:w-[92vw] md:w-[72vw] aspect-[9/12] sm:aspect-video rounded-2xl border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 shadow-[0_35px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
         >
-          <div className="h-12 w-full border-b border-black/10 dark:border-white/10 flex items-center px-4 gap-2 bg-black/[0.015] dark:bg-white/[0.02]">
+          <div className="h-10 sm:h-12 w-full border-b border-black/10 dark:border-white/10 flex items-center px-3 sm:px-4 gap-2 bg-black/[0.015] dark:bg-white/[0.02]">
             <div className="flex gap-1.5">
               <div className="h-3 w-3 rounded-full bg-black/10 dark:bg-white/10" />
               <div className="h-3 w-3 rounded-full bg-black/10 dark:bg-white/10" />
               <div className="h-3 w-3 rounded-full bg-black/10 dark:bg-white/10" />
             </div>
-            <div className="ml-auto text-[10px] uppercase tracking-[0.18em] text-black/45 dark:text-white/45 font-mono">
+            <div className="ml-auto max-w-[45%] truncate text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.18em] text-black/45 dark:text-white/45 font-mono">
               ProOps Suite
             </div>
           </div>
 
-          <div className="flex-1 p-6 grid grid-cols-3 gap-6">
-            <div className="col-span-2 flex flex-col gap-6">
+          <div className="flex-1 p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+            <div className="md:col-span-2 flex flex-col gap-3 sm:gap-4 md:gap-6">
               <motion.div
                 style={{ opacity: feature1Opacity }}
                 className="flex-1 rounded-xl border border-black/10 dark:border-white/10 flex flex-col justify-end relative overflow-hidden bg-white dark:bg-neutral-900"
@@ -139,17 +139,17 @@ export function LandingHeroFrames() {
                   sizes="(max-width: 768px) 100vw, 60vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                <h3 className="relative z-10 [font-family:var(--font-pdf-montserrat)] text-[1.6rem] md:text-3xl font-semibold tracking-[-0.02em] text-white mb-2 px-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
+                <h3 className="relative z-10 [font-family:var(--font-pdf-montserrat)] text-[1.15rem] sm:text-[1.35rem] md:text-3xl font-semibold tracking-[-0.02em] text-white mb-2 px-4 sm:px-6 drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]">
                   Editor de PDF
                 </h3>
-                <p className="relative z-10 [font-family:var(--font-pdf-inter)] text-[15px] md:text-base leading-relaxed text-white/90 px-6 pb-6">
+                <p className="relative z-10 [font-family:var(--font-pdf-inter)] text-[13px] sm:text-[14px] md:text-base leading-relaxed text-white/90 px-4 sm:px-6 pb-4 sm:pb-6">
                   Capa personalizada, pré-visualização em tempo real e
                   exportação imediata.
                 </p>
               </motion.div>
               <motion.div
                 style={{ opacity: feature2Opacity }}
-                className="h-32 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex items-center justify-center px-8 relative overflow-hidden"
+                className="h-24 sm:h-28 md:h-32 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex items-center justify-center px-4 sm:px-6 md:px-8 relative overflow-hidden"
               >
                 <motion.div
                   style={{
@@ -161,13 +161,13 @@ export function LandingHeroFrames() {
                   }}
                   className="h-2 bg-black dark:bg-white rounded-full"
                 />
-                <p className="absolute bottom-3 left-4 [font-family:var(--font-pdf-montserrat)] text-[11px] uppercase tracking-[0.16em] text-black/65 dark:text-white/65 font-semibold">
+                <p className="absolute bottom-2 sm:bottom-3 left-3 sm:left-4 [font-family:var(--font-pdf-montserrat)] text-[10px] sm:text-[11px] uppercase tracking-[0.12em] sm:tracking-[0.16em] text-black/65 dark:text-white/65 font-semibold">
                   Pipeline operacional avançando
                 </p>
               </motion.div>
             </div>
 
-            <div className="col-span-1 flex flex-col gap-6">
+            <div className="hidden md:flex col-span-1 flex-col gap-6">
               <motion.div
                 style={{
                   opacity: feature2Opacity,
@@ -226,9 +226,9 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-20 w-[92vw] max-w-5xl aspect-[21/9] border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
+          className="absolute z-20 w-[94vw] sm:w-[92vw] max-w-5xl aspect-[4/5] sm:aspect-[16/10] md:aspect-[21/9] border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
         >
-          <div className="h-12 border-b border-black/10 dark:border-white/10 flex items-center px-6 justify-between bg-black/[0.015] dark:bg-white/[0.02]">
+          <div className="h-10 sm:h-12 border-b border-black/10 dark:border-white/10 flex items-center px-3 sm:px-6 justify-between bg-black/[0.015] dark:bg-white/[0.02]">
             <div className="flex items-center gap-2">
               <ProOpsLogo
                 variant="symbol"
@@ -237,11 +237,11 @@ export function LandingHeroFrames() {
                 invertOnDark
                 className="h-[18px] w-[18px]"
               />
-              <span className="text-[10px] uppercase tracking-[0.16em] text-black/50 dark:text-white/50 font-mono">
+              <span className="max-w-[110px] sm:max-w-none truncate text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.16em] text-black/50 dark:text-white/50 font-mono">
                 ProOps_CRM
               </span>
             </div>
-            <div className="text-[10px] uppercase tracking-[0.16em] text-black/40 dark:text-white/40 font-mono">
+            <div className="hidden sm:block text-[10px] uppercase tracking-[0.16em] text-black/40 dark:text-white/40 font-mono">
               proops.com.br
             </div>
           </div>
@@ -256,7 +256,7 @@ export function LandingHeroFrames() {
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-              <p className="absolute bottom-4 left-4 right-4 [font-family:var(--font-pdf-inter)] text-[15px] md:text-base leading-relaxed text-white/90 font-medium">
+              <p className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 [font-family:var(--font-pdf-inter)] text-[13px] sm:text-[14px] md:text-base leading-relaxed text-white/90 font-medium">
                 CRM comercial com etapas claras, prioridades e gargalos em tempo
                 real.
               </p>
