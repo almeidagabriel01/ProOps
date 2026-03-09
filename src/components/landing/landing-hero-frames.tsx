@@ -26,8 +26,16 @@ export function LandingHeroFrames() {
   const uiRotateZ = useTransform(smoothProgress, [0.1, 0.2], [-12, 0]);
   const uiTranslateY = useTransform(smoothProgress, [0.1, 0.2], [320, 0]);
 
-  const uiScale = useTransform(smoothProgress, [0.1, 0.2, 0.45, 0.55], [0.7, 1, 1, 0]);
-  const uiOpacity = useTransform(smoothProgress, [0.1, 0.15, 0.45, 0.55], [0, 1, 1, 0]);
+  const uiScale = useTransform(
+    smoothProgress,
+    [0.1, 0.2, 0.45, 0.55],
+    [0.7, 1, 1, 0],
+  );
+  const uiOpacity = useTransform(
+    smoothProgress,
+    [0.1, 0.15, 0.45, 0.55],
+    [0, 1, 1, 0],
+  );
 
   const feature1Opacity = useTransform(smoothProgress, [0.2, 0.25], [0, 1]);
   const feature2Opacity = useTransform(smoothProgress, [0.25, 0.3], [0, 1]);
@@ -70,19 +78,25 @@ export function LandingHeroFrames() {
           className="relative z-10 text-center flex flex-col items-center max-w-5xl px-6"
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 text-[11px] text-black/70 dark:text-white/70 mb-8 uppercase tracking-[0.18em] font-semibold">
-            <ProOpsLogo variant="symbol" width={16} height={16} className="h-4 w-4" />
+            <ProOpsLogo
+              variant="symbol"
+              width={16}
+              height={16}
+              className="h-4 w-4"
+            />
             Plataforma ProOps
           </div>
 
           <h1 className="text-5xl md:text-7xl lg:text-[6.5rem] font-bold tracking-tight mb-6 leading-[0.92] text-black dark:text-white">
             <span className="block">Controle operacional</span>
-            <span className="block text-black/55 dark:text-white/55">em tempo real.</span>
+            <span className="block text-black/55 dark:text-white/55">
+              em tempo real.
+            </span>
           </h1>
 
           <p className="text-base md:text-xl text-black/70 dark:text-white/70 max-w-3xl mx-auto mb-10 leading-relaxed">
-            ProOps conecta dashboard, propostas, CRM, financeiro,
-            carteiras, catálogo e editor de PDF em uma experiência única de
-            gestão.
+            ProOps conecta dashboard, propostas, CRM, financeiro, carteiras,
+            catálogo e editor de PDF em uma experiência única de gestão.
           </p>
         </motion.div>
 
@@ -128,7 +142,8 @@ export function LandingHeroFrames() {
                   Editor de PDF
                 </h3>
                 <p className="relative z-10 [font-family:var(--font-pdf-inter)] text-[15px] md:text-base leading-relaxed text-white/90 px-6 pb-6">
-                  Capa personalizada, pré-visualização em tempo real e exportação imediata.
+                  Capa personalizada, pré-visualização em tempo real e
+                  exportação imediata.
                 </p>
               </motion.div>
               <motion.div
@@ -136,7 +151,13 @@ export function LandingHeroFrames() {
                 className="h-32 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex items-center justify-center px-8 relative overflow-hidden"
               >
                 <motion.div
-                  style={{ width: useTransform(smoothProgress, [0.2, 0.4], ["0%", "82%"]) }}
+                  style={{
+                    width: useTransform(
+                      smoothProgress,
+                      [0.2, 0.4],
+                      ["0%", "82%"],
+                    ),
+                  }}
                   className="h-2 bg-black dark:bg-white rounded-full"
                 />
                 <p className="absolute bottom-3 left-4 [font-family:var(--font-pdf-montserrat)] text-[11px] uppercase tracking-[0.16em] text-black/65 dark:text-white/65 font-semibold">
@@ -186,7 +207,8 @@ export function LandingHeroFrames() {
                   Dashboard operacional
                 </h3>
                 <p className="absolute bottom-4 left-4 right-4 [font-family:var(--font-pdf-inter)] text-[13px] md:text-sm leading-relaxed text-white/90">
-                  Fluxo de caixa, projeção de saldo e alertas críticos em um único painel.
+                  Fluxo de caixa, projeção de saldo e alertas críticos em um
+                  único painel.
                 </p>
               </motion.div>
             </div>
@@ -207,7 +229,12 @@ export function LandingHeroFrames() {
         >
           <div className="h-12 border-b border-black/10 dark:border-white/10 flex items-center px-6 justify-between bg-black/[0.015] dark:bg-white/[0.02]">
             <div className="flex items-center gap-2">
-              <ProOpsLogo variant="symbol" width={18} height={18} className="h-[18px] w-[18px]" />
+              <ProOpsLogo
+                variant="symbol"
+                width={18}
+                height={18}
+                className="h-[18px] w-[18px]"
+              />
               <span className="text-[10px] uppercase tracking-[0.16em] text-black/50 dark:text-white/50 font-mono">
                 ProOps_CRM
               </span>
@@ -228,7 +255,8 @@ export function LandingHeroFrames() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
               <p className="absolute bottom-4 left-4 right-4 [font-family:var(--font-pdf-inter)] text-[15px] md:text-base leading-relaxed text-white/90 font-medium">
-                Kanban comercial com etapas claras, prioridades e gargalos em tempo real.
+                CRM comercial com etapas claras, prioridades e gargalos em tempo
+                real.
               </p>
             </div>
           </div>

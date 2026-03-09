@@ -39,9 +39,14 @@ export function PlanCard({
       ? plan.pricing.yearly
       : plan.pricing?.monthly || plan.price;
 
+  const isEnterprise =
+    plan.tier === "enterprise" ||
+    ((plan.pricing?.monthly || plan.price) <= 0 &&
+      (plan.pricing?.yearly || 0) <= 0);
+
   const monthlyEquivalent =
     billingInterval === "yearly" && plan.pricing
-      ? Math.round(plan.pricing.yearly / 12)
+      ? plan.pricing.yearly / 12
       : null;
 
   const isPopular = plan.highlighted && !isCurrent;
@@ -133,22 +138,31 @@ export function PlanCard({
           <div className="p-4 rounded-xl bg-muted/30 border border-border/50 backdrop-blur-sm">
             {isMaster ? (
               <div className="flex flex-col">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold tracking-tight text-foreground">
-                    {formatPrice(displayPrice)}
-                  </span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">
-                    /{billingInterval === "yearly" ? "ano" : "mês"}
-                  </span>
-                </div>
-                {billingInterval === "yearly" && monthlyEquivalent && (
-                  <div className="mt-2 text-xs font-medium text-emerald-600 flex items-center gap-1.5">
-                    <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
-                      Economia anual
+                {isEnterprise ? (
+                  <div className="flex items-center justify-center h-10 text-2xl font-extrabold tracking-tight text-foreground text-center w-full">
+                    Sob consulta
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-extrabold tracking-tight text-foreground">
+                      {formatPrice(displayPrice)}
                     </span>
-                    <span>apenas {formatPrice(monthlyEquivalent)}/mês</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">
+                      /{billingInterval === "yearly" ? "ano" : "mês"}
+                    </span>
                   </div>
                 )}
+                {billingInterval === "yearly" &&
+                  monthlyEquivalent !== null &&
+                  monthlyEquivalent > 0 &&
+                  !isEnterprise && (
+                    <div className="mt-2 text-xs font-medium text-emerald-600 flex items-center gap-1.5">
+                      <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
+                        Economia anual (15% OFF)
+                      </span>
+                      <span>apenas {formatPrice(monthlyEquivalent)}/mês</span>
+                    </div>
+                  )}
               </div>
             ) : (
               <div className="flex items-center justify-center h-10 text-muted-foreground text-sm font-medium">
@@ -229,6 +243,10 @@ export function PlanCard({
               <BooleanFeature
                 label="Editor de PDF avançado"
                 available={plan.features.canEditPdfSections}
+              />
+              <BooleanFeature
+                label="CRM Kanban"
+                available={plan.features.hasKanban}
               />
             </div>
           </div>

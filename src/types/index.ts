@@ -117,7 +117,8 @@ export type UserPlan = {
 export type AddonType =
   | "financial"
   | "pdf_editor_partial" // 3 templates, no content editing
-  | "pdf_editor_full"; // Full access: all templates + content editing
+  | "pdf_editor_full" // Full access: all templates + content editing
+  | "crm";
 
 export type PurchasedAddon = {
   id: string;

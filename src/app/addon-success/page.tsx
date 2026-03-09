@@ -41,6 +41,7 @@ function AddonSuccessContent() {
           financial: "Módulo Financeiro",
           pdf_editor_partial: "Editor PDF Parcial",
           pdf_editor_full: "Editor PDF Completo",
+          crm: "Módulo CRM",
         };
         setAddonName(addonNames[addonType || data.addonType || ""] || "Add-on");
 

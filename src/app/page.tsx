@@ -66,6 +66,7 @@ export default function LandingPage() {
 
         <LandingPricing
           plans={plans}
+          currentUser={currentUser}
           billingInterval={billingInterval}
           setBillingInterval={setBillingInterval}
           isLoading={isLoadingPlans}
@@ -80,4 +81,3 @@ export default function LandingPage() {
     </div>
   );
 }
-

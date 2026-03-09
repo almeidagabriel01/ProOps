@@ -231,6 +231,7 @@ export type AddonType =
   | "financial"
   | "pdf_editor_partial"
   | "pdf_editor_full"
+  | "crm"
   | "whatsapp_addon";
 
 export async function saveAddon(

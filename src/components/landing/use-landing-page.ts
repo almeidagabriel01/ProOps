@@ -141,6 +141,7 @@ export function useLandingPage() {
             ? "Produtos ilimitados"
             : `Cadastre até ${p.features.maxProducts} produtos para venda`,
           p.features.hasFinancial ? "Controle financeiro completo" : null,
+          p.features.hasKanban ? "CRM Kanban" : null,
           p.features.canCustomizeTheme ? "Cores personalizadas" : null,
           p.features.maxPdfTemplates === -1
             ? "Todos os layouts de PDF"

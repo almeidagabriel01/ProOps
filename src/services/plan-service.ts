@@ -51,9 +51,9 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxUsers: 2,
       hasFinancial: true,
       canCustomizeTheme: true,
-      maxPdfTemplates: 3,
-      canEditPdfSections: false,
-      hasKanban: false,
+      maxPdfTemplates: -1,
+      canEditPdfSections: true,
+      hasKanban: true,
       maxImagesPerProduct: 3,
       maxStorageMB: 2560, // 2.5GB
     },

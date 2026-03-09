@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { Check } from "lucide-react";
 import { LandingPlan } from "./use-landing-page";
+import { User } from "@/types";
+import { toast } from "@/lib/toast";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -13,6 +16,7 @@ if (typeof window !== "undefined") {
 
 interface LandingPricingProps {
   plans?: LandingPlan[];
+  currentUser?: User | null;
   billingInterval?: "monthly" | "yearly";
   setBillingInterval?: (interval: "monthly" | "yearly") => void;
   isLoading?: boolean;
@@ -81,19 +85,65 @@ function formatPrice(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
 export function LandingPricing({
   plans,
+  currentUser,
   billingInterval = "monthly",
   setBillingInterval,
   isLoading,
 }: LandingPricingProps) {
+  const router = useRouter();
   const containerRef = useRef<HTMLElement>(null);
   const hasAnimatedPricesRef = useRef(false);
+  const [processingTier, setProcessingTier] = React.useState<string | null>(
+    null,
+  );
   const isAnnual = billingInterval === "yearly";
+
+  const handleSubscribe = async (planTier: string) => {
+    if (!currentUser) {
+      router.push(`/register?plan=${planTier}&interval=${billingInterval}`);
+      return;
+    }
+
+    if (currentUser.role !== "free") {
+      router.push("/dashboard");
+      return;
+    }
+
+    if (planTier === "enterprise") {
+      router.push(`/register?plan=${planTier}&interval=${billingInterval}`);
+      return;
+    }
+
+    setProcessingTier(planTier);
+    try {
+      const { StripeService } = await import("@/services/stripe-service");
+      const response = await StripeService.createCheckoutSession({
+        userId: currentUser.id,
+        planTier,
+        billingInterval,
+        origin: window.location.origin,
+      });
+
+      if (response.url) {
+        window.location.href = response.url;
+        return;
+      }
+
+      toast.error("Não foi possível iniciar o checkout. Tente novamente.");
+    } catch (error) {
+      console.error("Landing checkout error:", error);
+      toast.error("Erro ao iniciar checkout. Tente novamente.");
+    } finally {
+      setProcessingTier(null);
+    }
+  };
 
   const pricingCards = useMemo<PricingCard[]>(() => {
     if (!plans || plans.length === 0) {
@@ -116,8 +166,9 @@ export function LandingPricing({
       const section = containerRef.current;
       if (!section) return;
 
-      const headingItems =
-        section.querySelectorAll<HTMLElement>(".pricing-heading-item");
+      const headingItems = section.querySelectorAll<HTMLElement>(
+        ".pricing-heading-item",
+      );
       if (headingItems.length > 0) {
         headingItems.forEach((item) => {
           gsap.fromTo(
@@ -192,7 +243,8 @@ export function LandingPricing({
       return;
     }
 
-    const priceElements = containerRef.current?.querySelectorAll<HTMLElement>(".price-value");
+    const priceElements =
+      containerRef.current?.querySelectorAll<HTMLElement>(".price-value");
     if (!priceElements || priceElements.length === 0) {
       return;
     }
@@ -203,9 +255,9 @@ export function LandingPricing({
       }
 
       const monthly = Number(el.dataset.monthly || "0");
-      const yearly = Number(el.dataset.yearly || "0");
-      const startValue = isAnnual ? monthly : yearly;
-      const endValue = isAnnual ? yearly : monthly;
+      const annualMonthly = Number(el.dataset.annualMonthly || "0");
+      const startValue = isAnnual ? monthly : annualMonthly;
+      const endValue = isAnnual ? annualMonthly : monthly;
 
       const state = { value: startValue };
       gsap.fromTo(
@@ -219,7 +271,7 @@ export function LandingPricing({
         duration: 1.35,
         ease: "power2.inOut",
         onUpdate: () => {
-          el.textContent = formatPrice(Math.round(state.value));
+          el.textContent = formatPrice(state.value);
         },
       });
     });
@@ -254,9 +306,13 @@ export function LandingPricing({
 
           <div className="flex items-center justify-center gap-4 mt-10 pricing-heading-item">
             <span
-              onClick={() => setBillingInterval && setBillingInterval("monthly")}
+              onClick={() =>
+                setBillingInterval && setBillingInterval("monthly")
+              }
               className={`font-medium transition-colors duration-200 cursor-pointer ${
-                !isAnnual ? "text-black dark:text-white" : "text-black/45 dark:text-white/45"
+                !isAnnual
+                  ? "text-black dark:text-white"
+                  : "text-black/45 dark:text-white/45"
               }`}
             >
               Mensal
@@ -277,12 +333,14 @@ export function LandingPricing({
             <span
               onClick={() => setBillingInterval && setBillingInterval("yearly")}
               className={`font-medium transition-colors duration-200 flex items-center gap-2 cursor-pointer ${
-                isAnnual ? "text-black dark:text-white" : "text-black/45 dark:text-white/45"
+                isAnnual
+                  ? "text-black dark:text-white"
+                  : "text-black/45 dark:text-white/45"
               }`}
             >
               Anual
               <span className="text-[10px] bg-black/5 dark:bg-white/[0.08] border border-black/15 dark:border-white/15 text-black dark:text-white px-2 py-1 rounded-full uppercase tracking-wider font-bold">
-                Economia
+                15% OFF
               </span>
             </span>
           </div>
@@ -300,13 +358,16 @@ export function LandingPricing({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {pricingCards.map((plan) => {
-              const rawPrice = plan.prices[isAnnual ? "yearly" : "monthly"];
               const monthlyPrice = plan.prices.monthly;
               const yearlyPrice = plan.prices.yearly;
+              const annualMonthlyPrice = yearlyPrice > 0 ? yearlyPrice / 12 : 0;
+              const displayPrice = isAnnual ? annualMonthlyPrice : monthlyPrice;
               const isEnterprise =
-                plan.tier.toLowerCase() === "enterprise" || rawPrice <= 0;
-              const priceText = isEnterprise ? "Sob consulta" : formatPrice(rawPrice);
-              const periodLabel = isEnterprise ? "" : isAnnual ? "/ano" : "/mês";
+                plan.tier.toLowerCase() === "enterprise" || displayPrice <= 0;
+              const priceText = isEnterprise
+                ? "Sob consulta"
+                : formatPrice(displayPrice);
+              const periodLabel = isEnterprise ? "" : "/mês";
 
               return (
                 <div
@@ -323,7 +384,9 @@ export function LandingPricing({
                     </div>
                   )}
 
-                  <h4 className="text-xl font-semibold mb-2 mt-1">{plan.name}</h4>
+                  <h4 className="text-xl font-semibold mb-2 mt-1">
+                    {plan.name}
+                  </h4>
                   <p
                     className={`text-sm mb-6 min-h-10 ${
                       plan.popular
@@ -339,7 +402,7 @@ export function LandingPricing({
                       <span
                         className="price-value"
                         data-monthly={monthlyPrice}
-                        data-yearly={yearlyPrice}
+                        data-annual-monthly={annualMonthlyPrice}
                         data-enterprise={isEnterprise ? "true" : "false"}
                       >
                         {priceText}
@@ -356,16 +419,32 @@ export function LandingPricing({
                         {periodLabel}
                       </span>
                     )}
+                    {isAnnual && !isEnterprise && (
+                      <div
+                        className={`mt-2 text-xs font-medium ${
+                          plan.popular
+                            ? "text-white/80 dark:text-black/80"
+                            : "text-black/60 dark:text-white/65"
+                        }`}
+                      >
+                        Em 12x no cartão • 15% de desconto no anual
+                      </div>
+                    )}
                   </div>
 
                   <button
+                    type="button"
+                    onClick={() => void handleSubscribe(plan.tier)}
+                    disabled={processingTier === plan.tier}
                     className={`w-full py-3 px-4 rounded-full font-semibold mb-8 transition-colors ${
                       plan.popular
                         ? "bg-white dark:bg-neutral-950 text-black dark:text-white hover:bg-white/90 dark:hover:bg-neutral-900"
                         : "bg-black dark:bg-white text-white dark:text-black hover:bg-black/85 dark:hover:bg-white/90"
-                    } cursor-pointer`}
+                    } cursor-pointer disabled:cursor-not-allowed disabled:opacity-70`}
                   >
-                    {plan.cta}
+                    {processingTier === plan.tier
+                      ? "Redirecionando..."
+                      : plan.cta}
                   </button>
 
                   <div className="space-y-4 flex-1">
@@ -410,4 +489,3 @@ export function LandingPricing({
     </section>
   );
 }
-

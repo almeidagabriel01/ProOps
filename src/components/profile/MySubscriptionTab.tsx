@@ -112,6 +112,11 @@ const featuresList: {
     label: "Editor PDF avançado",
     format: (v) => (v ? "Sim" : "Não"),
   },
+  {
+    key: "hasKanban",
+    label: "Módulo CRM",
+    format: (v) => (v ? "Incluso" : "Não incluso"),
+  },
 ];
 
 export function MySubscriptionTab({
@@ -298,6 +303,7 @@ export function MySubscriptionTab({
   const yearlyPrice = effectivePlan?.pricing?.yearly || 0;
   const currentPrice =
     billingInterval === "yearly" ? yearlyPrice : monthlyPrice;
+  const isEnterprisePlan = effectivePlan?.tier === "enterprise";
 
   // Get addon details
   const getAddonName = (addonId: string): string => {
@@ -390,14 +396,20 @@ export function MySubscriptionTab({
             </div>
 
             {/* Price */}
-            {currentPrice > 0 && (
+            {(currentPrice > 0 || isEnterprisePlan) && (
               <div className="text-right">
-                <div className="text-3xl font-bold">
-                  {formatPrice(currentPrice)}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  /{billingInterval === "yearly" ? "ano" : "mês"}
-                </p>
+                {isEnterprisePlan ? (
+                  <div className="text-3xl font-bold">Sob consulta</div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold">
+                      {formatPrice(currentPrice)}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      /{billingInterval === "yearly" ? "ano" : "mês"}
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -636,6 +648,16 @@ export function MySubscriptionTab({
                   source: purchasedAddons.includes("pdf_editor_full")
                     ? "addon"
                     : "plan",
+                });
+              }
+
+              // CRM Module
+              if (effectivePlan.features.hasKanban) {
+                includedModules.push({
+                  id: "crm",
+                  name: "Módulo CRM",
+                  description: "CRM Kanban para funil de vendas",
+                  source: purchasedAddons.includes("crm") ? "addon" : "plan",
                 });
               }
             }

@@ -47,7 +47,17 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     featureValue: true,
     icon: "FileEdit",
     order: 3,
-    availableForTiers: ["starter", "pro"],
+    availableForTiers: ["starter"],
+  },
+  {
+    id: "crm",
+    name: "Módulo CRM",
+    description: "CRM Kanban para gestão visual do funil de vendas",
+    featureKey: "hasKanban",
+    featureValue: true,
+    icon: "Kanban",
+    order: 4,
+    availableForTiers: ["starter"],
   },
 ];
 
@@ -219,6 +229,7 @@ export const AddonService = {
       hasFinancial: boolean;
       canEditPdfSections: boolean;
       maxPdfTemplates: number;
+      hasKanban: boolean;
       canCustomizeTheme: boolean;
       maxUsers: number;
     },
@@ -244,6 +255,9 @@ export const AddonService = {
           // Full access: unlimited templates + content editing
           result.maxPdfTemplates = -1; // Unlimited
           result.canEditPdfSections = true;
+          break;
+        case "crm":
+          result.hasKanban = true;
           break;
       }
     }

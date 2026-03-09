@@ -88,6 +88,9 @@ export function getPriceConfig(): StripePriceConfig {
       pdf_editor_full: {
         monthly: process.env.STRIPE_ADDON_PDF_FULL_MONTHLY || "",
       },
+      crm: {
+        monthly: process.env.STRIPE_ADDON_CRM_MONTHLY || "",
+      },
       whatsapp_overage: {
         monthly: "price_1T20T7GrkF9UfsqcEtdBX9fY",
       },

@@ -72,6 +72,7 @@ function isSupportedAddonType(value: unknown): value is AddonType {
     "financial",
     "pdf_editor_partial",
     "pdf_editor_full",
+    "crm",
     "whatsapp_addon",
   ].includes(normalized);
 }
