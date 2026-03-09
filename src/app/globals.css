@@ -285,34 +285,34 @@ body {
 }
 
 .dark {
-  /* Premium Dark Mode - Deep Slate */
-  --background: oklch(0.12 0.03 265);
-  --foreground: oklch(0.98 0.01 265);
+  /* Dark palette aligned with landing page (neutral-950 base) */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.98 0 0);
 
-  --card: oklch(0.16 0.03 265);
-  --card-foreground: oklch(0.98 0.01 265);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.98 0 0);
 
-  --popover: oklch(0.16 0.03 265);
-  --popover-foreground: oklch(0.98 0.01 265);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.98 0 0);
 
   /* FIXED: Use Vibrant Blue for Primary in Dark Mode (was light white/blue) */
   --primary: oklch(0.6 0.15 250);
-  --primary-foreground: oklch(0.98 0.01 265);
+  --primary-foreground: oklch(0.98 0 0);
 
-  --secondary: oklch(0.2 0.03 265);
-  --secondary-foreground: oklch(0.98 0.01 265);
+  --secondary: oklch(0.24 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
 
-  --muted: oklch(0.2 0.03 265);
-  --muted-foreground: oklch(0.65 0.04 265);
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.72 0 0);
 
-  --accent: oklch(0.2 0.03 265);
-  --accent-foreground: oklch(0.98 0.01 265);
+  --accent: oklch(0.24 0 0);
+  --accent-foreground: oklch(0.98 0 0);
 
   --destructive: oklch(0.5 0.2 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.26 0.03 265);
-  --input: oklch(0.26 0.03 265);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
   --ring: oklch(0.6 0.15 250);
 
   --chart-1: oklch(0.488 0.243 264.376);
@@ -321,7 +321,7 @@ body {
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  --sileo-toast-bg: oklch(0.16 0.03 265);
+  --sileo-toast-bg: oklch(0.205 0 0);
 }
 
 @layer base {

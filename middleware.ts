@@ -40,6 +40,8 @@ const SKIP_PATTERNS = [
   "/_next",
   "/favicon.ico",
   "/public",
+  "/hero",
+  "/logo",
   "/api/", // Let API routes handle their own auth
 ];
 
@@ -132,6 +134,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder assets (hero/, etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|hero/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|hero/|logo/).*)",
   ],
 };
