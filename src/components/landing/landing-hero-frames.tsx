@@ -55,10 +55,10 @@ export function LandingHeroFrames() {
   return (
     <section
       ref={containerRef}
-      className="relative w-full h-[500vh] bg-white dark:bg-neutral-950"
+      className="relative w-full h-[500vh] overflow-x-clip bg-white dark:bg-neutral-950"
     >
       <div
-        className="sticky top-0 w-full h-screen flex items-center justify-center overflow-hidden"
+        className="sticky top-0 isolate w-full h-screen flex items-center justify-center overflow-hidden px-3 sm:px-4 md:px-6"
         style={{ perspective: "1500px" }}
       >
         <motion.div
@@ -112,7 +112,7 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-10 w-[94vw] sm:w-[92vw] md:w-[72vw] aspect-[9/12] sm:aspect-video rounded-2xl border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 shadow-[0_35px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
+          className="absolute z-10 w-[94%] sm:w-[92%] md:w-[72%] max-w-[1100px] aspect-[9/12] sm:aspect-video rounded-2xl border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 shadow-[0_35px_90px_rgba(0,0,0,0.15)] dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
         >
           <div className="h-10 sm:h-12 w-full border-b border-black/10 dark:border-white/10 flex items-center px-3 sm:px-4 gap-2 bg-black/[0.015] dark:bg-white/[0.02]">
             <div className="flex gap-1.5">
@@ -226,7 +226,7 @@ export function LandingHeroFrames() {
               v > 0.5 ? "auto" : "none",
             ),
           }}
-          className="absolute z-20 w-[94vw] sm:w-[92vw] max-w-5xl aspect-[4/5] sm:aspect-[16/10] md:aspect-[21/9] border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
+          className="absolute z-20 w-[94%] sm:w-[92%] md:w-[88%] max-w-5xl aspect-[4/5] sm:aspect-[16/10] md:aspect-[21/9] border border-black/15 dark:border-white/15 bg-white dark:bg-neutral-900 rounded-2xl shadow-[0_30px_100px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_100px_rgba(0,0,0,0.55)] overflow-hidden flex flex-col"
         >
           <div className="h-10 sm:h-12 border-b border-black/10 dark:border-white/10 flex items-center px-3 sm:px-6 justify-between bg-black/[0.015] dark:bg-white/[0.02]">
             <div className="flex items-center gap-2">
