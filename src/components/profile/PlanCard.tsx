@@ -11,6 +11,8 @@ import { UserPlan, BillingInterval } from "@/types";
 import { formatPrice } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
+const ENTERPRISE_CONTACT_EMAIL = "gestao@proops.com.br";
+
 interface PlanCardProps {
   plan: UserPlan;
   billingInterval: BillingInterval;
@@ -50,6 +52,10 @@ export function PlanCard({
       : null;
 
   const isPopular = plan.highlighted && !isCurrent;
+
+  const handleEnterpriseContact = () => {
+    window.location.href = `mailto:${ENTERPRISE_CONTACT_EMAIL}`;
+  };
 
   return (
     <div
@@ -282,7 +288,9 @@ export function PlanCard({
                       ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
                       : "bg-primary hover:bg-primary/90 text-primary-foreground",
                   )}
-                  onClick={() => onUpgrade(plan)}
+                  onClick={() =>
+                    isEnterprise ? handleEnterpriseContact() : onUpgrade(plan)
+                  }
                   disabled={isProcessing}
                 >
                   {processingTier === plan.tier ? (
@@ -290,6 +298,8 @@ export function PlanCard({
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Processando...
                     </>
+                  ) : isEnterprise ? (
+                    "Entrar em contato"
                   ) : (
                     "Fazer Upgrade Agora"
                   )}

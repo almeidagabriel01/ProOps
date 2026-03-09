@@ -6,13 +6,16 @@ import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
 import {
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
+  GoogleAuthProvider,
   linkWithCredential,
   PhoneAuthProvider,
   RecaptchaVerifier,
   sendEmailVerification,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -82,11 +85,13 @@ interface UseLoginFormReturn {
   setIsEmailVerificationPending: (value: boolean) => void;
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
+  isGoogleLoading: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
+  handleGoogleAuth: () => Promise<void>;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleConfirmPhoneCode: () => Promise<void>;
   handleResendPhoneCode: () => Promise<void>;
@@ -127,6 +132,7 @@ export function useLoginForm(): UseLoginFormReturn {
     React.useState(false);
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -274,6 +280,15 @@ export function useLoginForm(): UseLoginFormReturn {
   const redirectUrl = searchParams.get("redirect");
   const redirectReason = searchParams.get("redirect_reason");
 
+  const getGoogleSetupTarget = React.useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("mode");
+    const query = params.toString();
+    return query
+      ? `/register/google-setup?${query}`
+      : "/register/google-setup";
+  }, [searchParams]);
+
   const handleRedirectAfterAuth = React.useCallback(() => {
     const currentUser = auth.currentUser;
     const skipEmailVerification =
@@ -354,6 +369,20 @@ export function useLoginForm(): UseLoginFormReturn {
   React.useEffect(() => {
     if (!isLoading) {
       if (user) {
+        const currentUser = auth.currentUser;
+        const isGoogleAccount =
+          currentUser?.providerData?.some(
+            (provider) => provider.providerId === "google.com",
+          ) || false;
+
+        if (
+          isGoogleAccount &&
+          (!user.tenantId || user.tenantId === "default-tenant")
+        ) {
+          router.replace(getGoogleSetupTarget());
+          return;
+        }
+
         // For session_expired, we MUST wait until the session cookie is synced back
         if (redirectReason === "session_expired" && !isSessionSynced) {
           return;
@@ -371,9 +400,11 @@ export function useLoginForm(): UseLoginFormReturn {
   }, [
     user,
     isLoading,
+    router,
     isSessionSynced,
     redirectReason,
     handleRedirectAfterAuth,
+    getGoogleSetupTarget,
     setIsEmailVerificationPending,
   ]);
 
@@ -415,6 +446,40 @@ export function useLoginForm(): UseLoginFormReturn {
         setError("Falha no login. Verifique suas credenciais.");
       }
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setError("");
+    setErrors({});
+    setRegisterSuccessMessage("");
+    setIsGoogleLoading(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+
+      const userCredential = await signInWithPopup(auth, provider);
+      const firebaseUser = userCredential.user;
+      const additionalInfo = getAdditionalUserInfo(userCredential);
+
+      const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+      const hasTenant = Boolean(userDoc.exists() && userDoc.data()?.tenantId);
+
+      if (additionalInfo?.isNewUser || !hasTenant) {
+        router.replace(getGoogleSetupTarget());
+      }
+    } catch (googleError: unknown) {
+      console.error("Google auth failed:", googleError);
+      const errorCode = (googleError as { code?: string })?.code;
+
+      if (errorCode === "auth/popup-closed-by-user") {
+        return;
+      }
+
+      setError("Não foi possível entrar com Google. Tente novamente.");
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -684,9 +749,11 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsEmailVerificationPending,
     isSendingSms,
     isVerifyingSmsCode,
+    isGoogleLoading,
     handleLogin,
     handleRegister,
     handleForgotPassword,
+    handleGoogleAuth,
     handleLogoUpload,
     handleConfirmPhoneCode,
     handleResendPhoneCode,

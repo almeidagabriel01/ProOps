@@ -53,7 +53,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black dark:bg-neutral-950 dark:text-neutral-100 selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
+    <div className="min-h-screen overflow-x-clip bg-white text-black dark:bg-neutral-950 dark:text-neutral-100 selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black">
       <LandingNavbar currentUser={currentUser} onSignOut={handleSignOut} />
 
       <main>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -20,6 +20,7 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  onAuthStateChanged,
 } from "firebase/auth";
 
 export function PasswordForm() {
@@ -34,6 +35,19 @@ export function PasswordForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [hasPasswordProvider, setHasPasswordProvider] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const hasPassword =
+        firebaseUser?.providerData?.some(
+          (provider) => provider.providerId === "password",
+        ) || false;
+      setHasPasswordProvider(hasPassword);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // We only enable the save button if passwords match and have sufficient length
   const hasChanges =
@@ -96,6 +110,10 @@ export function PasswordForm() {
       setIsLoading(false);
     }
   };
+
+  if (!hasPasswordProvider) {
+    return null;
+  }
 
   return (
     <Card className="flex flex-col">

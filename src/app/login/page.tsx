@@ -76,9 +76,11 @@ function LoginContent() {
     resetSent,
     handleRegister,
     handleForgotPassword,
+    handleGoogleAuth,
     handleLogoUpload,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
+    isGoogleLoading,
   } = useLoginForm();
 
   // Estado para erros de validação do cadastro
@@ -335,6 +337,44 @@ function LoginContent() {
                     error={error}
                     errors={registerErrors}
                   />
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">
+                        ou
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleGoogleAuth}
+                    disabled={isGoogleLoading || isRegistering}
+                  >
+                    {isGoogleLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Conectando com Google...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          className="w-4 h-4 mr-2"
+                        >
+                          <path
+                            fill="#EA4335"
+                            d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.2.8 3.9 1.4l2.7-2.6C16.9 2.8 14.6 2 12 2 6.9 2 2.8 6.3 2.8 11.6S6.9 21.2 12 21.2c6.9 0 9.2-4.9 9.2-7.4 0-.5-.1-.8-.1-1.2H12z"
+                          />
+                        </svg>
+                        Cadastrar com Google
+                      </>
+                    )}
+                  </Button>
                   <StepNavigation
                     showPrev={false}
                     nextLabel="Continuar"
@@ -640,7 +680,7 @@ function LoginContent() {
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-                  disabled={isLoggingIn}
+                  disabled={isLoggingIn || isGoogleLoading}
                 >
                   {isLoggingIn ? (
                     <>
@@ -649,6 +689,44 @@ function LoginContent() {
                     </>
                   ) : (
                     "Entrar"
+                  )}
+                </Button>
+                <div className="relative w-full">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      ou
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleAuth}
+                  disabled={isGoogleLoading || isLoggingIn}
+                >
+                  {isGoogleLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Conectando com Google...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="w-4 h-4 mr-2"
+                      >
+                        <path
+                          fill="#EA4335"
+                          d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.2.8 3.9 1.4l2.7-2.6C16.9 2.8 14.6 2 12 2 6.9 2 2.8 6.3 2.8 11.6S6.9 21.2 12 21.2c6.9 0 9.2-4.9 9.2-7.4 0-.5-.1-.8-.1-1.2H12z"
+                        />
+                      </svg>
+                      Entrar com Google
+                    </>
                   )}
                 </Button>
                 <div className="text-center text-sm text-muted-foreground">

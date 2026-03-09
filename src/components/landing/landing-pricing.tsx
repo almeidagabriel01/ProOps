@@ -40,6 +40,8 @@ const ENTERPRISE_EXTRA_FEATURES = [
   "IA no WhatsApp para tarefas rápidas e úteis do dia a dia",
 ];
 
+const ENTERPRISE_CONTACT_EMAIL = "gestao@proops.com.br";
+
 const FALLBACK_PLANS: PricingCard[] = [
   {
     name: "Essencial",
@@ -113,6 +115,11 @@ export function LandingPricing({
   const isAnnual = billingInterval === "yearly";
 
   const handleSubscribe = async (planTier: string) => {
+    if (planTier === "enterprise") {
+      window.location.href = `mailto:${ENTERPRISE_CONTACT_EMAIL}`;
+      return;
+    }
+
     if (!currentUser) {
       router.push(`/register?plan=${planTier}&interval=${billingInterval}`);
       return;
@@ -120,11 +127,6 @@ export function LandingPricing({
 
     if (currentUser.role !== "free") {
       router.push("/dashboard");
-      return;
-    }
-
-    if (planTier === "enterprise") {
-      router.push(`/register?plan=${planTier}&interval=${billingInterval}`);
       return;
     }
 
@@ -395,6 +397,7 @@ export function LandingPricing({
               const displayPrice = isAnnual ? annualMonthlyPrice : monthlyPrice;
               const isEnterprise =
                 plan.tier.toLowerCase() === "enterprise" || displayPrice <= 0;
+              const ctaLabel = isEnterprise ? "Entrar em contato" : plan.cta;
               const priceText = isEnterprise
                 ? "Sob consulta"
                 : formatPrice(displayPrice);
@@ -475,7 +478,7 @@ export function LandingPricing({
                   >
                     {processingTier === plan.tier
                       ? "Redirecionando..."
-                      : plan.cta}
+                      : ctaLabel}
                   </button>
 
                   <div className="space-y-4 flex-1">
