@@ -974,6 +974,7 @@ export function SimpleProposalForm({
                   onAmbienteAction={handleAmbienteAction}
                   onSistemaAction={handleSistemaAction}
                   onRemoveAmbiente={removeAmbienteFromSistema}
+                  proposalStorageKey={proposalId}
                 />
               </>
             ) : (

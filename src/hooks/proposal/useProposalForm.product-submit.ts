@@ -14,6 +14,7 @@ import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getExtraProducts } from "./product-handlers";
 import { prepareCreatePayload } from "./submit-helpers";
 import { toast } from "@/lib/toast";
+import { migrateDraftHideZeroQtyStateToProposal } from "@/lib/proposal-hide-zero-qty-storage";
 
 interface UseProposalFormProductSubmitContext {
   formData: Partial<Proposal>;
@@ -466,6 +467,7 @@ export function useProposalFormProductSubmit(
         router.push("/proposals");
       } else {
         const createdProposal = await ProposalService.createProposal(payload);
+        migrateDraftHideZeroQtyStateToProposal(createdProposal.id);
         toast.success(`Proposta ${proposalLabel} foi criada com sucesso.`, {
           title: "Sucesso ao criar",
         });
