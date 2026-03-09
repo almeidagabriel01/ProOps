@@ -39,7 +39,8 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
     event.preventDefault();
 
     const navHeight = navRef.current?.offsetHeight ?? 64;
-    const top = target.getBoundingClientRect().top + window.scrollY - (navHeight + 20);
+    const top =
+      target.getBoundingClientRect().top + window.scrollY - (navHeight + 20);
 
     window.scrollTo({
       top: Math.max(top, 0),
@@ -138,12 +139,6 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                 />
                 {currentUser ? (
                   <>
-                    <Link
-                      href="/dashboard"
-                      className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
-                    >
-                      Dashboard
-                    </Link>
                     <button
                       onClick={onSignOut}
                       className="bg-black dark:bg-white text-white dark:text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
@@ -203,7 +198,9 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                 >
                   <Link
                     href={link.href}
-                    onClick={(event) => handleAnchorClick(event, link.href, true)}
+                    onClick={(event) =>
+                      handleAnchorClick(event, link.href, true)
+                    }
                     className="text-2xl font-semibold text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors cursor-pointer"
                   >
                     {link.label}
@@ -220,13 +217,6 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
               >
                 {currentUser ? (
                   <>
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setMobileOpen(false)}
-                      className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
-                    >
-                      Dashboard
-                    </Link>
                     <button
                       onClick={() => {
                         onSignOut();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { toast } from "@/lib/toast";
 import { PlanService } from "@/services/plan-service";
 import { User, UserPlan } from "@/types";
 
@@ -42,6 +43,8 @@ export function useLandingPage() {
   // Used to prevent a stale server-session cookie response from overriding
   // a settled "signed-out" auth state (race condition fix).
   const authStateSettledRef = useRef(false);
+  const hadFreeSessionRef = useRef(false);
+  const isSigningOutRef = useRef(false);
 
   // ──────────────────────────────────────────────
   // 1. Server-side session pre-check via cookie
@@ -169,6 +172,15 @@ export function useLandingPage() {
   // ──────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const markFreeSession = () => {
+        if (!hadFreeSessionRef.current) {
+          toast.success("Você entrou na sua conta free.", {
+            title: "Login realizado",
+          });
+        }
+        hadFreeSessionRef.current = true;
+      };
+
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -209,9 +221,11 @@ export function useLandingPage() {
                 router.replace(firstAllowed ? `/${firstAllowed}` : "/403");
               }
               authStateSettledRef.current = true;
+              hadFreeSessionRef.current = false;
               return;
             }
             setCurrentUser({ id: user.uid, ...userData } as User);
+            markFreeSession();
           } else {
             // User document not found in Firestore - treat as free user with basic auth data
             console.warn(
@@ -223,6 +237,7 @@ export function useLandingPage() {
               role: "free",
               name: user.displayName || user.email?.split("@")[0] || "User",
             });
+            markFreeSession();
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
@@ -234,6 +249,12 @@ export function useLandingPage() {
         // User is NOT logged in — mark auth state as settled immediately so any
         // pending checkServerSession response (stale cookie) is ignored.
         authStateSettledRef.current = true;
+        if (hadFreeSessionRef.current && !isSigningOutRef.current) {
+          toast.info("Você saiu da sua conta free.", {
+            title: "Logout realizado",
+          });
+        }
+        hadFreeSessionRef.current = false;
         setCurrentUser(null);
         setIsCheckingAuth(false);
         setIsRedirecting(false);
@@ -244,8 +265,21 @@ export function useLandingPage() {
   }, [router]);
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    setCurrentUser(null);
+    isSigningOutRef.current = true;
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+      hadFreeSessionRef.current = false;
+      toast.success("Você saiu da sua conta free.", {
+        title: "Logout realizado",
+      });
+    } catch {
+      toast.error("Não foi possível sair da conta agora.", {
+        title: "Erro ao sair",
+      });
+    } finally {
+      isSigningOutRef.current = false;
+    }
   };
 
   return {
