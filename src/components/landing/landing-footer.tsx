@@ -8,12 +8,16 @@ export function LandingFooter() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
           <div className="col-span-2">
-            <Link href="/" className="inline-flex items-center mb-6 cursor-pointer">
+            <Link
+              href="/"
+              className="inline-flex items-center mb-6 cursor-pointer"
+            >
               <ProOpsLogo
                 variant="full"
                 width={230}
                 height={80}
-                className="h-12 w-auto"
+                invertOnDark
+                className="h-12 w-auto origin-left scale-[1.35]"
               />
             </Link>
             <p className="text-black/65 dark:text-white/70 text-sm max-w-sm leading-relaxed">
@@ -24,20 +28,31 @@ export function LandingFooter() {
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-black dark:text-white">Produto</h4>
+            <h4 className="font-semibold mb-4 text-black dark:text-white">
+              Produto
+            </h4>
             <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
               <li>
-                <Link href="#showcase" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="#showcase"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Plataforma
                 </Link>
               </li>
               <li>
-                <Link href="#modulos" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="#modulos"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Módulos
                 </Link>
               </li>
               <li>
-                <Link href="#pricing" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="#pricing"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Planos
                 </Link>
               </li>
@@ -45,20 +60,31 @@ export function LandingFooter() {
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-black dark:text-white">Suporte</h4>
+            <h4 className="font-semibold mb-4 text-black dark:text-white">
+              Suporte
+            </h4>
             <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
               <li>
-                <Link href="/privacy" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="/privacy"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Política de Privacidade
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="/terms"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Termos de Serviço
                 </Link>
               </li>
               <li>
-                <Link href="/login" className="hover:text-black dark:hover:text-white transition-colors cursor-pointer">
+                <Link
+                  href="/login"
+                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                >
                   Área do Cliente
                 </Link>
               </li>
@@ -72,6 +98,7 @@ export function LandingFooter() {
               variant="symbol"
               width={16}
               height={16}
+              invertOnDark
               className="h-4 w-4"
             />
             &copy; {new Date().getFullYear()} ProOps. Todos os direitos

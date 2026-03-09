@@ -2,10 +2,10 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { User } from "@/types";
-import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 
 interface LandingNavbarProps {
@@ -99,15 +99,16 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
           <div className="h-full px-4 md:px-6 flex items-center justify-between gap-4">
             <Link
               href="/"
-              className="flex items-center shrink-0 cursor-pointer"
+              className="group relative inline-flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center overflow-hidden rounded-full -ml-1 md:-ml-2 cursor-pointer leading-none"
               aria-label="ProOps"
             >
-              <ProOpsLogo
-                variant="symbol"
+              <Image
+                src="/logo/logo2-transparent.svg"
+                alt="ProOps"
                 width={116}
                 height={116}
                 priority
-                className="h-[3.7rem] w-[3.7rem] md:h-[4.3rem] md:w-[4.3rem] -my-1 md:-my-2"
+                className="block h-full w-full object-contain dark:invert scale-[2.55] md:scale-[2.7] transition-all duration-300 group-hover:scale-[2.7] md:group-hover:scale-[2.85] group-hover:-translate-y-0.5 group-hover:drop-shadow-[0_10px_18px_rgba(0,0,0,0.22)]"
               />
             </Link>
 

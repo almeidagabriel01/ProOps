@@ -60,6 +60,7 @@ export function LandingCTA() {
             variant="full"
             width={440}
             height={148}
+            invertOnDark
             className="h-32 w-auto"
           />
         </div>

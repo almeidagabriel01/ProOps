@@ -82,6 +82,7 @@ export function LandingHeroFrames() {
               variant="symbol"
               width={16}
               height={16}
+              invertOnDark
               className="h-4 w-4"
             />
             Plataforma ProOps
@@ -233,6 +234,7 @@ export function LandingHeroFrames() {
                 variant="symbol"
                 width={18}
                 height={18}
+                invertOnDark
                 className="h-[18px] w-[18px]"
               />
               <span className="text-[10px] uppercase tracking-[0.16em] text-black/50 dark:text-white/50 font-mono">
