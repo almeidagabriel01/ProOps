@@ -248,6 +248,18 @@ export function PlanCard({
                 label="CRM Kanban"
                 available={plan.features.hasKanban}
               />
+              {isEnterprise && (
+                <>
+                  <BooleanFeature
+                    label="Consultoria dedicada"
+                    available={true}
+                  />
+                  <BooleanFeature
+                    label="IA no WhatsApp para tarefas rápidas e úteis do dia a dia"
+                    available={true}
+                  />
+                </>
+              )}
             </div>
           </div>
 

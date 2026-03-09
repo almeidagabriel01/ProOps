@@ -35,6 +35,11 @@ type PricingCard = {
   };
 };
 
+const ENTERPRISE_EXTRA_FEATURES = [
+  "Consultoria dedicada",
+  "IA no WhatsApp para tarefas rápidas e úteis do dia a dia",
+];
+
 const FALLBACK_PLANS: PricingCard[] = [
   {
     name: "Essencial",
@@ -74,6 +79,8 @@ const FALLBACK_PLANS: PricingCard[] = [
     prices: { monthly: 0, yearly: 0 },
     features: [
       "Tudo do Profissional",
+      "Consultoria dedicada",
+      "IA no WhatsApp para tarefas rápidas e úteis do dia a dia",
       "Acordo de SLA",
       "Acompanhamento de implantação",
       "Arquitetura dedicada",
@@ -145,20 +152,44 @@ export function LandingPricing({
     }
   };
 
-  const pricingCards = useMemo<PricingCard[]>(() => {
-    if (!plans || plans.length === 0) {
-      return FALLBACK_PLANS;
+  const ensureEnterpriseFeatures = (card: PricingCard): PricingCard => {
+    if (card.tier !== "enterprise") {
+      return card;
     }
 
-    return plans.map((plan) => ({
-      name: plan.name,
-      tier: plan.tier,
-      description: plan.description,
-      features: plan.features,
-      cta: plan.cta || "Assinar plano",
-      popular: plan.popular,
-      prices: plan.prices,
-    }));
+    const existing = new Set(
+      card.features.map((feature) => feature.toLowerCase()),
+    );
+    const missing = ENTERPRISE_EXTRA_FEATURES.filter(
+      (feature) => !existing.has(feature.toLowerCase()),
+    );
+
+    if (missing.length === 0) {
+      return card;
+    }
+
+    return {
+      ...card,
+      features: [...card.features, ...missing],
+    };
+  };
+
+  const pricingCards = useMemo<PricingCard[]>(() => {
+    if (!plans || plans.length === 0) {
+      return FALLBACK_PLANS.map(ensureEnterpriseFeatures);
+    }
+
+    return plans.map((plan) =>
+      ensureEnterpriseFeatures({
+        name: plan.name,
+        tier: plan.tier,
+        description: plan.description,
+        features: plan.features,
+        cta: plan.cta || "Assinar plano",
+        popular: plan.popular,
+        prices: plan.prices,
+      }),
+    );
   }, [plans]);
 
   useGSAP(
