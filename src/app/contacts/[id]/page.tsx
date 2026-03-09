@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { toast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,7 @@ import {
   FormItem,
   FormStatic,
 } from "@/components/ui/form-components";
-import {
-  StepWizard,
-  StepNavigation,
-} from "@/components/ui/step-wizard";
+import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   User,
@@ -151,9 +148,12 @@ export default function EditCustomerPage() {
         }
       } catch (error) {
         console.error("Error fetching client:", error);
-        toast.error("Não foi possível carregar os dados do cliente. Verifique sua conexão.", {
-          title: "Erro ao carregar",
-        });
+        toast.error(
+          "Não foi possível carregar os dados do cliente. Verifique sua conexão.",
+          {
+            title: "Erro ao carregar",
+          },
+        );
       } finally {
         setIsLoading(false);
       }
@@ -255,7 +255,7 @@ export default function EditCustomerPage() {
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Carregando cliente...</p>
+          <p className="text-sm text-muted-foreground">Carregando Cliente...</p>
         </div>
       </div>
     );

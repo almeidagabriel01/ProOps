@@ -20,12 +20,12 @@ import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/s
 import { KanbanSkeleton } from "@/app/crm/_components/kanban-skeleton";
 
 /** Simple spinner used for create/edit sub-routes instead of the full page skeleton */
-function SpinnerFallback() {
+function SpinnerFallback({ message = "Carregando..." }: { message?: string }) {
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <div className="flex flex-col items-center gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>
   );
@@ -66,7 +66,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return pathname === "/products" ? (
       <ProductsSkeleton />
     ) : (
-      <SpinnerFallback />
+      <SpinnerFallback message="Carregando produtos..." />
     );
   }
 
@@ -74,7 +74,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return pathname === "/services" ? (
       <ServicesSkeleton />
     ) : (
-      <SpinnerFallback />
+      <SpinnerFallback message="Carregando serviços..." />
     );
   }
 
@@ -82,7 +82,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return pathname === "/proposals" ? (
       <ProposalsSkeleton />
     ) : (
-      <SpinnerFallback />
+      <SpinnerFallback message="Carregando Proposta..." />
     );
   }
 
@@ -90,7 +90,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return pathname === "/contacts" ? (
       <ContactsSkeleton />
     ) : (
-      <SpinnerFallback />
+      <SpinnerFallback message="Carregando Cliente..." />
     );
   }
 

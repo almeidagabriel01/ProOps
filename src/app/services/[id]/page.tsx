@@ -54,7 +54,9 @@ export default function EditServicePage() {
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Carregando serviço...</p>
+          <p className="text-sm text-muted-foreground">
+            Carregando serviços...
+          </p>
         </div>
       </div>
     );
