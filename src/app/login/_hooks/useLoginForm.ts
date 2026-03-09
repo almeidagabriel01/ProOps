@@ -233,47 +233,41 @@ export function useLoginForm(): UseLoginFormReturn {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const modeParam = searchParams.get("mode");
-  const mode: AuthMode =
-    pathname === "/register"
-      ? "register"
-      : pathname === "/forgot-password"
-        ? "forgot"
-        : AUTH_MODES.includes(modeParam as AuthMode)
-          ? (modeParam as AuthMode)
-          : "login";
+  // Derive initial mode from current path, then keep it in local state
+  // so that switching modes does NOT cause a route navigation (which would
+  // unmount the page and kill CSS slide transitions).
+  const [mode, setModeState] = React.useState<AuthMode>(() => {
+    if (pathname === "/register") return "register";
+    if (pathname === "/forgot-password") return "forgot";
+    const modeParam = searchParams.get("mode");
+    if (AUTH_MODES.includes(modeParam as AuthMode))
+      return modeParam as AuthMode;
+    return "login";
+  });
 
+  // Update the browser URL bar (without navigation) when mode changes
   const setMode = React.useCallback(
     (value: AuthMode) => {
+      setModeState(value);
+
+      // Build the new URL path without causing a Next.js navigation
       const params = new URLSearchParams(searchParams.toString());
-
-      if (value === "register") {
-        params.delete("mode");
-        const query = params.toString();
-        router.replace(query ? `/register?${query}` : "/register", {
-          scroll: false,
-        });
-        return;
-      }
-
-      if (value === "forgot") {
-        params.delete("mode");
-        const query = params.toString();
-        router.replace(
-          query ? `/forgot-password?${query}` : "/forgot-password",
-          { scroll: false },
-        );
-        return;
-      }
-
-      if (value === "login") {
-        params.delete("mode");
-      }
-
+      params.delete("mode");
       const query = params.toString();
-      router.replace(query ? `/login?${query}` : "/login", { scroll: false });
+
+      let newPath: string;
+      if (value === "register") {
+        newPath = query ? `/register?${query}` : "/register";
+      } else if (value === "forgot") {
+        newPath = query ? `/forgot-password?${query}` : "/forgot-password";
+      } else {
+        newPath = query ? `/login?${query}` : "/login";
+      }
+
+      // replaceState updates the URL bar without any navigation / re-mount
+      window.history.replaceState(null, "", newPath);
     },
-    [router, searchParams],
+    [searchParams],
   );
 
   // Get redirect URL from query params
@@ -284,9 +278,7 @@ export function useLoginForm(): UseLoginFormReturn {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("mode");
     const query = params.toString();
-    return query
-      ? `/register/google-setup?${query}`
-      : "/register/google-setup";
+    return query ? `/register/google-setup?${query}` : "/register/google-setup";
   }, [searchParams]);
 
   const handleRedirectAfterAuth = React.useCallback(() => {

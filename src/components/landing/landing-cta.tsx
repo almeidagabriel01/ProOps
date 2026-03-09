@@ -5,7 +5,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 
 if (typeof window !== "undefined") {
@@ -73,13 +72,13 @@ export function LandingCTA() {
           única com onboarding guiado para o seu time.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 cta-fade-item">
-          <Link
-            href="/register"
+          <a
+            href="mailto:gestao@proops.com.br"
             className="w-full sm:w-auto px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold hover:bg-black/85 dark:hover:bg-white/90 transition-all flex items-center justify-center gap-2 text-lg cursor-pointer"
           >
             Solicitar demonstração
             <ArrowRight className="w-5 h-5" />
-          </Link>
+          </a>
         </div>
         <p className="mt-8 text-sm text-black/55 dark:text-white/55 cta-fade-item">
           Implantação assistida, suporte contínuo e sem lock-in.

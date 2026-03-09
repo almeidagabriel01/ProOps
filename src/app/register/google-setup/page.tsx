@@ -5,15 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { deleteUser, onAuthStateChanged, signOut } from "firebase/auth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import {
+  StepCard,
+  StepNavigation,
+  StepWizard,
+} from "@/components/ui/step-wizard";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { NICHE_LABELS, TenantNiche } from "@/types";
-import { ArrowLeft, Building2, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Building2, Loader2, Palette, Upload } from "lucide-react";
+import { AuthLayout } from "@/app/login/_components/auth-layout";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
 function GoogleSetupContent() {
   const router = useRouter();
@@ -41,12 +46,8 @@ function GoogleSetupContent() {
 
   const getLoginTarget = useCallback(() => {
     const params = new URLSearchParams();
-    if (redirectParam) {
-      params.set("redirect", redirectParam);
-    }
-    if (redirectReason) {
-      params.set("redirect_reason", redirectReason);
-    }
+    if (redirectParam) params.set("redirect", redirectParam);
+    if (redirectReason) params.set("redirect_reason", redirectReason);
     if (selectedPlan) {
       params.set("plan", selectedPlan);
       params.set("interval", selectedInterval);
@@ -58,6 +59,7 @@ function GoogleSetupContent() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
 
@@ -72,6 +74,26 @@ function GoogleSetupContent() {
     () => companyName.trim().length >= 2,
     [companyName],
   );
+
+  const clearStepError = useCallback((field: string) => {
+    setStepErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  const validateCompanyStep = useCallback(() => {
+    const nextErrors: Record<string, string> = {};
+
+    if (!companyName.trim() || companyName.trim().length < 2) {
+      nextErrors.companyName = "Nome da empresa e obrigatorio";
+    }
+
+    setStepErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }, [companyName]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -232,13 +254,11 @@ function GoogleSetupContent() {
       }
     } catch (signOutError) {
       const errorCode = (signOutError as { code?: string })?.code;
-
-      // Fallback to signOut when account deletion is temporarily blocked.
       if (errorCode === "auth/requires-recent-login") {
         await signOut(auth);
       } else {
         console.error(
-          "Failed to delete provisional Google account from setup page:",
+          "Failed to delete provisional Google account:",
           signOutError,
         );
         await signOut(auth);
@@ -257,13 +277,9 @@ function GoogleSetupContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
-      <div className="absolute top-4 right-4 z-50">
-        <AnimatedThemeToggler className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground" />
-      </div>
-
-      <div className="w-full max-w-xl space-y-6">
-        <div className="flex justify-center">
+    <AuthLayout>
+      <div className="w-full">
+        <div className="flex justify-start mb-8">
           <button
             type="button"
             onClick={handleBackToLogin}
@@ -274,141 +290,171 @@ function GoogleSetupContent() {
           </button>
         </div>
 
-        <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Terminar de configurar empresa
-          </h1>
-          <p className="text-muted-foreground">
-            Falta so definir os dados da sua organizacao para continuar.
-          </p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-3"
+        >
+          <div className="text-left mb-6">
+            <h1 className="text-3xl font-bold tracking-tight">Quase la!</h1>
+            <p className="text-muted-foreground mt-2">
+              Falta so definir os dados da sua organizacao para continuar.
+            </p>
+          </div>
 
-        <Card className="shadow-xl border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-base">Conta Google conectada</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-1">
-            <p>{userName || "Usuario Google"}</p>
-            <p>{userEmail}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-xl border-border bg-card">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
-              Dados da organizacao
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="companyName" className="flex items-center gap-1">
-                Nome da Empresa <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="companyName"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Minha Empresa"
-              />
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-8 flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-lg">
+              {userName ? userName[0].toUpperCase() : "U"}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="niche">Nicho</Label>
-                <Select
-                  id="niche"
-                  value={companyNiche}
-                  onChange={(e) =>
-                    setCompanyNiche(e.target.value as TenantNiche)
-                  }
-                >
-                  {(Object.keys(NICHE_LABELS) as TenantNiche[]).map((key) => (
-                    <option key={key} value={key}>
-                      {NICHE_LABELS[key]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="color">Cor da Marca</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="color"
-                    type="color"
-                    value={companyColor}
-                    onChange={(e) => setCompanyColor(e.target.value)}
-                    className="w-12 h-10 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={companyColor}
-                    onChange={(e) => setCompanyColor(e.target.value)}
-                    className="font-mono flex-1"
-                  />
-                </div>
-              </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {userName || "Usuario Google"}
+              </p>
+              <p className="text-xs text-muted-foreground">{userEmail}</p>
             </div>
+          </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="logo">Logo da Empresa</Label>
-              <div className="flex items-center gap-3">
-                {companyLogo ? (
-                  <div className="relative w-14 h-14 rounded-lg border border-border overflow-hidden bg-muted/30">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={companyLogo}
-                      alt="Logo preview"
-                      className="w-full h-full object-contain"
+          <StepWizard
+            steps={[
+              { id: "company", title: "Empresa", icon: Building2 },
+              { id: "brand", title: "Marca", icon: Palette },
+            ]}
+            indicatorContainerClassName="mx-auto mb-2 w-full max-w-[240px]"
+          >
+            <StepCard className="border-none shadow-none p-0 bg-transparent">
+              <div className="space-y-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="companyName">Nome da Empresa *</Label>
+                  <div className="relative">
+                    <Input
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => {
+                        setCompanyName(e.target.value);
+                        if (e.target.value.trim().length >= 2) {
+                          clearStepError("companyName");
+                        }
+                      }}
+                      placeholder="Sua Empresa"
+                      className={`pl-10 h-11 ${stepErrors.companyName ? "border-destructive" : ""}`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setCompanyLogo("")}
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center hover:bg-destructive/90 cursor-pointer"
-                    >
-                      x
-                    </button>
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
-                ) : (
-                  <div className="w-14 h-14 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/30">
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                  </div>
+                  {stepErrors.companyName && (
+                    <p className="text-sm text-destructive">
+                      {stepErrors.companyName}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="niche">Nicho de Atuacao</Label>
+                  <Select
+                    id="niche"
+                    value={companyNiche}
+                    onChange={(e) =>
+                      setCompanyNiche(e.target.value as TenantNiche)
+                    }
+                  >
+                    {(Object.keys(NICHE_LABELS) as TenantNiche[]).map((key) => (
+                      <option key={key} value={key}>
+                        {NICHE_LABELS[key]}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                {error && (
+                  <p className="text-sm text-destructive font-medium">{error}</p>
                 )}
 
-                <div className="flex-1">
-                  <Input
-                    id="logo"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">Max 2MB.</p>
-                </div>
+                <StepNavigation
+                  showPrev={false}
+                  nextLabel="Continuar"
+                  onBeforeNext={validateCompanyStep}
+                />
               </div>
-            </div>
+            </StepCard>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            <StepCard className="border-none shadow-none p-0 bg-transparent">
+              <div className="space-y-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="color">Cor Principal</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="color"
+                      type="color"
+                      value={companyColor}
+                      onChange={(e) => setCompanyColor(e.target.value)}
+                      className="w-14 h-11 p-1 cursor-pointer rounded-lg"
+                    />
+                    <Input
+                      value={companyColor}
+                      onChange={(e) => setCompanyColor(e.target.value)}
+                      className="font-mono flex-1 h-11"
+                    />
+                  </div>
+                </div>
 
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !canSubmit}
-              className="w-full"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Finalizando...
-                </>
-              ) : (
-                "Finalizar Configuracao"
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+                <div className="grid gap-2">
+                  <Label htmlFor="logo">Logo da Empresa</Label>
+                  <div className="flex items-center gap-4 p-4 border border-dashed rounded-xl border-border bg-muted/20 hover:bg-muted/40 transition-colors">
+                    {companyLogo ? (
+                      <div className="relative w-16 h-16 rounded-xl border border-border overflow-hidden bg-white">
+                        <Image
+                          src={companyLogo}
+                          alt="Logo"
+                          width={64}
+                          height={64}
+                          unoptimized
+                          className="w-full h-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCompanyLogo("")}
+                          className="absolute -top-1 -right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center cursor-pointer"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/50">
+                        <Upload className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        id="logo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="cursor-pointer text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Max 2MB. JPG, PNG, WEBP.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {error && (
+                  <p className="text-sm text-destructive font-medium">{error}</p>
+                )}
+
+                <StepNavigation
+                  onSubmit={handleSubmit}
+                  onBeforeNext={validateCompanyStep}
+                  isSubmitting={isSubmitting}
+                  submitDisabled={!canSubmit}
+                  submitLabel="Concluir Configuracao"
+                />
+              </div>
+            </StepCard>
+          </StepWizard>
+        </motion.div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

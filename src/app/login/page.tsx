@@ -1,15 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Loader2,
   ArrowLeft,
@@ -18,8 +10,10 @@ import {
   Upload,
   CheckCircle,
   Mail,
+  Palette,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
 import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
@@ -32,8 +26,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { AuthLayout } from "./_components/auth-layout";
+import { motion, AnimatePresence } from "framer-motion";
 
 function LoginContent() {
   const {
@@ -55,7 +50,7 @@ function LoginContent() {
     setCompanyNiche,
     error,
     setError,
-    errors, // New
+    errors,
     registerSuccessMessage,
     smsCode,
     setSmsCode,
@@ -83,12 +78,10 @@ function LoginContent() {
     isGoogleLoading,
   } = useLoginForm();
 
-  // Estado para erros de validação do cadastro
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
     {},
   );
 
-  // Validação do Step 1 do cadastro
   const validateRegisterStep1 = (): boolean => {
     const newErrors: Record<string, string> = {};
     let isValid = true;
@@ -115,7 +108,6 @@ function LoginContent() {
     return isValid;
   };
 
-  // Validação do Step 2 do cadastro
   const validateRegisterStep2 = (): boolean => {
     const newErrors: Record<string, string> = {};
     let isValid = true;
@@ -129,63 +121,21 @@ function LoginContent() {
     return isValid;
   };
 
-  // Limpar erros quando valores mudam
-  /* eslint-disable */
-  useEffect(() => {
-    if (name && name.trim().length >= 2 && registerErrors.name) {
+  const validateRegisterStep3 = (): boolean => {
+    return true; // Optional fields (color, logo)
+  };
+
+  const clearRegisterError = (field: string) => {
+    if (registerErrors[field]) {
       setRegisterErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors.name;
+        delete newErrors[field];
         return newErrors;
       });
     }
-  }, [name]);
+  };
 
-  /* eslint-disable */
-  useEffect(() => {
-    if (
-      email &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
-      registerErrors.email
-    ) {
-      setRegisterErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.email;
-        return newErrors;
-      });
-    }
-  }, [email]);
-
-  /* eslint-disable */
-  useEffect(() => {
-    if (password && password.length >= 6 && registerErrors.password) {
-      setRegisterErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.password;
-        return newErrors;
-      });
-    }
-  }, [password]);
-
-  /* eslint-disable */
-  useEffect(() => {
-    if (
-      companyName &&
-      companyName.trim().length >= 2 &&
-      registerErrors.companyName
-    ) {
-      setRegisterErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors.companyName;
-        return newErrors;
-      });
-    }
-  }, [companyName]);
-
-  // Show loading during initial auth check (but not during login/register action)
-  // For users being redirected after login, don't show anything - the button spinner handles it
   if (isLoading && !isLoggingIn && !isRegistering && !user) {
-    // Initial page load or session recovery - show simple spinner
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -193,11 +143,8 @@ function LoginContent() {
     );
   }
 
-  // User is logged in but not actively logging in right now - show spinner during redirect
   if (user && !isLoggingIn && !isRegistering) {
-    if (user.role === "free") {
-      return null;
-    }
+    if (user.role === "free") return null;
 
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center">
@@ -207,15 +154,9 @@ function LoginContent() {
     );
   }
 
-  // If user IS actively logging in (isLoggingIn === true), we fall through
-  // and keep rendering the form with the "Entrando..." spinning button until the page unmounts!
-
   if (isEmailVerificationPending) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
-        <div className="absolute top-4 right-4 z-50">
-          <AnimatedThemeToggler className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground" />
-        </div>
+      <AuthLayout reverse={mode === "register"}>
         <EmailVerificationPending
           email={email}
           onCancel={() => {
@@ -226,141 +167,137 @@ function LoginContent() {
             window.location.reload();
           }}
         />
-      </div>
+      </AuthLayout>
     );
   }
 
   const steps = [
-    {
-      id: "account",
-      title: "Conta",
-      description: "Seus dados de acesso",
-      icon: UserIcon,
-    },
-    {
-      id: "company",
-      title: "Empresa",
-      description: "Dados da organização",
-      icon: Building2,
-    },
+    { id: "account", title: "Conta", icon: UserIcon },
+    { id: "company", title: "Empresa", icon: Building2 },
+    { id: "brand", title: "Marca", icon: Palette },
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative transition-colors duration-300">
-      {/* Theme Toggle */}
-      <div className="absolute top-4 right-4 z-50">
-        <AnimatedThemeToggler className="p-3 rounded-full bg-card hover:bg-muted border border-border shadow-lg transition-all duration-300 text-foreground" />
-      </div>
-
-      <div
-        className={`w-full ${mode === "register" ? "max-w-xl" : "max-w-md"}`}
-      >
-        {/* Back Link */}
-        <div className="flex justify-center mb-6">
+    <AuthLayout reverse={mode === "register"}>
+      <div className="w-full">
+        <div className="flex justify-start mb-6">
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar para a home
+            Voltar
           </Link>
         </div>
 
-        {mode === "register" ? (
-          // ======================= REGISTER MODE (WIZARD) =======================
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">
-                Criar nova conta
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Configure seu acesso e sua empresa
-              </p>
-            </div>
-
-            <StepWizard
-              steps={steps}
-              onComplete={() => {}}
-              indicatorContainerClassName="max-w-xs w-full"
+        <AnimatePresence mode="wait">
+          {mode === "register" ? (
+            <motion.div
+              key="register"
+              initial={{ opacity: 0, filter: "blur(4px)" }}
+              animate={{
+                opacity: 1,
+                filter: "blur(0px)",
+                transition: { duration: 0.5, delay: 0.2 },
+              }}
+              exit={{
+                opacity: 0,
+                filter: "blur(4px)",
+                transition: { duration: 0.2 },
+              }}
+              className="space-y-3"
             >
-              {/* STEP 1: ACCOUNT INFO */}
-              <StepCard>
-                <div className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label
-                      htmlFor="reg-name"
-                      className="flex items-center gap-1"
-                    >
-                      Seu Nome <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="reg-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Nome completo"
-                        className={`pl-9 ${registerErrors.name ? "border-destructive" : ""}`}
+              <div className="text-left mb-6">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Criar conta
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Configure seu acesso e sua empresa em poucos passos.
+                </p>
+              </div>
+
+              <StepWizard
+                steps={steps}
+                onComplete={() => {}}
+                indicatorContainerClassName="w-full mb-6"
+              >
+                {/* STEP 1: ACCOUNT INFO */}
+                <StepCard className="border-none shadow-none p-0 bg-transparent">
+                  <div className="space-y-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="reg-name">Seu Nome *</Label>
+                      <div className="relative">
+                        <Input
+                          id="reg-name"
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (e.target.value.trim().length >= 2)
+                              clearRegisterError("name");
+                          }}
+                          placeholder="Nome completo"
+                          className={`pl-10 h-11 ${registerErrors.name ? "border-destructive" : ""}`}
+                        />
+                        <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      </div>
+                      {registerErrors.name && (
+                        <p className="text-sm text-destructive">
+                          {registerErrors.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="reg-phone">WhatsApp / Telefone</Label>
+                      <PhoneInput
+                        id="reg-phone"
+                        name="reg-phone"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
                       />
-                      <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      {errors.phoneNumber && (
+                        <p className="text-sm text-destructive">
+                          {errors.phoneNumber}
+                        </p>
+                      )}
                     </div>
-                    {registerErrors.name && (
-                      <p className="text-sm text-destructive">
-                        {registerErrors.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label
-                      htmlFor="reg-phone"
-                      className="flex items-center gap-1"
-                    >
-                      WhatsApp / Telefone
-                    </Label>
-                    <PhoneInput
-                      id="reg-phone"
-                      name="reg-phone"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
+                    <CredentialFields
+                      email={email}
+                      onEmailChange={(val) => {
+                        setEmail(val);
+                        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val))
+                          clearRegisterError("email");
+                      }}
+                      password={password}
+                      onPasswordChange={(val) => {
+                        setPassword(val);
+                        if (val.length >= 6) clearRegisterError("password");
+                      }}
+                      mode="register"
+                      error={error}
+                      errors={registerErrors}
                     />
-                    {errors.phoneNumber && (
-                      <p className="text-sm text-destructive">
-                        {errors.phoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <CredentialFields
-                    email={email}
-                    onEmailChange={setEmail}
-                    password={password}
-                    onPasswordChange={setPassword}
-                    mode="register"
-                    error={error}
-                    errors={registerErrors}
-                  />
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-border" />
+
+                    <div className="relative my-3">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          ou
+                        </span>
+                      </div>
                     </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-card px-2 text-muted-foreground">
-                        ou
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleGoogleAuth}
-                    disabled={isGoogleLoading || isRegistering}
-                  >
-                    {isGoogleLoading ? (
-                      <>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-11"
+                      onClick={handleGoogleAuth}
+                      disabled={isGoogleLoading || isRegistering}
+                    >
+                      {isGoogleLoading ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Conectando com Google...
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <svg
                           aria-hidden="true"
                           viewBox="0 0 24 24"
@@ -371,164 +308,166 @@ function LoginContent() {
                             d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.2.8 3.9 1.4l2.7-2.6C16.9 2.8 14.6 2 12 2 6.9 2 2.8 6.3 2.8 11.6S6.9 21.2 12 21.2c6.9 0 9.2-4.9 9.2-7.4 0-.5-.1-.8-.1-1.2H12z"
                           />
                         </svg>
-                        Cadastrar com Google
-                      </>
-                    )}
-                  </Button>
-                  <StepNavigation
-                    showPrev={false}
-                    nextLabel="Continuar"
-                    onBeforeNext={validateRegisterStep1}
-                  />
-                  <div className="text-center pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setMode("login")}
-                      className="text-sm text-primary hover:text-primary/80 font-medium transition-colors cursor-pointer"
-                    >
-                      Já tenho uma conta
-                    </button>
+                      )}
+                      Cadastrar com Google
+                    </Button>
+
+                    <StepNavigation
+                      showPrev={false}
+                      nextLabel="Continuar"
+                      onBeforeNext={validateRegisterStep1}
+                    />
+
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setMode("login")}
+                        className="text-sm text-primary hover:underline font-medium cursor-pointer"
+                      >
+                        Já tenho uma conta
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </StepCard>
+                </StepCard>
 
-              {/* STEP 2: COMPANY INFO */}
-              <StepCard>
-                <div className="space-y-4">
-                  <form onSubmit={handleRegister}>
-                    <div className="space-y-4">
-                      <div className="grid gap-2">
-                        <Label
-                          htmlFor="companyName"
-                          className="flex items-center gap-1"
-                        >
-                          Nome da Empresa{" "}
-                          <span className="text-destructive">*</span>
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="companyName"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            placeholder="Minha Empresa"
-                            className={`pl-9 ${registerErrors.companyName ? "border-destructive" : ""}`}
-                          />
-                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        </div>
-                        {registerErrors.companyName && (
-                          <p className="text-sm text-destructive">
-                            {registerErrors.companyName}
-                          </p>
+                {/* STEP 2: COMPANY INFO */}
+                <StepCard className="border-none shadow-none p-0 bg-transparent">
+                  <div className="space-y-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="companyName">Nome da Empresa *</Label>
+                      <div className="relative">
+                        <Input
+                          id="companyName"
+                          value={companyName}
+                          onChange={(e) => {
+                            setCompanyName(e.target.value);
+                            if (e.target.value.trim().length >= 2)
+                              clearRegisterError("companyName");
+                          }}
+                          placeholder="Minha Empresa"
+                          className={`pl-10 h-11 ${registerErrors.companyName ? "border-destructive" : ""}`}
+                        />
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      </div>
+                      {registerErrors.companyName && (
+                        <p className="text-sm text-destructive">
+                          {registerErrors.companyName}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="niche">Nicho de Atuação</Label>
+                      <Select
+                        id="niche"
+                        value={companyNiche}
+                        onChange={(e) =>
+                          setCompanyNiche(e.target.value as TenantNiche)
+                        }
+                      >
+                        {(Object.keys(NICHE_LABELS) as TenantNiche[]).map(
+                          (key) => (
+                            <option key={key} value={key}>
+                              {NICHE_LABELS[key]}
+                            </option>
+                          ),
                         )}
+                      </Select>
+                    </div>
+
+                    <StepNavigation onBeforeNext={validateRegisterStep2} />
+                  </div>
+                </StepCard>
+
+                {/* STEP 3: BRANDING */}
+                <StepCard className="border-none shadow-none p-0 bg-transparent">
+                  <form onSubmit={handleRegister} className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="color">Cor da Marca</Label>
+                      <div className="flex gap-3">
+                        <Input
+                          id="color"
+                          type="color"
+                          value={companyColor}
+                          onChange={(e) => setCompanyColor(e.target.value)}
+                          className="w-14 h-11 p-1 cursor-pointer rounded-lg"
+                        />
+                        <Input
+                          value={companyColor}
+                          onChange={(e) => setCompanyColor(e.target.value)}
+                          className="font-mono flex-1 h-11"
+                        />
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="niche">Nicho</Label>
-                          <Select
-                            id="niche"
-                            value={companyNiche}
-                            onChange={(e) =>
-                              setCompanyNiche(e.target.value as TenantNiche)
-                            }
-                          >
-                            {(Object.keys(NICHE_LABELS) as TenantNiche[]).map(
-                              (key) => (
-                                <option key={key} value={key}>
-                                  {NICHE_LABELS[key]}
-                                </option>
-                              ),
-                            )}
-                          </Select>
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label htmlFor="color">Cor da Marca</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              id="color"
-                              type="color"
-                              value={companyColor}
-                              onChange={(e) => setCompanyColor(e.target.value)}
-                              className="w-12 h-10 p-1 cursor-pointer"
+                    <div className="grid gap-2">
+                      <Label htmlFor="logo">Logo da Empresa (Opcional)</Label>
+                      <div className="flex items-center gap-4 p-4 border border-dashed rounded-xl border-border bg-muted/20 hover:bg-muted/40 transition-colors">
+                        {companyLogo ? (
+                          <div className="relative w-16 h-16 rounded-xl border border-border overflow-hidden bg-white">
+                            <Image
+                              src={companyLogo}
+                              alt="Logo"
+                              width={64}
+                              height={64}
+                              unoptimized
+                              className="w-full h-full object-contain"
                             />
-                            <Input
-                              value={companyColor}
-                              onChange={(e) => setCompanyColor(e.target.value)}
-                              className="font-mono flex-1"
-                            />
+                            <button
+                              type="button"
+                              onClick={() => setCompanyLogo("")}
+                              className="absolute -top-1 -right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center cursor-pointer"
+                            >
+                              ×
+                            </button>
                           </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label htmlFor="logo">Logo da Empresa</Label>
-                        <div className="flex items-center gap-3">
-                          {companyLogo ? (
-                            <div className="relative w-14 h-14 rounded-lg border border-border overflow-hidden bg-muted/30">
-                              <img
-                                src={companyLogo}
-                                alt="Logo preview"
-                                className="w-full h-full object-contain"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setCompanyLogo("")}
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center hover:bg-destructive/90 cursor-pointer"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="w-14 h-14 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/30">
-                              <Upload className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div className="flex-1">
-                            <Input
-                              id="logo"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoUpload}
-                              className="cursor-pointer"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Max 2MB.
-                            </p>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center bg-muted/50">
+                            <Upload className="w-6 h-6 text-muted-foreground" />
                           </div>
+                        )}
+                        <div className="flex-1">
+                          <Input
+                            id="logo"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="cursor-pointer text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Formatos aceitos: JPG, PNG. Max 2MB.
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     {error && (
-                      <p className="text-sm text-destructive font-medium mt-2">
+                      <p className="text-sm text-destructive font-medium">
                         {error}
                       </p>
                     )}
-
                     {registerSuccessMessage && (
-                      <p className="text-sm text-green-600 font-medium mt-2">
+                      <p className="text-sm text-green-600 font-medium">
                         {registerSuccessMessage}
                       </p>
                     )}
 
                     {requiresPhoneVerification && (
-                      <div className="mt-4 p-4 border border-border rounded-xl bg-muted/20 space-y-3">
-                        <p className="text-sm font-medium">
+                      <div className="mt-4 p-5 border border-border rounded-xl bg-muted/20 space-y-3">
+                        <p className="text-sm font-semibold">
                           Confirmação de telefone por SMS
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Digite o código enviado por SMS para confirmar que
-                          este número é seu.
+                        <p className="text-sm text-muted-foreground">
+                          Digite o código enviado por SMS para confirmar.
                         </p>
                         <Input
                           value={smsCode}
                           onChange={(e) => setSmsCode(e.target.value)}
-                          placeholder="Código de 6 dígitos"
-                          inputMode="numeric"
+                          placeholder="000000"
+                          className="text-center tracking-widest font-mono text-lg"
                           maxLength={6}
                         />
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 pt-2">
                           <Button
                             type="button"
                             onClick={handleConfirmPhoneCode}
@@ -537,7 +476,7 @@ function LoginContent() {
                           >
                             {isVerifyingSmsCode
                               ? "Confirmando..."
-                              : "Confirmar Telefone"}
+                              : "Confirmar"}
                           </Button>
                           <Button
                             type="button"
@@ -545,7 +484,7 @@ function LoginContent() {
                             onClick={handleResendPhoneCode}
                             disabled={isSendingSms}
                           >
-                            {isSendingSms ? "Enviando..." : "Reenviar SMS"}
+                            {isSendingSms ? "Enviando..." : "Reenviar"}
                           </Button>
                         </div>
                       </div>
@@ -555,37 +494,50 @@ function LoginContent() {
                       !requiresPhoneVerification && (
                         <StepNavigation
                           onSubmit={handleRegister}
-                          onBeforeNext={validateRegisterStep2}
+                          onBeforeNext={validateRegisterStep3}
                           isSubmitting={isRegistering}
-                          submitLabel="Criar Conta"
+                          submitLabel="Finalizar"
                         />
                       )}
                   </form>
-                </div>
-              </StepCard>
-            </StepWizard>
-          </div>
-        ) : mode === "forgot" ? (
-          // ======================= FORGOT PASSWORD MODE =======================
-          <Card className="shadow-xl border-border bg-card">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Redefinir Senha</CardTitle>
-              <CardDescription>
-                Digite seu email. Se ele estiver cadastrado, enviaremos o link
-                de redefinição.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleForgotPassword}>
-              <CardContent className="space-y-4">
+                </StepCard>
+              </StepWizard>
+            </motion.div>
+          ) : mode === "forgot" ? (
+            <motion.div
+              key="forgot"
+              initial={{ opacity: 0, filter: "blur(4px)" }}
+              animate={{
+                opacity: 1,
+                filter: "blur(0px)",
+                transition: { duration: 0.5, delay: 0.2 },
+              }}
+              exit={{
+                opacity: 0,
+                filter: "blur(4px)",
+                transition: { duration: 0.2 },
+              }}
+            >
+              <div className="text-left mb-6">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Redefinir Senha
+                </h1>
+                <p className="text-muted-foreground mt-2">
+                  Digite seu email cadastrado para receber o link de
+                  recuperação.
+                </p>
+              </div>
+
+              <form onSubmit={handleForgotPassword} className="space-y-6">
                 {resetSent ? (
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col items-center text-center gap-2 animate-in fade-in zoom-in-95">
-                    <CheckCircle className="w-10 h-10 text-green-500" />
-                    <h3 className="font-semibold text-green-600">
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-6 flex flex-col items-center text-center gap-3">
+                    <CheckCircle className="w-12 h-12 text-green-500" />
+                    <h3 className="font-semibold text-green-600 text-lg">
                       Solicitação recebida!
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       Se o email estiver cadastrado, você receberá instruções
-                      para redefinir sua senha. Verifique também o spam.
+                      para redefinir sua senha. Verifique o spam.
                     </p>
                   </div>
                 ) : (
@@ -599,7 +551,7 @@ function LoginContent() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        className="pl-9"
+                        className="pl-10 h-11"
                       />
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     </div>
@@ -610,50 +562,58 @@ function LoginContent() {
                     )}
                   </div>
                 )}
-              </CardContent>
-              <CardFooter className="flex flex-col gap-3">
-                {!resetSent && (
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isResetting}
-                  >
-                    {isResetting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Enviando...
-                      </>
-                    ) : (
-                      "Enviar Link de Redefinição"
-                    )}
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setMode("login");
-                    setError("");
-                  }}
-                  className="w-full"
-                >
-                  Voltar para o Login
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        ) : (
-          // ======================= LOGIN MODE =======================
-          <Card className="shadow-xl border-border bg-card">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl">Entrar</CardTitle>
-              <CardDescription>
-                Entre com suas credenciais de acesso
-              </CardDescription>
-            </CardHeader>
 
-            <form onSubmit={handleLogin}>
-              <CardContent className="space-y-4">
+                <div className="flex flex-col gap-3 pt-4">
+                  {!resetSent && (
+                    <Button
+                      type="submit"
+                      className="w-full h-11"
+                      disabled={isResetting}
+                    >
+                      {isResetting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        "Enviar Link de Redefinição"
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setMode("login");
+                      setError("");
+                    }}
+                    className="w-full h-11"
+                  >
+                    Voltar para o Login
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, filter: "blur(4px)" }}
+              animate={{
+                opacity: 1,
+                filter: "blur(0px)",
+                transition: { duration: 0.5, delay: 0.2 },
+              }}
+              exit={{
+                opacity: 0,
+                filter: "blur(4px)",
+                transition: { duration: 0.2 },
+              }}
+            >
+              <div className="text-left mb-6">
+                <h1 className="text-3xl font-bold tracking-tight">Entrar</h1>
+                <p className="text-muted-foreground mt-2">
+                  Bem-vindo de volta! Insira suas credenciais.
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-5">
                 <CredentialFields
                   email={email}
                   onEmailChange={setEmail}
@@ -663,6 +623,7 @@ function LoginContent() {
                   error={error}
                   errors={errors}
                 />
+
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -670,51 +631,46 @@ function LoginContent() {
                       setMode("forgot");
                       setError("");
                     }}
-                    className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors cursor-pointer font-medium"
                   >
                     Esqueci minha senha
                   </button>
                 </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-4">
-                <Button
-                  type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-                  disabled={isLoggingIn || isGoogleLoading}
-                >
-                  {isLoggingIn ? (
-                    <>
+
+                <div className="pt-2 flex flex-col gap-4">
+                  <Button
+                    type="submit"
+                    className="w-full h-11 shadow-lg shadow-primary/20 text-md font-medium"
+                    disabled={isLoggingIn || isGoogleLoading}
+                  >
+                    {isLoggingIn ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    "Entrar"
-                  )}
-                </Button>
-                <div className="relative w-full">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
+                    ) : (
+                      "Entrar"
+                    )}
+                  </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-3 text-muted-foreground font-medium">
+                        ou
+                      </span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">
-                      ou
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleAuth}
-                  disabled={isGoogleLoading || isLoggingIn}
-                >
-                  {isGoogleLoading ? (
-                    <>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 font-medium"
+                    onClick={handleGoogleAuth}
+                    disabled={isGoogleLoading || isLoggingIn}
+                  >
+                    {isGoogleLoading ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Conectando com Google...
-                    </>
-                  ) : (
-                    <>
+                    ) : (
                       <svg
                         aria-hidden="true"
                         viewBox="0 0 24 24"
@@ -725,30 +681,31 @@ function LoginContent() {
                           d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.2.8 3.9 1.4l2.7-2.6C16.9 2.8 14.6 2 12 2 6.9 2 2.8 6.3 2.8 11.6S6.9 21.2 12 21.2c6.9 0 9.2-4.9 9.2-7.4 0-.5-.1-.8-.1-1.2H12z"
                         />
                       </svg>
-                      Entrar com Google
-                    </>
-                  )}
-                </Button>
-                <div className="text-center text-sm text-muted-foreground">
-                  Não tem uma conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("register");
-                      setError("");
-                    }}
-                    className="text-primary hover:text-primary/80 font-medium transition-colors cursor-pointer"
-                  >
-                    Criar conta
-                  </button>
+                    )}
+                    Entrar com Google
+                  </Button>
+
+                  <div className="text-center text-sm text-muted-foreground mt-4">
+                    Não tem uma conta?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("register");
+                        setError("");
+                      }}
+                      className="text-primary hover:underline font-semibold transition-colors cursor-pointer"
+                    >
+                      Criar agora
+                    </button>
+                  </div>
                 </div>
-              </CardFooter>
-            </form>
-          </Card>
-        )}
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       <div id="recaptcha-container" className="hidden" />
-    </div>
+    </AuthLayout>
   );
 }
 

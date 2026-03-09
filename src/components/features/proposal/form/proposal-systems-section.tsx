@@ -35,6 +35,11 @@ import { SystemEnvironmentManagerDialog } from "@/components/features/automation
 import { Settings } from "lucide-react";
 import { useWindowFocus } from "@/hooks/use-window-focus";
 import { compareDisplayText } from "@/lib/sort-text";
+import {
+  migrateDraftHideZeroQtyStateToProposal,
+  readProposalHideZeroQtyState,
+  writeProposalHideZeroQtyState,
+} from "@/lib/proposal-hide-zero-qty-storage";
 
 interface ProposalSystemsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -88,6 +93,7 @@ interface ProposalSystemsSectionProps {
   onAmbienteAction?: (action: MasterDataAction) => void;
   onSistemaAction?: (action: MasterDataAction) => void;
   onRemoveAmbiente: (sistemaIndex: number, ambienteId: string) => void;
+  proposalStorageKey?: string;
 }
 
 export function ProposalSystemsSection({
@@ -112,6 +118,7 @@ export function ProposalSystemsSection({
   onAmbienteAction,
   onSistemaAction,
   onRemoveAmbiente,
+  proposalStorageKey,
 }: ProposalSystemsSectionProps) {
   // Logic to handle "Pending" (Environment-only) selection
   // If the last system in the list is incomplete (no sistemaId),
@@ -120,6 +127,37 @@ export function ProposalSystemsSection({
   const isLastSystemPending = lastSystem && !lastSystem.sistemaId;
 
   const [isManagerOpen, setIsManagerOpen] = React.useState(false);
+  const [hideZeroQtyByEnvironment, setHideZeroQtyByEnvironment] =
+    React.useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    if (proposalStorageKey) {
+      migrateDraftHideZeroQtyStateToProposal(proposalStorageKey);
+    }
+  }, [proposalStorageKey]);
+
+  React.useEffect(() => {
+    setHideZeroQtyByEnvironment(readProposalHideZeroQtyState(proposalStorageKey));
+  }, [proposalStorageKey]);
+
+  const handleToggleHideZeroQtyByEnvironment = React.useCallback(
+    (environmentInstanceId: string, hideZeroQty: boolean) => {
+      setHideZeroQtyByEnvironment((prev) => {
+        const next = { ...prev };
+
+        if (hideZeroQty) {
+          next[environmentInstanceId] = true;
+        } else {
+          delete next[environmentInstanceId];
+        }
+
+        writeProposalHideZeroQtyState(next, proposalStorageKey);
+
+        return next;
+      });
+    },
+    [proposalStorageKey],
+  );
 
   const renderedSistemas = isLastSystemPending
     ? selectedSistemas.slice(0, -1)
@@ -329,6 +367,10 @@ export function ProposalSystemsSection({
                   onDeleteEnvironment={(ambienteId) =>
                     onRemoveAmbiente(realIndex, ambienteId)
                   }
+                  hideZeroQtyByEnvironment={hideZeroQtyByEnvironment}
+                  onToggleHideZeroQtyByEnvironment={
+                    handleToggleHideZeroQtyByEnvironment
+                  }
                 />
               );
             })}
@@ -419,6 +461,11 @@ interface SystemCardProps {
     itemType?: "product" | "service",
   ) => Promise<void>;
   onDeleteEnvironment: (ambienteId: string) => void;
+  hideZeroQtyByEnvironment?: Record<string, boolean>;
+  onToggleHideZeroQtyByEnvironment?: (
+    environmentInstanceId: string,
+    hideZeroQty: boolean,
+  ) => void;
 }
 
 function SystemCard({
@@ -436,6 +483,8 @@ function SystemCard({
   onAddExtraProduct,
   onToggleStatus,
   onDeleteEnvironment,
+  hideZeroQtyByEnvironment = {},
+  onToggleHideZeroQtyByEnvironment,
 }: SystemCardProps) {
   return (
     <div
@@ -572,6 +621,13 @@ function SystemCard({
           const scopeProducts = sistemaProducts.filter(
             (p) => p.systemInstanceId === currentInstanceId,
           );
+          const hideZeroQty =
+            !!hideZeroQtyByEnvironment[currentInstanceId];
+          const visibleScopeProducts = hideZeroQty
+            ? scopeProducts.filter((p) => Number(p.quantity || 0) !== 0)
+            : scopeProducts;
+          const hiddenProductsCount =
+            scopeProducts.length - visibleScopeProducts.length;
 
           return (
             <div
@@ -595,6 +651,20 @@ function SystemCard({
                       - {amb.description}
                     </span>
                   )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    Ocultar qtd. 0
+                  </span>
+                  <Switch
+                    checked={hideZeroQty}
+                    onCheckedChange={(checked) =>
+                      onToggleHideZeroQtyByEnvironment?.(
+                        currentInstanceId,
+                        checked,
+                      )
+                    }
+                  />
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -636,8 +706,8 @@ function SystemCard({
 
               {/* Lista de Produtos do Ambiente */}
               <div className="p-3 space-y-2">
-                {scopeProducts.length > 0 ? (
-                  scopeProducts
+                {visibleScopeProducts.length > 0 ? (
+                  visibleScopeProducts
                     .sort((a, b) =>
                       compareDisplayText(a.productName, b.productName),
                     )
@@ -679,7 +749,9 @@ function SystemCard({
                     })
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-2">
-                    Nenhum produto neste ambiente
+                    {scopeProducts.length > 0 && hideZeroQty
+                      ? `Todos os produtos com quantidade 0 estao ocultos (${hiddenProductsCount})`
+                      : "Nenhum produto neste ambiente"}
                   </p>
                 )}
 

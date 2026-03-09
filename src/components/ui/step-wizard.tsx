@@ -137,7 +137,7 @@ export function StepWizard({
 
   return (
     <StepWizardContext.Provider value={contextValue}>
-      <div className={cn("space-y-8", className)}>
+      <div className={cn("space-y-2", className)}>
         {/* Step Indicator */}
         <StepIndicator
           steps={steps}
@@ -257,7 +257,7 @@ function StepIndicator({
               </div>
 
               {/* Step title */}
-              <div className="mt-3 text-center max-w-[100px]">
+              <div className="mt-2 text-center max-w-[100px]">
                 <p
                   className={cn(
                     "text-sm font-semibold transition-colors duration-300",
@@ -379,7 +379,7 @@ export function StepNavigation({
   };
 
   return (
-    <div className="flex items-center justify-between pt-8 border-border/30">
+    <div className="flex items-center justify-between pt-4 mt-2 border-border/30">
       {/* Previous Button */}
       {showPrev && !isFirstStep ? (
         <button
@@ -464,7 +464,7 @@ export function StepCard({ className, children, ...props }: StepCardProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/50 bg-card p-6 sm:p-8",
+        "rounded-2xl border border-border/50 bg-card p-3 sm:p-4",
         "shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500",
         className,
       )}
