@@ -7,6 +7,7 @@ import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
 import { PersonalForm } from "./personal-form";
 import { OrganizationForm } from "./organization-form";
 import { PasswordForm } from "./password-form";
+import { FiscalConfigForm } from "./fiscal-config-form";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -39,7 +40,7 @@ export function OverviewTab({
 
   return (
     <div className="grid gap-6 md:grid-cols-2 items-start">
-      {/* Left Column: Personal Info + Password */}
+      {/* Left Column: Personal Info + Password + Fiscal */}
       <div className="flex flex-col gap-6">
         <PersonalForm user={user} />
         {hasPasswordProvider ? (
@@ -47,6 +48,7 @@ export function OverviewTab({
         ) : (
           <PlanUsageCard variant="profile" data={planUsageData} />
         )}
+        <FiscalConfigForm isMaster={isMaster} />
       </div>
       {/* Right Column: Organization + Plan Usage */}
       <div className="flex flex-col gap-6">

@@ -1,4 +1,5 @@
 import { PdfDisplaySettings } from "./pdf-display-settings";
+import { FiscalDocumentStatus } from "./fiscal";
 
 export type ProposalStatus =
   | "draft"
@@ -104,6 +105,10 @@ export interface Proposal {
   pdfSettings?: PdfDisplaySettings;
   pdf?: ProposalPdfMetadata;
   attachments?: ProposalAttachment[];
+  fiscalStatus?: FiscalDocumentStatus;
+  fiscalDocumentId?: string;
+  fiscalLastError?: string | null;
+  fiscalUpdatedAt?: string;
   // Payment options
   downPaymentEnabled?: boolean;
   downPaymentType?: "value" | "percentage";

@@ -17,6 +17,10 @@ import {
   enqueueStorageGcPath,
   type StorageGcReason,
 } from "../../lib/storage-gc";
+import {
+  deleteFiscalDocumentForProposal,
+  syncProposalFiscalDocument,
+} from "../../fiscal/fiscal.service";
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
@@ -1177,6 +1181,16 @@ export const createProposal = async (req: Request, res: Response) => {
           userId: createdProposal.data.createdById as string,
           initialStatus: input.initialPaymentStatus || "pending",
         });
+
+        await syncProposalFiscalDocument({
+          proposalId: createdProposal.id,
+          proposalData: {
+            ...createdProposal.data,
+            id: createdProposal.id,
+          },
+          actorId: createdProposal.data.createdById as string,
+          isApproved: true,
+        });
       }
 
       proposalId = createdProposal.id;
@@ -1390,6 +1404,11 @@ export const updateProposal = async (req: Request, res: Response) => {
     ]);
     const shouldSyncApprovedTransactions =
       (isAlreadyApproved || isBeingApproved) &&
+      Object.keys(updateData || {}).some((field) =>
+        approvedSyncFields.has(field),
+      );
+    const shouldSyncFiscalDocument =
+      (isAlreadyApproved || isBeingApproved || isBeingReverted) &&
       Object.keys(updateData || {}).some((field) =>
         approvedSyncFields.has(field),
       );
@@ -1757,6 +1776,19 @@ export const updateProposal = async (req: Request, res: Response) => {
       });
     }
 
+    if (shouldSyncFiscalDocument) {
+      await syncProposalFiscalDocument({
+        proposalId: id,
+        proposalData: {
+          ...proposalData,
+          ...safeUpdate,
+          id,
+        } as Record<string, unknown>,
+        actorId: userId,
+        isApproved: willBeApproved,
+      });
+    }
+
     return res.json({ success: true, message: "Proposta atualizada." });
   } catch (error: unknown) {
     const err = error as Error;
@@ -1823,6 +1855,7 @@ export const deleteProposal = async (req: Request, res: Response) => {
 
     // Cleanup associated transactions (revenue) if they exist
     await cleanupProposalTransactions(id, proposalTenantId);
+    await deleteFiscalDocumentForProposal(id);
 
     const storagePathsToDelete = Array.from(
       new Set([

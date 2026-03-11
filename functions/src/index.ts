@@ -26,6 +26,7 @@ export { checkDueDates } from "./checkDueDates";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
 export { reportWhatsappOverage } from "./reportWhatsappOverage";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
+export { processFiscalDocuments } from "./fiscal/fiscal.trigger";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

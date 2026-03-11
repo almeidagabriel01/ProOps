@@ -23,6 +23,7 @@ import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { toast } from "@/lib/toast";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
+import { ProposalFiscalCard } from "@/components/features/proposal/proposal-fiscal-card";
 
 export default function ViewProposalPage() {
   const params = useParams();
@@ -352,6 +353,8 @@ export default function ViewProposalPage() {
           </Button>
         </div>
       </div>
+
+      <ProposalFiscalCard proposalId={proposalId} />
 
       {/* Preview */}
       <Card>
