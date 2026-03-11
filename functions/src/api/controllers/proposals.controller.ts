@@ -162,7 +162,9 @@ async function isStatusApproved(
 
   // Legacy canonical values persisted directly in proposal.status
   if (normalizedStatus === "approved") return true;
-  if (["draft", "in_progress", "sent", "rejected"].includes(normalizedStatus)) {
+  // Handle virtual default kanban column from frontend
+  if (normalizedStatus === "default_2") return true;
+  if (["draft", "in_progress", "sent", "rejected", "default_0", "default_1", "default_3"].includes(normalizedStatus)) {
     return false;
   }
 
@@ -178,6 +180,7 @@ async function isStatusApproved(
           tenantId?: string;
           mappedStatus?: string | null;
           category?: string | null;
+          label?: string | null;
         }
       | undefined;
     const statusTenantId = String(statusData?.tenantId || "").trim();
@@ -192,7 +195,15 @@ async function isStatusApproved(
 
     // Newer status model is category-based; "won" semantically means approved.
     const category = normalizeStatusIdentifier(statusData?.category);
-    return category === "won";
+    if (category === "won") return true;
+
+    // Fallback: Infer from label for older columns
+    const label = normalizeStatusIdentifier(statusData?.label);
+    if (label.includes("aprovad") || label.includes("ganha") || label.includes("approved")) {
+      return true;
+    }
+
+    return false;
   } catch (err) {
     console.error("isStatusApproved error checking kanban_statuses", err);
   }

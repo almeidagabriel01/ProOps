@@ -80,7 +80,13 @@ export function ProposalSummarySection({
         }
 
         const newOptions = [
-          ...activeColumns.map((c) => ({ value: c.id, label: c.label })),
+          ...activeColumns.map((c) => ({
+            value:
+              c.id.startsWith("default_") && c.mappedStatus
+                ? c.mappedStatus
+                : c.id,
+            label: c.label,
+          })),
         ];
 
         // If the current proposal has a status that isn't in the new columns (e.g. an old status string like "in_progress")
@@ -91,15 +97,22 @@ export function ProposalSummarySection({
         ) {
           // Find if there's an active column that maps to this old status
           const mappedColumn = activeColumns.find(
-            (c) => c.mappedStatus === formData.status,
+            (c) =>
+              c.mappedStatus === formData.status || c.id === formData.status,
           );
 
           if (mappedColumn) {
+            const actualValueToSave =
+              mappedColumn.id.startsWith("default_") &&
+              mappedColumn.mappedStatus
+                ? mappedColumn.mappedStatus
+                : mappedColumn.id;
+            
             // Auto-update the form data to use the new column ID instead of the old status string
             onFormChange({
               target: {
                 name: "status",
-                value: mappedColumn.id,
+                value: actualValueToSave,
               },
             } as React.ChangeEvent<HTMLSelectElement>);
           } else {

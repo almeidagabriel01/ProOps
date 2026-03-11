@@ -564,7 +564,13 @@ export default function ProposalsPage() {
   }, []);
 
   const handleStatusChange = React.useCallback(
-    async (proposalId: string, newStatus: ProposalStatus) => {
+    async (proposalId: string, rawStatus: string) => {
+      const column = kanbanColumns.find((c) => c.id === rawStatus);
+      const newStatus =
+        column?.id.startsWith("default_") && column?.mappedStatus
+          ? (column.mappedStatus as ProposalStatus)
+          : (rawStatus as ProposalStatus);
+
       const proposal = proposals.find((p) => p.id === proposalId);
       if (!proposal || proposal.status === newStatus) return;
       const proposalLabel = proposal.title?.trim()

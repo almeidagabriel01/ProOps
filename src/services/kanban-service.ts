@@ -88,9 +88,10 @@ export const KanbanService = {
         const data = doc.data();
         let category = data.category;
         if (!category) {
+          const label = String(data.label || "").toLowerCase();
           category = 
-            data.mappedStatus === "approved" ? "won" :
-            data.mappedStatus === "rejected" ? "lost" : "open";
+            data.mappedStatus === "approved" || label.includes("aprovad") || label.includes("ganha") || label.includes("approved") ? "won" :
+            data.mappedStatus === "rejected" || label.includes("rejeitad") || label.includes("perdid") || label.includes("reprovad") || label.includes("lost") ? "lost" : "open";
         }
         return {
           id: doc.id,
