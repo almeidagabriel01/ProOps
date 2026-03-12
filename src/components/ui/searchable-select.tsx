@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compareDisplayText } from "@/lib/sort-text";
+import { normalize } from "@/utils/text";
 
 export interface SearchableSelectOption {
   value: string;
@@ -87,14 +88,14 @@ export const SearchableSelect = React.forwardRef<
     }, []);
 
     const filteredOptions = React.useMemo(() => {
-      const term = searchTerm.trim().toLowerCase();
+      const term = normalize(searchTerm.trim());
       if (!term) return sortedOptions;
 
       return sortedOptions.filter((option) => {
-        const labelMatch = option.label.toLowerCase().includes(term);
+        const labelMatch = normalize(option.label).includes(term);
         const descriptionMatch = option.description
-          ?.toLowerCase()
-          .includes(term);
+          ? normalize(option.description).includes(term)
+          : false;
         return labelMatch || descriptionMatch;
       });
     }, [sortedOptions, searchTerm]);

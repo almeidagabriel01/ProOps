@@ -87,11 +87,11 @@ export function ProposalPaymentSection({
     const newType = v as "percent" | "fixed";
     setDiscountType(newType);
     if (newType === "percent") {
-      onFormChange({ target: { name: "closedValue", value: null } } as any);
-      onFormChange({ target: { name: "discount", value: 0 } } as any);
+      onFormChange({ target: { name: "closedValue", value: null } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({ target: { name: "discount", value: 0 } } as unknown as React.ChangeEvent<HTMLInputElement>);
     } else {
-      onFormChange({ target: { name: "discount", value: 0 } } as any);
-      onFormChange({ target: { name: "closedValue", value: null } } as any);
+      onFormChange({ target: { name: "discount", value: 0 } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({ target: { name: "closedValue", value: null } } as unknown as React.ChangeEvent<HTMLInputElement>);
     }
   };
 
@@ -148,7 +148,7 @@ export function ProposalPaymentSection({
                     onChange={(e) => {
                       const val = e.target.value;
                       const numVal = val === "" ? 0 : Number(val);
-                      onFormChange({ target: { name: "discount", value: numVal } } as any);
+                      onFormChange({ target: { name: "discount", value: numVal } } as unknown as React.ChangeEvent<HTMLInputElement>);
                     }}
                     className="w-full pr-8 bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
                     placeholder="0"
@@ -198,7 +198,7 @@ export function ProposalPaymentSection({
 
       {/* Financial Summary Card - Always visible */}
       {selectedProducts.length > 0 && (
-        <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800">
+        <div className="p-4 rounded-xl bg-linear-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-2 border-blue-200 dark:border-blue-800">
           <h4 className="font-semibold mb-3 flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
             Resumo Financeiro

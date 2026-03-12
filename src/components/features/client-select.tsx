@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Client, ClientService } from "@/services/client-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { compareDisplayText, normalizeSortText } from "@/lib/sort-text";
+import { normalize } from "@/utils/text";
 
 interface ClientSelectProps {
   value: string; // client name
@@ -128,11 +129,11 @@ export function ClientSelect({
       compareDisplayText(a.name, b.name),
     );
     if (!inputValue.trim()) return sortedClients;
-    const term = inputValue.toLowerCase();
+    const term = normalize(inputValue.trim());
     return sortedClients.filter(
       (client) =>
-        client.name.toLowerCase().includes(term) ||
-        client.email?.toLowerCase().includes(term),
+        normalize(client.name).includes(term) ||
+        (client.email && normalize(client.email).includes(term)),
     );
   }, [clients, inputValue]);
 

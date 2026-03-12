@@ -542,9 +542,12 @@ export function useFinancialData(): UseFinancialDataReturn {
     // Filter by search term
     if (searchTerm.trim()) {
       const term = normalize(searchTerm);
-      filtered = filtered.filter(
-        (t) =>
-          normalize(t.description).includes(term) ||
+      filtered = filtered.filter((t) => {
+        const displayName = getProposalTransactionDisplayName(
+          t as Pick<Transaction, "description" | "proposalId">,
+        );
+        return (
+          normalize(displayName).includes(term) ||
           normalize(t.clientName || "").includes(term) ||
           normalize(t.category || "").includes(term) ||
           normalize(t.wallet || "").includes(term) ||
@@ -553,8 +556,9 @@ export function useFinancialData(): UseFinancialDataReturn {
               (ec) =>
                 normalize(ec.description).includes(term) ||
                 normalize(ec.wallet || "").includes(term),
-            )),
-      );
+            ))
+        );
+      });
     }
 
     // Sort
@@ -637,8 +641,11 @@ export function useFinancialData(): UseFinancialDataReturn {
       let mainTxMatchesSearch = true;
       if (term) {
         const normalizedTerm = normalize(term);
+        const displayName = getProposalTransactionDisplayName(
+          t as Pick<Transaction, "description" | "proposalId">,
+        );
         mainTxMatchesSearch =
-          normalize(t.description).includes(normalizedTerm) ||
+          normalize(displayName).includes(normalizedTerm) ||
           normalize(t.clientName || "").includes(normalizedTerm) ||
           normalize(t.category || "").includes(normalizedTerm) ||
           normalize(t.wallet || "").includes(normalizedTerm);

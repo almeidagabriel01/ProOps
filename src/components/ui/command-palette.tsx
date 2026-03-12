@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
+import { normalize } from "@/utils/text";
 
 // Define searchable items with their icons and paths
 interface SearchItem {
@@ -255,11 +256,11 @@ export function CommandPalette({ className }: CommandPaletteProps) {
       if (!searchTerm.trim()) return false;
 
       // Search in label, description, and keywords
-      const term = searchTerm.toLowerCase();
-      const matchesLabel = item.label.toLowerCase().includes(term);
-      const matchesDescription = item.description?.toLowerCase().includes(term);
+      const term = normalize(searchTerm.trim());
+      const matchesLabel = normalize(item.label).includes(term);
+      const matchesDescription = item.description ? normalize(item.description).includes(term) : false;
       const matchesKeywords = item.keywords?.some((k) =>
-        k.toLowerCase().includes(term),
+        normalize(k).includes(term),
       );
 
       return matchesLabel || matchesDescription || matchesKeywords;

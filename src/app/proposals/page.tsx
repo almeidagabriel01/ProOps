@@ -603,7 +603,7 @@ export default function ProposalsPage() {
         setUpdatingStatusId(null);
       }
     },
-    [proposals, getStatusLabel],
+    [proposals, getStatusLabel, kanbanColumns],
   );
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
@@ -1026,7 +1026,7 @@ export default function ProposalsPage() {
           {showFullPageSkeleton && <ProposalsSkeleton />}
           <div
             className={cn(
-              "space-y-6 flex flex-col min-h-[calc(100vh_-_180px)]",
+              "space-y-6 flex flex-col min-h-[calc(100vh-180px)]",
               showFullPageSkeleton && "hidden",
             )}
           >
