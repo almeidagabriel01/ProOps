@@ -104,13 +104,14 @@ export function AuthLayout({ children, reverse = false }: AuthLayoutProps) {
                 />
               </div>
               <span
-                className="text-4xl font-black tracking-tight text-zinc-900 dark:text-white transition-colors duration-300"
+                className="text-4xl tracking-tight text-zinc-900 dark:text-white transition-colors duration-300"
                 style={{
                   fontFamily:
                     "var(--font-pdf-montserrat), system-ui, sans-serif",
                 }}
               >
-                Proops
+                <span className="font-normal">Pro</span>
+                <span className="font-bold">Ops</span>
               </span>
             </div>
 
