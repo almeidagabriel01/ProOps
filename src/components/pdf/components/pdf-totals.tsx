@@ -9,6 +9,7 @@ interface PdfTotalsProps {
   products: ProposalProduct[];
   discount: number;
   extraExpense?: number;
+  closedValue?: number | null;
   contentStyles: Record<string, React.CSSProperties>;
   // Payment options (optional for backwards compatibility)
   pdfDisplaySettings?: PdfDisplaySettings;
@@ -21,6 +22,7 @@ export function PdfTotals({
   products,
   discount,
   extraExpense,
+  closedValue,
   contentStyles,
   pdfDisplaySettings,
 }: PdfTotalsProps) {
@@ -30,7 +32,20 @@ export function PdfTotals({
     0,
   );
   const discountAmt = (subtotal * (discount || 0)) / 100;
-  const total = subtotal - discountAmt + (extraExpense || 0);
+  const calculatedTotal = subtotal - discountAmt + (extraExpense || 0);
+
+  const hasClosedValue = Number(closedValue) > 0;
+  
+  let total = calculatedTotal;
+  let fechamentoDiscount = 0;
+
+  if (hasClosedValue) {
+    total = Number(closedValue);
+    if (calculatedTotal > Number(closedValue)) {
+      fechamentoDiscount = calculatedTotal - Number(closedValue);
+    }
+  }
+
   const totalBorderColor =
     (contentStyles.total?.borderTopColor as string) ||
     (contentStyles.headerBorder?.borderColor as string) ||
@@ -58,6 +73,15 @@ export function PdfTotals({
           >
             <span>Desconto:</span>
             <span>-{formatCurrency(discountAmt)}</span>
+          </div>
+        )}
+        {fechamentoDiscount > 0 && (
+          <div
+            className="flex items-baseline justify-between"
+            style={contentStyles.discount}
+          >
+            <span>Desconto Comercial:</span>
+            <span>-{formatCurrency(fechamentoDiscount)}</span>
           </div>
         )}
         {(extraExpense || 0) > 0 && (

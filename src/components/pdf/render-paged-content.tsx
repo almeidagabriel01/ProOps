@@ -185,6 +185,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               products={countableProducts}
               discount={proposal.discount || 0}
               extraExpense={proposal.extraExpense || 0}
+              closedValue={proposal.closedValue}
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
@@ -196,14 +197,17 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
       case "extra-products-header":
         return null;
 
-      case "payment-terms":
+      case "payment-terms": {
+        const hasClosedValue = Number(proposal.closedValue) > 0;
+        const effectiveTotalValue = hasClosedValue ? Number(proposal.closedValue) : proposal.totalValue;
+
         return (
           <div key="payment-terms" style={{ width: "100%" }}>
             <PdfPaymentTerms
               contentStyles={
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
-              proposalTotalValue={proposal.totalValue}
+              proposalTotalValue={effectiveTotalValue}
               downPaymentEnabled={proposal.downPaymentEnabled}
               downPaymentType={proposal.downPaymentType}
               downPaymentPercentage={proposal.downPaymentPercentage}
@@ -216,6 +220,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             />
           </div>
         );
+      }
 
       case "sistema-header":
         return (

@@ -331,6 +331,7 @@ export function useProposalFormSystemDirty(
         validUntil: initialForm.validUntil || "",
         customNotes: initialForm.customNotes || "",
         discount: initialForm.discount || 0,
+        closedValue: initialForm.closedValue ?? null,
         extraExpense: initialForm.extraExpense || 0,
         products: initialForm.products || [],
         status: initialForm.status || "in_progress",
@@ -416,3 +417,4 @@ export function useProposalFormSystemDirty(
     resetToInitial,
   };
 }
+

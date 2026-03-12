@@ -20,6 +20,7 @@ interface ProposalSummaryTableProps {
   discountPercentage: number;
   extraExpense: number;
   totalValue: number;
+  closedValue?: number | null;
 }
 
 export function ProposalSummaryTable({
@@ -34,6 +35,7 @@ export function ProposalSummaryTable({
   discountPercentage,
   extraExpense,
   totalValue,
+  closedValue,
 }: ProposalSummaryTableProps) {
   const displaySelectedProducts = selectedProducts.filter(
     (p) => p.quantity > 0,
@@ -109,6 +111,7 @@ export function ProposalSummaryTable({
           discountPercentage={discountPercentage}
           extraExpense={extraExpense}
           totalValue={totalValue}
+          closedValue={closedValue}
         />
       </table>
     </div>

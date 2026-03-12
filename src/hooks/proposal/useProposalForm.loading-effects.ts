@@ -383,6 +383,7 @@ export function useProposalFormLoadingEffects(
           validUntil: proposal.validUntil || "",
           customNotes: proposal.customNotes || "",
           discount: proposal.discount || 0,
+          closedValue: proposal.closedValue ?? null,
           extraExpense: proposal.extraExpense || 0,
           products: syncedProducts,
           status: (proposal.status as ProposalStatus) || "in_progress",
@@ -577,3 +578,4 @@ export function useProposalFormLoadingEffects(
     };
   }, [refreshMasterData]);
 }
+

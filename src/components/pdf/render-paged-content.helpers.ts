@@ -59,6 +59,7 @@ export interface Proposal {
   clientName: string;
   title?: string;
   totalValue?: number;
+  closedValue?: number | null;
   // Payment options
   downPaymentEnabled?: boolean;
   downPaymentType?: "value" | "percentage";

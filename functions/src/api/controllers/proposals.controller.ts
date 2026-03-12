@@ -609,10 +609,14 @@ function buildApprovedProposalTransactionDrafts(params: {
     }
   }
 
+  const effectiveTotalValue = Number(proposalData.closedValue) > 0 
+    ? Number(proposalData.closedValue) 
+    : Number(proposalData.totalValue || 0);
+
   if (
     !downPaymentEnabled &&
     !installmentsEnabled &&
-    Number(proposalData.totalValue || 0) > 0
+    effectiveTotalValue > 0
   ) {
     let dueDate = proposalData.validUntil
       ? String(proposalData.validUntil)
@@ -627,7 +631,7 @@ function buildApprovedProposalTransactionDrafts(params: {
       tenantId,
       type: "income",
       description: title,
-      amount: Number(proposalData.totalValue || 0),
+      amount: effectiveTotalValue,
       date: todayStr,
       dueDate,
       status: initialStatus,
@@ -1089,6 +1093,7 @@ export const createProposal = async (req: Request, res: Response) => {
           notes: input.notes?.trim() || null,
           customNotes: input.customNotes?.trim() || null,
           discount: input.discount || 0,
+          closedValue: input.closedValue ?? null,
           extraExpense: input.extraExpense || 0,
           validUntil: input.validUntil || null,
           clientId: input.clientId,
@@ -1144,6 +1149,7 @@ export const createProposal = async (req: Request, res: Response) => {
             notes: input.notes?.trim() || null,
             customNotes: input.customNotes?.trim() || null,
             discount: input.discount || 0,
+          closedValue: input.closedValue ?? null,
             extraExpense: input.extraExpense || 0,
             validUntil: input.validUntil || null,
             clientId: input.clientId,
@@ -1303,6 +1309,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       "products",
       "sistemas",
       "discount",
+      "closedValue",
       "extraExpense",
       "notes",
       "customNotes",
@@ -1406,6 +1413,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       );
     const structuralApprovedSyncFields = new Set([
       "totalValue",
+      "closedValue",
       "validUntil",
       "downPaymentEnabled",
       "downPaymentType",
@@ -1934,3 +1942,4 @@ async function cleanupProposalTransactions(
     );
   }
 }
+
