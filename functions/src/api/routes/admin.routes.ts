@@ -11,6 +11,7 @@ import {
   testWhatsAppBilling,
   createTenant,
   deleteTenant,
+  copyTenantData,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -27,6 +28,7 @@ router.post("/credentials", updateCredentials);
 router.put("/users/:userId/plan", updateUserPlan);
 router.put("/users/:userId/subscription", updateUserSubscription);
 router.post("/tenants", createTenant);
+router.post("/tenants/copy-data", copyTenantData);
 router.delete("/tenants/:tenantId", deleteTenant);
 
 router.post("/test-whatsapp-billing", testWhatsAppBilling);

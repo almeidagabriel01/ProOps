@@ -1397,3 +1397,84 @@ export const testWhatsAppBilling = async (req: Request, res: Response) => {
     return res.status(500).json({ message });
   }
 };
+
+export const copyTenantData = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem copiar dados de tenants.",
+      });
+    }
+
+    const { sourceTenantId, targetTenantId } = req.body;
+
+    if (!sourceTenantId || !targetTenantId) {
+      return res.status(400).json({ message: "sourceTenantId e targetTenantId são obrigatórios." });
+    }
+
+    const collectionsToCopy = ["products", "services", "sistemas", "ambientes"];
+    const now = Timestamp.now();
+    const nowTimestampStr = now.toDate().toISOString();
+
+    let totalCopied = 0;
+
+    for (const collectionName of collectionsToCopy) {
+      const sourceQuery = db.collection(collectionName).where("tenantId", "==", sourceTenantId);
+      const snapshot = await sourceQuery.get();
+
+      if (snapshot.empty) continue;
+
+      const batches: FirebaseFirestore.WriteBatch[] = [];
+      let currentBatch = db.batch();
+      let operationCount = 0;
+
+      snapshot.docs.forEach((docSnap) => {
+        if (operationCount === 500) {
+          batches.push(currentBatch);
+          currentBatch = db.batch();
+          operationCount = 0;
+        }
+
+        const data = docSnap.data();
+        const newRef = db.collection(collectionName).doc();
+
+        const newData: any = {
+          ...data,
+          tenantId: targetTenantId,
+          companyId: targetTenantId, // Legacy fallback
+          createdAt: data.createdAt || nowTimestampStr, // Keep original creation date or set new
+          updatedAt: nowTimestampStr,
+        };
+
+        // Ensure internal IDs match the new document ID if they exist
+        if (typeof data.id === 'string') newData.id = newRef.id;
+        if (typeof data.productId === 'string') newData.productId = newRef.id;
+        if (typeof data.serviceId === 'string') newData.serviceId = newRef.id;
+        if (typeof data.sistemaId === 'string') newData.sistemaId = newRef.id;
+        if (typeof data.ambienteId === 'string') newData.ambienteId = newRef.id;
+
+        currentBatch.set(newRef, newData);
+        operationCount++;
+        totalCopied++;
+      });
+
+      if (operationCount > 0) {
+        batches.push(currentBatch);
+      }
+
+      for (const batch of batches) {
+        await batch.commit();
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Cópia concluída. ${totalCopied} registros copiados com sucesso.`,
+      totalCopied,
+    });
+  } catch (error: unknown) {
+    console.error("[copyTenantData] error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao copiar dados do tenant.";
+    return res.status(500).json({ message });
+  }
+};

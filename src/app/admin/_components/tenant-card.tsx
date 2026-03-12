@@ -35,6 +35,7 @@ interface TenantCardProps {
   onEdit: (data: TenantBillingInfo) => void;
   onDelete: (id: string) => Promise<void>;
   onLoginAs: (tenant: Tenant) => void;
+  onCopy?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
@@ -42,6 +43,7 @@ export function TenantCard({
   onEdit,
   onDelete,
   onLoginAs,
+  onCopy,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin } = item;
   let formattedBillingDate = "";
@@ -103,15 +105,43 @@ export function TenantCard({
               className="h-8 w-8 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(item)}
               disabled={isDeleting}
+              title="Editar"
             >
               <Pencil className="w-4 h-4" />
             </Button>
+            {onCopy && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-brand"
+                onClick={() => onCopy(item)}
+                disabled={isDeleting}
+                title="Clonar Dados (Produtos, Serviços, etc)"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="w-4 h-4"
+                >
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:bg-destructive/10"
               onClick={() => setIsDeleteDialogOpen(true)}
               disabled={isDeleting}
+              title="Excluir"
             >
               {isDeleting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

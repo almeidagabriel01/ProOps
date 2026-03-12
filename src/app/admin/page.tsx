@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Building2, CreditCard } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
-import { TenantCard } from "./_components";
+import { TenantCard, CopyDataDialog } from "./_components";
 import { AdminSkeleton } from "./_components/admin-skeleton";
+import { TenantBillingInfo, AdminService } from "@/services/admin-service";
+import * as React from "react";
+import { toast } from "@/lib/toast";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -25,7 +28,32 @@ export default function AdminPage() {
     handleLoginAs,
     isLoading,
     isSaving,
+    tenantsData,
   } = useTenantManagement();
+
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = React.useState(false);
+  const [copySourceTenant, setCopySourceTenant] = React.useState<TenantBillingInfo | null>(null);
+  const [isCopying, setIsCopying] = React.useState(false);
+
+  const handleOpenCopyModal = (tenant: TenantBillingInfo) => {
+    setCopySourceTenant(tenant);
+    setIsCopyDialogOpen(true);
+  };
+
+  const handleConfirmCopy = async (sourceId: string, targetId: string) => {
+    if (!sourceId || !targetId) return;
+    setIsCopying(true);
+    try {
+      const response = await AdminService.copyTenantData(sourceId, targetId);
+      toast.success(response.message || `Cópia concluída com sucesso!`);
+      setIsCopyDialogOpen(false);
+    } catch (error: unknown) {
+      console.error("Copy data failed:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao copiar dados");
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   if (isLoading) {
     return <AdminSkeleton />;
@@ -83,6 +111,7 @@ export default function AdminPage() {
             onEdit={openEdit}
             onDelete={handleDelete}
             onLoginAs={handleLoginAs}
+            onCopy={handleOpenCopyModal}
           />
         ))}
 
@@ -103,6 +132,15 @@ export default function AdminPage() {
         initialData={editingData}
         onSave={handleSave}
         isSaving={isSaving}
+      />
+
+      <CopyDataDialog
+        isOpen={isCopyDialogOpen}
+        onClose={() => setIsCopyDialogOpen(false)}
+        sourceTenant={copySourceTenant}
+        allTenants={tenantsData}
+        onConfirm={handleConfirmCopy}
+        isCopying={isCopying}
       />
     </div>
   );
