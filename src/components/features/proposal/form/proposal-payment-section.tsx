@@ -7,9 +7,12 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
-import { CreditCard, Wallet, Calendar, Banknote } from "lucide-react";
+import { CreditCard, Wallet, Calendar, Banknote, BadgePercent } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { WalletSelect } from "@/components/features/wallet-select";
+import { useTenant } from "@/providers/tenant-provider";
+import { KanbanService } from "@/services/kanban-service";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -37,6 +40,61 @@ export function ProposalPaymentSection({
   errors = {},
 }: ProposalPaymentSectionProps) {
   // Calculate components
+  const { tenant } = useTenant();
+  const [isApproved, setIsApproved] = React.useState<boolean>(
+    formData.status === "approved" || formData.status === "default_2"
+  );
+
+  React.useEffect(() => {
+    if (!tenant?.id) return;
+    let cancelled = false;
+    KanbanService.getStatuses(tenant.id).then((columns) => {
+      if (cancelled) return;
+      const isAppr = columns.some(
+        (c) =>
+          (c.mappedStatus === "approved" || c.id === "default_2" || c.id === "approved") &&
+          c.id === formData.status
+      );
+      setIsApproved(
+        formData.status === "approved" || formData.status === "default_2" || isAppr
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant?.id, formData.status]);
+
+  const [discountType, setDiscountType] = React.useState<"percent" | "fixed">(
+    formData.closedValue && formData.closedValue > 0 ? "fixed" : "percent"
+  );
+  
+  const prevIsApproved = React.useRef(isApproved);
+
+  React.useEffect(() => {
+    if (formData.closedValue && formData.closedValue > 0) {
+      setDiscountType("fixed");
+    }
+  }, [formData.closedValue]);
+
+  React.useEffect(() => {
+    if (prevIsApproved.current === true && isApproved === false && discountType === "fixed") {
+      setDiscountType("percent");
+    }
+    prevIsApproved.current = isApproved;
+  }, [isApproved, discountType]);
+
+  const handleTabChange = (v: string) => {
+    const newType = v as "percent" | "fixed";
+    setDiscountType(newType);
+    if (newType === "percent") {
+      onFormChange({ target: { name: "closedValue", value: null } } as any);
+      onFormChange({ target: { name: "discount", value: 0 } } as any);
+    } else {
+      onFormChange({ target: { name: "discount", value: 0 } } as any);
+      onFormChange({ target: { name: "closedValue", value: null } } as any);
+    }
+  };
+
   const productsValue = selectedProducts.reduce((sum, p) => sum + p.total, 0);
   const totalProfit = selectedProducts.reduce((sum, p) => {
     if ((p.itemType || "product") === "service") {
@@ -57,19 +115,73 @@ export function ProposalPaymentSection({
 
   const content = (
     <div className="space-y-6">
-      {/* Extra Expense Section */}
-      <div className="p-4 rounded-xl bg-orange-500/10 border-2 border-orange-500/20">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-orange-600" />
-            <Label htmlFor="extraExpense" className="text-base font-semibold">
-              Valor Extra (Custos Adicionais)
-            </Label>
+      {/* Ajustes de Valor */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Discount Section */}
+        <div className="p-5 rounded-xl bg-purple-500/10 border-2 border-purple-500/20 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <BadgePercent className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <Label className="text-base font-semibold text-purple-900 dark:text-purple-300">Desconto Comercial</Label>
+            </div>
+            <p className="text-sm text-purple-700/80 dark:text-purple-300/80 mb-4">
+              Aplique um percentual de desconto <strong>ou</strong> defina um valor combinado com o cliente — o valor final que substituirá o total da proposta.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Custos adicionais como frete, gasolina, etc. Serão somados ao valor
-            total
-          </p>
+          
+          <Tabs value={discountType} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-3 bg-purple-500/10">
+              <TabsTrigger value="percent" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md">Desconto (%)</TabsTrigger>
+              <TabsTrigger value="fixed" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md">Valor Combinado</TabsTrigger>
+            </TabsList>
+            
+            <div className="mt-2 h-10">
+              {discountType === "percent" ? (
+                <div className="relative">
+                  <Input
+                    id="discount"
+                    name="discount"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={formData.discount === 0 ? "" : (formData.discount || 0)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const numVal = val === "" ? 0 : Number(val);
+                      onFormChange({ target: { name: "discount", value: numVal } } as any);
+                    }}
+                    className="w-full pr-8 bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">%</span>
+                </div>
+              ) : (
+                <CurrencyInput
+                  id="closedValue"
+                  name="closedValue"
+                  value={formData.closedValue || 0}
+                  onChange={onFormChange}
+                  placeholder="Ex: 5.000,00"
+                  className="w-full bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
+                />
+              )}
+            </div>
+          </Tabs>
+        </div>
+
+        {/* Extra Expense Section */}
+        <div className="p-5 rounded-xl bg-orange-500/10 border-2 border-orange-500/20 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Banknote className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <Label htmlFor="extraExpense" className="text-base font-semibold text-orange-900 dark:text-orange-300">
+                Custos Adicionais
+              </Label>
+            </div>
+            <p className="text-sm text-orange-700/80 dark:text-orange-300/80 mb-4">
+              Valores extras (frete, deslocamento) que serão adicionados ao valor final da proposta.
+            </p>
+          </div>
           <CurrencyInput
             id="extraExpense"
             name="extraExpense"
@@ -79,6 +191,7 @@ export function ProposalPaymentSection({
               onExtraExpenseChange(Math.max(0, value));
             }}
             placeholder="0,00"
+            className="w-full bg-background/80 border-orange-500/30 focus-visible:ring-orange-500 focus-visible:border-orange-500 mt-auto shadow-sm"
           />
         </div>
       </div>
@@ -125,6 +238,35 @@ export function ProposalPaymentSection({
                 </span>
               </div>
             )}
+            {/* Discount applied line */}
+            {(() => {
+              const rawTotal = selectedProducts.reduce((sum, p) => (Number(p.quantity || 0) > 0 ? sum + p.total : sum), 0) + extraExpense;
+              const hasClosedValue = formData.closedValue && formData.closedValue > 0;
+              const percentDiscount = formData.discount && formData.discount > 0;
+              if (hasClosedValue && rawTotal > formData.closedValue!) {
+                const diff = rawTotal - formData.closedValue!;
+                return (
+                  <div className="flex justify-between items-center">
+                    <span className="text-purple-600 dark:text-purple-400">- Desconto Comercial (Fixo):</span>
+                    <span className="font-medium text-purple-600 dark:text-purple-400">
+                      - R$ {diff.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              }
+              if (percentDiscount) {
+                const discountAmt = (rawTotal * (formData.discount || 0)) / 100;
+                return (
+                  <div className="flex justify-between items-center">
+                    <span className="text-purple-600 dark:text-purple-400">- Desconto ({formData.discount}%):</span>
+                    <span className="font-medium text-purple-600 dark:text-purple-400">
+                      - R$ {discountAmt.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             <div className="h-px bg-border my-2" />
             <div className="flex justify-between items-center text-base">
               <span className="font-semibold">Total da Proposta:</span>
@@ -558,3 +700,5 @@ export function ProposalPaymentSection({
     </Card>
   );
 }
+
+

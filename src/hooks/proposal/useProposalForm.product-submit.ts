@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import {
   Proposal,
   ProposalProduct,
@@ -251,11 +251,13 @@ export function useProposalFormProductSubmit(
     [calculateSubtotal, formData.discount],
   );
 
-  const calculateTotal = React.useCallback(
-    () =>
-      calculateSubtotal() - calculateDiscount() + (formData.extraExpense || 0),
-    [calculateSubtotal, calculateDiscount, formData.extraExpense],
-  );
+  const calculateTotal = React.useCallback(() => {
+    let base = calculateSubtotal() - calculateDiscount() + (formData.extraExpense || 0);
+    if (formData.closedValue && formData.closedValue > 0) {
+      base = formData.closedValue;
+    }
+    return Math.max(0, base);
+  }, [calculateSubtotal, calculateDiscount, formData.extraExpense, formData.closedValue]);
 
   const calculateDownPaymentValue = React.useCallback(() => {
     if (!formData.downPaymentEnabled) return 0;
@@ -368,12 +370,12 @@ export function useProposalFormProductSubmit(
     }
 
     if (formData.downPaymentEnabled && !formData.downPaymentDueDate) {
-      toast.error("Data da entrada é obrigatória.");
+      toast.error("Data da entrada Ã© obrigatÃ³ria.");
       return false;
     }
 
     if (formData.installmentsEnabled && !formData.firstInstallmentDate) {
-      toast.error("Data de vencimento da primeira parcela é obrigatória.");
+      toast.error("Data de vencimento da primeira parcela Ã© obrigatÃ³ria.");
       return false;
     }
 
@@ -559,7 +561,7 @@ export function useProposalFormProductSubmit(
           const effectiveMarkup =
             (p.itemType || "product") === "service" ? 0 : p.markup || 0;
 
-          // If it's a service, we assume markup is irrelevant for now as per requirement "alterar o valor do serviço".
+          // If it's a service, we assume markup is irrelevant for now as per requirement "alterar o valor do serviÃ§o".
           // So we just set unitPrice = newPrice.
           // If logic requires maintaining markup for products, we might need adjustments,
           // but specifically for services:
@@ -574,3 +576,4 @@ export function useProposalFormProductSubmit(
     },
   };
 }
+

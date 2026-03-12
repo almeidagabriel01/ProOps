@@ -96,6 +96,7 @@ export interface Proposal {
   sections: Record<string, unknown>[];
   discount?: number;
   totalValue?: number;
+  closedValue?: number | null; // Final negotiated value that overrides the total when approved
   extraExpense?: number; // Additional expense (reduces total but not profit)
   customNotes?: string;
   notes?: string;

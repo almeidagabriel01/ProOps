@@ -7,6 +7,7 @@ interface SummaryFooterProps {
   discountPercentage: number;
   extraExpense: number;
   totalValue: number;
+  closedValue?: number | null;
 }
 
 export function SummaryFooter({
@@ -16,6 +17,7 @@ export function SummaryFooter({
   discountPercentage,
   extraExpense,
   totalValue,
+  closedValue,
 }: SummaryFooterProps) {
   // Calculate profit from markup
   const totalProfit = selectedProducts.reduce((sum, p) => {
@@ -40,7 +42,7 @@ export function SummaryFooter({
           Custo dos Produtos (Bruto):
         </td>
         <td className="p-3 text-right font-medium text-muted-foreground whitespace-nowrap text-sm">
-          R$ {totalCost.toFixed(2)}
+          R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
 
@@ -54,7 +56,7 @@ export function SummaryFooter({
             Lucro (Markup):
           </td>
           <td className="p-3 text-right font-medium text-green-600 dark:text-green-400 whitespace-nowrap text-sm">
-            R$ {totalProfit.toFixed(2)}
+            R$ {totalProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
       )}
@@ -67,7 +69,7 @@ export function SummaryFooter({
           Subtotal (Preço de Venda):
         </td>
         <td className="p-3 text-right font-bold whitespace-nowrap text-lg">
-          R$ {subtotal.toFixed(2)}
+          R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
 
@@ -80,7 +82,7 @@ export function SummaryFooter({
             Desconto ({discountPercentage}%):
           </td>
           <td className="p-3 text-right font-medium text-destructive whitespace-nowrap">
-            - R$ {discount.toFixed(2)}
+            - R$ {discount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
       )}
@@ -95,10 +97,45 @@ export function SummaryFooter({
             Custos Extras:
           </td>
           <td className="p-3 text-right font-medium text-orange-600 dark:text-orange-400 whitespace-nowrap text-sm">
-            + R$ {extraExpense.toFixed(2)}
+            + R$ {extraExpense.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
       )}
+
+      {/* Valor Combinado row */}
+      {(() => {
+        const cv = Number(closedValue);
+        const rawTotal = subtotal + (extraExpense || 0);
+        if (!cv || cv <= 0) return null;
+        return (
+          <>
+            <tr className="border-t">
+              <td
+                colSpan={3}
+                className="p-3 text-right text-purple-700 dark:text-purple-400 whitespace-nowrap font-medium"
+              >
+                Valor Combinado com o Cliente:
+              </td>
+              <td className="p-3 text-right font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap">
+                R$ {cv.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </td>
+            </tr>
+            {cv < rawTotal && (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="p-3 text-right text-destructive whitespace-nowrap text-sm"
+                >
+                  Desconto Comercial (Valor Combinado):
+                </td>
+                <td className="p-3 text-right font-medium text-destructive whitespace-nowrap text-sm">
+                  - R$ {(rawTotal - cv).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+              </tr>
+            )}
+          </>
+        );
+      })()}
 
       <tr className="border-t-2 border-primary">
         <td
@@ -108,7 +145,7 @@ export function SummaryFooter({
           Total:
         </td>
         <td className="p-3 text-right text-lg font-bold text-primary dark:text-white whitespace-nowrap">
-          R$ {totalValue.toFixed(2)}
+          R$ {(Number(closedValue) > 0 ? Number(closedValue) : totalValue).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
     </tfoot>

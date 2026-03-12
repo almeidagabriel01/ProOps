@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +63,7 @@ export function ProposalSummarySection({
     {
       value: string;
       label: string;
+      mappedStatus?: string;
     }[]
   >([...statusOptions.filter((o) => o.value !== "draft")]);
 
@@ -86,6 +87,7 @@ export function ProposalSummarySection({
                 ? c.mappedStatus
                 : c.id,
             label: c.label,
+            mappedStatus: c.mappedStatus,
           })),
         ];
 
@@ -124,11 +126,13 @@ export function ProposalSummarySection({
               newOptions.push({
                 value: fallback.value,
                 label: fallback.label + " (Antigo)",
+                mappedStatus: fallback.value,
               });
             } else {
               newOptions.push({
                 value: formData.status,
                 label: "Desconhecido (Antigo)",
+                mappedStatus: undefined,
               });
             }
           }
@@ -154,6 +158,20 @@ export function ProposalSummarySection({
   // The original code used formData.discount which seems to be the percentage value directly from input
   const discountInputValue = formData.discount || 0;
 
+  // Determine if the current status is approved
+  const isApproved = React.useMemo(() => {
+    if (!formData.status || formData.status === "draft") return false;
+    // Check if it's the legacy exact string
+    if (formData.status === "approved" || formData.status === "default_2") return true;
+    
+    // Or if it matches a dynamically loaded column that maps to 'approved'
+    const matchingOption = dynamicStatusOptions.find(o => o.value === formData.status);
+    if (!matchingOption) return false;
+
+    // The option value could be an ID that we patched to "approved" in the useEffect
+    return matchingOption.value === "approved" || matchingOption.mappedStatus === "approved";
+  }, [formData.status, dynamicStatusOptions]);
+
   return (
     <Card>
       <CardHeader>
@@ -176,10 +194,10 @@ export function ProposalSummarySection({
           discountPercentage={discountInputValue}
           extraExpense={extraExpense}
           totalValue={totalValue}
+          closedValue={formData.closedValue}
         />
 
         <ProposalSummaryControls
-          discount={formData.discount || 0}
           status={formData.status || "draft"}
           customNotes={formData.customNotes || ""}
           onFormChange={onFormChange}
@@ -192,3 +210,4 @@ export function ProposalSummarySection({
     </Card>
   );
 }
+

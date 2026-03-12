@@ -15,6 +15,7 @@ export function createInitialProposalFormData(): Partial<Proposal> {
     validUntil: "",
     customNotes: "",
     discount: 0,
+    closedValue: null,
     extraExpense: 0,
     products: [],
     status: "in_progress" as ProposalStatus,
@@ -92,6 +93,7 @@ function buildFormSnapshotObject(
     validUntil: data.validUntil || "",
     customNotes: data.customNotes || "",
     discount: data.discount || 0,
+    closedValue: data.closedValue ?? null,
     extraExpense: data.extraExpense || 0,
     status: data.status || "in_progress",
     products: mapSnapshotProducts(
@@ -120,3 +122,4 @@ export function buildFullFormSnapshot(data: Partial<Proposal>): string {
 export function buildEssentialFormSnapshot(data: Partial<Proposal>): string {
   return JSON.stringify(buildFormSnapshotObject(data, false));
 }
+

@@ -171,6 +171,7 @@ export async function updateProposal(
     validUntil: sanitizeStringField(formData.validUntil),
     customNotes: sanitizeStringField(formData.customNotes),
     discount: formData.discount || 0,
+    closedValue: formData.closedValue ?? null,
     extraExpense: formData.extraExpense || 0,
     products: productsForUpdate,
     sistemas: sistemasPayload,
@@ -235,6 +236,7 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     validUntil: sanitizeStringField(formData.validUntil),
     totalValue: totalValue,
     discount: formData.discount || 0,
+    closedValue: formData.closedValue ?? null,
     extraExpense: formData.extraExpense || 0,
     notes: formData.customNotes,
     customNotes: formData.customNotes,
@@ -259,3 +261,4 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     pdfSettings: formData.pdfSettings || undefined,
   };
 }
+
