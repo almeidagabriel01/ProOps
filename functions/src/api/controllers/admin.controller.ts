@@ -1,4 +1,4 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import { db, auth } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { generateRandomPassword } from "../../lib/admin-helpers";
@@ -656,10 +656,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       whatsappEnabled?: boolean;
     }
 
-    // Busca usuários MASTER/admin (donos de empresa)
+    // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
     const usersSnapshot = await db
       .collection("users")
-      .where("role", "in", ["MASTER", "admin", "ADMIN", "master"])
+      .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
       .get();
 
     console.log(
