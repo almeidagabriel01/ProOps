@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { getImmediatePlanLabel, resolvePlanLabel } from "@/lib/plans/plan-label";
+import { Tenant } from "@/types";
 
 interface HeaderPresentation {
   companyName: string;
@@ -20,13 +21,51 @@ export function useHeaderPresentation(): HeaderPresentation {
   const isViewingAsTenant = user?.role === "superadmin" && !!tenant;
   const isMember = user?.role === "member" || !!user?.masterId;
 
+  const [fetchedTenant, setFetchedTenant] = useState<Tenant | null>(null);
+  const [isFetchingTenant, setIsFetchingTenant] = useState(false);
+
+  useEffect(() => {
+    // Only fetch for superadmin when they are NOT impersonating
+    if (user?.role === "superadmin" && !tenant && user.tenantId) {
+      let isActive = true;
+      setIsFetchingTenant(true);
+      const fetchSuperAdminTenant = async () => {
+        try {
+          const { TenantService } = await import("@/services/tenant-service");
+          const t = await TenantService.getTenantById(user.tenantId!);
+          if (isActive) {
+            setFetchedTenant(t || null);
+          }
+        } catch (error) {
+          console.error("Error fetching superadmin tenant:", error);
+        } finally {
+          if (isActive) {
+            setIsFetchingTenant(false);
+          }
+        }
+      };
+      
+      void fetchSuperAdminTenant();
+      
+      return () => {
+        isActive = false;
+      };
+    }
+  }, [user?.role, user?.tenantId, tenant]);
+
   const companyName = useMemo(() => {
-    if (isViewingAsTenant && tenantOwner?.name) {
-      return tenantOwner.name;
+    if (isViewingAsTenant) {
+      return tenant?.name || "Empresa sem nome";
+    }
+
+    if (user?.role === "superadmin" && !tenant) {
+      if (isFetchingTenant) return "Carregando...";
+      // Fallback: Use fetched tenant if it exists, otherwise use user's name (which for superadmins acts as the company/franchise name)
+      return fetchedTenant?.name || user?.name || "Minha Empresa";
     }
 
     return tenant?.name || "Minha Empresa";
-  }, [isViewingAsTenant, tenant?.name, tenantOwner?.name]);
+  }, [isViewingAsTenant, user?.role, tenant, fetchedTenant?.name, isFetchingTenant, user?.name]);
 
   const planSubject = useMemo(() => {
     if (isViewingAsTenant && tenantOwner) {
@@ -121,8 +160,8 @@ export function useHeaderPresentation(): HeaderPresentation {
   return {
     companyName,
     planLabel: visiblePlanLabel,
-    logoUrl: tenant?.logoUrl,
-    avatarSeed: tenant?.name || user?.name || "U",
+    logoUrl: tenant?.logoUrl || fetchedTenant?.logoUrl,
+    avatarSeed: tenant?.name || fetchedTenant?.name || user?.name || "U",
     isViewingAsTenant,
   };
 }
