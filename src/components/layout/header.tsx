@@ -64,13 +64,13 @@ function getInitials(name: string) {
 function HeaderSkeleton() {
   return (
     <header
-      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
+      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-6 flex items-center justify-between rounded-t-[1.25rem] md:rounded-t-[2rem] transition-all duration-300"
       style={{ height: "64px", minHeight: "64px" }}
     >
-      <div className="flex items-center gap-4">
-        <Skeleton className="h-9 w-56 rounded-xl" />
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+        <Skeleton className="h-9 w-36 sm:w-44 md:w-56 rounded-xl" />
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
         <Skeleton className="h-8 w-8 rounded-full" />
         <div className="h-8 w-px bg-border" />
         <div className="flex items-center gap-3">
@@ -114,15 +114,15 @@ export function Header({}: HeaderProps) {
 
   return (
     <header
-      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
+      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-6 flex items-center justify-between rounded-t-[1.25rem] md:rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
       style={{ height: "64px", minHeight: "64px" }}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-1 items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
         <CommandPalette />
       </div>
 
       {isViewingAsTenant && user?.role === "superadmin" && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75" />
@@ -147,16 +147,16 @@ export function Header({}: HeaderProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-4 pl-2 sm:pl-3">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
         <NotificationBell />
         <div className="h-8 w-px bg-border" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-fit py-2 pr-2 pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
+                className="relative h-fit py-2 pr-2 pl-2 sm:pl-4 md:pl-6 rounded-full flex items-center justify-end gap-2 sm:gap-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="hidden md:flex flex-col items-end">
                   <span className="text-sm font-medium">{companyName}</span>
@@ -164,7 +164,10 @@ export function Header({}: HeaderProps) {
                     {planLabel}
                   </span>
                 </div>
-                <Avatar className="h-9 w-9 border border-border" key={tenant?.id || user?.id}>
+                <Avatar
+                  className="h-9 w-9 border border-border"
+                  key={tenant?.id || user?.id}
+                >
                   {logoUrl ? (
                     <AvatarImage
                       src={logoUrl}

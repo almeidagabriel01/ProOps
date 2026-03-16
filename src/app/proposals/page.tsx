@@ -612,6 +612,7 @@ export default function ProposalsPage() {
       {
         key: "title",
         header: "Título",
+        showMobileLabel: false,
         render: (proposal) => {
           const productCount = proposal.products?.length || 0;
           const total =
@@ -620,7 +621,38 @@ export default function ProposalsPage() {
               0,
             ) || 0;
           return (
-            <div>
+            <div className="relative pr-9 md:pr-0">
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">
+                TÍTULO
+              </div>
+
+              <div className="absolute right-0 top-0 md:hidden">
+                <ProposalActionsDropdown
+                  proposal={proposal}
+                  canEdit={canEdit}
+                  canCreate={canCreate}
+                  canDelete={canDelete}
+                  canGeneratePdf={canGeneratePdf(proposal)}
+                  isSharing={sharingId === proposal.id}
+                  isDuplicating={duplicatingId === proposal.id}
+                  isDownloading={downloadingId === proposal.id}
+                  isEditing={editingId === proposal.id}
+                  onShare={() => handleShare(proposal.id)}
+                  onDuplicate={() => handleDuplicate(proposal.id)}
+                  onAttachments={() => setAttachmentsProposalId(proposal.id)}
+                  showAllActions
+                  onViewPdf={() =>
+                    router.push(`/proposals/${proposal.id}/view`)
+                  }
+                  onDownloadPdf={() => handleDownload(proposal)}
+                  onEditPdf={() =>
+                    router.push(`/proposals/${proposal.id}/edit-pdf`)
+                  }
+                  onEdit={() => handleEdit(proposal.id)}
+                  onDelete={() => setDeleteId(proposal.id)}
+                />
+              </div>
+
               <Link
                 href={`/proposals/${proposal.id}?initialStep=automation`}
                 className="font-medium hover:underline"
@@ -803,8 +835,9 @@ export default function ProposalsPage() {
       {
         key: "actions",
         header: "Ações",
+        showMobileLabel: false,
         sortable: false,
-        className: "text-right",
+        className: "hidden md:flex text-right",
         headerClassName: "flex justify-end",
         render: (proposal) => (
           <div className="flex items-center justify-end gap-1">
@@ -1030,7 +1063,7 @@ export default function ProposalsPage() {
               showFullPageSkeleton && "hidden",
             )}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
                 <p className="text-muted-foreground mt-1">
@@ -1039,7 +1072,7 @@ export default function ProposalsPage() {
               </div>
               {canCreate && (
                 <Link href="/proposals/new">
-                  <Button size="lg" className="gap-2">
+                  <Button size="lg" className="gap-2 w-full sm:w-auto">
                     <Plus className="w-5 h-5" />
                     Novo Proposta
                   </Button>
@@ -1107,21 +1140,19 @@ export default function ProposalsPage() {
                 columns={columns}
                 data={filteredProposals}
                 keyExtractor={(proposal) => proposal.id}
-                gridClassName="grid-cols-7"
+                gridClassName="grid-cols-1 md:grid-cols-7"
                 onSort={requestSort}
                 sortConfig={sortConfig}
-                minWidth="900px"
               />
             ) : (
               <DataTable
                 columns={columns}
                 keyExtractor={(proposal) => proposal.id}
-                gridClassName="grid-cols-7"
+                gridClassName="grid-cols-1 md:grid-cols-7"
                 fetchPage={fetchPage}
                 fetchEnabled={!!tenant && !isAwaitingPendingSave}
                 onResetRef={resetRef}
                 batchSize={12}
-                minWidth="900px"
                 onSort={requestSort}
                 sortConfig={sortConfig}
                 onInitialLoadComplete={() => setAsyncDataReady(true)}

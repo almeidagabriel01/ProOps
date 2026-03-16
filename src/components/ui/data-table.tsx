@@ -16,6 +16,8 @@ export interface DataTableColumn<T> {
   key: string;
   /** Header label text */
   header: string;
+  /** Whether to show field label on mobile card mode (default: true) */
+  showMobileLabel?: boolean;
   /** Extra classes for both header cell and content cell (e.g. "text-right") */
   className?: string;
   /** Extra classes only for the header cell */
@@ -173,7 +175,7 @@ function AsyncDataTable<T>({
         {/* Header */}
         <div
           className={cn(
-            "grid gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border border-transparent",
+            "hidden md:grid gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border border-transparent",
             gridClassName,
           )}
           style={style}
@@ -228,6 +230,11 @@ function AsyncDataTable<T>({
             >
               {columns.map((col) => (
                 <div key={col.key} className={cn(col.className)}>
+                  {col.showMobileLabel !== false && (
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">
+                      {col.header}
+                    </div>
+                  )}
                   {col.render(item)}
                 </div>
               ))}
@@ -321,7 +328,7 @@ function StaticDataTable<T>({
         {/* Header */}
         <div
           className={cn(
-            "grid gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border border-transparent",
+            "hidden md:grid gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border border-transparent",
             gridClassName,
           )}
           style={style}
@@ -376,6 +383,11 @@ function StaticDataTable<T>({
             >
               {columns.map((col) => (
                 <div key={col.key} className={cn(col.className)}>
+                  {col.showMobileLabel !== false && (
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:hidden">
+                      {col.header}
+                    </div>
+                  )}
                   {col.render(item)}
                 </div>
               ))}

@@ -25,14 +25,14 @@ export function ProposalFormHeader({
   };
 
   return (
-    <div className="mb-8">
-      <div className="flex items-start gap-5">
+    <div className="mb-6 sm:mb-8">
+      <div className="flex items-start gap-3 sm:gap-5">
         <button
           onClick={onBack}
-          className="mt-1.5 w-11 h-11 rounded-xl bg-card border border-border/60 flex items-center justify-center hover:bg-muted hover:border-primary/40 transition-all duration-200 group shadow-sm cursor-pointer"
+          className="mt-1 h-9 w-9 sm:mt-1.5 sm:w-11 sm:h-11 rounded-xl bg-card border border-border/60 flex items-center justify-center hover:bg-muted hover:border-primary/40 transition-all duration-200 group shadow-sm cursor-pointer"
         >
           <svg
-            className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:-translate-x-0.5 transition-all"
+            className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground group-hover:text-primary group-hover:-translate-x-0.5 transition-all"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -46,13 +46,13 @@ export function ProposalFormHeader({
           </svg>
         </button>
 
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-          <FileText className="w-7 h-7 text-primary-foreground" />
+        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+          <FileText className="w-5 h-5 sm:w-7 sm:h-7 text-primary-foreground" />
         </div>
 
-        <div className="flex-1 min-w-0 pt-1">
+        <div className="flex-1 min-w-0 pt-0.5 sm:pt-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">
               {getTitle()}
             </h1>
             {isReadOnly && (

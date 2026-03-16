@@ -137,7 +137,9 @@ export function ProposalSystemsSection({
   }, [proposalStorageKey]);
 
   React.useEffect(() => {
-    setHideZeroQtyByEnvironment(readProposalHideZeroQtyState(proposalStorageKey));
+    setHideZeroQtyByEnvironment(
+      readProposalHideZeroQtyState(proposalStorageKey),
+    );
   }, [proposalStorageKey]);
 
   const handleToggleHideZeroQtyByEnvironment = React.useCallback(
@@ -621,8 +623,7 @@ function SystemCard({
           const scopeProducts = sistemaProducts.filter(
             (p) => p.systemInstanceId === currentInstanceId,
           );
-          const hideZeroQty =
-            !!hideZeroQtyByEnvironment[currentInstanceId];
+          const hideZeroQty = !!hideZeroQtyByEnvironment[currentInstanceId];
           const visibleScopeProducts = hideZeroQty
             ? scopeProducts.filter((p) => Number(p.quantity || 0) !== 0)
             : scopeProducts;

@@ -184,100 +184,104 @@ function StepIndicator({
 }: StepIndicatorProps) {
   return (
     <div className={cn("relative mx-auto", containerClassName)}>
-      {/* Steps */}
-      <div className="relative flex justify-between">
-        {/* Progress bar background - positioned between step centers */}
-        <div
-          className="absolute top-6 h-0.5 bg-primary/20"
-          style={{
-            left: "calc(24px)",
-            right: "calc(24px)",
-          }}
-        />
+      <div className="overflow-x-auto pb-2">
+        {/* Steps */}
+        <div className="relative flex min-w-[680px] justify-between pr-2 md:min-w-0 md:pr-0">
+          {/* Progress bar background - positioned between step centers */}
+          <div
+            className="absolute top-6 h-0.5 bg-primary/20"
+            style={{
+              left: "calc(24px)",
+              right: "calc(24px)",
+            }}
+          />
 
-        {/* Progress bar fill - grows from first step center to current step center */}
-        <div
-          className="absolute top-6 h-0.5 bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
-          style={{
-            left: "calc(24px)",
-            width:
-              currentStep === 0
-                ? "0%"
-                : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
-          }}
-        />
-        {steps.map((step, index) => {
-          const isCompleted = index < currentStep;
-          const isCurrent = index === currentStep;
-          const isPending = index > currentStep;
-          const Icon = step.icon;
+          {/* Progress bar fill - grows from first step center to current step center */}
+          <div
+            className="absolute top-6 h-0.5 bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+            style={{
+              left: "calc(24px)",
+              width:
+                currentStep === 0
+                  ? "0%"
+                  : `calc((100% - 48px) * ${currentStep / (steps.length - 1)})`,
+            }}
+          />
+          {steps.map((step, index) => {
+            const isCompleted = index < currentStep;
+            const isCurrent = index === currentStep;
+            const isPending = index > currentStep;
+            const Icon = step.icon;
 
-          // Allow clicking if: going back to visited step, or allowClickAhead is true for any step
-          const canClick = allowClickAhead || index <= maxVisitedStep;
+            // Allow clicking if: going back to visited step, or allowClickAhead is true for any step
+            const canClick = allowClickAhead || index <= maxVisitedStep;
 
-          return (
-            <button
-              key={step.id}
-              onClick={() => canClick && onStepClick(index)}
-              disabled={!canClick}
-              className={cn(
-                "flex flex-col items-center group transition-all duration-300",
-                canClick ? "cursor-pointer" : "cursor-not-allowed",
-              )}
-            >
-              {/* Step circle */}
-              <div
+            return (
+              <button
+                key={step.id}
+                onClick={() => canClick && onStepClick(index)}
+                disabled={!canClick}
                 className={cn(
-                  "relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ease-out",
-                  "border-2 shadow-sm",
-                  isCompleted &&
-                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
-                  isCurrent &&
-                    "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
-                  isPending &&
-                    !allowClickAhead &&
-                    "bg-primary/5 border-primary/30 text-primary/50",
-                  isPending &&
-                    allowClickAhead &&
-                    "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10",
+                  "flex flex-col items-center group transition-all duration-300",
+                  canClick ? "cursor-pointer" : "cursor-not-allowed",
                 )}
               >
-                {isCompleted ? (
-                  <Check className="w-5 h-5" />
-                ) : Icon ? (
-                  <Icon className="w-5 h-5" />
-                ) : (
-                  <span className="text-sm font-bold">{index + 1}</span>
-                )}
-
-                {/* Pulse animation for current step */}
-                {isCurrent && (
-                  <div className="absolute inset-0 rounded-2xl bg-primary/20 animate-ping" />
-                )}
-              </div>
-
-              {/* Step title */}
-              <div className="mt-2 text-center max-w-[100px]">
-                <p
+                {/* Step circle */}
+                <div
                   className={cn(
-                    "text-sm font-semibold transition-colors duration-300",
-                    isCurrent && "text-primary",
-                    isCompleted && "text-foreground",
-                    isPending && "text-primary/50",
-                    isPending && allowClickAhead && "group-hover:text-primary",
+                    "relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ease-out",
+                    "border-2 shadow-sm",
+                    isCompleted &&
+                      "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-lg shadow-primary/20",
+                    isCurrent &&
+                      "bg-linear-to-br from-primary to-primary/80 border-primary text-primary-foreground shadow-xl shadow-primary/30 scale-110",
+                    isPending &&
+                      !allowClickAhead &&
+                      "bg-primary/5 border-primary/30 text-primary/50",
+                    isPending &&
+                      allowClickAhead &&
+                      "bg-primary/5 border-primary/30 text-primary/50 hover:border-primary/50 hover:shadow-md hover:bg-primary/10",
                   )}
                 >
-                  {step.title}
-                </p>
-                {step.description && (
-                  <p className="text-xs text-primary/40 mt-0.5 hidden sm:block">
-                    {step.description}
+                  {isCompleted ? (
+                    <Check className="w-5 h-5" />
+                  ) : Icon ? (
+                    <Icon className="w-5 h-5" />
+                  ) : (
+                    <span className="text-sm font-bold">{index + 1}</span>
+                  )}
+
+                  {/* Pulse animation for current step */}
+                  {isCurrent && (
+                    <div className="absolute inset-0 rounded-2xl bg-primary/20 animate-ping" />
+                  )}
+                </div>
+
+                {/* Step title */}
+                <div className="mt-2 text-center max-w-[100px]">
+                  <p
+                    className={cn(
+                      "text-sm font-semibold transition-colors duration-300",
+                      isCurrent && "text-primary",
+                      isCompleted && "text-foreground",
+                      isPending && "text-primary/50",
+                      isPending &&
+                        allowClickAhead &&
+                        "group-hover:text-primary",
+                    )}
+                  >
+                    {step.title}
                   </p>
-                )}
-              </div>
-            </button>
-          );
-        })}
+                  {step.description && (
+                    <p className="text-xs text-primary/40 mt-0.5 hidden sm:block">
+                      {step.description}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -258,7 +258,9 @@ export function CommandPalette({ className }: CommandPaletteProps) {
       // Search in label, description, and keywords
       const term = normalize(searchTerm.trim());
       const matchesLabel = normalize(item.label).includes(term);
-      const matchesDescription = item.description ? normalize(item.description).includes(term) : false;
+      const matchesDescription = item.description
+        ? normalize(item.description).includes(term)
+        : false;
       const matchesKeywords = item.keywords?.some((k) =>
         normalize(k).includes(term),
       );
@@ -340,7 +342,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <div className="relative w-64">
+      <div className="relative w-[clamp(8rem,42vw,12rem)] sm:w-56 md:w-64">
         <Search className="pointer-events-none absolute left-2.5 top-2.5 z-10 h-4 w-4 text-muted-foreground" />
         <Input
           ref={inputRef}
@@ -366,7 +368,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
       {/* Dropdown Results */}
       {isOpen && filteredItems.length > 0 && (
-        <div className="absolute top-full left-0 mt-2 min-w-[320px] w-max max-w-[400px] bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-in fade-in-0 zoom-in-95">
+        <div className="absolute top-full left-0 mt-2 w-[min(92vw,400px)] bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-in fade-in-0 zoom-in-95">
           <div className="max-h-[300px] overflow-y-auto py-1">
             {filteredItems.map((item, index) => {
               const Icon = item.icon;
@@ -416,7 +418,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
       {/* No results message */}
       {isOpen && searchTerm.trim() && filteredItems.length === 0 && (
-        <div className="absolute top-full left-0 mt-2 min-w-[320px] w-max max-w-[400px] bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-in fade-in-0 zoom-in-95">
+        <div className="absolute top-full left-0 mt-2 w-[min(92vw,400px)] bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-in fade-in-0 zoom-in-95">
           <div className="px-4 py-8 text-center">
             <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
