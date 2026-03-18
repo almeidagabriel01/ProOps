@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { motion } from "motion/react";
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings2, Box, Layers } from "lucide-react";
+import { Plus, Settings2, Box, Layers, Loader2 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
@@ -21,7 +21,9 @@ import { Ambiente, Sistema } from "@/types/automation";
 import { toast } from "@/lib/toast";
 import { SistemaList } from "./_components/sistema-list";
 import { AmbienteList } from "./_components/ambiente-list";
+import { AmbienteTemplateList } from "./_components/ambiente-template-list";
 import { SistemaEditor } from "./_components/sistema-editor";
+import { AmbienteEditor } from "./_components/ambiente-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,14 +34,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 import { compareDisplayText } from "@/lib/sort-text";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageUnavailableState } from "@/components/shared/page-unavailable-state";
-import { getNicheConfig, isPageEnabledForNiche } from "@/lib/niches/config";
+import {
+  getNicheConfig,
+  getSolutionsPageConfig,
+  isPageEnabledForNiche,
+} from "@/lib/niches/config";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -48,6 +53,10 @@ interface LocalLazyOptions {
 }
 
 type SortOption = "alphabetical" | "createdDesc";
+type DeleteTarget = {
+  type: "sistema" | "ambiente";
+  id: string;
+} | null;
 
 function parseDate(value: unknown): Date | null {
   if (!value) return null;
@@ -254,38 +263,45 @@ export default function AutomationAdminPage() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const solutionsPageConfig = getSolutionsPageConfig(tenant?.niche);
+  const isEnvironmentOnlyMode = solutionsPageConfig.mode === "environment";
 
   const tabParam = searchParams.get("tab");
-  const tabFromUrl = tabParam === "ambientes" ? "ambientes" : "sistemas";
+  const tabFromUrl = isEnvironmentOnlyMode
+    ? "ambientes"
+    : tabParam === "ambientes"
+      ? "ambientes"
+      : "sistemas";
   const [activeTab, setActiveTab] = React.useState(tabFromUrl);
 
-  // Data State
   const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Editor State
   const [editingSistemaId, setEditingSistemaId] = React.useState<string | null>(
     null,
   );
+  const [editingAmbienteId, setEditingAmbienteId] = React.useState<
+    string | null
+  >(null);
 
-  // Delete State
-  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<DeleteTarget>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [sistemaSort, setSistemaSort] =
     React.useState<SortOption>("alphabetical");
   const [ambienteSort, setAmbienteSort] =
     React.useState<SortOption>("alphabetical");
 
-  const sortedSistemas = React.useMemo(() => {
-    return sortItems(sistemas, sistemaSort);
-  }, [sistemas, sistemaSort]);
+  const sortedSistemas = React.useMemo(
+    () => sortItems(sistemas, sistemaSort),
+    [sistemas, sistemaSort],
+  );
 
-  const sortedAmbientes = React.useMemo(() => {
-    return sortItems(ambientes, ambienteSort);
-  }, [ambientes, ambienteSort]);
+  const sortedAmbientes = React.useMemo(
+    () => sortItems(ambientes, ambienteSort),
+    [ambientes, ambienteSort],
+  );
 
-  // Infinite scroll
   const {
     displayedItems: displayedSistemas,
     hasMore: hasMoreSistemas,
@@ -293,7 +309,12 @@ export default function AutomationAdminPage() {
     sentinelRef: sistemasSentinelRef,
   } = useLocalLazyLoading(sortedSistemas, {
     batchSize: 12,
-    enabled: activeTab === "sistemas" && !isLoading && !editingSistemaId,
+    enabled:
+      !isEnvironmentOnlyMode &&
+      activeTab === "sistemas" &&
+      !isLoading &&
+      !editingSistemaId &&
+      !editingAmbienteId,
     resetKey: sistemaSort,
   });
 
@@ -304,7 +325,11 @@ export default function AutomationAdminPage() {
     sentinelRef: ambientesSentinelRef,
   } = useLocalLazyLoading(sortedAmbientes, {
     batchSize: 16,
-    enabled: activeTab === "ambientes" && !isLoading && !editingSistemaId,
+    enabled:
+      activeTab === "ambientes" &&
+      !isLoading &&
+      !editingSistemaId &&
+      !editingAmbienteId,
     resetKey: ambienteSort,
   });
 
@@ -314,7 +339,9 @@ export default function AutomationAdminPage() {
         if (!silent) setIsLoading(false);
         return;
       }
+
       if (!silent) setIsLoading(true);
+
       try {
         const [sistemasData, ambientesData] = await Promise.all([
           SistemaService.getSistemas(tenant.id),
@@ -338,6 +365,8 @@ export default function AutomationAdminPage() {
 
   const handleTabChange = React.useCallback(
     (tab: string) => {
+      if (isEnvironmentOnlyMode) return;
+
       setActiveTab(tab);
 
       const params = new URLSearchParams(searchParams.toString());
@@ -352,7 +381,7 @@ export default function AutomationAdminPage() {
         scroll: false,
       });
     },
-    [router, searchParams],
+    [isEnvironmentOnlyMode, router, searchParams],
   );
 
   React.useEffect(() => {
@@ -360,11 +389,19 @@ export default function AutomationAdminPage() {
   }, [loadData]);
 
   React.useEffect(() => {
-    const editId = searchParams.get("editSistemaId");
-    if (editId) {
-      setEditingSistemaId(editId);
+    if (isEnvironmentOnlyMode) {
+      const editAmbienteId = searchParams.get("editAmbienteId");
+      if (editAmbienteId) {
+        setEditingAmbienteId(editAmbienteId);
+      }
+      return;
     }
-  }, [searchParams]);
+
+    const editSistemaId = searchParams.get("editSistemaId");
+    if (editSistemaId) {
+      setEditingSistemaId(editSistemaId);
+    }
+  }, [isEnvironmentOnlyMode, searchParams]);
 
   if (!isPageEnabledForNiche(tenant?.niche, "solutions")) {
     return (
@@ -385,8 +422,126 @@ export default function AutomationAdminPage() {
     return <SelectTenantState />;
   }
 
-  // Editing Mode
-  if (editingSistemaId === "new" || editingSistemaId) {
+  if (
+    isEnvironmentOnlyMode &&
+    (editingAmbienteId === "new" || editingAmbienteId)
+  ) {
+    const ambienteToEdit =
+      editingAmbienteId === "new"
+        ? null
+        : ambientes.find((ambiente) => ambiente.id === editingAmbienteId);
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+        className="container mx-auto py-8 max-w-7xl"
+      >
+        <AmbienteEditor
+          ambiente={ambienteToEdit || null}
+          onBack={() => setEditingAmbienteId(null)}
+          onSave={(savedId?: string) => {
+            if (editingAmbienteId === "new" && savedId) {
+              setEditingAmbienteId(savedId);
+            }
+            loadData(true);
+          }}
+        />
+      </motion.div>
+    );
+  }
+
+  if (isEnvironmentOnlyMode) {
+    return (
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Settings2 className="w-6 h-6 text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                {solutionsPageConfig.pageTitle}
+              </h1>
+            </div>
+            <p className="text-muted-foreground text-lg pl-12">
+              {solutionsPageConfig.pageDescription}
+            </p>
+          </div>
+        </motion.div>
+
+        <div className="flex justify-end border-b pb-4">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <Button
+              size="lg"
+              onClick={() => setEditingAmbienteId("new")}
+              className="gap-2"
+            >
+              <Plus className="w-5 h-5" /> Novo Ambiente
+            </Button>
+          </motion.div>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-1"
+        >
+          <Card className="border-none shadow-sm bg-transparent">
+            <CardContent className="px-0">
+              <div className="flex justify-end mb-4">
+                <div className="w-full sm:w-[300px]">
+                  <Select
+                    value={ambienteSort}
+                    onChange={(event) =>
+                      setAmbienteSort(event.target.value as SortOption)
+                    }
+                    inputSize="sm"
+                  >
+                    <option value="alphabetical">Ordem alfabética (A-Z)</option>
+                    <option value="createdDesc">Mais recentes primeiro</option>
+                  </Select>
+                </div>
+              </div>
+              <AmbienteTemplateList
+                key={`ambientes-${ambienteSort}-templates`}
+                ambientes={displayedAmbientes}
+                onEdit={(id: string) => setEditingAmbienteId(id)}
+                onDelete={(id: string) =>
+                  setDeleteTarget({ type: "ambiente", id })
+                }
+              />
+              {hasMoreAmbientes && (
+                <div
+                  ref={ambientesSentinelRef}
+                  className="flex items-center justify-center mt-8 py-4 min-h-12"
+                >
+                  {isLoadingMoreAmbientes && (
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (
+    !isEnvironmentOnlyMode &&
+    (editingSistemaId === "new" || editingSistemaId)
+  ) {
     const systemToEdit =
       editingSistemaId === "new"
         ? null
@@ -421,7 +576,6 @@ export default function AutomationAdminPage() {
 
   return (
     <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
-      {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -433,16 +587,15 @@ export default function AutomationAdminPage() {
               <Settings2 className="w-6 h-6 text-primary" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Soluções
+              {solutionsPageConfig.pageTitle}
             </h1>
           </div>
           <p className="text-muted-foreground text-lg pl-12">
-            Central de gerenciamento de soluções e ambientes.
+            {solutionsPageConfig.pageDescription}
           </p>
         </div>
       </motion.div>
 
-      {/* Main Content Info */}
       <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
@@ -514,7 +667,9 @@ export default function AutomationAdminPage() {
                   key={`sistemas-${sistemaSort}`}
                   sistemas={displayedSistemas}
                   onEdit={(id: string) => setEditingSistemaId(id)}
-                  onDelete={(id: string) => setDeleteId(id)}
+                  onDelete={(id: string) =>
+                    setDeleteTarget({ type: "sistema", id })
+                  }
                 />
                 {hasMoreSistemas && (
                   <div
@@ -584,17 +739,21 @@ export default function AutomationAdminPage() {
         </motion.div>
       </Tabs>
 
-      {/* Delete Alert */}
       <AlertDialog
-        open={!!deleteId}
-        onOpenChange={(open) => !open && setDeleteId(null)}
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Solução</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget?.type === "ambiente"
+                ? "Excluir Ambiente"
+                : "Excluir Solução"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é irreversível. A solução será excluída permanentemente,
-              juntamente com todas as suas configurações em ambientes.
+              {deleteTarget?.type === "ambiente"
+                ? "Esta ação é irreversível. O ambiente será excluído permanentemente, juntamente com todos os produtos configurados nele."
+                : "Esta ação é irreversível. A solução será excluída permanentemente, juntamente com todas as suas configurações em ambientes."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -606,16 +765,25 @@ export default function AutomationAdminPage() {
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
               onClick={async (e) => {
                 e.preventDefault();
-                if (!deleteId) return;
+                if (!deleteTarget) return;
                 setIsDeleting(true);
                 try {
-                  await SistemaService.deleteSistema(deleteId);
-                  toast.success("Solução removida com sucesso!");
+                  if (deleteTarget.type === "ambiente") {
+                    await AmbienteService.deleteAmbiente(deleteTarget.id);
+                    toast.success("Ambiente removido com sucesso!");
+                  } else {
+                    await SistemaService.deleteSistema(deleteTarget.id);
+                    toast.success("Solução removida com sucesso!");
+                  }
                   loadData(true);
-                  setDeleteId(null);
+                  setDeleteTarget(null);
                 } catch (error) {
-                  console.error("Error deleting sistema:", error);
-                  toast.error("Erro ao excluir solução.");
+                  console.error("Error deleting entity:", error);
+                  toast.error(
+                    deleteTarget.type === "ambiente"
+                      ? "Erro ao excluir ambiente."
+                      : "Erro ao excluir solução.",
+                  );
                 } finally {
                   setIsDeleting(false);
                 }

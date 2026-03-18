@@ -4,6 +4,7 @@ import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
+import { ProposalWorkflow } from "@/lib/niches/config";
 import { ProductRow } from "./product-row";
 import { SystemGroupRows } from "./system-group-rows";
 import { SummaryFooter } from "./summary-footer";
@@ -12,7 +13,7 @@ interface ProposalSummaryTableProps {
   selectedProducts: ProposalProduct[];
   selectedSistemas: ProposalSistema[];
   extraProducts: ProposalProduct[];
-  isAutomacaoNiche: boolean;
+  proposalWorkflow: ProposalWorkflow;
   primaryColor: string;
   products: Array<Product | Service>;
   subtotal: number;
@@ -27,7 +28,7 @@ export function ProposalSummaryTable({
   selectedProducts,
   selectedSistemas,
   extraProducts,
-  isAutomacaoNiche,
+  proposalWorkflow,
   primaryColor,
   products,
   subtotal,
@@ -38,14 +39,20 @@ export function ProposalSummaryTable({
   closedValue,
 }: ProposalSummaryTableProps) {
   const displaySelectedProducts = selectedProducts.filter(
-    (p) => p.quantity > 0,
+    (product) => product.quantity > 0,
   );
-  const displayExtraProducts = extraProducts.filter((p) => p.quantity > 0);
+  const displayExtraProducts = extraProducts.filter(
+    (product) => product.quantity > 0,
+  );
+  const usesGroupedRows =
+    proposalWorkflow === "automation" || proposalWorkflow === "environment";
+  const extraItemsLabel =
+    proposalWorkflow === "automation"
+      ? "Produtos Extras (nÃ£o vinculados a sistemas)"
+      : "Produtos Extras (nÃ£o vinculados a ambientes)";
 
-  // Helper to check if product is inactive
   const isProductInactive = (product: ProposalProduct) => {
-    // Check if product is inactive in catalog OR marked as inactive in proposal
-    const catalogProduct = products.find((p) => p.id === product.productId);
+    const catalogProduct = products.find((item) => item.id === product.productId);
     return (
       catalogProduct?.status === "inactive" || product.status === "inactive"
     );
@@ -63,30 +70,29 @@ export function ProposalSummaryTable({
           </tr>
         </thead>
         <tbody>
-          {/* Produtos agrupados por sistema (Automacao) */}
-          {isAutomacaoNiche && (
+          {usesGroupedRows && (
             <SystemGroupRows
               selectedSistemas={selectedSistemas}
               selectedProducts={displaySelectedProducts}
               primaryColor={primaryColor}
               isProductInactive={isProductInactive}
+              mode={proposalWorkflow}
             />
           )}
 
-          {/* Produtos extras (Automacao) */}
-          {isAutomacaoNiche && displayExtraProducts.length > 0 && (
+          {usesGroupedRows && displayExtraProducts.length > 0 && (
             <React.Fragment>
               <tr className="border-t bg-gray-100">
                 <td
                   colSpan={4}
                   className="p-2 font-semibold text-sm text-gray-600 dark:text-gray-300"
                 >
-                  📦 Produtos Extras (não vinculados a sistemas)
+                  {extraItemsLabel}
                 </td>
               </tr>
               {displayExtraProducts.map((product) => (
                 <ProductRow
-                  key={product.productId}
+                  key={`${product.productId}-${product.itemType || "product"}`}
                   product={product}
                   isInactive={isProductInactive(product)}
                 />
@@ -94,11 +100,10 @@ export function ProposalSummaryTable({
             </React.Fragment>
           )}
 
-          {/* Para nicho não-automação */}
-          {!isAutomacaoNiche &&
+          {!usesGroupedRows &&
             displaySelectedProducts.map((product) => (
               <ProductRow
-                key={product.productId}
+                key={`${product.productId}-${product.itemType || "product"}`}
                 product={product}
                 isInactive={isProductInactive(product)}
               />

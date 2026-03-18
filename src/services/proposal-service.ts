@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { Proposal, ProposalProduct } from "@/types/proposal";
 import { PaginatedResult } from "./client-service";
+import { isEnvironmentProposalSystemInstance } from "@/lib/proposal-environment-utils";
 
 const COLLECTION_NAME = "proposals";
 
@@ -53,6 +54,35 @@ function normalizeLabelList(values: unknown[]): string[] {
 function extractSystemNames(data: DocumentData): string[] {
   const fromSistemas = Array.isArray(data.sistemas)
     ? data.sistemas
+        .filter(
+          (sistema: {
+            sistemaId?: unknown;
+            sistemaName?: unknown;
+            ambientes?: Array<{ ambienteId?: unknown; ambienteName?: unknown }>;
+          }) =>
+            !isEnvironmentProposalSystemInstance({
+              sistemaId:
+                typeof sistema?.sistemaId === "string" ? sistema.sistemaId : "",
+              sistemaName:
+                typeof sistema?.sistemaName === "string"
+                  ? sistema.sistemaName
+                  : "",
+              ambientes: Array.isArray(sistema?.ambientes)
+                ? sistema.ambientes
+                    .filter((ambiente) => ambiente && typeof ambiente === "object")
+                    .map((ambiente) => ({
+                      ambienteId:
+                        typeof ambiente?.ambienteId === "string"
+                          ? ambiente.ambienteId
+                          : "",
+                      ambienteName:
+                        typeof ambiente?.ambienteName === "string"
+                          ? ambiente.ambienteName
+                          : "",
+                    }))
+                : [],
+            }),
+        )
         .map((sistema: { sistemaName?: unknown }) => sistema?.sistemaName)
         .filter((name): name is string => typeof name === "string")
     : [];
@@ -323,7 +353,11 @@ export const ProposalService = {
 
       // Populate flattened fields for sorting if systems exist
       if (data.sistemas && data.sistemas.length > 0) {
-        payload.primarySystem = data.sistemas[0].sistemaName;
+        payload.primarySystem = isEnvironmentProposalSystemInstance(
+          data.sistemas[0],
+        )
+          ? ""
+          : data.sistemas[0].sistemaName;
         // Check if environment exists in the first system
         if (
           data.sistemas[0].ambientes &&
@@ -364,7 +398,11 @@ export const ProposalService = {
 
       // Update flattened fields if sistemas is being updated
       if (data.sistemas && data.sistemas.length > 0) {
-        payload.primarySystem = data.sistemas[0].sistemaName;
+        payload.primarySystem = isEnvironmentProposalSystemInstance(
+          data.sistemas[0],
+        )
+          ? ""
+          : data.sistemas[0].sistemaName;
         if (
           data.sistemas[0].ambientes &&
           data.sistemas[0].ambientes.length > 0

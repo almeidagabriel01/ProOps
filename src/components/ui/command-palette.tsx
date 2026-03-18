@@ -24,6 +24,11 @@ import { Input } from "@/components/ui/input";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
+import { useTenant } from "@/providers/tenant-provider";
+import {
+  getSolutionsPageConfig,
+  isPageEnabledForNiche,
+} from "@/lib/niches/config";
 import { normalize } from "@/utils/text";
 
 // Define searchable items with their icons and paths
@@ -231,6 +236,7 @@ interface CommandPaletteProps {
 export function CommandPalette({ className }: CommandPaletteProps) {
   const router = useRouter();
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const { hasFinancial, hasKanban } = usePlanLimits();
   const { hasPermission } = usePermissions();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -243,29 +249,61 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
   // Filter items based on search term and user permissions
   const filteredItems = React.useMemo(() => {
-    return searchItems.filter((item) => {
-      // Check permission restrictions
-      if (item.masterOnly && !isMaster) return false;
-      if (item.requiresFinancial && !hasFinancial) return false;
-      if (item.requiresKanban && !hasKanban) return false;
-      // Check create permission if required
-      if (item.requiresCreate && !hasPermission(item.requiresCreate, "create"))
-        return false;
+    const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
 
-      // If no search term, don't show any results
-      if (!searchTerm.trim()) return false;
+    return searchItems
+      .map((item) => {
+        if (item.id !== "solutions") return item;
 
-      // Search in label, description, and keywords
-      const term = normalize(searchTerm.trim());
-      const matchesLabel = normalize(item.label).includes(term);
-      const matchesDescription = item.description ? normalize(item.description).includes(term) : false;
-      const matchesKeywords = item.keywords?.some((k) =>
-        normalize(k).includes(term),
-      );
+        return {
+          ...item,
+          label: solutionsConfig.navigationLabel,
+          description:
+            solutionsConfig.mode === "environment"
+              ? "Gerenciar ambientes e produtos padrões"
+              : item.description,
+          keywords:
+            solutionsConfig.mode === "environment"
+              ? [...(item.keywords || []), "ambiente", "ambientes"]
+              : item.keywords,
+        };
+      })
+      .filter((item) => {
+        // Check permission restrictions
+        if (!isPageEnabledForNiche(tenant?.niche, item.id)) return false;
+        if (item.masterOnly && !isMaster) return false;
+        if (item.requiresFinancial && !hasFinancial) return false;
+        if (item.requiresKanban && !hasKanban) return false;
+        // Check create permission if required
+        if (
+          item.requiresCreate &&
+          !hasPermission(item.requiresCreate, "create")
+        )
+          return false;
 
-      return matchesLabel || matchesDescription || matchesKeywords;
-    });
-  }, [searchTerm, isMaster, hasFinancial, hasKanban, hasPermission]);
+        // If no search term, don't show any results
+        if (!searchTerm.trim()) return false;
+
+        // Search in label, description, and keywords
+        const term = normalize(searchTerm.trim());
+        const matchesLabel = normalize(item.label).includes(term);
+        const matchesDescription = item.description
+          ? normalize(item.description).includes(term)
+          : false;
+        const matchesKeywords = item.keywords?.some((k) =>
+          normalize(k).includes(term),
+        );
+
+        return matchesLabel || matchesDescription || matchesKeywords;
+      });
+  }, [
+    searchTerm,
+    isMaster,
+    hasFinancial,
+    hasKanban,
+    hasPermission,
+    tenant?.niche,
+  ]);
 
   // Handle item selection
   const handleSelect = React.useCallback(

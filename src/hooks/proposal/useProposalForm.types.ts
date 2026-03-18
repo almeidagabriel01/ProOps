@@ -10,6 +10,7 @@ import { ProposalSistema, Sistema } from "@/types/automation";
 import { Ambiente } from "@/services/ambiente-service";
 import { MasterDataAction } from "./useMasterDataTransaction";
 import { ClientType } from "@/services/client-service";
+import { ProposalWorkflow } from "@/lib/niches/config";
 
 export interface UseProposalFormProps {
   proposalId?: string;
@@ -78,6 +79,8 @@ export interface UseProposalFormReturn {
   features: ReturnType<typeof usePlanLimits>["features"];
   primaryColor: string;
   isAutomacaoNiche: boolean;
+  isEnvironmentProposal: boolean;
+  proposalWorkflow: ProposalWorkflow;
 
   mergedAmbientes: Ambiente[];
   mergedSistemas: Sistema[];

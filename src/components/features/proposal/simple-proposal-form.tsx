@@ -12,6 +12,7 @@ import {
   User,
   Package,
   Cpu,
+  Layers,
   CheckCircle,
   CreditCard,
   Settings2,
@@ -32,11 +33,16 @@ import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { FormContainer } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
+import {
+  createEnvironmentProposalSelection,
+  getEnvironmentSelectionInstanceId,
+} from "@/lib/proposal-environment-utils";
 
 // Import extracted components
 import {
   ProposalFormHeader,
   ProposalClientSection,
+  ProposalEnvironmentsSection,
   ProposalSystemsSection,
   ProposalProductsSection,
   ProposalSummarySection,
@@ -113,6 +119,39 @@ const stepsDefault = [
   },
 ];
 
+const stepsEnvironment = [
+  {
+    id: "client",
+    title: "Contato",
+    description: "Dados do contato",
+    icon: User,
+  },
+  {
+    id: "environments",
+    title: "Ambientes",
+    description: "Selecionar ambientes",
+    icon: Layers,
+  },
+  {
+    id: "payment",
+    title: "Pagamento",
+    description: "Condições",
+    icon: CreditCard,
+  },
+  {
+    id: "settings",
+    title: "PDF",
+    description: "Configurações",
+    icon: Settings2,
+  },
+  {
+    id: "summary",
+    title: "Resumo",
+    description: "Finalizar",
+    icon: CheckCircle,
+  },
+];
+
 export function SimpleProposalForm({
   proposalId,
   isReadOnly = false,
@@ -138,6 +177,8 @@ export function SimpleProposalForm({
     setSelectedSistemas,
     setShowLimitModal,
     isAutomacaoNiche,
+    isEnvironmentProposal,
+    proposalWorkflow,
     // Client types
     clientTypes,
     setClientTypes,
@@ -206,6 +247,10 @@ export function SimpleProposalForm({
   const [editingSelectionIndex, setEditingSelectionIndex] = React.useState<
     number | null
   >(null);
+  const lastAddedEnvironmentRef = React.useRef<{
+    ambienteId: string;
+    time: number;
+  } | null>(null);
 
   // Estado para erros de validação
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -393,20 +438,23 @@ export function SimpleProposalForm({
   const validateStep2 = React.useCallback((): boolean => {
     // Use ref to get current formData (avoid stale closure)
     const currentFormData = formDataRef.current;
+    const groupedByEnvironment = isAutomacaoNiche || isEnvironmentProposal;
 
     // Check if there are products in formData
     if (!currentFormData.products || currentFormData.products.length === 0) {
-      const field = isAutomacaoNiche ? "sistemas" : "products";
+      const field = groupedByEnvironment ? "sistemas" : "products";
       const message = isAutomacaoNiche
         ? "Selecione pelo menos 1 sistema de automação com produtos"
-        : "Selecione pelo menos 1 produto";
+        : isEnvironmentProposal
+          ? "Selecione pelo menos 1 ambiente com produtos"
+          : "Selecione pelo menos 1 produto";
       setFieldError(field, message);
       toast.error(message);
       return false;
     }
 
     // For automation niche: validate each system/environment has at least one active product
-    if (isAutomacaoNiche && selectedSistemas.length > 0) {
+    if (groupedByEnvironment && selectedSistemas.length > 0) {
       for (const sistema of selectedSistemas) {
         // Get environments for this system
         const environments =
@@ -462,7 +510,56 @@ export function SimpleProposalForm({
     else clearFieldError("products");
 
     return true;
-  }, [isAutomacaoNiche, setFieldError, clearFieldError, selectedSistemas]);
+  }, [
+    isAutomacaoNiche,
+    isEnvironmentProposal,
+    setFieldError,
+    clearFieldError,
+    selectedSistemas,
+  ]);
+
+  const validateEnvironmentStep2 = React.useCallback((): boolean => {
+    const currentFormData = formDataRef.current;
+
+    if (!currentFormData.products || currentFormData.products.length === 0) {
+      const message = "Selecione pelo menos 1 ambiente com produtos";
+      setFieldError("sistemas", message);
+      toast.error(message);
+      return false;
+    }
+
+    for (const sistema of selectedSistemas) {
+      const environments =
+        sistema.ambientes && sistema.ambientes.length > 0
+          ? sistema.ambientes
+          : [
+              {
+                ambienteId: sistema.ambienteId,
+                ambienteName: sistema.ambienteName || "Ambiente",
+              },
+            ];
+
+      for (const ambiente of environments) {
+        const instanceId = `${sistema.sistemaId}-${ambiente.ambienteId}`;
+        const environmentProducts = currentFormData.products.filter(
+          (p) => p.systemInstanceId === instanceId,
+        );
+        const activeProducts = environmentProducts.filter(
+          (p) => p.status !== "inactive" && (p.quantity || 0) > 0,
+        );
+
+        if (activeProducts.length === 0 && environmentProducts.length > 0) {
+          const errorMessage = `O ambiente "${ambiente.ambienteName}" nÃ£o possui nenhum produto ativo com quantidade maior que 0.`;
+          setFieldError("sistemas", errorMessage);
+          toast.error(errorMessage, { autoClose: 5000 });
+          return false;
+        }
+      }
+    }
+
+    clearFieldError("sistemas");
+    return true;
+  }, [clearFieldError, selectedSistemas, setFieldError]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
@@ -686,6 +783,49 @@ export function SimpleProposalForm({
     }
   };
 
+  const handleAddEnvironment = (ambienteId: string) => {
+    const now = Date.now();
+    if (
+      lastAddedEnvironmentRef.current &&
+      lastAddedEnvironmentRef.current.ambienteId === ambienteId &&
+      now - lastAddedEnvironmentRef.current.time < 500
+    ) {
+      return;
+    }
+
+    lastAddedEnvironmentRef.current = {
+      ambienteId,
+      time: now,
+    };
+
+    const ambiente = mergedAmbientes.find((item) => item.id === ambienteId);
+    if (!ambiente) return;
+
+    const targetInstanceId = getEnvironmentSelectionInstanceId(ambiente.id);
+    const alreadySelected = selectedSistemas.some((sistema) => {
+      const selectedAmbienteId =
+        sistema.ambientes?.[0]?.ambienteId || sistema.ambienteId || "";
+      return (
+        selectedAmbienteId === ambiente.id ||
+        getEnvironmentSelectionInstanceId(selectedAmbienteId) ===
+          targetInstanceId
+      );
+    });
+
+    if (alreadySelected) {
+      toast.error(
+        `O ambiente "${ambiente.name}" jÃ¡ foi adicionado Ã  proposta.`,
+      );
+      return;
+    }
+
+    addSistema(createEnvironmentProposalSelection(ambiente));
+  };
+
+  const handleRemoveEnvironment = (index: number, ambienteId: string) => {
+    removeSistema(index, getEnvironmentSelectionInstanceId(ambienteId));
+  };
+
   // Handle editing system selection
   const handleEditSystemSelection = (newSistema: ProposalSistema | null) => {
     if (!newSistema || editingSelectionIndex === null) return;
@@ -821,8 +961,11 @@ export function SimpleProposalForm({
     router.push("/proposals");
   };
 
-  // Steps configuration based on niche
-  const steps = isAutomacaoNiche ? stepsAutomation : stepsDefault;
+  const steps = isAutomacaoNiche
+    ? stepsAutomation
+    : isEnvironmentProposal
+      ? stepsEnvironment
+      : stepsDefault;
 
   // Map step validators for StepWizard
   // MUST be before any conditional returns to maintain hook order
@@ -831,12 +974,9 @@ export function SimpleProposalForm({
       0: validateStep1, // Client step
     };
 
-    // Add step 2 validator (systems or products)
-    if (isAutomacaoNiche) {
-      validators[1] = validateStep2; // Systems step (for automation niche)
-    } else {
-      validators[1] = validateStep2; // Products step (for non-automation)
-    }
+    validators[1] = isEnvironmentProposal
+      ? validateEnvironmentStep2
+      : validateStep2;
 
     // Step 3: Payment validation (installments and down payment dates)
     validators[2] = validateStep3;
@@ -845,7 +985,13 @@ export function SimpleProposalForm({
     // Step 5 (Summary) is the last step
 
     return validators;
-  }, [isAutomacaoNiche, validateStep1, validateStep2, validateStep3]);
+  }, [
+    isEnvironmentProposal,
+    validateEnvironmentStep2,
+    validateStep1,
+    validateStep2,
+    validateStep3,
+  ]);
 
   // Loading state
   if (isLoading) {
@@ -970,6 +1116,37 @@ export function SimpleProposalForm({
                   proposalStorageKey={proposalId}
                 />
               </>
+            ) : isEnvironmentProposal ? (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
+                    <Layers className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Ambientes</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Selecione os ambientes desejados na proposta
+                    </p>
+                  </div>
+                </div>
+
+                <ProposalEnvironmentsSection
+                  selectedSistemas={selectedSistemas}
+                  selectedProducts={selectedProducts}
+                  products={products}
+                  primaryColor={primaryColor}
+                  ambientes={mergedAmbientes}
+                  onAddAmbiente={handleAddEnvironment}
+                  onRemoveAmbiente={handleRemoveEnvironment}
+                  onManageAmbientes={() => setIsAmbienteManagerOpen(true)}
+                  onUpdateProductQuantity={updateProductQuantity}
+                  onUpdateProductMarkup={updateProductMarkup}
+                  onUpdateProductPrice={updateProductPrice}
+                  onAddExtraProductToAmbiente={addProductToSystem}
+                  onRemoveProduct={removeProduct}
+                  onToggleStatus={handleToggleProductStatus}
+                />
+              </>
             ) : (
               <>
                 <div className="flex items-center gap-3 mb-6">
@@ -1009,7 +1186,11 @@ export function SimpleProposalForm({
               <AlertDescription>{errors.products}</AlertDescription>
             </Alert>
           )}
-          <StepNavigation onBeforeNext={validateStep2} />
+          <StepNavigation
+            onBeforeNext={
+              isEnvironmentProposal ? validateEnvironmentStep2 : validateStep2
+            }
+          />
         </FormStepCard>
 
         {/* Step 3: Payment */}
@@ -1076,7 +1257,7 @@ export function SimpleProposalForm({
               selectedProducts={visibleProducts}
               selectedSistemas={selectedSistemas}
               extraProducts={extraProducts}
-              isAutomacaoNiche={isAutomacaoNiche}
+              proposalWorkflow={proposalWorkflow}
               primaryColor={primaryColor}
               products={products}
               calculateSubtotal={calculateSubtotal}

@@ -421,7 +421,9 @@ export function ProductFormNew({
                     </div>
                     <div className="flex items-center justify-between sm:block">
                       <span className="font-medium text-muted-foreground">
-                        Lucro por unidade
+                        {inventoryConfig.mode === "meter"
+                          ? "Lucro por metro"
+                          : "Lucro por unidade"}
                       </span>
                       <p className="font-semibold text-green-700">
                         R$ {(basePrice * (markupValue / 100)).toFixed(2)}

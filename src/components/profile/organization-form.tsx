@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tenant, TenantNiche, NICHE_LABELS } from "@/types";
+import { Tenant, NICHE_LABELS } from "@/types";
 import {
   Card,
   CardContent,
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Building2,
@@ -36,7 +35,6 @@ interface OrganizationFormProps {
 
 export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
   const [name, setName] = useState(tenant?.name || "");
-  const [niche, setNiche] = useState<TenantNiche | "">(tenant?.niche || "");
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#000000",
   );
@@ -46,13 +44,12 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
 
   // Initial values for comparison
   const initialName = tenant?.name || "";
-  const initialNiche = tenant?.niche || "";
   const initialColor = tenant?.primaryColor || "#000000";
   const initialLogo = tenant?.logoUrl || "";
+  const nicheLabel = tenant?.niche ? NICHE_LABELS[tenant.niche] : "Não definido";
 
   const hasChanges =
     (name !== initialName ||
-      niche !== initialNiche ||
       primaryColor !== initialColor ||
       logoUrl !== initialLogo) &&
     name.trim().length > 0;
@@ -90,7 +87,6 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
     try {
       await TenantService.updateTenant(tenant.id, {
         name,
-        niche: niche as TenantNiche,
         primaryColor,
         logoUrl,
       });
@@ -201,21 +197,13 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
 
         <div className="flex flex-col gap-4">
           <Label htmlFor="niche">Nicho de Atuação</Label>
-          <Select
+          <Input
             id="niche"
-            value={niche}
-            onChange={(e) => setNiche(e.target.value as TenantNiche)}
-            disabled={!isEditing}
-          >
-            <option value="" disabled>
-              Selecione um nicho
-            </option>
-            {Object.entries(NICHE_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </Select>
+            value={nicheLabel}
+            readOnly
+            disabled
+            className="bg-muted/50 text-muted-foreground"
+          />
         </div>
 
         {/* Logo Upload Section */}

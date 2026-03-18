@@ -15,6 +15,7 @@ import { Sistema, ProposalSistema } from "@/types/automation";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { toast } from "@/lib/toast";
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
+import { isEnvironmentProposalSelection } from "@/lib/proposal-environment-utils";
 
 interface UseProposalFormLoadingEffectsContext {
   tenant: { id: string; proposalDefaults?: Record<string, unknown> } | null;
@@ -123,14 +124,21 @@ export function useProposalFormLoadingEffects(
           freshSistemas.find((sys) => sys.id === s.sistemaId) ||
           freshSistemas.find((sys) => sys.name === s.sistemaName);
         const primaryEnv = updatedAmbientes[0];
+        const isEnvironmentSelection = isEnvironmentProposalSelection(s);
 
         // Maintain the user's customized names if they exist; fallback to master data
         return {
           ...s,
-          sistemaName: s.sistemaName || masterSistema?.name || "",
+          sistemaName:
+            masterSistema?.name ||
+            (isEnvironmentSelection
+              ? primaryEnv?.ambienteName || s.sistemaName || ""
+              : s.sistemaName || ""),
           description:
-            s.description ||
-            (masterSistema ? masterSistema.description || "" : ""),
+            masterSistema?.description ||
+            (isEnvironmentSelection
+              ? primaryEnv?.description || s.description || ""
+              : s.description || ""),
           ambientes: updatedAmbientes,
           ambienteName: s.ambienteName || primaryEnv?.ambienteName || "",
           ambienteId: primaryEnv?.ambienteId || s.ambienteId || "",

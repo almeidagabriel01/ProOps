@@ -158,7 +158,7 @@ export function useProposalFormProductSubmit(
             (!itemType || (p.itemType || "product") === itemType);
 
         if (!matchesTarget) return p;
-        const newQty = Math.max(0, p.quantity + delta);
+        const newQty = Number(Math.max(0, p.quantity + delta).toFixed(2));
         const effectiveMarkup =
           (p.itemType || "product") === "service" ? 0 : p.markup || 0;
         const sellingPrice = p.unitPrice * (1 + effectiveMarkup / 100);
@@ -561,7 +561,7 @@ export function useProposalFormProductSubmit(
           const effectiveMarkup =
             (p.itemType || "product") === "service" ? 0 : p.markup || 0;
 
-          // If it's a service, we assume markup is irrelevant for now as per requirement "alterar o valor do serviÃ§o".
+          // If it's a service, we assume markup is irrelevant for now as per requirement "alterar o valor do serviço".
           // So we just set unitPrice = newPrice.
           // If logic requires maintaining markup for products, we might need adjustments,
           // but specifically for services:
