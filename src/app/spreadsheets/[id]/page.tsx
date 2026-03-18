@@ -19,8 +19,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SpreadsheetEditorSkeleton } from "./_components/spreadsheet-editor-skeleton";
 
-type UniverWorkbookSnapshot = Record<string, unknown>;
-
 type DisposableLike = {
   dispose?: () => void;
 };
@@ -38,7 +36,7 @@ type UniverEventRegistry = {
 
 type UniverEditorRuntime = {
   univerAPI?: {
-    createWorkbook?: (data: UniverWorkbookSnapshot) => UniverWorkbook | undefined;
+    createWorkbook?: (data: Record<string, unknown>) => UniverWorkbook | undefined;
     getActiveWorkbook?: () => UniverWorkbook | undefined;
     executeCommand?: (
       id: string,
@@ -65,42 +63,9 @@ const resolveSpreadsheetName = (nameInput: string, fallbackName: string): string
   return trimmed.length > 0 ? trimmed : fallbackName;
 };
 
-const normalizeForSignature = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeForSignature(item));
-  }
-
-  if (!isRecord(value)) {
-    return value;
-  }
-
-  const normalized: Record<string, unknown> = {};
-  const sortedEntries = Object.entries(value).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-
-  sortedEntries.forEach(([key, item]) => {
-    normalized[key] = normalizeForSignature(item);
-  });
-
-  return normalized;
-};
-
-const createWorkbookSignature = (
-  snapshot: UniverWorkbookSnapshot,
-  workbookName: string,
-): string => {
-  const signaturePayload: UniverWorkbookSnapshot = {
-    ...snapshot,
-    name: workbookName,
-  };
-
-  return JSON.stringify(normalizeForSignature(signaturePayload));
-};
-
 const buildBaseWorkbookData = (
   spreadsheet: Spreadsheet,
-): UniverWorkbookSnapshot => {
+): Record<string, unknown> => {
   const workbookData = isRecord(spreadsheet.data) ? spreadsheet.data : {};
   const workbookName =
     typeof workbookData.name === "string" && workbookData.name.trim().length > 0
@@ -123,26 +88,18 @@ export default function SpreadsheetEditorPage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [editorBaseData, setEditorBaseData] =
-    useState<UniverWorkbookSnapshot | null>(null);
+    useState<Record<string, unknown> | null>(null);
   const [hasWorkbookChanges, setHasWorkbookChanges] = useState(false);
   const [hasLiveEditChanges, setHasLiveEditChanges] = useState(false);
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const univerRuntimeRef = useRef<UniverEditorRuntime | null>(null);
   const runtimeDisposablesRef = useRef<DisposableLike[]>([]);
-  const dirtyCheckTimeoutRef = useRef<number | null>(null);
-  const savedWorkbookSignatureRef = useRef<string | null>(null);
+  const ignoreWorkbookEventsRef = useRef(true);
   const persistedNameRef = useRef("");
 
   const spreadsheetId = spreadsheet?.id;
   const spreadsheetVersion = spreadsheet?.updatedAt ?? "";
-
-  const clearScheduledDirtyCheck = useCallback(() => {
-    if (dirtyCheckTimeoutRef.current !== null) {
-      window.clearTimeout(dirtyCheckTimeoutRef.current);
-      dirtyCheckTimeoutRef.current = null;
-    }
-  }, []);
 
   const disposeRuntimeListeners = useCallback(() => {
     runtimeDisposablesRef.current.forEach((disposable) => {
@@ -154,39 +111,6 @@ export default function SpreadsheetEditorPage() {
     });
     runtimeDisposablesRef.current = [];
   }, []);
-
-  const getCurrentWorkbookSnapshot = useCallback((): UniverWorkbookSnapshot | null => {
-    const activeWorkbook = univerRuntimeRef.current?.univerAPI?.getActiveWorkbook?.();
-    const snapshot = activeWorkbook?.save?.();
-    return isRecord(snapshot) ? snapshot : null;
-  }, []);
-
-  const refreshWorkbookDirtyState = useCallback(() => {
-    const savedSignature = savedWorkbookSignatureRef.current;
-    const snapshot = getCurrentWorkbookSnapshot();
-
-    if (!savedSignature || !snapshot) {
-      setHasWorkbookChanges(false);
-      return;
-    }
-
-    const currentSignature = createWorkbookSignature(
-      snapshot,
-      persistedNameRef.current,
-    );
-    setHasWorkbookChanges(currentSignature !== savedSignature);
-  }, [getCurrentWorkbookSnapshot]);
-
-  const scheduleWorkbookDirtyCheck = useCallback(() => {
-    if (dirtyCheckTimeoutRef.current !== null) {
-      return;
-    }
-
-    dirtyCheckTimeoutRef.current = window.setTimeout(() => {
-      dirtyCheckTimeoutRef.current = null;
-      refreshWorkbookDirtyState();
-    }, 0);
-  }, [refreshWorkbookDirtyState]);
 
   const commitActiveCellEdit = useCallback(async () => {
     const runtime = univerRuntimeRef.current;
@@ -229,10 +153,6 @@ export default function SpreadsheetEditorPage() {
       const persistedName = resolveSpreadsheetName(data.name, data.name);
 
       persistedNameRef.current = persistedName;
-      savedWorkbookSignatureRef.current = createWorkbookSignature(
-        baseData,
-        persistedName,
-      );
 
       setSpreadsheet(data);
       setName(data.name);
@@ -253,7 +173,6 @@ export default function SpreadsheetEditorPage() {
 
   const disposeEditor = useCallback(() => {
     disposeRuntimeListeners();
-    clearScheduledDirtyCheck();
 
     const runtime = univerRuntimeRef.current;
     if (!runtime) return;
@@ -268,8 +187,9 @@ export default function SpreadsheetEditorPage() {
       console.error("Error disposing Univer editor:", error);
     } finally {
       univerRuntimeRef.current = null;
+      ignoreWorkbookEventsRef.current = true;
     }
-  }, [clearScheduledDirtyCheck, disposeRuntimeListeners]);
+  }, [disposeRuntimeListeners]);
 
   useEffect(() => {
     if (!spreadsheetId || !editorBaseData || !editorContainerRef.current) {
@@ -292,18 +212,11 @@ export default function SpreadsheetEditorPage() {
       }) as unknown as UniverEditorRuntime;
 
       univerRuntimeRef.current = runtime;
+      ignoreWorkbookEventsRef.current = true;
 
       const workbook = runtime.univerAPI?.createWorkbook?.(editorBaseData);
       if (!workbook) {
         throw new Error("Univer workbook instance unavailable");
-      }
-
-      const runtimeSnapshot = workbook.save?.();
-      if (isRecord(runtimeSnapshot)) {
-        savedWorkbookSignatureRef.current = createWorkbookSignature(
-          runtimeSnapshot,
-          persistedNameRef.current,
-        );
       }
 
       const univerAPI = runtime.univerAPI;
@@ -313,7 +226,9 @@ export default function SpreadsheetEditorPage() {
         if (eventRegistry.CommandExecuted) {
           runtimeDisposablesRef.current.push(
             univerAPI.addEvent(eventRegistry.CommandExecuted, () => {
-              scheduleWorkbookDirtyCheck();
+              if (!ignoreWorkbookEventsRef.current) {
+                setHasWorkbookChanges(true);
+              }
             }),
           );
         }
@@ -330,11 +245,17 @@ export default function SpreadsheetEditorPage() {
           runtimeDisposablesRef.current.push(
             univerAPI.addEvent(eventRegistry.SheetEditEnded, () => {
               setHasLiveEditChanges(false);
-              scheduleWorkbookDirtyCheck();
+              if (!ignoreWorkbookEventsRef.current) {
+                setHasWorkbookChanges(true);
+              }
             }),
           );
         }
       }
+
+      window.setTimeout(() => {
+        ignoreWorkbookEventsRef.current = false;
+      }, 0);
     } catch (error) {
       console.error("Error initializing Univer editor:", error);
       toast.error("Erro ao inicializar editor de planilha");
@@ -348,7 +269,6 @@ export default function SpreadsheetEditorPage() {
     spreadsheetVersion,
     editorBaseData,
     disposeEditor,
-    scheduleWorkbookDirtyCheck,
   ]);
 
   const handleSave = async () => {
@@ -380,10 +300,6 @@ export default function SpreadsheetEditorPage() {
         data: workbookSnapshot,
       });
 
-      savedWorkbookSignatureRef.current = createWorkbookSignature(
-        workbookSnapshot,
-        nextName,
-      );
       persistedNameRef.current = nextName;
 
       setName(nextName);
