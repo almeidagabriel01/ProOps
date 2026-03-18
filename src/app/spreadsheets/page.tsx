@@ -49,6 +49,7 @@ import {
   importExcelFileToSpreadsheetData,
   SUPPORTED_SPREADSHEET_ACCEPT,
 } from "@/lib/spreadsheet-import";
+import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -158,7 +159,10 @@ export default function SpreadsheetsPage() {
       const newId = await SpreadsheetService.createSpreadsheet({
         tenantId: tenant.id,
         name: "Nova Planilha",
-        data: { name: "Nova Planilha" },
+        data: {
+          name: "Nova Planilha",
+          locale: DEFAULT_SPREADSHEET_LOCALE,
+        },
       });
       toast.success("Planilha criada com sucesso!");
       router.push(`/spreadsheets/${newId}`);

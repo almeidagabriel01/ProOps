@@ -19,9 +19,10 @@ import type {
   WorkBook,
   WorkSheet,
 } from "xlsx";
+import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 
 const UNIVER_APP_VERSION = "0.11.0";
-const UNIVER_LOCALE = "enUS";
+const UNIVER_LOCALE = DEFAULT_SPREADSHEET_LOCALE;
 
 export const SUPPORTED_SPREADSHEET_EXTENSIONS = [
   "xlsx",

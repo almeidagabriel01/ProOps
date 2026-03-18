@@ -23,6 +23,7 @@ import {
 } from "@/types";
 import { PaginatedResult } from "./client-service";
 import { callApi } from "@/lib/api-client";
+import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 
 export type Spreadsheet = {
   id: string;
@@ -38,6 +39,7 @@ export type Spreadsheet = {
 const COLLECTION_NAME = "spreadsheets";
 const DEFAULT_UNIVER_WORKBOOK: UniverWorkbookData = {
   name: "Planilha 1",
+  locale: DEFAULT_SPREADSHEET_LOCALE,
 };
 
 const isUniverWorkbookData = (value: unknown): value is UniverWorkbookData => {

@@ -6,8 +6,9 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { createUniver, LocaleType, mergeLocales } from "@univerjs/presets";
 import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
-import UniverPresetSheetsCoreEnUS from "@univerjs/preset-sheets-core/locales/en-US";
+import UniverPresetSheetsCoreEsES from "@univerjs/preset-sheets-core/locales/es-ES";
 import { SetCellEditVisibleOperation } from "@univerjs/sheets-ui";
+import { localeCurrencySymbolMap } from "@univerjs/sheets-numfmt";
 import { DeviceInputEventType } from "@univerjs/engine-render";
 import "@univerjs/preset-sheets-core/lib/index.css";
 
@@ -18,6 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SpreadsheetEditorSkeleton } from "./_components/spreadsheet-editor-skeleton";
+import {
+  DEFAULT_SPREADSHEET_LOCALE,
+  univerPtBrLocale,
+} from "@/lib/univer-pt-br";
 
 type DisposableLike = {
   dispose?: () => void;
@@ -63,6 +68,8 @@ const resolveSpreadsheetName = (nameInput: string, fallbackName: string): string
   return trimmed.length > 0 ? trimmed : fallbackName;
 };
 
+localeCurrencySymbolMap.set(LocaleType.ES_ES, "R$");
+
 const buildBaseWorkbookData = (
   spreadsheet: Spreadsheet,
 ): Record<string, unknown> => {
@@ -74,6 +81,7 @@ const buildBaseWorkbookData = (
 
   return {
     ...workbookData,
+    locale: DEFAULT_SPREADSHEET_LOCALE,
     name: workbookName,
   };
 };
@@ -200,9 +208,12 @@ export default function SpreadsheetEditorPage() {
 
     try {
       const runtime = createUniver({
-        locale: LocaleType.EN_US,
+        locale: DEFAULT_SPREADSHEET_LOCALE as LocaleType,
         locales: {
-          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+          [DEFAULT_SPREADSHEET_LOCALE]: mergeLocales(
+            UniverPresetSheetsCoreEsES,
+            univerPtBrLocale,
+          ),
         },
         presets: [
           UniverSheetsCorePreset({
@@ -292,6 +303,7 @@ export default function SpreadsheetEditorPage() {
       const nextName = resolveSpreadsheetName(name, spreadsheet.name);
       const workbookSnapshot: Record<string, unknown> = {
         ...snapshot,
+        locale: DEFAULT_SPREADSHEET_LOCALE,
         name: nextName,
       };
 
