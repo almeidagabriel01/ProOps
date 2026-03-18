@@ -28,8 +28,6 @@ import {
 } from "@/lib/proposal-hide-zero-qty-storage";
 import {
   Box,
-  ChevronDown,
-  ChevronUp,
   Cpu,
   Layers3,
   Package,
@@ -102,7 +100,7 @@ interface ProposalSystemsMobileSectionProps {
 type ProductKind = "product" | "service";
 
 const MOBILE_DIALOG_SHEET_CLASSNAME =
-  "dialog-scroll-fix left-[50%] top-[50%] z-50 flex box-border w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] border-border/70 p-0 sm:w-full sm:max-h-[min(90vh,720px)] sm:max-w-lg";
+  "dialog-scroll-fix left-[50%] top-[50%] z-50 flex box-border w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border-border/70 p-0 sm:w-full sm:max-h-[min(90vh,720px)] sm:max-w-lg";
 
 function AdaptiveSheetBody({
   children,
@@ -175,13 +173,12 @@ export function ProposalSystemsMobileSection({
   onRemoveAmbiente,
   proposalStorageKey,
 }: ProposalSystemsMobileSectionProps) {
-  const [openSystemKeys, setOpenSystemKeys] = React.useState<string[]>([]);
-  const [openEnvironmentKeys, setOpenEnvironmentKeys] = React.useState<string[]>(
-    [],
-  );
+  const [activeSystemKey, setActiveSystemKey] = React.useState<string | null>(null);
+  const [isAddSystemOpen, setIsAddSystemOpen] = React.useState(false);
   const [isManagerOpen, setIsManagerOpen] = React.useState(false);
   const [hideZeroQtyByEnvironment, setHideZeroQtyByEnvironment] =
     React.useState<Record<string, boolean>>({});
+  const previousSystemKeysRef = React.useRef<string[]>([]);
 
   React.useEffect(() => {
     if (proposalStorageKey) {
@@ -192,36 +189,6 @@ export function ProposalSystemsMobileSection({
   React.useEffect(() => {
     setHideZeroQtyByEnvironment(readProposalHideZeroQtyState(proposalStorageKey));
   }, [proposalStorageKey]);
-
-  React.useEffect(() => {
-    const validSystemKeys = new Set(
-      selectedSistemas.map((sistema, index) => getSystemKey(sistema, index)),
-    );
-    const validEnvironmentKeys = new Set(
-      selectedSistemas.flatMap((sistema) =>
-        getSystemAmbientes(sistema).map((ambiente) =>
-          getEnvironmentInstanceId(sistema, ambiente.ambienteId),
-        ),
-      ),
-    );
-
-    setOpenSystemKeys((current) => {
-      const next = current.filter((key) => validSystemKeys.has(key));
-      if (next.length > 0) return next;
-      const lastSistema = selectedSistemas[selectedSistemas.length - 1];
-      return lastSistema ? [getSystemKey(lastSistema, selectedSistemas.length - 1)] : [];
-    });
-
-    setOpenEnvironmentKeys((current) => {
-      const next = current.filter((key) => validEnvironmentKeys.has(key));
-      if (next.length > 0) return next;
-      const lastSistema = selectedSistemas[selectedSistemas.length - 1];
-      const firstAmbiente = lastSistema ? getSystemAmbientes(lastSistema)[0] : undefined;
-      return lastSistema && firstAmbiente
-        ? [getEnvironmentInstanceId(lastSistema, firstAmbiente.ambienteId)]
-        : [];
-    });
-  }, [selectedSistemas]);
 
   const handleToggleHideZeroQtyByEnvironment = React.useCallback(
     (environmentInstanceId: string, hideZeroQty: boolean) => {
@@ -269,31 +236,173 @@ export function ProposalSystemsMobileSection({
     (sum, product) => sum + (product.quantity || 0),
     0,
   );
+  const systemKeys = React.useMemo(
+    () => selectedSistemas.map((sistema, index) => getSystemKey(sistema, index)),
+    [selectedSistemas],
+  );
+
+  React.useEffect(() => {
+    const lastSystemKey = systemKeys[systemKeys.length - 1] ?? null;
+    const hasNewSystem = Boolean(
+      lastSystemKey && !previousSystemKeysRef.current.includes(lastSystemKey),
+    );
+
+    setActiveSystemKey((current) => {
+      if (hasNewSystem) return lastSystemKey;
+      if (current && systemKeys.includes(current)) return current;
+      return systemKeys[0] ?? null;
+    });
+
+    previousSystemKeysRef.current = systemKeys;
+  }, [systemKeys]);
+
+  const systemSummaries = React.useMemo<SystemSummary[]>(
+    () =>
+      selectedSistemas.map((sistema, sistemaIndex) => {
+        const key = getSystemKey(sistema, sistemaIndex);
+        const environments = getSystemAmbientes(sistema).map((ambiente) => {
+          const environmentKey = getEnvironmentInstanceId(
+            sistema,
+            ambiente.ambienteId,
+          );
+          const environmentProducts = selectedProducts
+            .filter((product) => product.systemInstanceId === environmentKey)
+            .sort((a, b) => compareDisplayText(a.productName, b.productName));
+          const hideZeroQty = !!hideZeroQtyByEnvironment[environmentKey];
+          const visibleEnvironmentProducts = hideZeroQty
+            ? environmentProducts.filter(
+                (product) => Number(product.quantity || 0) !== 0,
+              )
+            : environmentProducts;
+
+          return {
+            key: environmentKey,
+            ambienteId: ambiente.ambienteId || "",
+            title: ambiente.ambienteName || "Ambiente",
+            description: ambiente.description,
+            selectedProducts: environmentProducts,
+            visibleProducts: visibleEnvironmentProducts,
+            hiddenProductsCount:
+              environmentProducts.length - visibleEnvironmentProducts.length,
+            totalValue: environmentProducts.reduce(
+              (sum, product) => sum + product.total,
+              0,
+            ),
+            totalItems: environmentProducts.reduce(
+              (sum, product) => sum + (product.quantity || 0),
+              0,
+            ),
+            activeLines: environmentProducts.filter(
+              (product) => product.status !== "inactive",
+            ).length,
+            visibleQuantity: visibleEnvironmentProducts.reduce(
+              (sum, product) => sum + (product.quantity || 0),
+              0,
+            ),
+            hideZeroQty,
+          };
+        });
+
+        const systemProducts = environments.flatMap(
+          (environment) => environment.selectedProducts,
+        );
+
+        return {
+          key,
+          sistema,
+          sistemaIndex,
+          title: sistema.sistemaName,
+          description: sistema.description,
+          environments,
+          selectedProducts: systemProducts,
+          totalValue: systemProducts.reduce((sum, product) => sum + product.total, 0),
+          totalItems: systemProducts.reduce(
+            (sum, product) => sum + (product.quantity || 0),
+            0,
+          ),
+          activeLines: systemProducts.filter(
+            (product) => product.status !== "inactive",
+          ).length,
+          visibleLines: environments.reduce(
+            (sum, environment) => sum + environment.visibleProducts.length,
+            0,
+          ),
+        };
+      }),
+    [hideZeroQtyByEnvironment, selectedProducts, selectedSistemas],
+  );
+
+  const activeSystemSummary = React.useMemo(
+    () =>
+      systemSummaries.find((summary) => summary.key === activeSystemKey) ??
+      systemSummaries[0] ??
+      null,
+    [activeSystemKey, systemSummaries],
+  );
+
+  const totalEnvironmentCount = systemSummaries.reduce(
+    (sum, system) => sum + system.environments.length,
+    0,
+  );
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
-        <MobileMetric label="Solucoes" value={`${selectedSistemas.length}`} hint="sistemas configurados" accent="sky" />
-        <MobileMetric label="Itens" value={`${totalItems}`} hint="somando todos os ambientes" accent="emerald" />
-        <MobileMetric label="Valor" value={formatCurrency(totalValue)} hint={`${formatCurrency(totalProfit)} de lucro`} accent="amber" className="col-span-2" />
+        <MobileMetric
+          label="Solucoes"
+          value={`${selectedSistemas.length}`}
+          hint="solucoes configuradas"
+          accent="sky"
+        />
+        <MobileMetric
+          label="Ambientes"
+          value={`${totalEnvironmentCount}`}
+          hint={`${totalItems} item(ns) em edicao`}
+          accent="emerald"
+        />
+        <MobileMetric
+          label="Valor"
+          value={formatCurrency(totalValue)}
+          hint={`${formatCurrency(totalProfit)} de lucro`}
+          accent="amber"
+          className="col-span-2"
+        />
       </div>
 
       <MobilePanel
-        eyebrow="Automacao no celular"
-        title="Solucoes, ambientes e itens"
-        description="A leitura fica enxuta no canvas principal. As acoes detalhadas entram em modais para manter tudo acessivel sem comprimir a tela."
+        title="Solucoes da proposta"
+        description="Selecione a solucao ativa, troque o ambiente e ajuste os itens mantendo o mesmo conjunto de acoes do fluxo completo."
         icon={Cpu}
         tone="accent"
+        bodyClassName="space-y-5"
       >
-        <div className="rounded-[24px] border border-border/60 bg-background/70 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Resumo rapido</p>
-              <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">
-                {selectedSistemas.length} sistema(s) / {visibleProducts.length} linha(s)
-              </p>
-            </div>
-            <Button type="button" variant="outline" className="min-h-11 rounded-2xl" onClick={() => setIsManagerOpen(true)}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm text-foreground [overflow-wrap:anywhere]">
+              {activeSystemSummary
+                ? `${activeSystemSummary.title} / ${activeSystemSummary.environments.length} ambiente(s)`
+                : "Adicione a primeira solucao para comecar a estruturar a proposta."}
+            </p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+              Produtos, ajustes financeiros por item, ocultacao no PDF, itens extras e remocoes continuam disponiveis.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:w-[230px]">
+            <Button
+              type="button"
+              className="min-h-11 rounded-2xl"
+              onClick={() => setIsAddSystemOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar solucao
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 rounded-2xl"
+              onClick={() => setIsManagerOpen(true)}
+            >
               <Settings2 className="mr-2 h-4 w-4" />
               Gerenciar base
             </Button>
@@ -303,82 +412,214 @@ export function ProposalSystemsMobileSection({
         {selectedSistemas.length === 0 ? (
           <MobileEmptyState
             title="Nenhuma solucao adicionada"
-            description="Adicione sistemas com ambientes para montar a proposta de automacao."
+            description="Abra o seletor para adicionar sistemas com ambientes e montar a automacao sem poluir a interface."
           />
         ) : (
-          <div className="space-y-3">
-            {selectedSistemas.map((sistema, sistemaIndex) => {
-              const systemKey = getSystemKey(sistema, sistemaIndex);
-              const ambientesDoSistema = getSystemAmbientes(sistema);
-              const environmentIds = ambientesDoSistema.map((ambiente) =>
-                getEnvironmentInstanceId(sistema, ambiente.ambienteId),
-              );
-              const systemProducts = selectedProducts.filter(
-                (product) =>
-                  product.systemInstanceId &&
-                  environmentIds.includes(product.systemInstanceId),
-              );
-              const fallbackInstanceId = `${sistema.sistemaId}-${getPrimaryAmbiente(sistema)?.ambienteId || ""}`;
+          <div className="space-y-4">
+            <div className="rounded-[24px] border border-border/60 bg-background/75 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Solucoes
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Escolha a solucao para abrir a estrutura completa dela logo abaixo.
+                  </p>
+                </div>
+                <span className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  {selectedSistemas.length} ativa(s)
+                </span>
+              </div>
 
-              return (
-                <SystemCard
-                  key={systemKey}
-                  sistema={sistema}
-                  sistemaIndex={sistemaIndex}
-                  primaryColor={primaryColor}
-                  isOpen={openSystemKeys.includes(systemKey)}
-                  selectedProducts={systemProducts}
-                  productsCatalog={products}
-                  openEnvironmentKeys={openEnvironmentKeys}
-                  hideZeroQtyByEnvironment={hideZeroQtyByEnvironment}
-                  onToggleSystem={() =>
-                    setOpenSystemKeys((current) =>
-                      current.includes(systemKey)
-                        ? current.filter((value) => value !== systemKey)
-                        : [...current, systemKey],
-                    )
-                  }
-                  onToggleEnvironment={(environmentKey) =>
-                    setOpenEnvironmentKeys((current) =>
-                      current.includes(environmentKey)
-                        ? current.filter((value) => value !== environmentKey)
-                        : [...current, environmentKey],
-                    )
-                  }
-                  onToggleHideZeroQty={handleToggleHideZeroQtyByEnvironment}
-                  onRemoveSystem={() => onRemoveSystem(sistemaIndex, fallbackInstanceId)}
-                  onUpdateProductQuantity={onUpdateProductQuantity}
-                  onUpdateProductMarkup={onUpdateProductMarkup}
-                  onUpdateProductPrice={onUpdateProductPrice}
-                  onAddExtraProductToSystem={onAddExtraProductToSystem}
-                  onRemoveProduct={onRemoveProduct}
-                  onToggleStatus={onToggleStatus}
-                  onRemoveAmbiente={onRemoveAmbiente}
+              <div className="-mx-1 mt-4 overflow-x-auto pb-1">
+                <div className="flex gap-2 px-1">
+                  {systemSummaries.map((system, index) => {
+                    const isActive = system.key === activeSystemSummary?.key;
+
+                    return (
+                      <button
+                        key={system.key}
+                        type="button"
+                        onClick={() => setActiveSystemKey(system.key)}
+                        className={`min-h-[124px] min-w-[228px] shrink-0 rounded-[26px] border px-4 py-3 text-left transition-all ${
+                          isActive
+                            ? "shadow-[0_24px_60px_-38px_rgba(15,23,42,0.48)]"
+                            : "border-border/60 bg-background/75"
+                        }`}
+                        style={
+                          isActive
+                            ? {
+                                borderColor: `${primaryColor}42`,
+                                background: `linear-gradient(145deg, ${primaryColor}16, rgba(255,255,255,0.95) 78%)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                                isActive
+                                  ? "bg-white/85 text-slate-700"
+                                  : "bg-background text-muted-foreground"
+                              }`}
+                            >
+                              Solucao {index + 1}
+                            </span>
+                            <p className="mt-2 text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                              {system.title}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+                              {system.environments.length} ambiente(s) / {system.activeLines} linha(s) ativa(s)
+                            </p>
+                          </div>
+
+                          {isActive ? (
+                            <div
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
+                              style={{ backgroundColor: `${primaryColor}18` }}
+                            >
+                              <Cpu className="h-4 w-4" style={{ color: primaryColor }} />
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <MetricChip label="Qtd" value={`${system.totalItems}`} />
+                          <MetricChip
+                            label="Valor"
+                            value={formatCurrency(system.totalValue)}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
+                <MetricChip
+                  label="Linhas ativas"
+                  value={`${activeSystemSummary?.activeLines ?? 0}`}
                 />
-              );
-            })}
+                <MetricChip
+                  label="Ambientes"
+                  value={`${activeSystemSummary?.environments.length ?? 0}`}
+                />
+                <MetricChip
+                  label="Valor da solucao"
+                  value={formatCurrency(activeSystemSummary?.totalValue ?? 0)}
+                  className="col-span-2"
+                />
+              </div>
+            </div>
+
+            {activeSystemSummary ? (
+              <SystemWorkspace
+                system={activeSystemSummary}
+                productsCatalog={products}
+                primaryColor={primaryColor}
+                onToggleHideZeroQty={handleToggleHideZeroQtyByEnvironment}
+                onRemoveSystem={() =>
+                  onRemoveSystem(
+                    activeSystemSummary.sistemaIndex,
+                    `${activeSystemSummary.sistema.sistemaId}-${getPrimaryAmbiente(activeSystemSummary.sistema)?.ambienteId || ""}`,
+                  )
+                }
+                onUpdateProductQuantity={onUpdateProductQuantity}
+                onUpdateProductMarkup={onUpdateProductMarkup}
+                onUpdateProductPrice={onUpdateProductPrice}
+                onAddExtraProductToSystem={onAddExtraProductToSystem}
+                onRemoveProduct={onRemoveProduct}
+                onToggleStatus={onToggleStatus}
+                onRemoveAmbiente={onRemoveAmbiente}
+              />
+            ) : null}
           </div>
         )}
       </MobilePanel>
 
-      <MobilePanel
-        eyebrow="Expansao"
-        title="Adicionar outra solucao"
-        description="O seletor continua disponivel no mobile para inserir novos sistemas sem sair do fluxo."
-        icon={Box}
-      >
-        <SistemaSelectorComponent
-          key={selectorKey}
-          onChange={(value) => value && onAddNewSystem(value)}
-          onDataUpdate={onDataUpdate}
-          resetAmbienteAfterSelect={true}
-          onAmbienteAction={onAmbienteAction}
-          onSistemaAction={onSistemaAction}
-          sistemas={sistemas}
-          ambientes={ambientes}
-          selectedSistemas={selectedSistemas}
-        />
-      </MobilePanel>
+      <Dialog open={isAddSystemOpen} onOpenChange={setIsAddSystemOpen}>
+        <DialogContent
+          variant="sheet"
+          className={MOBILE_DIALOG_SHEET_CLASSNAME}
+          hideCloseButton
+          allowOverflow
+        >
+          <div className="flex w-full max-h-full min-h-0 flex-1 flex-col overflow-visible">
+            <div className="border-b border-border/60 px-4 pb-2.5 pt-2">
+              <div className="mx-auto mb-2 h-1.5 w-12 rounded-full bg-border/70 sm:hidden" />
+              <div className="flex items-start justify-between gap-3">
+                <DialogHeader className="min-w-0 text-left">
+                  <DialogTitle className="text-base">Adicionar solucao</DialogTitle>
+                  <DialogDescription className="[overflow-wrap:anywhere]">
+                    Escolha sistema e ambiente em um sheet dedicado para adicionar a nova estrutura sem baguncar o restante da proposta.
+                  </DialogDescription>
+                </DialogHeader>
+                <button
+                  type="button"
+                  onClick={() => setIsAddSystemOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label="Fechar modal"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 w-full flex-1 overflow-visible px-4 py-2.5">
+              <div className="w-full space-y-2.5">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2.5">
+                  <MetricChip label="Solucoes" value={`${selectedSistemas.length}`} />
+                  <MetricChip
+                    label="Ambientes"
+                    value={`${totalEnvironmentCount}`}
+                  />
+                  <MetricChip
+                    label="Valor atual"
+                    value={formatCurrency(totalValue)}
+                    className="col-span-2"
+                  />
+                </div>
+
+                <div className="rounded-[24px] border border-border/60 bg-background/75 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/12 text-sky-700 dark:text-sky-300">
+                      <Box className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        Inserir nova solucao
+                      </p>
+                      <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+                        O seletor abaixo adiciona a nova combinacao de sistema e ambiente sem atrapalhar a leitura do restante da proposta.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <SistemaSelectorComponent
+                      key={selectorKey}
+                      onChange={(value) => {
+                        if (!value) return;
+                        onAddNewSystem(value);
+                        setIsAddSystemOpen(false);
+                      }}
+                      onDataUpdate={onDataUpdate}
+                      resetAmbienteAfterSelect={true}
+                      onAmbienteAction={onAmbienteAction}
+                      onSistemaAction={onSistemaAction}
+                      sistemas={sistemas}
+                      ambientes={ambientes}
+                      selectedSistemas={selectedSistemas}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <SystemEnvironmentManagerDialog
         isOpen={isManagerOpen}
@@ -399,17 +640,39 @@ export function ProposalSystemsMobileSection({
   );
 }
 
-interface SystemCardProps {
+interface EnvironmentSummary {
+  key: string;
+  ambienteId: string;
+  title: string;
+  description?: string;
+  selectedProducts: ProposalProduct[];
+  visibleProducts: ProposalProduct[];
+  hiddenProductsCount: number;
+  totalValue: number;
+  totalItems: number;
+  activeLines: number;
+  visibleQuantity: number;
+  hideZeroQty: boolean;
+}
+
+interface SystemSummary {
+  key: string;
   sistema: ProposalSistema;
   sistemaIndex: number;
-  primaryColor: string;
-  isOpen: boolean;
+  title: string;
+  description?: string;
+  environments: EnvironmentSummary[];
   selectedProducts: ProposalProduct[];
+  totalValue: number;
+  totalItems: number;
+  activeLines: number;
+  visibleLines: number;
+}
+
+interface SystemWorkspaceProps {
+  system: SystemSummary;
+  primaryColor: string;
   productsCatalog: Array<Product | Service>;
-  openEnvironmentKeys: string[];
-  hideZeroQtyByEnvironment: Record<string, boolean>;
-  onToggleSystem: () => void;
-  onToggleEnvironment: (environmentKey: string) => void;
   onToggleHideZeroQty: (environmentKey: string, checked: boolean) => void;
   onRemoveSystem: () => void;
   onUpdateProductQuantity: (
@@ -449,17 +712,10 @@ interface SystemCardProps {
   onRemoveAmbiente: (sistemaIndex: number, ambienteId: string) => void;
 }
 
-function SystemCard({
-  sistema,
-  sistemaIndex,
+function SystemWorkspace({
+  system,
   primaryColor,
-  isOpen,
-  selectedProducts,
   productsCatalog,
-  openEnvironmentKeys,
-  hideZeroQtyByEnvironment,
-  onToggleSystem,
-  onToggleEnvironment,
   onToggleHideZeroQty,
   onRemoveSystem,
   onUpdateProductQuantity,
@@ -469,17 +725,7 @@ function SystemCard({
   onRemoveProduct,
   onToggleStatus,
   onRemoveAmbiente,
-}: SystemCardProps) {
-  const ambientesDoSistema = getSystemAmbientes(sistema);
-  const totalValue = selectedProducts.reduce((sum, product) => sum + product.total, 0);
-  const totalItems = selectedProducts.reduce(
-    (sum, product) => sum + (product.quantity || 0),
-    0,
-  );
-  const activeLines = selectedProducts.filter(
-    (product) => product.status !== "inactive",
-  ).length;
-
+}: SystemWorkspaceProps) {
   return (
     <div
       className="overflow-hidden rounded-[28px] border bg-card shadow-[0_18px_60px_-42px_rgba(15,23,42,0.45)]"
@@ -492,7 +738,7 @@ function SystemCard({
           background: `linear-gradient(135deg, ${primaryColor}14, transparent 72%)`,
         }}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex items-start gap-3">
           <div
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
             style={{ backgroundColor: `${primaryColor}18` }}
@@ -500,151 +746,125 @@ function SystemCard({
             <Cpu className="h-5 w-5" style={{ color: primaryColor }} />
           </div>
 
-          <button
-            type="button"
-            onClick={onToggleSystem}
-            className="min-w-0 flex-1 text-left"
-          >
-            <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-base font-semibold leading-6 text-foreground [overflow-wrap:anywhere]">
-                  {sistema.sistemaName}
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Solucao em foco
+                </p>
+                <p className="mt-1 text-base font-semibold leading-6 text-foreground [overflow-wrap:anywhere]">
+                  {system.title}
                 </p>
                 <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                  {sistema.description || "Sem descricao cadastrada para este sistema."}
+                  {system.description || "Sem descricao cadastrada para este sistema."}
                 </p>
               </div>
 
-              {isOpen ? (
-                <ChevronUp className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 rounded-2xl border-destructive/20 text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive sm:shrink-0"
+                onClick={onRemoveSystem}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remover solucao
+              </Button>
             </div>
-          </button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 shrink-0 rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={onRemoveSystem}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {ambientesDoSistema.map((ambiente) => (
-            <span
-              key={`${sistema.sistemaId}-${ambiente.ambienteId}`}
-              className="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]"
-              style={{
-                borderColor: `${primaryColor}30`,
-                color: primaryColor,
-                backgroundColor: `${primaryColor}12`,
-              }}
-            >
-              {ambiente.ambienteName}
-            </span>
-          ))}
+          <span
+            className="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]"
+            style={{
+              borderColor: `${primaryColor}30`,
+              color: primaryColor,
+              backgroundColor: `${primaryColor}12`,
+            }}
+          >
+            {system.environments.length} ambiente(s)
+          </span>
         </div>
 
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
-          <MetricChip label="Ambientes" value={`${ambientesDoSistema.length}`} />
-          <MetricChip label="Linhas ativas" value={`${activeLines}`} />
+          <MetricChip label="Ambientes" value={`${system.environments.length}`} />
+          <MetricChip label="Linhas ativas" value={`${system.activeLines}`} />
           <MetricChip
             label="Valor final"
-            value={formatCurrency(totalValue)}
+            value={formatCurrency(system.totalValue)}
             className="col-span-2"
           />
           <MetricChip
             label="Quantidade"
-            value={`${totalItems} unidade(s)`}
+            value={`${system.totalItems} unidade(s)`}
             className="col-span-2"
           />
         </div>
       </div>
 
-      {isOpen ? (
-        <div className="space-y-3 px-4 py-4">
-          {ambientesDoSistema.map((ambiente) => {
-            const environmentInstanceId = getEnvironmentInstanceId(
-              sistema,
-              ambiente.ambienteId,
-            );
-            const environmentProducts = selectedProducts
-              .filter((product) => product.systemInstanceId === environmentInstanceId)
-              .sort((a, b) => compareDisplayText(a.productName, b.productName));
-            const hideZeroQty = !!hideZeroQtyByEnvironment[environmentInstanceId];
-            const visibleEnvironmentProducts = hideZeroQty
-              ? environmentProducts.filter(
-                  (product) => Number(product.quantity || 0) !== 0,
-                )
-              : environmentProducts;
+      <div className="space-y-4 px-4 py-4">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-background/90">
+              <Layers3 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Ambientes
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Estrutura completa da solucao selecionada
+              </p>
+            </div>
+          </div>
+        </div>
 
-            return (
-              <EnvironmentEditor
-                key={environmentInstanceId}
-                title={ambiente.ambienteName || "Ambiente"}
-                description={ambiente.description}
-                systemName={sistema.sistemaName}
+        {system.environments.length > 0 ? (
+          <div className="space-y-4">
+            {system.environments.map((environment, index) => (
+              <EnvironmentWorkspace
+                key={environment.key}
+                environment={environment}
+                environmentIndex={index}
+                system={system}
+                primaryColor={primaryColor}
                 productsCatalog={productsCatalog}
-                selectedProducts={environmentProducts}
-                visibleProducts={visibleEnvironmentProducts}
-                isOpen={openEnvironmentKeys.includes(environmentInstanceId)}
-                hideZeroQty={hideZeroQty}
-                hiddenProductsCount={
-                  environmentProducts.length - visibleEnvironmentProducts.length
-                }
-                onToggleOpen={() => onToggleEnvironment(environmentInstanceId)}
                 onToggleHideZeroQty={(checked) =>
-                  onToggleHideZeroQty(environmentInstanceId, checked)
+                  onToggleHideZeroQty(environment.key, checked)
                 }
                 onDeleteEnvironment={() =>
-                  onRemoveAmbiente(sistemaIndex, ambiente.ambienteId || "")
+                  onRemoveAmbiente(system.sistemaIndex, environment.ambienteId)
                 }
                 onUpdateProductQuantity={(productId, delta, itemType) =>
-                  onUpdateProductQuantity(
-                    productId,
-                    delta,
-                    environmentInstanceId,
-                    itemType,
-                  )
+                  onUpdateProductQuantity(productId, delta, environment.key, itemType)
                 }
                 onUpdateProductMarkup={(productId, markup, itemType) =>
-                  onUpdateProductMarkup(
-                    productId,
-                    markup,
-                    environmentInstanceId,
-                    itemType,
-                  )
+                  onUpdateProductMarkup(productId, markup, environment.key, itemType)
                 }
                 onUpdateProductPrice={(productId, newPrice, itemType) =>
-                  onUpdateProductPrice(
-                    productId,
-                    newPrice,
-                    environmentInstanceId,
-                    itemType,
-                  )
+                  onUpdateProductPrice(productId, newPrice, environment.key, itemType)
                 }
                 onRemoveProduct={(productId, itemType) =>
-                  onRemoveProduct(productId, environmentInstanceId, itemType)
+                  onRemoveProduct(productId, environment.key, itemType)
                 }
                 onAddExtraProduct={(product) =>
                   onAddExtraProductToSystem(
                     product,
-                    sistemaIndex,
-                    environmentInstanceId,
+                    system.sistemaIndex,
+                    environment.key,
                   )
                 }
                 onToggleStatus={onToggleStatus}
-                environmentInstanceId={environmentInstanceId}
               />
-            );
-          })}
-        </div>
-      ) : null}
+            ))}
+          </div>
+        ) : (
+          <MobileEmptyState
+            title="Nenhum ambiente disponivel"
+            description="Adicione um ambiente a esta solucao para liberar a edicao de itens."
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -672,17 +892,12 @@ function MetricChip({
   );
 }
 
-interface EnvironmentEditorProps {
-  title: string;
-  description?: string;
-  systemName: string;
+interface EnvironmentWorkspaceProps {
+  system: SystemSummary;
+  environment: EnvironmentSummary;
+  environmentIndex: number;
+  primaryColor: string;
   productsCatalog: Array<Product | Service>;
-  selectedProducts: ProposalProduct[];
-  visibleProducts: ProposalProduct[];
-  isOpen: boolean;
-  hideZeroQty: boolean;
-  hiddenProductsCount: number;
-  onToggleOpen: () => void;
   onToggleHideZeroQty: (checked: boolean) => void;
   onDeleteEnvironment: () => void;
   onUpdateProductQuantity: (
@@ -711,20 +926,14 @@ interface EnvironmentEditorProps {
     systemInstanceId?: string,
     itemType?: "product" | "service",
   ) => Promise<void>;
-  environmentInstanceId: string;
 }
 
-function EnvironmentEditor({
-  title,
-  description,
-  systemName,
+function EnvironmentWorkspace({
+  system,
+  environment,
+  environmentIndex,
+  primaryColor,
   productsCatalog,
-  selectedProducts,
-  visibleProducts,
-  isOpen,
-  hideZeroQty,
-  hiddenProductsCount,
-  onToggleOpen,
   onToggleHideZeroQty,
   onDeleteEnvironment,
   onUpdateProductQuantity,
@@ -733,159 +942,154 @@ function EnvironmentEditor({
   onRemoveProduct,
   onAddExtraProduct,
   onToggleStatus,
-  environmentInstanceId,
-}: EnvironmentEditorProps) {
+}: EnvironmentWorkspaceProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
-  const environmentTotal = selectedProducts.reduce(
-    (sum, product) => sum + product.total,
-    0,
-  );
-  const visibleQuantity = visibleProducts.reduce(
-    (sum, product) => sum + (product.quantity || 0),
-    0,
-  );
 
   return (
     <>
-      <div className="rounded-[24px] border border-border/60 bg-background/80 p-3">
+      <section
+        className="rounded-[24px] border bg-background/78 p-4 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.28)]"
+        style={{ borderColor: `${primaryColor}22` }}
+      >
         <div className="flex items-start gap-3">
-          <button
-            type="button"
-            onClick={onToggleOpen}
-            className="min-w-0 flex-1 text-left"
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: `${primaryColor}16` }}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Ambiente
-            </p>
-            <div className="mt-1 flex items-start justify-between gap-3">
+            <span
+              className="text-sm font-semibold"
+              style={{ color: primaryColor }}
+            >
+              {environmentIndex + 1}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-                  {title}
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Ambiente
+                </p>
+                <h4 className="mt-1 text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                  {environment.title}
                 </h4>
                 <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                  {description || "Sem descricao especifica para este ambiente."}
+                  {environment.description || "Sem descricao especifica para este ambiente."}
                 </p>
               </div>
-              {isOpen ? (
-                <ChevronUp className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-            </div>
-          </button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 shrink-0 rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={onDeleteEnvironment}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2">
-          <MetricChip label="Linhas" value={`${selectedProducts.length}`} />
-          <MetricChip label="Qtd visivel" value={`${visibleQuantity}`} />
-          <MetricChip
-            label="Valor do ambiente"
-            value={formatCurrency(environmentTotal)}
-            className="col-span-2"
-          />
-        </div>
-
-        <div className="mt-3 rounded-2xl border border-border/60 bg-background/70 p-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Visibilidade
-              </p>
-              <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">
-                {hideZeroQty
-                  ? hiddenProductsCount > 0
-                    ? `${hiddenProductsCount} item(ns) com quantidade zero ocultos`
-                    : "Sem itens com quantidade zero para ocultar"
-                  : "Todos os itens deste ambiente estao visiveis"}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3 py-2">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Ocultar qtd. 0
-              </span>
-              <Switch
-                checked={hideZeroQty}
-                onCheckedChange={onToggleHideZeroQty}
-              />
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 rounded-2xl border-destructive/20 text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive sm:shrink-0"
+                onClick={onDeleteEnvironment}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Remover ambiente
+              </Button>
             </div>
           </div>
         </div>
 
-        {isOpen ? (
-          <>
-            <div className="mt-3 space-y-2">
-              {visibleProducts.length === 0 ? (
-                <MobileEmptyState
-                  title={
-                    selectedProducts.length > 0 && hideZeroQty
-                      ? "Itens com quantidade zero ocultos"
-                      : "Sem itens neste ambiente"
-                  }
-                  description={
-                    selectedProducts.length > 0 && hideZeroQty
-                      ? "Desative o filtro para revisar todos os itens deste ambiente."
-                      : "Adicione produtos ou servicos extras para completar este ambiente."
-                  }
-                />
-              ) : (
-                visibleProducts.map((product, index) => (
-                  <ProductActionRow
-                    key={`${environmentInstanceId}-${product.productId}-${index}`}
-                    product={product}
-                    systemName={systemName}
-                    environmentName={title}
-                    environmentInstanceId={environmentInstanceId}
-                    onUpdateProductQuantity={onUpdateProductQuantity}
-                    onUpdateProductMarkup={onUpdateProductMarkup}
-                    onUpdateProductPrice={onUpdateProductPrice}
-                    onRemoveProduct={onRemoveProduct}
-                    onToggleStatus={onToggleStatus}
-                  />
-                ))
-              )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <MetricChip label="Linhas" value={`${environment.selectedProducts.length}`} />
+          <MetricChip label="Qtd visivel" value={`${environment.visibleQuantity}`} />
+          <MetricChip label="Valor" value={formatCurrency(environment.totalValue)} />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 rounded-[20px] border border-border/60 bg-background/68 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <span
+                className="rounded-full border bg-background/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]"
+                style={{ borderColor: `${primaryColor}24`, color: primaryColor }}
+              >
+                {system.title}
+              </span>
+              <span className="rounded-full border border-border/60 bg-background/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                {environment.activeLines} linha(s) ativa(s)
+              </span>
             </div>
 
-            <div className="mt-3 rounded-[22px] border border-dashed border-border/70 bg-background/70 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    Item extra
-                  </p>
-                  <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">
-                    Abra o catalogo dedicado para inserir produtos ou servicos sem poluir o card do ambiente.
-                  </p>
-                </div>
+            <p className="text-sm text-foreground [overflow-wrap:anywhere]">
+              {environment.hideZeroQty
+                ? environment.hiddenProductsCount > 0
+                  ? `${environment.hiddenProductsCount} item(ns) com quantidade zero estao ocultos nesta visualizacao.`
+                  : "Nenhum item com quantidade zero ficou escondido neste ambiente."
+                : "Todos os itens deste ambiente estao aparecendo na lista abaixo."}
+            </p>
+          </div>
 
-                <Button
-                  type="button"
-                  className="min-h-11 rounded-2xl"
-                  onClick={() => setIsAddDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Adicionar item
-                </Button>
-              </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3 py-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              Ocultar qtd. 0
+            </span>
+            <Switch
+              checked={environment.hideZeroQty}
+              onCheckedChange={onToggleHideZeroQty}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {environment.visibleProducts.length === 0 ? (
+            <MobileEmptyState
+              title={
+                environment.selectedProducts.length > 0 && environment.hideZeroQty
+                  ? "Itens com quantidade zero ocultos"
+                  : "Sem itens neste ambiente"
+              }
+              description={
+                environment.selectedProducts.length > 0 && environment.hideZeroQty
+                  ? "Desative o filtro para revisar todos os itens deste ambiente."
+                  : "Adicione produtos ou servicos extras para completar este ambiente."
+              }
+            />
+          ) : (
+            environment.visibleProducts.map((product, index) => (
+              <ProductActionRow
+                key={`${environment.key}-${product.productId}-${index}`}
+                product={product}
+                systemName={system.title}
+                environmentName={environment.title}
+                environmentInstanceId={environment.key}
+                onUpdateProductQuantity={onUpdateProductQuantity}
+                onUpdateProductMarkup={onUpdateProductMarkup}
+                onUpdateProductPrice={onUpdateProductPrice}
+                onRemoveProduct={onRemoveProduct}
+                onToggleStatus={onToggleStatus}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 rounded-[22px] border border-dashed border-border/70 bg-background/70 p-3.5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Item extra
+              </p>
+              <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">
+                O catalogo dedicado continua disponivel, mas agora entra como acao do ambiente em foco em vez de abrir mais um bloco no fluxo.
+              </p>
             </div>
-          </>
-        ) : null}
-      </div>
+
+            <Button
+              type="button"
+              className="min-h-11 rounded-2xl"
+              onClick={() => setIsAddDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar item
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <AddExtraItemDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         productsCatalog={productsCatalog}
-        selectedProducts={selectedProducts}
+        selectedProducts={environment.selectedProducts}
         onAddExtraProduct={onAddExtraProduct}
       />
     </>
@@ -1322,7 +1526,7 @@ function AddExtraItemDialog({
               <DialogHeader className="min-w-0 text-left">
                 <DialogTitle className="text-base">Adicionar item extra</DialogTitle>
                 <DialogDescription>
-                  O mobile abre um catalogo dedicado para voce inserir o item certo sem esmagar a interface do ambiente.
+                  Abra o catalogo dedicado para inserir o item certo sem sobrecarregar a area principal do ambiente.
                 </DialogDescription>
               </DialogHeader>
               <button

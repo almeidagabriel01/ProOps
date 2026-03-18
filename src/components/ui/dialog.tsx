@@ -34,20 +34,21 @@ type DialogContentProps = React.ComponentPropsWithoutRef<
 > & {
     hideCloseButton?: boolean
     variant?: "centered" | "sheet"
+    allowOverflow?: boolean
 }
 
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     DialogContentProps
->(({ className, children, hideCloseButton = false, variant = "centered", ...props }, ref) => (
+>(({ className, children, hideCloseButton = false, variant = "centered", allowOverflow = false, ...props }, ref) => (
     <DialogPortal>
         <DialogOverlay />
         <DialogPrimitive.Content
             ref={ref}
             className={cn(
                 variant === "centered"
-                    ? "dialog-scroll-fix fixed left-[50%] top-[50%] z-50 grid box-border w-[calc(100vw-1.5rem)] max-w-lg max-h-[calc(100dvh-1.5rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-hidden border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full sm:rounded-lg"
-                    : "dialog-scroll-fix fixed z-50 flex flex-col box-border overflow-hidden border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+                    ? `dialog-scroll-fix fixed left-[50%] top-[50%] z-50 grid box-border w-[calc(100vw-1.5rem)] max-w-lg max-h-[calc(100dvh-1.5rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:w-full sm:rounded-lg ${allowOverflow ? "overflow-visible" : "overflow-hidden"}`
+                    : `dialog-scroll-fix fixed z-50 flex flex-col box-border border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 ${allowOverflow ? "overflow-visible" : "overflow-hidden"}`,
                 className
             )}
             {...props}
