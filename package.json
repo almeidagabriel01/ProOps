@@ -34,6 +34,7 @@
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "exceljs": "^4.4.0",
     "firebase": "^12.6.0",
     "firebase-admin": "^12.7.0",
     "gsap": "^3.14.2",
@@ -48,7 +49,8 @@
     "sileo": "^0.1.5",
     "stripe": "^20.0.0",
     "tailwind-merge": "^3.4.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -70,4 +72,3 @@
     "minimatch": "10.2.1"
   }
 }
-

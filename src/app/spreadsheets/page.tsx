@@ -1,10 +1,23 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+} from "react";
 import { normalize } from "@/utils/text";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Edit, Trash2, FileSpreadsheet } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  FileSpreadsheet,
+  Upload,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -32,6 +45,10 @@ import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { SpreadsheetsSkeleton } from "./_components/spreadsheets-skeleton";
 import { SpreadsheetsTableSkeleton } from "./_components/spreadsheets-table-skeleton";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import {
+  importExcelFileToSpreadsheetData,
+  SUPPORTED_SPREADSHEET_ACCEPT,
+} from "@/lib/spreadsheet-import";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -43,11 +60,13 @@ export default function SpreadsheetsPage() {
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [hasAnySheets, setHasAnySheets] = useState<boolean | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isFiltering = searchTerm.trim() !== "";
 
@@ -57,22 +76,29 @@ export default function SpreadsheetsPage() {
     sortConfig,
   } = useSort(allSpreadsheets ?? []);
 
+  const refreshHasAnySheets = useCallback(async () => {
+    if (!tenant) {
+      return false;
+    }
+
+    try {
+      const result = await SpreadsheetService.getSpreadsheetsPaginated(
+        tenant.id,
+        1,
+      );
+      const hasSheets = result.data.length > 0;
+      setHasAnySheets(hasSheets);
+      return hasSheets;
+    } catch {
+      setHasAnySheets(false);
+      return false;
+    }
+  }, [tenant]);
+
   // Check if we have any spreadsheets (for empty state)
   useEffect(() => {
-    const check = async () => {
-      if (!tenant) return;
-      try {
-        const result = await SpreadsheetService.getSpreadsheetsPaginated(
-          tenant.id,
-          1,
-        );
-        setHasAnySheets(result.data.length > 0);
-      } catch {
-        setHasAnySheets(false);
-      }
-    };
-    check();
-  }, [tenant]);
+    void refreshHasAnySheets();
+  }, [refreshHasAnySheets]);
 
   // Fetch all spreadsheets when searching
   useEffect(() => {
@@ -143,17 +169,65 @@ export default function SpreadsheetsPage() {
     }
   };
 
+  const handleImportClick = () => {
+    if (importing) {
+      return;
+    }
+
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!tenant || !file) {
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const importedSpreadsheet =
+        await importExcelFileToSpreadsheetData(file);
+      const newId = await SpreadsheetService.createSpreadsheet({
+        tenantId: tenant.id,
+        name: importedSpreadsheet.name,
+        data: importedSpreadsheet.data,
+      });
+
+      toast.success("Planilha importada com sucesso!");
+      router.push(`/spreadsheets/${newId}`);
+    } catch (error) {
+      console.error("Error importing spreadsheet:", error);
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Erro ao importar planilha",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteId) return;
+    const spreadsheetId = deleteId;
     setIsDeleting(true);
     try {
-      await SpreadsheetService.deleteSpreadsheet(deleteId);
-      resetRef.current?.();
-      setHasAnySheets(null);
-      if (allSpreadsheets) {
-        setAllSpreadsheets(
-          (prev) => prev?.filter((s) => s.id !== deleteId) ?? null,
-        );
+      await SpreadsheetService.deleteSpreadsheet(spreadsheetId);
+      setAllSpreadsheets(
+        (prev) => prev?.filter((sheet) => sheet.id !== spreadsheetId) ?? prev,
+      );
+
+      const hasRemainingSheets = await refreshHasAnySheets();
+
+      if (!hasRemainingSheets) {
+        setAllSpreadsheets([]);
+      } else {
+        resetRef.current?.();
       }
       toast.success("Planilha excluída com sucesso");
       setDeleteId(null);
@@ -243,6 +317,13 @@ export default function SpreadsheetsPage() {
   return (
     <>
       {showSkeleton && <SpreadsheetsSkeleton />}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={SUPPORTED_SPREADSHEET_ACCEPT}
+        className="hidden"
+        onChange={handleImportFileChange}
+      />
       <div
         className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
         style={{ display: showSkeleton ? "none" : "flex" }}
@@ -254,19 +335,35 @@ export default function SpreadsheetsPage() {
               Crie e gerencie suas planilhas personalizadas.
             </p>
           </div>
-          <Button
-            size="lg"
-            className="gap-2"
-            onClick={handleCreate}
-            disabled={creating}
-          >
-            {creating ? (
-              <Spinner className="w-4 h-4" />
-            ) : (
-              <Plus className="w-5 h-5" />
-            )}
-            Nova Planilha
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2"
+              onClick={handleImportClick}
+              disabled={creating || importing}
+            >
+              {importing ? (
+                <Spinner className="w-4 h-4" />
+              ) : (
+                <Upload className="w-5 h-5" />
+              )}
+              {importing ? "Importando..." : "Importar Planilha"}
+            </Button>
+            <Button
+              size="lg"
+              className="gap-2"
+              onClick={handleCreate}
+              disabled={creating || importing}
+            >
+              {creating ? (
+                <Spinner className="w-4 h-4" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+              Nova Planilha
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
@@ -299,18 +396,33 @@ export default function SpreadsheetsPage() {
               <p className="text-muted-foreground text-center mb-6 max-w-md">
                 Crie sua primeira planilha para organizar seus dados.
               </p>
-              <Button
-                className="gap-2"
-                onClick={handleCreate}
-                disabled={creating}
-              >
-                {creating ? (
-                  <Spinner className="w-4 h-4" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                Criar Primeira Planilha
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleImportClick}
+                  disabled={creating || importing}
+                >
+                  {importing ? (
+                    <Spinner className="w-4 h-4" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  {importing ? "Importando..." : "Importar Planilha"}
+                </Button>
+                <Button
+                  className="gap-2"
+                  onClick={handleCreate}
+                  disabled={creating || importing}
+                >
+                  {creating ? (
+                    <Spinner className="w-4 h-4" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  Criar Primeira Planilha
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : isFiltering &&
@@ -377,7 +489,10 @@ export default function SpreadsheetsPage() {
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDelete();
+              }}
               className="bg-destructive hover:bg-destructive/90 gap-2"
               disabled={isDeleting}
             >
