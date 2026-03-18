@@ -1,17 +1,26 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil } from "lucide-react";
+import {
+  type InventoryDefinition,
+  formatInventoryValue,
+  parseInventoryValue,
+} from "@/lib/niches/config";
 
-export function StockEditableCell({
-  initialValue,
-  onUpdate,
-  className,
-}: {
+interface InventoryEditableCellProps {
   initialValue: number;
   onUpdate: (newValue: string) => Promise<boolean>;
+  inventory: InventoryDefinition;
   className?: string;
-}) {
+}
+
+export function InventoryEditableCell({
+  initialValue,
+  onUpdate,
+  inventory,
+  className,
+}: InventoryEditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(String(initialValue));
   const [isLoading, setIsLoading] = useState(false);
@@ -39,12 +48,10 @@ export function StockEditableCell({
       if (success) {
         setIsEditing(false);
       } else {
-        // Revert on failure
         setValue(String(initialValue));
-        // Toast is likely handled by the parent/hook, but good to ensure
       }
     } catch (error) {
-      console.error("Failed to update stock:", error);
+      console.error("Failed to update inventory value:", error);
       setValue(String(initialValue));
     } finally {
       setIsLoading(false);
@@ -75,7 +82,9 @@ export function StockEditableCell({
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
           disabled={isLoading}
-          className="h-8 w-20 text-center pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          min="0"
+          step={inventory.step}
+          className="h-8 w-24 text-center pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         {isLoading && (
           <div className="absolute right-[-24px]">
@@ -86,26 +95,28 @@ export function StockEditableCell({
     );
   }
 
-  const stockValue = parseFloat(value);
-  const isLowStock = stockValue < 10;
-  const isZeroStock = stockValue === 0;
+  const parsedValue = parseInventoryValue(value);
+  const isLowValue = parsedValue < inventory.lowValueThreshold;
+  const isZeroValue = parsedValue === 0;
 
   return (
     <div
       onClick={() => setIsEditing(true)}
       className={cn(
         "cursor-pointer hover:bg-muted/50 rounded px-2 py-1 transition-colors min-w-12 w-fit text-center select-none flex items-center justify-between gap-2 group",
-        isZeroStock
+        isZeroValue
           ? "text-destructive font-bold"
-          : isLowStock
+          : isLowValue
             ? "text-orange-500 font-medium"
             : "text-muted-foreground",
         className,
       )}
-      title="Clique para editar"
+      title={`Clique para editar ${inventory.readOnlyLabel.toLowerCase()}`}
     >
-      <span>{value}</span>
+      <span>{formatInventoryValue(parsedValue, inventory)}</span>
       <Pencil className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
     </div>
   );
 }
+
+export const StockEditableCell = InventoryEditableCell;

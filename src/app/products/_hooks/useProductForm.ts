@@ -17,6 +17,7 @@ import {
 } from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema, serviceSchema } from "@/lib/validations";
+import { getNicheConfig, parseInventoryValue } from "@/lib/niches/config";
 
 // Maximum file size: 5MB per image
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -28,7 +29,7 @@ export interface ProductFormData {
   markup: string;
   manufacturer?: string;
   category: string;
-  stock: string;
+  inventoryValue: string;
   status: string;
   image: File | null;
   images: File[];
@@ -49,7 +50,7 @@ function getInitialProductMarkup(
   return initialData.markup || fallbackValue;
 }
 
-function getInitialProductStock(
+function getInitialInventoryValue(
   initialData: CatalogItem | undefined,
   entityType: CatalogEntityType,
 ): string {
@@ -57,13 +58,14 @@ function getInitialProductStock(
     return "";
   }
 
-  return normalizeInitialStock(initialData.stock);
+  return normalizeInitialInventoryValue(
+    initialData.inventoryValue ?? initialData.stock,
+  );
 }
 
-function normalizeInitialStock(value: unknown): string {
+function normalizeInitialInventoryValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
-  const parsed =
-    typeof value === "number" ? value : Number(String(value).trim());
+  const parsed = parseInventoryValue(value);
   return Number.isFinite(parsed) ? String(parsed) : "";
 }
 
@@ -122,7 +124,7 @@ const buildProductFormSnapshot = (
       ? {
           markup: formData.markup,
           manufacturer: formData.manufacturer,
-          stock: formData.stock,
+          inventoryValue: formData.inventoryValue,
         }
       : {};
 
@@ -139,6 +141,7 @@ export function useProductForm(
 ): UseProductFormReturn {
   const router = useRouter();
   const { tenant } = useTenant();
+  const nicheConfig = React.useMemo(() => getNicheConfig(tenant?.niche), [tenant?.niche]);
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
   const { createProduct } = useProductActions();
   const { createService } = useServiceActions();
@@ -166,7 +169,7 @@ export function useProductForm(
         ? (initialData as Product).manufacturer
         : "",
     category: initialData?.category || "",
-    stock: getInitialProductStock(initialData, entityType),
+    inventoryValue: getInitialInventoryValue(initialData, entityType),
     status: initialData?.status || "active",
     image: null,
     images: [],
@@ -206,7 +209,7 @@ export function useProductForm(
               ? (initialData as Product).manufacturer
               : "",
           category: initialData?.category || "",
-          stock: getInitialProductStock(initialData, entityType),
+          inventoryValue: getInitialInventoryValue(initialData, entityType),
           status: initialData?.status || "active",
           image: null,
           images: [],
@@ -231,7 +234,7 @@ export function useProductForm(
             ? (initialData as Product).manufacturer
             : "",
         category: initialData.category || "",
-        stock: getInitialProductStock(initialData, entityType),
+        inventoryValue: getInitialInventoryValue(initialData, entityType),
         status: initialData.status || "active",
         image: null,
         images: [],
@@ -283,7 +286,7 @@ export function useProductForm(
             "markup",
             "manufacturer",
             "category",
-            "stock",
+            "inventoryValue",
             "status",
           ]
         : ["name", "description", "price", "category", "status"];
@@ -397,7 +400,7 @@ export function useProductForm(
             markup: formData.markup,
             manufacturer: formData.manufacturer,
             category: formData.category,
-            stock: formData.stock,
+            inventoryValue: formData.inventoryValue,
             status: formData.status as "active" | "inactive",
           }
         : {
@@ -432,7 +435,9 @@ export function useProductForm(
 
       // Combine existing URLs with newly uploaded ones
       const allImageUrls = [...imageUrls, ...uploadedUrls];
-      const normalizedStock = Number(formData.stock || 0);
+      const normalizedInventoryValue = parseInventoryValue(
+        formData.inventoryValue,
+      );
 
       // Delete removed images from Storage
       for (const url of removedUrls) {
@@ -457,7 +462,9 @@ export function useProductForm(
           ? {
               markup: formData.markup,
               manufacturer: formData.manufacturer,
-              stock: normalizedStock,
+              inventoryValue: normalizedInventoryValue,
+              inventoryUnit: nicheConfig.productCatalog.inventory.mode,
+              stock: normalizedInventoryValue,
             }
           : {};
       const dataToSave = { ...baseDataToSave, ...productOnlyData };
@@ -498,7 +505,9 @@ export function useProductForm(
             ? {
                 markup: formData.markup,
                 manufacturer: formData.manufacturer,
-                stock: normalizedStock,
+                inventoryValue: normalizedInventoryValue,
+                inventoryUnit: nicheConfig.productCatalog.inventory.mode,
+                stock: normalizedInventoryValue,
               }
             : {};
         const payload = { ...basePayload, ...productOnlyPayload };

@@ -38,6 +38,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
 import { compareDisplayText } from "@/lib/sort-text";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import { PageUnavailableState } from "@/components/shared/page-unavailable-state";
+import { getNicheConfig, isPageEnabledForNiche } from "@/lib/niches/config";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -363,6 +365,17 @@ export default function AutomationAdminPage() {
       setEditingSistemaId(editId);
     }
   }, [searchParams]);
+
+  if (!isPageEnabledForNiche(tenant?.niche, "solutions")) {
+    return (
+      <PageUnavailableState
+        title="Página indisponível para este nicho"
+        description={`O nicho ${getNicheConfig(tenant?.niche).label} não utiliza o módulo de soluções de automação.`}
+        ctaHref="/products"
+        ctaLabel="Ir para Catálogo"
+      />
+    );
+  }
 
   if (isLoading) {
     return <AutomationSkeleton />;

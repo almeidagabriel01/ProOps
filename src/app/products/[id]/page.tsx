@@ -7,11 +7,13 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { Loader2, Package, AlertCircle } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { ProductFormNew } from "../_components/product-form-new";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const nicheConfig = useCurrentNicheConfig();
   const {
     canEdit,
     canView,
@@ -92,7 +94,11 @@ export default function EditProductPage() {
   return (
     <FormContainer>
       <FormHeader
-        title={canEdit ? "Editar Produto" : "Visualizar Produto"}
+        title={
+          canEdit
+            ? nicheConfig.productCatalog.editTitle
+            : nicheConfig.productCatalog.viewTitle
+        }
         subtitle={
           canEdit
             ? `Atualize as informações de "${product.name}"`

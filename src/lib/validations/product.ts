@@ -29,12 +29,12 @@ export const productSchema = z.object({
     }, "Markup deve ser um percentual entre 0 e 1000"),
   manufacturer: z.string().min(1, "Fabricante é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  stock: z
+  inventoryValue: z
     .string()
     .optional()
     .refine((val) => {
       if (!val || val === "") return true;
-      const num = parseInt(val, 10);
+      const num = Number.parseFloat(val.replace(",", "."));
       return !isNaN(num) && num >= 0;
     }, "Estoque deve ser um número não negativo"),
   status: z.enum(["active", "inactive"]).default("active"),
@@ -68,6 +68,6 @@ export const productFieldSchemas = {
   markup: productSchema.shape.markup,
   manufacturer: productSchema.shape.manufacturer,
   category: productSchema.shape.category,
-  stock: productSchema.shape.stock,
+  inventoryValue: productSchema.shape.inventoryValue,
   status: productSchema.shape.status,
 };

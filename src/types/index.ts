@@ -1,9 +1,13 @@
 // Nichos disponíveis no sistema
-export type TenantNiche = "automacao_residencial" | "varejo";
+export type TenantNiche =
+  | "automacao_residencial"
+  | "varejo"
+  | "cortinas";
 
 export const NICHE_LABELS: Record<TenantNiche, string> = {
   automacao_residencial: "Automação Residencial",
   varejo: "Varejo",
+  cortinas: "Cortinas",
 };
 
 export type Tenant = {

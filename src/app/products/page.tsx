@@ -41,11 +41,19 @@ import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
 import { formatCurrency } from "@/utils/format";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import {
+  formatInventoryValue,
+  parseInventoryValue,
+} from "@/lib/niches/config";
+import { getProductInventoryValue } from "@/services/product-service";
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canDelete, canEdit } = usePagePermission("products");
+  const nicheConfig = useCurrentNicheConfig();
+  const inventoryConfig = nicheConfig.productCatalog.inventory;
   const [allProducts, setAllProducts] = useState<Product[] | null>(null);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [hasAnyProducts, setHasAnyProducts] = useState<boolean | null>(null);
@@ -61,29 +69,36 @@ export default function ProductsPage() {
     (totals, product) => {
       const unitCost = Number.parseFloat(product.price || "0");
       const markup = Number.parseFloat(product.markup || "0");
-      const stock = Number(product.stock || 0);
+      const inventoryValue = getProductInventoryValue(product);
       const sellingPrice = unitCost * (1 + markup / 100);
 
-      totals.cost += unitCost * stock;
-      totals.withMarkup += sellingPrice * stock;
+      totals.cost += unitCost * inventoryValue;
+      totals.withMarkup += sellingPrice * inventoryValue;
 
       return totals;
     },
     { cost: 0, withMarkup: 0 },
   );
 
-  const handleStockUpdate = async (product: Product, newStock: string) => {
-    const numericStock = parseInt(newStock, 10);
-    if (isNaN(numericStock)) return false;
+  const handleInventoryUpdate = async (product: Product, newValue: string) => {
+    const normalizedInventoryValue = parseInventoryValue(newValue);
+    if (Number.isNaN(normalizedInventoryValue)) return false;
 
     const success = await updateProduct(
       product.id,
       {
-        stock: numericStock,
+        inventoryValue: normalizedInventoryValue,
+        inventoryUnit: inventoryConfig.mode,
+        stock: normalizedInventoryValue,
       },
       {
         productName: product.name,
-        context: "stock",
+        context: "inventory",
+        contextLabel: inventoryConfig.readOnlyLabel,
+        formattedValue: formatInventoryValue(
+          normalizedInventoryValue,
+          inventoryConfig,
+        ),
       },
     );
 
@@ -93,7 +108,14 @@ export default function ProductsPage() {
         setAllProducts(
           (prev) =>
             prev?.map((p) =>
-              p.id === product.id ? { ...p, stock: numericStock } : p,
+              p.id === product.id
+                ? {
+                    ...p,
+                    inventoryValue: normalizedInventoryValue,
+                    inventoryUnit: inventoryConfig.mode,
+                    stock: normalizedInventoryValue,
+                  }
+                : p,
             ) ?? null,
         );
       }
@@ -267,13 +289,14 @@ export default function ProductsPage() {
       ),
     },
     {
-      key: "stock",
-      header: "Estoque",
+      key: "inventoryValue",
+      header: inventoryConfig.tableHeader,
       className: "col-span-2",
       render: (product) => (
         <StockEditableCell
-          initialValue={product.stock}
-          onUpdate={(val) => handleStockUpdate(product, val)}
+          initialValue={getProductInventoryValue(product)}
+          inventory={inventoryConfig}
+          onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
     },
@@ -290,6 +313,7 @@ export default function ProductsPage() {
               (parseFloat(product.price) * parseFloat(product.markup || "0")) /
                 100
             ).toFixed(2)}
+            {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
           </span>
           {product.markup && parseFloat(product.markup) > 0 && (
             <span className="text-xs text-muted-foreground">
@@ -390,7 +414,9 @@ export default function ProductsPage() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  {nicheConfig.productCatalog.pluralLabel}
+                </h1>
                 <p className="text-muted-foreground mt-1">
                   Gerencie o catálogo de produtos, estoque e preços.
                 </p>
@@ -400,7 +426,7 @@ export default function ProductsPage() {
                   <Link href="/products/new">
                     <Button size="lg" className="gap-2">
                       <Plus className="w-5 h-5" />
-                      Novo Produto
+                      {nicheConfig.productCatalog.newTitle}
                     </Button>
                   </Link>
                 </div>
@@ -412,7 +438,7 @@ export default function ProductsPage() {
                 <CardContent className="flex items-start justify-between gap-4 p-6">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Saldo de custo em estoque
+                      {inventoryConfig.costBalanceLabel}
                     </p>
                     <p className="text-3xl font-bold tracking-tight">
                       {allProducts === null && hasAnyProducts !== false ? (
@@ -435,7 +461,7 @@ export default function ProductsPage() {
                 <CardContent className="flex items-start justify-between gap-4 p-6">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">
-                      Saldo com markup em estoque
+                      {inventoryConfig.revenueBalanceLabel}
                     </p>
                     <p className="text-3xl font-bold tracking-tight">
                       {allProducts === null && hasAnyProducts !== false ? (
@@ -481,17 +507,16 @@ export default function ProductsPage() {
                     <Package className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">
-                    Nenhum produto cadastrado
+                    Nenhum {nicheConfig.productCatalog.singularLabel.toLowerCase()} cadastrado
                   </h3>
                   <p className="text-muted-foreground text-center mb-6 max-w-md">
-                    Cadastre seus produtos para gerenciar estoque e criar
-                    propostas.
+                    {inventoryConfig.emptyStateDescription}
                   </p>
                   {canCreate && (
                     <Link href="/products/new">
                       <Button className="gap-2">
                         <Plus className="w-4 h-4" />
-                        Cadastrar Primeiro Produto
+                        {nicheConfig.productCatalog.newTitle}
                       </Button>
                     </Link>
                   )}

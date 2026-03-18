@@ -8,11 +8,29 @@ import {
 } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
 
+const parseInventoryValue = (value: unknown): number => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = Number.parseFloat(value.replace(",", "."));
+    return Number.isFinite(normalized) ? normalized : 0;
+  }
+
+  return 0;
+};
+
 // Create Product
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const input = req.body;
+    const inventoryValue = parseInventoryValue(
+      input.inventoryValue ?? input.stock,
+    );
+    const inventoryUnit =
+      input.inventoryUnit === "meter" ? "meter" : "unit";
 
     if (!input.name || input.name.trim().length < 2) {
       return res.status(400).json({ message: "Nome inválido." });
@@ -88,7 +106,9 @@ export const createProduct = async (req: Request, res: Response) => {
         markup: input.markup || "0",
         manufacturer: input.manufacturer || "",
         category: input.category || "",
-        stock: input.stock || "0",
+        inventoryValue,
+        inventoryUnit,
+        stock: inventoryValue,
         status: input.status || "active",
         images: input.images || [],
         createdAt: now,
@@ -167,6 +187,9 @@ export const updateProduct = async (req: Request, res: Response) => {
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),
     };
+    const normalizedInventoryValue = parseInventoryValue(
+      updateData.inventoryValue ?? updateData.stock,
+    );
 
     const allowedFields = [
       "name",
@@ -175,14 +198,27 @@ export const updateProduct = async (req: Request, res: Response) => {
       "markup",
       "manufacturer",
       "category",
-      "stock",
       "images",
       "image",
       "status",
+      "inventoryUnit",
     ];
     for (const field of allowedFields) {
       if (updateData[field] !== undefined)
         safeUpdate[field] = updateData[field];
+    }
+
+    if (updateData.inventoryUnit !== undefined) {
+      safeUpdate.inventoryUnit =
+        updateData.inventoryUnit === "meter" ? "meter" : "unit";
+    }
+
+    if (
+      updateData.inventoryValue !== undefined ||
+      updateData.stock !== undefined
+    ) {
+      safeUpdate.inventoryValue = normalizedInventoryValue;
+      safeUpdate.stock = normalizedInventoryValue;
     }
 
     await productRef.update(safeUpdate);

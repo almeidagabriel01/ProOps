@@ -22,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import { ProductFormData } from "../_hooks/useProductForm";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { formatInventoryValue } from "@/lib/niches/config";
 
 // ============================================
 // PRODUCT INFO CARD
@@ -124,10 +126,14 @@ export function PriceStockCard({
   onChange,
   isReadOnly,
 }: PriceStockCardProps) {
+  const nicheConfig = useCurrentNicheConfig();
+  const inventoryConfig = nicheConfig.productCatalog.inventory;
+
   if (isReadOnly) {
     const basePrice = parseFloat(formData.price || "0");
     const markup = parseFloat(formData.markup || "0");
     const sellingPrice = basePrice + (basePrice * markup) / 100;
+    const inventoryValue = Number.parseFloat(formData.inventoryValue || "0");
 
     return (
       <FormCard
@@ -149,7 +155,10 @@ export function PriceStockCard({
           />
         )}
         <FormRow cols={2}>
-          <FormDisplayField label="Estoque" value={formData.stock} />
+          <FormDisplayField
+            label={inventoryConfig.readOnlyLabel}
+            value={formatInventoryValue(inventoryValue, inventoryConfig)}
+          />
         </FormRow>
       </FormCard>
     );
@@ -196,14 +205,18 @@ export function PriceStockCard({
         </FormField>
       </FormRow>
       <FormRow cols={2}>
-        <FormField label="Estoque Inicial" htmlFor="stock">
+        <FormField
+          label={inventoryConfig.formInitialLabel}
+          htmlFor="inventoryValue"
+        >
           <Input
-            id="stock"
-            name="stock"
+            id="inventoryValue"
+            name="inventoryValue"
             type="number"
             placeholder="0"
-            value={formData.stock}
+            value={formData.inventoryValue}
             onChange={onChange}
+            step={inventoryConfig.step}
           />
         </FormField>
       </FormRow>

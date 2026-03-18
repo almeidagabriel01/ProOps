@@ -27,6 +27,8 @@ import {
   X,
   Tag,
 } from "lucide-react";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { formatInventoryValue } from "@/lib/niches/config";
 
 interface ProductFormNewProps {
   initialData?: Product | Service;
@@ -90,10 +92,12 @@ export function ProductFormNew({
 
   const entityLabel = entityType === "service" ? "Serviço" : "Produto";
   const entityLabelLower = entityType === "service" ? "serviço" : "produto";
+  const nicheConfig = useCurrentNicheConfig();
+  const inventoryConfig = nicheConfig.productCatalog.inventory;
   const basePrice = parseFloat(formData.price || "0");
   const markupValue = parseFloat(formData.markup || "0");
   const sellingPrice = basePrice + (basePrice * markupValue) / 100;
-  const stockLevel = Number(formData.stock || 0);
+  const inventoryLevel = Number.parseFloat(formData.inventoryValue || "0");
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -153,7 +157,7 @@ export function ProductFormNew({
           <FormGroup>
             <FormStatic
               label={entityType === "product" ? "Preço Bruto" : "Preço Base"}
-              value={`R$ ${basePrice.toFixed(2)}`}
+              value={`R$ ${basePrice.toFixed(2)}${entityType === "product" ? ` ${inventoryConfig.priceSuffix}` : ""}`}
             />
             {entityType === "product" && (
               <>
@@ -161,7 +165,10 @@ export function ProductFormNew({
                   label="Markup"
                   value={`${markupValue.toFixed(2)}%`}
                 />
-                <FormStatic label="Estoque" value={String(stockLevel)} />
+                <FormStatic
+                  label={inventoryConfig.readOnlyLabel}
+                  value={formatInventoryValue(inventoryLevel, inventoryConfig)}
+                />
               </>
             )}
           </FormGroup>
@@ -374,20 +381,23 @@ export function ProductFormNew({
                   </FormItem>
 
                   <FormItem
-                    label="Estoque Inicial"
-                    htmlFor="stock"
-                    error={errors.stock}
+                    label={inventoryConfig.formInitialLabel}
+                    htmlFor="inventoryValue"
+                    error={errors.inventoryValue}
                   >
                     <Input
-                      id="stock"
-                      name="stock"
+                      id="inventoryValue"
+                      name="inventoryValue"
                       type="number"
                       placeholder="0"
-                      value={formData.stock}
+                      value={formData.inventoryValue}
                       onChange={handleChange}
                       onBlur={handleBlur}
                       min="0"
-                      className={errors.stock ? "border-destructive" : ""}
+                      step={inventoryConfig.step}
+                      className={
+                        errors.inventoryValue ? "border-destructive" : ""
+                      }
                     />
                   </FormItem>
                 </FormGroup>
@@ -398,7 +408,10 @@ export function ProductFormNew({
                       <span className="font-medium text-muted-foreground">
                         Preço Bruto
                       </span>
-                      <p className="font-semibold">R$ {basePrice.toFixed(2)}</p>
+                      <p className="font-semibold">
+                        R$ {basePrice.toFixed(2)}
+                        {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
+                      </p>
                     </div>
                     <div className="flex items-center justify-between sm:block">
                       <span className="font-medium text-muted-foreground">
@@ -412,13 +425,16 @@ export function ProductFormNew({
                       </span>
                       <p className="font-semibold text-green-700">
                         R$ {(basePrice * (markupValue / 100)).toFixed(2)}
+                        {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
                       </p>
                     </div>
                     <div className="flex items-center justify-between sm:block">
                       <span className="font-medium text-muted-foreground">
-                        Estoque inicial
+                        {inventoryConfig.formInitialLabel}
                       </span>
-                      <p className="font-semibold">{stockLevel}</p>
+                      <p className="font-semibold">
+                        {formatInventoryValue(inventoryLevel, inventoryConfig)}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-green-500/20 flex items-center justify-between">
@@ -427,6 +443,7 @@ export function ProductFormNew({
                     </span>
                     <span className="text-2xl font-bold text-green-600">
                       R$ {sellingPrice.toFixed(2)}
+                      {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
                     </span>
                   </div>
                 </div>
@@ -586,7 +603,12 @@ export function ProductFormNew({
                   <span className="text-muted-foreground">
                     {entityType === "product" ? "Preço Bruto:" : "Preço Base:"}
                   </span>
-                  <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
+                  <p className="font-medium">
+                    R$ {basePrice.toFixed(2)}
+                    {entityType === "product" && inventoryConfig.priceSuffix
+                      ? ` ${inventoryConfig.priceSuffix}`
+                      : ""}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">
@@ -600,6 +622,9 @@ export function ProductFormNew({
                       ? sellingPrice
                       : basePrice
                     ).toFixed(2)}
+                    {entityType === "product" && inventoryConfig.priceSuffix
+                      ? ` ${inventoryConfig.priceSuffix}`
+                      : ""}
                   </p>
                 </div>
                 {entityType === "product" && (
@@ -609,8 +634,12 @@ export function ProductFormNew({
                       <p className="font-medium">{markupValue.toFixed(2)}%</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Estoque:</span>
-                      <p className="font-medium">{stockLevel}</p>
+                      <span className="text-muted-foreground">
+                        {inventoryConfig.readOnlyLabel}:
+                      </span>
+                      <p className="font-medium">
+                        {formatInventoryValue(inventoryLevel, inventoryConfig)}
+                      </p>
                     </div>
                   </>
                 )}

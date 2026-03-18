@@ -22,6 +22,8 @@ export interface CreateProductData {
   markup?: string;
   manufacturer?: string;
   category?: string;
+  inventoryValue?: number;
+  inventoryUnit?: "unit" | "meter";
   stock?: number;
   status?: string;
   images?: string[];
@@ -36,7 +38,9 @@ interface CreateProductResult {
 
 interface UpdateProductOptions {
   productName?: string;
-  context?: "general" | "stock";
+  context?: "general" | "inventory";
+  contextLabel?: string;
+  formattedValue?: string;
 }
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -72,7 +76,9 @@ export function useProductActions() {
         markup: data.markup || "",
         manufacturer: data.manufacturer || "",
         category: data.category || "",
-        stock: data.stock ?? 0,
+        inventoryValue: data.inventoryValue ?? data.stock ?? 0,
+        inventoryUnit: data.inventoryUnit || "unit",
+        stock: data.inventoryValue ?? data.stock ?? 0,
         status: data.status || "active",
         images: data.images || [],
         targetTenantId: data.targetTenantId,
@@ -131,8 +137,8 @@ export function useProductActions() {
         options?.productName || data.name,
       );
       const successMessage =
-        options?.context === "stock" && typeof data.stock === "number"
-          ? `Estoque do produto ${productLabel} atualizado para ${data.stock}.`
+        options?.context === "inventory"
+          ? `${options?.contextLabel || "Inventário"} do produto ${productLabel} atualizado para ${options?.formattedValue || data.inventoryValue || data.stock || 0}.`
           : `Produto ${productLabel} atualizado com sucesso.`;
 
       toast.success(successMessage, { title: "Sucesso ao editar" });

@@ -15,6 +15,11 @@ import {
   DocumentData,
 } from "firebase/firestore";
 import { PaginatedResult } from "./client-service";
+import {
+  type InventoryUnit,
+  parseInventoryValue,
+  resolveInventoryValue,
+} from "@/lib/niches/config";
 
 export type Product = {
   id: string;
@@ -25,6 +30,8 @@ export type Product = {
   markup?: string; // Profit percentage over base price
   manufacturer: string;
   category: string;
+  inventoryValue: number;
+  inventoryUnit?: InventoryUnit;
   stock: number;
   images: string[]; // Changed from single image to array
   image?: string | null; // Kept for backward compatibility (optional)
@@ -82,12 +89,16 @@ function mapProductSnapshot(
   docSnap: QueryDocumentSnapshot<DocumentData>,
 ): Product {
   const data = docSnap.data();
+  const inventoryValue = resolveInventoryValue(data);
+
   return {
     id: docSnap.id,
     ...data,
     itemType: "product",
-    stock:
-      typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+    inventoryValue,
+    inventoryUnit:
+      data.inventoryUnit === "meter" ? "meter" : ("unit" as InventoryUnit),
+    stock: inventoryValue,
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -108,13 +119,16 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
   const data = d.data();
+  const inventoryValue = resolveInventoryValue(data);
+
   return {
     id: d.id,
     ...data,
     itemType: "product",
-    // Coerce stock to number
-    stock:
-      typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+    inventoryValue,
+    inventoryUnit:
+      data.inventoryUnit === "meter" ? "meter" : ("unit" as InventoryUnit),
+    stock: inventoryValue,
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -139,9 +153,9 @@ function compareProductsByField(
   let valueA: unknown = rawA;
   let valueB: unknown = rawB;
 
-  if (sortField === "stock") {
-    valueA = typeof rawA === "number" ? rawA : Number(rawA ?? 0);
-    valueB = typeof rawB === "number" ? rawB : Number(rawB ?? 0);
+  if (sortField === "stock" || sortField === "inventoryValue") {
+    valueA = resolveInventoryValue(dataA);
+    valueB = resolveInventoryValue(dataB);
   }
 
   if (valueA === valueB) {
@@ -289,7 +303,8 @@ export const ProductService = {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
 
-      const needsClientSort = sortField === "stock";
+      const needsClientSort =
+        sortField === "stock" || sortField === "inventoryValue";
 
       if (needsClientSort) {
         const baseQuery = query(
@@ -355,10 +370,17 @@ export const ProductService = {
 
       if (docSnap.exists()) {
         const data = docSnap.data();
+        const inventoryValue = resolveInventoryValue(data);
         return {
           id: docSnap.id,
           ...data,
           itemType: "product",
+          inventoryValue,
+          inventoryUnit:
+            data.inventoryUnit === "meter"
+              ? "meter"
+              : ("unit" as InventoryUnit),
+          stock: inventoryValue,
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate().toISOString()
             : data.createdAt,
@@ -390,3 +412,13 @@ export const ProductService = {
     }
   },
 };
+
+export function getProductInventoryValue(
+  product: Pick<Product, "inventoryValue" | "stock">,
+): number {
+  return resolveInventoryValue(product);
+}
+
+export function coerceProductInventoryValue(value: unknown): number {
+  return parseInventoryValue(value);
+}

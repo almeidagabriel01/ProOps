@@ -31,6 +31,7 @@ import {
 import { useProposalFormLoadingEffects } from "./useProposalForm.loading-effects";
 import { useProposalFormProductSubmit } from "./useProposalForm.product-submit";
 import { useProposalFormSystemDirty } from "./useProposalForm.system-dirty";
+import { getNicheConfig } from "@/lib/niches/config";
 
 export type {
   UseProposalFormProps,
@@ -92,7 +93,9 @@ export function useProposalFormCore({
   );
 
   const primaryColor = tenant?.primaryColor || "#2563eb";
-  const isAutomacaoNiche = tenant?.niche === "automacao_residencial";
+  const isAutomacaoNiche =
+    tenant !== null &&
+    getNicheConfig(tenant?.niche).proposal.workflow === "automation";
 
   // Get wallets to pre-select default wallet
   const { wallets } = useWalletsData();

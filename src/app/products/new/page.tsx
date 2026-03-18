@@ -9,10 +9,12 @@ import {
     FormHeader,
 } from "@/components/ui/form-components";
 import { ProductFormNew } from "../_components/product-form-new";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 
 export default function NewProductPage() {
     const router = useRouter();
     const { canCreate, isLoading } = usePagePermission("products");
+    const nicheConfig = useCurrentNicheConfig();
 
     useEffect(() => {
         if (!isLoading && !canCreate) {
@@ -35,7 +37,7 @@ export default function NewProductPage() {
     return (
         <FormContainer>
             <FormHeader
-                title="Novo Produto"
+                title={nicheConfig.productCatalog.newTitle}
                 subtitle="Adicione um novo produto ao seu catálogo com todas as informações necessárias"
                 icon={Package}
                 onBack={() => router.push("/products")}

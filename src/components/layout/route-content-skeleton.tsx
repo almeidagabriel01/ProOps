@@ -18,6 +18,8 @@ import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 import { KanbanSkeleton } from "@/app/crm/_components/kanban-skeleton";
+import { useTenant } from "@/providers/tenant-provider";
+import { isPageEnabledForNiche } from "@/lib/niches/config";
 
 /** Simple spinner used for create/edit sub-routes instead of the full page skeleton */
 function SpinnerFallback({ message = "Carregando..." }: { message?: string }) {
@@ -32,6 +34,8 @@ function SpinnerFallback({ message = "Carregando..." }: { message?: string }) {
 }
 
 export function RouteContentSkeleton({ pathname }: { pathname: string }) {
+  const { tenant } = useTenant();
+
   if (pathname.startsWith("/spreadsheets/")) {
     return <SpreadsheetEditorSkeleton />;
   }
@@ -107,6 +111,10 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
   }
 
   if (pathname.startsWith("/solutions") || pathname.startsWith("/automation")) {
+    if (!isPageEnabledForNiche(tenant?.niche, "solutions")) {
+      return <DashboardSkeleton />;
+    }
+
     return <AutomationSkeleton />;
   }
 
