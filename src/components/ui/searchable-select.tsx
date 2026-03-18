@@ -21,10 +21,14 @@ export interface SearchableSelectProps extends Omit<
   options: SearchableSelectOption[];
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   onValueChange?: (value: string) => void;
+  onCreateOption?: (label: string) => Promise<string | void> | string | void;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
   noResultsMessage?: string;
+  createOptionLabel?: string;
+  creatingOptionLabel?: string;
+  isCreatingOption?: boolean;
 }
 
 export const SearchableSelect = React.forwardRef<
@@ -37,10 +41,14 @@ export const SearchableSelect = React.forwardRef<
       value,
       onChange,
       onValueChange,
+      onCreateOption,
       placeholder = "Selecione...",
       searchPlaceholder = "Digite para buscar...",
       emptyMessage = "Nenhuma opção disponível",
       noResultsMessage = "Nenhum resultado encontrado",
+      createOptionLabel = "Cadastrar",
+      creatingOptionLabel = "Cadastrando...",
+      isCreatingOption = false,
       disabled,
       className,
       ...props
@@ -100,6 +108,25 @@ export const SearchableSelect = React.forwardRef<
       });
     }, [sortedOptions, searchTerm]);
 
+    const trimmedSearchTerm = searchTerm.trim();
+    const hasExactMatch = React.useMemo(() => {
+      const normalizedSearchTerm = normalize(trimmedSearchTerm);
+      if (!normalizedSearchTerm) return false;
+
+      return sortedOptions.some((option) => {
+        const normalizedLabel = normalize(option.label);
+        const normalizedValue = normalize(String(option.value));
+        return (
+          normalizedLabel === normalizedSearchTerm ||
+          normalizedValue === normalizedSearchTerm
+        );
+      });
+    }, [sortedOptions, trimmedSearchTerm]);
+
+    const canCreateOption = Boolean(
+      onCreateOption && trimmedSearchTerm && !hasExactMatch,
+    );
+
     const emitChange = (newValue: string) => {
       if (resolvedRef.current) {
         resolvedRef.current.value = newValue;
@@ -143,6 +170,17 @@ export const SearchableSelect = React.forwardRef<
       inputRef.current?.focus();
     };
 
+    const handleCreateOption = async () => {
+      if (!onCreateOption || !trimmedSearchTerm || isCreatingOption) return;
+
+      const createdValue = await onCreateOption(trimmedSearchTerm);
+      if (typeof createdValue === "string" && createdValue) {
+        emitChange(createdValue);
+        setSearchTerm(createdValue);
+      }
+      setIsOpen(false);
+    };
+
     return (
       <div ref={containerRef} className={cn("relative w-full", className)}>
         <select
@@ -170,6 +208,16 @@ export const SearchableSelect = React.forwardRef<
             onChange={(e) => {
               setSearchTerm(e.target.value);
               if (!isOpen) setIsOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                canCreateOption &&
+                !isCreatingOption
+              ) {
+                e.preventDefault();
+                void handleCreateOption();
+              }
             }}
             onFocus={() => setIsOpen(true)}
             placeholder={selectedOption ? undefined : searchPlaceholder}
@@ -212,17 +260,36 @@ export const SearchableSelect = React.forwardRef<
 
         {isOpen && !disabled && (
           <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
-            {sortedOptions.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {emptyMessage}
-              </div>
-            ) : filteredOptions.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {noResultsMessage}
-              </div>
-            ) : (
-              <div className="p-1">
-                {filteredOptions.map((option) => {
+            <div className="p-1">
+              {canCreateOption && (
+                <button
+                  type="button"
+                  onClick={() => void handleCreateOption()}
+                  disabled={isCreatingOption}
+                  className="w-full px-3 py-2 text-left text-sm rounded-sm border-b hover:bg-accent hover:text-accent-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="font-medium">
+                    {isCreatingOption
+                      ? creatingOptionLabel
+                      : `${createOptionLabel} "${trimmedSearchTerm}"`}
+                  </span>
+                </button>
+              )}
+
+              {sortedOptions.length === 0 ? (
+                canCreateOption ? null : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    {emptyMessage}
+                  </div>
+                )
+              ) : filteredOptions.length === 0 ? (
+                canCreateOption ? null : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    {noResultsMessage}
+                  </div>
+                )
+              ) : (
+                filteredOptions.map((option) => {
                   const isSelected = String(option.value) === String(value);
                   return (
                     <button
@@ -249,9 +316,9 @@ export const SearchableSelect = React.forwardRef<
                       )}
                     </button>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
           </div>
         )}
       </div>

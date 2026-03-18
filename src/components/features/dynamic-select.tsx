@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Option, OptionService } from "@/services/option-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
+import { normalize } from "@/utils/text";
 import { OptionManagerDialog } from "./option-manager-dialog";
 
 interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -30,6 +31,7 @@ export function DynamicSelect({
 }: DynamicSelectProps) {
   const [options, setOptions] = React.useState<Option[]>([]);
   const [isManagerOpen, setIsManagerOpen] = React.useState(false);
+  const [isCreatingOption, setIsCreatingOption] = React.useState(false);
 
   // Stabilize defaultOptions to prevent infinite re-fetching
   // Stabilize defaultOptions to prevent infinite re-fetching
@@ -69,6 +71,39 @@ export function DynamicSelect({
     }
   }, [tenant, loadOptions]);
 
+  const handleCreateOption = React.useCallback(
+    async (inputLabel: string) => {
+      const nextLabel = inputLabel.trim();
+      if (!tenant?.id || !nextLabel || isCreatingOption) return;
+
+      const existingOption = options.find(
+        (option) => normalize(option.label) === normalize(nextLabel),
+      );
+      if (existingOption) {
+        return existingOption.label;
+      }
+
+      setIsCreatingOption(true);
+      try {
+        const createdOption = await OptionService.createOption(
+          tenant.id,
+          storageKey,
+          nextLabel,
+        );
+        setOptions((prev) => [...prev, createdOption]);
+        toast.success(`${label} cadastrado com sucesso.`);
+        return createdOption.label;
+      } catch (error) {
+        console.error(error);
+        toast.error(`Erro ao cadastrar ${label.toLowerCase()}.`);
+        return;
+      } finally {
+        setIsCreatingOption(false);
+      }
+    },
+    [tenant?.id, isCreatingOption, options, storageKey, label],
+  );
+
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between">
@@ -99,6 +134,10 @@ export function DynamicSelect({
           } as React.ChangeEvent<HTMLSelectElement>;
           props.onChange?.(event);
         }}
+        onCreateOption={handleCreateOption}
+        createOptionLabel="Cadastrar"
+        creatingOptionLabel="Cadastrando..."
+        isCreatingOption={isCreatingOption}
         placeholder="Selecione..."
         searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
         disabled={props.disabled}
