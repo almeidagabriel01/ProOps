@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LucideIcon } from "lucide-react";
+import { ChevronDown, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Proposal } from "@/services/proposal-service";
 
@@ -170,7 +170,7 @@ export function MobileMetric({
 
 interface MobileToggleCardProps {
   title: string;
-  description: string;
+  description?: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   icon?: LucideIcon;
@@ -221,11 +221,67 @@ export function MobileToggleCard({
         <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
           {title}
         </p>
-        <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+            {description}
+          </p>
+        ) : null}
       </div>
     </button>
+  );
+}
+
+interface MobileDisclosureProps {
+  title: string;
+  description?: string;
+  meta?: string;
+  defaultOpen?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
+export function MobileDisclosure({
+  title,
+  description,
+  meta,
+  defaultOpen = false,
+  className,
+  children,
+}: MobileDisclosureProps) {
+  return (
+    <details
+      className={cn(
+        "group overflow-hidden rounded-2xl border border-border/60 bg-background/70",
+        className,
+      )}
+      {...(defaultOpen ? { open: true } : {})}
+    >
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+            {title}
+          </p>
+          {description ? (
+            <p className="mt-1 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+              {description}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {meta ? (
+            <span className="rounded-full border border-border/60 bg-background px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              {meta}
+            </span>
+          ) : null}
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-transform duration-200 group-open:rotate-180">
+            <ChevronDown className="h-4 w-4" />
+          </span>
+        </div>
+      </summary>
+
+      <div className="border-t border-border/60 px-4 py-4">{children}</div>
+    </details>
   );
 }
 

@@ -124,9 +124,9 @@ export function ProposalMobileProductsStep({
       </div>
 
       <MobilePanel
-        eyebrow="Curadoria mobile"
+        eyebrow="Catalogo"
         title="Itens extras da proposta"
-        description="Produtos e servicos fora de solucoes entram aqui com uma leitura limpa, pensada para toque."
+        description="Itens fora das solucoes ficam concentrados aqui."
         icon={Sparkles}
         tone="accent"
       >
@@ -162,7 +162,7 @@ export function ProposalMobileProductsStep({
         {products.length === 0 ? (
           <MobileEmptyState
             title="Nenhum item cadastrado"
-            description="Cadastre produtos ou servicos primeiro para montar a proposta no mobile."
+            description="Cadastre produtos ou servicos para usar nesta proposta."
           />
         ) : null}
 
@@ -214,7 +214,7 @@ export function ProposalMobileProductsStep({
         {filteredCatalog.length === 0 && products.length > 0 ? (
           <MobileEmptyState
             title="Nenhum item encontrado"
-            description="Ajuste a busca ou o filtro para localizar o item ideal."
+            description="Ajuste a busca ou o filtro."
           />
         ) : null}
 

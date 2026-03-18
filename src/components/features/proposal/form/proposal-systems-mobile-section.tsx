@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  MobileDisclosure,
   MobileEmptyState,
   MobileMetric,
   MobilePanel,
@@ -371,7 +372,7 @@ export function ProposalSystemsMobileSection({
 
       <MobilePanel
         title="Solucoes da proposta"
-        description="Selecione a solucao ativa, troque o ambiente e ajuste os itens mantendo o mesmo conjunto de acoes do fluxo completo."
+        description="Selecione a solucao ativa e abra apenas o ambiente que precisa editar."
         icon={Cpu}
         tone="accent"
         bodyClassName="space-y-5"
@@ -384,7 +385,7 @@ export function ProposalSystemsMobileSection({
                 : "Adicione a primeira solucao para comecar a estruturar a proposta."}
             </p>
             <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-              Produtos, ajustes financeiros por item, ocultacao no PDF, itens extras e remocoes continuam disponiveis.
+              Todas as acoes do desktop continuam disponiveis dentro de cada ambiente.
             </p>
           </div>
 
@@ -553,7 +554,7 @@ export function ProposalSystemsMobileSection({
                 <DialogHeader className="min-w-0 text-left">
                   <DialogTitle className="text-base">Adicionar solucao</DialogTitle>
                   <DialogDescription className="[overflow-wrap:anywhere]">
-                    Escolha sistema e ambiente em um sheet dedicado para adicionar a nova estrutura sem baguncar o restante da proposta.
+                    Escolha sistema e ambiente sem sair do fluxo mobile.
                   </DialogDescription>
                 </DialogHeader>
                 <button
@@ -592,7 +593,7 @@ export function ProposalSystemsMobileSection({
                         Inserir nova solucao
                       </p>
                       <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                        O seletor abaixo adiciona a nova combinacao de sistema e ambiente sem atrapalhar a leitura do restante da proposta.
+                        Adicione a combinacao de sistema e ambiente para continuar a configuracao.
                       </p>
                     </div>
                   </div>
@@ -756,7 +757,7 @@ function SystemWorkspace({
                   {system.title}
                 </p>
                 <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                  {system.description || "Sem descricao cadastrada para este sistema."}
+                  {system.description || "Sem descricao cadastrada."}
                 </p>
               </div>
 
@@ -813,7 +814,7 @@ function SystemWorkspace({
                 Ambientes
               </p>
               <p className="text-sm text-muted-foreground">
-                Estrutura completa da solucao selecionada
+                Abra o ambiente para revisar itens e ajustes
               </p>
             </div>
           </div>
@@ -947,50 +948,15 @@ function EnvironmentWorkspace({
 
   return (
     <>
-      <section
-        className="rounded-[24px] border bg-background/78 p-4 shadow-[0_18px_50px_-38px_rgba(15,23,42,0.28)]"
-        style={{ borderColor: `${primaryColor}22` }}
+      <MobileDisclosure
+        title={environment.title}
+        description={
+          environment.description || `Ambiente ${environmentIndex + 1} de ${system.title}`
+        }
+        meta={formatCurrency(environment.totalValue)}
+        className="rounded-[24px] shadow-[0_18px_50px_-38px_rgba(15,23,42,0.28)]"
       >
-        <div className="flex items-start gap-3">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-            style={{ backgroundColor: `${primaryColor}16` }}
-          >
-            <span
-              className="text-sm font-semibold"
-              style={{ color: primaryColor }}
-            >
-              {environmentIndex + 1}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Ambiente
-                </p>
-                <h4 className="mt-1 text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-                  {environment.title}
-                </h4>
-                <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-                  {environment.description || "Sem descricao especifica para este ambiente."}
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 rounded-2xl border-destructive/20 text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive sm:shrink-0"
-                onClick={onDeleteEnvironment}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remover ambiente
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <MetricChip label="Linhas" value={`${environment.selectedProducts.length}`} />
           <MetricChip label="Qtd visivel" value={`${environment.visibleQuantity}`} />
           <MetricChip label="Valor" value={formatCurrency(environment.totalValue)} />
@@ -1013,9 +979,9 @@ function EnvironmentWorkspace({
             <p className="text-sm text-foreground [overflow-wrap:anywhere]">
               {environment.hideZeroQty
                 ? environment.hiddenProductsCount > 0
-                  ? `${environment.hiddenProductsCount} item(ns) com quantidade zero estao ocultos nesta visualizacao.`
-                  : "Nenhum item com quantidade zero ficou escondido neste ambiente."
-                : "Todos os itens deste ambiente estao aparecendo na lista abaixo."}
+                  ? `${environment.hiddenProductsCount} item(ns) com quantidade zero ocultos.`
+                  : "Nenhum item com quantidade zero oculto."
+                : "Todos os itens aparecem nesta visualizacao."}
             </p>
           </div>
 
@@ -1069,7 +1035,7 @@ function EnvironmentWorkspace({
                 Item extra
               </p>
               <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">
-                O catalogo dedicado continua disponivel, mas agora entra como acao do ambiente em foco em vez de abrir mais um bloco no fluxo.
+                Adicione produtos ou servicos extras somente neste ambiente.
               </p>
             </div>
 
@@ -1083,7 +1049,19 @@ function EnvironmentWorkspace({
             </Button>
           </div>
         </div>
-      </section>
+
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full rounded-2xl border-destructive/20 text-destructive hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+            onClick={onDeleteEnvironment}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Remover ambiente
+          </Button>
+        </div>
+      </MobileDisclosure>
 
       <AddExtraItemDialog
         open={isAddDialogOpen}
@@ -1526,7 +1504,7 @@ function AddExtraItemDialog({
               <DialogHeader className="min-w-0 text-left">
                 <DialogTitle className="text-base">Adicionar item extra</DialogTitle>
                 <DialogDescription>
-                  Abra o catalogo dedicado para inserir o item certo sem sobrecarregar a area principal do ambiente.
+                  Selecione um item do catalogo para este ambiente.
                 </DialogDescription>
               </DialogHeader>
               <button

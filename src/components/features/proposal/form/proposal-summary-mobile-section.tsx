@@ -7,7 +7,6 @@ import {
   Package,
   Receipt,
   ScrollText,
-  Settings2,
   UserRound,
 } from "lucide-react";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
@@ -29,6 +28,7 @@ import {
 } from "./pdf-display-options-section";
 import {
   MobileFieldShell,
+  MobileDisclosure,
   MobileMetric,
   MobilePanel,
   formatCurrency,
@@ -305,7 +305,7 @@ export function ProposalSummaryMobileSection({
       <MobilePanel
         eyebrow="Leitura geral"
         title="Resumo da proposta"
-        description="Tudo que existe na proposta fica consolidado aqui em blocos que funcionam melhor no mobile."
+        description="Os dados principais ficam visiveis de imediato e o restante entra sob demanda."
         icon={ScrollText}
         tone="accent"
       >
@@ -322,6 +322,18 @@ export function ProposalSummaryMobileSection({
           <SummaryTile
             label="Telefone"
             value={formData.clientPhone || "Nao informado"}
+          />
+          <SummaryTile
+            label="Status"
+            value={statusLabel(formData.status || "draft")}
+          />
+          <SummaryTile
+            label="Pagamento"
+            value={
+              formData.installmentsEnabled
+                ? `${formData.installmentsCount || 1}x`
+                : "A vista"
+            }
           />
         </div>
 
@@ -342,12 +354,10 @@ export function ProposalSummaryMobileSection({
       <MobilePanel
         eyebrow="Financeiro"
         title="Totais comerciais"
-        description="Subtotal, desconto, custos extras, entrada e saldo final aparecem sem tabela comprimida."
+        description="Total final e pagamento aparecem primeiro; o detalhamento continua disponivel."
         icon={Receipt}
       >
         <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
-          <SummaryTile label="Custo bruto" value={formatCurrency(totalCost)} />
-          <SummaryTile label="Lucro" value={formatCurrency(totalProfit)} />
           <SummaryTile label="Subtotal" value={formatCurrency(subtotal)} />
           <SummaryTile
             label={
@@ -356,30 +366,18 @@ export function ProposalSummaryMobileSection({
             value={formatCurrency(commercialDiscount)}
           />
           <SummaryTile
-            label="Custos extras"
-            value={formatCurrency(extraExpense)}
-          />
-          <SummaryTile
             label="Total final"
             value={formatCurrency(effectiveTotal)}
           />
+          <SummaryTile
+            label="Entrada"
+            value={
+              formData.downPaymentEnabled && downPaymentValue > 0
+                ? formatCurrency(downPaymentValue)
+                : "Nao usada"
+            }
+          />
         </div>
-
-        {combinedValue > 0 ? (
-          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/8 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Receipt className="h-4 w-4 text-violet-700 dark:text-violet-300" />
-              Valor combinado com o cliente
-            </div>
-            <p className="mt-2 text-sm leading-5 text-muted-foreground">
-              Valor fechado: <strong>{formatCurrency(combinedValue)}</strong>
-            </p>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              Desconto comercial consolidado:{" "}
-              <strong>{formatCurrency(commercialDiscount)}</strong>
-            </p>
-          </div>
-        ) : null}
 
         <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -416,12 +414,47 @@ export function ProposalSummaryMobileSection({
             </p>
           )}
         </div>
+
+        <MobileDisclosure
+          title="Ver detalhamento financeiro"
+          description="Custos, lucro, extras e leitura comercial completa."
+          meta={formatCurrency(effectiveTotal)}
+        >
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
+            <SummaryTile label="Custo bruto" value={formatCurrency(totalCost)} />
+            <SummaryTile label="Lucro" value={formatCurrency(totalProfit)} />
+            <SummaryTile
+              label="Custos extras"
+              value={formatCurrency(extraExpense)}
+            />
+            <SummaryTile
+              label="Saldo restante"
+              value={formatCurrency(Math.max(0, effectiveTotal - downPaymentValue))}
+            />
+          </div>
+
+          {combinedValue > 0 ? (
+            <div className="rounded-2xl border border-violet-500/20 bg-violet-500/8 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Receipt className="h-4 w-4 text-violet-700 dark:text-violet-300" />
+                Valor combinado com o cliente
+              </div>
+              <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                Valor fechado: <strong>{formatCurrency(combinedValue)}</strong>
+              </p>
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                Desconto comercial consolidado:{" "}
+                <strong>{formatCurrency(commercialDiscount)}</strong>
+              </p>
+            </div>
+          ) : null}
+        </MobileDisclosure>
       </MobilePanel>
 
       <MobilePanel
         eyebrow="Escopo"
         title="Itens incluidos"
-        description="A listagem fica organizada por sistema e ambiente quando houver automacao, sem esconder extras ou itens inativos."
+        description="A leitura abre por bloco para evitar uma lista longa no mobile."
         icon={Package}
       >
         {displayProducts.length === 0 ? (
@@ -431,25 +464,22 @@ export function ProposalSummaryMobileSection({
         ) : isAutomacaoNiche ? (
           <div className="space-y-3">
             {groupedBySystem.map((group) => (
-              <div
+              <MobileDisclosure
                 key={group.key}
-                className="rounded-[24px] border border-border/60 bg-background/75 p-3"
+                title={group.title}
+                description={group.subtitle}
+                meta={`${group.products.length} item(ns)`}
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
-                      {group.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      {group.subtitle}
-                    </p>
-                  </div>
-                  <span className="text-xs font-semibold text-primary">
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card px-3 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Subtotal
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">
                     {formatCurrency(group.subtotal)}
                   </span>
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="space-y-2">
                   {group.products.map((product, index) => (
                     <ProductSummaryRow
                       key={`${group.key}-${product.productId}-${index}`}
@@ -458,26 +488,17 @@ export function ProposalSummaryMobileSection({
                     />
                   ))}
                 </div>
-              </div>
+              </MobileDisclosure>
             ))}
 
             {displayExtraProducts.length > 0 ? (
-              <div className="rounded-[24px] border border-sky-500/20 bg-sky-500/8 p-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      Itens extras fora dos sistemas
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      Produtos e servicos adicionados diretamente na proposta.
-                    </p>
-                  </div>
-                  <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
-                    {displayExtraProducts.length} item(ns)
-                  </span>
-                </div>
-
-                <div className="mt-3 space-y-2">
+              <MobileDisclosure
+                title="Itens extras fora dos sistemas"
+                description="Produtos e servicos adicionados diretamente na proposta."
+                meta={`${displayExtraProducts.length} item(ns)`}
+                className="border-sky-500/20 bg-sky-500/8"
+              >
+                <div className="space-y-2">
                   {displayExtraProducts.map((product, index) => (
                     <ProductSummaryRow
                       key={`extra-${product.productId}-${index}`}
@@ -486,64 +507,70 @@ export function ProposalSummaryMobileSection({
                     />
                   ))}
                 </div>
-              </div>
+              </MobileDisclosure>
             ) : null}
           </div>
         ) : (
-          <div className="space-y-2">
-            {displayProducts.map((product, index) => (
-              <ProductSummaryRow
-                key={`${product.productId}-${index}`}
-                product={product}
-                inactive={isProductInactive(product)}
-              />
-            ))}
-          </div>
+          <MobileDisclosure
+            title="Itens selecionados"
+            description="Lista completa da proposta."
+            meta={`${displayProducts.length} item(ns)`}
+            defaultOpen
+          >
+            <div className="space-y-2">
+              {displayProducts.map((product, index) => (
+                <ProductSummaryRow
+                  key={`${product.productId}-${index}`}
+                  product={product}
+                  inactive={isProductInactive(product)}
+                />
+              ))}
+            </div>
+          </MobileDisclosure>
         )}
       </MobilePanel>
 
       <MobilePanel
-        eyebrow="Documento"
-        title="Configuracao do PDF"
-        description="Mostra exatamente o que sera exibido no arquivo final da proposta."
-        icon={Settings2}
-      >
-        <div className="flex flex-wrap gap-2">
-          {enabledPdfOptions.map((label) => (
-            <span
-              key={label}
-              className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300"
-            >
-              <span className="[overflow-wrap:anywhere]">{label}</span>
-            </span>
-          ))}
-        </div>
-
-        <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <FileText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
-            Comportamento atual
-          </div>
-          <p className="mt-2 text-sm leading-5 text-muted-foreground">
-            {pdfSettings.showProductPrices
-              ? "O cliente vai ver precos unitarios."
-              : "O PDF mostra apenas valores consolidados."}
-          </p>
-          <p className="mt-1 text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">
-            {pdfSettings.showPaymentTerms
-              ? "As condicoes de pagamento entram no documento."
-              : "O pagamento fica fora do PDF compartilhado."}
-          </p>
-        </div>
-      </MobilePanel>
-
-      <MobilePanel
         eyebrow="Fechamento"
-        title="Status e observacoes"
-        description="Defina o status final e registre detalhes comerciais antes de salvar."
+        title="Status, observacoes e PDF"
+        description="Ajuste o fechamento comercial e confira o que vai para o documento."
         icon={CheckCircle2}
         tone="warning"
       >
+        <MobileDisclosure
+          title="Opcoes ativas no PDF"
+          description="Resumo do que sera exibido no arquivo final."
+          meta={`${enabledPdfOptions.length} ativa(s)`}
+        >
+          <div className="flex flex-wrap gap-2">
+            {enabledPdfOptions.map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300"
+              >
+                <span className="[overflow-wrap:anywhere]">{label}</span>
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-border/60 bg-card px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+              Leitura atual
+            </div>
+            <p className="mt-2 text-sm leading-5 text-muted-foreground">
+              {pdfSettings.showProductPrices
+                ? "Preco unitario visivel no PDF."
+                : "PDF com valores consolidados."}
+            </p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              {pdfSettings.showPaymentTerms
+                ? "Pagamento incluido no documento."
+                : "Pagamento fora do PDF."}
+            </p>
+          </div>
+        </MobileDisclosure>
+
         <MobileFieldShell label="Status da proposta">
           <Select
             id="status"

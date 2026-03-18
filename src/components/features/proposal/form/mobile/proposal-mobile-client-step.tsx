@@ -97,7 +97,7 @@ export function ProposalMobileClientStep({
       <MobilePanel
         eyebrow="Base da proposta"
         title="Identidade comercial"
-        description="Defina o nome da proposta e o contato principal que vai receber o documento."
+        description="Defina o nome da proposta e o contato principal."
         icon={FileText}
         tone="accent"
       >
@@ -167,7 +167,7 @@ export function ProposalMobileClientStep({
       <MobilePanel
         eyebrow="Contato direto"
         title="Canais e prazo"
-        description="Mantenha email, telefone, validade e endereco acessiveis no celular sem apertar a leitura."
+        description="Dados de contato e validade da proposta."
         icon={CalendarClock}
       >
         <div className="grid gap-4">
@@ -240,14 +240,14 @@ export function ProposalMobileClientStep({
         </div>
       </MobilePanel>
 
-      <div className="rounded-[28px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50 to-sky-50 px-4 py-4 text-slate-950 shadow-[0_24px_60px_-36px_rgba(14,165,233,0.35)] dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-white dark:shadow-[0_24px_60px_-36px_rgba(15,23,42,0.85)]">
+      <div className="rounded-[24px] border border-slate-200/80 bg-linear-to-br from-white via-slate-50 to-sky-50 px-4 py-4 text-slate-950 shadow-[0_24px_60px_-36px_rgba(14,165,233,0.35)] dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-white dark:shadow-[0_24px_60px_-36px_rgba(15,23,42,0.85)]">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 dark:bg-white/10">
             <UserRound className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-300">
-              Snapshot mobile
+              Revisao rapida
             </p>
             <h3 className="text-base font-semibold [overflow-wrap:anywhere]">
               {formData.clientName || "Contato ainda nao definido"}
@@ -258,7 +258,7 @@ export function ProposalMobileClientStep({
             </p>
             <p className="mt-3 text-sm leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
               {formData.clientAddress ||
-                "O endereco fica disponivel aqui para leitura rapida antes do resumo."}
+                "Endereco ainda nao informado."}
             </p>
           </div>
         </div>

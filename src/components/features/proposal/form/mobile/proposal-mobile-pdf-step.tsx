@@ -20,73 +20,60 @@ interface ProposalMobilePdfStepProps {
 
 const pdfOptionGroups: Array<{
   title: string;
-  description: string;
   icon: typeof ImageIcon;
-  options: Array<{ key: keyof PdfDisplaySettings; label: string; description: string }>;
+  options: Array<{ key: keyof PdfDisplaySettings; label: string; description?: string }>;
 }> = [
   {
     title: "Apresentacao dos itens",
-    description: "Controla como produtos e servicos aparecem no corpo do PDF.",
     icon: ImageIcon,
     options: [
       {
         key: "showProductImages",
         label: "Mostrar imagens",
-        description: "Mantem referencias visuais dos itens no documento.",
       },
       {
         key: "showProductDescriptions",
         label: "Mostrar descricoes",
-        description: "Exibe contexto comercial sem depender de anexo separado.",
       },
       {
         key: "showProductPrices",
         label: "Mostrar precos unitarios",
-        description: "Abre valor unitario alem do total consolidado.",
       },
     ],
   },
   {
     title: "Estrutura comercial",
-    description: "Define como subtotal e pagamento aparecem para o cliente.",
     icon: Receipt,
     options: [
       {
         key: "showSubtotals",
         label: "Subtotal por solucao",
-        description: "Resumo por bloco comercial ou sistema.",
       },
       {
         key: "showEnvironmentSubtotals",
         label: "Subtotal por ambiente",
-        description: "Detalha valores por ambiente quando houver automacao.",
       },
       {
         key: "showPaymentTerms",
         label: "Mostrar condicoes de pagamento",
-        description: "Inclui entrada, parcelas e saldo final no PDF.",
       },
     ],
   },
   {
     title: "Contexto institucional",
-    description: "Regras de apoio para manter o documento completo e confiavel.",
     icon: ShieldCheck,
     options: [
       {
         key: "showLogo",
         label: "Mostrar logo",
-        description: "Aplica identidade visual da empresa no documento.",
       },
       {
         key: "showValidUntil",
         label: "Mostrar validade",
-        description: "Explicita prazo comercial para aprovacao.",
       },
       {
         key: "showNotes",
         label: "Mostrar observacoes",
-        description: "Inclui notas finais e recados comerciais.",
       },
     ],
   },
@@ -138,7 +125,7 @@ export function ProposalMobilePdfStep({
       <MobilePanel
         eyebrow="Visual do documento"
         title="O que aparece no PDF"
-        description="O mobile agora deixa claro o impacto de cada escolha sem empilhar checkboxes genericos."
+        description="Escolha o nivel de detalhe do documento."
         icon={Eye}
         tone="accent"
       >
@@ -168,7 +155,6 @@ export function ProposalMobilePdfStep({
             key={group.title}
             eyebrow="Configuracao granular"
             title={group.title}
-            description={group.description}
             icon={Icon}
           >
             <div className="space-y-3">

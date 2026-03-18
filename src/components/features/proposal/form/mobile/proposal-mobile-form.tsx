@@ -290,44 +290,37 @@ export function ProposalMobileForm({
     <div className="space-y-4">
       <div className="-mx-4 sm:-mx-6 lg:-mx-8">
         <div className="sticky top-0 z-30 bg-background/96 px-4 pb-4 pt-2 backdrop-blur-sm sm:px-6 lg:px-8">
-          <div className="rounded-[26px] border border-border/60 bg-background/95 p-3 shadow-[0_20px_52px_-34px_rgba(15,23,42,0.42)] backdrop-blur-xl">
-            <div className="flex items-start gap-3 rounded-[22px] border border-slate-200/70 bg-linear-to-br from-white via-slate-50 to-sky-50 p-4 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+          <div className="rounded-[24px] border border-border/60 bg-background/96 p-3 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.4)] backdrop-blur-xl">
+            <div className="flex items-start gap-3 rounded-[20px] border border-slate-200/70 bg-linear-to-br from-white via-slate-50 to-sky-50 p-3.5 dark:border-white/10 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
               <button
                 type="button"
                 onClick={onBack}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/8 dark:text-white"
                 aria-label="Voltar para propostas"
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">
                       Proposta
                     </p>
-                    <h1 className="mt-1 break-words text-lg font-semibold leading-6 text-slate-950 dark:text-white">
+                    <h1 className="mt-1 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">
                       {formData.title ||
                         (proposalId ? "Editar proposta" : "Nova proposta")}
                     </h1>
-                    <p className="mt-1 break-words text-sm leading-5 text-slate-600 dark:text-slate-300">
-                      {formData.clientName || "Contato ainda nao definido"} /{" "}
+                    <p className="mt-1 break-words text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      {formData.clientName || "Contato pendente"} •{" "}
                       {formatDateLabel(formData.validUntil)}
                     </p>
                   </div>
 
-                  <div className="min-w-[92px] shrink-0 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 text-right shadow-sm dark:border-white/10 dark:bg-white/8">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">
-                      Progresso
-                    </p>
-                    <p className="text-base font-semibold text-slate-950 dark:text-white">
-                      {progress}%
-                    </p>
-                  </div>
+                  <QuickTopMetric label="Progresso" value={`${progress}%`} />
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="mt-3 grid grid-cols-3 gap-2">
                   <QuickTopMetric label="Itens" value={String(totalItems)} />
                   <QuickTopMetric
                     label="Solucoes"
@@ -336,11 +329,10 @@ export function ProposalMobileForm({
                   <QuickTopMetric
                     label="Total"
                     value={formatCurrency(calculateTotal())}
-                    className="col-span-2 sm:col-span-1"
                   />
                 </div>
 
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                   <div
                     className="h-full rounded-full bg-linear-to-r from-sky-400 via-cyan-300 to-emerald-300 transition-all duration-300"
                     style={{ width: `${progress}%` }}
@@ -361,15 +353,15 @@ export function ProposalMobileForm({
                     type="button"
                     onClick={() => canClick && onStepChange(index)}
                     disabled={!canClick}
-                    className={`min-h-[74px] min-w-[148px] shrink-0 rounded-[20px] border px-4 py-3 text-left transition-all ${
+                    className={`min-h-[58px] min-w-[116px] shrink-0 rounded-[18px] border px-3 py-2.5 text-left transition-all ${
                       isCurrent
-                        ? "border-sky-500/30 bg-sky-500/10 shadow-[0_18px_40px_-28px_rgba(14,165,233,0.75)]"
+                        ? "border-sky-500/30 bg-sky-500/10 shadow-[0_18px_40px_-30px_rgba(14,165,233,0.75)]"
                         : "border-border/60 bg-card/95"
                     } ${canClick ? "opacity-100" : "opacity-45"}`}
                   >
                     <div className="flex items-center gap-2">
                       <div
-                        className={`flex h-9 w-9 items-center justify-center rounded-2xl ${
+                        className={`flex h-8 w-8 items-center justify-center rounded-2xl ${
                           isCurrent
                             ? "bg-sky-500/14 text-sky-700 dark:text-sky-300"
                             : "bg-muted text-muted-foreground"
@@ -381,7 +373,7 @@ export function ProposalMobileForm({
                         <p className="break-words text-sm font-semibold text-foreground">
                           {step.title}
                         </p>
-                        <p className="mt-0.5 line-clamp-2 break-words text-xs leading-4 text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-1 break-words text-[11px] leading-4 text-muted-foreground">
                           {step.description}
                         </p>
                       </div>
@@ -394,8 +386,8 @@ export function ProposalMobileForm({
         </div>
       </div>
 
-      <div className="rounded-[28px] border border-border/60 bg-card px-3 py-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] sm:px-4">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="rounded-[26px] border border-border/60 bg-card px-3 py-4 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.45)] sm:px-4">
+        <div className="mb-4 border-b border-border/50 pb-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Etapa {mobileStep + 1} de {steps.length}
@@ -403,10 +395,10 @@ export function ProposalMobileForm({
             <h2 className="break-words text-lg font-semibold text-foreground">
               {currentStep.title}
             </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {currentStep.description}
+            </p>
           </div>
-          <span className="max-w-full rounded-full border border-border/60 bg-background/70 px-3 py-1 text-left text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:max-w-[48%] sm:text-right">
-            {currentStep.description}
-          </span>
         </div>
 
         {stepContent}
@@ -468,11 +460,13 @@ function QuickTopMetric({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm dark:border-white/10 dark:bg-white/8 ${className ?? ""}`}>
+    <div
+      className={`min-w-0 rounded-2xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm dark:border-white/10 dark:bg-white/8 ${className ?? ""}`}
+    >
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold leading-5 [overflow-wrap:anywhere]">
+      <p className="mt-0.5 text-sm font-semibold leading-5 [overflow-wrap:anywhere]">
         {value}
       </p>
     </div>

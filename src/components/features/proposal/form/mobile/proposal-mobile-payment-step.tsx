@@ -115,7 +115,7 @@ export function ProposalMobilePaymentStep({
       <MobilePanel
         eyebrow="Ajuste comercial"
         title="Desconto e custos adicionais"
-        description="No mobile, esses ajustes aparecem primeiro para voce entender o impacto no valor final antes de parcelar."
+        description="Ajuste o valor final antes de definir o recebimento."
         icon={Percent}
         tone="accent"
       >
@@ -210,12 +210,12 @@ export function ProposalMobilePaymentStep({
       <MobilePanel
         eyebrow="Fluxo de recebimento"
         title="Entrada"
-        description="Ative apenas se existir um valor inicial separado do saldo principal."
+        description="Use apenas quando houver sinal ou valor inicial."
         icon={Banknote}
       >
         <MobileToggleCard
           title="Receber entrada"
-          description="Use quando ha sinal, entrada antecipada ou reserva antes das parcelas."
+          description="Separar um valor inicial do saldo."
           checked={!!formData.downPaymentEnabled}
           onCheckedChange={(checked) =>
             onPaymentToggle("downPaymentEnabled", checked)
@@ -315,13 +315,13 @@ export function ProposalMobilePaymentStep({
       <MobilePanel
         eyebrow="Parcelamento"
         title="Divisao do saldo"
-        description="Configure numero de parcelas, carteira interna e a data do primeiro vencimento."
+        description="Defina parcelas, carteira e primeiro vencimento."
         icon={CreditCard}
         tone="success"
       >
         <MobileToggleCard
           title="Parcelar proposta"
-          description="Ative quando o cliente vai pagar em etapas mensais."
+          description="Dividir o saldo em parcelas."
           checked={!!formData.installmentsEnabled}
           onCheckedChange={(checked) =>
             onPaymentToggle("installmentsEnabled", checked)
