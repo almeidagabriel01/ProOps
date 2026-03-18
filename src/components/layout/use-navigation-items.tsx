@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Home } from "lucide-react";
 
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
@@ -9,7 +10,10 @@ import {
   menuItems,
   type MenuItem,
 } from "@/components/layout/navigation-config";
-import { isPageEnabledForNiche } from "@/lib/niches/config";
+import {
+  getSolutionsPageConfig,
+  isPageEnabledForNiche,
+} from "@/lib/niches/config";
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
   const { hasFinancial, hasKanban } = usePlanLimits();
@@ -17,7 +21,23 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
   const { tenant } = useTenant();
 
   const visibleMenuItems = React.useMemo(() => {
-    return menuItems.filter((item) => {
+    const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
+
+    return menuItems
+      .map((item) =>
+        item.pageId === "solutions"
+          ? {
+              ...item,
+              label: solutionsConfig.navigationLabel,
+              icon:
+                tenant?.niche === "cortinas" &&
+                solutionsConfig.mode === "environment"
+                  ? Home
+                  : item.icon,
+            }
+          : item,
+      )
+      .filter((item) => {
       if (!isPageEnabledForNiche(tenant?.niche, item.pageId)) return false;
       if (item.requiresFinancial && !hasFinancial && !isMaster) return true;
       if (item.requiresEnterprise && !hasKanban && !isMaster) return true;
@@ -42,7 +62,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
       }
 
       return true;
-    });
+      });
   }, [hasFinancial, hasKanban, isMaster, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };

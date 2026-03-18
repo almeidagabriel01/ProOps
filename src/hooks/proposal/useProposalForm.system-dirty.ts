@@ -43,12 +43,33 @@ export function useProposalFormSystemDirty(
     formData,
   } = ctx;
 
-  const addSistema = (sistema: ProposalSistema) => {
-    const systemInstanceId = `${sistema.sistemaId}-${sistema.ambienteId}`;
-    setSelectedSistemas((prev) => [...prev, sistema]);
+  const getSystemInstanceId = React.useCallback((sistema: ProposalSistema) => {
+    const primaryAmbienteId =
+      sistema.ambientes?.[0]?.ambienteId || sistema.ambienteId || "";
+    return `${sistema.sistemaId}-${primaryAmbienteId}`;
+  }, []);
 
-    if (sistema.products && sistema.products.length > 0) {
-      const systemProducts: ProposalProduct[] = sistema.products.map((sp) => {
+  const addSistema = (sistema: ProposalSistema) => {
+    const systemInstanceId = getSystemInstanceId(sistema);
+    const standardProducts = sistema.products || [];
+
+    let shouldAddProducts = false;
+
+    setSelectedSistemas((prev) => {
+      const alreadyExists = prev.some(
+        (existing) => getSystemInstanceId(existing) === systemInstanceId,
+      );
+
+      if (alreadyExists) {
+        return prev;
+      }
+
+      shouldAddProducts = true;
+      return [...prev, sistema];
+    });
+
+    if (shouldAddProducts && standardProducts.length > 0) {
+      const systemProducts: ProposalProduct[] = standardProducts.map((sp) => {
         const itemType = sp.itemType || "product";
         const productDef = products.find(
           (p) =>
@@ -87,7 +108,21 @@ export function useProposalFormSystemDirty(
 
       setFormData((prev) => ({
         ...prev,
-        products: [...(prev.products || []), ...systemProducts],
+        products: [
+          ...(prev.products || []).filter((existingProduct) => {
+            if (existingProduct.systemInstanceId !== systemInstanceId) {
+              return true;
+            }
+
+            return !systemProducts.some(
+              (incomingProduct) =>
+                incomingProduct.productId === existingProduct.productId &&
+                (incomingProduct.itemType || "product") ===
+                  (existingProduct.itemType || "product"),
+            );
+          }),
+          ...systemProducts,
+        ],
       }));
     }
   };

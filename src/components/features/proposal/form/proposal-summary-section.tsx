@@ -8,6 +8,7 @@ import { Service } from "@/services/service-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus } from "@/types/proposal";
 import { FileText } from "lucide-react";
+import { ProposalWorkflow } from "@/lib/niches/config";
 
 import { ProposalSummaryTable } from "./summary/proposal-summary-table";
 import { ProposalSummaryControls } from "./summary/proposal-summary-controls";
@@ -32,7 +33,7 @@ interface ProposalSummarySectionProps {
   selectedProducts: ProposalProduct[];
   selectedSistemas: ProposalSistema[];
   extraProducts: ProposalProduct[];
-  isAutomacaoNiche: boolean;
+  proposalWorkflow: ProposalWorkflow;
   primaryColor: string;
   products?: Array<Product | Service>; // Full catalog list for status checking
   calculateSubtotal: () => number;
@@ -50,7 +51,7 @@ export function ProposalSummarySection({
   selectedProducts,
   selectedSistemas,
   extraProducts,
-  isAutomacaoNiche,
+  proposalWorkflow,
   primaryColor,
   products = [],
   calculateSubtotal,
@@ -172,7 +173,7 @@ export function ProposalSummarySection({
           selectedProducts={selectedProducts}
           selectedSistemas={selectedSistemas}
           extraProducts={extraProducts}
-          isAutomacaoNiche={isAutomacaoNiche}
+          proposalWorkflow={proposalWorkflow}
           primaryColor={primaryColor}
           products={products}
           subtotal={subtotal}

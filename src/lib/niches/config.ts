@@ -1,7 +1,8 @@
 import type { TenantNiche } from "@/types";
 
 export type InventoryUnit = "unit" | "meter";
-export type ProposalWorkflow = "automation" | "catalog";
+export type ProposalWorkflow = "automation" | "catalog" | "environment";
+export type SolutionsPageMode = "automation" | "environment";
 
 export interface InventoryDefinition {
   mode: InventoryUnit;
@@ -32,10 +33,18 @@ export interface ProductCatalogDefinition {
   inventory: InventoryDefinition;
 }
 
+export interface SolutionsPageDefinition {
+  navigationLabel: string;
+  pageTitle: string;
+  pageDescription: string;
+  mode: SolutionsPageMode;
+}
+
 export interface NicheConfig {
   id: TenantNiche;
   label: string;
   pageAvailability: Partial<Record<string, boolean>>;
+  solutionsPage: SolutionsPageDefinition;
   proposal: {
     workflow: ProposalWorkflow;
   };
@@ -86,6 +95,12 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: true,
     },
+    solutionsPage: {
+      navigationLabel: "Soluções",
+      pageTitle: "Soluções",
+      pageDescription: "Central de gerenciamento de soluções e ambientes.",
+      mode: "automation",
+    },
     proposal: {
       workflow: "automation",
     },
@@ -108,6 +123,12 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     label: "Varejo",
     pageAvailability: {
       solutions: true,
+    },
+    solutionsPage: {
+      navigationLabel: "Soluções",
+      pageTitle: "Soluções",
+      pageDescription: "Central de gerenciamento de soluções e ambientes.",
+      mode: "automation",
     },
     proposal: {
       workflow: "automation",
@@ -132,8 +153,15 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: true,
     },
+    solutionsPage: {
+      navigationLabel: "Ambientes",
+      pageTitle: "Ambientes",
+      pageDescription:
+        "Gerencie os ambientes e configure os produtos padrões de cada espaço.",
+      mode: "environment",
+    },
     proposal: {
-      workflow: "automation",
+      workflow: "environment",
     },
     productCatalog: {
       singularLabel: "Produto",
@@ -170,6 +198,12 @@ export function isPageEnabledForNiche(
   const config = getNicheConfig(niche);
   const pageState = config.pageAvailability[pageId];
   return pageState !== false;
+}
+
+export function getSolutionsPageConfig(
+  niche?: TenantNiche | null,
+): SolutionsPageDefinition {
+  return getNicheConfig(niche).solutionsPage;
 }
 
 export function parseInventoryValue(value: unknown): number {

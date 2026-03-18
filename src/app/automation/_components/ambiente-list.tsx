@@ -14,6 +14,7 @@ import {
   Check,
   X,
   LayoutGrid,
+  Package,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { AmbienteService } from "@/services/ambiente-service";
@@ -29,30 +30,38 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "motion/react";
+import { AmbienteProductsDialog } from "@/components/features/automation/ambiente-products-dialog";
 
 interface AmbienteListProps {
   ambientes: Ambiente[];
   onUpdate: () => void;
+  enableProductTemplates?: boolean;
+  helperText?: string;
 }
 
-export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
+export function AmbienteList({
+  ambientes,
+  onUpdate,
+  enableProductTemplates = false,
+  helperText = "Adicione ambientes globais para serem utilizados em suas soluções.",
+}: AmbienteListProps) {
   const { tenant } = useTenant();
 
-  // Create State
   const [newAmbienteName, setNewAmbienteName] = React.useState("");
   const [isCreating, setIsCreating] = React.useState(false);
 
-  // Edit State
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState("");
   const [isUpdating, setIsUpdating] = React.useState(false);
 
-  // Delete State
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  // Handlers
+  const [productsDialogOpen, setProductsDialogOpen] = React.useState(false);
+  const [selectedAmbiente, setSelectedAmbiente] =
+    React.useState<Ambiente | null>(null);
+
   const handleCreate = async () => {
     if (!tenant?.id || !newAmbienteName.trim() || isCreating) return;
 
@@ -124,9 +133,13 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
     setEditingName(amb.name);
   };
 
+  const openProductsDialog = (ambiente: Ambiente) => {
+    setSelectedAmbiente(ambiente);
+    setProductsDialogOpen(true);
+  };
+
   return (
     <div className="space-y-8">
-      {/* Create Section */}
       <div className="max-w-xl">
         <div className="flex items-center gap-2">
           <Input
@@ -154,12 +167,9 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
             )}
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground mt-2 px-1">
-          Adicione ambientes globais para serem utilizados em suas soluções.
-        </p>
+        <p className="text-sm text-muted-foreground mt-2 px-1">{helperText}</p>
       </div>
 
-      {/* Grid List */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <AnimatePresence mode="popLayout">
           {ambientes.map((amb) => (
@@ -227,6 +237,17 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
                       <Home className="h-5 w-5" />
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {enableProductTemplates && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => openProductsDialog(amb)}
+                          title="Configurar produtos padrões"
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
@@ -295,6 +316,13 @@ export function AmbienteList({ ambientes, onUpdate }: AmbienteListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AmbienteProductsDialog
+        isOpen={productsDialogOpen}
+        onClose={() => setProductsDialogOpen(false)}
+        ambiente={selectedAmbiente}
+        onSave={onUpdate}
+      />
     </div>
   );
 }

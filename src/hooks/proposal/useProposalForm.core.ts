@@ -93,9 +93,10 @@ export function useProposalFormCore({
   );
 
   const primaryColor = tenant?.primaryColor || "#2563eb";
-  const isAutomacaoNiche =
-    tenant !== null &&
-    getNicheConfig(tenant?.niche).proposal.workflow === "automation";
+  const proposalWorkflow = getNicheConfig(tenant?.niche).proposal.workflow;
+  const isAutomacaoNiche = tenant !== null && proposalWorkflow === "automation";
+  const isEnvironmentProposal =
+    tenant !== null && proposalWorkflow === "environment";
 
   // Get wallets to pre-select default wallet
   const { wallets } = useWalletsData();
@@ -148,6 +149,10 @@ export function useProposalFormCore({
           if (entity === "ambiente" && s.ambienteId === tempId) {
             updated.ambienteId = realId;
             changed = true;
+
+            if (s.sistemaId === tempId) {
+              updated.sistemaId = realId;
+            }
           }
           if (entity === "sistema" && s.sistemaId === tempId) {
             updated.sistemaId = realId;
@@ -161,8 +166,15 @@ export function useProposalFormCore({
             setFormData((prevData) => ({
               ...prevData,
               products: (prevData.products || []).map((p) => {
-                if (p.systemInstanceId === oldInstanceId) {
-                  return { ...p, systemInstanceId: newInstanceId };
+                if (
+                  p.systemInstanceId === oldInstanceId ||
+                  p.ambienteInstanceId === oldInstanceId
+                ) {
+                  return {
+                    ...p,
+                    systemInstanceId: newInstanceId,
+                    ambienteInstanceId: newInstanceId,
+                  };
                 }
                 return p;
               }),
@@ -450,6 +462,8 @@ export function useProposalFormCore({
     features,
     primaryColor,
     isAutomacaoNiche,
+    isEnvironmentProposal,
+    proposalWorkflow,
     // Transactional & System Handlers
     mergedAmbientes,
     mergedSistemas,
