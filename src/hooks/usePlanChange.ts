@@ -77,6 +77,38 @@ export function usePlanChange(
 
   const toastShownRef = useRef(false);
 
+  const normalizePlanKey = useCallback((value?: string | null) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized || null;
+  }, []);
+
+  const resolvePlanFromCollection = useCallback(
+    (plans: UserPlan[], candidates: Array<string | null | undefined>) => {
+      const normalizedCandidates = candidates
+        .map((candidate) => normalizePlanKey(candidate))
+        .filter((candidate): candidate is string => Boolean(candidate));
+
+      if (normalizedCandidates.length === 0) {
+        return null;
+      }
+
+      return (
+        plans.find((plan) => {
+          const planKeys = [
+            normalizePlanKey(plan.id),
+            normalizePlanKey(plan.tier),
+            normalizePlanKey(plan.name),
+          ].filter((key): key is string => Boolean(key));
+
+          return normalizedCandidates.some((candidate) =>
+            planKeys.includes(candidate),
+          );
+        }) || null
+      );
+    },
+    [normalizePlanKey],
+  );
+
   // Determine effective user (for superadmin viewing tenant)
   useEffect(() => {
     const fetchEffectiveUser = async () => {
@@ -143,20 +175,26 @@ export function usePlanChange(
       // Wait for effectiveUser to be determined
       if (!effectiveUser) return;
 
+      let storedPlan: UserPlan | null = null;
+
       try {
         const plans = await PlanService.getPlans();
         setAllPlans(plans);
 
-        // Use effectiveUser's plan if available
         const targetPlanId = effectiveUser?.planId;
         if (targetPlanId) {
-          const plan = await PlanService.getPlanById(targetPlanId);
-          setUserPlan(plan);
-        } else {
-          // Don't default to starter - leave null if no plan assigned
-          // This prevents flash when user's data is still loading
-          setUserPlan(null);
+          storedPlan = await PlanService.getPlanById(targetPlanId);
         }
+
+        const resolvedPlan =
+          resolvePlanFromCollection(plans, [
+            targetPlanId,
+            storedPlan?.id,
+            storedPlan?.tier,
+            storedPlan?.name,
+          ]) || storedPlan;
+
+        setUserPlan(resolvedPlan);
       } catch (error) {
         console.error("Error loading plans:", error);
       }
@@ -167,15 +205,16 @@ export function usePlanChange(
         if (livePlans && livePlans.length > 0) {
           setAllPlans(livePlans);
 
-          // Update user plan with live data if needed
           const targetPlanId = effectiveUser?.planId;
-          if (targetPlanId) {
-            const liveUserPlan = livePlans.find(
-              (p) => p.id === targetPlanId || p.tier === targetPlanId,
-            );
-            if (liveUserPlan) {
-              setUserPlan(liveUserPlan);
-            }
+          const liveUserPlan = resolvePlanFromCollection(livePlans, [
+            targetPlanId,
+            storedPlan?.id,
+            storedPlan?.tier,
+            storedPlan?.name,
+          ]);
+
+          if (liveUserPlan) {
+            setUserPlan(liveUserPlan);
           }
         }
       } catch (error) {
@@ -186,7 +225,7 @@ export function usePlanChange(
     };
 
     loadPlans();
-  }, [effectiveUser]);
+  }, [effectiveUser, resolvePlanFromCollection]);
 
   const isCurrentPlan = (plan: UserPlan) => {
     // Check if plan tier matches AND billing interval matches
