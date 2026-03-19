@@ -10,26 +10,30 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Package, X, Minus, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search, Package, Wrench, X, Minus, Save } from "lucide-react";
 import { Ambiente, AmbienteProduct } from "@/types/automation";
 import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
+import { ServiceService, Service } from "@/services/service-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { getNicheConfig } from "@/lib/niches/config";
+import {
+  formatItemQuantity,
+  normalizeItemQuantity,
+} from "@/lib/quantity-utils";
 
 interface AmbienteProductsDialogProps {
   isOpen: boolean;
   onClose: () => void;
   ambiente: Ambiente | null;
   onSave?: () => void;
-  // Managed mode
   onAction?: (action: MasterDataAction) => Promise<void> | void;
-  // Custom save handler (overrides default service calls)
   onSaveProducts?: (products: AmbienteProduct[]) => Promise<void> | void;
-  // Overrides loading from ambiente.defaultProducts
   initialProducts?: AmbienteProduct[];
 }
 
@@ -42,62 +46,74 @@ export function AmbienteProductsDialog({
   ...props
 }: AmbienteProductsDialogProps) {
   const { tenant } = useTenant();
+  const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
+  const allowDecimalProductQuantity = inventoryConfig.step < 1;
+
   const [selectedProducts, setSelectedProducts] = React.useState<
     AmbienteProduct[]
   >([]);
-  const [products, setProducts] = React.useState<Product[]>([]);
+  const [catalogItems, setCatalogItems] = React.useState<Array<Product | Service>>(
+    [],
+  );
   const [productSearch, setProductSearch] = React.useState("");
   const [showProductList, setShowProductList] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const productListRef = React.useRef<HTMLDivElement>(null);
 
-  // Load products catalog and ambiente's current products
+  const loadCatalog = React.useCallback(async () => {
+    if (!tenant?.id) return;
+
+    const [catalogProducts, catalogServices] = await Promise.all([
+      ProductService.getProducts(tenant.id),
+      ServiceService.getServices(tenant.id),
+    ]);
+
+    setCatalogItems([
+      ...catalogProducts
+        .filter((product) => product.status === "active")
+        .map((item) => ({ ...item, itemType: "product" as const })),
+      ...catalogServices
+        .filter((service) => service.status !== "inactive")
+        .map((item) => ({ ...item, itemType: "service" as const })),
+    ]);
+  }, [tenant?.id]);
+
   React.useEffect(() => {
     const loadData = async () => {
       if (!isOpen || !tenant?.id) return;
 
       setIsLoading(true);
       try {
-        // Load product catalog
-        const catalogProducts = await ProductService.getProducts(tenant.id);
-        setProducts(catalogProducts.filter((p) => p.status === "active"));
+        await loadCatalog();
 
-        // Set current ambiente products
         if (props.initialProducts) {
-          setSelectedProducts(props.initialProducts);
+          setSelectedProducts([...props.initialProducts]);
         } else if (ambiente?.defaultProducts) {
-          setSelectedProducts(ambiente.defaultProducts);
+          setSelectedProducts([...ambiente.defaultProducts]);
         } else {
           setSelectedProducts([]);
         }
       } catch (error) {
-        console.error("Error loading products:", error);
-        toast.error("Erro ao carregar produtos");
+        console.error("Error loading catalog:", error);
+        toast.error("Erro ao carregar itens");
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [isOpen, tenant?.id, ambiente, props.initialProducts]);
+  }, [isOpen, tenant?.id, ambiente, props.initialProducts, loadCatalog]);
 
   useWindowFocus(() => {
     if (isOpen && tenant?.id) {
       ProductService.invalidateTenantCache(tenant.id);
-      const refreshCatalog = async () => {
-        try {
-          const catalogProducts = await ProductService.getProducts(tenant.id);
-          setProducts(catalogProducts.filter((p) => p.status === "active"));
-        } catch (e) {
-          console.error("Failed to refresh catalog on focus", e);
-        }
-      };
-      refreshCatalog();
+      loadCatalog().catch((error) => {
+        console.error("Failed to refresh catalog on focus", error);
+      });
     }
   });
 
-  // Close product list when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (
       event: MouseEvent | PointerEvent | TouchEvent,
@@ -121,32 +137,61 @@ export function AmbienteProductsDialog({
     };
   }, []);
 
-  const addProduct = (product: Product) => {
+  const addProduct = (item: Product | Service) => {
     setSelectedProducts((prev) => [
       ...prev,
       {
-        productId: product.id,
-        productName: product.name,
-        quantity: 1,
+        productId: item.id,
+        itemType: item.itemType || "product",
+        productName: item.name,
+        quantity: 0,
+        status: "active",
       },
     ]);
     setProductSearch("");
     setShowProductList(false);
   };
 
-  const removeProduct = (productId: string) => {
+  const removeProduct = (
+    productId: string,
+    itemType: "product" | "service" = "product",
+  ) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p.productId !== productId),
+      prev.filter(
+        (product) =>
+          !(
+            product.productId === productId &&
+            (product.itemType || "product") === itemType
+          ),
+      ),
     );
   };
 
-  const updateProductQuantity = (productId: string, delta: number) => {
+  const updateProductQuantity = (
+    productId: string,
+    delta: number,
+    itemType: "product" | "service" = "product",
+  ) => {
     setSelectedProducts((prev) =>
-      prev.map((p) =>
-        p.productId === productId
-          ? { ...p, quantity: Math.max(1, p.quantity + delta) }
-          : p,
-      ),
+      prev.map((product) => {
+        if (
+          product.productId !== productId ||
+          (product.itemType || "product") !== itemType
+        ) {
+          return product;
+        }
+
+        const allowDecimal =
+          itemType !== "service" && allowDecimalProductQuantity;
+
+        return {
+          ...product,
+          quantity: normalizeItemQuantity(
+            product.quantity + delta,
+            allowDecimal,
+          ),
+        };
+      }),
     );
   };
 
@@ -160,7 +205,6 @@ export function AmbienteProductsDialog({
       if (props.onSaveProducts) {
         await props.onSaveProducts(selectedProducts);
       } else if (onAction) {
-        // Managed mode
         await onAction({
           type: "update",
           entity: "ambiente",
@@ -168,27 +212,30 @@ export function AmbienteProductsDialog({
           data: updatedData,
         });
       } else {
-        // Direct mode
         await AmbienteService.updateAmbiente(ambiente.id, updatedData);
       }
 
-      toast.success("Produtos do ambiente salvos!");
+      toast.success("Itens do ambiente salvos!");
       onSave?.();
       onClose();
     } catch (error) {
-      console.error("Error saving ambiente products:", error);
-      toast.error("Erro ao salvar produtos");
+      console.error("Error saving ambiente items:", error);
+      toast.error("Erro ao salvar itens");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      !selectedProducts.some((sp) => sp.productId === p.id) &&
+  const filteredProducts = catalogItems.filter(
+    (item) =>
+      !selectedProducts.some(
+        (selected) =>
+          selected.productId === item.id &&
+          (selected.itemType || "product") === (item.itemType || "product"),
+      ) &&
       (productSearch === "" ||
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.category?.toLowerCase().includes(productSearch.toLowerCase())),
+        item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        item.category?.toLowerCase().includes(productSearch.toLowerCase())),
   );
 
   return (
@@ -197,11 +244,12 @@ export function AmbienteProductsDialog({
         <div className="p-6 border-b shrink-0">
           <DialogHeader>
             <DialogTitle>
-              Produtos Padrão - {ambiente?.name || "Ambiente"}
+              Itens Padrao - {ambiente?.name || "Ambiente"}
             </DialogTitle>
             <DialogDescription>
-              Configure os produtos que serão adicionados automaticamente quando
-              este ambiente for selecionado em uma proposta.
+              Configure os produtos e servicos que serao adicionados
+              automaticamente quando este ambiente for selecionado em uma
+              proposta.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -210,17 +258,16 @@ export function AmbienteProductsDialog({
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="flex flex-col items-center gap-3">
               <Spinner className="h-8 w-8 text-primary" />
-              <p>Carregando produtos...</p>
+              <p>Carregando itens...</p>
             </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Add Product Search - More prominent */}
             <div className="relative w-full" ref={productListRef}>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar e adicionar produtos..."
+                  placeholder="Buscar e adicionar itens..."
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   onFocus={() => setShowProductList(true)}
@@ -232,44 +279,57 @@ export function AmbienteProductsDialog({
                 <div className="absolute z-50 w-full mt-2 bg-popover border rounded-xl shadow-xl max-h-[300px] overflow-y-auto">
                   {filteredProducts.length === 0 ? (
                     <div className="p-6 text-sm text-muted-foreground text-center">
-                      {products.length === 0
-                        ? "Nenhum produto cadastrado"
-                        : "Nenhum produto encontrado"}
+                      {catalogItems.length === 0
+                        ? "Nenhum item cadastrado"
+                        : "Nenhum item encontrado"}
                     </div>
                   ) : (
-                    filteredProducts.slice(0, 15).map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => addProduct(product)}
-                        className="w-full flex items-center gap-4 p-4 text-left hover:bg-accent/50 transition-colors border-b last:border-b-0 group"
-                      >
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Package className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                            {product.name}
+                    filteredProducts.slice(0, 15).map((item) => {
+                      const isService =
+                        (item.itemType || "product") === "service";
+
+                      return (
+                        <button
+                          key={`${item.itemType || "product"}-${item.id}`}
+                          type="button"
+                          onClick={() => addProduct(item)}
+                          className="w-full flex items-center gap-4 p-4 text-left hover:bg-accent/50 transition-colors border-b last:border-b-0 group"
+                        >
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            {isService ? (
+                              <Wrench className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Package className="h-5 w-5 text-primary" />
+                            )}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {product.category && `${product.category} • `}
-                            R$ {parseFloat(product.price).toFixed(2)}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                                {item.name}
+                              </div>
+                              <Badge variant="outline" className="text-[10px] h-5">
+                                {isService ? "Servico" : "Produto"}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {item.category && `${item.category} - `}
+                              R$ {parseFloat(item.price).toFixed(2)}
+                            </div>
                           </div>
-                        </div>
-                        <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                      </button>
-                    ))
+                          <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               )}
             </div>
 
-            {/* Selected Products Grid */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Package className="w-4 h-4" />
-                  Produtos Selecionados
+                  Itens Selecionados
                   <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-semibold">
                     {selectedProducts.length}
                   </span>
@@ -278,72 +338,105 @@ export function AmbienteProductsDialog({
 
               {selectedProducts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {selectedProducts.map((sp) => (
-                    <div
-                      key={sp.productId}
-                      className="group relative flex flex-col p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Package className="h-5 w-5 text-primary" />
+                  {selectedProducts.map((item) => {
+                    const isService =
+                      (item.itemType || "product") === "service";
+                    const allowDecimal =
+                      !isService && allowDecimalProductQuantity;
+                    const quantityStep = allowDecimal
+                      ? inventoryConfig.step
+                      : 1;
+
+                    return (
+                      <div
+                        key={`${item.itemType || "product"}-${item.productId}`}
+                        className="group relative flex flex-col p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            {isService ? (
+                              <Wrench className="h-5 w-5 text-primary" />
+                            ) : (
+                              <Package className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() =>
+                              removeProduct(
+                                item.productId,
+                                item.itemType || "product",
+                              )
+                            }
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 -mr-2 -mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => removeProduct(sp.productId)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
 
-                      <div className="flex-1 min-w-0 mb-4">
-                        <p
-                          className="font-medium text-sm line-clamp-2 leading-tight"
-                          title={sp.productName}
-                        >
-                          {sp.productName}
-                        </p>
-                      </div>
+                        <div className="flex-1 min-w-0 mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-[10px] h-5">
+                              {isService ? "Servico" : "Produto"}
+                            </Badge>
+                          </div>
+                          <p
+                            className="font-medium text-sm line-clamp-2 leading-tight"
+                            title={item.productName}
+                          >
+                            {item.productName}
+                          </p>
+                        </div>
 
-                      {/* Quantity Control - Bottom */}
-                      <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 border self-start mt-auto">
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 hover:bg-background shadow-sm"
-                          onClick={() =>
-                            updateProductQuantity(sp.productId, -1)
-                          }
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-10 text-center text-sm font-semibold tabular-nums">
-                          {sp.quantity}
-                        </span>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 hover:bg-background shadow-sm"
-                          onClick={() => updateProductQuantity(sp.productId, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 border self-start mt-auto">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 hover:bg-background shadow-sm"
+                            onClick={() =>
+                              updateProductQuantity(
+                                item.productId,
+                                -quantityStep,
+                                item.itemType || "product",
+                              )
+                            }
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-14 text-center text-sm font-semibold tabular-nums">
+                            {formatItemQuantity(item.quantity, allowDecimal)}
+                          </span>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 hover:bg-background shadow-sm"
+                            onClick={() =>
+                              updateProductQuantity(
+                                item.productId,
+                                quantityStep,
+                                item.itemType || "product",
+                              )
+                            }
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-xl bg-muted/20 text-muted-foreground">
                   <Package className="h-10 w-10 mb-3 opacity-20" />
                   <p className="text-center font-medium">
-                    Nenhum produto configurado
+                    Nenhum item configurado
                   </p>
                   <p className="text-center text-sm opacity-70">
-                    Use a busca acima para adicionar produtos a este ambiente
+                    Use a busca acima para adicionar itens a este ambiente
                   </p>
                 </div>
               )}
@@ -364,7 +457,7 @@ export function AmbienteProductsDialog({
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                Salvar Produtos
+                Salvar Itens
               </>
             )}
           </Button>

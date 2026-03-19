@@ -13,6 +13,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { WalletSelect } from "@/components/features/wallet-select";
 import { useTenant } from "@/providers/tenant-provider";
 import { KanbanService } from "@/services/kanban-service";
+import { cn } from "@/lib/utils";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -536,52 +537,62 @@ export function ProposalPaymentSection({
             </div>
 
             {/* Installments Wallet */}
-            <div className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-muted-foreground" />
-              <div className="flex-1">
-                <WalletSelect
-                  label="Carteira para parcelas (interno)"
-                  name="installmentsWallet"
-                  value={formData.installmentsWallet || ""}
-                  onChange={onFormChange}
-                  preSelectDefault
-                />
-              </div>
+            <div className="w-full">
+              <WalletSelect
+                label="Carteira para parcelas (interno)"
+                name="installmentsWallet"
+                value={formData.installmentsWallet || ""}
+                onChange={onFormChange}
+                preSelectDefault
+                icon={<Wallet className="w-5 h-5 text-muted-foreground" />}
+              />
             </div>
 
-            {/* First Installment Date */}
-            <div className="flex items-center gap-2">
-              <Calendar
-                className={`w-4 h-4 ${errors.firstInstallmentDate ? "text-destructive" : "text-muted-foreground"}`}
-              />
-              <div className="flex-1 field-gap">
-                <div className="min-h-5">
-                  <Label
-                    htmlFor="firstInstallmentDate"
-                    className={
-                      errors.firstInstallmentDate ? "text-destructive" : ""
-                    }
-                  >
-                    Vencimento da 1ª Parcela
-                  </Label>
-                </div>
-                <DatePicker
-                  id="firstInstallmentDate"
-                  name="firstInstallmentDate"
-                  value={formData.firstInstallmentDate || ""}
-                  onChange={onFormChange}
-                  className={errors.firstInstallmentDate ? "border-destructive focus-visible:ring-destructive" : ""}
-                />
-                {errors.firstInstallmentDate ? (
-                  <p className="text-xs text-destructive mt-1">
-                    {errors.firstInstallmentDate}
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Demais parcelas: +30 dias cada
-                  </p>
-                )}
+            <div className="field-gap w-full">
+              <div className="min-h-5 ml-7">
+                <Label
+                  htmlFor="firstInstallmentDate"
+                  className={
+                    errors.firstInstallmentDate ? "text-destructive" : ""
+                  }
+                >
+                  Vencimento da 1ª Parcela
+                </Label>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="shrink-0">
+                  <Calendar
+                    className={cn(
+                      "w-5 h-5",
+                      errors.firstInstallmentDate
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    )}
+                  />
+                </div>
+                <div className="relative flex-1 min-w-0">
+                  <DatePicker
+                    id="firstInstallmentDate"
+                    name="firstInstallmentDate"
+                    value={formData.firstInstallmentDate || ""}
+                    onChange={onFormChange}
+                    className={
+                      errors.firstInstallmentDate
+                        ? "border-destructive focus-visible:ring-destructive w-full"
+                        : "w-full"
+                    }
+                  />
+                </div>
+              </div>
+              {errors.firstInstallmentDate ? (
+                <p className="text-xs text-destructive mt-1 ml-7">
+                  {errors.firstInstallmentDate}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1 ml-7">
+                  Demais parcelas: +30 dias cada
+                </p>
+              )}
             </div>
 
             {/* Summary */}

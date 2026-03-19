@@ -130,18 +130,26 @@ export default function ProductsPage() {
     sortConfig,
   } = useSort(allProducts ?? []);
 
-  useEffect(() => {
-    const check = async () => {
-      if (!tenant) return;
-      try {
-        const result = await ProductService.getProductsPaginated(tenant.id, 1);
-        setHasAnyProducts(result.data.length > 0);
-      } catch {
-        setHasAnyProducts(false);
-      }
-    };
-    check();
+  const refreshHasAnyProducts = useCallback(async () => {
+    if (!tenant) {
+      setHasAnyProducts(false);
+      return false;
+    }
+
+    try {
+      const result = await ProductService.getProductsPaginated(tenant.id, 1);
+      const hasProducts = result.data.length > 0;
+      setHasAnyProducts(hasProducts);
+      return hasProducts;
+    } catch {
+      setHasAnyProducts(false);
+      return false;
+    }
   }, [tenant]);
+
+  useEffect(() => {
+    void refreshHasAnyProducts();
+  }, [refreshHasAnyProducts]);
 
   useEffect(() => {
     if (!tenant) {
@@ -221,12 +229,17 @@ export default function ProductsPage() {
 
       const success = await deleteProduct(deleteId, selectedProduct?.name);
       if (success) {
-        resetRef.current?.();
-        setHasAnyProducts(null);
-        if (allProducts) {
-          setAllProducts(
-            (prev) => prev?.filter((p) => p.id !== deleteId) ?? null,
-          );
+        const remainingProducts =
+          allProducts?.filter((p) => p.id !== deleteId) ?? null;
+        const hasRemainingProducts = await refreshHasAnyProducts();
+
+        if (!hasRemainingProducts) {
+          setAllProducts([]);
+        } else {
+          resetRef.current?.();
+          if (remainingProducts) {
+            setAllProducts(remainingProducts);
+          }
         }
       }
       setDeleteId(null);

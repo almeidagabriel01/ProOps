@@ -88,6 +88,20 @@ export function AmbienteManagerDialog({
     }
   }, [tenant?.id, managedAmbientes]);
 
+  // Bug 2 Fix: When managedAmbientes prop updates (e.g. after a product save
+  // in managed mode), sync selectedAmbienteForProducts with the freshly-updated
+  // version from the parent so re-opening the products dialog shows the correct
+  // quantities (including 0) instead of the stale pre-save object.
+  React.useEffect(() => {
+    if (!managedAmbientes || !selectedAmbienteForProducts) return;
+    const updated = managedAmbientes.find(
+      (a) => a.id === selectedAmbienteForProducts.id,
+    );
+    if (updated) {
+      setSelectedAmbienteForProducts(updated);
+    }
+  }, [managedAmbientes]); // eslint-disable-line react-hooks/exhaustive-deps
+
   React.useEffect(() => {
     if (isOpen && tenant?.id) {
       loadAmbientes();
@@ -154,7 +168,7 @@ export function AmbienteManagerDialog({
     setIsDeleting(true);
     try {
       if (onAction) {
-        onAction({
+        await onAction({
           type: "delete",
           entity: "ambiente",
           id: deletingId,
@@ -196,7 +210,7 @@ export function AmbienteManagerDialog({
       const newName = editingName.trim();
 
       if (onAction) {
-        onAction({
+        await onAction({
           type: "update",
           entity: "ambiente",
           id,
@@ -242,11 +256,31 @@ export function AmbienteManagerDialog({
   const handleProductsSave = () => {
     loadAmbientes();
     onAmbientesChange?.();
+    // Note: selectedAmbienteForProducts is synced automatically by the
+    // useEffect watching managedAmbientes once the parent prop updates.
+  };
+
+  const handleProductsDialogClose = () => {
+    setProductsDialogOpen(false);
   };
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      {/*
+        Bug 1 Fix: Guard onOpenChange so the main Dialog does NOT close when the
+        AlertDialog (delete confirm) or ProductsDialog is open. Without this,
+        Radix's focus-trap fires onOpenChange(false) the moment the AlertDialog
+        mounts and steals focus, silently closing the Dialog and the AlertDialog
+        together — making the delete button appear to do nothing.
+      */}
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleteConfirmOpen && !productsDialogOpen) {
+            onClose();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Gerenciar Ambientes</DialogTitle>
@@ -439,7 +473,7 @@ export function AmbienteManagerDialog({
       {/* Products Dialog */}
       <AmbienteProductsDialog
         isOpen={productsDialogOpen}
-        onClose={() => setProductsDialogOpen(false)}
+        onClose={handleProductsDialogClose}
         ambiente={selectedAmbienteForProducts}
         onSave={handleProductsSave}
         onAction={onAction}

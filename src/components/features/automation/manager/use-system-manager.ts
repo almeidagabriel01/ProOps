@@ -165,7 +165,7 @@ export function useSystemManager({
       const newAvailableIds = [...legIds, ambienteId];
 
       if (onAction) {
-        onAction({
+        await onAction({
           type: "update",
           entity: "sistema",
           id: selectedSistema.id,
@@ -207,7 +207,7 @@ export function useSystemManager({
       );
 
       if (onAction) {
-        onAction({
+        await onAction({
           type: "update",
           entity: "sistema",
           id: selectedSistema.id,

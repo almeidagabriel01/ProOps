@@ -94,6 +94,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     label: "Automação Residencial",
     pageAvailability: {
       solutions: true,
+      ambientes: false,
     },
     solutionsPage: {
       navigationLabel: "Soluções",
@@ -122,7 +123,8 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     id: "cortinas",
     label: "Cortinas",
     pageAvailability: {
-      solutions: true,
+      solutions: false,
+      ambientes: true,
     },
     solutionsPage: {
       navigationLabel: "Ambientes",

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
@@ -32,6 +33,11 @@ import { compareDisplayText } from "@/lib/sort-text";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
+import {
+  formatItemQuantity,
+  normalizeItemQuantity,
+  parseItemQuantityInput,
+} from "@/lib/quantity-utils";
 import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
 import {
   AlertDialog,
@@ -112,15 +118,6 @@ export function ProposalEnvironmentsSection({
   const quantityStep = inventoryConfig.step;
   const zeroQuantityLabel = isMeterMode ? "Ocultar metr. 0" : "Ocultar qtd. 0";
   const priceUnitLabel = inventoryConfig.priceSuffix.trim() || "un";
-  const quantityWidthClass = quantityStep < 1 ? "w-14" : "w-6";
-  const quantityFormatter = React.useCallback(
-    (value: number) =>
-      value.toLocaleString("pt-BR", {
-        minimumFractionDigits: quantityStep < 1 ? 2 : 0,
-        maximumFractionDigits: quantityStep < 1 ? 2 : 0,
-      }),
-    [quantityStep],
-  );
   const [hideZeroQtyByEnvironment, setHideZeroQtyByEnvironment] =
     React.useState<Record<string, boolean>>({});
 
@@ -240,9 +237,7 @@ export function ProposalEnvironmentsSection({
                   hideZeroQty={!!hideZeroQtyByEnvironment[instanceId]}
                   zeroQuantityLabel={zeroQuantityLabel}
                   quantityStep={quantityStep}
-                  quantityWidthClass={quantityWidthClass}
                   priceUnitLabel={priceUnitLabel}
-                  quantityFormatter={quantityFormatter}
                   onRemove={() =>
                     onRemoveAmbiente(index, primaryAmbiente.ambienteId)
                   }
@@ -307,9 +302,7 @@ interface EnvironmentCardProps {
   hideZeroQty: boolean;
   zeroQuantityLabel: string;
   quantityStep: number;
-  quantityWidthClass: string;
   priceUnitLabel: string;
-  quantityFormatter: (value: number) => string;
   onRemove: () => void;
   onToggleHideZeroQty: (hide: boolean) => void;
   onUpdateQuantity: (
@@ -361,9 +354,7 @@ function EnvironmentCard({
   hideZeroQty,
   zeroQuantityLabel,
   quantityStep,
-  quantityWidthClass,
   priceUnitLabel,
-  quantityFormatter,
   onRemove,
   onToggleHideZeroQty,
   onUpdateQuantity,
@@ -519,9 +510,7 @@ function EnvironmentCard({
                     product={product}
                     systemInstanceId={systemInstanceId}
                     quantityStep={quantityStep}
-                    quantityWidthClass={quantityWidthClass}
                     priceUnitLabel={priceUnitLabel}
-                    quantityFormatter={quantityFormatter}
                     onUpdateQuantity={onUpdateQuantity}
                     onUpdateMarkup={onUpdateMarkup}
                     onUpdatePrice={onUpdatePrice}
@@ -557,9 +546,7 @@ interface EnvironmentProductRowProps {
   product: ProposalProduct;
   systemInstanceId: string;
   quantityStep: number;
-  quantityWidthClass: string;
   priceUnitLabel: string;
-  quantityFormatter: (value: number) => string;
   onUpdateQuantity: (
     productId: string,
     delta: number,
@@ -595,9 +582,7 @@ function EnvironmentProductRow({
   product,
   systemInstanceId,
   quantityStep,
-  quantityWidthClass,
   priceUnitLabel,
-  quantityFormatter,
   onUpdateQuantity,
   onUpdateMarkup,
   onUpdatePrice,
@@ -615,6 +600,12 @@ function EnvironmentProductRow({
     (product.unitPrice || 0).toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
+  const allowDecimalQuantity = !isService && quantityStep < 1;
+  const quantityDelta = allowDecimalQuantity ? quantityStep : 1;
+  const [quantityInput, setQuantityInput] = React.useState(
+    formatItemQuantity(product.quantity, allowDecimalQuantity),
+  );
+  const [isEditingQuantity, setIsEditingQuantity] = React.useState(false);
 
   React.useEffect(() => {
     setMarkup(product.markup || 0);
@@ -625,6 +616,12 @@ function EnvironmentProductRow({
       setPriceInput((product.unitPrice || 0).toString());
     }
   }, [product.unitPrice, isEditingPrice]);
+
+  React.useEffect(() => {
+    if (!isEditingQuantity) {
+      setQuantityInput(formatItemQuantity(product.quantity, allowDecimalQuantity));
+    }
+  }, [allowDecimalQuantity, isEditingQuantity, product.quantity]);
 
   const handlePriceBlur = () => {
     setIsEditingPrice(false);
@@ -642,6 +639,44 @@ function EnvironmentProductRow({
       event.currentTarget.blur();
     }
   };
+
+  const commitQuantityChange = React.useCallback(() => {
+    const parsedQuantity = parseItemQuantityInput(
+      quantityInput,
+      allowDecimalQuantity,
+    );
+
+    setIsEditingQuantity(false);
+
+    if (parsedQuantity === null) {
+      setQuantityInput(formatItemQuantity(product.quantity, allowDecimalQuantity));
+      return;
+    }
+
+    const currentQuantity = normalizeItemQuantity(
+      product.quantity,
+      allowDecimalQuantity,
+    );
+
+    if (parsedQuantity !== currentQuantity) {
+      onUpdateQuantity(
+        product.productId,
+        parsedQuantity - currentQuantity,
+        systemInstanceId,
+        itemType,
+      );
+    }
+
+    setQuantityInput(formatItemQuantity(parsedQuantity, allowDecimalQuantity));
+  }, [
+    allowDecimalQuantity,
+    itemType,
+    onUpdateQuantity,
+    product.productId,
+    product.quantity,
+    quantityInput,
+    systemInstanceId,
+  ]);
 
   const handleStatusToggle = async (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -808,7 +843,7 @@ function EnvironmentProductRow({
           onClick={() =>
             onUpdateQuantity(
               product.productId,
-              -quantityStep,
+              -quantityDelta,
               systemInstanceId,
               itemType,
             )
@@ -816,11 +851,48 @@ function EnvironmentProductRow({
         >
           <Minus className="w-3 h-3" />
         </Button>
-        <span
-          className={`font-semibold ${quantityWidthClass} text-center text-sm tabular-nums`}
-        >
-          {quantityFormatter(product.quantity)}
-        </span>
+        {allowDecimalQuantity ? (
+          <DecimalInput
+            value={product.quantity}
+            onChange={(val) => {
+              const currentQuantity = normalizeItemQuantity(product.quantity, true);
+              if (val !== currentQuantity) {
+                onUpdateQuantity(
+                  product.productId,
+                  val - currentQuantity,
+                  systemInstanceId,
+                  itemType,
+                );
+              }
+            }}
+            className="w-16"
+            aria-label="Metragem do item"
+          />
+        ) : (
+          <input
+            type="text"
+            inputMode="numeric"
+            value={quantityInput}
+            onFocus={() => setIsEditingQuantity(true)}
+            onChange={(event) => setQuantityInput(event.target.value)}
+            onBlur={commitQuantityChange}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+
+              if (event.key === "Escape") {
+                setIsEditingQuantity(false);
+                setQuantityInput(
+                  formatItemQuantity(product.quantity, false),
+                );
+                event.currentTarget.blur();
+              }
+            }}
+            className="h-8 rounded-md border bg-background px-2 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
+            aria-label="Quantidade do item"
+          />
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -829,7 +901,7 @@ function EnvironmentProductRow({
           onClick={() =>
             onUpdateQuantity(
               product.productId,
-              quantityStep,
+              quantityDelta,
               systemInstanceId,
               itemType,
             )

@@ -219,7 +219,7 @@ export function WalletFormDialog({
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`w-8 h-8 rounded-full transition-all ${
+                    className={`w-8 h-8 rounded-full transition-all cursor-pointer ${
                       color === c
                         ? "ring-2 ring-offset-2 ring-primary scale-110"
                         : "hover:scale-105"

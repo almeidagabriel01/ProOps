@@ -286,7 +286,7 @@ export function useSistemaForm({
       if (onAction) {
         // Managed Mode
         if (isEditing && editingSistema) {
-          onAction({
+          await onAction({
             type: "update",
             entity: "sistema",
             id: editingSistema.id,
@@ -297,7 +297,7 @@ export function useSistemaForm({
           toast.success("Sistema atualizado!");
         } else {
           const tempId = `temp-${Date.now()}`;
-          onAction({
+          await onAction({
             type: "create",
             entity: "sistema",
             id: tempId,

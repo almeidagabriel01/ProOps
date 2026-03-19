@@ -418,6 +418,34 @@ export function useProposalFormLoadingEffects(
           const availableSistemas =
             mergedSistemas.length > 0 ? mergedSistemas : [];
 
+          const getProductsForEnvironmentInstance = (
+            systemId: string,
+            environmentId: string,
+            productIds: string[] = [],
+          ) => {
+            const environmentInstanceId = `${systemId}-${environmentId}`;
+            const productsByInstance = syncedProducts.filter(
+              (product: ProposalProduct) =>
+                (product.systemInstanceId || product.ambienteInstanceId) ===
+                environmentInstanceId,
+            );
+
+            const resolvedProducts =
+              productsByInstance.length > 0
+                ? productsByInstance
+                : syncedProducts.filter((product: ProposalProduct) =>
+                    productIds.includes(product.productId),
+                  );
+
+            return resolvedProducts.map((product: ProposalProduct) => ({
+              productId: product.productId,
+              itemType: product.itemType,
+              productName: product.productName,
+              quantity: product.quantity,
+              status: product.status,
+            }));
+          };
+
           const sistemas: ProposalSistema[] = proposal.sistemas.map((s) => {
             const primaryAmbienteId =
               s.ambientes?.[0]?.ambienteId || s.ambienteId;
@@ -438,13 +466,13 @@ export function useProposalFormLoadingEffects(
               (a) => a.ambienteId === (masterAmbiente?.id || primaryAmbienteId),
             );
 
-            const sistemaProducts = syncedProducts
-              .filter((p: ProposalProduct) => productIds.includes(p.productId))
-              .map((p: ProposalProduct) => ({
-                productId: p.productId,
-                productName: p.productName,
-                quantity: p.quantity,
-              }));
+            const resolvedPrimaryAmbienteId =
+              masterAmbiente?.id || primaryAmbienteId || "";
+            const sistemaProducts = getProductsForEnvironmentInstance(
+              masterSistema?.id || (s.sistemaId as string) || "",
+              resolvedPrimaryAmbienteId,
+              productIds,
+            );
 
             return {
               sistemaId: masterSistema?.id || (s.sistemaId as string) || "",
@@ -465,16 +493,15 @@ export function useProposalFormLoadingEffects(
                         );
 
                       const envProductIds: string[] = env.productIds || [];
-                      const envProducts = syncedProducts
-                        .filter((p: ProposalProduct) =>
-                          envProductIds.includes(p.productId),
-                        )
-                        .map((p: ProposalProduct) => ({
-                          productId: p.productId,
-                          productName: p.productName,
-                          quantity: p.quantity,
-                          status: p.status,
-                        }));
+                      const resolvedEnvAmbienteId =
+                        envMasterAmbiente?.id ||
+                        env.ambienteId ||
+                        resolvedPrimaryAmbienteId;
+                      const envProducts = getProductsForEnvironmentInstance(
+                        masterSistema?.id || (s.sistemaId as string) || "",
+                        resolvedEnvAmbienteId,
+                        envProductIds,
+                      );
 
                       return {
                         ambienteId:

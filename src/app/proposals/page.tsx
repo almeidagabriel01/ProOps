@@ -306,6 +306,27 @@ export default function ProposalsPage() {
     (!asyncDataReady || isAwaitingPendingSave) &&
     hasAnyProposals !== false;
 
+  const refreshHasAnyProposals = React.useCallback(async () => {
+    if (!tenant) {
+      setHasAnyProposals(false);
+      return false;
+    }
+
+    try {
+      await Promise.race([
+        ProposalService.waitForSave(),
+        new Promise<void>((resolve) => setTimeout(resolve, 10000)),
+      ]);
+      const result = await ProposalService.getProposalsPaginated(tenant.id, 1);
+      const hasProposals = result.data.length > 0;
+      setHasAnyProposals(hasProposals);
+      return hasProposals;
+    } catch {
+      setHasAnyProposals(false);
+      return false;
+    }
+  }, [tenant]);
+
   // Check if there are any proposals (for empty state)
   React.useEffect(() => {
     let cancelled = false;
@@ -365,6 +386,17 @@ export default function ProposalsPage() {
       cancelled = true;
     };
   }, [tenant]);
+
+  React.useEffect(() => {
+    if (!tenant) {
+      setProposals([]);
+      return;
+    }
+
+    if (hasAnyProposals === false) {
+      setProposals([]);
+    }
+  }, [hasAnyProposals, tenant]);
 
   // fetchPage callback for async pagination
   const fetchPage = React.useCallback(
@@ -484,9 +516,28 @@ export default function ProposalsPage() {
     setIsDeleting(true);
     try {
       await ProposalService.deleteProposal(deleteId);
-      resetRef.current?.();
-      setHasAnyProposals(null);
-      setProposals((prev) => prev.filter((p) => p.id !== deleteId));
+      const remainingProposals = proposals.filter((p) => p.id !== deleteId);
+
+      // Bug 3 Fix: Optimistically update the empty-state flag immediately when
+      // the last proposal is removed. Firestore may serve cached results for the
+      // verification query, causing the empty-state card to never appear without
+      // a page reload. By setting hasAnyProposals=false right now (before the
+      // async check), the UI transitions instantly to the empty state.
+      if (remainingProposals.length === 0) {
+        setHasAnyProposals(false);
+        setProposals([]);
+      }
+
+      // Secondary verification against Firestore to ensure consistency
+      // (handles edge cases like concurrent deletes from another session).
+      const hasRemainingProposals = await refreshHasAnyProposals();
+
+      if (!hasRemainingProposals) {
+        setProposals([]);
+      } else {
+        resetRef.current?.();
+        setProposals(remainingProposals);
+      }
       toast.success(`Proposta ${proposalLabel} foi excluida com sucesso.`, {
         title: "Sucesso ao excluir",
       });

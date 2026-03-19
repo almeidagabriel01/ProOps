@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import {
   ArrowLeft,
   Save,
@@ -30,6 +31,12 @@ import { cn } from "@/lib/utils";
 import { compareDisplayText } from "@/lib/sort-text";
 import { toast } from "@/lib/toast";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { getNicheConfig } from "@/lib/niches/config";
+import {
+  formatItemQuantity,
+  normalizeItemQuantity,
+  parseItemQuantityInput,
+} from "@/lib/quantity-utils";
 
 interface AmbienteEditorProps {
   ambiente: Ambiente | null;
@@ -67,6 +74,8 @@ export function AmbienteEditor({
   onSave,
 }: AmbienteEditorProps) {
   const { tenant } = useTenant();
+  const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
+  const allowDecimalProductQuantity = inventoryConfig.step < 1;
   const [isSaving, setIsSaving] = React.useState(false);
   const [name, setName] = React.useState(ambiente?.name || "");
   const [description, setDescription] = React.useState(
@@ -288,7 +297,38 @@ export function AmbienteEditor({
           item.productId === productId &&
           (item.itemType || "product") === itemType
         ) {
-          return { ...item, quantity: Math.max(0, item.quantity + delta) };
+          const allowDecimal =
+            itemType !== "service" && allowDecimalProductQuantity;
+
+          return {
+            ...item,
+            quantity: normalizeItemQuantity(item.quantity + delta, allowDecimal),
+          };
+        }
+
+        return item;
+      }),
+    );
+  };
+
+  const handleSetQuantity = (
+    productId: string,
+    nextQuantity: number,
+    itemType: "product" | "service" = "product",
+  ) => {
+    setSelectedProducts((current) =>
+      current.map((item) => {
+        if (
+          item.productId === productId &&
+          (item.itemType || "product") === itemType
+        ) {
+          const allowDecimal =
+            itemType !== "service" && allowDecimalProductQuantity;
+
+          return {
+            ...item,
+            quantity: normalizeItemQuantity(nextQuantity, allowDecimal),
+          };
         }
 
         return item;
@@ -529,8 +569,15 @@ export function AmbienteEditor({
                       .sort((a, b) =>
                         compareDisplayText(a.productName, b.productName),
                       )
-                      .map((item) => (
-                        <motion.div
+                      .map((item) => {
+                        const itemType = item.itemType || "product";
+                        const isService = itemType === "service";
+                        const allowDecimalQuantity =
+                          !isService && allowDecimalProductQuantity;
+                        const quantityStep = allowDecimalQuantity ? 0.01 : 1;
+
+                        return (
+                          <motion.div
                           layout
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -551,14 +598,12 @@ export function AmbienteEditor({
                                   variant="outline"
                                   className={cn(
                                     "text-[10px] px-2 py-0.5 h-auto shrink-0",
-                                    (item.itemType || "product") === "service"
+                                    isService
                                       ? "bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
                                       : "bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40",
                                   )}
                                 >
-                                  {(item.itemType || "product") === "service"
-                                    ? "Serviço"
-                                    : "Produto"}
+                                  {isService ? "Serviço" : "Produto"}
                                 </Badge>
                               </div>
                             </div>
@@ -589,16 +634,24 @@ export function AmbienteEditor({
                                 onClick={() =>
                                   handleUpdateQuantity(
                                     item.productId,
-                                    -1,
-                                    item.itemType || "product",
+                                    -quantityStep,
+                                    itemType,
                                   )
                                 }
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </Button>
-                              <span className="w-10 text-center font-mono font-medium text-sm">
-                                {item.quantity}
-                              </span>
+                              <EditableQuantityInput
+                                value={item.quantity}
+                                allowDecimal={allowDecimalQuantity}
+                                onChange={(nextValue) =>
+                                  handleSetQuantity(
+                                    item.productId,
+                                    nextValue,
+                                    itemType,
+                                  )
+                                }
+                              />
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -606,8 +659,8 @@ export function AmbienteEditor({
                                 onClick={() =>
                                   handleUpdateQuantity(
                                     item.productId,
-                                    1,
-                                    item.itemType || "product",
+                                    quantityStep,
+                                    itemType,
                                   )
                                 }
                               >
@@ -622,15 +675,16 @@ export function AmbienteEditor({
                               onClick={() =>
                                 handleRemoveProduct(
                                   item.productId,
-                                  item.itemType || "product",
+                                  itemType,
                                 )
                               }
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-                        </motion.div>
-                      ))}
+                          </motion.div>
+                        );
+                      })}
                   </AnimatePresence>
                 </div>
               )}
@@ -639,5 +693,79 @@ export function AmbienteEditor({
         </div>
       </div>
     </div>
+  );
+}
+
+interface EditableQuantityInputProps {
+  value: number;
+  allowDecimal: boolean;
+  onChange: (value: number) => void;
+}
+
+function EditableQuantityInput({
+  value,
+  allowDecimal,
+  onChange,
+}: EditableQuantityInputProps) {
+  const [inputValue, setInputValue] = React.useState(
+    formatItemQuantity(value, false), // Only used for integers now
+  );
+  const [isEditing, setIsEditing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isEditing && !allowDecimal) {
+      setInputValue(formatItemQuantity(value, false));
+    }
+  }, [allowDecimal, isEditing, value]);
+
+  const commitValue = React.useCallback(() => {
+    const parsedValue = parseItemQuantityInput(inputValue, false);
+
+    setIsEditing(false);
+
+    if (parsedValue === null) {
+      setInputValue(formatItemQuantity(value, false));
+      return;
+    }
+
+    onChange(parsedValue);
+    setInputValue(formatItemQuantity(parsedValue, false));
+  }, [inputValue, onChange, value]);
+
+  if (allowDecimal) {
+    return (
+      <DecimalInput
+        value={value}
+        onChange={onChange}
+        className="w-16 font-mono font-medium"
+        aria-label="Metragem do item"
+      />
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={inputValue}
+      onFocus={() => setIsEditing(true)}
+      onChange={(event) => setInputValue(event.target.value)}
+      onBlur={commitValue}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        }
+
+        if (event.key === "Escape") {
+          setIsEditing(false);
+          setInputValue(formatItemQuantity(value, false));
+          event.currentTarget.blur();
+        }
+      }}
+      className={cn(
+        "h-8 rounded-md border bg-background px-2 text-center font-mono text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12",
+      )}
+      aria-label="Quantidade do item"
+    />
   );
 }

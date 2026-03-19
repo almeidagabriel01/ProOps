@@ -32,19 +32,26 @@ export function useContactsCtrl() {
 
   const isFiltering = searchTerm.trim() !== "" || typeFilter !== "todos";
 
-  // Check if we have any clients at all (for empty state)
-  React.useEffect(() => {
-    const check = async () => {
-      if (!tenant) return;
-      try {
-        const result = await ClientService.getClientsPaginated(tenant.id, 1);
-        setHasAnyClients(result.data.length > 0);
-      } catch {
-        setHasAnyClients(false);
-      }
-    };
-    check();
+  const refreshHasAnyClients = React.useCallback(async () => {
+    if (!tenant) {
+      setHasAnyClients(false);
+      return false;
+    }
+
+    try {
+      const result = await ClientService.getClientsPaginated(tenant.id, 1);
+      const hasClients = result.data.length > 0;
+      setHasAnyClients(hasClients);
+      return hasClients;
+    } catch {
+      setHasAnyClients(false);
+      return false;
+    }
   }, [tenant]);
+
+  React.useEffect(() => {
+    void refreshHasAnyClients();
+  }, [refreshHasAnyClients]);
 
   // Fetch all clients when filtering/searching
   React.useEffect(() => {
@@ -130,14 +137,17 @@ export function useContactsCtrl() {
 
       const success = await deleteClient(clientToDelete.id);
       if (success) {
-        // Reset pagination to re-fetch
-        resetRef.current?.();
-        setHasAnyClients(null); // Will re-check
-        // Also update local cache if it exists
-        if (allClients) {
-          setAllClients(
-            (prev) => prev?.filter((c) => c.id !== clientToDelete.id) ?? null
-          );
+        const remainingClients =
+          allClients?.filter((c) => c.id !== clientToDelete.id) ?? null;
+        const hasRemainingClients = await refreshHasAnyClients();
+
+        if (!hasRemainingClients) {
+          setAllClients([]);
+        } else {
+          resetRef.current?.();
+          if (remainingClients) {
+            setAllClients(remainingClients);
+          }
         }
       }
       setClientToDelete(null);

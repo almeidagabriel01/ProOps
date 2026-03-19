@@ -11,6 +11,7 @@ import {
   ReceiptText,
   UsersRound,
   Kanban,
+  Home,
 } from "lucide-react";
 
 export type MenuItem = {
@@ -18,6 +19,8 @@ export type MenuItem = {
   label: string;
   href: string;
   pageId?: string;
+  /** Overrides pageId for niche availability checks (isPageEnabledForNiche). Defaults to pageId. */
+  availabilityPageId?: string;
   requiresFinancial?: boolean;
   requiresEnterprise?: boolean;
   masterOnly?: boolean;
@@ -92,6 +95,18 @@ export const menuItems: MenuItem[] = [
     label: "Soluções",
     href: "/solutions",
     pageId: "solutions",
+  },
+  {
+    icon: Home,
+    label: "Ambientes",
+    href: "/ambientes",
+    // Use "solutions" as the pageId so MEMBER permission documents created for
+    // "solutions" also gate the /ambientes page (same functional scope).
+    // The niche availability in niches/config.ts controls which item is shown.
+    pageId: "solutions",
+    // But use "ambientes" for niche availability so cortinas sees this item
+    // while automacao sees the /solutions item (which has solutions:true).
+    availabilityPageId: "ambientes",
   },
   {
     icon: UsersRound,

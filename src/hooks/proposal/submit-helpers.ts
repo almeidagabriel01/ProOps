@@ -6,7 +6,7 @@ import {
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
 import { toast } from '@/lib/toast';
-import { getPrimaryAmbiente, getAllProductsFromSistema } from "@/lib/sistema-migration-utils";
+import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 
 interface CreateProposalPayload {
   formData: Partial<Proposal>;
@@ -88,11 +88,32 @@ export function sanitizeProducts(products: ProposalProduct[]) {
   });
 }
 
+function groupProductsByInstanceId(products: ProposalProduct[]) {
+  const productsByInstanceId = new Map<string, ProposalProduct[]>();
+
+  products.forEach((product) => {
+    const instanceId =
+      product.systemInstanceId || product.ambienteInstanceId || "";
+
+    if (!instanceId) return;
+
+    const instanceProducts = productsByInstanceId.get(instanceId) || [];
+    instanceProducts.push(product);
+    productsByInstanceId.set(instanceId, instanceProducts);
+  });
+
+  return productsByInstanceId;
+}
+
 // Transform sistemas for API - outputs new format with ambientes array
-export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemInstance[] {
+export function transformSistemas(
+  sistemas: ProposalSistema[],
+  selectedProducts: ProposalProduct[],
+): ProposalSystemInstance[] {
+  const productsByInstanceId = groupProductsByInstanceId(selectedProducts);
+
   return sistemas.map((s) => {
     const primaryAmbiente = getPrimaryAmbiente(s);
-    const allProducts = getAllProductsFromSistema(s);
     
     // Build ambientes array from new or legacy format
     const ambientes = s.ambientes && s.ambientes.length > 0
@@ -100,15 +121,37 @@ export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemIn
           ambienteId: a.ambienteId,
           ambienteName: a.ambienteName,
           description: a.description,
-          productIds: a.products.map(p => p.productId),
+          productIds: Array.from(
+            new Set(
+              (
+                productsByInstanceId.get(`${s.sistemaId}-${a.ambienteId}`) ||
+                a.products.map((product) => ({
+                  productId: product.productId,
+                }))
+              ).map((product) => product.productId),
+            ),
+          ),
         }))
       : primaryAmbiente
         ? [{
             ambienteId: primaryAmbiente.ambienteId,
             ambienteName: primaryAmbiente.ambienteName,
-            productIds: primaryAmbiente.products.map(p => p.productId),
+            productIds: Array.from(
+              new Set(
+                (
+                  productsByInstanceId.get(
+                    `${s.sistemaId}-${primaryAmbiente.ambienteId}`,
+                  ) ||
+                  primaryAmbiente.products.map((product) => ({
+                    productId: product.productId,
+                  }))
+                ).map((product) => product.productId),
+              ),
+            ),
           }]
         : [];
+
+    const allProducts = ambientes.flatMap((ambiente) => ambiente.productIds);
 
     return {
       sistemaId: s.sistemaId,
@@ -118,7 +161,7 @@ export function transformSistemas(sistemas: ProposalSistema[]): ProposalSystemIn
       // Legacy fields for backward compat
       ambienteId: primaryAmbiente?.ambienteId,
       ambienteName: primaryAmbiente?.ambienteName,
-      productIds: allProducts.map(p => p.productId),
+      productIds: allProducts,
     };
   });
 }
@@ -136,7 +179,9 @@ export async function updateProposal(
   } = payload;
 
   const sistemasPayload =
-    selectedSistemas.length > 0 ? transformSistemas(selectedSistemas) : [];
+    selectedSistemas.length > 0
+      ? transformSistemas(selectedSistemas, selectedProducts)
+      : [];
 
   const productsForUpdate = sanitizeProducts(selectedProducts);
   const safeTotal = productsForUpdate.reduce((sum, p) => sum + p.total, 0);
@@ -242,7 +287,9 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     customNotes: formData.customNotes,
     products: sanitizedProducts,
     sistemas:
-      selectedSistemas.length > 0 ? transformSistemas(selectedSistemas) : [],
+      selectedSistemas.length > 0
+        ? transformSistemas(selectedSistemas, selectedProducts)
+        : [],
     targetTenantId: tenantId, // Pass tenant ID to backend (for super admin)
     status: (formData.status as ProposalStatus) || "in_progress",
     // Payment options

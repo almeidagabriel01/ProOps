@@ -45,6 +45,8 @@ export function useMasterDataTransaction({
     useState<Ambiente[]>(initialAmbientes);
   const [localSistemas, setLocalSistemas] =
     useState<Sistema[]>(initialSistemas);
+  const localAmbientesRef = React.useRef<Ambiente[]>(initialAmbientes);
+  const localSistemasRef = React.useRef<Sistema[]>(initialSistemas);
 
   // Track pending async actions to prevent premature auto-saves (Senior Fix)
   const [pendingActionsCount, setPendingActionsCount] = useState(0);
@@ -53,20 +55,31 @@ export function useMasterDataTransaction({
   React.useEffect(() => {
     if (initialAmbientes) {
       setLocalAmbientes(initialAmbientes);
+      localAmbientesRef.current = initialAmbientes;
     }
   }, [initialAmbientes]);
 
   React.useEffect(() => {
     if (initialSistemas) {
       setLocalSistemas(initialSistemas);
+      localSistemasRef.current = initialSistemas;
     }
   }, [initialSistemas]);
+
+  React.useEffect(() => {
+    localAmbientesRef.current = localAmbientes;
+  }, [localAmbientes]);
+
+  React.useEffect(() => {
+    localSistemasRef.current = localSistemas;
+  }, [localSistemas]);
 
   const handleAmbienteAction = useCallback(
     async (action: MasterDataAction) => {
       if (!tenantId) return;
 
       setPendingActionsCount((prev) => prev + 1);
+      const previousAmbientes = localAmbientesRef.current;
       try {
         if (action.type === "create" && action.data) {
           // Optimistic update
@@ -99,10 +112,7 @@ export function useMasterDataTransaction({
       } catch (error) {
         console.error("Error executing ambiente action:", error);
         toast.error("Erro ao salvar ambiente. Tente novamente.");
-        // Revert optimistic update
-        if (action.type === "create") {
-          setLocalAmbientes((prev) => prev.filter((a) => a.id !== action.id));
-        }
+        setLocalAmbientes(previousAmbientes);
       } finally {
         setPendingActionsCount((prev) => Math.max(0, prev - 1));
       }
@@ -115,6 +125,7 @@ export function useMasterDataTransaction({
       if (!tenantId) return;
 
       setPendingActionsCount((prev) => prev + 1);
+      const previousSistemas = localSistemasRef.current;
       try {
         if (action.type === "create" && action.data) {
           const sistemaData = action.data as Sistema;
@@ -151,10 +162,7 @@ export function useMasterDataTransaction({
       } catch (error) {
         console.error("Error executing sistema action:", error);
         toast.error("Erro ao salvar sistema. Tente novamente.");
-        // Revert optimistic update
-        if (action.type === "create") {
-          setLocalSistemas((prev) => prev.filter((s) => s.id !== action.id));
-        }
+        setLocalSistemas(previousSistemas);
       } finally {
         setPendingActionsCount((prev) => Math.max(0, prev - 1));
       }

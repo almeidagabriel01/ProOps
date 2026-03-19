@@ -11,6 +11,7 @@ import {
   where,
 } from "firebase/firestore";
 import { AmbienteProduct } from "@/types/automation";
+import { normalizeItemQuantity } from "@/lib/quantity-utils";
 
 /**
  * Produto associado a um Ambiente
@@ -97,10 +98,10 @@ export const AmbienteService = {
     // Sanitize products before sending
     const sanitizedProducts = (data.defaultProducts || []).map((p) => ({
       ...p,
-      quantity:
-        typeof p.quantity === "number" && !isNaN(p.quantity)
-          ? Math.max(1, p.quantity)
-          : 1,
+      quantity: normalizeItemQuantity(
+        typeof p.quantity === "number" ? p.quantity : 0,
+        (p.itemType || "product") !== "service",
+      ),
     }));
 
     const payload = {
@@ -131,10 +132,10 @@ export const AmbienteService = {
     if (data.defaultProducts) {
       payload.defaultProducts = data.defaultProducts.map((p) => ({
         ...p,
-        quantity:
-          typeof p.quantity === "number" && !isNaN(p.quantity)
-            ? Math.max(1, p.quantity)
-            : 1,
+        quantity: normalizeItemQuantity(
+          typeof p.quantity === "number" ? p.quantity : 0,
+          (p.itemType || "product") !== "service",
+        ),
       }));
     }
     await callApi(`/v1/aux/ambientes/${id}`, "PUT", payload);

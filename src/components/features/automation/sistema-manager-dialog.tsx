@@ -105,7 +105,7 @@ export function SistemaManagerDialog({
       setDeletingId(sistema.id);
       try {
         if (onAction) {
-          onAction({
+          await onAction({
             type: "delete",
             entity: "sistema",
             id: sistema.id,

@@ -55,18 +55,26 @@ export default function ServicesPage() {
     sortConfig,
   } = useSort(allServices ?? []);
 
-  useEffect(() => {
-    const check = async () => {
-      if (!tenant) return;
-      try {
-        const result = await ServiceService.getServicesPaginated(tenant.id, 1);
-        setHasAnyServices(result.data.length > 0);
-      } catch {
-        setHasAnyServices(false);
-      }
-    };
-    check();
+  const refreshHasAnyServices = useCallback(async () => {
+    if (!tenant) {
+      setHasAnyServices(false);
+      return false;
+    }
+
+    try {
+      const result = await ServiceService.getServicesPaginated(tenant.id, 1);
+      const hasServices = result.data.length > 0;
+      setHasAnyServices(hasServices);
+      return hasServices;
+    } catch {
+      setHasAnyServices(false);
+      return false;
+    }
   }, [tenant]);
+
+  useEffect(() => {
+    void refreshHasAnyServices();
+  }, [refreshHasAnyServices]);
 
   useEffect(() => {
     if (!isFiltering || !tenant) {
@@ -147,12 +155,17 @@ export default function ServicesPage() {
 
       const success = await deleteService(deleteId, selectedService?.name);
       if (success) {
-        resetRef.current?.();
-        setHasAnyServices(null);
-        if (allServices) {
-          setAllServices(
-            (prev) => prev?.filter((service) => service.id !== deleteId) ?? null,
-          );
+        const remainingServices =
+          allServices?.filter((service) => service.id !== deleteId) ?? null;
+        const hasRemainingServices = await refreshHasAnyServices();
+
+        if (!hasRemainingServices) {
+          setAllServices([]);
+        } else {
+          resetRef.current?.();
+          if (remainingServices) {
+            setAllServices(remainingServices);
+          }
         }
       }
       setDeleteId(null);

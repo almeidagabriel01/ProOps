@@ -242,6 +242,7 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
     (section) => section.type !== "product-table",
   );
   const insertionIndex = withoutProductTables.findIndex((section) => {
+    if (section.type === "payment-terms") return true;
     if (isPaymentTitle(section) || isPaymentText(section)) return true;
     if (isWarrantyTitle(section) || isWarrantyText(section)) return true;
     if (isFooterText(section)) return true;
@@ -263,7 +264,7 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
   const footerBlock: PdfSection[] = [];
 
   withSingleProductTable.forEach((section, index) => {
-    if (isPaymentTitle(section) || isPaymentText(section)) {
+    if (section.type === "payment-terms" || isPaymentTitle(section) || isPaymentText(section)) {
       paymentBlock.push(section);
       fixedIds.add(section.id);
       return;

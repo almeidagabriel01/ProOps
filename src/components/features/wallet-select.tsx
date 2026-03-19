@@ -23,6 +23,7 @@ interface WalletSelectProps extends Omit<
   required?: boolean;
   error?: string;
   preSelectDefault?: boolean;
+  icon?: React.ReactNode;
 }
 
 export function WalletSelect({
@@ -33,6 +34,7 @@ export function WalletSelect({
   required,
   error,
   preSelectDefault = false,
+  icon,
   ...props
 }: WalletSelectProps) {
   const { wallets, createWallet, isLoading } = useWalletsData();
@@ -130,7 +132,7 @@ export function WalletSelect({
 
     return (
       <>
-        <div className="relative min-h-5">
+        <div className={cn("relative min-h-5", icon && "pl-7")}>
           <Label className="mb-0 pr-24">
             {label}
             {required && <span className="text-destructive ml-1">*</span>}
@@ -146,25 +148,28 @@ export function WalletSelect({
           </Button>
         </div>
 
-        <div className="relative">
-          <Select
-            value={value}
-            onChange={onChange}
-            disabled={isLoading}
-            error={error}
-            {...props}
-          >
-            <option value="">Selecione...</option>
-            {wallets.map((wallet) => (
-              <option key={wallet.id} value={wallet.name}>
-                {wallet.name}
-              </option>
-            ))}
-          </Select>
+        <div className="flex items-center gap-2">
+          {icon && <div className="shrink-0">{icon}</div>}
+          <div className="relative flex-1 min-w-0">
+            <Select
+              value={value}
+              onChange={onChange}
+              disabled={isLoading}
+              error={error}
+              {...props}
+            >
+              <option value="">Selecione...</option>
+              {wallets.map((wallet) => (
+                <option key={wallet.id} value={wallet.name}>
+                  {wallet.name}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </>
     );
-  }, [isLoading, wallets, label, required, value, onChange, error, props]);
+  }, [isLoading, wallets, label, required, value, onChange, error, icon, props]);
 
   return (
     <div className={cn("field-gap", className)}>
