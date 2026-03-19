@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -129,14 +129,14 @@ export function UpgradeModal({
                       className="w-4 h-4"
                       style={{ color: premiumColor }}
                     />
-                    Editor de seções do PDF
+                    Consultoria
                   </li>
                   <li className="flex items-center gap-2">
                     <Check
                       className="w-4 h-4"
                       style={{ color: premiumColor }}
                     />
-                    Todos os templates PDF
+                    WhatsApp Integrado
                   </li>
                   <li className="flex items-center gap-2">
                     <Check
@@ -194,7 +194,7 @@ export function useUpgradeModal() {
   const showUpgradeModal = (
     featureName: string,
     desc?: string,
-    plan: "pro" | "enterprise" = "pro"
+    plan: "pro" | "enterprise" = "pro",
   ) => {
     setFeature(featureName);
     setDescription(desc || "");

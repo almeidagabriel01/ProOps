@@ -48,11 +48,13 @@ export function ProposalSummaryTable({
     proposalWorkflow === "automation" || proposalWorkflow === "environment";
   const extraItemsLabel =
     proposalWorkflow === "automation"
-      ? "Produtos Extras (nÃ£o vinculados a sistemas)"
-      : "Produtos Extras (nÃ£o vinculados a ambientes)";
+      ? "Produtos Extras (não vinculados a sistemas)"
+      : "Produtos Extras (não vinculados a ambientes)";
 
   const isProductInactive = (product: ProposalProduct) => {
-    const catalogProduct = products.find((item) => item.id === product.productId);
+    const catalogProduct = products.find(
+      (item) => item.id === product.productId,
+    );
     return (
       catalogProduct?.status === "inactive" || product.status === "inactive"
     );

@@ -98,7 +98,7 @@ export type PlanFeatures = {
   canCustomizeTheme: boolean; // Can change colors/branding
   maxPdfTemplates: number; // Number of PDF templates available (-1 = all)
   canEditPdfSections: boolean; // Can edit PDF sections (Enterprise only)
-  hasKanban: boolean; // Access to CRM board module (Enterprise only)
+  hasKanban: boolean; // Access to CRM board module (Enterprise or CRM add-on)
   maxImagesPerProduct: number; // Max images per product (2-3)
   maxStorageMB: number; // Total storage in MB (-1 = unlimited)
 };

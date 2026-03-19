@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -135,8 +135,8 @@ export function BottomDock() {
   }, [clearHideTimeout, clearTopIdleTimeout]);
 
   // Regra de visibilidade por scroll:
-  // - no topo absoluto: sempre visível
-  // - rolou um pouco: oculta e só reaparece pelo hot zone no rodapé
+  // - no topo absoluto: sempre visÃ­vel
+  // - rolou um pouco: oculta e sÃ³ reaparece pelo hot zone no rodapÃ©
   React.useEffect(() => {
     if (!hasHover) {
       setIsAtTop(true);
@@ -180,7 +180,7 @@ export function BottomDock() {
   React.useEffect(() => {
     if (!hasHover) return;
 
-    // Só aplica no topo e quando estiver visível
+    // SÃ³ aplica no topo e quando estiver visÃ­vel
     if (!isAtTop || !isVisible) {
       clearTopIdleTimeout();
       return;
@@ -203,7 +203,7 @@ export function BottomDock() {
     };
   }, [hasHover, isAtTop, isVisible, isDockInteracting, clearTopIdleTimeout]);
 
-  // Ao navegar e não estar no topo, já oculta.
+  // Ao navegar e não estar no topo, jÃ¡ oculta.
   React.useEffect(() => {
     if (!hasHover) return;
     if (isAtTop) return;
@@ -263,7 +263,7 @@ export function BottomDock() {
     return best;
   }, [dockEntries, pathname]);
 
-  // Não mostrar dock no admin
+  // não mostrar dock no admin
   if (isAdminPage) {
     return null;
   }
@@ -273,6 +273,13 @@ export function BottomDock() {
     const isEnterpriseRestricted = !!entry.requiresEnterprise && !hasKanban;
     const isRestricted = isFinancialRestricted || isEnterpriseRestricted;
     const active = !!activeHref && entry.href === activeHref;
+    const isCrmEntry = entry.pageId === "kanban" || entry.href === "/crm";
+    const restrictedDescription =
+      isEnterpriseRestricted && isCrmEntry
+        ? "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise."
+        : isEnterpriseRestricted
+          ? "Gerencie suas propostas e lançamentos com nosso CRM visual."
+          : "Controle suas finanças com nosso módulo completo.";
 
     if (isRestricted) {
       return (
@@ -292,9 +299,7 @@ export function BottomDock() {
               onClick={() =>
                 upgradeModal.showUpgradeModal(
                   entry.label,
-                  isEnterpriseRestricted
-                    ? "Gerencie suas propostas e lançamentos com nosso CRM visual."
-                    : "Controle suas finanças com nosso módulo completo.",
+                  restrictedDescription,
                   isEnterpriseRestricted ? "enterprise" : "pro",
                 )
               }

@@ -53,7 +53,7 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       canCustomizeTheme: true,
       maxPdfTemplates: -1,
       canEditPdfSections: true,
-      hasKanban: true,
+      hasKanban: false,
       maxImagesPerProduct: 3,
       maxStorageMB: 2560, // 2.5GB
     },
@@ -85,6 +85,35 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
     createdAt: new Date().toISOString(),
   },
 ];
+
+function normalizePlanLookupValue(value?: string | null): string | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized || null;
+}
+
+function findMatchingPlan(
+  plans: UserPlan[],
+  candidates: Array<string | null | undefined>,
+): UserPlan | null {
+  const normalizedCandidates = candidates
+    .map((candidate) => normalizePlanLookupValue(candidate))
+    .filter((candidate): candidate is string => Boolean(candidate));
+
+  if (normalizedCandidates.length === 0) {
+    return null;
+  }
+
+  return (
+    plans.find((plan) => {
+      const planKeys = [
+        normalizePlanLookupValue(plan.id),
+        normalizePlanLookupValue(plan.tier),
+      ].filter((key): key is string => Boolean(key));
+
+      return normalizedCandidates.some((candidate) => planKeys.includes(candidate));
+    }) || null
+  );
+}
 
 export const PlanService = {
   /**
@@ -129,12 +158,26 @@ export const PlanService = {
    * Get a specific plan by ID
    */
   getPlanById: async (id: string): Promise<UserPlan | null> => {
+    const livePlans = await PlanService.getLivePlans();
+    const directLiveMatch = livePlans ? findMatchingPlan(livePlans, [id]) : null;
+    if (directLiveMatch) {
+      return directLiveMatch;
+    }
+
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data() as UserPlan;
       const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === data.tier);
+
+       const liveMatchFromStoredTier = livePlans
+        ? findMatchingPlan(livePlans, [data.tier, docSnap.id])
+        : null;
+
+      if (liveMatchFromStoredTier) {
+        return liveMatchFromStoredTier;
+      }
 
       return {
         ...data,

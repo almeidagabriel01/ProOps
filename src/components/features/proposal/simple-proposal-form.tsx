@@ -549,7 +549,7 @@ export function SimpleProposalForm({
         );
 
         if (activeProducts.length === 0 && environmentProducts.length > 0) {
-          const errorMessage = `O ambiente "${ambiente.ambienteName}" nÃ£o possui nenhum produto ativo com quantidade maior que 0.`;
+          const errorMessage = `O ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
           setFieldError("sistemas", errorMessage);
           toast.error(errorMessage, { autoClose: 5000 });
           return false;

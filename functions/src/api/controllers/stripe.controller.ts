@@ -1421,7 +1421,7 @@ export const getPlans = async (_req: Request, res: Response) => {
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
           canEditPdfSections: true,
-          hasKanban: true,
+          hasKanban: false,
           maxImagesPerProduct: 3,
           maxStorageMB: 2560,
         },

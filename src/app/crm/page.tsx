@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { ProposalKanbanTab } from "@/components/features/kanban/proposal-kanban-tab";
 import { TransactionKanbanTab } from "@/components/features/kanban/transaction-kanban-tab";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { LayoutDashboard, ReceiptText } from "lucide-react";
 import KanbanSkeleton from "@/app/crm/loading";
 
@@ -62,14 +63,10 @@ export default function KanbanPage() {
 
   if (!hasKanban && user.role !== "superadmin") {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <p className="text-lg font-medium text-foreground">Módulo CRM</p>
-          <p className="text-sm text-muted-foreground">
-            Este módulo está disponível apenas no plano Enterprise.
-          </p>
-        </div>
-      </div>
+      <UpgradeRequired
+        feature="CRM"
+        description="O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise."
+      />
     );
   }
 
@@ -80,7 +77,7 @@ export default function KanbanPage() {
           CRM
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Visualize suas propostas e lançamentos em um quadro visual
+          Visualize suas propostas e lanÃ§amentos em um quadro visual
         </p>
       </div>
 
@@ -102,7 +99,7 @@ export default function KanbanPage() {
             className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <ReceiptText className="w-4 h-4" />
-            Lançamentos
+            LanÃ§amentos
           </TabsTrigger>
         </TabsList>
 
@@ -117,3 +114,4 @@ export default function KanbanPage() {
     </div>
   );
 }
+

@@ -57,7 +57,7 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     featureValue: true,
     icon: "Kanban",
     order: 4,
-    availableForTiers: ["starter"],
+    availableForTiers: ["starter", "pro"],
   },
 ];
 

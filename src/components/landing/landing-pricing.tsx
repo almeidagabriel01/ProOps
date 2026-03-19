@@ -67,7 +67,6 @@ const FALLBACK_PLANS: PricingCard[] = [
     features: [
       "Tudo do Essencial",
       "Financeiro e carteiras",
-      "CRM kanban",
       "Editor de PDF avançado",
       "Permissões de equipe",
     ],
