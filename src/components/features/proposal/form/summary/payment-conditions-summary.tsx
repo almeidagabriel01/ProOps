@@ -1,4 +1,8 @@
 import { Proposal } from "@/services/proposal-service";
+import {
+  getProposalDownPaymentMethod,
+  getProposalInstallmentsPaymentMethod,
+} from "@/lib/proposal-payment";
 
 interface PaymentConditionsSummaryProps {
   formData: Partial<Proposal>;
@@ -15,6 +19,9 @@ export function PaymentConditionsSummary({
     downPaymentType === "percentage"
       ? (totalValue * downPaymentPercentage) / 100
       : formData.downPaymentValue || 0;
+  const downPaymentMethod = getProposalDownPaymentMethod(formData);
+  const installmentsPaymentMethod =
+    getProposalInstallmentsPaymentMethod(formData);
 
   if (
     !formData.installmentsEnabled &&
@@ -103,6 +110,26 @@ export function PaymentConditionsSummary({
             </span>
           </p>
         )}
+        {formData.downPaymentEnabled && effectiveDownPaymentValue > 0 && (
+          <p>
+            • Forma da entrada:{" "}
+            <span className="font-semibold text-foreground">
+              {downPaymentMethod}
+            </span>
+          </p>
+        )}
+        <p>
+          •{" "}
+          {formData.installmentsEnabled
+            ? "Forma das parcelas"
+            : formData.downPaymentEnabled && effectiveDownPaymentValue > 0
+              ? "Forma do saldo"
+              : "Forma de pagamento"}
+          :{" "}
+          <span className="font-semibold text-foreground">
+            {installmentsPaymentMethod}
+          </span>
+        </p>
       </div>
     </div>
   );

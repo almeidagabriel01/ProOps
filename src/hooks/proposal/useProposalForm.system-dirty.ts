@@ -5,6 +5,7 @@ import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema } from "@/types/automation";
 import { buildEssentialFormSnapshot } from "./useProposalForm.helpers";
 import { toast } from "@/lib/toast";
+import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
 
 interface UseProposalFormSystemDirtyContext {
   selectedSistemas: ProposalSistema[];
@@ -376,11 +377,21 @@ export function useProposalFormSystemDirty(
         downPaymentValue: initialForm.downPaymentValue || 0,
         downPaymentWallet: initialForm.downPaymentWallet || "",
         downPaymentDueDate: initialForm.downPaymentDueDate || "",
+        downPaymentMethod:
+          initialForm.downPaymentMethod ||
+          initialForm.paymentMethod ||
+          DEFAULT_PROPOSAL_PAYMENT_METHOD,
         installmentsEnabled: initialForm.installmentsEnabled || false,
         installmentsCount: initialForm.installmentsCount || 1,
         installmentValue: initialForm.installmentValue || 0,
         installmentsWallet: initialForm.installmentsWallet || "",
         firstInstallmentDate: initialForm.firstInstallmentDate || "",
+        installmentsPaymentMethod:
+          initialForm.installmentsPaymentMethod ||
+          initialForm.paymentMethod ||
+          DEFAULT_PROPOSAL_PAYMENT_METHOD,
+        paymentMethod:
+          initialForm.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
         pdfSettings: initialForm.pdfSettings,
       }));
 

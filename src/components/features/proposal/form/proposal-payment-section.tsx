@@ -7,13 +7,24 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
-import { CreditCard, Wallet, Calendar, Banknote, BadgePercent } from "lucide-react";
+import {
+  CreditCard,
+  Wallet,
+  Calendar,
+  Banknote,
+  BadgePercent,
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { WalletSelect } from "@/components/features/wallet-select";
 import { useTenant } from "@/providers/tenant-provider";
 import { KanbanService } from "@/services/kanban-service";
 import { cn } from "@/lib/utils";
+import {
+  getProposalDownPaymentMethod,
+  getProposalInstallmentsPaymentMethod,
+  PROPOSAL_PAYMENT_METHOD_OPTIONS,
+} from "@/lib/proposal-payment";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -40,10 +51,11 @@ export function ProposalPaymentSection({
   noContainer = false,
   errors = {},
 }: ProposalPaymentSectionProps) {
+  const CUSTOM_PAYMENT_METHOD_VALUE = "__custom__";
   // Calculate components
   const { tenant } = useTenant();
   const [isApproved, setIsApproved] = React.useState<boolean>(
-    formData.status === "approved" || formData.status === "default_2"
+    formData.status === "approved" || formData.status === "default_2",
   );
 
   React.useEffect(() => {
@@ -53,11 +65,15 @@ export function ProposalPaymentSection({
       if (cancelled) return;
       const isAppr = columns.some(
         (c) =>
-          (c.mappedStatus === "approved" || c.id === "default_2" || c.id === "approved") &&
-          c.id === formData.status
+          (c.mappedStatus === "approved" ||
+            c.id === "default_2" ||
+            c.id === "approved") &&
+          c.id === formData.status,
       );
       setIsApproved(
-        formData.status === "approved" || formData.status === "default_2" || isAppr
+        formData.status === "approved" ||
+          formData.status === "default_2" ||
+          isAppr,
       );
     });
     return () => {
@@ -66,9 +82,9 @@ export function ProposalPaymentSection({
   }, [tenant?.id, formData.status]);
 
   const [discountType, setDiscountType] = React.useState<"percent" | "fixed">(
-    formData.closedValue && formData.closedValue > 0 ? "fixed" : "percent"
+    formData.closedValue && formData.closedValue > 0 ? "fixed" : "percent",
   );
-  
+
   const prevIsApproved = React.useRef(isApproved);
 
   React.useEffect(() => {
@@ -78,7 +94,11 @@ export function ProposalPaymentSection({
   }, [formData.closedValue]);
 
   React.useEffect(() => {
-    if (prevIsApproved.current === true && isApproved === false && discountType === "fixed") {
+    if (
+      prevIsApproved.current === true &&
+      isApproved === false &&
+      discountType === "fixed"
+    ) {
       setDiscountType("percent");
     }
     prevIsApproved.current = isApproved;
@@ -88,11 +108,19 @@ export function ProposalPaymentSection({
     const newType = v as "percent" | "fixed";
     setDiscountType(newType);
     if (newType === "percent") {
-      onFormChange({ target: { name: "closedValue", value: null } } as unknown as React.ChangeEvent<HTMLInputElement>);
-      onFormChange({ target: { name: "discount", value: 0 } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({
+        target: { name: "closedValue", value: null },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({
+        target: { name: "discount", value: 0 },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
     } else {
-      onFormChange({ target: { name: "discount", value: 0 } } as unknown as React.ChangeEvent<HTMLInputElement>);
-      onFormChange({ target: { name: "closedValue", value: null } } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({
+        target: { name: "discount", value: 0 },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+      onFormChange({
+        target: { name: "closedValue", value: null },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
     }
   };
 
@@ -113,6 +141,100 @@ export function ProposalPaymentSection({
     downPaymentType === "percentage"
       ? (finalTotal * downPaymentPercentage) / 100
       : formData.downPaymentValue || 0;
+  const resolvedDownPaymentMethod = getProposalDownPaymentMethod(formData);
+  const resolvedInstallmentsPaymentMethod =
+    getProposalInstallmentsPaymentMethod(formData);
+  const downPaymentMethodSelectValue = PROPOSAL_PAYMENT_METHOD_OPTIONS.includes(
+    resolvedDownPaymentMethod as (typeof PROPOSAL_PAYMENT_METHOD_OPTIONS)[number],
+  )
+    ? resolvedDownPaymentMethod
+    : CUSTOM_PAYMENT_METHOD_VALUE;
+  const installmentsPaymentMethodSelectValue =
+    PROPOSAL_PAYMENT_METHOD_OPTIONS.includes(
+      resolvedInstallmentsPaymentMethod as (typeof PROPOSAL_PAYMENT_METHOD_OPTIONS)[number],
+    )
+      ? resolvedInstallmentsPaymentMethod
+      : CUSTOM_PAYMENT_METHOD_VALUE;
+  const renderClientPaymentMethodFields = ({
+    presetId,
+    selectValue,
+    fieldName,
+    fieldValue,
+    customInputId,
+    customInputName,
+    customInputLabel,
+    placeholder,
+    contextLabel,
+  }: {
+    presetId: string;
+    selectValue: string;
+    fieldName: "downPaymentMethod" | "installmentsPaymentMethod";
+    fieldValue: string;
+    customInputId: string;
+    customInputName: "downPaymentMethod" | "installmentsPaymentMethod";
+    customInputLabel: string;
+    placeholder: string;
+    contextLabel: string;
+  }) => (
+    <div className="space-y-4 border-t border-border/40 pt-4">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <CreditCard className="w-4 h-4 text-primary" />
+          <Label htmlFor={presetId} className="text-base font-semibold">
+            Forma de pagamento para o cliente
+          </Label>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Esse texto aparece no PDF em Condicoes de Pagamento para {contextLabel}.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div className="field-gap">
+          <div className="min-h-5">
+            <Label htmlFor={presetId}>Opcao</Label>
+          </div>
+          <Select
+            id={presetId}
+            name={presetId}
+            value={selectValue}
+            onChange={(e) => {
+              const { value } = e.target;
+              onFormChange({
+                target: {
+                  name: fieldName,
+                  value:
+                    value === CUSTOM_PAYMENT_METHOD_VALUE ? fieldValue : value,
+                },
+              } as React.ChangeEvent<HTMLSelectElement>);
+            }}
+          >
+            {PROPOSAL_PAYMENT_METHOD_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+            <option value={CUSTOM_PAYMENT_METHOD_VALUE}>Outro</option>
+          </Select>
+        </div>
+
+        {selectValue === CUSTOM_PAYMENT_METHOD_VALUE && (
+          <div className="field-gap">
+            <div className="min-h-5">
+              <Label htmlFor={customInputId}>{customInputLabel}</Label>
+            </div>
+            <Input
+              id={customInputId}
+              name={customInputName}
+              value={fieldValue}
+              onChange={onFormChange}
+              placeholder={placeholder}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   const content = (
     <div className="space-y-6">
@@ -123,19 +245,37 @@ export function ProposalPaymentSection({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <BadgePercent className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              <Label className="text-base font-semibold text-purple-900 dark:text-purple-300">Desconto Comercial</Label>
+              <Label className="text-base font-semibold text-purple-900 dark:text-purple-300">
+                Desconto Comercial
+              </Label>
             </div>
             <p className="text-sm text-purple-700/80 dark:text-purple-300/80 mb-4">
-              Aplique um percentual de desconto <strong>ou</strong> defina um valor combinado com o cliente — o valor final que substituirá o total da proposta.
+              Aplique um percentual de desconto <strong>ou</strong> defina um
+              valor combinado com o cliente — o valor final que substituirá o
+              total da proposta.
             </p>
           </div>
-          
-          <Tabs value={discountType} onValueChange={handleTabChange} className="w-full">
+
+          <Tabs
+            value={discountType}
+            onValueChange={handleTabChange}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-2 mb-3 bg-purple-500/10">
-              <TabsTrigger value="percent" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md">Desconto (%)</TabsTrigger>
-              <TabsTrigger value="fixed" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md">Valor Combinado</TabsTrigger>
+              <TabsTrigger
+                value="percent"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                Desconto (%)
+              </TabsTrigger>
+              <TabsTrigger
+                value="fixed"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                Valor Combinado
+              </TabsTrigger>
             </TabsList>
-            
+
             <div className="mt-2 h-10">
               {discountType === "percent" ? (
                 <div className="relative">
@@ -145,16 +285,22 @@ export function ProposalPaymentSection({
                     type="number"
                     min={0}
                     max={100}
-                    value={formData.discount === 0 ? "" : (formData.discount || 0)}
+                    value={
+                      formData.discount === 0 ? "" : formData.discount || 0
+                    }
                     onChange={(e) => {
                       const val = e.target.value;
                       const numVal = val === "" ? 0 : Number(val);
-                      onFormChange({ target: { name: "discount", value: numVal } } as unknown as React.ChangeEvent<HTMLInputElement>);
+                      onFormChange({
+                        target: { name: "discount", value: numVal },
+                      } as unknown as React.ChangeEvent<HTMLInputElement>);
                     }}
                     className="w-full pr-8 bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
                     placeholder="0"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                    %
+                  </span>
                 </div>
               ) : (
                 <CurrencyInput
@@ -175,12 +321,16 @@ export function ProposalPaymentSection({
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Banknote className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              <Label htmlFor="extraExpense" className="text-base font-semibold text-orange-900 dark:text-orange-300">
+              <Label
+                htmlFor="extraExpense"
+                className="text-base font-semibold text-orange-900 dark:text-orange-300"
+              >
                 Custos Adicionais
               </Label>
             </div>
             <p className="text-sm text-orange-700/80 dark:text-orange-300/80 mb-4">
-              Valores extras (frete, deslocamento) que serão adicionados ao valor final da proposta.
+              Valores extras (frete, deslocamento) que serão adicionados ao
+              valor final da proposta.
             </p>
           </div>
           <CurrencyInput
@@ -241,16 +391,29 @@ export function ProposalPaymentSection({
             )}
             {/* Discount applied line */}
             {(() => {
-              const rawTotal = selectedProducts.reduce((sum, p) => (Number(p.quantity || 0) > 0 ? sum + p.total : sum), 0) + extraExpense;
-              const hasClosedValue = formData.closedValue && formData.closedValue > 0;
-              const percentDiscount = formData.discount && formData.discount > 0;
+              const rawTotal =
+                selectedProducts.reduce(
+                  (sum, p) =>
+                    Number(p.quantity || 0) > 0 ? sum + p.total : sum,
+                  0,
+                ) + extraExpense;
+              const hasClosedValue =
+                formData.closedValue && formData.closedValue > 0;
+              const percentDiscount =
+                formData.discount && formData.discount > 0;
               if (hasClosedValue && rawTotal > formData.closedValue!) {
                 const diff = rawTotal - formData.closedValue!;
                 return (
                   <div className="flex justify-between items-center">
-                    <span className="text-purple-600 dark:text-purple-400">- Desconto Comercial (Fixo):</span>
+                    <span className="text-purple-600 dark:text-purple-400">
+                      - Desconto Comercial (Fixo):
+                    </span>
                     <span className="font-medium text-purple-600 dark:text-purple-400">
-                      - R$ {diff.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      - R${" "}
+                      {diff.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 );
@@ -259,9 +422,15 @@ export function ProposalPaymentSection({
                 const discountAmt = (rawTotal * (formData.discount || 0)) / 100;
                 return (
                   <div className="flex justify-between items-center">
-                    <span className="text-purple-600 dark:text-purple-400">- Desconto ({formData.discount}%):</span>
+                    <span className="text-purple-600 dark:text-purple-400">
+                      - Desconto ({formData.discount}%):
+                    </span>
                     <span className="font-medium text-purple-600 dark:text-purple-400">
-                      - R$ {discountAmt.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      - R${" "}
+                      {discountAmt.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 );
@@ -416,7 +585,11 @@ export function ProposalPaymentSection({
                       name="downPaymentValue"
                       value={formData.downPaymentValue || 0}
                       onChange={onFormChange}
-                      className={errors.downPaymentValue ? "border-destructive focus-visible:ring-destructive" : ""}
+                      className={
+                        errors.downPaymentValue
+                          ? "border-destructive focus-visible:ring-destructive"
+                          : ""
+                      }
                     />
                     {errors.downPaymentValue && (
                       <p className="text-xs text-destructive mt-1">
@@ -431,7 +604,9 @@ export function ProposalPaymentSection({
                 <div className="min-h-5">
                   <Label
                     htmlFor="downPaymentDueDate"
-                    className={errors.downPaymentDueDate ? "text-destructive" : ""}
+                    className={
+                      errors.downPaymentDueDate ? "text-destructive" : ""
+                    }
                   >
                     Data da Entrada
                   </Label>
@@ -441,7 +616,11 @@ export function ProposalPaymentSection({
                   name="downPaymentDueDate"
                   value={formData.downPaymentDueDate || ""}
                   onChange={onFormChange}
-                  className={errors.downPaymentDueDate ? "border-destructive focus-visible:ring-destructive" : ""}
+                  className={
+                    errors.downPaymentDueDate
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : ""
+                  }
                 />
                 {errors.downPaymentDueDate && (
                   <p className="text-xs text-destructive mt-1">
@@ -450,6 +629,18 @@ export function ProposalPaymentSection({
                 )}
               </div>
             </div>
+
+            {renderClientPaymentMethodFields({
+              presetId: "downPaymentMethodPreset",
+              selectValue: downPaymentMethodSelectValue,
+              fieldName: "downPaymentMethod",
+              fieldValue: formData.downPaymentMethod || "",
+              customInputId: "downPaymentMethod",
+              customInputName: "downPaymentMethod",
+              customInputLabel: "Descricao personalizada da entrada",
+              placeholder: "Ex: Entrada via PIX",
+              contextLabel: "a entrada",
+            })}
           </div>
         )}
       </div>
@@ -566,7 +757,7 @@ export function ProposalPaymentSection({
                       "w-5 h-5",
                       errors.firstInstallmentDate
                         ? "text-destructive"
-                        : "text-muted-foreground"
+                        : "text-muted-foreground",
                     )}
                   />
                 </div>
@@ -595,6 +786,18 @@ export function ProposalPaymentSection({
               )}
             </div>
 
+            {renderClientPaymentMethodFields({
+              presetId: "installmentsPaymentMethodPreset",
+              selectValue: installmentsPaymentMethodSelectValue,
+              fieldName: "installmentsPaymentMethod",
+              fieldValue: formData.installmentsPaymentMethod || "",
+              customInputId: "installmentsPaymentMethod",
+              customInputName: "installmentsPaymentMethod",
+              customInputLabel: "Descricao personalizada das parcelas",
+              placeholder: "Ex: Parcelas no boleto",
+              contextLabel: "as parcelas",
+            })}
+
             {/* Summary */}
             <div className="p-4 rounded-xl bg-linear-to-r from-primary/10 to-primary/5 border border-primary/20">
               <div className="flex items-center gap-2 mb-3">
@@ -622,13 +825,10 @@ export function ProposalPaymentSection({
                       <span className="text-blue-500">• Entrada:</span>
                       <span className="font-semibold text-blue-500">
                         R${" "}
-                        {effectiveDownPaymentValue.toLocaleString(
-                          "pt-BR",
-                          {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          },
-                        )}
+                        {effectiveDownPaymentValue.toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                         {downPaymentType === "percentage"
                           ? ` (${downPaymentPercentage.toFixed(2)}%)`
                           : ""}
@@ -643,6 +843,25 @@ export function ProposalPaymentSection({
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
+                  </span>
+                </div>
+                {formData.downPaymentEnabled &&
+                  effectiveDownPaymentValue > 0 && (
+                    <div className="flex justify-between items-center py-1">
+                      <span className="text-muted-foreground">
+                        Forma da entrada:
+                      </span>
+                      <span className="font-medium text-right">
+                        {resolvedDownPaymentMethod}
+                      </span>
+                    </div>
+                  )}
+                <div className="flex justify-between items-center py-1 border-t border-border/30">
+                  <span className="text-muted-foreground">
+                    Forma das parcelas:
+                  </span>
+                  <span className="font-medium text-right">
+                    {resolvedInstallmentsPaymentMethod}
                   </span>
                 </div>
               </div>
@@ -682,12 +901,32 @@ export function ProposalPaymentSection({
                     : ""}
                   {" • "}
                   Saldo: R${" "}
-                  {Math.max(0, calculateTotal() - effectiveDownPaymentValue).toLocaleString("pt-BR", {
+                  {Math.max(
+                    0,
+                    calculateTotal() - effectiveDownPaymentValue,
+                  ).toLocaleString("pt-BR", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                 </p>
               )}
+              {formData.downPaymentEnabled && effectiveDownPaymentValue > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Forma da entrada:{" "}
+                  <span className="font-medium text-foreground">
+                    {resolvedDownPaymentMethod}
+                  </span>
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground mt-1">
+                {formData.downPaymentEnabled && effectiveDownPaymentValue > 0
+                  ? "Forma do saldo"
+                  : "Forma de pagamento"}
+                :{" "}
+                <span className="font-medium text-foreground">
+                  {resolvedInstallmentsPaymentMethod}
+                </span>
+              </p>
             </div>
           </div>
         </div>
@@ -711,5 +950,3 @@ export function ProposalPaymentSection({
     </Card>
   );
 }
-
-

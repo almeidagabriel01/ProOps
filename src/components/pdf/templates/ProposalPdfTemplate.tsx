@@ -17,6 +17,7 @@ import {
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
 import type { PdfSection, CoverElement } from "@/types/pdf.types";
+import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
 
 // Re-exportados para retrocompatibilidade com importadores existentes.
 export type {
@@ -310,45 +311,7 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
 }
 
 function generatePaymentTerms(proposal: DomainProposal): string {
-  const lines: string[] = [];
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-
-  const downPaymentType = proposal.downPaymentType || "value";
-  const downPaymentPercentage = proposal.downPaymentPercentage || 0;
-  const downPaymentValue =
-    downPaymentType === "percentage"
-      ? ((proposal.totalValue || 0) * downPaymentPercentage) / 100
-      : proposal.downPaymentValue || 0;
-
-  if (proposal.downPaymentEnabled && downPaymentValue > 0) {
-    const total = proposal.totalValue || 0;
-    const percentage =
-      total > 0 ? Math.round((downPaymentValue / total) * 100) : 0;
-    lines.push(
-      `- Entrada: ${formatCurrency(downPaymentValue)} (${percentage}%) na aprovacao`,
-    );
-  }
-
-  if (
-    proposal.installmentsEnabled &&
-    (proposal.installmentsCount || 0) > 0 &&
-    (proposal.installmentValue || 0) > 0
-  ) {
-    lines.push(
-      `- Parcelamento: ${proposal.installmentsCount}x de ${formatCurrency(proposal.installmentValue || 0)}`,
-    );
-  } else if (proposal.downPaymentEnabled && downPaymentValue > 0) {
-    lines.push("- Saldo: na entrega");
-  } else {
-    lines.push("- Pagamento a vista na entrega");
-  }
-
-  lines.push("- Formas de pagamento: PIX, boleto ou cartao");
-  return lines.join("\n");
+  return generateProposalPaymentTerms(proposal, { bullet: "-" });
 }
 
 function hydrateSections(

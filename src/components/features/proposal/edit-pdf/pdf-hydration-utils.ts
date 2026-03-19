@@ -1,56 +1,14 @@
 import { Proposal } from "@/types/proposal";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import {
+  DEFAULT_PROPOSAL_PAYMENT_METHOD,
+  generateProposalPaymentTerms,
+} from "@/lib/proposal-payment";
 
-export const generatePaymentTerms = (proposal: Proposal): string => {
-  const lines: string[] = [];
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(val);
+export const generatePaymentTerms = (proposal: Proposal): string =>
+  generateProposalPaymentTerms(proposal, { bullet: "•" });
 
-  const downPaymentType = proposal.downPaymentType || "value";
-  const downPaymentPercentage = proposal.downPaymentPercentage || 0;
-  const downPaymentValue =
-    downPaymentType === "percentage"
-      ? ((proposal.totalValue || 0) * downPaymentPercentage) / 100
-      : proposal.downPaymentValue || 0;
-
-  // 1. Down Payment
-  if (proposal.downPaymentEnabled && downPaymentValue > 0) {
-    const total = proposal.totalValue || 0;
-    const downVal = downPaymentValue;
-    const percentage = total > 0 ? Math.round((downVal / total) * 100) : 0;
-    lines.push(
-      `• Entrada: ${formatCurrency(downVal)} (${percentage}%) na aprovação`,
-    );
-  }
-
-  // 2. Installments OR Balance
-  if (
-    proposal.installmentsEnabled &&
-    (proposal.installmentsCount || 0) > 0 &&
-    (proposal.installmentValue || 0) > 0
-  ) {
-    lines.push(
-      `• Parcelamento: ${proposal.installmentsCount}x de ${formatCurrency(
-        proposal.installmentValue || 0,
-      )}`,
-    );
-  } else {
-    // If no specific installments, check context
-    if (proposal.downPaymentEnabled && (proposal.downPaymentValue || 0) > 0) {
-      lines.push(`• Saldo: na entrega`);
-    } else {
-      // Cash / Full payment
-      lines.push(`• Pagamento à vista na entrega`);
-    }
-  }
-
-  // 3. Methods
-  lines.push(`• Formas de pagamento: PIX, boleto ou cartão`);
-  return lines.join("\n");
-};
+export const DEFAULT_PAYMENT_TERMS_TEXT = `• Pagamento a vista na entrega\n• Formas de pagamento: ${DEFAULT_PROPOSAL_PAYMENT_METHOD}`;
 
 export const hydrateSections = (
   sectionsToHydrate: PdfSection[],
@@ -67,13 +25,12 @@ export const hydrateSections = (
       return {
         ...s,
         content: hasDynamicPaymentOptions
-          ? "Condições de Pagamento"
+          ? "CondiÃ§Ãµes de Pagamento"
           : s.content || paymentTerms,
         columnWidth: 100,
       };
     }
 
-    // Determine if this is a payment terms section
     if (isPaymentTitle(s) || isPaymentText(s)) {
       hasLegacyPaymentContent = true;
       return { ...s, content: paymentTerms };
@@ -109,7 +66,7 @@ function createPaymentTermsSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "payment-terms",
-    content: "Condições de Pagamento",
+    content: "CondiÃ§Ãµes de Pagamento",
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -165,7 +122,7 @@ function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
     if (section.type === "payment-terms") {
       baseSections.push({
         ...section,
-        content: "Condições de Pagamento",
+        content: "CondiÃ§Ãµes de Pagamento",
         columnWidth: 100,
       });
       return;

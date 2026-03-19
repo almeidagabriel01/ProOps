@@ -43,10 +43,13 @@ type ProposalLike = {
   downPaymentPercentage?: number;
   downPaymentValue?: number;
   downPaymentDueDate?: string;
+  downPaymentMethod?: string;
   installmentsEnabled?: boolean;
   installmentsCount?: number;
   installmentValue?: number;
   firstInstallmentDate?: string;
+  installmentsPaymentMethod?: string;
+  paymentMethod?: string;
   [key: string]: unknown;
 };
 
@@ -79,10 +82,13 @@ const SHARED_PROPOSAL_ALLOWED_FIELDS = [
   "downPaymentPercentage",
   "downPaymentValue",
   "downPaymentDueDate",
+  "downPaymentMethod",
   "installmentsEnabled",
   "installmentsCount",
   "installmentValue",
   "firstInstallmentDate",
+  "installmentsPaymentMethod",
+  "paymentMethod",
 ] as const;
 
 function sanitizeSharedProposalPayload(

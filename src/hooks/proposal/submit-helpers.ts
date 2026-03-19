@@ -228,11 +228,15 @@ export async function updateProposal(
     downPaymentValue: effectiveDownPaymentValue,
     downPaymentWallet: formData.downPaymentWallet || "",
     downPaymentDueDate: formData.downPaymentDueDate || "",
+    downPaymentMethod: formData.downPaymentMethod || formData.paymentMethod || "",
     installmentsEnabled: formData.installmentsEnabled || false,
     installmentsCount: formData.installmentsCount || 1,
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    installmentsPaymentMethod:
+      formData.installmentsPaymentMethod || formData.paymentMethod || "",
+    paymentMethod: formData.paymentMethod || "",
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   });
@@ -299,11 +303,15 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     downPaymentValue: effectiveDownPaymentValue,
     downPaymentWallet: formData.downPaymentWallet || "",
     downPaymentDueDate: formData.downPaymentDueDate || "",
+    downPaymentMethod: formData.downPaymentMethod || formData.paymentMethod || "",
     installmentsEnabled: formData.installmentsEnabled || false,
     installmentsCount: formData.installmentsCount || 1,
     installmentValue: formData.installmentValue || 0,
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
+    installmentsPaymentMethod:
+      formData.installmentsPaymentMethod || formData.paymentMethod || "",
+    paymentMethod: formData.paymentMethod || "",
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   };

@@ -1,4 +1,8 @@
 import { formatCurrency } from "@/utils/format-utils";
+import {
+  getProposalDownPaymentMethod,
+  getProposalInstallmentsPaymentMethod,
+} from "@/lib/proposal-payment";
 
 interface PdfPaymentTermsProps {
   contentStyles: Record<string, React.CSSProperties>;
@@ -8,10 +12,13 @@ interface PdfPaymentTermsProps {
   downPaymentPercentage?: number;
   downPaymentValue?: number;
   downPaymentDueDate?: string;
+  downPaymentMethod?: string;
   installmentsEnabled?: boolean;
   installmentsCount?: number;
   installmentValue?: number;
   firstInstallmentDate?: string;
+  installmentsPaymentMethod?: string;
+  paymentMethod?: string;
 }
 
 export function PdfPaymentTerms({
@@ -22,22 +29,22 @@ export function PdfPaymentTerms({
   downPaymentPercentage,
   downPaymentValue,
   downPaymentDueDate,
+  downPaymentMethod,
   installmentsEnabled,
   installmentsCount,
   installmentValue,
   firstInstallmentDate,
+  installmentsPaymentMethod,
+  paymentMethod,
 }: PdfPaymentTermsProps) {
-  // Helper to format date with robust parsing
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
 
-    // Check if it's already in DD/MM/YYYY format
     if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
       return dateString;
     }
 
     try {
-      // Try YYYY-MM-DD
       const [year, month, day] = dateString.split("-");
       if (year && month && day && year.length === 4) {
         return `${day}/${month}/${year}`;
@@ -48,31 +55,25 @@ export function PdfPaymentTerms({
     }
   };
 
-  // Helper to calculate future dates
-  const calculateDate = (startDate?: string, monthsToAdd: number = 0) => {
+  const calculateDate = (startDate?: string, monthsToAdd = 0) => {
     if (!startDate) return "-";
 
     try {
-      let d, m, y;
+      let d: number;
+      let m: number;
+      let y: number;
 
-      // Parse flexible input format
       if (startDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        // DD/MM/YYYY
         [d, m, y] = startDate.split("/").map(Number);
       } else if (startDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        // YYYY-MM-DD
         [y, m, d] = startDate.split("-").map(Number);
       } else {
         return startDate;
       }
 
-      // Create date object (month is 0-indexed in JS Date)
       const date = new Date(y, m - 1, d);
-
-      // Add months
       date.setMonth(date.getMonth() + monthsToAdd);
 
-      // Format back to DD/MM/YYYY
       const outD = date.getDate().toString().padStart(2, "0");
       const outM = (date.getMonth() + 1).toString().padStart(2, "0");
       const outY = date.getFullYear();
@@ -83,9 +84,26 @@ export function PdfPaymentTerms({
     }
   };
 
+  const percentageFactor =
+    downPaymentType === "percentage" && downPaymentPercentage
+      ? downPaymentPercentage / 100
+      : 0;
+  const installmentsTotal =
+    installmentsEnabled && installmentsCount && installmentValue
+      ? installmentsCount * installmentValue
+      : 0;
+  const inferredTotalFromPercentage =
+    percentageFactor > 0 && percentageFactor < 1
+      ? installmentsTotal / (1 - percentageFactor)
+      : 0;
+  const totalValue = Math.max(
+    proposalTotalValue || 0,
+    inferredTotalFromPercentage,
+    installmentsTotal + (downPaymentValue || 0),
+  );
   const effectiveDownPaymentValue =
     downPaymentType === "percentage"
-      ? (downPaymentValue || 0)
+      ? totalValue * percentageFactor
       : downPaymentValue || 0;
 
   const hasDownPayment = downPaymentEnabled && effectiveDownPaymentValue > 0;
@@ -94,18 +112,22 @@ export function PdfPaymentTerms({
 
   if (!hasDownPayment && !hasInstallments) return null;
 
-  const inferredTotalValue =
-    (hasDownPayment ? effectiveDownPaymentValue : 0) +
-    (hasInstallments ? (installmentValue || 0) * installmentsCount! : 0);
-  const totalValue = Math.max(proposalTotalValue || 0, inferredTotalValue);
   const remainingValue = Math.max(0, totalValue - effectiveDownPaymentValue);
-
   const downPaymentShare =
     hasDownPayment && totalValue > 0
       ? ((effectiveDownPaymentValue / totalValue) * 100).toFixed(0)
       : "0";
+  const resolvedDownPaymentMethod = getProposalDownPaymentMethod({
+    downPaymentMethod,
+    paymentMethod,
+  });
+  const resolvedInstallmentsPaymentMethod = getProposalInstallmentsPaymentMethod(
+    {
+      installmentsPaymentMethod,
+      paymentMethod,
+    },
+  );
 
-  // Extract primary color from contentStyles or default to black
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const headerColor = (contentStyles.headerTitle as any)?.color || "#000";
 
@@ -115,14 +137,13 @@ export function PdfPaymentTerms({
         className="mb-4 text-xl font-bold"
         style={{
           ...(contentStyles.headerTitle as React.CSSProperties),
-          color: headerColor, // Ensure color is respected if override needed, though it's usually in headerTitle
+          color: headerColor,
         }}
       >
         Condições de Pagamento
       </div>
 
       <div className="w-full text-xs">
-        {/* Table Header - Compact */}
         <div className="flex border-b border-gray-200 pb-1 mb-1 font-semibold text-gray-600">
           <div className="flex-1">Forma</div>
           <div className="w-20">Parcela</div>
@@ -130,15 +151,13 @@ export function PdfPaymentTerms({
           <div className="w-28 text-right">Valor</div>
         </div>
 
-        {/* Rows */}
         <div className="space-y-0.5">
-          {/* Down Payment Row */}
           {hasDownPayment && (
             <div className="flex items-center py-0.5">
-              <div className="flex-1 text-gray-700">Pix/Boleto</div>
-              <div className="w-20 text-gray-500">
-                Entrada
+              <div className="flex-1 text-gray-700">
+                {resolvedDownPaymentMethod}
               </div>
+              <div className="w-20 text-gray-500">Entrada</div>
               <div className="w-24 text-gray-500">
                 {formatDate(downPaymentDueDate)}
               </div>
@@ -155,7 +174,9 @@ export function PdfPaymentTerms({
 
           {!hasInstallments && hasDownPayment && remainingValue > 0 && (
             <div className="flex items-center py-0.5">
-              <div className="flex-1 text-gray-700">Pix/Boleto</div>
+              <div className="flex-1 text-gray-700">
+                {resolvedInstallmentsPaymentMethod}
+              </div>
               <div className="w-20 text-gray-500">Saldo</div>
               <div className="w-24 text-gray-500">-</div>
               <div className="w-28 text-right font-medium text-gray-800 whitespace-nowrap">
@@ -164,14 +185,15 @@ export function PdfPaymentTerms({
             </div>
           )}
 
-          {/* Installment Rows */}
           {hasInstallments &&
             Array.from({ length: installmentsCount! }).map((_, index) => {
               const installmentNum = index + 1;
 
               return (
                 <div key={index} className="flex items-center py-0.5">
-                  <div className="flex-1 text-gray-700">Pix/Boleto</div>
+                  <div className="flex-1 text-gray-700">
+                    {resolvedInstallmentsPaymentMethod}
+                  </div>
                   <div className="w-20 text-gray-500">
                     {installmentNum}/{installmentsCount!}
                   </div>
@@ -186,7 +208,6 @@ export function PdfPaymentTerms({
             })}
         </div>
 
-        {/* Total Row */}
         <div className="mt-2 pt-1 border-t border-gray-200 flex justify-end">
           <div className="flex gap-2 items-baseline">
             <span className="text-gray-500 font-medium text-xs">TOTAL:</span>
@@ -197,7 +218,6 @@ export function PdfPaymentTerms({
         </div>
       </div>
 
-      {/* Summary Text - Compact */}
       <div className="mt-3">
         <div
           className="font-semibold text-xs mb-1"
@@ -206,22 +226,30 @@ export function PdfPaymentTerms({
           Forma de pagamento:
         </div>
         <div className="text-xs text-gray-600 leading-tight">
+          {hasDownPayment && (
+            <div>
+              Entrada: <strong>{resolvedDownPaymentMethod}</strong>.
+            </div>
+          )}
+          <div>
+            {hasInstallments || hasDownPayment ? "Saldo/parcelas" : "Pagamento"}:{" "}
+            <strong>{resolvedInstallmentsPaymentMethod}</strong>.
+          </div>
           {hasDownPayment && hasInstallments ? (
-            <>
-              Entrada de <strong>{downPaymentShare}%</strong> e
-              parcelamento do restante (
-              <strong>{100 - parseFloat(downPaymentShare)}%</strong>) em{" "}
-              <strong>{installmentsCount} vezes</strong>.
-            </>
+            <div>
+              Entrada de <strong>{downPaymentShare}%</strong> e parcelamento do
+              restante (<strong>{100 - parseFloat(downPaymentShare)}%</strong>)
+              em <strong>{installmentsCount} vezes</strong>.
+            </div>
           ) : hasDownPayment ? (
-            <>
+            <div>
               Entrada de <strong>{downPaymentShare}%</strong> e saldo de{" "}
               <strong>{100 - parseFloat(downPaymentShare)}%</strong> à vista.
-            </>
+            </div>
           ) : (
-            <>
+            <div>
               Parcelamento em <strong>{installmentsCount} vezes</strong>.
-            </>
+            </div>
           )}
         </div>
       </div>

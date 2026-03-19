@@ -23,7 +23,11 @@ import {
 } from "../pdf-section-editor";
 import { ProposalTemplate } from "@/types";
 import { ThemeType } from "./pdf-theme-utils";
-import { generatePaymentTerms, hydrateSections } from "./pdf-hydration-utils";
+import {
+  DEFAULT_PAYMENT_TERMS_TEXT,
+  generatePaymentTerms,
+  hydrateSections,
+} from "./pdf-hydration-utils";
 import {
   DEFAULT_PDF_FONT_FAMILY,
   normalizePdfFontFamily,
@@ -115,7 +119,7 @@ function normalizePaymentSections(
   const dynamicPayment = hasDynamicPaymentOptions(proposal);
   const paymentTextContent = proposal
     ? generatePaymentTerms(proposal)
-    : "• Pagamento à vista na entrega\n• Formas de pagamento: PIX, boleto ou cartão";
+    : DEFAULT_PAYMENT_TERMS_TEXT;
 
   const hasPaymentTerms = sections.some((section) => section.type === "payment-terms");
   const hasLegacy = sections.some(
@@ -796,3 +800,4 @@ export function useEditPdfPage() {
     isSavingDefault,
   };
 }
+

@@ -13,6 +13,7 @@ import {
   isProductVisibleInPdf,
   shouldCountInPdfTotals,
 } from "./product-visibility";
+import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
 export type { ContentItem } from "@/components/pdf/pdf-helpers";
 import {
   PdfDisplaySettings,
@@ -70,6 +71,9 @@ export interface Proposal {
   installmentValue?: number;
   downPaymentDueDate?: string;
   firstInstallmentDate?: string;
+  downPaymentMethod?: string;
+  installmentsPaymentMethod?: string;
+  paymentMethod?: string;
 }
 
 export interface Tenant {
@@ -101,11 +105,8 @@ export interface RenderPagedContentProps {
   pdfDisplaySettings?: PdfDisplaySettings;
 }
 
-function buildSimplePaymentTermsText(): string {
-  return [
-    "• Pagamento à vista na entrega",
-    "• Formas de pagamento: PIX, boleto ou cartão",
-  ].join("\n");
+function buildSimplePaymentTermsText(proposal: Proposal): string {
+  return generateProposalPaymentTerms(proposal, { bullet: "-" });
 }
 
 function normalizePdfText(value: string): string {
@@ -610,7 +611,7 @@ export function buildContentItems(
           addUnifiedPaymentBlock();
         } else {
           const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText();
+            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
           const paymentTitleStyles: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",
@@ -711,7 +712,7 @@ export function buildContentItems(
           addUnifiedPaymentBlock();
         } else {
           const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText();
+            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
           const paymentTitleStyles2: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",
@@ -911,3 +912,5 @@ export function distributeIntoPages(
   pdfDebugLog(`Distribution complete: ${pages.length} pages created`);
   return pages;
 }
+
+

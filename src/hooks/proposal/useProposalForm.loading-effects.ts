@@ -16,6 +16,7 @@ import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { toast } from "@/lib/toast";
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
 import { isEnvironmentProposalSelection } from "@/lib/proposal-environment-utils";
+import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
 
 interface UseProposalFormLoadingEffectsContext {
   tenant: { id: string; proposalDefaults?: Record<string, unknown> } | null;
@@ -401,11 +402,21 @@ export function useProposalFormLoadingEffects(
           downPaymentValue: proposal.downPaymentValue || 0,
           downPaymentWallet: proposal.downPaymentWallet || "",
           downPaymentDueDate: proposal.downPaymentDueDate || "",
+          downPaymentMethod:
+            proposal.downPaymentMethod ||
+            proposal.paymentMethod ||
+            DEFAULT_PROPOSAL_PAYMENT_METHOD,
           installmentsEnabled: proposal.installmentsEnabled || false,
           installmentsCount: proposal.installmentsCount || 1,
           installmentValue: proposal.installmentValue || 0,
           installmentsWallet: proposal.installmentsWallet || "",
           firstInstallmentDate: proposal.firstInstallmentDate || "",
+          installmentsPaymentMethod:
+            proposal.installmentsPaymentMethod ||
+            proposal.paymentMethod ||
+            DEFAULT_PROPOSAL_PAYMENT_METHOD,
+          paymentMethod:
+            proposal.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
           pdfSettings: mergePdfDisplaySettings(proposal.pdfSettings),
         };
 

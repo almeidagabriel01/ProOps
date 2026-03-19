@@ -1,6 +1,7 @@
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProposalStatus } from "@/types";
 import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
+import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const EMPTY_ARRAY: any[] = [];
@@ -25,11 +26,14 @@ export function createInitialProposalFormData(): Partial<Proposal> {
     downPaymentValue: 0,
     downPaymentWallet: "",
     downPaymentDueDate: "",
+    downPaymentMethod: DEFAULT_PROPOSAL_PAYMENT_METHOD,
     installmentsEnabled: false,
     installmentsCount: 1,
     installmentValue: 0,
     installmentsWallet: "",
     firstInstallmentDate: "",
+    installmentsPaymentMethod: DEFAULT_PROPOSAL_PAYMENT_METHOD,
+    paymentMethod: DEFAULT_PROPOSAL_PAYMENT_METHOD,
     pdfSettings: {
       showProductImages: true,
       showProductDescriptions: true,
@@ -106,11 +110,20 @@ function buildFormSnapshotObject(
     downPaymentValue: data.downPaymentValue || 0,
     downPaymentWallet: data.downPaymentWallet || "",
     downPaymentDueDate: data.downPaymentDueDate || "",
+    downPaymentMethod:
+      data.downPaymentMethod ||
+      data.paymentMethod ||
+      DEFAULT_PROPOSAL_PAYMENT_METHOD,
     installmentsEnabled: data.installmentsEnabled || false,
     installmentsCount: data.installmentsCount || 1,
     installmentValue: data.installmentValue || 0,
     installmentsWallet: data.installmentsWallet || "",
     firstInstallmentDate: data.firstInstallmentDate || "",
+    installmentsPaymentMethod:
+      data.installmentsPaymentMethod ||
+      data.paymentMethod ||
+      DEFAULT_PROPOSAL_PAYMENT_METHOD,
+    paymentMethod: data.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
     pdfSettings: mergePdfDisplaySettings(data.pdfSettings),
   };
 }

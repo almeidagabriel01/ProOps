@@ -112,11 +112,14 @@ export interface Proposal {
   downPaymentValue?: number;
   downPaymentWallet?: string; // Internal use only - not shown in PDF
   downPaymentDueDate?: string; // YYYY-MM-DD
+  downPaymentMethod?: string; // Shown in PDF for entry
   installmentsEnabled?: boolean;
   installmentsCount?: number;
   installmentValue?: number;
   installmentsWallet?: string; // Internal use only - not shown in PDF
   firstInstallmentDate?: string; // YYYY-MM-DD - date of first installment
+  installmentsPaymentMethod?: string; // Shown in PDF for installments/single payment
+  paymentMethod?: string; // Shown in PDF payment terms
 
   // Flattened fields for sorting
   primarySystem?: string;

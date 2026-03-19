@@ -216,7 +216,10 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               installmentsCount={proposal.installmentsCount}
               installmentValue={proposal.installmentValue}
               downPaymentDueDate={proposal.downPaymentDueDate}
+              downPaymentMethod={proposal.downPaymentMethod}
               firstInstallmentDate={proposal.firstInstallmentDate}
+              installmentsPaymentMethod={proposal.installmentsPaymentMethod}
+              paymentMethod={proposal.paymentMethod}
             />
           </div>
         );
