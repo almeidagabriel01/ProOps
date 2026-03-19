@@ -118,35 +118,6 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       inventory: unitInventoryDefinition,
     },
   },
-  varejo: {
-    id: "varejo",
-    label: "Varejo",
-    pageAvailability: {
-      solutions: true,
-    },
-    solutionsPage: {
-      navigationLabel: "Soluções",
-      pageTitle: "Soluções",
-      pageDescription: "Central de gerenciamento de soluções e ambientes.",
-      mode: "automation",
-    },
-    proposal: {
-      workflow: "automation",
-    },
-    productCatalog: {
-      singularLabel: "Produto",
-      pluralLabel: "Produtos",
-      newTitle: "Novo Produto",
-      newSubtitle:
-        "Adicione um novo produto ao seu catálogo com todas as informações necessárias.",
-      editTitle: "Editar Produto",
-      editSubtitle: (productName) =>
-        `Atualize as informações de "${productName}"`,
-      viewTitle: "Visualizar Produto",
-      viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
-      inventory: unitInventoryDefinition,
-    },
-  },
   cortinas: {
     id: "cortinas",
     label: "Cortinas",
