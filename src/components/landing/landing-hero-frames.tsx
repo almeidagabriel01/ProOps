@@ -96,8 +96,11 @@ export function LandingHeroFrames() {
           </h1>
 
           <p className="mx-auto mb-10 max-w-3xl text-base leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
-            CRM, agenda, propostas, financeiro, catalogos e dashboards em um
-            unico sistema para organizar a operacao da empresa com mais clareza.
+            O ProOps é um sistema ERP moderno voltado para profissionais e
+            empresas de serviços, como automação residencial, eletricistas e
+            área da saúde. A plataforma permite gerenciar clientes, ordens de
+            serviço, relatórios e operações do dia a dia de forma simples e
+            eficiente.
           </p>
         </motion.div>
 
