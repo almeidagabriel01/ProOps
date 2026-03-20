@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useRef } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { CalendarClock, ShieldCheck, Wallet } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 
 export function LandingHeroFrames() {
@@ -18,9 +20,9 @@ export function LandingHeroFrames() {
     stiffness: 100,
   });
 
-  const textOpacity = useTransform(smoothProgress, [0, 0.1], [1, 0]);
-  const textScale = useTransform(smoothProgress, [0, 0.1], [1, 0.92]);
-  const textY = useTransform(smoothProgress, [0, 0.1], [0, -40]);
+  const textOpacity = useTransform(smoothProgress, [0, 0.08], [1, 0]);
+  const textScale = useTransform(smoothProgress, [0, 0.08], [1, 0.95]);
+  const textY = useTransform(smoothProgress, [0, 0.08], [0, -32]);
 
   const uiRotateX = useTransform(smoothProgress, [0.1, 0.2], [38, 0]);
   const uiRotateZ = useTransform(smoothProgress, [0.1, 0.2], [-12, 0]);
@@ -75,30 +77,98 @@ export function LandingHeroFrames() {
               value > 0.5 ? "auto" : "none",
             ),
           }}
-          className="relative z-10 flex max-w-5xl flex-col items-center px-6 text-center"
+          className="relative z-10 flex max-w-6xl flex-col items-center px-4 text-center sm:px-6"
         >
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-4 py-2 text-[11px] font-semibold tracking-[0.18em] text-black/70 dark:border-white/15 dark:bg-neutral-900 dark:text-white/70">
-            <ProOpsLogo
-              variant="symbol"
-              width={16}
-              height={16}
-              invertOnDark
-              className="h-4 w-4"
-            />
-            {"Plataforma ProOps"}
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/15 bg-white/95 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/70 dark:border-white/15 dark:bg-neutral-900/95 dark:text-white/70">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Aplicativo web oficial
           </div>
 
-          <h1 className="mb-6 text-5xl font-bold leading-[0.92] tracking-tight text-black dark:text-white md:text-7xl lg:text-[6.5rem]">
-            <span className="block">Controle operacional</span>
-            <span className="block text-black/55 dark:text-white/55">
-              em tempo real.
-            </span>
+          <div className="mb-6 rounded-[28px] border border-black/12 bg-white/92 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.08)] backdrop-blur dark:border-white/12 dark:bg-neutral-900/90 dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+              <ProOpsLogo
+                variant="full"
+                width={220}
+                height={76}
+                invertOnDark
+                interactive={false}
+                className="h-12 w-auto"
+              />
+              <div className="text-center sm:text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45 dark:text-white/45">
+                  Nome exibido no OAuth
+                </p>
+                <p className="mt-1 text-sm font-medium text-black/75 dark:text-white/75">
+                  ProOps - Sistema ERP para gestao de servicos
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <h1 className="mb-4 max-w-5xl text-4xl font-bold leading-[0.94] tracking-tight text-black dark:text-white sm:text-5xl md:text-6xl lg:text-7xl">
+            ProOps - Sistema ERP para gestao de servicos
           </h1>
 
-          <p className="mx-auto mb-10 max-w-3xl text-base leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
-            ProOps conecta dashboard, propostas, kanban, financeiro, carteiras,
-            catálogo e editor de PDF em uma experiência única de gestão.
+          <p className="mb-4 max-w-4xl text-lg font-medium leading-relaxed text-black/70 dark:text-white/70 md:text-2xl">
+            Plataforma web para controlar CRM, propostas, financeiro,
+            carteiras, catalogo, equipe e operacao comercial em um unico lugar.
           </p>
+
+          <p className="mb-8 max-w-3xl text-sm leading-relaxed text-black/60 dark:text-white/60 md:text-base">
+            Quando a integracao e ativada, o ProOps tambem sincroniza
+            compromissos da empresa com o Google Agenda para criar, atualizar e
+            excluir eventos da operacao.
+          </p>
+
+          <div className="mb-6 grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-black/10 bg-white/88 px-4 py-4 text-left backdrop-blur dark:border-white/10 dark:bg-neutral-900/88">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
+                CRM e propostas
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-black/70 dark:text-white/70">
+                Funil comercial, propostas em PDF e acompanhamento de pipeline.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-black/10 bg-white/88 px-4 py-4 text-left backdrop-blur dark:border-white/10 dark:bg-neutral-900/88">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
+                <Wallet className="h-3.5 w-3.5" />
+                Financeiro
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-black/70 dark:text-white/70">
+                Receitas, despesas, carteiras e visao consolidada da operacao.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-black/10 bg-white/88 px-4 py-4 text-left backdrop-blur dark:border-white/10 dark:bg-neutral-900/88">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
+                <CalendarClock className="h-3.5 w-3.5" />
+                Google Agenda
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-black/70 dark:text-white/70">
+                Sincronizacao opcional para compromissos da empresa e da equipe.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-black/60 dark:text-white/60">
+            <a
+              href="mailto:gestao@proops.com.br"
+              className="rounded-full border border-black/10 bg-white/88 px-4 py-2 transition-colors hover:text-black dark:border-white/10 dark:bg-neutral-900/88 dark:hover:text-white"
+            >
+              Suporte: gestao@proops.com.br
+            </a>
+            <Link
+              href="/privacy"
+              className="rounded-full border border-black/10 bg-white/88 px-4 py-2 transition-colors hover:text-black dark:border-white/10 dark:bg-neutral-900/88 dark:hover:text-white"
+            >
+              Politica de Privacidade
+            </Link>
+            <Link
+              href="/terms"
+              className="rounded-full border border-black/10 bg-white/88 px-4 py-2 transition-colors hover:text-black dark:border-white/10 dark:bg-neutral-900/88 dark:hover:text-white"
+            >
+              Termos de Servico
+            </Link>
+          </div>
         </motion.div>
 
         <motion.div

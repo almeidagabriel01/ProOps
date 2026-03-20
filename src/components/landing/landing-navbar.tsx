@@ -2,11 +2,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { ProOpsLogo } from "@/components/branding/proops-logo";
 import {
   Dialog,
   DialogContent,
@@ -143,17 +143,27 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
           <div className="h-full px-4 md:px-6 flex items-center justify-between gap-4">
             <Link
               href="/"
-              className="group relative inline-flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center overflow-hidden rounded-full -ml-1 md:-ml-2 cursor-pointer leading-none"
+              className="group relative inline-flex shrink-0 items-center gap-3 overflow-hidden rounded-full cursor-pointer leading-none"
               aria-label="ProOps"
             >
-              <Image
-                src="/logo/logo2-transparent.svg"
-                alt="ProOps"
-                width={116}
-                height={116}
-                priority
-                className="block h-full w-full object-contain dark:invert scale-[2.55] md:scale-[2.7] transition-all duration-300 group-hover:scale-[2.7] md:group-hover:scale-[2.85] group-hover:-translate-y-0.5 group-hover:drop-shadow-[0_10px_18px_rgba(0,0,0,0.22)]"
-              />
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full md:h-11 md:w-11">
+                <ProOpsLogo
+                  variant="symbol"
+                  width={116}
+                  height={116}
+                  priority
+                  invertOnDark
+                  className="block h-full w-full scale-[2.55] object-contain md:scale-[2.7] group-hover:scale-[2.7] md:group-hover:scale-[2.85]"
+                />
+              </div>
+              <div className="hidden lg:block text-left">
+                <p className="text-[13px] font-semibold text-black dark:text-white">
+                  ProOps
+                </p>
+                <p className="text-[11px] text-black/50 dark:text-white/50">
+                  Sistema ERP para gestao de servicos
+                </p>
+              </div>
             </Link>
 
             <div className="hidden md:flex items-center gap-1">

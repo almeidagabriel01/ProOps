@@ -4,13 +4,13 @@ import { ProOpsLogo } from "@/components/branding/proops-logo";
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 pt-16 pb-10">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
+    <footer className="border-t border-black/10 bg-white pb-10 pt-16 dark:border-white/10 dark:bg-neutral-950">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mb-14 grid grid-cols-2 gap-10 md:grid-cols-4">
           <div className="col-span-2">
             <Link
               href="/"
-              className="inline-flex items-center mb-6 cursor-pointer"
+              className="mb-6 inline-flex items-center cursor-pointer"
             >
               <ProOpsLogo
                 variant="full"
@@ -21,22 +21,31 @@ export function LandingFooter() {
                 className="h-12 w-auto origin-left scale-[1.35]"
               />
             </Link>
-            <p className="text-black/65 dark:text-white/70 text-sm max-w-sm leading-relaxed">
-              Plataforma de gestão com foco em propostas, financeiro, CRM em
-              kanban, carteiras, catálogo, planilhas e operação comercial em um
-              único lugar.
+            <p className="max-w-sm text-sm leading-relaxed text-black/65 dark:text-white/70">
+              ProOps e um sistema ERP para gestao de servicos com foco em CRM,
+              propostas, financeiro, agenda, catalogo, carteiras e operacao
+              comercial.
+            </p>
+            <p className="mt-4 text-sm text-black/55 dark:text-white/55">
+              Suporte oficial:{" "}
+              <a
+                href="mailto:gestao@proops.com.br"
+                className="transition-colors hover:text-black dark:hover:text-white"
+              >
+                gestao@proops.com.br
+              </a>
             </p>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-black dark:text-white">
+            <h4 className="mb-4 font-semibold text-black dark:text-white">
               Produto
             </h4>
             <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
               <li>
                 <Link
                   href="#showcase"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
                   Plataforma
                 </Link>
@@ -44,56 +53,64 @@ export function LandingFooter() {
               <li>
                 <Link
                   href="#modulos"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Módulos
+                  Modulos
                 </Link>
               </li>
               <li>
                 <Link
-                  href="#pricing"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  href="#recursos"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Planos
+                  Recursos
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-black dark:text-white">
-              Suporte
+            <h4 className="mb-4 font-semibold text-black dark:text-white">
+              Institucional
             </h4>
             <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
               <li>
                 <Link
                   href="/privacy"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Política de Privacidade
+                  Politica de Privacidade
                 </Link>
               </li>
               <li>
                 <Link
                   href="/terms"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Termos de Serviço
+                  Termos de Servico
                 </Link>
               </li>
               <li>
                 <Link
                   href="/login"
-                  className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Área do Cliente
+                  Area do Cliente
                 </Link>
+              </li>
+              <li>
+                <a
+                  href="mailto:gestao@proops.com.br"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
+                >
+                  gestao@proops.com.br
+                </a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-black/10 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-black/55 dark:text-white/55">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-black/10 pt-8 text-sm text-black/55 dark:border-white/10 dark:text-white/55 md:flex-row">
           <p className="flex items-center gap-2">
             <ProOpsLogo
               variant="symbol"

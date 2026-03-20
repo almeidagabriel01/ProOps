@@ -90,7 +90,7 @@ export default function RootLayout({
     pathname.startsWith("/share/"); // Public shared proposal pages
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <title>ProOps - Sistema ERP para gestão de serviços</title>
         <meta

@@ -33,7 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/admin/billing": "Cobranca | Admin",
   "/admin/tenants": "Empresas | Admin",
 
-  "/": "Home",
+  "/": "ProOps - Sistema ERP para gestão de serviços",
 };
 
 function getDynamicTitle(pathname: string): string | null {
