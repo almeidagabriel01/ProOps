@@ -85,26 +85,19 @@ export function LandingHeroFrames() {
               invertOnDark
               className="h-4 w-4"
             />
-            {"ProOps - Sistema ERP para gestão de serviços"}
+            {"Plataforma ProOps"}
           </div>
 
           <h1 className="mb-6 text-5xl font-bold leading-[0.92] tracking-tight text-black dark:text-white md:text-7xl lg:text-[6.5rem]">
-            <span className="block">
-              ProOps - Sistema ERP para gestão de serviços
-            </span>
+            <span className="block">Controle operacional</span>
             <span className="block text-black/55 dark:text-white/55">
-              para equipes comerciais e operacionais
+              em tempo real.
             </span>
           </h1>
 
-          <h2 className="text-2xl font-bold text-black/80 dark:text-white/80 md:text-3xl">
-            {"ProOps - Sistema ERP para gestão de serviços"}
-          </h2>
-
           <p className="mx-auto mb-10 max-w-3xl text-base leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
-            {
-              "O ProOps é um sistema ERP para gestão de serviços utilizado por empresas e profissionais para gerenciar clientes, ordens de serviço, relatórios e operações diárias em uma plataforma online."
-            }
+            ProOps conecta dashboard, propostas, kanban, financeiro, carteiras,
+            catálogo e editor de PDF em uma experiência única de gestão.
           </p>
         </motion.div>
 
