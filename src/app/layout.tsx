@@ -92,6 +92,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <title>ProOps - Sistema ERP para gestão de serviços</title>
+        <meta
+          name="description"
+          content="O ProOps é um sistema ERP para gestão de serviços que permite gerenciar clientes, ordens de serviço, relatórios e operações diárias em uma plataforma online."
+        />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <link rel="shortcut icon" href="/icon.svg" />
       </head>
