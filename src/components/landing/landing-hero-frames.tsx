@@ -100,7 +100,11 @@ export function LandingHeroFrames() {
             empresas de serviços, como automação residencial, eletricistas e
             área da saúde. A plataforma permite gerenciar clientes, ordens de
             serviço, relatórios e operações do dia a dia de forma simples e
-            eficiente.
+            eficiente. O ProOps é um sistema ERP para gestão de serviços que
+            permite que empresas e profissionais gerenciem clientes, ordens de
+            serviço, relatórios e operações do dia a dia. A plataforma é
+            acessada online e utilizada por usuários autenticados para organizar
+            e acompanhar suas atividades.
           </p>
         </motion.div>
 
