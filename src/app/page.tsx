@@ -12,14 +12,11 @@ import {
   LandingCTA,
   LandingFooter,
 } from "@/components/landing";
-import { FullPageLoading } from "@/components/ui/full-page-loading";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 
 export default function LandingPage() {
   const {
-    isCheckingAuth,
-    isRedirecting,
     currentUser,
     billingInterval,
     setBillingInterval,
@@ -31,25 +28,13 @@ export default function LandingPage() {
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       gsap.registerPlugin(ScrollTrigger);
-      const tId = setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         ScrollTrigger.refresh();
       }, 500);
-      return () => clearTimeout(tId);
-    }
-  }, [isCheckingAuth, isRedirecting]);
 
-  if (isRedirecting || isCheckingAuth) {
-    return (
-      <FullPageLoading
-        message={isRedirecting ? "Entrando..." : "Verificando sessão..."}
-        description={
-          isRedirecting
-            ? "Redirecionando para sua conta"
-            : "Conectando à sua conta"
-        }
-      />
-    );
-  }
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
