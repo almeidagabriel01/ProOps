@@ -98,6 +98,7 @@ export const CalendarService = {
     >("/v1/calendar/google/status", "GET");
 
     return {
+      enabled: response.enabled ?? true,
       connected: Boolean(response.connected),
       email: response.email || null,
       calendarId: response.calendarId || null,

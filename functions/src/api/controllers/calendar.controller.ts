@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { google } from "googleapis";
 import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
+import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
 
 const CALENDAR_EVENTS_COLLECTION = "calendar_events";
@@ -13,17 +14,19 @@ const DEFAULT_EVENT_COLOR = "#2563eb";
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS = 15 * 1000;
 const GOOGLE_CALENDAR_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.events.owned",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 
 type CalendarEventStatus = "scheduled" | "completed" | "canceled";
 type GoogleSyncStatus = "disabled" | "synced" | "error" | "removed";
+type GoogleSyncOrigin = "local" | "imported";
 
 interface GoogleSyncMetadata {
   enabled: boolean;
   status: GoogleSyncStatus;
   provider: "google";
+  origin?: GoogleSyncOrigin;
   calendarId?: string | null;
   externalEventId?: string | null;
   lastAttemptAt?: string | null;
@@ -81,6 +84,11 @@ interface GoogleCalendarEventInput {
   summary?: string | null;
   description?: string | null;
   location?: string | null;
+  extendedProperties?: {
+    private?: {
+      localEventId?: string | null;
+    } | null;
+  } | null;
   start?: {
     date?: string | null;
     dateTime?: string | null;
@@ -195,6 +203,14 @@ function isNotFoundGoogleError(error: unknown): boolean {
 }
 
 function resolveRequestOrigin(req?: Request): string {
+  if (!req && process.env.NODE_ENV === "production") {
+    return resolveFrontendAppOrigin();
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return resolveFrontendAppOrigin();
+  }
+
   const forwardedProto = String(req?.headers["x-forwarded-proto"] || "")
     .split(",")[0]
     .trim();
@@ -223,6 +239,10 @@ function buildFrontendCalendarUrl(
     url.searchParams.set("reason", reason);
   }
   return url.toString();
+}
+
+function isGoogleCalendarDisabled(): boolean {
+  return !isGoogleCalendarSyncEnabled();
 }
 
 function resolveGoogleCalendarRedirectUri(req?: Request): string {
@@ -447,6 +467,7 @@ function buildGoogleSyncMetadataFromImportedEvent(params: {
     enabled: true,
     status: params.status,
     provider: "google",
+    origin: "imported",
     calendarId: params.integration.calendarId,
     externalEventId: params.externalEventId,
     lastAttemptAt: params.syncedAt,
@@ -610,6 +631,10 @@ async function syncGoogleEventsToLocalCalendar(params: {
   startMs: number;
   endMs: number;
 }) {
+  if (isGoogleCalendarDisabled()) {
+    return;
+  }
+
   const integrationRecord = await getGoogleIntegration(params.tenantId);
   if (!integrationRecord) {
     return;
@@ -719,6 +744,10 @@ async function syncEventToGoogle(
   eventId: string,
   eventData: CalendarEventDocument,
 ): Promise<GoogleSyncMetadata> {
+  if (isGoogleCalendarDisabled()) {
+    return buildBaseGoogleSyncMetadata();
+  }
+
   const attemptedAt = nowIso();
   const integrationRecord = await getGoogleIntegration(eventData.tenantId);
 
@@ -763,6 +792,7 @@ async function syncEventToGoogle(
         enabled: true,
         status: "removed",
         provider: "google",
+        origin: "local",
         calendarId: integration.calendarId,
         externalEventId: null,
         lastAttemptAt: attemptedAt,
@@ -775,6 +805,7 @@ async function syncEventToGoogle(
           enabled: true,
           status: "removed",
           provider: "google",
+          origin: "local",
           calendarId: integration.calendarId,
           externalEventId: null,
           lastAttemptAt: attemptedAt,
@@ -792,6 +823,7 @@ async function syncEventToGoogle(
         enabled: true,
         status: "error",
         provider: "google",
+        origin: "local",
         calendarId: integration.calendarId,
         externalEventId: eventData.googleSync?.externalEventId || null,
         lastAttemptAt: attemptedAt,
@@ -825,6 +857,7 @@ async function syncEventToGoogle(
       enabled: true,
       status: "synced",
       provider: "google",
+      origin: "local",
       calendarId: integration.calendarId,
       externalEventId,
       lastAttemptAt: attemptedAt,
@@ -841,6 +874,7 @@ async function syncEventToGoogle(
       enabled: true,
       status: "error",
       provider: "google",
+      origin: "local",
       calendarId: integration.calendarId,
       externalEventId: eventData.googleSync?.externalEventId || null,
       lastAttemptAt: attemptedAt,
@@ -850,6 +884,10 @@ async function syncEventToGoogle(
 }
 
 async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
+  if (isGoogleCalendarDisabled()) {
+    return;
+  }
+
   const externalEventId = eventData.googleSync?.externalEventId;
   if (!externalEventId) {
     return;
@@ -901,9 +939,14 @@ function serializeCalendarEvent(
   docId: string,
   data: CalendarEventDocument,
 ): CalendarEventDocument & { id: string } {
+  const serializedGoogleSync = isGoogleCalendarDisabled()
+    ? buildBaseGoogleSyncMetadata()
+    : data.googleSync;
+
   return {
     id: docId,
     ...data,
+    googleSync: serializedGoogleSync,
   };
 }
 
@@ -935,6 +978,7 @@ function buildBaseGoogleSyncMetadata(): GoogleSyncMetadata {
     enabled: false,
     status: "disabled",
     provider: "google",
+    origin: "local",
     calendarId: null,
     externalEventId: null,
     lastAttemptAt: null,
@@ -949,6 +993,96 @@ function getErrorMessage(error: unknown): string {
   }
 
   return String(error || "Unknown error");
+}
+
+async function cleanupLocalEventsAfterGoogleDisconnect(params: {
+  tenantId: string;
+  integration: GoogleCalendarIntegrationDocument;
+  req?: Request;
+}) {
+  const snapshot = await db
+    .collection(CALENDAR_EVENTS_COLLECTION)
+    .where("tenantId", "==", params.tenantId)
+    .get();
+
+  const syncedDocs = snapshot.docs.filter((doc) => {
+    const data = doc.data() as CalendarEventDocument;
+    return Boolean(
+      data.googleSync?.provider === "google" && data.googleSync?.externalEventId,
+    );
+  });
+
+  if (syncedDocs.length === 0) {
+    return;
+  }
+
+  const oauthClient = createGoogleOAuthClient(params.req);
+  oauthClient.setCredentials({
+    refresh_token: params.integration.refreshToken,
+  });
+
+  const calendar = google.calendar({
+    version: "v3",
+    auth: oauthClient,
+  });
+
+  const cleanupActions = await Promise.all(
+    syncedDocs.map(async (doc) => {
+      const data = doc.data() as CalendarEventDocument;
+      const syncOrigin = String(data.googleSync?.origin || "")
+        .trim()
+        .toLowerCase();
+
+      if (syncOrigin === "local") {
+        return { ref: doc.ref, type: "reset" as const };
+      }
+
+      if (syncOrigin === "imported") {
+        return { ref: doc.ref, type: "delete" as const };
+      }
+
+      try {
+        const googleEvent = await calendar.events.get({
+          calendarId: params.integration.calendarId,
+          eventId: String(data.googleSync?.externalEventId || "").trim(),
+        });
+        const linkedLocalEventId = String(
+          googleEvent.data.extendedProperties?.private?.localEventId || "",
+        ).trim();
+
+        return {
+          ref: doc.ref,
+          type: linkedLocalEventId === doc.id ? ("reset" as const) : ("delete" as const),
+        };
+      } catch (error) {
+        if (!isNotFoundGoogleError(error)) {
+          console.warn(
+            "[CalendarController] Unable to inspect Google event before disconnect, keeping local event:",
+            error,
+          );
+        }
+
+        return { ref: doc.ref, type: "reset" as const };
+      }
+    }),
+  );
+
+  const batch = db.batch();
+  const resetPayload = {
+    googleSync: buildBaseGoogleSyncMetadata(),
+    updatedAt: nowIso(),
+  };
+
+  cleanupActions.forEach((action) => {
+    if (action.type === "delete") {
+      batch.delete(action.ref);
+      return;
+    }
+
+    batch.set(action.ref, resetPayload, { merge: true });
+  });
+
+  await batch.commit();
 }
 
 function buildCalendarEventsErrorResponse(error: unknown): {
@@ -1172,6 +1306,12 @@ function getValidationMessage(error: unknown): string {
 
 export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
   try {
+    if (isGoogleCalendarDisabled()) {
+      return res.status(503).json({
+        message: "A integracao com Google Agenda esta temporariamente desabilitada.",
+      });
+    }
+
     if (!req.user?.uid || !req.user.tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
@@ -1214,6 +1354,10 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
 }
 
 export async function handleGoogleCalendarCallback(req: Request, res: Response) {
+  if (isGoogleCalendarDisabled()) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", "integration_disabled"));
+  }
+
   const state = String(req.query.state || "").trim();
   const code = String(req.query.code || "").trim();
 
@@ -1306,6 +1450,14 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
 
 export async function getGoogleCalendarStatus(req: Request, res: Response) {
   try {
+    if (isGoogleCalendarDisabled()) {
+      return res.json({
+        success: true,
+        enabled: false,
+        connected: false,
+      });
+    }
+
     if (!req.user?.uid || !req.user.tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
@@ -1315,12 +1467,14 @@ export async function getGoogleCalendarStatus(req: Request, res: Response) {
     if (!integration) {
       return res.json({
         success: true,
+        enabled: true,
         connected: false,
       });
     }
 
     return res.json({
       success: true,
+      enabled: true,
       connected: true,
       email: integration.data.connectedEmail,
       calendarId: integration.data.calendarId,
@@ -1338,6 +1492,10 @@ export async function getGoogleCalendarStatus(req: Request, res: Response) {
 
 export async function disconnectGoogleCalendar(req: Request, res: Response) {
   try {
+    if (isGoogleCalendarDisabled()) {
+      return res.status(204).send();
+    }
+
     if (!req.user?.uid || !req.user.tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
@@ -1352,6 +1510,12 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
       return res.status(204).send();
     }
     const docRef = db.collection(CALENDAR_INTEGRATIONS_COLLECTION).doc(integration.id);
+
+    await cleanupLocalEventsAfterGoogleDisconnect({
+      tenantId: req.user.tenantId,
+      integration: integration.data,
+      req,
+    });
 
     if (integration.data.refreshToken) {
       try {

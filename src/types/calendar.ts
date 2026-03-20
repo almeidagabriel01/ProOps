@@ -4,11 +4,13 @@ export type GoogleCalendarSyncStatus =
   | "synced"
   | "error"
   | "removed";
+export type GoogleCalendarSyncOrigin = "local" | "imported";
 
 export interface GoogleCalendarSyncMetadata {
   enabled: boolean;
   provider: "google";
   status: GoogleCalendarSyncStatus;
+  origin?: GoogleCalendarSyncOrigin;
   calendarId?: string | null;
   externalEventId?: string | null;
   lastAttemptAt?: string | null;
@@ -66,6 +68,7 @@ export interface CalendarEventPayload {
 }
 
 export interface GoogleCalendarConnectionStatus {
+  enabled?: boolean;
   connected: boolean;
   email?: string | null;
   calendarId?: string | null;

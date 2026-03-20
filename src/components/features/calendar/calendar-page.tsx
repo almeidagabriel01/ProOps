@@ -35,16 +35,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { isGoogleCalendarSyncEnabled } from "@/lib/google-calendar-feature";
 import { toast } from "@/lib/toast";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
@@ -77,6 +72,8 @@ const STATUS_BADGES: Record<
   completed: "success",
   canceled: "destructive",
 };
+
+const GOOGLE_CALENDAR_SYNC_ENABLED = isGoogleCalendarSyncEnabled();
 
 function formatDateTime(dateValue: string | Date): string {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -186,6 +183,199 @@ type CalendarViewType =
   | "timeGridDay"
   | "listWeek";
 
+function CalendarStatPill(props: {
+  label: string;
+  value: number;
+  icon?: React.ReactNode;
+  tone?: "default" | "success" | "danger";
+}) {
+  const toneClass =
+    props.tone === "success"
+      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      : props.tone === "danger"
+        ? "border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+        : "border-border/60 bg-muted/35 text-foreground";
+
+  return (
+    <div
+      className={`inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-sm ${toneClass}`}
+    >
+      {props.icon ? <span className="opacity-75">{props.icon}</span> : null}
+      <span className="text-xs font-medium uppercase tracking-[0.18em] opacity-70">
+        {props.label}
+      </span>
+      <span className="text-sm font-semibold">{props.value}</span>
+    </div>
+  );
+}
+
+function GoogleCalendarCompanyCard(props: {
+  status: GoogleCalendarConnectionStatus;
+  isLoading: boolean;
+  isConnecting: boolean;
+  canManage: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold tracking-tight">Google Agenda da empresa</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Sincronizacao central da agenda operacional com a conta Google principal.
+          </p>
+        </div>
+        {props.isLoading ? (
+          <LoaderCircle className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+        ) : props.status.connected ? (
+          <Badge variant="success" className="shrink-0">
+            Conectado
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="shrink-0">
+            Desconectado
+          </Badge>
+        )}
+      </div>
+
+      {props.status.connected ? (
+        <>
+          <div className="rounded-[22px] border border-emerald-500/20 bg-emerald-500/7 px-4 py-3.5">
+            <p className="text-sm font-medium text-foreground">
+              {props.status.email || "Conta principal da empresa conectada"}
+            </p>
+            {props.status.lastSuccessfulSyncAt ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Ultimo sync: {formatDateTime(props.status.lastSuccessfulSyncAt)}
+              </p>
+            ) : null}
+          </div>
+
+          {props.status.lastSyncError ? (
+            <div className="rounded-[22px] border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              Ultimo erro: {props.status.lastSyncError}
+            </div>
+          ) : null}
+
+          {props.canManage ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button variant="outline" onClick={props.onConnect} disabled={props.isConnecting}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Reconectar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={props.onDisconnect}
+                disabled={props.isLoading}
+              >
+                <Unlink2 className="mr-2 h-4 w-4" />
+                Desconectar
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              A conexao da agenda da empresa e administrada por um usuario master.
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-4">
+            <div className="flex items-start gap-3">
+              <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Conecte a agenda principal da empresa</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Os compromissos do ProOps podem sincronizar com o Google Agenda
+                  assim que a integracao for ativada.
+                </p>
+              </div>
+            </div>
+          </div>
+          {props.canManage ? (
+            <Button onClick={props.onConnect} disabled={props.isConnecting} className="w-full">
+              {props.isConnecting ? (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Link2 className="mr-2 h-4 w-4" />
+              )}
+              Conectar agora
+            </Button>
+          ) : (
+            <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Peca para um usuario master conectar a agenda da empresa.
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function UpcomingEventsCard(props: {
+  events: CalendarEvent[];
+  onOpenEvent: (event: CalendarEvent) => void;
+}) {
+  return (
+    <section className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0">
+        <p className="text-sm font-semibold tracking-tight">Proximos compromissos</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Lista viva baseada na visualizacao e nos filtros ativos.
+        </p>
+      </div>
+
+      <div className="calendar-panel-scrollbar mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+        {props.events.length === 0 ? (
+          <div className="rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+            Nenhum compromisso visivel neste recorte.
+          </div>
+        ) : (
+          props.events.map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => props.onOpenEvent(event)}
+              className="group w-full rounded-[22px] border border-border/60 bg-background/75 px-4 py-3.5 text-left transition hover:border-primary/30 hover:bg-primary/[0.04]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: event.color }}
+                    />
+                    <p className="truncate font-medium">{event.title}</p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      {event.isAllDay
+                        ? formatDateOnly(event.startDate || event.createdAt)
+                        : formatDateTime(event.startsAt || event.createdAt)}
+                    </span>
+                    {event.location ? (
+                      <span className="truncate rounded-full bg-muted px-2 py-1">
+                        {event.location}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={STATUS_BADGES[event.status]}>
+                    {STATUS_LABELS[event.status]}
+                  </Badge>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" />
+                </div>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function CalendarPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -214,9 +404,12 @@ export function CalendarPage() {
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const [googleStatus, setGoogleStatus] =
     React.useState<GoogleCalendarConnectionStatus>({
+      enabled: GOOGLE_CALENDAR_SYNC_ENABLED,
       connected: false,
     });
-  const [isLoadingGoogle, setIsLoadingGoogle] = React.useState(true);
+  const [isLoadingGoogle, setIsLoadingGoogle] = React.useState(
+    GOOGLE_CALENDAR_SYNC_ENABLED,
+  );
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = React.useState<"create" | "edit">(
     "create",
@@ -250,6 +443,19 @@ export function CalendarPage() {
     setEvents((current) => current.filter((event) => event.id !== eventId));
   }, []);
 
+  const refreshEvents = React.useCallback(async () => {
+    if (!tenant?.id) {
+      setEvents([]);
+      return;
+    }
+
+    const nextEvents = await CalendarService.fetchEvents({
+      rangeStartMs: range.startMs,
+      rangeEndMs: range.endMs,
+    });
+    setEvents(nextEvents);
+  }, [tenant?.id, range.endMs, range.startMs]);
+
   React.useEffect(() => {
     if (!tenant?.id) {
       setEvents([]);
@@ -276,12 +482,18 @@ export function CalendarPage() {
   }, [tenant?.id, user?.id, range.startMs, range.endMs]);
 
   React.useEffect(() => {
+    if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
+      setGoogleStatus({ enabled: false, connected: false });
+      setIsLoadingGoogle(false);
+      return;
+    }
+
     let active = true;
 
     async function loadGoogleStatus() {
       if (!tenant?.id || !user?.id) {
         if (active) {
-          setGoogleStatus({ connected: false });
+          setGoogleStatus({ enabled: true, connected: false });
           setIsLoadingGoogle(false);
         }
         return;
@@ -296,7 +508,7 @@ export function CalendarPage() {
         }
       } catch (error) {
         if (active) {
-          setGoogleStatus({ connected: false });
+          setGoogleStatus({ enabled: true, connected: false });
         }
         console.error("[CalendarPage] Error loading Google status:", error);
       } finally {
@@ -314,6 +526,10 @@ export function CalendarPage() {
   }, [tenant?.id, user?.id]);
 
   React.useEffect(() => {
+    if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
+      return;
+    }
+
     const googleCalendarStatus = searchParams.get("googleCalendar");
     if (!googleCalendarStatus) {
       return;
@@ -354,7 +570,7 @@ export function CalendarPage() {
 
   const upcomingEvents = React.useMemo(() => {
     const now = Date.now();
-    return visibleEvents.filter((event) => event.endMs >= now).slice(0, 8);
+    return visibleEvents.filter((event) => event.endMs >= now);
   }, [visibleEvents]);
 
   const stats = React.useMemo(() => {
@@ -471,6 +687,11 @@ export function CalendarPage() {
   }
 
   async function handleGoogleConnect() {
+    if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
+      toast.info("A integracao com Google Agenda esta temporariamente desabilitada.");
+      return;
+    }
+
     setIsConnectingGoogle(true);
 
     try {
@@ -487,11 +708,16 @@ export function CalendarPage() {
   }
 
   async function handleGoogleDisconnect() {
+    if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
+      return;
+    }
+
     setIsLoadingGoogle(true);
 
     try {
       await CalendarService.disconnectGoogleCalendar();
-      setGoogleStatus({ connected: false });
+      await refreshEvents();
+      setGoogleStatus({ enabled: true, connected: false });
       toast.success("Google Agenda desconectado.");
     } catch (error) {
       toast.error(
@@ -572,7 +798,7 @@ export function CalendarPage() {
       <div className="calendar-event-chip">
         <div className="calendar-event-chip__header">
           <span className="calendar-event-chip__title">{content.event.title}</span>
-          {syncStatus === "synced" ? (
+          {GOOGLE_CALENDAR_SYNC_ENABLED && syncStatus === "synced" ? (
             <span
               className="calendar-event-chip__sync"
               title="Sincronizado com Google Agenda"
@@ -601,167 +827,181 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-3xl border-border/60">
-          <CardContent className="flex items-center justify-between p-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Hoje</p>
-              <p className="mt-1 text-3xl font-semibold">{stats.today}</p>
-            </div>
-            <CalendarClock className="h-8 w-8 text-primary" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-border/60">
-          <CardContent className="flex items-center justify-between p-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Proximos 7 dias</p>
-              <p className="mt-1 text-3xl font-semibold">{stats.week}</p>
-            </div>
-            <CalendarRange className="h-8 w-8 text-emerald-500" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-border/60">
-          <CardContent className="flex items-center justify-between p-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Concluidos</p>
-              <p className="mt-1 text-3xl font-semibold">{stats.completed}</p>
-            </div>
-            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-border/60">
-          <CardContent className="flex items-center justify-between p-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Cancelados</p>
-              <p className="mt-1 text-3xl font-semibold">{stats.canceled}</p>
-            </div>
-            <XCircle className="h-8 w-8 text-rose-500" />
-          </CardContent>
-        </Card>
-      </div>
+    <div className="flex min-h-0 flex-col overflow-hidden xl:h-[calc(100dvh-8rem)]">
+      <Card className="calendar-surface flex min-h-0 flex-1 overflow-hidden rounded-[32px] border-border/60 bg-card/95 shadow-[0_28px_90px_rgba(15,23,42,0.08)]">
+        <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+          <section className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 border-b border-border/60 px-5 py-3 xl:px-6">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-col items-start gap-2">
+                      <h1 className="text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
+                        Calendario <span className="text-muted-foreground">operacional</span>
+                      </h1>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Visualize, organize e reagende compromissos sem perder contexto.
+                    </p>
+                  </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="calendar-surface rounded-[30px] border-border/60">
-          <CardHeader className="space-y-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <CardTitle className="text-2xl">Agenda visual</CardTitle>
-                <CardDescription className="mt-2">
-                  Arraste para reagendar, clique para editar e use a busca para
-                  focar no que importa.
-                </CardDescription>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 md:justify-end">
-                <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-                  <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                  <span>{currentTitle || formatRangeLabel(range.startMs, range.endMs)}</span>
+                  <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                    <CalendarStatPill
+                      label="Hoje"
+                      value={stats.today}
+                      icon={<CalendarClock className="h-3.5 w-3.5" />}
+                    />
+                    <CalendarStatPill
+                      label="7 dias"
+                      value={stats.week}
+                      icon={<CalendarRange className="h-3.5 w-3.5" />}
+                    />
+                    <CalendarStatPill
+                      label="Concluidos"
+                      value={stats.completed}
+                      icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                      tone="success"
+                    />
+                    <CalendarStatPill
+                      label="Cancelados"
+                      value={stats.canceled}
+                      icon={<XCircle className="h-3.5 w-3.5" />}
+                      tone="danger"
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">Fim de semana</span>
-                  <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
-                </div>
-              </div>
-            </div>
 
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                {(["scheduled", "completed", "canceled"] as CalendarEvent["status"][]).map(
-                  (status) => {
-                    const enabled = statusFilter.includes(status);
-                    return (
-                      <button
-                        key={status}
+                <div className="flex flex-col gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="flex h-10 items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">
+                      <Button
                         type="button"
-                        onClick={() =>
-                          setStatusFilter((current) =>
-                            current.includes(status)
-                              ? current.filter((item) => item !== status)
-                              : [...current, status],
-                          )
-                        }
-                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                          enabled
-                            ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
-                            : "cursor-pointer border-border/60 bg-card text-muted-foreground"
-                        }`}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 rounded-full px-3"
+                        onClick={() => handleCalendarNavigation("today")}
                       >
-                        {STATUS_LABELS[status]}
-                      </button>
-                    );
-                  },
-                )}
-              </div>
+                        Hoje
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => handleCalendarNavigation("prev")}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => handleCalendarNavigation("next")}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-              <div className="w-full md:w-80">
-                <div className="w-full">
-                  <Input
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Buscar por titulo, local ou observacao"
-                    icon={<Search className="h-4 w-4" />}
-                  />
+                    <div className="flex h-10 items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 text-sm text-foreground">
+                      <CalendarRange className="h-4 w-4 text-muted-foreground" />
+                      <span>{currentTitle || formatRangeLabel(range.startMs, range.endMs)}</span>
+                    </div>
+
+                    <Tabs
+                      value={currentView}
+                      onValueChange={handleCalendarViewChange}
+                      className="w-auto"
+                    >
+                      <TabsList className="h-10 rounded-full bg-muted/35 p-1">
+                        <TabsTrigger value="dayGridMonth" className="rounded-full px-3 py-1">
+                          Mes
+                        </TabsTrigger>
+                        <TabsTrigger value="timeGridWeek" className="rounded-full px-3 py-1">
+                          Semana
+                        </TabsTrigger>
+                        <TabsTrigger value="timeGridDay" className="rounded-full px-3 py-1">
+                          Dia
+                        </TabsTrigger>
+                        <TabsTrigger value="listWeek" className="rounded-full px-3 py-1">
+                          Lista
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <div className="w-full min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px]">
+                        <Input
+                          value={searchTerm}
+                          onChange={(event) => setSearchTerm(event.target.value)}
+                          placeholder="Buscar por titulo, local ou observacao"
+                          icon={<Search className="h-4 w-4" />}
+                          className="h-10 rounded-full border-border/60 bg-background/80 py-2 shadow-none focus:shadow-lg"
+                        />
+                      </div>
+
+                      <div className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm sm:min-w-[170px]">
+                        <span className="text-muted-foreground">Fim de semana</span>
+                        <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
+                      </div>
+
+                      {canCreate ? (
+                        <Button
+                          onClick={() => handleOpenCreateDialog()}
+                          className="h-10 rounded-full px-4"
+                        >
+                          Novo compromisso
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
+                      {(["scheduled", "completed", "canceled"] as CalendarEvent["status"][]).map(
+                        (status) => {
+                          const enabled = statusFilter.includes(status);
+                          return (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={() =>
+                                setStatusFilter((current) =>
+                                  current.includes(status)
+                                    ? current.filter((item) => item !== status)
+                                    : [...current, status],
+                                )
+                              }
+                              className={`inline-flex h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm transition ${
+                                enabled
+                                  ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
+                                  : "cursor-pointer border-border/60 bg-background/80 text-muted-foreground"
+                              }`}
+                            >
+                              {STATUS_LABELS[status]}
+                            </button>
+                          );
+                        },
+                      )}
+                      {isLoadingEvents ? (
+                        <span className="text-sm text-muted-foreground">
+                          Atualizando compromissos...
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </CardHeader>
 
-          <CardContent className="pt-0">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCalendarNavigation("today")}
-                  >
-                    Hoje
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleCalendarNavigation("prev")}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleCalendarNavigation("next")}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <Tabs value={currentView} onValueChange={handleCalendarViewChange}>
-                  <TabsList className="rounded-2xl bg-muted/40 p-1">
-                    <TabsTrigger value="dayGridMonth">Mes</TabsTrigger>
-                    <TabsTrigger value="timeGridWeek">Semana</TabsTrigger>
-                    <TabsTrigger value="timeGridDay">Dia</TabsTrigger>
-                    <TabsTrigger value="listWeek">Lista</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              {isLoadingEvents ? (
-                <div className="text-sm text-muted-foreground">
-                  Atualizando compromissos...
-                </div>
-              ) : null}
-            </div>
-
-            <div className="relative">
+            <div className="relative min-h-0 flex-1 px-3 pb-3 pt-2 xl:px-4 xl:pb-4">
               <FullCalendar
                 ref={calendarRef}
                 plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
                 locale={ptBrLocale}
                 initialView="dayGridMonth"
-                height="auto"
-                contentHeight={720}
+                height="100%"
+                contentHeight="100%"
                 editable={canEdit}
                 selectable={canCreate}
                 selectMirror
@@ -800,183 +1040,38 @@ export function CalendarPage() {
               />
 
               {isLoadingEvents ? (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[28px] bg-background/70 backdrop-blur-[1px]">
-                  <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card/90 px-4 py-3 text-sm text-muted-foreground shadow-sm">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/28 backdrop-blur-[1px]">
+                  <div className="flex items-center gap-3 rounded-full border border-border/60 bg-card/92 px-4 py-2.5 text-sm text-muted-foreground shadow-sm">
                     <LoaderCircle className="h-4 w-4 animate-spin" />
                     Carregando compromissos...
                   </div>
                 </div>
               ) : null}
             </div>
-          </CardContent>
-        </Card>
+          </section>
 
-        <div className="space-y-6">
-          <Card className="rounded-[30px] border-border/60">
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="text-xl">Google Agenda da empresa</CardTitle>
-                  <CardDescription className="mt-2">
-                    A agenda compartilhada do time pode sincronizar com o Google e
-                    refletir automaticamente nas alteracoes feitas fora do ERP.
-                  </CardDescription>
-                </div>
-                {isLoadingGoogle ? (
-                  <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
-                ) : googleStatus.connected ? (
-                  <Badge variant="success">Conectado</Badge>
-                ) : (
-                  <Badge variant="outline">Desconectado</Badge>
-                )}
+          <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-border/60 bg-muted/[0.16] xl:w-[360px] xl:border-l xl:border-t-0">
+            {GOOGLE_CALENDAR_SYNC_ENABLED ? (
+              <div className="shrink-0 border-b border-border/60 px-5 py-4">
+                <GoogleCalendarCompanyCard
+                  status={googleStatus}
+                  isLoading={isLoadingGoogle}
+                  isConnecting={isConnectingGoogle}
+                  canManage={canManageCompanyCalendar}
+                  onConnect={handleGoogleConnect}
+                  onDisconnect={handleGoogleDisconnect}
+                />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {googleStatus.connected ? (
-                <>
-                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                    <p className="text-sm font-medium text-foreground">
-                      Agenda compartilhada conectada
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {googleStatus.email || "Conta principal da empresa conectada"}
-                    </p>
-                    {googleStatus.lastSuccessfulSyncAt ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Ultimo sync: {formatDateTime(googleStatus.lastSuccessfulSyncAt)}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {googleStatus.lastSyncError ? (
-                    <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                      Ultimo erro: {googleStatus.lastSyncError}
-                    </div>
-                  ) : null}
-
-                  {canManageCompanyCalendar ? (
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={handleGoogleConnect}
-                        disabled={isConnectingGoogle}
-                      >
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        Reconectar
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={handleGoogleDisconnect}
-                        disabled={isLoadingGoogle}
-                      >
-                        <Unlink2 className="mr-2 h-4 w-4" />
-                        Desconectar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-border/60 bg-muted/25 px-4 py-3 text-sm text-muted-foreground">
-                      A conexao da agenda da empresa e administrada por um usuario master.
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="rounded-2xl border border-border/60 bg-muted/25 px-4 py-4">
-                    <div className="flex items-start gap-3">
-                      <CloudOff className="mt-0.5 h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">
-                          Conecte a agenda principal da empresa
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Quando a empresa conecta uma agenda central do Google, os
-                          compromissos passam a sincronizar em uma fonte compartilhada
-                          para o time inteiro.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  {canManageCompanyCalendar ? (
-                    <Button
-                      className="w-full"
-                      onClick={handleGoogleConnect}
-                      disabled={isConnectingGoogle}
-                    >
-                      {isConnectingGoogle ? (
-                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Link2 className="mr-2 h-4 w-4" />
-                      )}
-                      Conectar agora
-                    </Button>
-                  ) : (
-                    <div className="rounded-2xl border border-border/60 bg-muted/25 px-4 py-3 text-sm text-muted-foreground">
-                      Peca para um usuario master conectar a agenda da empresa.
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[30px] border-border/60">
-            <CardHeader>
-              <CardTitle className="text-xl">Proximos compromissos</CardTitle>
-              <CardDescription className="mt-2">
-                Lista viva baseada na visualizacao e nos filtros ativos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {upcomingEvents.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-                  Nenhum compromisso visivel neste recorte.
-                </div>
-              ) : (
-                upcomingEvents.map((event) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    onClick={() => handleOpenEditDialog(event)}
-                    className="group w-full rounded-2xl border border-border/60 bg-card px-4 py-4 text-left transition hover:border-primary/30 hover:bg-primary/[0.03]"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: event.color }}
-                          />
-                          <p className="truncate font-medium">{event.title}</p>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span>
-                            {event.isAllDay
-                              ? formatDateOnly(event.startDate || event.createdAt)
-                              : formatDateTime(event.startsAt || event.createdAt)}
-                          </span>
-                          {event.location ? (
-                            <span className="truncate rounded-full bg-muted px-2 py-1">
-                              {event.location}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={STATUS_BADGES[event.status]}>
-                          {STATUS_LABELS[event.status]}
-                        </Badge>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" />
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
+            ) : null}
+            <div className="min-h-0 flex-1 px-5 py-4">
+              <UpcomingEventsCard
+                events={upcomingEvents}
+                onOpenEvent={handleOpenEditDialog}
+              />
+            </div>
+          </aside>
         </div>
-      </div>
+      </Card>
 
       <CalendarEventDialog
         open={dialogOpen}

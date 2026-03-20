@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
+import { isGoogleCalendarSyncEnabled } from "@/lib/google-calendar-feature";
 import type {
   CalendarEvent,
   CalendarEventFormValues,
@@ -39,6 +40,8 @@ const COLOR_OPTIONS = [
   "#e11d48",
   "#0891b2",
 ];
+
+const GOOGLE_CALENDAR_SYNC_ENABLED = isGoogleCalendarSyncEnabled();
 
 function addDays(dateOnly: string, days: number): string {
   const date = new Date(`${dateOnly}T00:00:00`);
@@ -182,7 +185,7 @@ export function CalendarEventDialog({
   onSubmit,
   onDelete,
 }: CalendarEventDialogProps) {
-  const googleStatusLabel = event?.googleSync
+  const googleStatusLabel = GOOGLE_CALENDAR_SYNC_ENABLED && event?.googleSync
     ? event.googleSync.status === "synced"
       ? "Sincronizado"
       : event.googleSync.status === "error"
@@ -202,8 +205,9 @@ export function CalendarEventDialog({
                 {mode === "create" ? "Novo compromisso" : "Editar compromisso"}
               </DialogTitle>
               <DialogDescription className="mt-2">
-                Organize compromissos, marque o status e mantenha o Google Agenda
-                em sincronia quando estiver conectado.
+                {GOOGLE_CALENDAR_SYNC_ENABLED
+                  ? "Organize compromissos, marque o status e mantenha o Google Agenda em sincronia quando estiver conectado."
+                  : "Organize compromissos, marque o status e mantenha a agenda operacional atualizada em um fluxo local."}
               </DialogDescription>
             </div>
             {googleStatusLabel ? (
@@ -442,7 +446,7 @@ export function CalendarEventDialog({
             </div>
           </div>
 
-          {event?.googleSync?.lastError ? (
+          {GOOGLE_CALENDAR_SYNC_ENABLED && event?.googleSync?.lastError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               Ultimo erro de sincronizacao: {event.googleSync.lastError}
             </div>
@@ -453,7 +457,9 @@ export function CalendarEventDialog({
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <NotebookPen className="h-4 w-4" />
             {canEdit
-              ? "Clique em salvar para atualizar o calendario e o Google Agenda."
+              ? GOOGLE_CALENDAR_SYNC_ENABLED
+                ? "Clique em salvar para atualizar o calendario e o Google Agenda."
+                : "Clique em salvar para atualizar o calendario."
               : "Modo somente leitura."}
           </div>
           <div className="flex items-center gap-2">
