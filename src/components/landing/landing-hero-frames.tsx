@@ -85,13 +85,15 @@ export function LandingHeroFrames() {
               invertOnDark
               className="h-4 w-4"
             />
-            {"ProOps • Sistema ERP para gestão de serviços"}
+            {"ProOps - Sistema ERP para gestão de serviços"}
           </div>
 
           <h1 className="mb-6 text-5xl font-bold leading-[0.92] tracking-tight text-black dark:text-white md:text-7xl lg:text-[6.5rem]">
-            <span className="block">ProOps para equipes</span>
+            <span className="block">
+              ProOps - Sistema ERP para gestão de serviços
+            </span>
             <span className="block text-black/55 dark:text-white/55">
-              comerciais e operacionais.
+              para equipes comerciais e operacionais
             </span>
           </h1>
 
