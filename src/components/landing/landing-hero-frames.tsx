@@ -71,8 +71,8 @@ export function LandingHeroFrames() {
             opacity: textOpacity,
             scale: textScale,
             y: textY,
-            pointerEvents: useTransform(textOpacity, (v) =>
-              v > 0.5 ? "auto" : "none",
+            pointerEvents: useTransform(textOpacity, (value) =>
+              value > 0.5 ? "auto" : "none",
             ),
           }}
           className="relative z-10 flex max-w-5xl flex-col items-center px-6 text-center"
@@ -85,7 +85,7 @@ export function LandingHeroFrames() {
               invertOnDark
               className="h-4 w-4"
             />
-            ProOps • Sistema ERP para gestão de serviços
+            {"ProOps • Sistema ERP para gestão de serviços"}
           </div>
 
           <h1 className="mb-6 text-5xl font-bold leading-[0.92] tracking-tight text-black dark:text-white md:text-7xl lg:text-[6.5rem]">
@@ -96,13 +96,13 @@ export function LandingHeroFrames() {
           </h1>
 
           <h2 className="text-2xl font-bold text-black/80 dark:text-white/80 md:text-3xl">
-            ProOps - Sistema ERP para gestão de serviços
+            {"ProOps - Sistema ERP para gestão de serviços"}
           </h2>
 
           <p className="mx-auto mb-10 max-w-3xl text-base leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
-            O ProOps é um sistema ERP para gestão de serviços utilizado por
-            empresas e profissionais para gerenciar clientes, ordens de serviço,
-            relatórios e operações diárias em uma plataforma online.
+            {
+              "O ProOps é um sistema ERP para gestão de serviços utilizado por empresas e profissionais para gerenciar clientes, ordens de serviço, relatórios e operações diárias em uma plataforma online."
+            }
           </p>
         </motion.div>
 
@@ -113,8 +113,8 @@ export function LandingHeroFrames() {
             y: uiTranslateY,
             scale: uiScale,
             opacity: uiOpacity,
-            pointerEvents: useTransform(uiOpacity, (v) =>
-              v > 0.5 ? "auto" : "none",
+            pointerEvents: useTransform(uiOpacity, (value) =>
+              value > 0.5 ? "auto" : "none",
             ),
           }}
           className="absolute z-10 flex aspect-[9/12] w-[94%] max-w-[1100px] flex-col overflow-hidden rounded-2xl border border-black/15 bg-white shadow-[0_35px_90px_rgba(0,0,0,0.15)] dark:border-white/15 dark:bg-neutral-900 dark:shadow-[0_35px_90px_rgba(0,0,0,0.55)] sm:aspect-video sm:w-[92%] md:aspect-video md:w-[72%]"
@@ -228,8 +228,8 @@ export function LandingHeroFrames() {
             scale: coreScale,
             y: coreY,
             rotateX: coreRotateX,
-            pointerEvents: useTransform(coreOpacity, (v) =>
-              v > 0.5 ? "auto" : "none",
+            pointerEvents: useTransform(coreOpacity, (value) =>
+              value > 0.5 ? "auto" : "none",
             ),
           }}
           className="absolute z-20 flex aspect-[4/5] w-[94%] max-w-5xl flex-col overflow-hidden rounded-2xl border border-black/15 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.2)] dark:border-white/15 dark:bg-neutral-900 dark:shadow-[0_30px_100px_rgba(0,0,0,0.55)] sm:aspect-[16/10] sm:w-[92%] md:aspect-[21/9] md:w-[88%]"
