@@ -95,12 +95,14 @@ export function LandingHeroFrames() {
             </span>
           </h1>
 
+          <h2 className="text-2xl font-bold text-black/80 dark:text-white/80 md:text-3xl">
+            ProOps - Sistema ERP para gestão de serviços
+          </h2>
+
           <p className="mx-auto mb-10 max-w-3xl text-base leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
-            O ProOps é um sistema ERP para gestão de serviços voltado para
-            empresas e profissionais. A plataforma permite gerenciar clientes,
-            ordens de serviço, relatórios e operações do dia a dia de forma
-            simples e eficiente. O sistema é acessado online e utilizado por
-            usuários autenticados para organizar e acompanhar suas atividades.
+            O ProOps é um sistema ERP para gestão de serviços utilizado por
+            empresas e profissionais para gerenciar clientes, ordens de serviço,
+            relatórios e operações diárias em uma plataforma online.
           </p>
         </motion.div>
 
