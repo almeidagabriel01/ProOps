@@ -1,7 +1,7 @@
 const DEFAULT_LOCAL_APP_URL = "http://localhost:3000";
 const DEFAULT_PREVIEW_APP_URL =
   "https://template-erp-git-develop-gestao-2562s-projects.vercel.app";
-const DEFAULT_PRODUCTION_APP_URL = "https://proops.com.br";
+const DEFAULT_PRODUCTION_APP_URL = "https://www.proops.com.br";
 const PRODUCTION_PROJECT_ID = "erp-softcode-prod";
 
 function normalizeUrl(value: string): string {
