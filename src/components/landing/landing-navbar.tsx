@@ -7,10 +7,46 @@ import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface LandingNavbarProps {
   currentUser: User | null;
   onSignOut: () => void;
+}
+
+function getAuthenticatedHome(user: User): string {
+  if (user.role === "superadmin") {
+    return "/admin";
+  }
+
+  const isAdmin = ["admin", "superadmin", "MASTER"].includes(user.role);
+  const permissions = user.permissions || {};
+
+  if (isAdmin || permissions.dashboard?.canView === true) {
+    return "/dashboard";
+  }
+
+  const orderedPages = [
+    "proposals",
+    "clients",
+    "products",
+    "financial",
+    "profile",
+  ];
+
+  const firstAllowedPage = orderedPages.find(
+    (page) => permissions[page]?.canView === true || page === "profile",
+  );
+
+  return firstAllowedPage ? `/${firstAllowedPage}` : "/403";
 }
 
 const navLinks = [
@@ -23,20 +59,17 @@ const navLinks = [
 export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
   const [hidden, setHidden] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [freePlanModalOpen, setFreePlanModalOpen] = useState(false);
   const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
+  const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
+  const isFreeAccount = currentUser?.role === "free";
 
-  const handleAnchorClick = (
-    event: React.MouseEvent<HTMLAnchorElement>,
-    href: string,
-    closeMobile = false,
-  ) => {
+  const scrollToAnchor = (href: string, closeMobile = false) => {
     if (!href.startsWith("#")) return;
 
     const target = document.querySelector<HTMLElement>(href);
     if (!target) return;
-
-    event.preventDefault();
 
     const navHeight = navRef.current?.offsetHeight ?? 64;
     const top =
@@ -52,6 +85,17 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
     if (closeMobile) {
       setMobileOpen(false);
     }
+  };
+
+  const handleAnchorClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    closeMobile = false,
+  ) => {
+    if (!href.startsWith("#")) return;
+
+    event.preventDefault();
+    scrollToAnchor(href, closeMobile);
   };
 
   useEffect(() => {
@@ -140,6 +184,22 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
                 />
                 {currentUser ? (
                   <>
+                    {isFreeAccount ? (
+                      <button
+                        type="button"
+                        onClick={() => setFreePlanModalOpen(true)}
+                        className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                      >
+                        Entrar no ERP
+                      </button>
+                    ) : (
+                      <Link
+                        href={appHref}
+                        className="text-[13px] font-medium text-black/65 dark:text-white/65 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                      >
+                        Entrar no ERP
+                      </Link>
+                    )}
                     <button
                       onClick={onSignOut}
                       className="bg-black dark:bg-white text-white dark:text-black px-5 py-2 rounded-full text-[12px] font-semibold hover:bg-black/85 dark:hover:bg-white/90 transition-colors cursor-pointer"
@@ -219,6 +279,26 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
               >
                 {currentUser ? (
                   <>
+                    {isFreeAccount ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileOpen(false);
+                          setFreePlanModalOpen(true);
+                        }}
+                        className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                      >
+                        Entrar no ERP
+                      </button>
+                    ) : (
+                      <Link
+                        href={appHref}
+                        onClick={() => setMobileOpen(false)}
+                        className="text-lg text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+                      >
+                        Entrar no ERP
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         onSignOut();
@@ -245,6 +325,42 @@ export function LandingNavbar({ currentUser, onSignOut }: LandingNavbarProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Dialog open={freePlanModalOpen} onOpenChange={setFreePlanModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conta Free</DialogTitle>
+            <DialogDescription>
+              Sua conta ainda está no plano gratuito. Para acessar o ERP, é
+              necessário escolher e assinar um plano.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground">
+            Você pode comparar os planos abaixo na landing e seguir para a
+            assinatura do que fizer sentido para a sua operação.
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFreePlanModalOpen(false)}
+            >
+              Agora não
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setFreePlanModalOpen(false);
+                scrollToAnchor("#pricing");
+              }}
+            >
+              Ver planos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

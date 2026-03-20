@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -9,7 +8,6 @@ import { toast } from "@/lib/toast";
 import { PlanService } from "@/services/plan-service";
 import { User, UserPlan } from "@/types";
 
-// Define the UI Plan type used by the landing page
 export interface LandingPlan {
   name: string;
   tier: string;
@@ -23,99 +21,59 @@ export interface LandingPlan {
   popular: boolean;
 }
 
+function mapPlans(sourcePlans: UserPlan[]): LandingPlan[] {
+  return sourcePlans.map((plan) => ({
+    name: plan.name,
+    tier: plan.tier,
+    prices: plan.pricing || { monthly: plan.price, yearly: plan.price * 12 },
+    description: plan.description,
+    features: [
+      plan.features.maxProposals === -1
+        ? "Propostas ilimitadas"
+        : `Crie ate ${plan.features.maxProposals} propostas por mes`,
+      plan.features.maxUsers === -1
+        ? "Membros ilimitados"
+        : `Cadastre ate ${plan.features.maxUsers} membros na equipe`,
+      plan.features.maxClients === -1
+        ? "Clientes ilimitados"
+        : `Cadastre ate ${plan.features.maxClients} clientes`,
+      plan.features.maxProducts === -1
+        ? "Produtos ilimitados"
+        : `Cadastre ate ${plan.features.maxProducts} produtos para venda`,
+      plan.features.hasFinancial ? "Controle financeiro completo" : null,
+      plan.features.hasKanban ? "CRM Kanban" : null,
+      plan.features.canCustomizeTheme ? "Cores personalizadas" : null,
+      plan.features.maxPdfTemplates === -1
+        ? "Todos os layouts de PDF"
+        : plan.features.maxPdfTemplates > 1
+          ? `${plan.features.maxPdfTemplates} layouts de proposta em PDF`
+          : "1 layout de proposta em PDF",
+      plan.features.canEditPdfSections ? "Editor de PDF avancado" : null,
+      plan.features.maxStorageMB === -1
+        ? "Armazenamento ilimitado"
+        : plan.features.maxStorageMB >= 1000
+          ? `${(plan.features.maxStorageMB / 1024).toFixed(1)} GB de armazenamento`
+          : `${plan.features.maxStorageMB} MB para armazenar arquivos`,
+    ].filter((feature): feature is string => Boolean(feature)),
+    cta: "Assinar Agora",
+    popular: plan.highlighted ?? false,
+  }));
+}
+
 export function useLandingPage() {
-  const router = useRouter();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly",
   );
-
-  // Start with empty plans to show skeleton
   const [plans, setPlans] = useState<LandingPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
 
-  // Fixed initial skeleton value
-  const initialSkeleton = "list";
-
-  // Tracks whether Firebase auth state has already been determined.
-  // Used to prevent a stale server-session cookie response from overriding
-  // a settled "signed-out" auth state (race condition fix).
-  const authStateSettledRef = useRef(false);
-  const hadFreeSessionRef = useRef(false);
-  const isSigningOutRef = useRef(false);
-
-  // ──────────────────────────────────────────────
-  // 1. Server-side session pre-check via cookie
-  //    Shows the loader IMMEDIATELY if a valid session exists
-  // ──────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkServerSession = async () => {
-      try {
-        const res = await fetch("/api/auth/check", {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        // IMPORTANT: If onAuthStateChanged already settled the auth state
-        // (e.g. user is confirmed signed out), ignore a stale cookie response.
-        // This prevents the race condition where the HTTP response arrives after
-        // Firebase already confirmed the user is signed out, causing a permanent
-        // 'Entrando...' loader with nothing left to clear it.
-        if (cancelled || authStateSettledRef.current) return;
-
-        if (data.authenticated) {
-          const role = String(data.role || "").toLowerCase();
-          const isKnownNonFreeRole = role !== "" && role !== "free";
-
-          // Only show immediate redirect loader for known non-free users.
-          // Free users should stay on home and must not enter redirect loader.
-          if (isKnownNonFreeRole) {
-            setIsRedirecting(true);
-          }
-        }
-      } catch {
-        // Network error or server unavailable — fall through to Firebase client check
-      }
-    };
-
-    checkServerSession();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Safety timeout: if auth state takes too long, unlock the UI regardless.
-  // This covers both isCheckingAuth and isRedirecting to prevent any stuck state.
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setIsCheckingAuth(false);
-      setIsRedirecting(false);
-    }, 10000);
-
-    return () => window.clearTimeout(timeout);
-  }, []);
-
-  // ──────────────────────────────────────────────
-  // 2. Fetch plans on mount
-  // ──────────────────────────────────────────────
   useEffect(() => {
     const fetchPlans = async () => {
       try {
         const livePlans = await PlanService.getLivePlans();
-        if (livePlans && livePlans.length > 0) {
-          const mappedLive = mapPlans(livePlans);
-          setPlans(mappedLive);
-        } else {
-          console.warn("[useLandingPage] No live plans returned from Stripe.");
+        if (livePlans?.length) {
+          setPlans(mapPlans(livePlans));
         }
       } catch (error) {
         console.warn("Failed to fetch live plans:", error);
@@ -124,173 +82,60 @@ export function useLandingPage() {
       }
     };
 
-    const mapPlans = (sourcePlans: UserPlan[]) => {
-      return sourcePlans.map((p) => ({
-        name: p.name,
-        tier: p.tier,
-        prices: p.pricing || { monthly: p.price, yearly: p.price * 12 },
-        description: p.description,
-        features: [
-          p.features.maxProposals === -1
-            ? "Propostas ilimitadas"
-            : `Crie até ${p.features.maxProposals} propostas por mês`,
-          p.features.maxUsers === -1
-            ? "Membros ilimitados"
-            : `Cadastre até ${p.features.maxUsers} membros na equipe`,
-          p.features.maxClients === -1
-            ? "Clientes ilimitados"
-            : `Cadastre até ${p.features.maxClients} clientes`,
-          p.features.maxProducts === -1
-            ? "Produtos ilimitados"
-            : `Cadastre até ${p.features.maxProducts} produtos para venda`,
-          p.features.hasFinancial ? "Controle financeiro completo" : null,
-          p.features.hasKanban ? "CRM Kanban" : null,
-          p.features.canCustomizeTheme ? "Cores personalizadas" : null,
-          p.features.maxPdfTemplates === -1
-            ? "Todos os layouts de PDF"
-            : p.features.maxPdfTemplates > 1
-              ? `${p.features.maxPdfTemplates} layouts de proposta em PDF`
-              : "1 layout de proposta em PDF",
-          p.features.canEditPdfSections ? "Editor de PDF avançado" : null,
-          p.features.maxStorageMB === -1
-            ? "Armazenamento ilimitado"
-            : p.features.maxStorageMB >= 1000
-              ? `${(p.features.maxStorageMB / 1024).toFixed(1)} GB de armazenamento`
-              : `${p.features.maxStorageMB} MB para armazenar arquivos`,
-        ].filter((f): f is string => Boolean(f)),
-        cta: "Assinar Agora",
-        popular: p.highlighted ?? false,
-      }));
-    };
-
     fetchPlans();
   }, []);
 
-  // ──────────────────────────────────────────────
-  // 3. Firebase client-side auth listener
-  //    Handles the actual redirect logic
-  // ──────────────────────────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      const markFreeSession = () => {
-        if (!hadFreeSessionRef.current) {
-          toast.success("Você entrou na sua conta free.", {
-            title: "Login realizado",
-          });
-        }
-        hadFreeSessionRef.current = true;
-      };
-
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-
-            if (userData.role !== "free") {
-              // Superadmin goes directly to admin panel
-              if (userData.role === "superadmin") {
-                setIsRedirecting(true);
-                router.replace("/admin");
-                authStateSettledRef.current = true;
-                return;
-              }
-
-              const isAdmin = ["admin", "superadmin", "MASTER"].includes(
-                userData.role,
-              );
-              const perms = userData.permissions || {};
-              const canViewDashboard =
-                isAdmin || perms["dashboard"]?.canView === true;
-
-              setIsRedirecting(true);
-
-              if (canViewDashboard) {
-                router.replace("/dashboard");
-              } else {
-                const pages = [
-                  "proposals",
-                  "clients",
-                  "products",
-                  "financial",
-                  "profile",
-                ];
-                const firstAllowed = pages.find(
-                  (page) => perms[page]?.canView === true || page === "profile",
-                );
-                router.replace(firstAllowed ? `/${firstAllowed}` : "/403");
-              }
-              authStateSettledRef.current = true;
-              hadFreeSessionRef.current = false;
-              return;
-            }
-            setCurrentUser({ id: user.uid, ...userData } as User);
-            markFreeSession();
-          } else {
-            // User document not found in Firestore - treat as free user with basic auth data
-            console.warn(
-              "User document not found in Firestore, treating as free user",
-            );
-            setCurrentUser({
-              id: user.uid,
-              email: user.email || "",
-              role: "free",
-              name: user.displayName || user.email?.split("@")[0] || "User",
-            });
-            markFreeSession();
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-        authStateSettledRef.current = true;
-        setIsCheckingAuth(false);
-        setIsRedirecting(false);
-      } else {
-        // User is NOT logged in — mark auth state as settled immediately so any
-        // pending checkServerSession response (stale cookie) is ignored.
-        authStateSettledRef.current = true;
-        if (hadFreeSessionRef.current && !isSigningOutRef.current) {
-          toast.info("Você saiu da sua conta free.", {
-            title: "Logout realizado",
-          });
-        }
-        hadFreeSessionRef.current = false;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
         setCurrentUser(null);
-        setIsCheckingAuth(false);
-        setIsRedirecting(false);
+        return;
       }
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        if (userDoc.exists()) {
+          setCurrentUser({ id: firebaseUser.uid, ...userDoc.data() } as User);
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+
+      setCurrentUser({
+        id: firebaseUser.uid,
+        email: firebaseUser.email || "",
+        role: "free",
+        name:
+          firebaseUser.displayName ||
+          firebaseUser.email?.split("@")[0] ||
+          "User",
+      });
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const handleSignOut = async () => {
-    isSigningOutRef.current = true;
     try {
       await signOut(auth);
       setCurrentUser(null);
-      hadFreeSessionRef.current = false;
-      toast.success("Você saiu da sua conta free.", {
+      toast.success("Voce saiu da sua conta.", {
         title: "Logout realizado",
       });
     } catch {
-      toast.error("Não foi possível sair da conta agora.", {
+      toast.error("Nao foi possivel sair da conta agora.", {
         title: "Erro ao sair",
       });
-    } finally {
-      isSigningOutRef.current = false;
     }
   };
 
   return {
-    isCheckingAuth,
-    isRedirecting,
     currentUser,
     billingInterval,
     setBillingInterval,
     plans,
     isLoadingPlans,
-    initialSkeleton,
     handleSignOut,
   };
 }
