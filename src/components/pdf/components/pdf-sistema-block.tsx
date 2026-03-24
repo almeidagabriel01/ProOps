@@ -17,6 +17,12 @@ import {
   shouldCountInPdfTotals,
 } from "../product-visibility";
 
+function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
+  return tenantNiche === "cortinas"
+    ? "Subtotal do Ambiente:"
+    : "Subtotal da Solução:";
+}
+
 function PdfSistemaHead({
   sistema,
   primaryColor,
@@ -167,10 +173,7 @@ export function PdfSistemaBlock({
   const productsForTotals = products.filter((product) =>
     shouldCountInPdfTotals(product),
   );
-  const sistemaSubtotal = productsForTotals.reduce(
-    (sum, p) => sum + p.total,
-    0,
-  );
+  const sistemaSubtotal = productsForTotals.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">
@@ -337,7 +340,7 @@ export function PdfSistemaBlock({
               style={{ borderTop: `2px dashed ${primaryColor}30` }}
             >
               <span className="font-semibold text-gray-700 text-sm">
-                Subtotal da Solução:
+                {getSistemaSubtotalLabel(tenantNiche)}
               </span>
               <span
                 className="text-lg font-bold"
@@ -428,10 +431,12 @@ export function PdfSistemaFooter({
   sistemaSubtotal,
   primaryColor,
   pdfDisplaySettings,
+  tenantNiche,
 }: {
   sistemaSubtotal: number;
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   return (
@@ -446,7 +451,7 @@ export function PdfSistemaFooter({
             style={{ borderTop: `2px dashed ${primaryColor}30` }}
           >
             <span className="font-semibold text-gray-700">
-              Subtotal da Solução:
+              {getSistemaSubtotalLabel(tenantNiche)}
             </span>
             <span className="text-xl font-bold" style={{ color: primaryColor }}>
               {formatCurrency(sistemaSubtotal)}

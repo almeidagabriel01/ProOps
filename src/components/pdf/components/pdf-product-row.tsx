@@ -1,14 +1,16 @@
 import React from "react";
-import { formatCurrency } from "@/utils/format-utils";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { Package, Wrench } from "lucide-react";
+import type { TenantNiche } from "@/types";
+import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import {
-  ProposalProductPricingDetails,
-  getProposalProductMeasurementLabel,
-  getProposalProductUnitLabel,
-} from "@/lib/product-pricing";
+  PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+} from "@/types/pdf-display-settings";
+import { PdfCortinasAwareProductFooter } from "./pdf-sistema-primitives";
 
 interface ProductData {
+  productId: string;
   productName: string;
   itemType?: "product" | "service";
   productDescription?: string;
@@ -24,17 +26,13 @@ interface ProductData {
   pricingDetails?: ProposalProductPricingDetails;
 }
 
-import {
-  PdfDisplaySettings,
-  defaultPdfDisplaySettings,
-} from "@/types/pdf-display-settings";
-
 interface PdfProductRowProps {
   product: ProductData;
   index: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   contentStyles: any;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }
 
 /**
@@ -45,6 +43,7 @@ export function PdfProductRow({
   index,
   contentStyles,
   pdfDisplaySettings,
+  tenantNiche,
 }: PdfProductRowProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
   const imageSources =
@@ -53,11 +52,6 @@ export function PdfProductRow({
     ) || [];
   const hasImage = imageSources.length > 0 || Boolean(product.productImage);
   const PlaceholderIcon = product.itemType === "service" ? Wrench : Package;
-
-  // Calculate selling price (unitPrice with markup applied)
-  const sellingPrice = product.unitPrice * (1 + (product.markup || 0) / 100);
-  const measurementLabel = getProposalProductMeasurementLabel(product);
-  const unitLabel = getProposalProductUnitLabel(product);
 
   return (
     <div
@@ -68,7 +62,6 @@ export function PdfProductRow({
           : contentStyles.productCard
       }
     >
-      {/* Image Row - Horizontal - Conditionally Rendered */}
       {settings.showProductImages && (
         <div className="flex flex-row gap-4 overflow-hidden justify-center mb-4">
           {imageSources.length > 0 ? (
@@ -104,7 +97,6 @@ export function PdfProductRow({
         </div>
       )}
 
-      {/* Content Column */}
       <div className="flex-1 flex flex-col gap-2">
         <div>
           <div className="mb-2">
@@ -119,7 +111,6 @@ export function PdfProductRow({
               </div>
             </div>
 
-            {/* Category/Manufacturer Badges */}
             {(product.category || product.manufacturer) && (
               <div className="flex gap-2 mt-1">
                 {product.category && (
@@ -146,24 +137,23 @@ export function PdfProductRow({
           )}
         </div>
 
-        {/* Footer / Specs */}
         <div className="mt-4 pt-3 border-t flex justify-between items-end">
           <div className="text-sm text-gray-400" />
           <div className="text-right">
-            {settings.showProductPrices ? (
-              <div className="text-xs text-gray-500 mb-1">
-                {measurementLabel} x {formatCurrency(sellingPrice)} / {unitLabel}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500 mb-1">
-                {measurementLabel}
-              </div>
-            )}
-            <div
-              className="text-lg font-bold whitespace-nowrap"
-              style={contentStyles.total}
-            >
-              {formatCurrency(product.total)}
+            <div className="inline-flex flex-col items-end">
+              <PdfCortinasAwareProductFooter
+                product={product}
+                tenantNiche={tenantNiche}
+                showProductPrices={settings.showProductPrices}
+                showProductMeasurements={settings.showProductMeasurements}
+                primaryColor={
+                  typeof contentStyles?.total?.color === "string"
+                    ? contentStyles.total.color
+                    : undefined
+                }
+                grayTextClassName="text-xs text-gray-500 mb-1"
+                totalTextClassName="text-lg font-bold whitespace-nowrap"
+              />
             </div>
           </div>
         </div>
