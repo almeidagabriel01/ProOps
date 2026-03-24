@@ -505,7 +505,7 @@ export function ProductFormNew({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Nome:</span>
-                  <p className="font-medium text-balance break-words pr-2">
+                  <p className="font-medium text-balance wrap-break-word pr-2">
                     {formData.name || "-"}
                   </p>
                 </div>
@@ -513,14 +513,25 @@ export function ProductFormNew({
                   <span className="text-muted-foreground">Categoria:</span>
                   <p className="font-medium">{formData.category || "-"}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Precificacao:</span>
-                  <p className="font-medium text-green-600">{pricingSummary}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Regra:</span>
-                  <p className="font-medium">{pricingDescription}</p>
-                </div>
+                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" ? (
+                  <>
+                    <div>
+                      <span className="text-muted-foreground">Precificacao:</span>
+                      <p className="font-medium text-green-600">{pricingSummary}</p>
+                    </div>
+                    <div className="col-span-2 bg-muted/30 p-3 rounded-lg border border-border/40 mt-1 mb-2">
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Regra de Precificação:</span>
+                      <div className="font-medium mt-1.5 space-y-1">
+                        {pricingDescription.split(" | ").map((line, i) => (
+                          <p key={i} className="flex items-center gap-2 text-foreground/90">
+                            {pricingDescription.includes(" | ") && <span className="w-1 h-1 rounded-full bg-primary/50 shrink-0" />}
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
                 {entityType === "product" && (
                   <>
                     <div>

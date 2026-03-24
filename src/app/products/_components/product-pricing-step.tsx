@@ -71,12 +71,11 @@ function StaticMeasureField({
   helper: string;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-foreground">{label}</div>
+    <FormItem label={label}>
       <div className="flex h-12 items-center rounded-xl border border-dashed border-border bg-muted/30 px-4 text-sm text-muted-foreground">
         {helper}
       </div>
-    </div>
+    </FormItem>
   );
 }
 
@@ -256,7 +255,79 @@ export function ProductPricingStep({
         </div>
       )}
 
-      {formData.pricingMode !== "curtain_height" ? (
+      {!isCurtainNiche ? (
+        <PricingSection
+          title="Regra de precificacao"
+          description="Defina o preco base do produto e a margem de lucro (markup)."
+          badge={
+            <div className="rounded-xl bg-muted/40 px-4 py-3">
+              <div className="text-xs text-muted-foreground">Preco final</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                R$ {sellingPrice.toFixed(2)}
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-5">
+            <FormGroup cols={2}>
+              <FormItem
+                label="Preco base bruto"
+                htmlFor="price"
+                required
+                error={errors.price}
+              >
+                <CurrencyInput
+                  id="price"
+                  name="price"
+                  placeholder="0,00"
+                  value={formData.price}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.price ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <FormItem label="Markup (%)" htmlFor="markup" error={errors.markup}>
+                <Input
+                  id="markup"
+                  name="markup"
+                  type="number"
+                  placeholder="30"
+                  value={formData.markup}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  className={errors.markup ? "border-destructive" : ""}
+                />
+              </FormItem>
+            </FormGroup>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preco bruto</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  R$ {basePrice.toFixed(2)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Markup</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  {markupValue.toFixed(2)}%
+                </div>
+              </div>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preco final</div>
+                <div className="mt-1 font-semibold text-primary">
+                  R$ {sellingPrice.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </PricingSection>
+      ) : formData.pricingMode !== "curtain_height" ? (
         <PricingSection
           title="Regra por metragem"
           description="Defina o preco bruto por metro quadrado e o markup. Largura e altura serao preenchidas quando o produto for usado."
@@ -390,10 +461,9 @@ export function ProductPricingStep({
                   <div className="space-y-5 px-4 py-4">
                     <FormGroup cols={2}>
                       <FormItem label="Altura maxima (m)">
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
+                        <CurrencyInput
+                          placeholder="Ex: 2,50"
+                          prefixSymbol=""
                           value={tier.maxHeight}
                           onChange={(event) =>
                             onUpdateHeightPricingTier(
@@ -414,6 +484,7 @@ export function ProductPricingStep({
                     <FormGroup cols={2}>
                       <FormItem label="Preco bruto">
                         <CurrencyInput
+                          placeholder="0,00"
                           value={tier.basePrice}
                           onChange={(event) =>
                             onUpdateHeightPricingTier(

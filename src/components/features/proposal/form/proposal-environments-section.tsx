@@ -11,9 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { DecimalInput } from "@/components/ui/decimal-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
@@ -666,11 +668,8 @@ function EnvironmentProductRow({
     (product.unitPrice || 0).toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
-  const pricingModel = normalizeProductPricingModel(
-    catalogProduct &&
-      "pricingModel" in catalogProduct &&
-      catalogProduct.pricingModel,
-  );
+  const catalogPricingModel = catalogProduct && "pricingModel" in catalogProduct ? catalogProduct.pricingModel : undefined;
+  const pricingModel = React.useMemo(() => normalizeProductPricingModel(catalogPricingModel), [catalogPricingModel]);
   const pricingDetails = normalizeProposalPricingDetails(product.pricingDetails);
   const isCurtainMeter =
     !isService &&
@@ -681,7 +680,10 @@ function EnvironmentProductRow({
     (pricingDetails.mode === "curtain_height" ||
       pricingModel.mode === "curtain_height");
   const activeHeightTiers = React.useMemo(
-    () => (pricingModel.mode === "curtain_height" ? pricingModel.tiers : []),
+    () => {
+      if (pricingModel.mode !== "curtain_height") return [];
+      return [...pricingModel.tiers].sort((a, b) => a.maxHeight - b.maxHeight);
+    },
     [pricingModel],
   );
   const allowDecimalQuantity = !isService && quantityStep < 1;
@@ -973,7 +975,7 @@ function EnvironmentProductRow({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 pr-4">
               <h5
-                className={`break-words font-semibold ${!isActive ? "text-muted-foreground" : "text-foreground"}`}
+                className={`wrap-break-word font-semibold ${!isActive ? "text-muted-foreground" : "text-foreground"}`}
               >
                 {product.productName}
               </h5>
@@ -1160,13 +1162,11 @@ function EnvironmentProductRow({
             <div className="grid w-full gap-2 rounded-lg border bg-muted/50 p-2 shadow-sm md:grid-cols-2 lg:w-[320px] shrink-0">
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground">Largura</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <CurrencyInput
+                  prefixSymbol=""
                   value={meterWidthInput}
                   onChange={(event) => {
-                    const val = event.target.value.replace(/[^0-9.,]/g, "");
-                    setMeterWidthInput(val);
+                    setMeterWidthInput(event.target.value);
                   }}
                   onBlur={() => commitMeterPricing(meterWidthInput, meterHeightInput)}
                   onKeyDown={(event) => {
@@ -1174,20 +1174,18 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Largura"
-                  placeholder="0"
+                  placeholder="0,00"
                 />
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground">Altura</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <CurrencyInput
+                  prefixSymbol=""
                   value={meterHeightInput}
                   onChange={(event) => {
-                    const val = event.target.value.replace(/[^0-9.,]/g, "");
-                    setMeterHeightInput(val);
+                    setMeterHeightInput(event.target.value);
                   }}
                   onBlur={() => commitMeterPricing(meterWidthInput, meterHeightInput)}
                   onKeyDown={(event) => {
@@ -1195,9 +1193,9 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Altura"
-                  placeholder="0"
+                  placeholder="0,00"
                 />
               </div>
             </div>
@@ -1207,30 +1205,30 @@ function EnvironmentProductRow({
                 <span className="text-[10px] text-muted-foreground">
                   Faixa de altura
                 </span>
-                <select
+                <Select
                   value={selectedHeightTierId}
                   onChange={(event) => {
                     setSelectedHeightTierId(event.target.value);
                     commitHeightPricing(heightWidthInput, event.target.value);
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 text-xs"
+                  inputSize="sm"
+                  className="w-full"
+                  disableSort
                 >
                   {activeHeightTiers.map((tier) => (
                     <option key={tier.id} value={tier.id}>
                       Ate {formatMeters(tier.maxHeight)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground">Largura</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <CurrencyInput
+                  prefixSymbol=""
                   value={heightWidthInput}
                   onChange={(event) => {
-                    const val = event.target.value.replace(/[^0-9.,]/g, "");
-                    setHeightWidthInput(val);
+                    setHeightWidthInput(event.target.value);
                   }}
                   onBlur={() =>
                     commitHeightPricing(heightWidthInput, selectedHeightTierId)
@@ -1240,9 +1238,9 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Largura"
-                  placeholder="0"
+                  placeholder="0,00"
                 />
               </div>
               {selectedHeightTier && (

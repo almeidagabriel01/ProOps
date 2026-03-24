@@ -112,9 +112,10 @@ function createHeightPricingTierFormData(
 function getInitialPricingMode(
   initialData: CatalogItem | undefined,
   entityType: CatalogEntityType,
+  niche?: string,
 ): ProductPricingMode {
   if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
-    return "standard";
+    return niche === "cortinas" ? "curtain_meter" : "standard";
   }
 
   return getProductPricingMode(initialData);
@@ -256,7 +257,7 @@ export function useProductForm(
     description: initialData?.description || "",
     price: initialData?.price || "",
     markup: getInitialProductMarkup(initialData, entityType, productId ? "" : "30"),
-    pricingMode: getInitialPricingMode(initialData, entityType),
+    pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
     heightPricingTiers: getInitialHeightPricingTiers(initialData, entityType),
     manufacturer:
       "manufacturer" in (initialData || {})
@@ -298,7 +299,7 @@ export function useProductForm(
             entityType,
             productId ? "" : "30",
           ),
-          pricingMode: getInitialPricingMode(initialData, entityType),
+          pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
           heightPricingTiers: getInitialHeightPricingTiers(
             initialData,
             entityType,
@@ -328,7 +329,7 @@ export function useProductForm(
         description: initialData.description || "",
         price: initialData.price || "",
         markup: getInitialProductMarkup(initialData, entityType, ""),
-        pricingMode: getInitialPricingMode(initialData, entityType),
+        pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
         heightPricingTiers: getInitialHeightPricingTiers(initialData, entityType),
         manufacturer:
           entityType === "product" && "manufacturer" in initialData
@@ -356,7 +357,7 @@ export function useProductForm(
         buildProductFormSnapshot(initialFormData, existingImages, [], entityType),
       );
     }
-  }, [initialData, entityType]);
+  }, [initialData, entityType, tenant?.niche]);
 
   const handleChange = (
     e: React.ChangeEvent<

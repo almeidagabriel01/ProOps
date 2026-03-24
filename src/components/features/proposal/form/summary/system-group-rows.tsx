@@ -81,7 +81,7 @@ export function SystemGroupRows({
                   ))}
                   <tr className="bg-muted/30">
                     <td
-                      colSpan={3}
+                      colSpan={2}
                       className="p-2 text-right text-sm pl-6 whitespace-nowrap"
                     >
                       Subtotal ({ambiente.ambienteName}):

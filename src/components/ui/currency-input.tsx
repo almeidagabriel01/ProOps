@@ -9,6 +9,7 @@ export interface CurrencyInputProps extends Omit<
 > {
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  prefixSymbol?: string;
 }
 
 /**
@@ -19,7 +20,7 @@ export interface CurrencyInputProps extends Omit<
  * - "12345" becomes "123,45"
  */
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ className, value, onChange, name, ...props }, ref) => {
+  ({ className, value, onChange, name, prefixSymbol = "R$", ...props }, ref) => {
     const [rawValue, setRawValue] = React.useState<string>("");
 
     React.useEffect(() => {
@@ -120,14 +121,17 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
 
     return (
       <div className="relative group">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-sm font-medium">
-          R$
-        </span>
+        {prefixSymbol && (
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors text-sm font-medium">
+            {prefixSymbol}
+          </span>
+        )}
         <input
           type="text"
           inputMode="numeric"
           className={cn(
-            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card pl-11 pr-4 py-3 text-sm",
+            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card pr-4 py-3 text-sm",
+            prefixSymbol ? "pl-11" : "pl-4",
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
             "placeholder:text-muted-foreground/60",
             "hover:border-primary/40 hover:shadow-md",

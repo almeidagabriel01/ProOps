@@ -263,6 +263,8 @@ export default function ProductsPage() {
     : [];
 
   const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
+  const hideInventoryColumn = nicheConfig.id === "cortinas";
+  
   const columns: DataTableColumn<Product>[] = [
     {
       key: "image",
@@ -289,7 +291,7 @@ export default function ProductsPage() {
     {
       key: "name",
       header: "Nome",
-      className: "col-span-4",
+      className: hideInventoryColumn ? "col-span-5" : "col-span-4",
       render: (product) => (
         <Link
           href={`/products/${product.id}`}
@@ -302,23 +304,23 @@ export default function ProductsPage() {
     {
       key: "category",
       header: "Categoria",
-      className: "col-span-2",
+      className: hideInventoryColumn ? "col-span-3" : "col-span-2",
       render: (product) => (
         <div className="text-sm text-muted-foreground">{product.category}</div>
       ),
     },
-    {
+    ...(hideInventoryColumn ? [] : [{
       key: "inventoryValue",
       header: inventoryConfig.tableHeader,
       className: "col-span-2",
-      render: (product) => (
+      render: (product: Product) => (
         <StockEditableCell
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryConfig}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
-    },
+    }]),
     {
       key: "price",
       header: "Preço",

@@ -66,7 +66,6 @@ export function ProposalSummaryTable({
         <thead className="bg-muted">
           <tr>
             <th className="text-left p-3">Item</th>
-            <th className="text-center p-3 w-16">Qtd</th>
             <th className="text-right p-3 w-36">Unit.</th>
             <th className="text-right p-3 w-36">Total</th>
           </tr>
@@ -86,7 +85,7 @@ export function ProposalSummaryTable({
             <React.Fragment>
               <tr className="border-t bg-gray-100">
                 <td
-                  colSpan={4}
+                  colSpan={3}
                   className="p-2 font-semibold text-sm text-gray-600 dark:text-gray-300"
                 >
                   {extraItemsLabel}

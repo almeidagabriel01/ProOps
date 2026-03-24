@@ -21,7 +21,7 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
   return (
     <tr className="border-t">
       <td className="p-3 font-medium pl-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span>{product.productName}</span>
           {(product.itemType || "product") === "service" && (
             <Badge
@@ -39,10 +39,6 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
               Extra
             </Badge>
           )}
-          {/* Note: Logic for 'extra' label in non-system group differs slightly in original code (text-xs span), 
-              standardizing to use Badge here if applicable, or keeping original structure if distinct.
-              Will stick to general layout. 
-          */}
           {isInactive && (
             <Badge
               variant="secondary"
@@ -56,7 +52,6 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
           {measurementLabel}
         </div>
       </td>
-      <td className="p-3 text-center">{measurementLabel}</td>
       <td className="p-3 text-right whitespace-nowrap">
         R$ {unitValue.toFixed(2)} / {unitLabel}
       </td>

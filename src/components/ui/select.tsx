@@ -13,6 +13,7 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   placeholder?: string;
   /** Size variant: sm = h-9 (compact), md = h-12 (default for forms) */
   inputSize?: "sm" | "md";
+  disableSort?: boolean;
 }
 
 interface NormalizedSelectOption {
@@ -49,6 +50,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       error,
       inputSize = "md",
       options: optionsProp = [],
+      disableSort = false,
       ...props
     },
     ref,
@@ -110,12 +112,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       const pinned = opts.filter((opt) => opt.value === "");
       const sortable = opts.filter((opt) => opt.value !== "");
 
-      sortable.sort((a, b) =>
-        compareDisplayText(optionLabelToText(a.label), optionLabelToText(b.label)),
-      );
+      if (!disableSort) {
+        sortable.sort((a, b) =>
+          compareDisplayText(optionLabelToText(a.label), optionLabelToText(b.label)),
+        );
+      }
 
       return [...pinned, ...sortable];
-    }, [children, optionsProp]);
+    }, [children, optionsProp, disableSort]);
 
     const handleOpen = (e: React.MouseEvent | React.TouchEvent) => {
       if (disabled) return;

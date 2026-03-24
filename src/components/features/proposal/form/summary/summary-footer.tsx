@@ -36,7 +36,7 @@ export function SummaryFooter({
       {/* Cost row (without markup) - VISIBLE AGAIN with clear label */}
       <tr className="no-pdf-export border-t bg-muted/20">
         <td
-          colSpan={3}
+          colSpan={2}
           className="p-3 text-right text-muted-foreground whitespace-nowrap text-sm"
         >
           Custo dos Produtos (Bruto):
@@ -50,7 +50,7 @@ export function SummaryFooter({
       {totalProfit > 0 && (
         <tr className="no-pdf-export">
           <td
-            colSpan={3}
+            colSpan={2}
             className="p-3 text-right text-green-600 dark:text-green-400 whitespace-nowrap text-sm"
           >
             Lucro (Markup):
@@ -63,7 +63,7 @@ export function SummaryFooter({
 
       <tr className="border-t">
         <td
-          colSpan={3}
+          colSpan={2}
           className="p-3 text-right whitespace-nowrap font-medium"
         >
           Subtotal (Preço de Venda):
@@ -76,7 +76,7 @@ export function SummaryFooter({
       {discountPercentage > 0 && (
         <tr>
           <td
-            colSpan={3}
+            colSpan={2}
             className="p-3 text-right text-destructive whitespace-nowrap"
           >
             Desconto ({discountPercentage}%):
@@ -91,7 +91,7 @@ export function SummaryFooter({
       {extraExpense > 0 && (
         <tr className="no-pdf-export">
           <td
-            colSpan={3}
+            colSpan={2}
             className="p-3 text-right text-orange-600 dark:text-orange-400 whitespace-nowrap text-sm"
           >
             Custos Extras:
@@ -111,7 +111,7 @@ export function SummaryFooter({
           <>
             <tr className="border-t">
               <td
-                colSpan={3}
+                colSpan={2}
                 className="p-3 text-right text-purple-700 dark:text-purple-400 whitespace-nowrap font-medium"
               >
                 Valor Combinado com o Cliente:
@@ -123,7 +123,7 @@ export function SummaryFooter({
             {cv < rawTotal && (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={2}
                   className="p-3 text-right text-destructive whitespace-nowrap text-sm"
                 >
                   Desconto Comercial (Valor Combinado):
@@ -139,7 +139,7 @@ export function SummaryFooter({
 
       <tr className="border-t-2 border-primary">
         <td
-          colSpan={3}
+          colSpan={2}
           className="p-3 text-right text-lg font-bold whitespace-nowrap"
         >
           Total:

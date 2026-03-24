@@ -678,7 +678,7 @@ export function AmbienteEditor({
                             pricingModel.mode === "curtain_height");
                         const activeHeightTiers =
                           pricingModel.mode === "curtain_height"
-                            ? pricingModel.tiers
+                            ? [...pricingModel.tiers].sort((a, b) => a.maxHeight - b.maxHeight)
                             : [];
                         const selectedHeightTier =
                           activeHeightTiers.find(
@@ -737,7 +737,7 @@ export function AmbienteEditor({
                               </div>
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2 min-w-0 pr-4">
-                                  <h4 className="break-words font-semibold text-foreground">
+                                  <h4 className="wrap-break-word font-semibold text-foreground">
                                     {item.productName}
                                   </h4>
                                   <Badge
@@ -948,6 +948,7 @@ export function AmbienteEditor({
                                         );
                                       }}
                                       inputSize="sm"
+                                      disableSort
                                     >
                                       {activeHeightTiers.map((tier) => (
                                         <option key={tier.id} value={tier.id}>
