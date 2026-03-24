@@ -247,7 +247,7 @@ export function AmbienteProductsDialog({
               Itens Padrao - {ambiente?.name || "Ambiente"}
             </DialogTitle>
             <DialogDescription>
-              Configure os produtos e servicos que serao adicionados
+              Configure os produtos e serviços que serão adicionados
               automaticamente quando este ambiente for selecionado em uma
               proposta.
             </DialogDescription>
@@ -308,7 +308,7 @@ export function AmbienteProductsDialog({
                                 {item.name}
                               </div>
                               <Badge variant="outline" className="text-[10px] h-5">
-                                {isService ? "Servico" : "Produto"}
+                                {isService ? "Serviço" : "Produto"}
                               </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
@@ -379,7 +379,7 @@ export function AmbienteProductsDialog({
                         <div className="flex-1 min-w-0 mb-4">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant="outline" className="text-[10px] h-5">
-                              {isService ? "Servico" : "Produto"}
+                              {isService ? "Serviço" : "Produto"}
                             </Badge>
                           </div>
                           <p

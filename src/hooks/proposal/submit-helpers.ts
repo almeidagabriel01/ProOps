@@ -7,6 +7,8 @@ import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
 import { toast } from '@/lib/toast';
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
+import { normalizeProposalPricingDetails } from "@/lib/product-pricing";
+import { ensureProposalProductLineItemId } from "@/lib/proposal-product";
 
 interface CreateProposalPayload {
   formData: Partial<Proposal>;
@@ -46,26 +48,43 @@ export function sanitizeProducts(products: ProposalProduct[]) {
   };
 
   return products.map((p) => {
+    const normalizedProduct = ensureProposalProductLineItemId(p);
     const normalizedProductImages = normalizeImages(p.productImages);
     const normalizedProductImage =
-      (typeof p.productImage === "string" ? p.productImage.trim() : "") ||
+      (typeof normalizedProduct.productImage === "string"
+        ? normalizedProduct.productImage.trim()
+        : "") ||
       normalizedProductImages[0] ||
       "";
 
     return {
-      productId: p.productId,
-      itemType: p.itemType || "product",
-      productName: p.productName,
+      lineItemId: normalizedProduct.lineItemId,
+      productId: normalizedProduct.productId,
+      itemType: normalizedProduct.itemType || "product",
+      productName: normalizedProduct.productName,
       quantity:
-        typeof p.quantity === "number" && !isNaN(p.quantity)
-          ? Math.max(0, p.quantity)
+        typeof normalizedProduct.quantity === "number" &&
+        !isNaN(normalizedProduct.quantity)
+          ? Math.max(0, normalizedProduct.quantity)
           : 0,
       unitPrice:
-        typeof p.unitPrice === "number" && !isNaN(p.unitPrice)
-          ? p.unitPrice
+        typeof normalizedProduct.unitPrice === "number" &&
+        !isNaN(normalizedProduct.unitPrice)
+          ? normalizedProduct.unitPrice
           : 0,
-      markup: typeof p.markup === "number" && !isNaN(p.markup) ? p.markup : 0,
-      total: typeof p.total === "number" && !isNaN(p.total) ? p.total : 0,
+      markup:
+        typeof normalizedProduct.markup === "number" &&
+        !isNaN(normalizedProduct.markup)
+          ? normalizedProduct.markup
+          : 0,
+      pricingDetails: normalizeProposalPricingDetails(
+        normalizedProduct.pricingDetails,
+      ),
+      total:
+        typeof normalizedProduct.total === "number" &&
+        !isNaN(normalizedProduct.total)
+          ? normalizedProduct.total
+          : 0,
       productImage: normalizedProductImage,
       productImages:
         normalizedProductImages.length > 0
@@ -74,16 +93,18 @@ export function sanitizeProducts(products: ProposalProduct[]) {
             ? [normalizedProductImage]
             : [],
       productDescription:
-        typeof p.productDescription === "string"
-          ? p.productDescription
+        typeof normalizedProduct.productDescription === "string"
+          ? normalizedProduct.productDescription
           : undefined,
-      manufacturer: p.manufacturer,
-      category: p.category,
+      manufacturer: normalizedProduct.manufacturer,
+      category: normalizedProduct.category,
       // Support both new and legacy format
-      ambienteInstanceId: p.ambienteInstanceId || p.systemInstanceId,
-      systemInstanceId: p.systemInstanceId || p.ambienteInstanceId,
-      isExtra: p.isExtra,
-      status: p.status,
+      ambienteInstanceId:
+        normalizedProduct.ambienteInstanceId || normalizedProduct.systemInstanceId,
+      systemInstanceId:
+        normalizedProduct.systemInstanceId || normalizedProduct.ambienteInstanceId,
+      isExtra: normalizedProduct.isExtra,
+      status: normalizedProduct.status,
     };
   });
 }

@@ -24,6 +24,7 @@ const MAX_ATTACHMENTS_PER_PROPOSAL = 20;
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_ATTACHMENT_NAME_LENGTH = 180;
 const MAX_ATTACHMENT_URL_LENGTH = 15 * 1024 * 1024;
+const MAX_PRODUCTS_PER_PROPOSAL = 500;
 
 type SanitizedAttachment = {
   id: string;
@@ -258,6 +259,109 @@ function sanitizeAttachmentsInput(rawValue: unknown): SanitizedAttachment[] {
       size,
       uploadedAt: uploadedAtDate.toISOString(),
       ...(storagePath ? { storagePath } : {}),
+    };
+  });
+}
+
+function sanitizeProposalNumber(value: unknown, decimals = 2): number {
+  const parsed = Number(
+    typeof value === "string" ? value.replace(",", ".") : value,
+  );
+  if (!Number.isFinite(parsed)) return 0;
+  const factor = 10 ** decimals;
+  return Math.max(0, Math.round(parsed * factor) / factor);
+}
+
+function sanitizeProposalPricingDetails(
+  rawValue: unknown,
+): Record<string, unknown> {
+  const source =
+    rawValue && typeof rawValue === "object"
+      ? (rawValue as Record<string, unknown>)
+      : {};
+  const mode = String(source.mode || "").trim().toLowerCase();
+
+  if (mode === "curtain_meter") {
+    const width = sanitizeProposalNumber(source.width, 4);
+    const height = sanitizeProposalNumber(source.height, 4);
+    return {
+      mode: "curtain_meter",
+      width,
+      height,
+      area: sanitizeProposalNumber(width * height, 4),
+    };
+  }
+
+  if (mode === "curtain_height") {
+    return {
+      mode: "curtain_height",
+      width: sanitizeProposalNumber(source.width, 4),
+      tierId: String(source.tierId || "").trim().slice(0, 120),
+      maxHeight: sanitizeProposalNumber(source.maxHeight, 4),
+    };
+  }
+
+  return { mode: "standard" };
+}
+
+function sanitizeProposalProductsInput(rawValue: unknown): Record<string, unknown>[] {
+  if (typeof rawValue === "undefined" || rawValue === null) {
+    return [];
+  }
+  if (!Array.isArray(rawValue) || rawValue.length > MAX_PRODUCTS_PER_PROPOSAL) {
+    throw new Error("INVALID_PRODUCTS");
+  }
+
+  return rawValue.map((rawProduct, index) => {
+    const source =
+      rawProduct && typeof rawProduct === "object"
+        ? (rawProduct as Record<string, unknown>)
+        : {};
+    const itemType =
+      String(source.itemType || "product").trim().toLowerCase() === "service"
+        ? "service"
+        : "product";
+    const status =
+      String(source.status || "active").trim().toLowerCase() === "inactive"
+        ? "inactive"
+        : "active";
+
+    return {
+      lineItemId: String(source.lineItemId || `proposal-item-${index + 1}`)
+        .trim()
+        .slice(0, 160),
+      productId: String(source.productId || "").trim().slice(0, 160),
+      itemType,
+      productName: String(source.productName || "").trim().slice(0, 300),
+      productImage: String(source.productImage || "").trim().slice(0, 4096),
+      productImages: Array.isArray(source.productImages)
+        ? source.productImages
+            .filter((image): image is string => typeof image === "string")
+            .map((image) => image.trim().slice(0, 4096))
+            .filter(Boolean)
+            .slice(0, 12)
+        : [],
+      productDescription: String(source.productDescription || "")
+        .trim()
+        .slice(0, 4000),
+      quantity: sanitizeProposalNumber(source.quantity, 4),
+      unitPrice: sanitizeProposalNumber(source.unitPrice, 4),
+      markup: itemType === "service" ? 0 : sanitizeProposalNumber(source.markup, 4),
+      total: sanitizeProposalNumber(source.total, 4),
+      manufacturer: String(source.manufacturer || "").trim().slice(0, 160),
+      category: String(source.category || "").trim().slice(0, 160),
+      systemInstanceId: String(source.systemInstanceId || "")
+        .trim()
+        .slice(0, 200),
+      ambienteInstanceId: String(source.ambienteInstanceId || "")
+        .trim()
+        .slice(0, 200),
+      isExtra: Boolean(source.isExtra),
+      status,
+      pricingDetails:
+        itemType === "service"
+          ? { mode: "standard" }
+          : sanitizeProposalPricingDetails(source.pricingDetails),
     };
   });
 }
@@ -914,6 +1018,13 @@ export const createProposal = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Anexos invalidos" });
     }
 
+    let sanitizedProducts: Record<string, unknown>[] = [];
+    try {
+      sanitizedProducts = sanitizeProposalProductsInput(input.products);
+    } catch {
+      return res.status(400).json({ message: "Produtos invalidos" });
+    }
+
     const { masterRef, tenantId, isMaster, isSuperAdmin, userData } =
       await resolveUserAndTenant(userId, req.user);
 
@@ -1101,7 +1212,7 @@ export const createProposal = async (req: Request, res: Response) => {
           clientEmail: input.clientEmail || null,
           clientPhone: input.clientPhone || null,
           clientAddress: input.clientAddress || null,
-          products: input.products || [],
+          products: sanitizedProducts,
           sistemas: input.sistemas || [],
           sections: input.sections || [],
           // Payment options
@@ -1160,7 +1271,7 @@ export const createProposal = async (req: Request, res: Response) => {
             clientEmail: input.clientEmail || null,
             clientPhone: input.clientPhone || null,
             clientAddress: input.clientAddress || null,
-            products: input.products || [],
+            products: sanitizedProducts,
             sistemas: input.sistemas || [],
             sections: input.sections || [],
             downPaymentEnabled: input.downPaymentEnabled || false,
@@ -1286,6 +1397,15 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
+    let sanitizedProducts: Record<string, unknown>[] | undefined;
+    if (typeof updateData.products !== "undefined") {
+      try {
+        sanitizedProducts = sanitizeProposalProductsInput(updateData.products);
+      } catch {
+        return res.status(400).json({ message: "Produtos invalidos" });
+      }
+    }
+
     const nextAttachmentPaths =
       typeof sanitizedAttachments !== "undefined"
         ? collectAttachmentStoragePaths(
@@ -1347,20 +1467,24 @@ export const updateProposal = async (req: Request, res: Response) => {
         safeUpdate[f] = sanitizedAttachments || [];
         return;
       }
+      if (f === "products") {
+        safeUpdate[f] = sanitizedProducts || [];
+        return;
+      }
       safeUpdate[f] = updateData[f];
     });
 
     if (updateData.products) {
-      const subtotal = updateData.products.reduce(
-        (sum: number, p: { total: number }) => sum + (p.total || 0),
+      const subtotal = (sanitizedProducts || []).reduce<number>(
+        (sum: number, p: Record<string, unknown>) => sum + ((p.total as number) || 0),
         0,
       );
       const discountAmount =
-        (subtotal * (updateData.discount || proposalData?.discount || 0)) / 100;
+        (subtotal * (Number(updateData.discount) || Number(proposalData?.discount) || 0)) / 100;
       const extraExpense =
         updateData.extraExpense !== undefined
-          ? updateData.extraExpense
-          : proposalData?.extraExpense || 0;
+          ? Number(updateData.extraExpense)
+          : Number(proposalData?.extraExpense) || 0;
       safeUpdate.totalValue = subtotal - discountAmount + extraExpense;
     }
 

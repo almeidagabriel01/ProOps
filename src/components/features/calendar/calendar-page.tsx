@@ -275,7 +275,7 @@ function GoogleCalendarCompanyCard(props: {
             </div>
           ) : (
             <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              A conexao da agenda da empresa e administrada por um usuario master.
+              A conexão da agenda da empresa é administrada por um usuário master.
             </div>
           )}
         </>
@@ -288,7 +288,7 @@ function GoogleCalendarCompanyCard(props: {
                 <p className="text-sm font-medium">Conecte a agenda principal da empresa</p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   Os compromissos do ProOps podem sincronizar com o Google Agenda
-                  assim que a integracao for ativada.
+                  assim que a integração for ativada.
                 </p>
               </div>
             </div>
@@ -474,7 +474,7 @@ export function CalendarPage() {
       },
       onError: () => {
         setIsLoadingEvents(false);
-        toast.error("Nao foi possivel carregar os compromissos.");
+        toast.error("Não foi possível carregar os compromissos.");
       },
     });
 
@@ -538,7 +538,7 @@ export function CalendarPage() {
     if (googleCalendarStatus === "connected") {
       toast.success("Google Agenda conectado com sucesso.");
     } else {
-      toast.error("Nao foi possivel concluir a conexao com o Google Agenda.");
+      toast.error("Não foi possível concluir a conexão com o Google Agenda.");
     }
 
     void CalendarService.getGoogleConnectionStatus()
@@ -701,7 +701,7 @@ export function CalendarPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel iniciar a conexao com o Google.",
+          : "Não foi possível iniciar a conexão com o Google.",
       );
       setIsConnectingGoogle(false);
     }
@@ -723,7 +723,7 @@ export function CalendarPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel desconectar o Google Agenda.",
+          : "Não foi possível desconectar o Google Agenda.",
       );
     } finally {
       setIsLoadingGoogle(false);
@@ -755,7 +755,7 @@ export function CalendarPage() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Nao foi possivel reagendar o compromisso.",
+          : "Não foi possível reagendar o compromisso.",
       );
     }
   }

@@ -197,6 +197,7 @@ export function SimpleProposalForm({
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    updateProductPricingDetails,
     updateProductPrice,
     removeProduct,
     handleToggleProductStatus,
@@ -1141,6 +1142,7 @@ export function SimpleProposalForm({
                   onManageAmbientes={() => setIsAmbienteManagerOpen(true)}
                   onUpdateProductQuantity={updateProductQuantity}
                   onUpdateProductMarkup={updateProductMarkup}
+                  onUpdateProductPricingDetails={updateProductPricingDetails}
                   onUpdateProductPrice={updateProductPrice}
                   onAddExtraProductToAmbiente={addProductToSystem}
                   onRemoveProduct={removeProduct}

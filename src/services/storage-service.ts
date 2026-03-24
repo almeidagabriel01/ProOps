@@ -31,13 +31,13 @@ export interface UploadResult {
 function validateFile(file: File): void {
   if (file.size > MAX_FILE_SIZE) {
     throw new Error(
-      `Arquivo muito grande. O tamanho maximo e ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
+      `Arquivo muito grande. O tamanho máximo é ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
     );
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
     throw new Error(
-      "Tipo de arquivo nao suportado. Use JPEG, PNG, GIF, WebP ou AVIF.",
+      "Tipo de arquivo não suportado. Use JPEG, PNG, GIF, WebP ou AVIF.",
     );
   }
 }
@@ -45,12 +45,12 @@ function validateFile(file: File): void {
 function validateAttachmentFile(file: File): void {
   if (file.size > MAX_ATTACHMENT_FILE_SIZE) {
     throw new Error(
-      `Arquivo muito grande. O tamanho maximo e ${MAX_ATTACHMENT_FILE_SIZE / (1024 * 1024)}MB.`,
+      `Arquivo muito grande. O tamanho máximo é ${MAX_ATTACHMENT_FILE_SIZE / (1024 * 1024)}MB.`,
     );
   }
 
   if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-    throw new Error("Tipo de arquivo nao suportado. Use imagens ou PDF.");
+    throw new Error("Tipo de arquivo não suportado. Use imagens ou PDF.");
   }
 }
 

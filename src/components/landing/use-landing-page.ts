@@ -124,7 +124,7 @@ export function useLandingPage() {
         title: "Logout realizado",
       });
     } catch {
-      toast.error("Nao foi possivel sair da conta agora.", {
+      toast.error("Não foi possível sair da conta agora.", {
         title: "Erro ao sair",
       });
     }

@@ -11,6 +11,9 @@ import {
   isProductVisibleInPdf,
   shouldCountInPdfTotals,
 } from "../product-visibility";
+import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
+import type { TenantNiche } from "@/types";
+import { PdfCortinasAwareProductFooter } from "./pdf-sistema-primitives";
 
 interface PdfProduct {
   productId: string;
@@ -21,7 +24,9 @@ interface PdfProduct {
   productDescription?: string;
   quantity: number;
   unitPrice: number;
+  markup?: number;
   total: number;
+  pricingDetails?: ProposalProductPricingDetails;
   _isInactive?: boolean;
   _isGhost?: boolean;
 }
@@ -30,6 +35,7 @@ interface PdfExtraProductsBlockProps {
   products: PdfProduct[];
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }
 
 function ItemImagePlaceholder({
@@ -52,6 +58,7 @@ export function PdfExtraProductsBlock({
   products,
   primaryColor,
   pdfDisplaySettings,
+  tenantNiche,
 }: PdfExtraProductsBlockProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
   const visibleProducts = products.filter((product) =>
@@ -223,21 +230,20 @@ export function PdfExtraProductsBlock({
                                   style={{ borderTop: "1px solid #e5e7eb" }}
                                 >
                                   <div className="text-right">
-                                    {settings.showProductPrices ? (
-                                      <>
-                                        <p className="text-sm text-gray-500">
-                                          {left.quantity} un. ×{" "}
-                                          {formatCurrency(left.unitPrice)}
-                                        </p>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          {formatCurrency(left.total)}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <p className="text-sm text-gray-500">
-                                        Qtd: {left.quantity}
-                                      </p>
-                                    )}
+                                    <div className="inline-flex flex-col items-end">
+                                      <PdfCortinasAwareProductFooter
+                                        product={left}
+                                        tenantNiche={tenantNiche}
+                                        showProductPrices={
+                                          settings.showProductPrices
+                                        }
+                                        showProductMeasurements={
+                                          settings.showProductMeasurements
+                                        }
+                                        grayTextClassName="text-sm text-gray-500"
+                                        totalTextClassName="font-bold text-lg text-gray-700"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -299,21 +305,20 @@ export function PdfExtraProductsBlock({
                                   style={{ borderTop: "1px solid #e5e7eb" }}
                                 >
                                   <div className="text-right">
-                                    {settings.showProductPrices ? (
-                                      <>
-                                        <p className="text-sm text-gray-500">
-                                          {right.quantity} un. ×{" "}
-                                          {formatCurrency(right.unitPrice)}
-                                        </p>
-                                        <span className="font-bold text-lg text-gray-700">
-                                          {formatCurrency(right.total)}
-                                        </span>
-                                      </>
-                                    ) : (
-                                      <p className="text-sm text-gray-500">
-                                        Qtd: {right.quantity}
-                                      </p>
-                                    )}
+                                    <div className="inline-flex flex-col items-end">
+                                      <PdfCortinasAwareProductFooter
+                                        product={right}
+                                        tenantNiche={tenantNiche}
+                                        showProductPrices={
+                                          settings.showProductPrices
+                                        }
+                                        showProductMeasurements={
+                                          settings.showProductMeasurements
+                                        }
+                                        grayTextClassName="text-sm text-gray-500"
+                                        totalTextClassName="font-bold text-lg text-gray-700"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -376,21 +381,20 @@ export function PdfExtraProductsBlock({
                                 style={{ borderTop: "1px solid #e5e7eb" }}
                               >
                                 <div className="text-right">
-                                  {settings.showProductPrices ? (
-                                    <>
-                                      <p className="text-sm text-gray-500">
-                                        {left.quantity} un. ×{" "}
-                                        {formatCurrency(left.unitPrice)}
-                                      </p>
-                                      <span className="font-bold text-lg text-gray-700">
-                                        {formatCurrency(left.total)}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <p className="text-sm text-gray-500">
-                                      Qtd: {left.quantity}
-                                    </p>
-                                  )}
+                                  <div className="inline-flex flex-col items-end">
+                                    <PdfCortinasAwareProductFooter
+                                      product={left}
+                                      tenantNiche={tenantNiche}
+                                      showProductPrices={
+                                        settings.showProductPrices
+                                      }
+                                      showProductMeasurements={
+                                        settings.showProductMeasurements
+                                      }
+                                      grayTextClassName="text-sm text-gray-500"
+                                      totalTextClassName="font-bold text-lg text-gray-700"
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             </div>

@@ -5,6 +5,7 @@
 
 import { ProposalSistema, AmbienteProduct } from "@/types/automation";
 import { ProposalSystemInstance, ProposalAmbienteInstance, ProposalProduct } from "@/types/proposal";
+import { ensureProposalProductLineItemId } from "@/lib/proposal-product";
 
 /**
  * Convert legacy ProposalSistema (single ambiente) to new format (multiple ambientes)
@@ -199,18 +200,19 @@ export function getAllProductsFromSistema(sistema: ProposalSistema): AmbientePro
  * Migrate a ProposalProduct to use the new ambienteInstanceId format
  */
 export function normalizeProposalProduct(product: ProposalProduct): ProposalProduct {
+  const normalizedProduct = ensureProposalProductLineItemId(product);
   // If already has ambienteInstanceId, return as-is
-  if (product.ambienteInstanceId) {
-    return product;
+  if (normalizedProduct.ambienteInstanceId) {
+    return normalizedProduct;
   }
   // Migrate from systemInstanceId if present
-  if (product.systemInstanceId) {
+  if (normalizedProduct.systemInstanceId) {
     return {
-      ...product,
-      ambienteInstanceId: product.systemInstanceId,
+      ...normalizedProduct,
+      ambienteInstanceId: normalizedProduct.systemInstanceId,
     };
   }
-  return product;
+  return normalizedProduct;
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   parseInventoryValue,
   resolveInventoryValue,
 } from "@/lib/niches/config";
+import { ProductPricingModel } from "@/lib/product-pricing";
 
 export type Product = {
   id: string;
@@ -28,6 +29,7 @@ export type Product = {
   description: string;
   price: string;
   markup?: string; // Profit percentage over base price
+  pricingModel?: ProductPricingModel;
   manufacturer: string;
   category: string;
   inventoryValue: number;

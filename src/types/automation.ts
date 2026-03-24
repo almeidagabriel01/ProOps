@@ -1,46 +1,48 @@
-// Tipos para o sistema de Automação Residencial
+import { ProposalProductPricingDetails } from "@/lib/product-pricing";
+
+// Tipos para o sistema de automacao residencial
 // Hierarquia NOVA: Sistema -> Ambientes -> Produtos
 
 /**
  * Produto associado a um Ambiente (template)
  */
 export type AmbienteProduct = {
+  lineItemId?: string;
   productId: string;
   itemType?: "product" | "service";
-  productName: string; // Cache para exibição
+  productName: string; // Cache para exibicao
   quantity: number;
+  pricingDetails?: ProposalProductPricingDetails;
   notes?: string;
   status?: "active" | "inactive";
 };
 
 /**
- * Ambiente - agora é o nível que contém produtos
- * Pode ser um template reutilizável (ex: "Sala Padrão")
+ * Ambiente - agora e o nivel que contem produtos
+ * Pode ser um template reutilizavel (ex: "Sala Padrao")
  */
 export type Ambiente = {
   id: string;
   tenantId: string;
   name: string;
-  description?: string; // Descrição do ambiente (template)
-  icon?: string; // Emoji ou nome de ícone lucide
+  description?: string; // Descricao do ambiente (template)
+  icon?: string; // Emoji ou nome de icone lucide
   order?: number;
-  // Template de produtos padrão para este ambiente
+  // Template de produtos padrao para este ambiente
   defaultProducts: AmbienteProduct[];
   createdAt?: string;
 };
 
 /**
- * Sistema - agrupa múltiplos ambientes
- * Ex: "Sistema de Iluminação" pode ter "Sala", "Quarto", etc
+ * Sistema - agrupa multiplos ambientes
+ * Ex: "Sistema de Iluminacao" pode ter "Sala", "Quarto", etc
  */
 export type Sistema = {
   id: string;
   tenantId: string;
   name: string;
-  description: string; // Descrição que aparece no PDF
-  icon?: string; // Emoji ou nome de ícone lucide
-  // IDs dos ambientes disponíveis para este sistema
-  // availableAmbienteIds: string[]; -> Deprecated in favor of configured environments
+  description: string; // Descricao que aparece no PDF
+  icon?: string; // Emoji ou nome de icone lucide
 
   /**
    * Main configuration: Environments within this system, each with its own product list.
@@ -51,7 +53,7 @@ export type Sistema = {
   createdAt: string;
   updatedAt: string;
 
-  // DEPRECATED: Mantido temporariamente para migração
+  // DEPRECATED: mantido temporariamente para migracao
   /** @deprecated Use ambientes field instead */
   availableAmbienteIds?: string[];
   /** @deprecated Use Ambiente.defaultProducts instead */
@@ -66,7 +68,7 @@ export type Sistema = {
  */
 export type SistemaAmbienteTemplate = {
   ambienteId: string; // Reference to the generic Ambiente (Name/Icon)
-  description?: string; // Optional: Override description for this specific system-environment pair
+  description?: string; // Optional: override description for this specific system-environment pair
   products: AmbienteProduct[];
 };
 
@@ -79,6 +81,7 @@ export type SistemaProduct = {
   itemType?: "product" | "service";
   productName: string;
   quantity: number;
+  pricingDetails?: ProposalProductPricingDetails;
   notes?: string;
   status?: "active" | "inactive";
 };
@@ -88,26 +91,26 @@ export type SistemaProduct = {
 // ============================================
 
 /**
- * Ambiente dentro de uma proposta (instância customizável)
+ * Ambiente dentro de uma proposta (instancia customizavel)
  */
 export type ProposalAmbiente = {
   ambienteId: string;
   ambienteName: string;
-  description?: string; // Descrição snapshot do ambiente nesta proposta
-  // Produtos específicos deste ambiente nesta proposta
+  description?: string; // Descricao snapshot do ambiente nesta proposta
+  // Produtos especificos deste ambiente nesta proposta
   products: AmbienteProduct[];
 };
 
 /**
- * Sistema dentro de uma proposta - contém múltiplos ambientes
+ * Sistema dentro de uma proposta - contem multiplos ambientes
  */
 export type ProposalSistema = {
   sistemaId: string;
   sistemaName: string;
   description: string;
-  // Ambientes incluídos neste sistema para esta proposta
+  // Ambientes incluidos neste sistema para esta proposta
   ambientes: ProposalAmbiente[];
-  // DEPRECATED: Campos antigos mantidos para migração
+  // DEPRECATED: campos antigos mantidos para migracao
   /** @deprecated Use ambientes[].ambienteId instead */
   ambienteId?: string;
   /** @deprecated Use ambientes[].ambienteName instead */

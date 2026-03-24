@@ -111,13 +111,13 @@ export function EditMemberModal({
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!normalizedName) {
-      nextErrors.name = "Nome e obrigatorio";
+      nextErrors.name = "Nome é obrigatório";
     } else if (normalizedName.length < 2) {
       nextErrors.name = "Nome deve ter pelo menos 2 caracteres";
     }
 
     if (!normalizedEmail) {
-      nextErrors.email = "Email e obrigatorio";
+      nextErrors.email = "E-mail é obrigatório";
     } else if (!EMAIL_REGEX.test(normalizedEmail)) {
       nextErrors.email = "Email invalido";
     }

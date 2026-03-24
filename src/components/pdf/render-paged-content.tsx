@@ -45,6 +45,8 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
     [pdfDisplaySettings],
   );
 
+  const tenantNiche = tenant?.niche ?? null;
+
   const [measuredHeights, setMeasuredHeights] = useState<
     Record<string, number>
   >({});
@@ -135,6 +137,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               products={item.data.products}
               primaryColor={primaryColor}
               pdfDisplaySettings={settings}
+              tenantNiche={tenantNiche}
             />
           </div>
         );
@@ -146,6 +149,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               products={item.data.products}
               primaryColor={primaryColor}
               pdfDisplaySettings={settings}
+              tenantNiche={tenantNiche}
             />
           </div>
         );
@@ -174,6 +178,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                 contentStyles as unknown as Record<string, React.CSSProperties>
               }
               pdfDisplaySettings={settings}
+              tenantNiche={tenantNiche}
             />
           </div>
         );
@@ -302,6 +307,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                             primaryColor={primaryColor}
                             settings={pairSettings}
                             evenBackground
+                            tenantNiche={tenantNiche}
                           />
                         </td>
                         <td
@@ -316,6 +322,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                             primaryColor={primaryColor}
                             settings={pairSettings}
                             evenBackground={false}
+                            tenantNiche={tenantNiche}
                           />
                         </td>
                       </>
@@ -329,6 +336,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
                           primaryColor={primaryColor}
                           settings={pairSettings}
                           evenBackground
+                          tenantNiche={tenantNiche}
                         />
                       </td>
                     )}
@@ -350,6 +358,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
               sistemaSubtotal={item.data.sistemaSubtotal}
               primaryColor={primaryColor}
               pdfDisplaySettings={settings}
+              tenantNiche={tenantNiche}
             />
           </div>
         );

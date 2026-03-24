@@ -11,9 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { DecimalInput } from "@/components/ui/decimal-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
@@ -33,12 +35,22 @@ import { compareDisplayText } from "@/lib/sort-text";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
+import { cn } from "@/lib/utils";
 import {
   formatItemQuantity,
   normalizeItemQuantity,
   parseItemQuantityInput,
 } from "@/lib/quantity-utils";
 import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-small";
+import {
+  isDimensionPricedProduct,
+  normalizeProductPricingModel,
+  normalizeProposalPricingDetails,
+  ProposalProductPricingDetails,
+  calculateSellingPrice,
+  formatMeters,
+  getProductPricingSummary,
+} from "@/lib/product-pricing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,18 +77,28 @@ interface ProposalEnvironmentsSectionProps {
     delta: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdateProductMarkup: (
     productId: string,
     markup: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => void;
+  onUpdateProductPricingDetails: (
+    productId: string,
+    pricingDetails: ProposalProductPricingDetails,
+    systemInstanceId: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdateProductPrice: (
     productId: string,
     newPrice: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onAddExtraProductToAmbiente: (
     product: Product | Service,
@@ -87,12 +109,14 @@ interface ProposalEnvironmentsSectionProps {
     productId: string,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => Promise<void>;
 }
 
@@ -107,6 +131,7 @@ export function ProposalEnvironmentsSection({
   onManageAmbientes,
   onUpdateProductQuantity,
   onUpdateProductMarkup,
+  onUpdateProductPricingDetails,
   onUpdateProductPrice,
   onAddExtraProductToAmbiente,
   onRemoveProduct,
@@ -246,6 +271,7 @@ export function ProposalEnvironmentsSection({
                   }
                   onUpdateQuantity={onUpdateProductQuantity}
                   onUpdateMarkup={onUpdateProductMarkup}
+                  onUpdatePricingDetails={onUpdateProductPricingDetails}
                   onUpdatePrice={onUpdateProductPrice}
                   onAddExtraProduct={onAddExtraProductToAmbiente}
                   onRemoveProduct={onRemoveProduct}
@@ -256,10 +282,16 @@ export function ProposalEnvironmentsSection({
           </div>
         )}
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Ambiente</Label>
+        <div className="space-y-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center gap-2">
+            <Plus className="w-4 h-4 text-primary" />
+            <Label className="text-sm font-semibold text-primary">
+              Adicionar Ambiente à Proposta
+            </Label>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Selecione um ambiente cadastrado para adicionar seus produtos à proposta.
+          </p>
           <SearchableSelect
             id="proposal-environment-select"
             name="proposal-environment-select"
@@ -283,6 +315,18 @@ export function ProposalEnvironmentsSection({
             emptyMessage="Nenhum ambiente disponível"
             noResultsMessage="Nenhum ambiente encontrado"
           />
+          <div className="flex items-center justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+              onClick={onManageAmbientes}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Gerenciar Ambientes
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -310,18 +354,28 @@ interface EnvironmentCardProps {
     delta: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdateMarkup: (
     productId: string,
     markup: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => void;
+  onUpdatePricingDetails: (
+    productId: string,
+    pricingDetails: ProposalProductPricingDetails,
+    systemInstanceId: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdatePrice: (
     productId: string,
     newPrice: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onAddExtraProduct: (
     product: Product | Service,
@@ -332,12 +386,14 @@ interface EnvironmentCardProps {
     productId: string,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => Promise<void>;
 }
 
@@ -359,6 +415,7 @@ function EnvironmentCard({
   onToggleHideZeroQty,
   onUpdateQuantity,
   onUpdateMarkup,
+  onUpdatePricingDetails,
   onUpdatePrice,
   onAddExtraProduct,
   onRemoveProduct,
@@ -397,16 +454,9 @@ function EnvironmentCard({
                 {ambienteName}
               </h4>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                  style={{
-                    backgroundColor: `${primaryColor}20`,
-                    color: primaryColor,
-                    border: `1px solid ${primaryColor}40`,
-                  }}
-                >
-                  📍 {ambienteName}
-                </span>
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 h-auto">
+                  {ambienteProducts.length} {ambienteProducts.length === 1 ? "produto" : "produtos"}
+                </Badge>
               </div>
             </div>
           </div>
@@ -470,24 +520,17 @@ function EnvironmentCard({
         )}
       </div>
 
-      <div className="p-4 space-y-6 bg-background rounded-b-lg">
+      <div className="p-4 space-y-4 bg-background rounded-b-lg">
         <div className="rounded-lg border bg-card/50">
           <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between gap-4 rounded-t-lg">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span
-                className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                style={{
-                  backgroundColor: `${primaryColor}20`,
-                  color: primaryColor,
-                }}
-              >
-                📍 {ambienteName}
+              <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Produtos
               </span>
-              {ambienteDescription && (
-                <span className="text-xs text-muted-foreground italic leading-tight">
-                  - {ambienteDescription}
-                </span>
-              )}
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                {ambienteProducts.length}
+              </Badge>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[11px] text-muted-foreground whitespace-nowrap">
@@ -506,13 +549,23 @@ function EnvironmentCard({
                 .sort((a, b) => compareDisplayText(a.productName, b.productName))
                 .map((product, idx) => (
                   <EnvironmentProductRow
-                    key={`${product.productId}-${product.itemType || "product"}-${idx}`}
+                    key={
+                      product.lineItemId ||
+                      `${product.productId}-${product.itemType || "product"}-${idx}`
+                    }
                     product={product}
+                    catalogProduct={products.find(
+                      (catalogProduct) =>
+                        catalogProduct.id === product.productId &&
+                        (catalogProduct.itemType || "product") ===
+                          (product.itemType || "product"),
+                    )}
                     systemInstanceId={systemInstanceId}
                     quantityStep={quantityStep}
                     priceUnitLabel={priceUnitLabel}
                     onUpdateQuantity={onUpdateQuantity}
                     onUpdateMarkup={onUpdateMarkup}
+                    onUpdatePricingDetails={onUpdatePricingDetails}
                     onUpdatePrice={onUpdatePrice}
                     onRemoveProduct={onRemoveProduct}
                     onToggleStatus={onToggleStatus}
@@ -530,7 +583,6 @@ function EnvironmentCard({
               products={products}
               ambienteProducts={ambienteProducts}
               primaryColor={primaryColor}
-              priceUnitLabel={priceUnitLabel}
               onAddProduct={(product) =>
                 onAddExtraProduct(product, ambienteIndex, systemInstanceId)
               }
@@ -544,6 +596,7 @@ function EnvironmentCard({
 
 interface EnvironmentProductRowProps {
   product: ProposalProduct;
+  catalogProduct?: Product | Service;
   systemInstanceId: string;
   quantityStep: number;
   priceUnitLabel: string;
@@ -552,44 +605,59 @@ interface EnvironmentProductRowProps {
     delta: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdateMarkup: (
     productId: string,
     markup: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => void;
+  onUpdatePricingDetails: (
+    productId: string,
+    pricingDetails: ProposalProductPricingDetails,
+    systemInstanceId: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onUpdatePrice: (
     productId: string,
     newPrice: number,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onRemoveProduct: (
     productId: string,
     systemInstanceId: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   onToggleStatus?: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => Promise<void>;
 }
 
 function EnvironmentProductRow({
   product,
+  catalogProduct,
   systemInstanceId,
   quantityStep,
   priceUnitLabel,
   onUpdateQuantity,
   onUpdateMarkup,
+  onUpdatePricingDetails,
   onUpdatePrice,
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentProductRowProps) {
   const itemType = product.itemType || "product";
+  const lineItemId = product.lineItemId;
   const isService = itemType === "service";
   const isActive = product.status !== "inactive";
   const isExtra = !!product.isExtra;
@@ -600,12 +668,50 @@ function EnvironmentProductRow({
     (product.unitPrice || 0).toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
+  const catalogPricingModel = catalogProduct && "pricingModel" in catalogProduct ? catalogProduct.pricingModel : undefined;
+  const pricingModel = React.useMemo(() => normalizeProductPricingModel(catalogPricingModel), [catalogPricingModel]);
+  const pricingDetails = normalizeProposalPricingDetails(product.pricingDetails);
+  const isCurtainMeter =
+    !isService &&
+    (pricingDetails.mode === "curtain_meter" ||
+      pricingModel.mode === "curtain_meter");
+  const isCurtainHeight =
+    !isService &&
+    (pricingDetails.mode === "curtain_height" ||
+      pricingModel.mode === "curtain_height");
+  const activeHeightTiers = React.useMemo(
+    () => {
+      if (pricingModel.mode !== "curtain_height") return [];
+      return [...pricingModel.tiers].sort((a, b) => a.maxHeight - b.maxHeight);
+    },
+    [pricingModel],
+  );
   const allowDecimalQuantity = !isService && quantityStep < 1;
   const quantityDelta = allowDecimalQuantity ? quantityStep : 1;
   const [quantityInput, setQuantityInput] = React.useState(
     formatItemQuantity(product.quantity, allowDecimalQuantity),
   );
   const [isEditingQuantity, setIsEditingQuantity] = React.useState(false);
+  const [meterWidthInput, setMeterWidthInput] = React.useState(
+    pricingDetails.mode === "curtain_meter"
+      ? String(pricingDetails.width || 0)
+      : "0",
+  );
+  const [meterHeightInput, setMeterHeightInput] = React.useState(
+    pricingDetails.mode === "curtain_meter"
+      ? String(pricingDetails.height || 0)
+      : "0",
+  );
+  const [heightWidthInput, setHeightWidthInput] = React.useState(
+    pricingDetails.mode === "curtain_height"
+      ? String(pricingDetails.width || 0)
+      : "0",
+  );
+  const [selectedHeightTierId, setSelectedHeightTierId] = React.useState(
+    pricingDetails.mode === "curtain_height"
+      ? pricingDetails.tierId
+      : activeHeightTiers[0]?.id || "",
+  );
 
   React.useEffect(() => {
     setMarkup(product.markup || 0);
@@ -623,12 +729,46 @@ function EnvironmentProductRow({
     }
   }, [allowDecimalQuantity, isEditingQuantity, product.quantity]);
 
+  React.useEffect(() => {
+    if (pricingDetails.mode === "curtain_meter") {
+      setMeterWidthInput(String(pricingDetails.width || 0));
+      setMeterHeightInput(String(pricingDetails.height || 0));
+    }
+  }, [
+    pricingDetails.mode,
+    "width" in pricingDetails ? pricingDetails.width : undefined,
+    "height" in pricingDetails ? pricingDetails.height : undefined,
+  ]);
+
+  React.useEffect(() => {
+    if (pricingDetails.mode === "curtain_height") {
+      setHeightWidthInput(String(pricingDetails.width || 0));
+      setSelectedHeightTierId(pricingDetails.tierId || activeHeightTiers[0]?.id || "");
+      return;
+    }
+
+    if (activeHeightTiers.length > 0) {
+      setSelectedHeightTierId(activeHeightTiers[0].id);
+    }
+  }, [
+    pricingDetails.mode,
+    "width" in pricingDetails ? pricingDetails.width : undefined,
+    "tierId" in pricingDetails ? pricingDetails.tierId : undefined,
+    activeHeightTiers,
+  ]);
+
   const handlePriceBlur = () => {
     setIsEditingPrice(false);
     const value = priceInput.replace(/[^0-9.,]/g, "").replace(",", ".");
     const parsedValue = parseFloat(value);
     if (!Number.isNaN(parsedValue) && parsedValue !== product.unitPrice) {
-      onUpdatePrice(product.productId, parsedValue, systemInstanceId, itemType);
+      onUpdatePrice(
+        product.productId,
+        parsedValue,
+        systemInstanceId,
+        itemType,
+        lineItemId,
+      );
     } else {
       setPriceInput((product.unitPrice || 0).toString());
     }
@@ -664,6 +804,7 @@ function EnvironmentProductRow({
         parsedQuantity - currentQuantity,
         systemInstanceId,
         itemType,
+        lineItemId,
       );
     }
 
@@ -675,8 +816,74 @@ function EnvironmentProductRow({
     product.productId,
     product.quantity,
     quantityInput,
+    lineItemId,
     systemInstanceId,
   ]);
+
+  const commitMeterPricing = React.useCallback(
+    (widthValue: string, heightValue: string) => {
+      const width = Math.max(
+        0,
+        Number.parseFloat(widthValue.replace(",", ".")) || 0,
+      );
+      const height = Math.max(
+        0,
+        Number.parseFloat(heightValue.replace(",", ".")) || 0,
+      );
+
+      onUpdatePricingDetails(
+        product.productId,
+        {
+          mode: "curtain_meter",
+          width,
+          height,
+          area: width * height,
+        },
+        systemInstanceId,
+        itemType,
+        lineItemId,
+      );
+    },
+    [
+      itemType,
+      lineItemId,
+      onUpdatePricingDetails,
+      product.productId,
+      systemInstanceId,
+    ],
+  );
+
+  const commitHeightPricing = React.useCallback(
+    (widthValue: string, tierId: string) => {
+      const width = Math.max(
+        0,
+        Number.parseFloat(widthValue.replace(",", ".")) || 0,
+      );
+      const selectedTier =
+        activeHeightTiers.find((tier) => tier.id === tierId) || activeHeightTiers[0];
+
+      onUpdatePricingDetails(
+        product.productId,
+        {
+          mode: "curtain_height",
+          width,
+          tierId: selectedTier?.id || "",
+          maxHeight: selectedTier?.maxHeight || 0,
+        },
+        systemInstanceId,
+        itemType,
+        lineItemId,
+      );
+    },
+    [
+      activeHeightTiers,
+      itemType,
+      lineItemId,
+      onUpdatePricingDetails,
+      product.productId,
+      systemInstanceId,
+    ],
+  );
 
   const handleStatusToggle = async (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -689,6 +896,7 @@ function EnvironmentProductRow({
         isActive ? "inactive" : "active",
         systemInstanceId,
         itemType,
+        lineItemId,
       );
     } finally {
       setIsUpdating(false);
@@ -698,7 +906,13 @@ function EnvironmentProductRow({
   const handleMarkupBlur = () => {
     setIsEditingMarkup(false);
     if (markup !== product.markup) {
-      onUpdateMarkup(product.productId, markup, systemInstanceId, itemType);
+      onUpdateMarkup(
+        product.productId,
+        markup,
+        systemInstanceId,
+        itemType,
+        lineItemId,
+      );
     }
   };
 
@@ -710,280 +924,468 @@ function EnvironmentProductRow({
 
   const sellingPrice =
     (product.unitPrice || 0) * (1 + (product.markup || 0) / 100);
+  const selectedHeightTier =
+    isCurtainHeight && activeHeightTiers.length > 0
+      ? activeHeightTiers.find((tier) => tier.id === selectedHeightTierId) ||
+        activeHeightTiers[0]
+      : null;
+  const measurementLabel = isCurtainMeter
+    ? `${formatMeters(pricingDetails.mode === "curtain_meter" ? pricingDetails.width : 0)} x ${formatMeters(
+        pricingDetails.mode === "curtain_meter" ? pricingDetails.height : 0,
+      )}`
+    : isCurtainHeight
+      ? `Larg. ${formatMeters(
+          pricingDetails.mode === "curtain_height" ? pricingDetails.width : 0,
+        )} | Alt. ate ${formatMeters(
+          pricingDetails.mode === "curtain_height" ? pricingDetails.maxHeight : 0,
+        )}`
+      : "";
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+      className={cn(
+        "group flex flex-col gap-4 rounded-xl border p-4 shadow-sm transition-all hover:border-primary/20",
         !isActive
-          ? "bg-muted/5 border-dashed border-muted-foreground/20"
+          ? "border-dashed border-muted-foreground/20 bg-muted/5 hover:shadow-none"
           : isExtra
-            ? "bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-500/25"
-            : "bg-muted/30"
-      }`}
+            ? "border-blue-500/30 bg-blue-500/10 hover:shadow-md dark:border-blue-500/25 dark:bg-blue-500/15"
+            : "bg-card hover:shadow-md"
+      )}
     >
-      {onToggleStatus && (
-        <div
-          className="shrink-0 cursor-pointer flex items-center gap-1"
-          onClick={handleStatusToggle}
-          title={
-            isActive
-              ? "Clique para ocultar do PDF"
-              : "Clique para mostrar no PDF"
-          }
-        >
-          <span className="text-[10px] text-muted-foreground">
-            {isActive ? "Ativo" : "Inativo"}
-          </span>
-          <Switch
-            checked={isActive}
-            disabled={isUpdating}
-            className="scale-75"
-          />
-        </div>
-      )}
-
-      {product.productImage || product.productImages?.[0] ? (
-        <div
-          className={`w-9 h-9 rounded-lg border bg-card overflow-hidden shrink-0 ${!isActive ? "opacity-40" : ""}`}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.productImages?.[0] || product.productImage}
-            alt=""
-            className="w-full h-full object-contain"
-          />
-        </div>
-      ) : (
-        <div
-          className={`w-9 h-9 rounded-lg border bg-muted/30 flex items-center justify-center shrink-0 ${!isActive ? "opacity-40" : ""}`}
-        >
-          <Package className="w-4 h-4 text-muted-foreground" />
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <h5
-            className={`font-medium text-sm text-balance wrap-break-word pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
-          >
-            {product.productName}
-          </h5>
-          <Badge
-            variant="outline"
-            className={
-              isService
-                ? "text-[9px] h-4 px-1 bg-rose-600/15 text-rose-800 border-rose-300 dark:bg-rose-600/20 dark:text-rose-300 dark:border-rose-500/40"
-                : "text-[9px] h-4 px-1 bg-emerald-500/15 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40"
-            }
-          >
-            {isService ? "Serviço" : "Produto"}
-          </Badge>
-          {isExtra && (
-            <Badge
-              variant="default"
-              className="text-[9px] h-4 px-1 bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/15 border-0"
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          {product.productImage || product.productImages?.[0] ? (
+            <div
+              className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg border bg-background ${!isActive ? "opacity-40" : ""}`}
             >
-              Extra
-            </Badge>
-          )}
-          {!isActive && (
-            <Badge
-              variant="outline"
-              className="text-[9px] h-4 px-1 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5"
+              <img
+                src={product.productImages?.[0] || product.productImage}
+                alt=""
+                className="h-full w-full object-contain"
+              />
+            </div>
+          ) : (
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border bg-muted/30 ${!isActive ? "opacity-40" : ""}`}
             >
-              Oculto no PDF
-            </Badge>
+              <Package className="h-6 w-6 text-muted-foreground" />
+            </div>
           )}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 pr-4">
+              <h5
+                className={`wrap-break-word font-semibold ${!isActive ? "text-muted-foreground" : "text-foreground"}`}
+              >
+                {product.productName}
+              </h5>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "h-auto shrink-0 px-2 py-0.5 text-[10px]",
+                  isService
+                    ? "border-rose-300 bg-rose-600/15 text-rose-800 dark:border-rose-500/40 dark:bg-rose-600/20 dark:text-rose-300"
+                    : "border-emerald-300 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-300"
+                )}
+              >
+                {isService ? "Serviço" : "Produto"}
+              </Badge>
+              {isCurtainMeter && (
+                <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
+                  Por metragem
+                </Badge>
+              )}
+              {isCurtainHeight && (
+                <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
+                  Por altura
+                </Badge>
+              )}
+              {isExtra && (
+                <Badge
+                  variant="default"
+                  className="h-auto shrink-0 border-0 bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-500/15 dark:text-blue-400"
+                >
+                  Extra
+                </Badge>
+              )}
+              {!isActive && (
+                <Badge
+                  variant="outline"
+                  className="h-auto shrink-0 border-amber-500/40 bg-amber-500/5 px-2 py-0.5 text-[10px] text-amber-600 dark:text-amber-400"
+                >
+                  Oculto no PDF
+                </Badge>
+              )}
+            </div>
+            {catalogProduct?.description && (
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground leading-relaxed w-full min-w-full lg:max-w-[700px]">
+                {catalogProduct.description}
+              </p>
+            )}
+            {product.productDescription && !catalogProduct?.description && (
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground leading-relaxed w-full min-w-full lg:max-w-[700px]">
+                {product.productDescription}
+              </p>
+            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {(product.manufacturer || (catalogProduct && "manufacturer" in catalogProduct && catalogProduct.manufacturer)) && (
+                <span className="text-[10px] text-muted-foreground">
+                  Fabricante: <span className="font-medium text-foreground/80">{product.manufacturer || (catalogProduct && "manufacturer" in catalogProduct ? (catalogProduct as Record<string, unknown>).manufacturer as string : "")}</span>
+                </span>
+              )}
+              {(product.category || catalogProduct?.category) && (
+                <span className="text-[10px] text-muted-foreground">
+                  Categoria: <span className="font-medium text-foreground/80">{product.category || catalogProduct?.category}</span>
+                </span>
+              )}
+              {isActive && !isService && (
+                <span className="text-[10px] text-muted-foreground">
+                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{isCurtainMeter ? " /m²" : isCurtainHeight ? " /m larg." : ` /${priceUnitLabel}`}</span>
+                </span>
+              )}
+            </div>
+            {isActive && measurementLabel && (
+              <p className="mt-2 text-xs font-medium text-foreground bg-muted/50 w-fit px-2 py-1 rounded-md">
+                Medidas: {measurementLabel}
+              </p>
+            )}
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-          {product.productDescription || "Sem descrição"}
-        </p>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              title="Remover produto"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover Produto</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja remover o produto{" "}
+                <strong>{product.productName}</strong> deste ambiente?
+                <br />
+                <span className="mt-2 block text-sm text-muted-foreground">
+                  Esta ação remove o produto apenas desta proposta.
+                </span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={() =>
+                  onRemoveProduct(
+                    product.productId,
+                    systemInstanceId,
+                    itemType,
+                    lineItemId,
+                  )
+                }
+              >
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
-      {isActive && !isService && (
-        <div className="flex flex-col items-center mr-2">
-          <span className="text-[10px] text-muted-foreground mb-0.5">
-            Markup
-          </span>
-          <div className="flex items-center">
-            <div className="relative flex items-center group">
-              <input
-                type="text"
-                value={
-                  isEditingMarkup
-                    ? markup
-                    : `${product.markup?.toFixed(0) || 0}`
-                }
-                onChange={(event) => {
-                  const value = event.target.value.replace(/[^0-9.-]/g, "");
-                  setMarkup(value === "" ? 0 : parseFloat(value));
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/50 pt-4">
+        {onToggleStatus && (
+          <div className="space-y-1 my-auto">
+            <span className="text-[10px] text-muted-foreground mr-2">Status do Item</span>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={isActive}
+                disabled={isUpdating}
+                onCheckedChange={(checked) => {
+                  if (onToggleStatus && !isUpdating) {
+                    setIsUpdating(true);
+                    onToggleStatus(
+                      product.productId,
+                      checked ? "active" : "inactive",
+                      systemInstanceId,
+                      itemType,
+                      lineItemId,
+                    ).finally(() => setIsUpdating(false));
+                  }
                 }}
-                onFocus={() => {
-                  setIsEditingMarkup(true);
-                  setMarkup(product.markup || 0);
-                }}
-                onBlur={handleMarkupBlur}
-                onKeyDown={handleMarkupKeyDown}
-                className="w-14 h-8 text-sm text-right border rounded-md px-2 pr-5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
+                aria-label="Toggle status"
               />
-              <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none group-focus-within:text-foreground">
-                %
+              <span className="text-sm font-medium text-foreground">
+                {isActive ? "Ativo" : "Inativo"}
               </span>
             </div>
           </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-0.5 shrink-0">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() =>
-            onUpdateQuantity(
-              product.productId,
-              -quantityDelta,
-              systemInstanceId,
-              itemType,
-            )
-          }
-        >
-          <Minus className="w-3 h-3" />
-        </Button>
-        {allowDecimalQuantity ? (
-          <DecimalInput
-            value={product.quantity}
-            onChange={(val) => {
-              const currentQuantity = normalizeItemQuantity(product.quantity, true);
-              if (val !== currentQuantity) {
-                onUpdateQuantity(
-                  product.productId,
-                  val - currentQuantity,
-                  systemInstanceId,
-                  itemType,
-                );
-              }
-            }}
-            className="w-16"
-            aria-label="Metragem do item"
-          />
-        ) : (
-          <input
-            type="text"
-            inputMode="numeric"
-            value={quantityInput}
-            onFocus={() => setIsEditingQuantity(true)}
-            onChange={(event) => setQuantityInput(event.target.value)}
-            onBlur={commitQuantityChange}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.currentTarget.blur();
-              }
-
-              if (event.key === "Escape") {
-                setIsEditingQuantity(false);
-                setQuantityInput(
-                  formatItemQuantity(product.quantity, false),
-                );
-                event.currentTarget.blur();
-              }
-            }}
-            className="h-8 rounded-md border bg-background px-2 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
-            aria-label="Quantidade do item"
-          />
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() =>
-            onUpdateQuantity(
-              product.productId,
-              quantityDelta,
-              systemInstanceId,
-              itemType,
-            )
-          }
-        >
-          <Plus className="w-3 h-3" />
-        </Button>
-      </div>
-
-      <div className="flex flex-col items-end min-w-[80px]">
-        {isService ? (
-          <div className="relative flex items-center group">
-            <span className="absolute left-2 text-xs text-muted-foreground">
-              R$
-            </span>
-            <input
-              type="text"
-              value={
-                isEditingPrice ? priceInput : product.unitPrice?.toFixed(2) || "0.00"
-              }
-              onFocus={() => {
-                setIsEditingPrice(true);
-                setPriceInput((product.unitPrice || 0).toString());
-              }}
-              onChange={(event) => setPriceInput(event.target.value)}
-              onBlur={handlePriceBlur}
-              onKeyDown={handlePriceKeyDown}
-              className="w-20 h-7 text-sm text-right border rounded-md pl-6 pr-1 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
-            />
-          </div>
-        ) : (
-          <span
-            className={`font-semibold text-sm shrink-0 tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
-          >
-            R$ {(product.total || 0).toFixed(2)}
-          </span>
         )}
 
-        {isActive && !isService && (
-          <span className="text-[10px] text-muted-foreground">
-            (R$ {sellingPrice.toFixed(2)} {priceUnitLabel})
-          </span>
-        )}
-      </div>
-
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-            title="Remover produto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover Produto</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover o produto{" "}
-              <strong>{product.productName}</strong> deste ambiente?
-              <br />
-              <span className="text-sm text-muted-foreground mt-2 block">
-                Esta ação remove o produto apenas desta proposta.
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
+          {isActive && !isService && (
+            <div className="flex min-w-[88px] flex-col items-start">
+              <span className="mb-0.5 text-[10px] text-muted-foreground">
+                Markup
               </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={() =>
-                onRemoveProduct(product.productId, systemInstanceId, itemType)
-              }
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <div className="group relative flex items-center">
+                <input
+                  type="text"
+                  value={
+                    isEditingMarkup
+                      ? markup
+                      : `${product.markup?.toFixed(0) || 0}`
+                  }
+                  onChange={(event) => {
+                    const value = event.target.value.replace(/[^0-9.-]/g, "");
+                    setMarkup(value === "" ? 0 : parseFloat(value));
+                  }}
+                  onFocus={() => {
+                    setIsEditingMarkup(true);
+                    setMarkup(product.markup || 0);
+                  }}
+                  onBlur={handleMarkupBlur}
+                  onKeyDown={handleMarkupKeyDown}
+                  className="h-9 w-16 rounded-md border bg-background px-2 pr-5 text-right text-sm transition-all hover:border-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <span className="pointer-events-none absolute right-2 text-xs text-muted-foreground group-focus-within:text-foreground">
+                  %
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isCurtainMeter ? (
+            <div className="grid w-full gap-2 rounded-lg border bg-muted/50 p-2 shadow-sm md:grid-cols-2 lg:w-[320px] shrink-0">
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <CurrencyInput
+                  prefixSymbol=""
+                  value={meterWidthInput}
+                  onChange={(event) => {
+                    setMeterWidthInput(event.target.value);
+                  }}
+                  onBlur={() => commitMeterPricing(meterWidthInput, meterHeightInput)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  aria-label="Largura"
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">Altura</span>
+                <CurrencyInput
+                  prefixSymbol=""
+                  value={meterHeightInput}
+                  onChange={(event) => {
+                    setMeterHeightInput(event.target.value);
+                  }}
+                  onBlur={() => commitMeterPricing(meterWidthInput, meterHeightInput)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  aria-label="Altura"
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+          ) : isCurtainHeight ? (
+             <div className="grid w-full gap-2 rounded-lg border bg-muted/40 p-2 shadow-sm md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)] lg:w-[320px] shrink-0">
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">
+                  Faixa de altura
+                </span>
+                <Select
+                  value={selectedHeightTierId}
+                  onChange={(event) => {
+                    setSelectedHeightTierId(event.target.value);
+                    commitHeightPricing(heightWidthInput, event.target.value);
+                  }}
+                  inputSize="sm"
+                  className="w-full"
+                  disableSort
+                >
+                  {activeHeightTiers.map((tier) => (
+                    <option key={tier.id} value={tier.id}>
+                      Ate {formatMeters(tier.maxHeight)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <CurrencyInput
+                  prefixSymbol=""
+                  value={heightWidthInput}
+                  onChange={(event) => {
+                    setHeightWidthInput(event.target.value);
+                  }}
+                  onBlur={() =>
+                    commitHeightPricing(heightWidthInput, selectedHeightTierId)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  aria-label="Largura"
+                  placeholder="0,00"
+                />
+              </div>
+              {selectedHeightTier && (
+                <div className="col-span-2 mt-1 flex items-center justify-between rounded-md bg-background px-3 py-2 border border-border/50">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Preço da faixa
+                  </span>
+                  <span className="text-xs font-semibold text-foreground">
+                    R${" "}
+                    {calculateSellingPrice(
+                      selectedHeightTier.basePrice,
+                      selectedHeightTier.markup,
+                    ).toFixed(2)}{" "}
+                    <span className="text-[10px] font-normal text-muted-foreground">
+                      / m larg.
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex h-9 items-center gap-0.5 shrink-0 rounded-lg border bg-muted/50 p-1 shadow-sm">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-md hover:bg-background hover:text-destructive transition-colors"
+                onClick={() =>
+                  onUpdateQuantity(
+                    product.productId,
+                    -quantityDelta,
+                    systemInstanceId,
+                    itemType,
+                    lineItemId,
+                  )
+                }
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </Button>
+              {allowDecimalQuantity ? (
+                <DecimalInput
+                  value={product.quantity}
+                  onChange={(val) => {
+                    const currentQuantity = normalizeItemQuantity(product.quantity, true);
+                    if (val !== currentQuantity) {
+                      onUpdateQuantity(
+                        product.productId,
+                        val - currentQuantity,
+                        systemInstanceId,
+                        itemType,
+                        lineItemId,
+                      );
+                    }
+                  }}
+                  className="w-16 font-mono font-medium"
+                  aria-label="Metragem do item"
+                />
+              ) : (
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={quantityInput}
+                  onFocus={() => setIsEditingQuantity(true)}
+                  onChange={(event) => setQuantityInput(event.target.value)}
+                  onBlur={commitQuantityChange}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+
+                    if (event.key === "Escape") {
+                      setIsEditingQuantity(false);
+                      setQuantityInput(
+                        formatItemQuantity(product.quantity, false),
+                      );
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-7 rounded-md border bg-background px-2 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
+                  aria-label="Quantidade do item"
+                />
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-md hover:bg-background hover:text-primary transition-colors"
+                onClick={() =>
+                  onUpdateQuantity(
+                    product.productId,
+                    quantityDelta,
+                    systemInstanceId,
+                    itemType,
+                    lineItemId,
+                  )
+                }
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+
+          <div className="flex min-w-[100px] flex-col items-end justify-center py-1">
+            {isService ? (
+              <div className="group relative flex items-center">
+                <span className="absolute left-2 text-xs text-muted-foreground">
+                  R$
+                </span>
+                <input
+                  type="text"
+                  value={
+                    isEditingPrice ? priceInput : product.unitPrice?.toFixed(2) || "0.00"
+                  }
+                  onFocus={() => {
+                    setIsEditingPrice(true);
+                    setPriceInput((product.unitPrice || 0).toString());
+                  }}
+                  onChange={(event) => setPriceInput(event.target.value)}
+                  onBlur={handlePriceBlur}
+                  onKeyDown={handlePriceKeyDown}
+                  className="h-9 w-24 rounded-md border bg-background pl-6 pr-2 text-right text-sm transition-all hover:border-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            ) : (
+              <span
+                className={`font-semibold text-sm tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
+              >
+                R$ {(product.total || 0).toFixed(2)}
+              </span>
+            )}
+
+            {isActive && !isService && (
+              <span className="text-[10px] text-muted-foreground">
+                (R$ {sellingPrice.toFixed(2)}{" "}
+                {isCurtainMeter
+                  ? "m2"
+                  : isCurtainHeight
+                    ? "m larg."
+                    : priceUnitLabel}
+                )
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -992,7 +1394,6 @@ interface ExtraProductsGridProps {
   products: Array<Product | Service>;
   ambienteProducts: ProposalProduct[];
   primaryColor: string;
-  priceUnitLabel: string;
   onAddProduct: (product: Product | Service) => void;
 }
 
@@ -1000,7 +1401,6 @@ function ExtraProductsGrid({
   products,
   ambienteProducts,
   primaryColor,
-  priceUnitLabel,
   onAddProduct,
 }: ExtraProductsGridProps) {
   const [isProductsOpen, setIsProductsOpen] = React.useState(false);
@@ -1033,13 +1433,19 @@ function ExtraProductsGrid({
     () =>
       products
         .filter(
-          (item) =>
-            !ambienteProducts.some(
+          (item) => {
+            const alreadySelected = ambienteProducts.some(
               (selected) =>
                 selected.productId === item.id &&
                 (selected.itemType || "product") ===
                   (item.itemType || "product"),
-            ),
+            );
+            const allowDuplicate =
+              (item.itemType || "product") === "product" &&
+              isDimensionPricedProduct(item);
+
+            return !alreadySelected || allowDuplicate;
+          },
         )
         .sort((a, b) => compareDisplayText(a.name, b.name)),
     [ambienteProducts, products],
@@ -1179,8 +1585,9 @@ function ExtraProductsGrid({
                             <span>{product.category || "Sem categoria"}</span>
                             <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
                             <span>
-                              R$ {parseFloat(product.price).toFixed(2)}{" "}
-                              {priceUnitLabel}
+                              {(product.itemType || "product") === "service"
+                                ? `R$ ${parseFloat(product.price).toFixed(2)}`
+                                : getProductPricingSummary(product)}
                             </span>
                           </div>
                         </div>

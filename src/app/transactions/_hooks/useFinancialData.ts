@@ -829,10 +829,10 @@ export function useFinancialData(): UseFinancialDataReturn {
         console.error("Error deleting transaction:", error);
         const errorMessage = getErrorMessage(
           error,
-          "Falha inesperada ao excluir o lancamento.",
+          "Falha inesperada ao excluir o lançamento.",
         );
         toast.error(
-          `Nao foi possivel excluir o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          `Não foi possível excluir o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao excluir" },
         );
         return false;
@@ -953,7 +953,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         toast.success(
-          `Status do lancamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
+          `Status do lançamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
           { title: "Sucesso ao editar" },
         );
 
@@ -968,7 +968,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           "Falha inesperada ao atualizar o status.",
         );
         toast.error(
-          `Nao foi possivel atualizar o status do lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          `Não foi possível atualizar o status do lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
         return false;
@@ -1009,10 +1009,10 @@ export function useFinancialData(): UseFinancialDataReturn {
         console.error("Error updating transaction:", error);
         const errorMessage = getErrorMessage(
           error,
-          "Falha inesperada ao editar o lancamento.",
+          "Falha inesperada ao editar o lançamento.",
         );
         toast.error(
-          `Nao foi possivel editar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+          `Não foi possível editar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
         return false;
@@ -1168,7 +1168,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             ),
           );
           toast.success(
-            `Status do lancamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
+            `Status do lançamento ${transactionLabel} atualizado para "${formatStatusLabel(newStatus)}".`,
             { title: "Sucesso ao editar" },
           );
         }
@@ -1184,7 +1184,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           "Falha inesperada ao atualizar o status.",
         );
         toast.error(
-          `Nao foi possivel atualizar o status de ${transactionLabel}. Detalhes: ${errorMessage}`,
+          `Não foi possível atualizar o status de ${transactionLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
         return false;
@@ -1249,7 +1249,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           "Falha inesperada ao atualizar o item extra.",
         );
         toast.error(
-          `Nao foi possivel atualizar o item extra ${ecId}. Detalhes: ${errorMessage}`,
+          `Não foi possível atualizar o item extra ${ecId}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
         return false;

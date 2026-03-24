@@ -69,7 +69,7 @@ export function useServiceActions() {
       const serviceLabel = formatServiceLabel(data.name, "novo serviço");
       const message = getErrorMessage(error, "Falha ao criar serviço.");
       toast.error(
-        `Nao foi possivel criar o serviço ${serviceLabel}. Detalhes: ${message}`,
+        `Não foi possível criar o serviço ${serviceLabel}. Detalhes: ${message}`,
         { title: "Erro ao criar" },
       );
       return null;
@@ -106,7 +106,7 @@ export function useServiceActions() {
       );
       const message = getErrorMessage(error, "Falha ao editar serviço.");
       toast.error(
-        `Nao foi possivel editar o serviço ${serviceLabel}. Detalhes: ${message}`,
+        `Não foi possível editar o serviço ${serviceLabel}. Detalhes: ${message}`,
         { title: "Erro ao editar" },
       );
       return false;
@@ -136,7 +136,7 @@ export function useServiceActions() {
       const serviceLabel = formatServiceLabel(serviceName);
       const message = getErrorMessage(error, "Falha ao excluir serviço.");
       toast.error(
-        `Nao foi possivel excluir o serviço ${serviceLabel}. Detalhes: ${message}`,
+        `Não foi possível excluir o serviço ${serviceLabel}. Detalhes: ${message}`,
         { title: "Erro ao excluir" },
       );
       return false;

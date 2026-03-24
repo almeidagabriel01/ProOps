@@ -35,6 +35,7 @@ type TenantDocData = {
   name?: unknown;
   primaryColor?: unknown;
   logoUrl?: unknown;
+  niche?: unknown;
   proposalDefaults?: unknown;
   [key: string]: unknown;
 };
@@ -110,6 +111,7 @@ function buildVersionHash(
       name: tenantData.name || "",
       primaryColor: tenantData.primaryColor || "",
       logoUrl: tenantData.logoUrl || "",
+      niche: tenantData.niche || "",
       proposalDefaults: tenantData.proposalDefaults || null,
     },
   });

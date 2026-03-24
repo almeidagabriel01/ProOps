@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { PdfSection } from "../pdf-section-editor";
@@ -543,7 +543,7 @@ export function usePdfSectionEditor({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("A imagem da secao deve ter no maximo 2MB.");
+      alert("A imagem da seção deve ter no máximo 2MB.");
       e.target.value = "";
       return;
     }

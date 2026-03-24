@@ -1,10 +1,10 @@
 "use client";
 
+import * as React from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { FileUpload } from "@/components/ui/file-upload";
 import { DynamicSelect } from "@/components/features/dynamic-select";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
@@ -14,9 +14,9 @@ import { Service } from "@/services/service-service";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import {
-  FormSection,
   FormGroup,
   FormItem,
+  FormSection,
   FormStatic,
 } from "@/components/ui/form-components";
 import {
@@ -28,7 +28,13 @@ import {
   Tag,
 } from "lucide-react";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
-import { formatInventoryValue } from "@/lib/niches/config";
+import { ProductPricingStep } from "./product-pricing-step";
+import {
+  calculateSellingPrice,
+  getProductPricingDescription,
+  getProductPricingSummary,
+  sanitizeHeightTiers,
+} from "@/lib/product-pricing";
 
 interface ProductFormNewProps {
   initialData?: Product | Service;
@@ -47,7 +53,7 @@ const productSteps = [
   {
     id: "pricing",
     title: "Preço",
-    description: "Preço base",
+    description: "Regra comercial",
     icon: DollarSign,
   },
   {
@@ -64,6 +70,21 @@ const productSteps = [
   },
 ];
 
+function buildPricingConfig(formData: ReturnType<typeof useProductForm>["formData"]) {
+  const sanitizedHeightTiers = sanitizeHeightTiers(
+    formData.heightPricingTiers.map((tier) => ({
+      id: tier.id,
+      maxHeight: tier.maxHeight,
+      basePrice: tier.basePrice,
+      markup: tier.markup,
+    })),
+  );
+
+  return formData.pricingMode === "curtain_height"
+    ? { mode: "curtain_height" as const, tiers: sanitizedHeightTiers }
+    : { mode: formData.pricingMode };
+}
+
 export function ProductFormNew({
   initialData,
   productId,
@@ -71,6 +92,8 @@ export function ProductFormNew({
   entityType = "product",
 }: ProductFormNewProps) {
   const router = useRouter();
+  const nicheConfig = useCurrentNicheConfig();
+  const isCurtainNiche = nicheConfig.id === "cortinas";
   const {
     formData,
     imageUrls,
@@ -87,24 +110,41 @@ export function ProductFormNew({
     handleBlur,
     handleAddImage,
     handleRemoveImage,
+    handlePricingModeChange,
+    addHeightPricingTier,
+    updateHeightPricingTier,
+    removeHeightPricingTier,
     handleSubmit,
   } = useProductForm(initialData, productId, entityType);
 
   const entityLabel = entityType === "service" ? "Serviço" : "Produto";
   const entityLabelLower = entityType === "service" ? "serviço" : "produto";
-  const nicheConfig = useCurrentNicheConfig();
-  const inventoryConfig = nicheConfig.productCatalog.inventory;
   const basePrice = parseFloat(formData.price || "0");
   const markupValue = parseFloat(formData.markup || "0");
-  const sellingPrice = basePrice + (basePrice * markupValue) / 100;
-  const inventoryLevel = Number.parseFloat(formData.inventoryValue || "0");
+  const sellingPrice = calculateSellingPrice(basePrice, markupValue);
+  const pricingConfig = React.useMemo(() => buildPricingConfig(formData), [formData]);
+  const pricingSummary =
+    entityType === "service"
+      ? `R$ ${basePrice.toFixed(2)}`
+      : getProductPricingSummary({
+          price: formData.price,
+          markup: formData.markup,
+          pricingModel: pricingConfig,
+        });
+  const pricingDescription =
+    entityType === "service"
+      ? "Preço base do serviço."
+      : getProductPricingDescription({
+          price: formData.price,
+          markup: formData.markup,
+          pricingModel: pricingConfig,
+        });
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
     await handleSubmit(fakeEvent);
   };
 
-  // Step 1 validation: Name, Category and Manufacturer are required
   const validateStep1 = (): boolean => {
     let isValid = true;
 
@@ -112,10 +152,12 @@ export function ProductFormNew({
       setFieldError("name", "Nome é obrigatório");
       isValid = false;
     }
+
     if (!formData.category.trim()) {
       setFieldError("category", "Categoria é obrigatória");
       isValid = false;
     }
+
     if (entityType === "product" && !formData.manufacturer?.trim()) {
       setFieldError("manufacturer", "Fabricante é obrigatório");
       isValid = false;
@@ -124,19 +166,37 @@ export function ProductFormNew({
     return isValid;
   };
 
-  // Step 2 validation: Price is required and must be > 0
   const validateStep2 = (): boolean => {
-    let isValid = true;
+    if (entityType !== "product") {
+      if (!formData.price || parseFloat(formData.price) <= 0) {
+        setFieldError("price", "Preço é obrigatório e deve ser maior que 0");
+        return false;
+      }
+
+      return true;
+    }
+
+    if (formData.pricingMode === "curtain_height") {
+      const tiers = pricingConfig.mode === "curtain_height" ? pricingConfig.tiers : [];
+      if (tiers.length === 0) {
+        setFieldError(
+          "heightPricingTiers",
+          "Cadastre pelo menos uma faixa de altura válida",
+        );
+        return false;
+      }
+
+      return true;
+    }
 
     if (!formData.price || parseFloat(formData.price) <= 0) {
       setFieldError("price", "Preço é obrigatório e deve ser maior que 0");
-      isValid = false;
+      return false;
     }
 
-    return isValid;
+    return true;
   };
 
-  // For read-only mode, show regular form without wizard
   if (isReadOnly) {
     return (
       <div className="space-y-6">
@@ -153,37 +213,35 @@ export function ProductFormNew({
             )}
           </FormGroup>
         </FormSection>
+
         <FormSection title="Preço" icon={DollarSign}>
-          <FormGroup>
-            <FormStatic
-              label={entityType === "product" ? "Preço Bruto" : "Preço Base"}
-              value={`R$ ${basePrice.toFixed(2)}${entityType === "product" ? ` ${inventoryConfig.priceSuffix}` : ""}`}
-            />
-            {entityType === "product" && (
-              <>
-                <FormStatic
-                  label="Markup"
-                  value={`${markupValue.toFixed(2)}%`}
-                />
-                <FormStatic
-                  label={inventoryConfig.readOnlyLabel}
-                  value={formatInventoryValue(inventoryLevel, inventoryConfig)}
-                />
-              </>
-            )}
-          </FormGroup>
+          <ProductPricingStep
+            entityType={entityType}
+            formData={formData}
+            errors={errors}
+            isCurtainNiche={isCurtainNiche}
+            isReadOnly
+            initialData={initialData}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            onPricingModeChange={handlePricingModeChange}
+            onAddHeightPricingTier={addHeightPricingTier}
+            onUpdateHeightPricingTier={updateHeightPricingTier}
+            onRemoveHeightPricingTier={removeHeightPricingTier}
+          />
         </FormSection>
+
         <FormSection title="Imagens" icon={ImageIcon}>
           {imageUrls.length > 0 ? (
             <div className="grid grid-cols-3 gap-4">
-              {imageUrls.map((img, i) => (
+              {imageUrls.map((img, index) => (
                 <div
-                  key={i}
+                  key={index}
                   className="aspect-square rounded-xl overflow-hidden border border-border/50 relative"
                 >
                   <Image
                     src={img}
-                    alt={`Produto ${i + 1}`}
+                    alt={`Produto ${index + 1}`}
                     fill
                     className="object-contain"
                     sizes="(max-width: 768px) 33vw, 100px"
@@ -195,6 +253,7 @@ export function ProductFormNew({
             <p className="text-muted-foreground">Nenhuma imagem cadastrada</p>
           )}
         </FormSection>
+
         <div className="flex justify-end pt-4">
           <button
             onClick={() => router.back()}
@@ -210,7 +269,6 @@ export function ProductFormNew({
   return (
     <>
       <StepWizard steps={productSteps} allowClickAhead={!!productId}>
-        {/* Step 1: Product Info */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -222,7 +280,7 @@ export function ProductFormNew({
                   Informações do {entityLabel}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Dados de identificação
+                  Dados de identificacao
                 </p>
               </div>
             </div>
@@ -238,7 +296,7 @@ export function ProductFormNew({
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Ex: Instalação e Configuração"
+                    placeholder="Ex: Instalacao e configuracao"
                     value={formData.name}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -271,7 +329,7 @@ export function ProductFormNew({
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Ex: Câmera de Segurança HD Pro"
+                    placeholder="Ex: Cortina wave premium"
                     value={formData.name}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -324,7 +382,6 @@ export function ProductFormNew({
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>
 
-        {/* Step 2: Pricing */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -334,172 +391,29 @@ export function ProductFormNew({
               <div>
                 <h3 className="text-lg font-semibold">Preço</h3>
                 <p className="text-sm text-muted-foreground">
-                  Defina o preço base do {entityLabelLower}
+                  Defina a regra comercial do {entityLabelLower}
                 </p>
               </div>
             </div>
 
-            {entityType === "product" ? (
-              <>
-                <FormGroup cols={3}>
-                  <FormItem
-                    label="Preço Bruto (Custo)"
-                    htmlFor="price"
-                    required
-                    error={errors.price}
-                  >
-                    <CurrencyInput
-                      id="price"
-                      name="price"
-                      placeholder="0,00"
-                      value={formData.price}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={errors.price ? "border-destructive" : ""}
-                      required
-                    />
-                  </FormItem>
-
-                  <FormItem
-                    label="Markup (%)"
-                    htmlFor="markup"
-                    error={errors.markup}
-                  >
-                    <Input
-                      id="markup"
-                      name="markup"
-                      type="number"
-                      placeholder="0"
-                      value={formData.markup}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      min="0"
-                      max="1000"
-                      step="0.01"
-                      className={errors.markup ? "border-destructive" : ""}
-                    />
-                  </FormItem>
-
-                  <FormItem
-                    label={inventoryConfig.formInitialLabel}
-                    htmlFor="inventoryValue"
-                    error={errors.inventoryValue}
-                  >
-                    <Input
-                      id="inventoryValue"
-                      name="inventoryValue"
-                      type="number"
-                      placeholder="0"
-                      value={formData.inventoryValue}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      min="0"
-                      step={inventoryConfig.step}
-                      className={
-                        errors.inventoryValue ? "border-destructive" : ""
-                      }
-                    />
-                  </FormItem>
-                </FormGroup>
-
-                <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">
-                        Preço Bruto
-                      </span>
-                      <p className="font-semibold">
-                        R$ {basePrice.toFixed(2)}
-                        {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">
-                        Markup
-                      </span>
-                      <p className="font-semibold">{markupValue.toFixed(2)}%</p>
-                    </div>
-                    <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">
-                        {inventoryConfig.mode === "meter"
-                          ? "Lucro por metro"
-                          : "Lucro por unidade"}
-                      </span>
-                      <p className="font-semibold text-green-700">
-                        R$ {(basePrice * (markupValue / 100)).toFixed(2)}
-                        {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between sm:block">
-                      <span className="font-medium text-muted-foreground">
-                        {inventoryConfig.formInitialLabel}
-                      </span>
-                      <p className="font-semibold">
-                        {formatInventoryValue(inventoryLevel, inventoryConfig)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-green-500/20 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      Preço de Venda
-                    </span>
-                    <span className="text-2xl font-bold text-green-600">
-                      R$ {sellingPrice.toFixed(2)}
-                      {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <FormGroup>
-                  <FormItem
-                    label="Preço Base"
-                    htmlFor="price"
-                    required
-                    error={errors.price}
-                  >
-                    <CurrencyInput
-                      id="price"
-                      name="price"
-                      placeholder="0,00"
-                      value={formData.price}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={errors.price ? "border-destructive" : ""}
-                      required
-                    />
-                  </FormItem>
-                </FormGroup>
-
-                <div className="p-5 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Preço Base
-                      </span>
-                      <span className="text-lg font-semibold">
-                        R$ {basePrice.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">
-                        Valor considerado
-                      </span>
-                      <span className="text-2xl font-bold text-green-600">
-                        R$ {basePrice.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+            <ProductPricingStep
+              entityType={entityType}
+              formData={formData}
+              errors={errors}
+              isCurtainNiche={isCurtainNiche}
+              initialData={initialData}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              onPricingModeChange={handlePricingModeChange}
+              onAddHeightPricingTier={addHeightPricingTier}
+              onUpdateHeightPricingTier={updateHeightPricingTier}
+              onRemoveHeightPricingTier={removeHeightPricingTier}
+            />
           </div>
 
           <StepNavigation onBeforeNext={validateStep2} />
         </FormStepCard>
 
-        {/* Step 3: Images */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -511,7 +425,7 @@ export function ProductFormNew({
                   Imagens do {entityLabel}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Adicione até {maxImagesPerProduct} imagem (máx 2MB cada)
+                  Adicione até {maxImagesPerProduct} imagem (máx. 2MB cada)
                 </p>
               </div>
             </div>
@@ -554,11 +468,11 @@ export function ProductFormNew({
             )}
 
             <div className="flex items-center justify-center gap-3">
-              {Array.from({ length: maxImagesPerProduct }).map((_, i) => (
+              {Array.from({ length: maxImagesPerProduct }).map((_, index) => (
                 <div
-                  key={i}
+                  key={index}
                   className={`w-16 h-2 rounded-full transition-all duration-300 ${
-                    i < imageUrls.length
+                    index < imageUrls.length
                       ? "bg-linear-to-r from-primary to-primary/80"
                       : "bg-border/50"
                   }`}
@@ -570,7 +484,6 @@ export function ProductFormNew({
           <StepNavigation />
         </FormStepCard>
 
-        {/* Step 4: Settings */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -580,12 +493,11 @@ export function ProductFormNew({
               <div>
                 <h3 className="text-lg font-semibold">Configurações</h3>
                 <p className="text-sm text-muted-foreground">
-                  Status e opções de publicação
+                  Status e resumo de publicação
                 </p>
               </div>
             </div>
 
-            {/* Summary card */}
             <div className="p-5 rounded-xl bg-linear-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
               <h4 className="font-semibold text-foreground">
                 Resumo do {entityLabel}
@@ -593,56 +505,55 @@ export function ProductFormNew({
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Nome:</span>
-                  <p className="font-medium text-balance break-words pr-2">
-                    {formData.name || "—"}
+                  <p className="font-medium text-balance wrap-break-word pr-2">
+                    {formData.name || "-"}
                   </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Categoria:</span>
-                  <p className="font-medium">{formData.category || "—"}</p>
+                  <p className="font-medium">{formData.category || "-"}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">
-                    {entityType === "product" ? "Preço Bruto:" : "Preço Base:"}
-                  </span>
-                  <p className="font-medium">
-                    R$ {basePrice.toFixed(2)}
-                    {entityType === "product" && inventoryConfig.priceSuffix
-                      ? ` ${inventoryConfig.priceSuffix}`
-                      : ""}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">
-                    {entityType === "product"
-                      ? "Preço de Venda:"
-                      : "Valor final:"}
-                  </span>
-                  <p className="font-medium text-green-600">
-                    R${" "}
-                    {(entityType === "product"
-                      ? sellingPrice
-                      : basePrice
-                    ).toFixed(2)}
-                    {entityType === "product" && inventoryConfig.priceSuffix
-                      ? ` ${inventoryConfig.priceSuffix}`
-                      : ""}
-                  </p>
-                </div>
+                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" ? (
+                  <>
+                    <div>
+                      <span className="text-muted-foreground">Precificação:</span>
+                      <p className="font-medium text-green-600">{pricingSummary}</p>
+                    </div>
+                    <div className="col-span-2 bg-muted/30 p-3 rounded-lg border border-border/40 mt-1 mb-2">
+                      <span className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Regra de Precificação:</span>
+                      <div className="font-medium mt-1.5 space-y-1">
+                        {pricingDescription.split(" | ").map((line, i) => (
+                          <p key={i} className="flex items-center gap-2 text-foreground/90">
+                            {pricingDescription.includes(" | ") && <span className="w-1 h-1 rounded-full bg-primary/50 shrink-0" />}
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
                 {entityType === "product" && (
                   <>
                     <div>
-                      <span className="text-muted-foreground">Markup:</span>
-                      <p className="font-medium">{markupValue.toFixed(2)}%</p>
+                      <span className="text-muted-foreground">Preço bruto base:</span>
+                      <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        {inventoryConfig.readOnlyLabel}:
-                      </span>
-                      <p className="font-medium">
-                        {formatInventoryValue(inventoryLevel, inventoryConfig)}
-                      </p>
-                    </div>
+                    {formData.pricingMode !== "curtain_height" && (
+                      <div>
+                        <span className="text-muted-foreground">Markup:</span>
+                        <p className="font-medium">{markupValue.toFixed(2)}%</p>
+                      </div>
+                    )}
+                    {formData.pricingMode !== "curtain_height" && (
+                      <div>
+                        <span className="text-muted-foreground">
+                          Preço com markup:
+                        </span>
+                        <p className="font-medium text-green-600">
+                          R$ {sellingPrice.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
                 <div>
@@ -661,16 +572,15 @@ export function ProductFormNew({
             submitDisabled={!!productId && !hasChanges}
             submitLabel={
               productId
-                ? "Salvar Alterações"
+                ? "Salvar alterações"
                 : entityType === "service"
-                  ? "Criar Serviço"
+                  ? "Criar serviço"
                   : "Criar Produto"
             }
           />
         </FormStepCard>
       </StepWizard>
 
-      {/* Modals */}
       <LimitReachedModal
         open={showLimitModal}
         onOpenChange={setShowLimitModal}

@@ -709,7 +709,7 @@ export function useEditTransaction() {
           ? error.message.trim()
           : "Falha inesperada ao editar o lancamento.";
       toast.error(
-        `Nao foi possivel editar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível editar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao editar" },
       );
     } finally {

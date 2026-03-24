@@ -21,6 +21,70 @@ const parseInventoryValue = (value: unknown): number => {
   return 0;
 };
 
+const MAX_HEIGHT_TIERS = 30;
+
+type SanitizedHeightTier = {
+  id: string;
+  maxHeight: number;
+  basePrice: number;
+  markup: number;
+};
+
+function sanitizeHeightTier(input: unknown, index: number): SanitizedHeightTier | null {
+  const source =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : null;
+
+  if (!source) return null;
+
+  const maxHeight = parseInventoryValue(source.maxHeight);
+  const basePrice = parseInventoryValue(source.basePrice);
+  const markup = parseInventoryValue(source.markup);
+
+  if (maxHeight <= 0 || basePrice <= 0 || markup < 0 || markup > 1000) {
+    return null;
+  }
+
+  return {
+    id:
+      typeof source.id === "string" && source.id.trim()
+        ? source.id.trim().slice(0, 120)
+        : `tier-${index + 1}`,
+    maxHeight,
+    basePrice,
+    markup,
+  };
+}
+
+function sanitizePricingModel(input: unknown) {
+  const source =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : null;
+
+  const rawMode = typeof source?.mode === "string" ? source.mode.trim() : "";
+  if (rawMode === "curtain_meter") {
+    return { mode: "curtain_meter" as const };
+  }
+
+  if (rawMode === "curtain_height") {
+    const rawTiers = Array.isArray(source?.tiers) ? source.tiers : [];
+    const tiers = rawTiers
+      .slice(0, MAX_HEIGHT_TIERS)
+      .map((tier, index) => sanitizeHeightTier(tier, index))
+      .filter((tier): tier is SanitizedHeightTier => Boolean(tier))
+      .sort((left, right) => left.maxHeight - right.maxHeight);
+
+    return {
+      mode: "curtain_height" as const,
+      tiers,
+    };
+  }
+
+  return { mode: "standard" as const };
+}
+
 // Create Product
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -31,6 +95,16 @@ export const createProduct = async (req: Request, res: Response) => {
     );
     const inventoryUnit =
       input.inventoryUnit === "meter" ? "meter" : "unit";
+    const pricingModel = sanitizePricingModel(input.pricingModel);
+
+    if (
+      pricingModel.mode === "curtain_height" &&
+      pricingModel.tiers.length === 0
+    ) {
+      return res.status(400).json({
+        message: "Cadastre pelo menos uma faixa de altura valida.",
+      });
+    }
 
     if (!input.name || input.name.trim().length < 2) {
       return res.status(400).json({ message: "Nome inválido." });
@@ -104,6 +178,7 @@ export const createProduct = async (req: Request, res: Response) => {
         description: input.description || "",
         price: input.price,
         markup: input.markup || "0",
+        pricingModel,
         manufacturer: input.manufacturer || "",
         category: input.category || "",
         inventoryValue,
@@ -190,12 +265,17 @@ export const updateProduct = async (req: Request, res: Response) => {
     const normalizedInventoryValue = parseInventoryValue(
       updateData.inventoryValue ?? updateData.stock,
     );
+    const pricingModel =
+      updateData.pricingModel !== undefined
+        ? sanitizePricingModel(updateData.pricingModel)
+        : undefined;
 
     const allowedFields = [
       "name",
       "description",
       "price",
       "markup",
+      "pricingModel",
       "manufacturer",
       "category",
       "images",
@@ -211,6 +291,19 @@ export const updateProduct = async (req: Request, res: Response) => {
     if (updateData.inventoryUnit !== undefined) {
       safeUpdate.inventoryUnit =
         updateData.inventoryUnit === "meter" ? "meter" : "unit";
+    }
+
+    if (pricingModel) {
+      if (
+        pricingModel.mode === "curtain_height" &&
+        pricingModel.tiers.length === 0
+      ) {
+        return res.status(400).json({
+          message: "Cadastre pelo menos uma faixa de altura valida.",
+        });
+      }
+
+      safeUpdate.pricingModel = pricingModel;
     }
 
     if (

@@ -18,6 +18,13 @@ import {
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema, serviceSchema } from "@/lib/validations";
 import { getNicheConfig, parseInventoryValue } from "@/lib/niches/config";
+import {
+  CurtainHeightTier,
+  ProductPricingMode,
+  sanitizeHeightTiers,
+  getProductPricingMode,
+  normalizeProductPricingModel,
+} from "@/lib/product-pricing";
 
 // Maximum file size: 5MB per image
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -27,12 +34,21 @@ export interface ProductFormData {
   description: string;
   price: string;
   markup: string;
+  pricingMode: ProductPricingMode;
+  heightPricingTiers: HeightPricingTierFormData[];
   manufacturer?: string;
   category: string;
   inventoryValue: string;
   status: string;
   image: File | null;
   images: File[];
+}
+
+export interface HeightPricingTierFormData {
+  id: string;
+  maxHeight: string;
+  basePrice: string;
+  markup: string;
 }
 
 type CatalogEntityType = "product" | "service";
@@ -69,6 +85,71 @@ function normalizeInitialInventoryValue(value: unknown): string {
   return Number.isFinite(parsed) ? String(parsed) : "";
 }
 
+function createHeightPricingTierFormData(
+  tier?: Partial<CurtainHeightTier>,
+  index: number = 0,
+): HeightPricingTierFormData {
+  return {
+    id:
+      typeof tier?.id === "string" && tier.id.trim()
+        ? tier.id.trim()
+        : `tier-${Date.now()}-${index}`,
+    maxHeight:
+      tier?.maxHeight !== undefined && tier?.maxHeight !== null
+        ? String(tier.maxHeight)
+        : "",
+    basePrice:
+      tier?.basePrice !== undefined && tier?.basePrice !== null
+        ? String(tier.basePrice)
+        : "",
+    markup:
+      tier?.markup !== undefined && tier?.markup !== null
+        ? String(tier.markup)
+        : "30",
+  };
+}
+
+function getInitialPricingMode(
+  initialData: CatalogItem | undefined,
+  entityType: CatalogEntityType,
+  niche?: string,
+): ProductPricingMode {
+  if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
+    return niche === "cortinas" ? "curtain_meter" : "standard";
+  }
+
+  return getProductPricingMode(initialData);
+}
+
+function getInitialHeightPricingTiers(
+  initialData: CatalogItem | undefined,
+  entityType: CatalogEntityType,
+): HeightPricingTierFormData[] {
+  if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
+    return [];
+  }
+
+  const pricingModel = normalizeProductPricingModel(initialData.pricingModel);
+  if (pricingModel.mode !== "curtain_height") {
+    return [];
+  }
+
+  return pricingModel.tiers.map((tier, index) =>
+    createHeightPricingTierFormData(tier, index),
+  );
+}
+
+function mapHeightPricingTiersForSchema(
+  tiers: HeightPricingTierFormData[],
+): HeightPricingTierFormData[] {
+  return tiers.map((tier) => ({
+    id: tier.id,
+    maxHeight: tier.maxHeight,
+    basePrice: tier.basePrice,
+    markup: tier.markup,
+  }));
+}
+
 interface UseProductFormReturn {
   formData: ProductFormData;
   imageUrls: string[];
@@ -96,6 +177,14 @@ interface UseProductFormReturn {
   ) => void;
   handleAddImage: (file: File | null) => void;
   handleRemoveImage: (index: number) => void;
+  handlePricingModeChange: (mode: ProductPricingMode) => void;
+  addHeightPricingTier: () => void;
+  updateHeightPricingTier: (
+    tierId: string,
+    field: keyof Omit<HeightPricingTierFormData, "id">,
+    value: string,
+  ) => void;
+  removeHeightPricingTier: (tierId: string) => void;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
@@ -123,6 +212,10 @@ const buildProductFormSnapshot = (
     entityType === "product"
       ? {
           markup: formData.markup,
+          pricingMode: formData.pricingMode,
+          heightPricingTiers: mapHeightPricingTiersForSchema(
+            formData.heightPricingTiers,
+          ),
           manufacturer: formData.manufacturer,
           inventoryValue: formData.inventoryValue,
         }
@@ -164,6 +257,8 @@ export function useProductForm(
     description: initialData?.description || "",
     price: initialData?.price || "",
     markup: getInitialProductMarkup(initialData, entityType, productId ? "" : "30"),
+    pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
+    heightPricingTiers: getInitialHeightPricingTiers(initialData, entityType),
     manufacturer:
       "manufacturer" in (initialData || {})
         ? (initialData as Product).manufacturer
@@ -204,6 +299,11 @@ export function useProductForm(
             entityType,
             productId ? "" : "30",
           ),
+          pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
+          heightPricingTiers: getInitialHeightPricingTiers(
+            initialData,
+            entityType,
+          ),
           manufacturer:
             "manufacturer" in (initialData || {})
               ? (initialData as Product).manufacturer
@@ -229,6 +329,8 @@ export function useProductForm(
         description: initialData.description || "",
         price: initialData.price || "",
         markup: getInitialProductMarkup(initialData, entityType, ""),
+        pricingMode: getInitialPricingMode(initialData, entityType, tenant?.niche),
+        heightPricingTiers: getInitialHeightPricingTiers(initialData, entityType),
         manufacturer:
           entityType === "product" && "manufacturer" in initialData
             ? (initialData as Product).manufacturer
@@ -255,7 +357,7 @@ export function useProductForm(
         buildProductFormSnapshot(initialFormData, existingImages, [], entityType),
       );
     }
-  }, [initialData, entityType]);
+  }, [initialData, entityType, tenant?.niche]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -279,14 +381,15 @@ export function useProductForm(
     // Only validate fields that are in the schema
     const schemaFields =
       entityType === "product"
-        ? [
-            "name",
-            "description",
-            "price",
-            "markup",
-            "manufacturer",
-            "category",
-            "inventoryValue",
+          ? [
+              "name",
+              "description",
+              "price",
+              "markup",
+              "pricingMode",
+              "manufacturer",
+              "category",
+              "inventoryValue",
             "status",
           ]
         : ["name", "description", "price", "category", "status"];
@@ -362,6 +465,72 @@ export function useProductForm(
     }
   };
 
+  const handlePricingModeChange = (mode: ProductPricingMode) => {
+    setFormData((prev) => ({
+      ...prev,
+      pricingMode: mode,
+      heightPricingTiers:
+        mode === "curtain_height"
+          ? prev.heightPricingTiers.length > 0
+            ? prev.heightPricingTiers
+            : [
+                createHeightPricingTierFormData(
+                  {
+                    basePrice: Number.parseFloat(prev.price || "0") || undefined,
+                    markup: Number.parseFloat(prev.markup || "30") || 30,
+                  },
+                  0,
+                ),
+              ]
+          : [],
+    }));
+
+    if (errors.price) {
+      clearFieldError("price");
+    }
+    if ((errors as Record<string, string | undefined>).heightPricingTiers) {
+      clearFieldError("heightPricingTiers" as never);
+    }
+  };
+
+  const addHeightPricingTier = () => {
+    setFormData((prev) => ({
+      ...prev,
+      heightPricingTiers: [
+        ...prev.heightPricingTiers,
+        createHeightPricingTierFormData(undefined, prev.heightPricingTiers.length),
+      ],
+    }));
+    if ((errors as Record<string, string | undefined>).heightPricingTiers) {
+      clearFieldError("heightPricingTiers" as never);
+    }
+  };
+
+  const updateHeightPricingTier = (
+    tierId: string,
+    field: keyof Omit<HeightPricingTierFormData, "id">,
+    value: string,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      heightPricingTiers: prev.heightPricingTiers.map((tier) =>
+        tier.id === tierId ? { ...tier, [field]: value } : tier,
+      ),
+    }));
+    if ((errors as Record<string, string | undefined>).heightPricingTiers) {
+      clearFieldError("heightPricingTiers" as never);
+    }
+  };
+
+  const removeHeightPricingTier = (tierId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      heightPricingTiers: prev.heightPricingTiers.filter(
+        (tier) => tier.id !== tierId,
+      ),
+    }));
+  };
+
   const hasChanges = React.useMemo(() => {
     if (!initialSnapshot) return false;
 
@@ -398,6 +567,10 @@ export function useProductForm(
             description: formData.description,
             price: formData.price,
             markup: formData.markup,
+            pricingMode: formData.pricingMode,
+            heightPricingTiers: mapHeightPricingTiersForSchema(
+              formData.heightPricingTiers,
+            ),
             manufacturer: formData.manufacturer,
             category: formData.category,
             inventoryValue: formData.inventoryValue,
@@ -438,6 +611,37 @@ export function useProductForm(
       const normalizedInventoryValue = parseInventoryValue(
         formData.inventoryValue,
       );
+      const sanitizedHeightTiers = sanitizeHeightTiers(
+        formData.heightPricingTiers.map((tier) => ({
+          id: tier.id,
+          maxHeight: tier.maxHeight,
+          basePrice: tier.basePrice,
+          markup: tier.markup,
+        })),
+      );
+      const pricingModel =
+        entityType !== "product"
+          ? undefined
+          : formData.pricingMode === "curtain_height"
+            ? {
+                mode: "curtain_height" as const,
+                tiers: sanitizedHeightTiers,
+              }
+            : {
+                mode:
+                  formData.pricingMode === "curtain_meter"
+                    ? ("curtain_meter" as const)
+                    : ("standard" as const),
+              };
+      const representativeHeightTier = sanitizedHeightTiers[0];
+      const persistedPrice =
+        entityType === "product" && formData.pricingMode === "curtain_height"
+          ? String(representativeHeightTier?.basePrice || 0)
+          : formData.price;
+      const persistedMarkup =
+        entityType === "product" && formData.pricingMode === "curtain_height"
+          ? String(representativeHeightTier?.markup || 0)
+          : formData.markup;
 
       // Delete removed images from Storage
       for (const url of removedUrls) {
@@ -452,7 +656,7 @@ export function useProductForm(
         tenantId: tenant.id,
         name: formData.name,
         description: formData.description,
-        price: formData.price,
+        price: persistedPrice,
         category: formData.category,
         status: formData.status as "active" | "inactive",
         images: allImageUrls,
@@ -460,7 +664,8 @@ export function useProductForm(
       const productOnlyData =
         entityType === "product"
           ? {
-              markup: formData.markup,
+              markup: persistedMarkup,
+              pricingModel,
               manufacturer: formData.manufacturer,
               inventoryValue: normalizedInventoryValue,
               inventoryUnit: nicheConfig.productCatalog.inventory.mode,
@@ -495,7 +700,7 @@ export function useProductForm(
           targetTenantId: tenant.id,
           name: formData.name,
           description: formData.description,
-          price: formData.price,
+          price: persistedPrice,
           category: formData.category,
           status: formData.status as "active" | "inactive",
           images: allImageUrls,
@@ -503,7 +708,8 @@ export function useProductForm(
         const productOnlyPayload =
           entityType === "product"
             ? {
-                markup: formData.markup,
+                markup: persistedMarkup,
+                pricingModel,
                 manufacturer: formData.manufacturer,
                 inventoryValue: normalizedInventoryValue,
                 inventoryUnit: nicheConfig.productCatalog.inventory.mode,
@@ -532,7 +738,7 @@ export function useProductForm(
       const noun = entityType === "service" ? "serviço" : "produto";
 
       toast.error(
-        `Nao foi possivel ${actionLabel} o ${noun} ${productLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível ${actionLabel} o ${noun} ${productLabel}. Detalhes: ${errorMessage}`,
         { title: productId ? "Erro ao editar" : "Erro ao salvar" },
       );
     } finally {
@@ -562,6 +768,10 @@ export function useProductForm(
     handleBlur,
     handleAddImage,
     handleRemoveImage,
+    handlePricingModeChange,
+    addHeightPricingTier,
+    updateHeightPricingTier,
+    removeHeightPricingTier,
     handleSubmit,
   };
 }

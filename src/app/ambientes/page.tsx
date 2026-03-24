@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageUnavailableState } from "@/components/shared/page-unavailable-state";
 import { getNicheConfig } from "@/lib/niches/config";
@@ -269,9 +270,13 @@ export default function AmbientesPage() {
           </Card>
         ) : (
           <>
-            <div className="flex justify-end mb-4">
-              <div className="w-full sm:w-[300px]">
+            <div className="flex items-center justify-end gap-3 mb-4">
+              <Label htmlFor="ambientes-sort" className="text-sm text-muted-foreground whitespace-nowrap">
+                Ordenar por
+              </Label>
+              <div className="w-full sm:w-[260px]">
                 <Select
+                  id="ambientes-sort"
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortOption)}
                   inputSize="sm"

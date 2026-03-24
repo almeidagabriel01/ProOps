@@ -1,13 +1,14 @@
 import { Ambiente, AmbienteProduct, ProposalSistema } from "@/types/automation";
 import { ProposalSystemInstance } from "@/types/proposal";
 import { normalizeItemQuantity } from "@/lib/quantity-utils";
+import { ensureAmbienteProductLineItemId } from "@/lib/proposal-product";
 
 export function createEnvironmentProposalSelection(
   ambiente: Pick<Ambiente, "id" | "name" | "description" | "defaultProducts">,
 ): ProposalSistema {
   const products: AmbienteProduct[] = (ambiente.defaultProducts || []).map(
     (product) => ({
-      ...product,
+      ...ensureAmbienteProductLineItemId(product),
       quantity: normalizeItemQuantity(
         Number(product.quantity ?? 0),
         (product.itemType || "product") !== "service",

@@ -88,7 +88,7 @@ function GoogleSetupContent() {
     const nextErrors: Record<string, string> = {};
 
     if (!companyName.trim() || companyName.trim().length < 2) {
-      nextErrors.companyName = "Nome da empresa e obrigatorio";
+      nextErrors.companyName = "Nome da empresa é obrigatório";
     }
 
     setStepErrors(nextErrors);
@@ -125,7 +125,7 @@ function GoogleSetupContent() {
         setUserName(firebaseUser.displayName || "");
       } catch (checkError) {
         console.error("Failed to validate Google setup state:", checkError);
-        setError("Nao foi possivel validar sua conta Google. Tente novamente.");
+        setError("Não foi possível validar sua conta Google. Tente novamente.");
       } finally {
         setIsCheckingAuth(false);
       }
@@ -148,7 +148,7 @@ function GoogleSetupContent() {
       }
 
       if (file.size > 2 * 1024 * 1024) {
-        setError("O logo deve ter no maximo 2MB.");
+        setError("O logo deve ter no máximo 2MB.");
         e.target.value = "";
         return;
       }
@@ -229,7 +229,7 @@ function GoogleSetupContent() {
       }
     } catch (submitError) {
       console.error("Failed to complete Google setup:", submitError);
-      setError("Nao foi possivel finalizar a configuracao da empresa.");
+      setError("Não foi possível finalizar a configuração da empresa.");
     } finally {
       setIsSubmitting(false);
     }

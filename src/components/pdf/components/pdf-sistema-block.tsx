@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/utils/format-utils";
+import type { TenantNiche } from "@/types";
 import { PdfDisplaySettings } from "@/types/pdf-display-settings";
 import {
   PdfAmbienteTag,
@@ -15,6 +16,12 @@ import {
   isProductVisibleInPdf,
   shouldCountInPdfTotals,
 } from "../product-visibility";
+
+function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
+  return tenantNiche === "cortinas"
+    ? "Subtotal do Ambiente:"
+    : "Subtotal da Solução:";
+}
 
 function PdfSistemaHead({
   sistema,
@@ -159,16 +166,14 @@ export function PdfSistemaBlock({
   products,
   primaryColor,
   pdfDisplaySettings,
+  tenantNiche,
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   const ambientes = resolveSistemaAmbientes(sistema);
   const productsForTotals = products.filter((product) =>
     shouldCountInPdfTotals(product),
   );
-  const sistemaSubtotal = productsForTotals.reduce(
-    (sum, p) => sum + p.total,
-    0,
-  );
+  const sistemaSubtotal = productsForTotals.reduce((sum, p) => sum + p.total, 0);
 
   return (
     <div className="mt-16 mb-6 break-inside-avoid">
@@ -265,6 +270,7 @@ export function PdfSistemaBlock({
                                     primaryColor={primaryColor}
                                     settings={settings}
                                     evenBackground={(rowIdx * 2) % 2 === 0}
+                                    tenantNiche={tenantNiche}
                                   />
                                 </td>
                                 <td
@@ -279,6 +285,7 @@ export function PdfSistemaBlock({
                                     primaryColor={primaryColor}
                                     settings={settings}
                                     evenBackground={(rowIdx * 2 + 1) % 2 === 0}
+                                    tenantNiche={tenantNiche}
                                   />
                                 </td>
                               </>
@@ -292,6 +299,7 @@ export function PdfSistemaBlock({
                                   primaryColor={primaryColor}
                                   settings={settings}
                                   evenBackground={(rowIdx * 2) % 2 === 0}
+                                  tenantNiche={tenantNiche}
                                 />
                               </td>
                             )}
@@ -332,7 +340,7 @@ export function PdfSistemaBlock({
               style={{ borderTop: `2px dashed ${primaryColor}30` }}
             >
               <span className="font-semibold text-gray-700 text-sm">
-                Subtotal da Solução:
+                {getSistemaSubtotalLabel(tenantNiche)}
               </span>
               <span
                 className="text-lg font-bold"
@@ -390,12 +398,14 @@ export function PdfSistemaProduct({
   primaryColor,
   isFirst = false,
   pdfDisplaySettings,
+  tenantNiche,
 }: {
   product: PdfProduct;
   primaryColor: string;
   isFirst?: boolean;
   isLast?: boolean;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
 
@@ -410,6 +420,7 @@ export function PdfSistemaProduct({
           primaryColor={primaryColor}
           settings={settings}
           evenBackground
+          tenantNiche={tenantNiche}
         />
       </div>
     </div>
@@ -420,10 +431,12 @@ export function PdfSistemaFooter({
   sistemaSubtotal,
   primaryColor,
   pdfDisplaySettings,
+  tenantNiche,
 }: {
   sistemaSubtotal: number;
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   return (
@@ -438,7 +451,7 @@ export function PdfSistemaFooter({
             style={{ borderTop: `2px dashed ${primaryColor}30` }}
           >
             <span className="font-semibold text-gray-700">
-              Subtotal da Solução:
+              {getSistemaSubtotalLabel(tenantNiche)}
             </span>
             <span className="text-xl font-bold" style={{ color: primaryColor }}>
               {formatCurrency(sistemaSubtotal)}

@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   Proposal,
   ProposalProduct,
@@ -15,11 +15,18 @@ import { getExtraProducts } from "./product-handlers";
 import { prepareCreatePayload } from "./submit-helpers";
 import { toast } from "@/lib/toast";
 import { migrateDraftHideZeroQtyStateToProposal } from "@/lib/proposal-hide-zero-qty-storage";
+import {
+  buildProposalProductFromCatalog,
+  ensureProposalProductLineItemId,
+  recalculateProposalProduct,
+} from "@/lib/proposal-product";
+import { ProposalProductPricingDetails } from "@/lib/product-pricing";
 
 interface UseProposalFormProductSubmitContext {
   formData: Partial<Proposal>;
   setFormData: React.Dispatch<React.SetStateAction<Partial<Proposal>>>;
   selectedSistemas: ProposalSistema[];
+  products: Array<Product | Service>;
   proposalId?: string;
   canCreateProposal: () => Promise<boolean>;
   getProposalCount: () => Promise<number>;
@@ -45,6 +52,7 @@ export function useProposalFormProductSubmit(
     formData,
     setFormData,
     selectedSistemas,
+    products,
     proposalId,
     canCreateProposal,
     getProposalCount,
@@ -90,6 +98,33 @@ export function useProposalFormProductSubmit(
 
   const extraProducts = getExtraProducts(selectedProducts, selectedSistemas);
 
+  const matchesTargetProduct = React.useCallback(
+    (
+      product: ProposalProduct,
+      productId: string,
+      systemInstanceId?: string,
+      itemType?: "product" | "service",
+      lineItemId?: string,
+    ) => {
+      const matchesContext = systemInstanceId
+        ? product.systemInstanceId === systemInstanceId
+        : !product.systemInstanceId;
+      const matchesType =
+        !itemType || (product.itemType || "product") === itemType;
+
+      if (!matchesContext || !matchesType || product.productId !== productId) {
+        return false;
+      }
+
+      if (lineItemId) {
+        return product.lineItemId === lineItemId;
+      }
+
+      return true;
+    },
+    [],
+  );
+
   const toggleProduct = (product: Product | Service) => {
     const itemType = product.itemType || "product";
     const existing = selectedProducts.find(
@@ -110,33 +145,15 @@ export function useProposalFormProductSubmit(
       return;
     }
 
-    const price = parseFloat(product.price) || 0;
-    const markup =
-      itemType === "service"
-        ? 0
-        : parseFloat("manufacturer" in product ? product.markup || "0" : "0");
-    const newProduct: ProposalProduct = {
-      productId: product.id,
-      itemType,
-      productName: product.name,
-      productImage: product.images?.[0] || product.image || "",
-      productImages: product.images?.length
-        ? product.images
-        : product.image
-          ? [product.image]
-          : [],
-      productDescription: product.description || "",
-      quantity: 1,
-      unitPrice: price,
-      markup,
-      total: price * (1 + markup / 100),
-      manufacturer: (product as Product).manufacturer,
-      category: (product as Product).category,
-    };
-
     setFormData((prev) => ({
       ...prev,
-      products: [...selectedProducts, newProduct],
+      products: [
+        ...selectedProducts,
+        buildProposalProductFromCatalog(product, {
+          quantity: 1,
+          status: "active",
+        }),
+      ],
     }));
   };
 
@@ -145,17 +162,19 @@ export function useProposalFormProductSubmit(
     delta: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      products: selectedProducts.map((p) => {
-        const matchesTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType)
-          : !p.systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType);
+      products: selectedProducts.map((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        const matchesTarget = matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
+        );
 
         if (!matchesTarget) return p;
         const newQty = Number(Math.max(0, p.quantity + delta).toFixed(2));
@@ -172,17 +191,19 @@ export function useProposalFormProductSubmit(
     markup: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      products: (prev.products || []).map((p) => {
-        const isTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType)
-          : !p.systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType);
+      products: (prev.products || []).map((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        const isTarget = matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
+        );
 
         if (!isTarget) return p;
         if ((p.itemType || "product") === "service") {
@@ -194,24 +215,61 @@ export function useProposalFormProductSubmit(
     }));
   };
 
+  const updateProductPricingDetails = (
+    productId: string,
+    pricingDetails: ProposalProductPricingDetails,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).map((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        const isTarget = matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
+        );
+
+        if (!isTarget) return p;
+
+        const catalogItem = products.find(
+          (catalogProduct) =>
+            catalogProduct.id === p.productId &&
+            (catalogProduct.itemType || "product") ===
+              (p.itemType || "product"),
+        );
+
+        return recalculateProposalProduct(
+          {
+            ...p,
+            pricingDetails,
+          },
+          catalogItem,
+        );
+      }),
+    }));
+  };
+
   const removeProduct = (
     productId: string,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      products: (prev.products || []).filter((p) => {
-        if (systemInstanceId) {
-          return !(
-            p.systemInstanceId === systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType)
-          );
-        }
-        return !(
-          p.productId === productId &&
-          (!itemType || (p.itemType || "product") === itemType)
+      products: (prev.products || []).filter((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        return !matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
         );
       }),
     }));
@@ -222,16 +280,19 @@ export function useProposalFormProductSubmit(
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => {
     setFormData((prev) => ({
       ...prev,
-      products: (prev.products || []).map((p) => {
-        const isTarget = systemInstanceId
-          ? p.systemInstanceId === systemInstanceId &&
-            p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType)
-          : p.productId === productId &&
-            (!itemType || (p.itemType || "product") === itemType);
+      products: (prev.products || []).map((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        const isTarget = matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
+        );
         return isTarget ? { ...p, status: newStatus } : p;
       }),
     }));
@@ -499,7 +560,7 @@ export function useProposalFormProductSubmit(
                 ? clientUpdateError.message.trim()
                 : "Falha ao atualizar os dados do cliente.";
             toast.error(
-              `A proposta ${proposalLabel} foi salva, mas nao foi possivel atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
+              `A proposta ${proposalLabel} foi salva, mas não foi possível atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
               { title: "Erro ao editar" },
             );
           }
@@ -514,7 +575,7 @@ export function useProposalFormProductSubmit(
           : "Falha inesperada ao salvar a proposta.";
       const actionLabel = proposalId ? "editar" : "salvar";
       toast.error(
-        `Nao foi possivel ${actionLabel} a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível ${actionLabel} a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
         { title: proposalId ? "Erro ao editar" : "Erro ao salvar" },
       );
       return false;
@@ -530,6 +591,7 @@ export function useProposalFormProductSubmit(
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    updateProductPricingDetails,
     removeProduct,
     handleToggleProductStatus,
     calculateSubtotal,
@@ -542,17 +604,19 @@ export function useProposalFormProductSubmit(
       newPrice: number,
       systemInstanceId?: string,
       itemType?: "product" | "service",
+      lineItemId?: string,
     ) => {
       setFormData((prev) => ({
         ...prev,
-        products: (prev.products || []).map((p) => {
-          const isTarget = systemInstanceId
-            ? p.systemInstanceId === systemInstanceId &&
-              p.productId === productId &&
-              (!itemType || (p.itemType || "product") === itemType)
-            : !p.systemInstanceId &&
-              p.productId === productId &&
-              (!itemType || (p.itemType || "product") === itemType);
+        products: (prev.products || []).map((currentProduct) => {
+          const p = ensureProposalProductLineItemId(currentProduct);
+          const isTarget = matchesTargetProduct(
+            p,
+            productId,
+            systemInstanceId,
+            itemType,
+            lineItemId,
+          );
 
           if (!isTarget) return p;
 

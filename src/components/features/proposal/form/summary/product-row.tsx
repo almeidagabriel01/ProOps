@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { ProposalProduct } from "@/services/proposal-service";
+import {
+  getProposalProductMeasurementLabel,
+  getProposalProductUnitLabel,
+} from "@/lib/product-pricing";
 
 interface ProductRowProps {
   product: ProposalProduct;
@@ -11,11 +15,13 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
   const unitValue = isService
     ? product.unitPrice || 0
     : (product.unitPrice || 0) * (1 + (product.markup || 0) / 100);
+  const measurementLabel = getProposalProductMeasurementLabel(product);
+  const unitLabel = getProposalProductUnitLabel(product);
 
   return (
     <tr className="border-t">
       <td className="p-3 font-medium pl-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span>{product.productName}</span>
           {(product.itemType || "product") === "service" && (
             <Badge
@@ -33,10 +39,6 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
               Extra
             </Badge>
           )}
-          {/* Note: Logic for 'extra' label in non-system group differs slightly in original code (text-xs span), 
-              standardizing to use Badge here if applicable, or keeping original structure if distinct.
-              Will stick to general layout. 
-          */}
           {isInactive && (
             <Badge
               variant="secondary"
@@ -46,10 +48,12 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
             </Badge>
           )}
         </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {measurementLabel}
+        </div>
       </td>
-      <td className="p-3 text-center">{product.quantity}</td>
       <td className="p-3 text-right whitespace-nowrap">
-        R$ {unitValue.toFixed(2)}
+        R$ {unitValue.toFixed(2)} / {unitLabel}
       </td>
       <td className="p-3 text-right font-medium whitespace-nowrap">
         R$ {(product.total || 0).toFixed(2)}

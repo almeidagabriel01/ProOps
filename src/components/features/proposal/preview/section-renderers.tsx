@@ -8,6 +8,12 @@ import {
   ProposalSystemInstance,
 } from "@/services/proposal-service";
 import { CustomFieldService } from "@/services/custom-field-service";
+import type { TenantNiche } from "@/types";
+import {
+  getProposalLineUnitSellingPrice,
+  getProposalProductMeasurementLabel,
+  isCortinasDimensionProductLine,
+} from "@/lib/product-pricing";
 
 // ============================================
 // TYPES
@@ -58,12 +64,14 @@ interface ProductTableSectionProps {
   section: ProposalSection;
   proposal: Partial<Proposal>;
   primaryColor: string;
+  tenantNiche?: TenantNiche | null;
 }
 
 export function ProductTableSection({
   section,
   proposal,
   primaryColor,
+  tenantNiche,
 }: ProductTableSectionProps) {
   const products = proposal?.products || [];
   const sistemas = proposal?.sistemas || [];
@@ -126,7 +134,9 @@ export function ProductTableSection({
               <th className="text-left px-3 py-2 font-medium first:rounded-tl-none">
                 Item
               </th>
-              <th className="text-center px-3 py-2 font-medium w-20">Qtd</th>
+              <th className="text-center px-3 py-2 font-medium w-28">
+                {tenantNiche === "cortinas" ? "Medida / Qtd." : "Qtd"}
+              </th>
               <th className="text-right px-3 py-2 font-medium w-28">
                 Preço Unit.
               </th>
@@ -144,16 +154,22 @@ export function ProductTableSection({
                 <td className="px-3 py-2 border-b border-gray-200">
                   {item.productName || item.name}
                 </td>
-                <td className="px-3 py-2 border-b border-gray-200 text-center">
-                  {item.quantity}
+                <td className="px-3 py-2 border-b border-gray-200 text-center text-sm">
+                  {isCortinasDimensionProductLine(tenantNiche, item)
+                    ? getProposalProductMeasurementLabel(item)
+                    : item.quantity}
                 </td>
                 <td className="px-3 py-2 border-b border-gray-200 text-right">
                   R${" "}
-                  {(item.quantity > 0
-                    ? (item.total || item.quantity * (item.unitPrice || 0)) /
-                      item.quantity
-                    : item.unitPrice || 0
-                  ).toFixed(2)}
+                  {isCortinasDimensionProductLine(tenantNiche, item)
+                    ? getProposalLineUnitSellingPrice(item).toFixed(2)
+                    : (
+                        item.quantity > 0
+                          ? (item.total ||
+                              item.quantity * (item.unitPrice || 0)) /
+                            item.quantity
+                          : item.unitPrice || 0
+                      ).toFixed(2)}
                 </td>
                 <td className="px-3 py-2 border-b border-gray-200 text-right font-medium">
                   R$ {(item.total || item.quantity * item.unitPrice).toFixed(2)}

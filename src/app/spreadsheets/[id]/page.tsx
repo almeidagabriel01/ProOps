@@ -152,7 +152,7 @@ export default function SpreadsheetEditorPage() {
     try {
       const data = await SpreadsheetService.getSpreadsheetById(id);
       if (!data) {
-        toast.error("Planilha nao encontrada");
+        toast.error("Planilha não encontrada");
         router.push("/spreadsheets");
         return;
       }

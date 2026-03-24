@@ -6,6 +6,11 @@ import { ProposalSistema, Sistema } from "@/types/automation";
 import { buildEssentialFormSnapshot } from "./useProposalForm.helpers";
 import { toast } from "@/lib/toast";
 import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
+import {
+  buildProposalProductFromCatalog,
+  buildProposalProductFromTemplate,
+  ensureProposalProductLineItemId,
+} from "@/lib/proposal-product";
 
 interface UseProposalFormSystemDirtyContext {
   selectedSistemas: ProposalSistema[];
@@ -44,6 +49,31 @@ export function useProposalFormSystemDirty(
     formData,
   } = ctx;
 
+  const matchesLineIdentity = React.useCallback(
+    (
+      left: {
+        lineItemId?: string;
+        productId: string;
+        itemType?: "product" | "service";
+      },
+      right: {
+        lineItemId?: string;
+        productId: string;
+        itemType?: "product" | "service";
+      },
+    ) => {
+      if (left.lineItemId && right.lineItemId) {
+        return left.lineItemId === right.lineItemId;
+      }
+
+      return (
+        left.productId === right.productId &&
+        (left.itemType || "product") === (right.itemType || "product")
+      );
+    },
+    [],
+  );
+
   const getSystemInstanceId = React.useCallback((sistema: ProposalSistema) => {
     const primaryAmbienteId =
       sistema.ambientes?.[0]?.ambienteId || sistema.ambienteId || "";
@@ -76,35 +106,8 @@ export function useProposalFormSystemDirty(
           (p) =>
             p.id === sp.productId && (p.itemType || "product") === itemType,
         );
-        const price = productDef ? parseFloat(productDef.price) : 0;
-        const markup =
-          itemType === "service"
-            ? 0
-            : productDef
-              ? parseFloat(
-                  "manufacturer" in productDef ? productDef.markup || "0" : "0",
-                )
-              : 0;
-        return {
-          productId: sp.productId,
-          itemType,
-          productName: productDef?.name || sp.productName || "Produto",
-          productImage: productDef?.images?.[0] || productDef?.image || "",
-          productImages: productDef?.images || [],
-          productDescription: productDef?.description || "",
-          quantity: sp.quantity,
-          unitPrice: price,
-          markup,
-          total: sp.quantity * price * (1 + markup / 100),
-          manufacturer: (productDef as Record<string, unknown>)
-            ?.manufacturer as string | undefined,
-          category: (productDef as Record<string, unknown>)?.category as
-            | string
-            | undefined,
-          systemInstanceId,
-          isExtra: false,
-          status: sp.status || "active",
-        };
+
+        return buildProposalProductFromTemplate(sp, productDef, systemInstanceId);
       });
 
       setFormData((prev) => ({
@@ -116,10 +119,7 @@ export function useProposalFormSystemDirty(
             }
 
             return !systemProducts.some(
-              (incomingProduct) =>
-                incomingProduct.productId === existingProduct.productId &&
-                (incomingProduct.itemType || "product") ===
-                  (existingProduct.itemType || "product"),
+              (incomingProduct) => matchesLineIdentity(incomingProduct, existingProduct),
             );
           }),
           ...systemProducts,
@@ -186,46 +186,29 @@ export function useProposalFormSystemDirty(
         const existingPropProduct = prevProducts.find(
           (p) =>
             p.systemInstanceId === oldInstanceId &&
-            p.productId === sp.productId &&
+            matchesLineIdentity(p, sp) &&
             !p.isExtra,
         );
+        const baseProduct = buildProposalProductFromTemplate(
+          sp,
+          productDef,
+          newInstanceId,
+        );
 
-        let price = productDef ? parseFloat(productDef.price) : 0;
-        let markup =
-          itemType === "service"
-            ? 0
-            : productDef
-              ? parseFloat(
-                  "manufacturer" in productDef ? productDef.markup || "0" : "0",
-                )
-              : 0;
-        let status = sp.status || "active";
-
-        if (existingPropProduct) {
-          price = existingPropProduct.unitPrice;
-          markup = existingPropProduct.markup || 0;
-          status = existingPropProduct.status || status;
+        if (!existingPropProduct) {
+          return baseProduct;
         }
 
         return {
-          productId: sp.productId,
-          itemType,
-          productName: productDef?.name || sp.productName || "Produto",
-          productImage: productDef?.images?.[0] || productDef?.image || "",
-          productImages: productDef?.images || [],
-          productDescription: productDef?.description || "",
-          quantity: sp.quantity,
-          unitPrice: price,
-          markup,
-          total: sp.quantity * price * (1 + markup / 100),
-          manufacturer: (productDef as Record<string, unknown>)
-            ?.manufacturer as string | undefined,
-          category: (productDef as Record<string, unknown>)?.category as
-            | string
-            | undefined,
-          systemInstanceId: newInstanceId,
-          isExtra: false,
-          status: status,
+          ...baseProduct,
+          lineItemId: ensureProposalProductLineItemId(existingPropProduct).lineItemId,
+          quantity: existingPropProduct.quantity,
+          unitPrice: existingPropProduct.unitPrice,
+          markup: existingPropProduct.markup,
+          pricingDetails:
+            existingPropProduct.pricingDetails || baseProduct.pricingDetails,
+          total: existingPropProduct.total,
+          status: existingPropProduct.status || baseProduct.status,
         };
       });
 
@@ -249,37 +232,12 @@ export function useProposalFormSystemDirty(
     systemIndex: number,
     systemInstanceId: string,
   ) => {
-    const itemType = product.itemType || "product";
-    const price = parseFloat(product.price) || 0;
-    const markup =
-      itemType === "service"
-        ? 0
-        : parseFloat("manufacturer" in product ? product.markup || "0" : "0");
-    const newProduct: ProposalProduct = {
-      productId: product.id,
-      itemType,
-      productName: product.name,
-      productImage: product.images?.[0] || product.image || "",
-      productImages: product.images?.length
-        ? product.images
-        : product.image
-          ? [product.image]
-          : [],
-      productDescription: product.description || "",
+    const newProduct = buildProposalProductFromCatalog(product, {
       quantity: 1,
-      unitPrice: price,
-      markup,
-      total: price * (1 + markup / 100),
-      manufacturer: (product as Record<string, unknown>).manufacturer as
-        | string
-        | undefined,
-      category: (product as Record<string, unknown>).category as
-        | string
-        | undefined,
       systemInstanceId,
       isExtra: true,
       status: "active",
-    };
+    });
 
     const targetSystem = selectedSistemas[systemIndex];
     if (targetSystem?.sistemaId) {

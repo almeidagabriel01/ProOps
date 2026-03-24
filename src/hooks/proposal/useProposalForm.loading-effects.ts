@@ -17,6 +17,10 @@ import { toast } from "@/lib/toast";
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
 import { isEnvironmentProposalSelection } from "@/lib/proposal-environment-utils";
 import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
+import {
+  ensureProposalProductLineItemId,
+  recalculateProposalProduct,
+} from "@/lib/proposal-product";
 
 interface UseProposalFormLoadingEffectsContext {
   tenant: { id: string; proposalDefaults?: Record<string, unknown> } | null;
@@ -319,7 +323,8 @@ export function useProposalFormLoadingEffects(
           initialIsNewClientRef.current = true;
         }
 
-        const syncedProducts = (proposal.products || []).map((pp) => {
+        const syncedProducts = (proposal.products || []).map((rawProduct) => {
+          const pp = ensureProposalProductLineItemId(rawProduct);
           let targetType = pp.itemType || "product";
           const freshProduct = products.find((p) => p.id === pp.productId);
 
@@ -353,9 +358,7 @@ export function useProposalFormLoadingEffects(
           const markup = isService
             ? 0
             : resolvedProposalMarkup;
-          const sellingPrice = price * (1 + markup / 100);
-
-          return {
+          return recalculateProposalProduct({
             ...pp,
             itemType: (freshProduct.itemType || targetType) as
               | "product"
@@ -371,7 +374,8 @@ export function useProposalFormLoadingEffects(
               freshProduct.description || pp.productDescription || "",
             unitPrice: price,
             markup,
-            total: pp.quantity * sellingPrice,
+            pricingDetails: pp.pricingDetails,
+            total: pp.total,
             manufacturer:
               ((freshProduct as Record<string, unknown>).manufacturer as
                 | string
@@ -380,7 +384,7 @@ export function useProposalFormLoadingEffects(
               ((freshProduct as Record<string, unknown>).category as
                 | string
                 | undefined) || pp.category,
-          };
+          }, freshProduct);
         });
 
         const loadedFormData: Partial<Proposal> = {
@@ -449,10 +453,12 @@ export function useProposalFormLoadingEffects(
                   );
 
             return resolvedProducts.map((product: ProposalProduct) => ({
+              lineItemId: product.lineItemId,
               productId: product.productId,
               itemType: product.itemType,
               productName: product.productName,
               quantity: product.quantity,
+              pricingDetails: product.pricingDetails,
               status: product.status,
             }));
           };

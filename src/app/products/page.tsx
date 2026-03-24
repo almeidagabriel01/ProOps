@@ -47,6 +47,12 @@ import {
   parseInventoryValue,
 } from "@/lib/niches/config";
 import { getProductInventoryValue } from "@/services/product-service";
+import {
+  calculateSellingPrice,
+  getProductBasePrice,
+  getProductMarkup,
+  getProductPricingSummary,
+} from "@/lib/product-pricing";
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -67,10 +73,10 @@ export default function ProductsPage() {
   const isFiltering = searchTerm.trim() !== "";
   const inventoryBalances = (allProducts ?? []).reduce(
     (totals, product) => {
-      const unitCost = Number.parseFloat(product.price || "0");
-      const markup = Number.parseFloat(product.markup || "0");
+      const unitCost = getProductBasePrice(product);
+      const markup = getProductMarkup(product);
       const inventoryValue = getProductInventoryValue(product);
-      const sellingPrice = unitCost * (1 + markup / 100);
+      const sellingPrice = calculateSellingPrice(unitCost, markup);
 
       totals.cost += unitCost * inventoryValue;
       totals.withMarkup += sellingPrice * inventoryValue;
@@ -219,7 +225,7 @@ export default function ProductsPage() {
       );
       if (isUsed) {
         toast.error(
-          `Nao foi possivel excluir o produto ${productLabel} porque ele esta vinculado a uma ou mais propostas.`,
+          `Não foi possível excluir o produto ${productLabel} porque ele está vinculado a uma ou mais propostas.`,
           { title: "Erro ao excluir" },
         );
         setIsDeleting(false);
@@ -257,6 +263,8 @@ export default function ProductsPage() {
     : [];
 
   const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
+  const hideInventoryColumn = nicheConfig.id === "cortinas";
+  
   const columns: DataTableColumn<Product>[] = [
     {
       key: "image",
@@ -283,7 +291,7 @@ export default function ProductsPage() {
     {
       key: "name",
       header: "Nome",
-      className: "col-span-4",
+      className: hideInventoryColumn ? "col-span-5" : "col-span-4",
       render: (product) => (
         <Link
           href={`/products/${product.id}`}
@@ -296,23 +304,23 @@ export default function ProductsPage() {
     {
       key: "category",
       header: "Categoria",
-      className: "col-span-2",
+      className: hideInventoryColumn ? "col-span-3" : "col-span-2",
       render: (product) => (
         <div className="text-sm text-muted-foreground">{product.category}</div>
       ),
     },
-    {
+    ...(hideInventoryColumn ? [] : [{
       key: "inventoryValue",
       header: inventoryConfig.tableHeader,
       className: "col-span-2",
-      render: (product) => (
+      render: (product: Product) => (
         <StockEditableCell
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryConfig}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
-    },
+    }]),
     {
       key: "price",
       header: "Preço",
@@ -320,19 +328,13 @@ export default function ProductsPage() {
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-medium">
-            R${" "}
-            {(
-              parseFloat(product.price) +
-              (parseFloat(product.price) * parseFloat(product.markup || "0")) /
-                100
-            ).toFixed(2)}
-            {inventoryConfig.priceSuffix ? ` ${inventoryConfig.priceSuffix}` : ""}
+            {getProductPricingSummary(product)}
           </span>
-          {product.markup && parseFloat(product.markup) > 0 && (
-            <span className="text-xs text-muted-foreground">
-              (+{parseFloat(product.markup).toFixed(0)}% markup)
-            </span>
-          )}
+          <span className="text-xs text-muted-foreground">
+            Base: R$ {getProductBasePrice(product).toFixed(2)}
+            {getProductMarkup(product) > 0 &&
+              ` (+${getProductMarkup(product).toFixed(0)}% markup)`}
+          </span>
         </div>
       ),
     },

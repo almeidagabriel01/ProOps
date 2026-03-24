@@ -1,4 +1,5 @@
 import { PdfDisplaySettings } from "./pdf-display-settings";
+import { ProposalProductPricingDetails } from "@/lib/product-pricing";
 
 export type ProposalStatus =
   | "draft"
@@ -10,6 +11,7 @@ export type ProposalStatus =
 
 
 export interface ProposalProduct {
+  lineItemId?: string;
   productId: string;
   itemType?: "product" | "service";
   name?: string; // Legacy/Optional
@@ -17,6 +19,7 @@ export interface ProposalProduct {
   quantity: number;
   unitPrice: number; // Used in components (base/cost price)
   markup?: number; // Profit percentage
+  pricingDetails?: ProposalProductPricingDetails;
   total: number;
   productImage?: string;
   productImages?: string[];

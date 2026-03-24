@@ -11,6 +11,7 @@ import { Ambiente } from "@/services/ambiente-service";
 import { MasterDataAction } from "./useMasterDataTransaction";
 import { ClientType } from "@/services/client-service";
 import { ProposalWorkflow } from "@/lib/niches/config";
+import { ProposalProductPricingDetails } from "@/lib/product-pricing";
 
 export interface UseProposalFormProps {
   proposalId?: string;
@@ -57,17 +58,20 @@ export interface UseProposalFormReturn {
     delta: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   removeProduct: (
     productId: string,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   handleToggleProductStatus: (
     productId: string,
     newStatus: "active" | "inactive",
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => Promise<void>;
 
   calculateSubtotal: () => number;
@@ -99,12 +103,21 @@ export interface UseProposalFormReturn {
     markup: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   updateProductPrice: (
     productId: string,
     newPrice: number,
     systemInstanceId?: string,
     itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => void;
+  updateProductPricingDetails: (
+    productId: string,
+    pricingDetails: ProposalProductPricingDetails,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
   ) => void;
   removeAmbienteFromSistema: (sistemaIndex: number, ambienteId: string) => void;
   resetToInitial: () => void;

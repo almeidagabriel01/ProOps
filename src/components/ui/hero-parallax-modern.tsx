@@ -147,7 +147,7 @@ export const Header = () => {
         </div>
 
         <h1 className="text-4xl md:text-8xl font-black dark:text-white tracking-tighter max-w-5xl leading-[1.1]">
-          Gestao inteligente para{" "}
+          Gestão inteligente para{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-600 dark:to-blue-400">
             operações modernas
           </span>

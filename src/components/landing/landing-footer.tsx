@@ -22,8 +22,8 @@ export function LandingFooter() {
               />
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-black/65 dark:text-white/70">
-              ProOps e um sistema ERP para gestao de servicos com foco em CRM,
-              propostas, financeiro, agenda, catalogo, carteiras e operacao
+              ProOps é um sistema ERP para gestão de serviços com foco em CRM,
+              propostas, financeiro, agenda, catálogo, carteiras e operação
               comercial.
             </p>
             <p className="mt-4 text-sm text-black/55 dark:text-white/55">
@@ -55,7 +55,7 @@ export function LandingFooter() {
                   href="#modulos"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Modulos
+                  Módulos
                 </Link>
               </li>
               <li>
@@ -79,7 +79,7 @@ export function LandingFooter() {
                   href="/privacy"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Politica de Privacidade
+                  Política de Privacidade
                 </Link>
               </li>
               <li>
@@ -87,7 +87,7 @@ export function LandingFooter() {
                   href="/terms"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Termos de Servico
+                  Termos de Serviço
                 </Link>
               </li>
               <li>
@@ -95,7 +95,7 @@ export function LandingFooter() {
                   href="/login"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >
-                  Area do Cliente
+                  Área do Cliente
                 </Link>
               </li>
               <li>

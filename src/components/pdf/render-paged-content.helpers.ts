@@ -19,6 +19,9 @@ import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
+import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
+import type { TenantNiche } from "@/types";
+
 export interface Product {
   productId: string;
   itemType?: "product" | "service";
@@ -26,6 +29,8 @@ export interface Product {
   quantity: number;
   unitPrice: number;
   total: number;
+  markup?: number;
+  pricingDetails?: ProposalProductPricingDetails;
   isExtra?: boolean;
   productImage?: string;
   productImages?: string[];
@@ -81,6 +86,7 @@ export interface Tenant {
   name: string;
   logoUrl?: string;
   primaryColor?: string;
+  niche?: TenantNiche;
 }
 
 export interface ContentStyles {

@@ -38,6 +38,7 @@ export function createInitialProposalFormData(): Partial<Proposal> {
       showProductImages: true,
       showProductDescriptions: true,
       showProductPrices: false,
+      showProductMeasurements: true,
       showSubtotals: true,
       showEnvironmentSubtotals: false,
       showPaymentTerms: true,
@@ -55,10 +56,12 @@ function mapSnapshotProducts(
   return products.map((p) => {
     if (!includeFullDetails) {
       return {
+        lineItemId: p.lineItemId,
         productId: p.productId,
         quantity: p.quantity,
         unitPrice: p.unitPrice,
         markup: p.markup,
+        pricingDetails: p.pricingDetails,
         systemInstanceId: p.systemInstanceId,
         isExtra: p.isExtra,
         status: p.status,
@@ -66,6 +69,7 @@ function mapSnapshotProducts(
     }
 
     return {
+      lineItemId: p.lineItemId,
       productId: p.productId,
       productName: p.productName,
       productImage: p.productImage,
@@ -74,6 +78,7 @@ function mapSnapshotProducts(
       quantity: p.quantity,
       unitPrice: p.unitPrice,
       markup: p.markup,
+      pricingDetails: p.pricingDetails,
       total: p.total,
       manufacturer: p.manufacturer,
       category: p.category,

@@ -7,21 +7,21 @@ const PAGE_TITLES: Record<string, string> = {
   "/login": "Login",
   "/register": "Criar Conta",
   "/forgot-password": "Redefinir Senha",
-  "/email-verification-pending": "Confirmacao de E-mail",
+  "/email-verification-pending": "Confirmação de E-mail",
   "/403": "Acesso Negado",
 
   "/dashboard": "Dashboard | ProOps",
-  "/calendar": "Calendario | ProOps",
+  "/calendar": "Calendário | ProOps",
   "/products": "Produtos | ProOps",
   "/proposals": "Propostas | ProOps",
   "/crm": "CRM | ProOps",
   "/contacts": "Contatos | ProOps",
-  "/transactions": "Lancamentos | ProOps",
+  "/transactions": "Lançamentos | ProOps",
   "/wallets": "Carteiras | ProOps",
-  "/services": "Servicos | ProOps",
-  "/solutions": "Solucoes | ProOps",
+  "/services": "Serviços | ProOps",
+  "/solutions": "Soluções | ProOps",
   "/profile": "Meu Perfil | ProOps",
-  "/settings": "Configuracoes | ProOps",
+  "/settings": "Configurações | ProOps",
   "/team": "Equipe | ProOps",
   "/settings/billing": "Plano | ProOps",
 
@@ -30,7 +30,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/addon-success": "Addon Adquirido",
 
   "/admin": "Admin | ProOps",
-  "/admin/billing": "Cobranca | Admin",
+  "/admin/billing": "Cobrança | Admin",
   "/admin/tenants": "Empresas | Admin",
 
   "/": "ProOps - Sistema ERP para gestão de serviços",
@@ -55,15 +55,15 @@ function getDynamicTitle(pathname: string): string | null {
   if (pathname.match(/^\/contacts\/[^/]+$/)) return "Contato | ProOps";
 
   if (pathname.startsWith("/transactions/new"))
-    return "Novo Lancamento | ProOps";
+    return "Novo Lançamento | ProOps";
   if (pathname.match(/^\/transactions\/[^/]+$/))
-    return "Lancamento | ProOps";
+    return "Lançamento | ProOps";
 
-  if (pathname.startsWith("/services/new")) return "Novo Servico | ProOps";
-  if (pathname.match(/^\/services\/[^/]+$/)) return "Servico | ProOps";
+  if (pathname.startsWith("/services/new")) return "Novo Serviço | ProOps";
+  if (pathname.match(/^\/services\/[^/]+$/)) return "Serviço | ProOps";
 
   if (pathname.match(/^\/profile\/[^/]+$/))
-    return "Perfil do Usuario | ProOps";
+    return "Perfil do Usuário | ProOps";
 
   return null;
 }

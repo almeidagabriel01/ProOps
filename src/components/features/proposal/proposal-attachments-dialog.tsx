@@ -129,7 +129,7 @@ export function ProposalAttachmentsDialog({
     try {
       const tenantId = String(proposal.tenantId || "").trim();
       if (!tenantId || !proposal.id) {
-        toast.error("Nao foi possivel identificar a proposta para upload.");
+        toast.error("Não foi possível identificar a proposta para upload.");
         return;
       }
 
@@ -267,7 +267,7 @@ export function ProposalAttachmentsDialog({
         void deleteStorageObject(attachmentToDelete.storagePath).catch(
           (deleteError) => {
             console.warn(
-              "Nao foi possivel remover arquivo do storage:",
+              "Não foi possível remover arquivo do storage:",
               deleteError,
             );
           },

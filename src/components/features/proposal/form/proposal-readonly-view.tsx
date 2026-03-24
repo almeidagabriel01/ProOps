@@ -5,6 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ProposalProduct, Proposal } from "@/services/proposal-service";
 import { Package, User } from "lucide-react";
+import {
+  getProposalProductMeasurementLabel,
+  getProposalProductUnitLabel,
+} from "@/lib/product-pricing";
 
 interface ProposalReadOnlyViewProps {
   formData: Partial<Proposal>;
@@ -111,7 +115,9 @@ export function ProposalReadOnlyView({
                       {product.productName}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      R$ {product.unitPrice.toFixed(2)} x {product.quantity}
+                      {getProposalProductMeasurementLabel(product)} | R${" "}
+                      {product.unitPrice.toFixed(2)} /{" "}
+                      {getProposalProductUnitLabel(product)}
                     </div>
                   </div>
                 </div>
