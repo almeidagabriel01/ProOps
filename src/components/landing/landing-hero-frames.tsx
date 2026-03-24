@@ -82,7 +82,7 @@ export function LandingHeroFrames() {
           <div className="mb-6 flex flex-col items-center gap-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white/95 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black/70 dark:border-white/15 dark:bg-neutral-900/95 dark:text-white/70">
               <ShieldCheck className="h-3.5 w-3.5" />
-              ProOps - Sistema ERP para gestao de servicos
+              ProOps - Sistema ERP para gestão de serviços
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export function LandingHeroFrames() {
 
           <p className="mb-6 max-w-3xl text-base font-medium leading-relaxed text-black/70 dark:text-white/70 md:text-xl">
             Plataforma web para controlar CRM, propostas, financeiro e agenda,
-            com sincronizacao opcional com Google Agenda.
+            com sincronização opcional com Google Agenda.
           </p>
 
           <div className="mb-6 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-black/48 dark:text-white/48">
@@ -119,13 +119,13 @@ export function LandingHeroFrames() {
               href="/privacy"
               className="rounded-full border border-black/10 bg-white/88 px-4 py-2 transition-colors hover:text-black dark:border-white/10 dark:bg-neutral-900/88 dark:hover:text-white"
             >
-              Politica de Privacidade
+              Política de Privacidade
             </Link>
             <Link
               href="/terms"
               className="rounded-full border border-black/10 bg-white/88 px-4 py-2 transition-colors hover:text-black dark:border-white/10 dark:bg-neutral-900/88 dark:hover:text-white"
             >
-              Termos de Servico
+              Termos de Serviço
             </Link>
           </div>
         </motion.div>

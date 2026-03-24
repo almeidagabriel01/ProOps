@@ -29,7 +29,7 @@ const statusLabelByCode: Record<string, string> = {
   sent: "enviado",
   canceled: "cancelado",
   cancelled: "cancelado",
-  unpaid: "nao pago",
+  unpaid: "não pago",
   trialing: "em teste",
 };
 
@@ -100,7 +100,7 @@ const getToastConfig = (
  * Backward-compatible wrapper for react-toastify using sileo
  */
 const toastFn = (content: unknown, options?: ToastOptions) => {
-  return sileo.info(getToastConfig("Informacao", "info", content, options));
+  return sileo.info(getToastConfig("Informação", "info", content, options));
 };
 
 toastFn.success = (content: unknown, options?: ToastOptions) => {
@@ -120,7 +120,7 @@ toastFn.warning = (content: unknown, options?: ToastOptions) => {
 };
 
 toastFn.info = (content: unknown, options?: ToastOptions) => {
-  return sileo.info(getToastConfig("Informacao", "info", content, options));
+  return sileo.info(getToastConfig("Informação", "info", content, options));
 };
 
 toastFn.promise = async <T>(

@@ -225,7 +225,7 @@ export default function ProductsPage() {
       );
       if (isUsed) {
         toast.error(
-          `Nao foi possivel excluir o produto ${productLabel} porque ele esta vinculado a uma ou mais propostas.`,
+          `Não foi possível excluir o produto ${productLabel} porque ele está vinculado a uma ou mais propostas.`,
           { title: "Erro ao excluir" },
         );
         setIsDeleting(false);

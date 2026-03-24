@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/utils/format-utils";
+import type { TenantNiche } from "@/types";
 import { PdfDisplaySettings } from "@/types/pdf-display-settings";
 import {
   PdfAmbienteTag,
@@ -159,6 +160,7 @@ export function PdfSistemaBlock({
   products,
   primaryColor,
   pdfDisplaySettings,
+  tenantNiche,
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   const ambientes = resolveSistemaAmbientes(sistema);
@@ -265,6 +267,7 @@ export function PdfSistemaBlock({
                                     primaryColor={primaryColor}
                                     settings={settings}
                                     evenBackground={(rowIdx * 2) % 2 === 0}
+                                    tenantNiche={tenantNiche}
                                   />
                                 </td>
                                 <td
@@ -279,6 +282,7 @@ export function PdfSistemaBlock({
                                     primaryColor={primaryColor}
                                     settings={settings}
                                     evenBackground={(rowIdx * 2 + 1) % 2 === 0}
+                                    tenantNiche={tenantNiche}
                                   />
                                 </td>
                               </>
@@ -292,6 +296,7 @@ export function PdfSistemaBlock({
                                   primaryColor={primaryColor}
                                   settings={settings}
                                   evenBackground={(rowIdx * 2) % 2 === 0}
+                                  tenantNiche={tenantNiche}
                                 />
                               </td>
                             )}
@@ -390,12 +395,14 @@ export function PdfSistemaProduct({
   primaryColor,
   isFirst = false,
   pdfDisplaySettings,
+  tenantNiche,
 }: {
   product: PdfProduct;
   primaryColor: string;
   isFirst?: boolean;
   isLast?: boolean;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
 
@@ -410,6 +417,7 @@ export function PdfSistemaProduct({
           primaryColor={primaryColor}
           settings={settings}
           evenBackground
+          tenantNiche={tenantNiche}
         />
       </div>
     </div>

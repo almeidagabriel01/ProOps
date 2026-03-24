@@ -418,6 +418,7 @@ export const getSharedProposal = async (req: Request, res: Response) => {
             name: tenantData.name,
             logoUrl: tenantData.logoUrl,
             primaryColor: tenantData.primaryColor,
+            niche: (tenantData as { niche?: string }).niche,
           }
         : null,
     });

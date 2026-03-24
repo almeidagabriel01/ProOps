@@ -13,9 +13,9 @@ const productPricingModeSchema = z
   .default("standard");
 
 const heightTierSchema = z.object({
-  id: z.string().min(1, "Faixa invalida"),
-  maxHeight: z.string().min(1, "Altura maxima obrigatoria"),
-  basePrice: z.string().min(1, "Preco bruto obrigatorio"),
+  id: z.string().min(1, "Faixa inválida"),
+  maxHeight: z.string().min(1, "Altura máxima obrigatória"),
+  basePrice: z.string().min(1, "Preço bruto obrigatório"),
   markup: z
     .string()
     .optional()
@@ -34,7 +34,7 @@ export const productSchema = z
   .object({
     name: z
       .string()
-      .min(1, "Nome e obrigatorio")
+      .min(1, "Nome é obrigatório")
       .min(2, "Nome deve ter pelo menos 2 caracteres"),
     description: z.string().optional().or(z.literal("")),
     price: z.string().optional().or(z.literal("")),
@@ -48,8 +48,8 @@ export const productSchema = z
       }, "Markup deve ser um percentual entre 0 e 1000"),
     pricingMode: productPricingModeSchema,
     heightPricingTiers: z.array(heightTierSchema).default([]),
-    manufacturer: z.string().min(1, "Fabricante e obrigatorio"),
-    category: z.string().min(1, "Categoria e obrigatoria"),
+    manufacturer: z.string().min(1, "Fabricante é obrigatório"),
+    category: z.string().min(1, "Categoria é obrigatória"),
     inventoryValue: z
       .string()
       .optional()
@@ -57,7 +57,7 @@ export const productSchema = z
         if (!val || val === "") return true;
         const num = Number.parseFloat(val.replace(",", "."));
         return !Number.isNaN(num) && num >= 0;
-      }, "Estoque deve ser um numero nao negativo"),
+      }, "Estoque deve ser um número não negativo"),
     status: z.enum(["active", "inactive"]).default("active"),
   })
   .superRefine((value, ctx) => {
@@ -81,7 +81,7 @@ export const productSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["heightPricingTiers", index, "maxHeight"],
-            message: "Altura maxima deve ser maior que 0",
+            message: "Altura máxima deve ser maior que 0",
           });
         }
 
@@ -89,7 +89,7 @@ export const productSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["heightPricingTiers", index, "basePrice"],
-            message: "Preco bruto deve ser maior que 0",
+            message: "Preço bruto deve ser maior que 0",
           });
         }
 
@@ -105,7 +105,7 @@ export const productSchema = z
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["heightPricingTiers", index, "maxHeight"],
-            message: "As alturas maximas devem estar em ordem crescente",
+            message: "As alturas máximas devem estar em ordem crescente",
           });
         }
 
@@ -122,7 +122,7 @@ export const productSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["price"],
-        message: "Preco deve ser maior que 0",
+        message: "Preço deve ser maior que 0",
       });
     }
   });
@@ -130,17 +130,17 @@ export const productSchema = z
 export const serviceSchema = z.object({
   name: z
     .string()
-    .min(1, "Nome e obrigatorio")
+    .min(1, "Nome é obrigatório")
     .min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional().or(z.literal("")),
   price: z
     .string()
-    .min(1, "Preco e obrigatorio")
+    .min(1, "Preço é obrigatório")
     .refine((val) => {
       const num = parseFloat(val);
       return !Number.isNaN(num) && num > 0;
-    }, "Preco deve ser maior que 0"),
-  category: z.string().min(1, "Categoria e obrigatoria"),
+    }, "Preço deve ser maior que 0"),
+  category: z.string().min(1, "Categoria é obrigatória"),
   status: z.enum(["active", "inactive"]).default("active"),
 });
 

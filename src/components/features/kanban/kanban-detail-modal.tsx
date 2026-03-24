@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { Proposal, ProposalStatus } from "@/types/proposal";
+import {
+  Proposal,
+  ProposalProduct,
+  ProposalStatus,
+} from "@/types/proposal";
+import type { TenantNiche } from "@/types";
+import {
+  getProposalLineUnitSellingPrice,
+  getProposalProductMeasurementLabel,
+  getProposalProductUnitLabel,
+  isCortinasDimensionProductLine,
+  isCortinasNeutralServiceLine,
+} from "@/lib/product-pricing";
+import { useTenant } from "@/providers/tenant-provider";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { ProposalService } from "@/services/proposal-service";
 import { cn } from "@/lib/utils";
@@ -60,6 +73,32 @@ const TRANSACTION_STATUS_LABELS: Record<
 
 function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function KanbanProposalProductLineDetail({
+  product,
+  tenantNiche,
+}: {
+  product: ProposalProduct;
+  tenantNiche: TenantNiche | null | undefined;
+}) {
+  if (isCortinasDimensionProductLine(tenantNiche, product)) {
+    return (
+      <>
+        {getProposalProductMeasurementLabel(product)} x{" "}
+        {formatCurrency(getProposalLineUnitSellingPrice(product))} /{" "}
+        {getProposalProductUnitLabel(product)}
+      </>
+    );
+  }
+  if (isCortinasNeutralServiceLine(tenantNiche, product)) {
+    return <>{formatCurrency(getProposalLineUnitSellingPrice(product))}</>;
+  }
+  return (
+    <>
+      {product.quantity}x {formatCurrency(product.unitPrice)}
+    </>
+  );
 }
 
 function formatDate(
@@ -143,6 +182,9 @@ export function ProposalDetailModal({
   open,
   onOpenChange,
 }: ProposalDetailModalProps) {
+  const { tenant } = useTenant();
+  const tenantNiche = tenant?.niche ?? null;
+
   if (!proposal) return null;
 
   const statusInfo = PROPOSAL_STATUS_LABELS[
@@ -241,10 +283,13 @@ export function ProposalDetailModal({
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-foreground truncate">
-                        {product.name}
+                        {product.productName ?? product.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {product.quantity}x {formatCurrency(product.unitPrice)}
+                        <KanbanProposalProductLineDetail
+                          product={product}
+                          tenantNiche={tenantNiche}
+                        />
                       </p>
                     </div>
                     <span className="font-semibold text-foreground shrink-0 ml-3">
@@ -312,6 +357,8 @@ export function TransactionDetailModal({
   open,
   onOpenChange,
 }: TransactionDetailModalProps) {
+  const { tenant } = useTenant();
+  const tenantNiche = tenant?.niche ?? null;
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
   const [isLoadingProposal, setIsLoadingProposal] = React.useState(false);
 
@@ -506,11 +553,13 @@ export function TransactionDetailModal({
                       >
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">
-                            {product.name}
+                            {product.productName ?? product.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {product.quantity}x{" "}
-                            {formatCurrency(product.unitPrice)}
+                            <KanbanProposalProductLineDetail
+                              product={product}
+                              tenantNiche={tenantNiche}
+                            />
                           </p>
                         </div>
                         <span className="font-semibold text-foreground shrink-0 ml-3">

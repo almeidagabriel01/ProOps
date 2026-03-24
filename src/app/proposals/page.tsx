@@ -548,7 +548,7 @@ export default function ProposalsPage() {
           ? error.message.trim()
           : "Falha inesperada ao excluir a proposta.";
       toast.error(
-        `Nao foi possivel excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao excluir" },
       );
     } finally {
@@ -647,7 +647,7 @@ export default function ProposalsPage() {
             ? error.message.trim()
             : "Falha inesperada ao alterar o status da proposta.";
         toast.error(
-          `Nao foi possivel alterar o status da proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+          `Não foi possível alterar o status da proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
       } finally {

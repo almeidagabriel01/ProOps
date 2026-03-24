@@ -78,7 +78,11 @@ export function TemplatePreview({ proposal, template }: TemplatePreviewProps) {
         />
 
         {/* Products Table */}
-        <ProductsSection proposal={proposal} primaryColor={primaryColor} />
+        <ProductsSection
+          proposal={proposal}
+          primaryColor={primaryColor}
+          tenantNiche={tenant?.niche}
+        />
 
         {/* Custom Notes */}
         {proposal.customNotes && (

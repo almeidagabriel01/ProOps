@@ -573,7 +573,7 @@ const convertGenericWorkbook = (
   );
 
   if (sheets.length === 0) {
-    throw new Error("O arquivo nao possui abas validas para importar.");
+    throw new Error("O arquivo não possui abas válidas para importar.");
   }
 
   return {
@@ -1120,7 +1120,7 @@ const convertStyledExcelWorkbook = (
   );
 
   if (sheets.length === 0) {
-    throw new Error("O arquivo nao possui abas validas para importar.");
+    throw new Error("O arquivo não possui abas válidas para importar.");
   }
 
   return {
@@ -1149,7 +1149,7 @@ const importGenericSpreadsheet = async (
   } catch (error) {
     console.error("Error reading generic spreadsheet import file:", error);
     throw new Error(
-      "Nao foi possivel ler o arquivo. Envie uma planilha compativel, como XLSX, XLS, XLSM, XLSB, CSV ou ODS.",
+      "Não foi possível ler o arquivo. Envie uma planilha compatível, como XLSX, XLS, XLSM, XLSB, CSV ou ODS.",
     );
   }
 
@@ -1173,7 +1173,7 @@ const importStyledExcelSpreadsheet = async (
     await workbook.xlsx.load(await file.arrayBuffer());
   } catch (error) {
     console.error("Error reading styled Excel import file:", error);
-    throw new Error("Nao foi possivel ler o arquivo Excel.");
+    throw new Error("Não foi possível ler o arquivo Excel.");
   }
 
   return convertStyledExcelWorkbook(workbook, file.name);
@@ -1189,7 +1189,7 @@ export const importExcelFileToSpreadsheetData = async (
     !SUPPORTED_SPREADSHEET_EXTENSION_SET.has(fileExtension)
   ) {
     throw new Error(
-      `Formato nao suportado. Use: ${SUPPORTED_SPREADSHEET_EXTENSIONS.join(", ")}.`,
+      `Formato não suportado. Use: ${SUPPORTED_SPREADSHEET_EXTENSIONS.join(", ")}.`,
     );
   }
 

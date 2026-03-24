@@ -182,7 +182,7 @@ export function ProductPricingStep({
       <div className="space-y-4">
         <FormGroup>
           <FormStatic
-            label={entityType === "product" ? "Preco configurado" : "Preco base"}
+            label={entityType === "product" ? "Preço configurado" : "Preço base"}
             value={
               entityType === "service"
                 ? `R$ ${basePrice.toFixed(2)}`
@@ -197,7 +197,7 @@ export function ProductPricingStep({
   if (entityType === "service") {
     return (
       <PricingSection
-        title="Preco base do servico"
+        title="Preço base do serviço"
         description="Defina o valor utilizado diretamente nas propostas."
         badge={
           <div className="rounded-xl bg-muted/40 px-4 py-3">
@@ -209,7 +209,7 @@ export function ProductPricingStep({
         }
       >
         <FormGroup>
-          <FormItem label="Preco base" htmlFor="price" required error={errors.price}>
+          <FormItem label="Preço base" htmlFor="price" required error={errors.price}>
             <CurrencyInput
               id="price"
               name="price"
@@ -231,14 +231,14 @@ export function ProductPricingStep({
       {isCurtainNiche && (
         <div className="space-y-3">
           <div className="text-sm font-medium text-foreground">
-            Modelo de precificacao
+            Modelo de precificação
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <PricingModeButton
               active={formData.pricingMode === "curtain_meter"}
               icon={<Scissors className="h-5 w-5" />}
               title="Por metragem"
-              description="Usa largura x altura x preco com markup na proposta."
+              description="Usa largura x altura x preço com markup na proposta."
               onClick={() => onPricingModeChange("curtain_meter")}
             />
             <PricingModeButton
@@ -257,11 +257,11 @@ export function ProductPricingStep({
 
       {!isCurtainNiche ? (
         <PricingSection
-          title="Regra de precificacao"
-          description="Defina o preco base do produto e a margem de lucro (markup)."
+          title="Regra de precificação"
+          description="Defina o preço base do produto e a margem de lucro (markup)."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
-              <div className="text-xs text-muted-foreground">Preco final</div>
+              <div className="text-xs text-muted-foreground">Preço final</div>
               <div className="mt-1 text-xl font-semibold text-foreground">
                 R$ {sellingPrice.toFixed(2)}
               </div>
@@ -271,7 +271,7 @@ export function ProductPricingStep({
           <div className="space-y-5">
             <FormGroup cols={2}>
               <FormItem
-                label="Preco base bruto"
+                label="Preço base bruto"
                 htmlFor="price"
                 required
                 error={errors.price}
@@ -307,7 +307,7 @@ export function ProductPricingStep({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco bruto</div>
+                <div className="text-xs text-muted-foreground">Preço bruto</div>
                 <div className="mt-1 font-semibold text-foreground">
                   R$ {basePrice.toFixed(2)}
                 </div>
@@ -319,7 +319,7 @@ export function ProductPricingStep({
                 </div>
               </div>
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco final</div>
+                <div className="text-xs text-muted-foreground">Preço final</div>
                 <div className="mt-1 font-semibold text-primary">
                   R$ {sellingPrice.toFixed(2)}
                 </div>
@@ -330,10 +330,10 @@ export function ProductPricingStep({
       ) : formData.pricingMode !== "curtain_height" ? (
         <PricingSection
           title="Regra por metragem"
-          description="Defina o preco bruto por metro quadrado e o markup. Largura e altura serao preenchidas quando o produto for usado."
+          description="Defina o preço bruto por metro quadrado e o markup. Largura e altura serão preenchidas quando o produto for usado."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
-              <div className="text-xs text-muted-foreground">Preco final</div>
+              <div className="text-xs text-muted-foreground">Preço final</div>
               <div className="mt-1 text-xl font-semibold text-foreground">
                 R$ {sellingPrice.toFixed(2)} / m2
               </div>
@@ -343,7 +343,7 @@ export function ProductPricingStep({
           <div className="space-y-5">
             <FormGroup cols={2}>
               <FormItem
-                label="Preco bruto"
+                label="Preço bruto"
                 htmlFor="price"
                 required
                 error={errors.price}
@@ -390,7 +390,7 @@ export function ProductPricingStep({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco bruto</div>
+                <div className="text-xs text-muted-foreground">Preço bruto</div>
                 <div className="mt-1 font-semibold text-foreground">
                   R$ {basePrice.toFixed(2)}
                 </div>
@@ -402,7 +402,7 @@ export function ProductPricingStep({
                 </div>
               </div>
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco com markup</div>
+                <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
                   R$ {sellingPrice.toFixed(2)} / m2
                 </div>
@@ -413,7 +413,7 @@ export function ProductPricingStep({
       ) : (
         <PricingSection
           title="Faixas por altura"
-          description="Crie uma faixa para cada altura maxima. Cada faixa usa preco bruto, markup e largura preenchida depois na proposta."
+          description="Crie uma faixa para cada altura máxima. Cada faixa usa preço bruto, markup e largura preenchida depois na proposta."
           badge={
             <Button type="button" variant="outline" onClick={onAddHeightPricingTier}>
               <Plus className="mr-2 h-4 w-4" />
@@ -460,7 +460,7 @@ export function ProductPricingStep({
 
                   <div className="space-y-5 px-4 py-4">
                     <FormGroup cols={2}>
-                      <FormItem label="Altura maxima (m)">
+                      <FormItem label="Altura máxima (m)">
                         <CurrencyInput
                           placeholder="Ex: 2,50"
                           prefixSymbol=""
@@ -482,7 +482,7 @@ export function ProductPricingStep({
                     </FormGroup>
 
                     <FormGroup cols={2}>
-                      <FormItem label="Preco bruto">
+                      <FormItem label="Preço bruto">
                         <CurrencyInput
                           placeholder="0,00"
                           value={tier.basePrice}
@@ -517,7 +517,7 @@ export function ProductPricingStep({
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                       <div className="rounded-xl border border-border/50 bg-background px-4 py-3">
                         <div className="text-xs text-muted-foreground">
-                          Altura maxima
+                          Altura máxima
                         </div>
                         <div className="mt-1 font-semibold text-foreground">
                           {tier.maxHeight || "0"} m
@@ -525,7 +525,7 @@ export function ProductPricingStep({
                       </div>
                       <div className="rounded-xl border border-border/50 bg-background px-4 py-3">
                         <div className="text-xs text-muted-foreground">
-                          Preco bruto
+                          Preço bruto
                         </div>
                         <div className="mt-1 font-semibold text-foreground">
                           R$ {tierBasePrice.toFixed(2)}
@@ -533,7 +533,7 @@ export function ProductPricingStep({
                       </div>
                       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                         <div className="text-xs text-muted-foreground">
-                          Preco com markup
+                          Preço com markup
                         </div>
                         <div className="mt-1 font-semibold text-primary">
                           R$ {tierSellingPrice.toFixed(2)} / m

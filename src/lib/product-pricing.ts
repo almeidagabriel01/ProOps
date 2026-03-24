@@ -1,5 +1,7 @@
 "use client";
 
+import type { TenantNiche } from "@/types";
+
 export type ProductPricingMode =
   | "standard"
   | "curtain_meter"
@@ -392,20 +394,20 @@ export function getProductPricingDescription(product: ProductPricingSource): str
   const pricingModel = normalizeProductPricingModel(product.pricingModel);
 
   if (pricingModel.mode === "curtain_meter") {
-    return "Calculado por largura x altura x preco com markup.";
+    return "Calculado por largura x altura x preço com markup.";
   }
 
   if (pricingModel.mode === "curtain_height") {
     if (pricingModel.tiers.length === 0) {
-      return "Faixas de altura sem configuracao.";
+      return "Faixas de altura sem configuração.";
     }
 
     return pricingModel.tiers
       .map((tier, index) => {
         const startLabel =
           index === 0
-            ? `ate ${formatMeters(tier.maxHeight)}`
-            : `ate ${formatMeters(tier.maxHeight)}`;
+            ? `até ${formatMeters(tier.maxHeight)}`
+            : `até ${formatMeters(tier.maxHeight)}`;
         return `${startLabel}: R$ ${calculateSellingPrice(
           tier.basePrice,
           tier.markup,
@@ -414,7 +416,7 @@ export function getProductPricingDescription(product: ProductPricingSource): str
       .join(" | ");
   }
 
-  return "Preco simples por quantidade.";
+  return "Preço simples por quantidade.";
 }
 
 export function getProposalProductMeasurementLabel(
@@ -427,7 +429,7 @@ export function getProposalProductMeasurementLabel(
   }
 
   if (details.mode === "curtain_height") {
-    return `Largura ${formatMeters(details.width)} | Altura ate ${formatMeters(
+    return `Largura ${formatMeters(details.width)} | Altura até ${formatMeters(
       details.maxHeight,
     )}`;
   }
@@ -453,4 +455,47 @@ export function getProposalProductUnitLabel(
   }
 
   return "un";
+}
+
+export function isCortinasNiche(
+  tenantNiche: TenantNiche | null | undefined,
+): boolean {
+  return tenantNiche === "cortinas";
+}
+
+/**
+ * Cortinas PDF/UI: produto com preço por dimensão (medida em vez de "Nx").
+ */
+export function isCortinasDimensionProductLine(
+  tenantNiche: TenantNiche | null | undefined,
+  product: {
+    itemType?: "product" | "service";
+    pricingDetails?: ProposalProductPricingDetails | null;
+  },
+): boolean {
+  if (!isCortinasNiche(tenantNiche)) return false;
+  if (product.itemType === "service") return false;
+  const mode = normalizeProposalPricingDetails(product.pricingDetails).mode;
+  return isDimensionPricingMode(mode);
+}
+
+/**
+ * Cortinas: serviço — linha sem prefixo "Nx", só valor unitário neutro.
+ */
+export function isCortinasNeutralServiceLine(
+  tenantNiche: TenantNiche | null | undefined,
+  product: { itemType?: "product" | "service" },
+): boolean {
+  return isCortinasNiche(tenantNiche) && product.itemType === "service";
+}
+
+/** Preço de venda por unidade (produto com markup; serviço = unitPrice). */
+export function getProposalLineUnitSellingPrice(product: {
+  itemType?: "product" | "service";
+  unitPrice?: number | null;
+  markup?: number | null;
+}): number {
+  const unit = Number(product.unitPrice || 0);
+  if (product.itemType === "service") return unit;
+  return unit * (1 + (Number(product.markup || 0) / 100));
 }

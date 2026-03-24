@@ -46,13 +46,13 @@ interface ProductFormNewProps {
 const productSteps = [
   {
     id: "info",
-    title: "Informacoes",
-    description: "Dados basicos",
+    title: "Informações",
+    description: "Dados básicos",
     icon: Package,
   },
   {
     id: "pricing",
-    title: "Preco",
+    title: "Preço",
     description: "Regra comercial",
     icon: DollarSign,
   },
@@ -64,8 +64,8 @@ const productSteps = [
   },
   {
     id: "settings",
-    title: "Configuracoes",
-    description: "Status e opcoes",
+    title: "Configurações",
+    description: "Status e opções",
     icon: Settings,
   },
 ];
@@ -117,8 +117,8 @@ export function ProductFormNew({
     handleSubmit,
   } = useProductForm(initialData, productId, entityType);
 
-  const entityLabel = entityType === "service" ? "Servico" : "Produto";
-  const entityLabelLower = entityType === "service" ? "servico" : "produto";
+  const entityLabel = entityType === "service" ? "Serviço" : "Produto";
+  const entityLabelLower = entityType === "service" ? "serviço" : "produto";
   const basePrice = parseFloat(formData.price || "0");
   const markupValue = parseFloat(formData.markup || "0");
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
@@ -133,7 +133,7 @@ export function ProductFormNew({
         });
   const pricingDescription =
     entityType === "service"
-      ? "Preco base do servico."
+      ? "Preço base do serviço."
       : getProductPricingDescription({
           price: formData.price,
           markup: formData.markup,
@@ -149,17 +149,17 @@ export function ProductFormNew({
     let isValid = true;
 
     if (!formData.name.trim()) {
-      setFieldError("name", "Nome e obrigatorio");
+      setFieldError("name", "Nome é obrigatório");
       isValid = false;
     }
 
     if (!formData.category.trim()) {
-      setFieldError("category", "Categoria e obrigatoria");
+      setFieldError("category", "Categoria é obrigatória");
       isValid = false;
     }
 
     if (entityType === "product" && !formData.manufacturer?.trim()) {
-      setFieldError("manufacturer", "Fabricante e obrigatorio");
+      setFieldError("manufacturer", "Fabricante é obrigatório");
       isValid = false;
     }
 
@@ -169,7 +169,7 @@ export function ProductFormNew({
   const validateStep2 = (): boolean => {
     if (entityType !== "product") {
       if (!formData.price || parseFloat(formData.price) <= 0) {
-        setFieldError("price", "Preco e obrigatorio e deve ser maior que 0");
+        setFieldError("price", "Preço é obrigatório e deve ser maior que 0");
         return false;
       }
 
@@ -181,7 +181,7 @@ export function ProductFormNew({
       if (tiers.length === 0) {
         setFieldError(
           "heightPricingTiers",
-          "Cadastre pelo menos uma faixa de altura valida",
+          "Cadastre pelo menos uma faixa de altura válida",
         );
         return false;
       }
@@ -190,7 +190,7 @@ export function ProductFormNew({
     }
 
     if (!formData.price || parseFloat(formData.price) <= 0) {
-      setFieldError("price", "Preco e obrigatorio e deve ser maior que 0");
+      setFieldError("price", "Preço é obrigatório e deve ser maior que 0");
       return false;
     }
 
@@ -200,9 +200,9 @@ export function ProductFormNew({
   if (isReadOnly) {
     return (
       <div className="space-y-6">
-        <FormSection title="Informacoes" icon={Package}>
+        <FormSection title="Informações" icon={Package}>
           <FormStatic label={`Nome do ${entityLabel}`} value={formData.name} />
-          <FormStatic label="Descricao" value={formData.description} />
+          <FormStatic label="Descrição" value={formData.description} />
           <FormGroup>
             <FormStatic label="Categoria" value={formData.category} />
             {entityType === "product" && (
@@ -214,7 +214,7 @@ export function ProductFormNew({
           </FormGroup>
         </FormSection>
 
-        <FormSection title="Preco" icon={DollarSign}>
+        <FormSection title="Preço" icon={DollarSign}>
           <ProductPricingStep
             entityType={entityType}
             formData={formData}
@@ -277,7 +277,7 @@ export function ProductFormNew({
               </div>
               <div>
                 <h3 className="text-lg font-semibold">
-                  Informacoes do {entityLabel}
+                  Informações do {entityLabel}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   Dados de identificacao
@@ -367,11 +367,11 @@ export function ProductFormNew({
               </>
             )}
 
-            <FormItem label="Descricao" htmlFor="description">
+            <FormItem label="Descrição" htmlFor="description">
               <Textarea
                 id="description"
                 name="description"
-                placeholder={`Descreva as caracteristicas e diferenciais do ${entityLabelLower}...`}
+                placeholder={`Descreva as características e diferenciais do ${entityLabelLower}...`}
                 value={formData.description}
                 onChange={handleChange}
                 className="min-h-[140px]"
@@ -389,7 +389,7 @@ export function ProductFormNew({
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Preco</h3>
+                <h3 className="text-lg font-semibold">Preço</h3>
                 <p className="text-sm text-muted-foreground">
                   Defina a regra comercial do {entityLabelLower}
                 </p>
@@ -425,7 +425,7 @@ export function ProductFormNew({
                   Imagens do {entityLabel}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Adicione ate {maxImagesPerProduct} imagem (max 2MB cada)
+                  Adicione até {maxImagesPerProduct} imagem (máx. 2MB cada)
                 </p>
               </div>
             </div>
@@ -491,9 +491,9 @@ export function ProductFormNew({
                 <Settings className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Configuracoes</h3>
+                <h3 className="text-lg font-semibold">Configurações</h3>
                 <p className="text-sm text-muted-foreground">
-                  Status e resumo de publicacao
+                  Status e resumo de publicação
                 </p>
               </div>
             </div>
@@ -516,7 +516,7 @@ export function ProductFormNew({
                 {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" ? (
                   <>
                     <div>
-                      <span className="text-muted-foreground">Precificacao:</span>
+                      <span className="text-muted-foreground">Precificação:</span>
                       <p className="font-medium text-green-600">{pricingSummary}</p>
                     </div>
                     <div className="col-span-2 bg-muted/30 p-3 rounded-lg border border-border/40 mt-1 mb-2">
@@ -535,7 +535,7 @@ export function ProductFormNew({
                 {entityType === "product" && (
                   <>
                     <div>
-                      <span className="text-muted-foreground">Preco bruto base:</span>
+                      <span className="text-muted-foreground">Preço bruto base:</span>
                       <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
                     </div>
                     {formData.pricingMode !== "curtain_height" && (
@@ -547,7 +547,7 @@ export function ProductFormNew({
                     {formData.pricingMode !== "curtain_height" && (
                       <div>
                         <span className="text-muted-foreground">
-                          Preco com markup:
+                          Preço com markup:
                         </span>
                         <p className="font-medium text-green-600">
                           R$ {sellingPrice.toFixed(2)}
@@ -572,9 +572,9 @@ export function ProductFormNew({
             submitDisabled={!!productId && !hasChanges}
             submitLabel={
               productId
-                ? "Salvar Alteracoes"
+                ? "Salvar alterações"
                 : entityType === "service"
-                  ? "Criar Servico"
+                  ? "Criar serviço"
                   : "Criar Produto"
             }
           />

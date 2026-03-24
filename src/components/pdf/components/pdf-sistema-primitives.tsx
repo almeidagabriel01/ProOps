@@ -1,5 +1,13 @@
 import { formatCurrency } from "@/utils/format-utils";
 import { PdfDisplaySettings } from "@/types/pdf-display-settings";
+import type { TenantNiche } from "@/types";
+import {
+  getProposalLineUnitSellingPrice,
+  getProposalProductMeasurementLabel,
+  getProposalProductUnitLabel,
+  isCortinasDimensionProductLine,
+  isCortinasNeutralServiceLine,
+} from "@/lib/product-pricing";
 import { PdfExtraBadge } from "./pdf-extra-badge";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
@@ -124,16 +132,123 @@ export function PdfAmbienteTag({
   );
 }
 
+/**
+ * Rodapé de preço/medida para cards de sistema e extras (nicho cortinas).
+ */
+export function PdfCortinasAwareProductFooter({
+  product,
+  tenantNiche,
+  showProductPrices,
+  primaryColor,
+  grayTextClassName,
+  totalTextClassName,
+}: {
+  product: PdfProduct;
+  tenantNiche?: TenantNiche | null;
+  showProductPrices: boolean;
+  primaryColor?: string;
+  grayTextClassName: string;
+  totalTextClassName: string;
+}) {
+  const legacyUnit =
+    product.quantity > 0 ? product.total / product.quantity : product.unitPrice;
+
+  if (showProductPrices) {
+    if (isCortinasDimensionProductLine(tenantNiche, product)) {
+      const measurementLabel = getProposalProductMeasurementLabel(product);
+      const sellingPrice = getProposalLineUnitSellingPrice(product);
+      const unitLabel = getProposalProductUnitLabel(product);
+      return (
+        <>
+          <span className={`${grayTextClassName} block`}>
+            {measurementLabel} x {formatCurrency(sellingPrice)} / {unitLabel}
+          </span>
+          <span
+            className={totalTextClassName}
+            style={primaryColor ? { color: primaryColor } : undefined}
+          >
+            {formatCurrency(product.total)}
+          </span>
+        </>
+      );
+    }
+
+    if (isCortinasNeutralServiceLine(tenantNiche, product)) {
+      const sellingPrice = getProposalLineUnitSellingPrice(product);
+      return (
+        <>
+          <span className={`${grayTextClassName} block`}>
+            {formatCurrency(sellingPrice)}
+          </span>
+          <span
+            className={totalTextClassName}
+            style={primaryColor ? { color: primaryColor } : undefined}
+          >
+            {formatCurrency(product.total)}
+          </span>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <span className={`${grayTextClassName} block`}>
+          {product.quantity}x {formatCurrency(legacyUnit)}
+        </span>
+        <span
+          className={totalTextClassName}
+          style={primaryColor ? { color: primaryColor } : undefined}
+        >
+          {formatCurrency(product.total)}
+        </span>
+      </>
+    );
+  }
+
+  if (isCortinasDimensionProductLine(tenantNiche, product)) {
+    return (
+      <span className="text-xs text-gray-600">
+        {getProposalProductMeasurementLabel(product)}
+      </span>
+    );
+  }
+
+  if (isCortinasNeutralServiceLine(tenantNiche, product)) {
+    return (
+      <span className="text-xs text-gray-600">Serviço</span>
+    );
+  }
+
+  return (
+    <span
+      className="font-medium text-xs text-gray-600"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        gap: "4px",
+        lineHeight: "1",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span>Qtd:</span>
+      <span>{product.quantity}</span>
+    </span>
+  );
+}
+
 export function PdfSistemaProductCard({
   product,
   primaryColor,
   settings,
   evenBackground = false,
+  tenantNiche,
 }: {
   product: PdfProduct;
   primaryColor: string;
   settings: PdfDisplaySettings;
   evenBackground?: boolean;
+  tenantNiche?: TenantNiche | null;
 }) {
   const allImages = product.productImages?.length
     ? product.productImages
@@ -218,46 +333,23 @@ export function PdfSistemaProductCard({
           className="pt-2 mt-1 flex justify-end"
           style={{ borderTop: "1px solid #e5e7eb" }}
         >
-          {settings.showProductPrices ? (
-            <div
-              style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                lineHeight: "1.2",
-              }}
-            >
-              <span className="text-[10px] text-gray-500 block">
-                {product.quantity}x{" "}
-                {formatCurrency(
-                  product.quantity > 0
-                    ? product.total / product.quantity
-                    : product.unitPrice,
-                )}
-              </span>
-              <span
-                className="font-semibold text-sm"
-                style={{ color: primaryColor }}
-              >
-                {formatCurrency(product.total)}
-              </span>
-            </div>
-          ) : (
-            <span
-              className="font-medium text-xs text-gray-600"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "4px",
-                lineHeight: "1",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <span>Qtd:</span>
-              <span>{product.quantity}</span>
-            </span>
-          )}
+          <div
+            style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+              lineHeight: "1.2",
+            }}
+          >
+            <PdfCortinasAwareProductFooter
+              product={product}
+              tenantNiche={tenantNiche}
+              showProductPrices={settings.showProductPrices}
+              primaryColor={primaryColor}
+              grayTextClassName="text-[10px] text-gray-500"
+              totalTextClassName="font-semibold text-sm"
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -738,7 +738,7 @@ export function useProductForm(
       const noun = entityType === "service" ? "serviço" : "produto";
 
       toast.error(
-        `Nao foi possivel ${actionLabel} o ${noun} ${productLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível ${actionLabel} o ${noun} ${productLabel}. Detalhes: ${errorMessage}`,
         { title: productId ? "Erro ao editar" : "Erro ao salvar" },
       );
     } finally {

@@ -598,7 +598,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
           ? error.message.trim()
           : "Falha inesperada ao criar o lancamento.";
       toast.error(
-        `Nao foi possivel criar o lancamento ${transactionLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível criar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao criar" },
       );
     } finally {

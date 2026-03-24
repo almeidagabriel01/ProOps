@@ -1061,12 +1061,12 @@ export function AmbienteEditor({
                           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="rounded-md bg-muted/25 px-2.5 py-2">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                Preco base
+                                Preço base
                               </p>
                               <p className="text-xs font-semibold text-foreground">
                                 {hasCatalogPrice
                                   ? `R$ ${catalogPrice.toFixed(2)}`
-                                  : "Nao informado"}
+                                  : "Não informado"}
                               </p>
                             </div>
                             <div className="rounded-md bg-muted/25 px-2.5 py-2">
@@ -1104,8 +1104,8 @@ export function AmbienteEditor({
                                 {isService
                                   ? estimatedSubtotal !== null
                                     ? `R$ ${estimatedSubtotal.toFixed(2)}`
-                                    : "Nao informado"
-                                  : itemManufacturer || "Nao informado"}
+                                    : "Não informado"
+                                  : itemManufacturer || "Não informado"}
                               </p>
                             </div>
                           </div>

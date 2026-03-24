@@ -104,6 +104,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
               section={section}
               primaryColor={tenant?.primaryColor}
               proposal={proposal}
+              tenantNiche={tenant?.niche}
             />
           ))}
         </div>

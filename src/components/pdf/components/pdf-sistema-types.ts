@@ -2,6 +2,8 @@ import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
+import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
+import type { TenantNiche } from "@/types";
 
 export interface PdfProduct {
   productId: string;
@@ -12,7 +14,9 @@ export interface PdfProduct {
   productDescription?: string;
   quantity: number;
   unitPrice: number;
+  markup?: number;
   total: number;
+  pricingDetails?: ProposalProductPricingDetails;
   isExtra?: boolean;
   systemInstanceId?: string;
   _isInactive?: boolean;
@@ -39,6 +43,7 @@ export interface PdfSistemaBlockProps {
   products: PdfProduct[];
   primaryColor: string;
   pdfDisplaySettings?: PdfDisplaySettings;
+  tenantNiche?: TenantNiche | null;
 }
 
 export function resolvePdfDisplaySettings(

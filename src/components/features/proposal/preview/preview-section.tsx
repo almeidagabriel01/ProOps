@@ -1,6 +1,7 @@
 "use client";
 
 import { ProposalSection } from "@/types";
+import type { TenantNiche } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import {
   parseContent,
@@ -15,12 +16,14 @@ interface PreviewSectionProps {
   section: ProposalSection;
   primaryColor?: string;
   proposal: Partial<Proposal>;
+  tenantNiche?: TenantNiche | null;
 }
 
 export function PreviewSection({
   section,
   primaryColor,
   proposal,
+  tenantNiche,
 }: PreviewSectionProps) {
   const content = parseContent(section.content);
   const color = primaryColor || "#333";
@@ -34,6 +37,7 @@ export function PreviewSection({
           section={section}
           proposal={proposal}
           primaryColor={color}
+          tenantNiche={tenantNiche}
         />
       );
 

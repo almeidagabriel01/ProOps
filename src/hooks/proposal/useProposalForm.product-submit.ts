@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   Proposal,
   ProposalProduct,
@@ -560,7 +560,7 @@ export function useProposalFormProductSubmit(
                 ? clientUpdateError.message.trim()
                 : "Falha ao atualizar os dados do cliente.";
             toast.error(
-              `A proposta ${proposalLabel} foi salva, mas nao foi possivel atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
+              `A proposta ${proposalLabel} foi salva, mas não foi possível atualizar os dados do cliente. Detalhes: ${clientErrorMessage}`,
               { title: "Erro ao editar" },
             );
           }
@@ -575,7 +575,7 @@ export function useProposalFormProductSubmit(
           : "Falha inesperada ao salvar a proposta.";
       const actionLabel = proposalId ? "editar" : "salvar";
       toast.error(
-        `Nao foi possivel ${actionLabel} a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+        `Não foi possível ${actionLabel} a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
         { title: proposalId ? "Erro ao editar" : "Erro ao salvar" },
       );
       return false;

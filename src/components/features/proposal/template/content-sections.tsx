@@ -2,16 +2,25 @@
 
 import { Proposal } from "@/services/proposal-service";
 import { formatCurrency, renderText } from "./cover-themes";
-import { Tenant } from "@/types";
+import type { Tenant, TenantNiche } from "@/types";
+import {
+  getProposalLineUnitSellingPrice,
+  getProposalProductMeasurementLabel,
+  getProposalProductUnitLabel,
+  isCortinasDimensionProductLine,
+  isCortinasNeutralServiceLine,
+} from "@/lib/product-pricing";
 
 interface ProductsSectionProps {
   proposal: Partial<Proposal>;
   primaryColor: string;
+  tenantNiche?: TenantNiche | null;
 }
 
 export function ProductsSection({
   proposal,
   primaryColor,
+  tenantNiche,
 }: ProductsSectionProps) {
   const products = proposal.products || [];
   const subtotal = products.reduce((sum, p) => sum + p.total, 0);
@@ -56,7 +65,22 @@ export function ProductsSection({
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-sm text-gray-500">
-                    {product.quantity}x {formatCurrency(product.unitPrice)}
+                    {isCortinasDimensionProductLine(tenantNiche, product) ? (
+                      <>
+                        {getProposalProductMeasurementLabel(product)} x{" "}
+                        {formatCurrency(
+                          getProposalLineUnitSellingPrice(product),
+                        )}{" "}
+                        / {getProposalProductUnitLabel(product)}
+                      </>
+                    ) : isCortinasNeutralServiceLine(tenantNiche, product) ? (
+                      formatCurrency(getProposalLineUnitSellingPrice(product))
+                    ) : (
+                      <>
+                        {product.quantity}x{" "}
+                        {formatCurrency(product.unitPrice)}
+                      </>
+                    )}
                   </div>
                   <div
                     className="font-bold text-lg"

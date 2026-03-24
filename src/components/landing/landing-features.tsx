@@ -23,41 +23,41 @@ const FEATURE_CARDS = [
     icon: Users,
     title: "Clientes e fornecedores",
     description:
-      "Base unica de contatos com cadastro completo para vendas, pos-venda e operacao financeira.",
+      "Base única de contatos com cadastro completo para vendas, pós-venda e operação financeira.",
   },
   {
     icon: Package,
-    title: "Catalogo comercial",
+    title: "Catálogo comercial",
     description:
-      "Gestao de produtos e servicos com preco, margem, estoque e uso direto nas propostas.",
+      "Gestão de produtos e serviços com preço, margem, estoque e uso direto nas propostas.",
   },
   {
     icon: ShieldCheck,
-    title: "Equipe e permissoes",
+    title: "Equipe e permissões",
     description:
-      "Controle de acesso por modulo e acao para delegar tarefas com seguranca operacional.",
+      "Controle de acesso por módulo e ação para delegar tarefas com segurança operacional.",
   },
   {
     icon: Layers,
-    title: "Solucoes e ambientes",
+    title: "Soluções e ambientes",
     description:
-      "Templates de solucoes com ambientes e itens padrao para acelerar propostas complexas.",
+      "Templates de soluções com ambientes e itens padrão para acelerar propostas complexas.",
   },
   {
     icon: FileSpreadsheet,
     title: "Planilhas personalizadas",
     description:
-      "Crie planilhas internas por empresa para organizar dados de operacao fora do fluxo padrao.",
+      "Crie planilhas internas por empresa para organizar dados de operação fora do fluxo padrão.",
   },
   {
     icon: CalendarClock,
     title: "Agenda e Google Agenda",
     description:
-      "Sincronizacao opcional com Google Agenda para criar, atualizar e excluir compromissos da operacao.",
+      "Sincronização opcional com Google Agenda para criar, atualizar e excluir compromissos da operação.",
   },
   {
     icon: Bot,
-    title: "Automacoes e integracoes",
+    title: "Automações e integrações",
     description:
       "Fluxos com WhatsApp, webhooks e API para conectar ferramentas externas sem sair da plataforma.",
   },
