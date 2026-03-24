@@ -1475,16 +1475,16 @@ export const updateProposal = async (req: Request, res: Response) => {
     });
 
     if (updateData.products) {
-      const subtotal = (sanitizedProducts || []).reduce(
-        (sum: number, p: { total: number }) => sum + (p.total || 0),
+      const subtotal = (sanitizedProducts || []).reduce<number>(
+        (sum: number, p: Record<string, unknown>) => sum + ((p.total as number) || 0),
         0,
       );
       const discountAmount =
-        (subtotal * (updateData.discount || proposalData?.discount || 0)) / 100;
+        (subtotal * (Number(updateData.discount) || Number(proposalData?.discount) || 0)) / 100;
       const extraExpense =
         updateData.extraExpense !== undefined
-          ? updateData.extraExpense
-          : proposalData?.extraExpense || 0;
+          ? Number(updateData.extraExpense)
+          : Number(proposalData?.extraExpense) || 0;
       safeUpdate.totalValue = subtotal - discountAmount + extraExpense;
     }
 
