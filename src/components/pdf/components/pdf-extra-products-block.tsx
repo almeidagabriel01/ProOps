@@ -237,6 +237,9 @@ export function PdfExtraProductsBlock({
                                         showProductPrices={
                                           settings.showProductPrices
                                         }
+                                        showProductMeasurements={
+                                          settings.showProductMeasurements
+                                        }
                                         grayTextClassName="text-sm text-gray-500"
                                         totalTextClassName="font-bold text-lg text-gray-700"
                                       />
@@ -308,6 +311,9 @@ export function PdfExtraProductsBlock({
                                         tenantNiche={tenantNiche}
                                         showProductPrices={
                                           settings.showProductPrices
+                                        }
+                                        showProductMeasurements={
+                                          settings.showProductMeasurements
                                         }
                                         grayTextClassName="text-sm text-gray-500"
                                         totalTextClassName="font-bold text-lg text-gray-700"
@@ -381,6 +387,9 @@ export function PdfExtraProductsBlock({
                                       tenantNiche={tenantNiche}
                                       showProductPrices={
                                         settings.showProductPrices
+                                      }
+                                      showProductMeasurements={
+                                        settings.showProductMeasurements
                                       }
                                       grayTextClassName="text-sm text-gray-500"
                                       totalTextClassName="font-bold text-lg text-gray-700"

@@ -3,32 +3,11 @@
 import * as React from "react";
 import { Settings2 } from "lucide-react";
 import { Proposal } from "@/types/proposal";
-
-// PDF Display Settings Interface
-export interface PdfDisplaySettings {
-  showProductImages: boolean;
-  showProductDescriptions: boolean;
-  showProductPrices: boolean;
-  showSubtotals: boolean;
-  showEnvironmentSubtotals: boolean;
-  showPaymentTerms: boolean;
-  showLogo: boolean;
-  showValidUntil: boolean;
-  showNotes: boolean;
-}
-
-// Default settings
-export const defaultPdfSettings: PdfDisplaySettings = {
-  showProductImages: true,
-  showProductDescriptions: true,
-  showProductPrices: false,
-  showSubtotals: true,
-  showEnvironmentSubtotals: false,
-  showPaymentTerms: true,
-  showLogo: true,
-  showValidUntil: true,
-  showNotes: true,
-};
+import { useTenant } from "@/providers/tenant-provider";
+import {
+  PdfDisplaySettings,
+  defaultPdfDisplaySettings,
+} from "@/types/pdf-display-settings";
 
 interface PdfDisplayOptionsSectionProps {
   formData: Partial<Proposal>;
@@ -43,7 +22,7 @@ interface CheckboxOptionProps {
 
 function CheckboxOption({ label, checked, onChange }: CheckboxOptionProps) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer group">
+    <label className="flex cursor-pointer items-center gap-3 group">
       <div className="relative">
         <input
           type="checkbox"
@@ -51,10 +30,10 @@ function CheckboxOption({ label, checked, onChange }: CheckboxOptionProps) {
           onChange={(e) => onChange(e.target.checked)}
           className="sr-only peer"
         />
-        <div className="w-5 h-5 rounded-md border-2 border-border bg-background transition-all duration-200 peer-checked:bg-primary peer-checked:border-primary peer-focus:ring-2 peer-focus:ring-primary/30 group-hover:border-primary/60">
+        <div className="h-5 w-5 rounded-md border-2 border-border bg-background transition-all duration-200 peer-checked:border-primary peer-checked:bg-primary peer-focus:ring-2 peer-focus:ring-primary/30 group-hover:border-primary/60">
           {checked && (
             <svg
-              className="w-full h-full text-primary-foreground p-0.5"
+              className="h-full w-full p-0.5 text-primary-foreground"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -69,7 +48,7 @@ function CheckboxOption({ label, checked, onChange }: CheckboxOptionProps) {
           )}
         </div>
       </div>
-      <span className="text-sm text-foreground group-hover:text-primary transition-colors">
+      <span className="text-sm text-foreground transition-colors group-hover:text-primary">
         {label}
       </span>
     </label>
@@ -80,18 +59,19 @@ export function PdfDisplayOptionsSection({
   formData,
   setFormData,
 }: PdfDisplayOptionsSectionProps) {
-  // Get current settings or use defaults
+  const { tenant } = useTenant();
+  const isCortinasNiche = tenant?.niche === "cortinas";
+
   const settings: PdfDisplaySettings = {
-    ...defaultPdfSettings,
+    ...defaultPdfDisplaySettings,
     ...(formData.pdfSettings as Partial<PdfDisplaySettings>),
   };
 
-  // Update a single setting
   const updateSetting = (key: keyof PdfDisplaySettings, value: boolean) => {
     setFormData((prev) => ({
       ...prev,
       pdfSettings: {
-        ...defaultPdfSettings,
+        ...defaultPdfDisplaySettings,
         ...(prev.pdfSettings as Partial<PdfDisplaySettings>),
         [key]: value,
       },
@@ -100,10 +80,9 @@ export function PdfDisplayOptionsSection({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
-          <Settings2 className="w-6 h-6 text-purple-600" />
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5">
+          <Settings2 className="h-6 w-6 text-purple-600" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-foreground">
@@ -115,59 +94,74 @@ export function PdfDisplayOptionsSection({
         </div>
       </div>
 
-      {/* Options Grid */}
-      <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4">
-        {/* Products Section */}
+      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Produtos
           </h4>
           <div className="space-y-3">
             <CheckboxOption
               label="Mostrar imagens"
               checked={settings.showProductImages}
-              onChange={(v) => updateSetting("showProductImages", v)}
+              onChange={(value) => updateSetting("showProductImages", value)}
             />
             <CheckboxOption
               label="Mostrar descrições"
               checked={settings.showProductDescriptions}
-              onChange={(v) => updateSetting("showProductDescriptions", v)}
+              onChange={(value) =>
+                updateSetting("showProductDescriptions", value)
+              }
             />
             <CheckboxOption
               label="Mostrar preços unitários"
               checked={settings.showProductPrices}
-              onChange={(v) => updateSetting("showProductPrices", v)}
+              onChange={(value) => updateSetting("showProductPrices", value)}
             />
+            {isCortinasNiche && (
+              <CheckboxOption
+                label="Mostrar largura e altura"
+                checked={settings.showProductMeasurements}
+                onChange={(value) =>
+                  updateSetting("showProductMeasurements", value)
+                }
+              />
+            )}
             <CheckboxOption
-              label="Mostrar subtotal por solução"
+              label={
+                isCortinasNiche
+                  ? "Mostrar subtotais por ambiente"
+                  : "Mostrar subtotal por solução"
+              }
               checked={settings.showSubtotals}
-              onChange={(v) => updateSetting("showSubtotals", v)}
+              onChange={(value) => updateSetting("showSubtotals", value)}
             />
-            <CheckboxOption
-              label="Mostrar subtotais por ambiente"
-              checked={settings.showEnvironmentSubtotals}
-              onChange={(v) => updateSetting("showEnvironmentSubtotals", v)}
-            />
+            {!isCortinasNiche && (
+              <CheckboxOption
+                label="Mostrar subtotais por ambiente"
+                checked={settings.showEnvironmentSubtotals}
+                onChange={(value) =>
+                  updateSetting("showEnvironmentSubtotals", value)
+                }
+              />
+            )}
           </div>
         </div>
 
-        {/* Payment Section */}
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Pagamento
           </h4>
           <div className="space-y-3">
             <CheckboxOption
               label="Mostrar formas de pagamento"
               checked={settings.showPaymentTerms}
-              onChange={(v) => updateSetting("showPaymentTerms", v)}
+              onChange={(value) => updateSetting("showPaymentTerms", value)}
             />
           </div>
         </div>
       </div>
 
-      {/* Info box */}
-      <div className="mt-6 p-4 rounded-xl bg-muted/50 border border-border/50">
+      <div className="mt-6 rounded-xl border border-border/50 bg-muted/50 p-4">
         <p className="text-xs text-muted-foreground">
           <span className="font-medium">Dica:</span> Essas configurações serão
           aplicadas ao PDF gerado para esta proposta. Você pode visualizar o
