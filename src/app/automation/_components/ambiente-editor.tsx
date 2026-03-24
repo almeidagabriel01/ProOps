@@ -692,6 +692,31 @@ export function AmbienteEditor({
                           !isService && allowDecimalProductQuantity;
                         const quantityStep = allowDecimalQuantity ? 0.01 : 1;
                         const itemLineId = item.lineItemId;
+                        const catalogPrice = Number.parseFloat(
+                          String(catalogItem?.price || "0").replace(",", "."),
+                        );
+                        const hasCatalogPrice =
+                          Number.isFinite(catalogPrice) && catalogPrice > 0;
+                        const effectiveQuantity = isCurtainMeter
+                          ? pricingDetails.mode === "curtain_meter"
+                            ? pricingDetails.area
+                            : item.quantity
+                          : isCurtainHeight
+                            ? pricingDetails.mode === "curtain_height"
+                              ? pricingDetails.width
+                              : item.quantity
+                            : item.quantity;
+                        const estimatedSubtotal = hasCatalogPrice
+                          ? catalogPrice * Math.max(0, effectiveQuantity)
+                          : null;
+                        const itemCategory = catalogItem?.category || "";
+                        const itemManufacturer =
+                          !isService &&
+                          catalogItem &&
+                          "manufacturer" in catalogItem &&
+                          typeof catalogItem.manufacturer === "string"
+                            ? catalogItem.manufacturer
+                            : "";
 
                         return (
                           <motion.div
@@ -793,10 +818,12 @@ export function AmbienteEditor({
                             </Button>
                           </div>
 
-                          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/50 pt-4">
-                            <div className="space-y-1 my-auto">
-                              <span className="text-[10px] text-muted-foreground mr-2">Status do Item</span>
-                              <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-end gap-4 border-t border-border/40 pt-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                                Status do item
+                              </span>
+                              <div className="flex h-10 w-fit items-center gap-2 rounded-full bg-muted/30 px-3">
                                 <Switch
                                   checked={item.status !== "inactive"}
                                   onCheckedChange={(checked) =>
@@ -809,240 +836,276 @@ export function AmbienteEditor({
                                   }
                                   aria-label="Toggle status"
                                 />
-                                <span className="text-sm font-medium text-foreground">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "h-auto rounded-full px-2 py-0.5 text-[10px] border-0",
+                                    item.status !== "inactive"
+                                      ? "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                      : "bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+                                  )}
+                                >
                                   {item.status !== "inactive" ? "Ativo" : "Inativo"}
-                                </span>
+                                </Badge>
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-end flex-wrap gap-3 flex-1">
+                            <div className="ml-auto flex w-full items-center justify-end md:w-auto md:min-w-[300px]">
                               {isCurtainMeter ? (
-                                <div className="grid w-full gap-2 rounded-lg border bg-muted/50 p-3 shadow-sm md:grid-cols-2 lg:w-[320px]">
-                                <div className="space-y-1">
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Largura
-                                  </span>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={
-                                      pricingDetails.mode === "curtain_meter"
-                                        ? pricingDetails.width
-                                        : 0
-                                    }
-                                    onChange={(event) => {
-                                      const width = Math.max(
-                                        0,
-                                        Number.parseFloat(event.target.value) || 0,
-                                      );
-                                      const height =
+                                <div className="grid w-full gap-3 sm:grid-cols-2 md:w-[380px] lg:w-[440px]">
+                                  <div className="space-y-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Largura (m)
+                                    </span>
+                                    <EditableMeasureInput
+                                      value={
+                                        pricingDetails.mode === "curtain_meter"
+                                          ? pricingDetails.width
+                                          : 0
+                                      }
+                                      onChange={(nextWidth) => {
+                                        const width = Math.max(0, nextWidth || 0);
+                                        const height =
+                                          pricingDetails.mode === "curtain_meter"
+                                            ? pricingDetails.height
+                                            : 0;
+                                        handleUpdatePricingDetails(
+                                          item.productId,
+                                          {
+                                            mode: "curtain_meter",
+                                            width,
+                                            height,
+                                            area: width * height,
+                                          },
+                                          itemType,
+                                          itemLineId,
+                                        );
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Altura (m)
+                                    </span>
+                                    <EditableMeasureInput
+                                      value={
                                         pricingDetails.mode === "curtain_meter"
                                           ? pricingDetails.height
-                                          : 0;
-                                      handleUpdatePricingDetails(
-                                        item.productId,
-                                        {
-                                          mode: "curtain_meter",
-                                          width,
-                                          height,
-                                          area: width * height,
-                                        },
-                                        itemType,
-                                        itemLineId,
-                                      );
-                                    }}
-                                    className="h-9"
-                                  />
+                                          : 0
+                                      }
+                                      onChange={(nextHeight) => {
+                                        const height = Math.max(0, nextHeight || 0);
+                                        const width =
+                                          pricingDetails.mode === "curtain_meter"
+                                            ? pricingDetails.width
+                                            : 0;
+                                        handleUpdatePricingDetails(
+                                          item.productId,
+                                          {
+                                            mode: "curtain_meter",
+                                            width,
+                                            height,
+                                            area: width * height,
+                                          },
+                                          itemType,
+                                          itemLineId,
+                                        );
+                                      }}
+                                    />
+                                  </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Altura
-                                  </span>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={
-                                      pricingDetails.mode === "curtain_meter"
-                                        ? pricingDetails.height
-                                        : 0
-                                    }
-                                    onChange={(event) => {
-                                      const height = Math.max(
-                                        0,
-                                        Number.parseFloat(event.target.value) || 0,
-                                      );
-                                      const width =
-                                        pricingDetails.mode === "curtain_meter"
-                                          ? pricingDetails.width
-                                          : 0;
-                                      handleUpdatePricingDetails(
-                                        item.productId,
-                                        {
-                                          mode: "curtain_meter",
-                                          width,
-                                          height,
-                                          area: width * height,
-                                        },
-                                        itemType,
-                                        itemLineId,
-                                      );
-                                    }}
-                                    className="h-9"
-                                  />
-                                </div>
-                              </div>
-                            ) : isCurtainHeight ? (
-                              <div className="grid w-full gap-3 rounded-lg border bg-muted/40 p-3 shadow-sm md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-                                <div className="space-y-1">
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Faixa
-                                  </span>
-                                  <Select
-                                    value={
-                                      pricingDetails.mode === "curtain_height"
-                                        ? pricingDetails.tierId
-                                        : selectedHeightTier?.id || ""
-                                    }
-                                    onChange={(event) => {
-                                      const nextTier =
-                                        activeHeightTiers.find(
-                                          (tier) =>
-                                            tier.id === event.target.value,
-                                        ) || activeHeightTiers[0];
-                                      const width =
+                              ) : isCurtainHeight ? (
+                                <div className="grid w-full gap-3 md:w-[520px] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1fr)] lg:items-end">
+                                  <div className="space-y-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Faixa de altura
+                                    </span>
+                                    <Select
+                                      value={
+                                        pricingDetails.mode === "curtain_height"
+                                          ? pricingDetails.tierId
+                                          : selectedHeightTier?.id || ""
+                                      }
+                                      onChange={(event) => {
+                                        const nextTier =
+                                          activeHeightTiers.find(
+                                            (tier) => tier.id === event.target.value,
+                                          ) || activeHeightTiers[0];
+                                        const width =
+                                          pricingDetails.mode === "curtain_height"
+                                            ? pricingDetails.width
+                                            : 0;
+                                        handleUpdatePricingDetails(
+                                          item.productId,
+                                          {
+                                            mode: "curtain_height",
+                                            width,
+                                            tierId: nextTier?.id || "",
+                                            maxHeight: nextTier?.maxHeight || 0,
+                                          },
+                                          itemType,
+                                          itemLineId,
+                                        );
+                                      }}
+                                      inputSize="sm"
+                                    >
+                                      {activeHeightTiers.map((tier) => (
+                                        <option key={tier.id} value={tier.id}>
+                                          Ate {formatMeters(tier.maxHeight)}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Largura (m)
+                                    </span>
+                                    <EditableMeasureInput
+                                      value={
                                         pricingDetails.mode === "curtain_height"
                                           ? pricingDetails.width
-                                          : 0;
-                                      handleUpdatePricingDetails(
-                                        item.productId,
-                                        {
-                                          mode: "curtain_height",
-                                          width,
-                                          tierId: nextTier?.id || "",
-                                          maxHeight: nextTier?.maxHeight || 0,
-                                        },
-                                        itemType,
-                                        itemLineId,
-                                      );
-                                    }}
-                                    inputSize="sm"
-                                    className="h-9"
-                                  >
-                                    {activeHeightTiers.map((tier) => (
-                                      <option key={tier.id} value={tier.id}>
-                                        Ate {formatMeters(tier.maxHeight)}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                </div>
-                                <div className="space-y-1">
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Largura
-                                  </span>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={
-                                      pricingDetails.mode === "curtain_height"
-                                        ? pricingDetails.width
-                                        : 0
-                                    }
-                                    onChange={(event) => {
-                                      const width = Math.max(
-                                        0,
-                                        Number.parseFloat(event.target.value) || 0,
-                                      );
-                                      const nextTier =
-                                        activeHeightTiers.find(
-                                          (tier) =>
-                                            tier.id ===
-                                            (pricingDetails.mode ===
-                                            "curtain_height"
-                                              ? pricingDetails.tierId
-                                              : selectedHeightTier?.id || ""),
-                                        ) || activeHeightTiers[0];
-                                      handleUpdatePricingDetails(
-                                        item.productId,
-                                        {
-                                          mode: "curtain_height",
-                                          width,
-                                          tierId: nextTier?.id || "",
-                                          maxHeight: nextTier?.maxHeight || 0,
-                                        },
-                                        itemType,
-                                        itemLineId,
-                                      );
-                                    }}
-                                    className="h-9"
-                                  />
-                                </div>
-                                {selectedHeightTier && (
-                                  <div className="col-span-2 mt-1 flex items-center justify-between rounded-md bg-background px-3 py-2 border border-border/50">
-                                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                                      Preço da faixa
-                                    </span>
-                                    <span className="text-xs font-semibold text-foreground">
-                                      R${" "}
-                                      {calculateSellingPrice(
-                                        selectedHeightTier.basePrice,
-                                        selectedHeightTier.markup,
-                                      ).toFixed(2)}{" "}
-                                      <span className="text-[10px] font-normal text-muted-foreground">
-                                        / m larg.
-                                      </span>
-                                    </span>
+                                          : 0
+                                      }
+                                      onChange={(nextWidth) => {
+                                        const width = Math.max(0, nextWidth || 0);
+                                        const nextTier =
+                                          activeHeightTiers.find(
+                                            (tier) =>
+                                              tier.id ===
+                                              (pricingDetails.mode ===
+                                              "curtain_height"
+                                                ? pricingDetails.tierId
+                                                : selectedHeightTier?.id || ""),
+                                          ) || activeHeightTiers[0];
+                                        handleUpdatePricingDetails(
+                                          item.productId,
+                                          {
+                                            mode: "curtain_height",
+                                            width,
+                                            tierId: nextTier?.id || "",
+                                            maxHeight: nextTier?.maxHeight || 0,
+                                          },
+                                          itemType,
+                                          itemLineId,
+                                        );
+                                      }}
+                                    />
                                   </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex items-center bg-muted/50 rounded-lg border p-1 shadow-sm">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-md hover:bg-background hover:text-destructive transition-colors"
-                                  onClick={() =>
-                                    handleUpdateQuantity(
-                                      item.productId,
-                                      -quantityStep,
-                                      itemType,
-                                      itemLineId,
-                                    )
-                                  }
-                                >
-                                  <Minus className="w-3.5 h-3.5" />
-                                </Button>
-                                <EditableQuantityInput
-                                  value={item.quantity}
-                                  allowDecimal={allowDecimalQuantity}
-                                  onChange={(nextValue) =>
-                                    handleSetQuantity(
-                                      item.productId,
-                                      nextValue,
-                                      itemType,
-                                      itemLineId,
-                                    )
-                                  }
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-md hover:bg-background hover:text-primary transition-colors"
-                                  onClick={() =>
-                                    handleUpdateQuantity(
-                                      item.productId,
-                                      quantityStep,
-                                      itemType,
-                                      itemLineId,
-                                    )
-                                  }
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            )}
+                                  {selectedHeightTier && (
+                                    <div className="flex h-10 items-center justify-between rounded-md bg-muted/30 px-3">
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                                        Preço da faixa
+                                      </span>
+                                      <span className="text-xs font-semibold text-foreground">
+                                        R${" "}
+                                        {calculateSellingPrice(
+                                          selectedHeightTier.basePrice,
+                                          selectedHeightTier.markup,
+                                        ).toFixed(2)}
+                                        <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                                          / m larg.
+                                        </span>
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="ml-auto flex items-center rounded-lg bg-muted/30 p-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-md hover:bg-background hover:text-destructive transition-colors"
+                                    onClick={() =>
+                                      handleUpdateQuantity(
+                                        item.productId,
+                                        -quantityStep,
+                                        itemType,
+                                        itemLineId,
+                                      )
+                                    }
+                                  >
+                                    <Minus className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <EditableQuantityInput
+                                    value={item.quantity}
+                                    allowDecimal={allowDecimalQuantity}
+                                    onChange={(nextValue) =>
+                                      handleSetQuantity(
+                                        item.productId,
+                                        nextValue,
+                                        itemType,
+                                        itemLineId,
+                                      )
+                                    }
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-md hover:bg-background hover:text-primary transition-colors"
+                                    onClick={() =>
+                                      handleUpdateQuantity(
+                                        item.productId,
+                                        quantityStep,
+                                        itemType,
+                                        itemLineId,
+                                      )
+                                    }
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="rounded-md bg-muted/25 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Preco base
+                              </p>
+                              <p className="text-xs font-semibold text-foreground">
+                                {hasCatalogPrice
+                                  ? `R$ ${catalogPrice.toFixed(2)}`
+                                  : "Nao informado"}
+                              </p>
+                            </div>
+                            <div className="rounded-md bg-muted/25 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {isCurtainMeter
+                                  ? "Area base"
+                                  : isCurtainHeight
+                                    ? "Largura base"
+                                    : "Quantidade"}
+                              </p>
+                              <p className="text-xs font-semibold text-foreground">
+                                {isCurtainMeter
+                                  ? `${effectiveQuantity.toFixed(2)} m2`
+                                  : isCurtainHeight
+                                    ? `${formatMeters(effectiveQuantity)}`
+                                    : formatItemQuantity(
+                                        effectiveQuantity,
+                                        allowDecimalQuantity,
+                                      )}
+                              </p>
+                            </div>
+                            <div className="rounded-md bg-muted/25 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Categoria
+                              </p>
+                              <p className="truncate text-xs font-semibold text-foreground">
+                                {itemCategory || "Sem categoria"}
+                              </p>
+                            </div>
+                            <div className="rounded-md bg-muted/25 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {isService ? "Valor estimado" : "Fabricante"}
+                              </p>
+                              <p className="truncate text-xs font-semibold text-foreground">
+                                {isService
+                                  ? estimatedSubtotal !== null
+                                    ? `R$ ${estimatedSubtotal.toFixed(2)}`
+                                    : "Nao informado"
+                                  : itemManufacturer || "Nao informado"}
+                              </p>
                             </div>
                           </div>
                           </motion.div>
@@ -1063,6 +1126,67 @@ interface EditableQuantityInputProps {
   value: number;
   allowDecimal: boolean;
   onChange: (value: number) => void;
+}
+
+interface EditableMeasureInputProps {
+  value: number;
+  onChange: (value: number) => void;
+}
+
+function EditableMeasureInput({ value, onChange }: EditableMeasureInputProps) {
+  const [inputValue, setInputValue] = React.useState(String(value ?? 0));
+  const [isEditing, setIsEditing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isEditing) {
+      setInputValue(String(value ?? 0));
+    }
+  }, [isEditing, value]);
+
+  const commitValue = React.useCallback(() => {
+    setIsEditing(false);
+    const sanitized = inputValue.replace(",", ".");
+
+    if (sanitized.trim() === "") {
+      onChange(0);
+      setInputValue("0");
+      return;
+    }
+
+    const parsed = Number.parseFloat(sanitized);
+    if (Number.isNaN(parsed)) {
+      setInputValue(String(value ?? 0));
+      return;
+    }
+
+    const normalized = Math.max(0, parsed);
+    onChange(normalized);
+    setInputValue(String(normalized));
+  }, [inputValue, onChange, value]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={inputValue}
+      onFocus={() => setIsEditing(true)}
+      onChange={(event) =>
+        setInputValue(event.target.value.replace(/[^0-9.,]/g, ""))
+      }
+      onBlur={commitValue}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        }
+        if (event.key === "Escape") {
+          setIsEditing(false);
+          setInputValue(String(value ?? 0));
+          event.currentTarget.blur();
+        }
+      }}
+      className="h-9"
+    />
+  );
 }
 
 function EditableQuantityInput({
