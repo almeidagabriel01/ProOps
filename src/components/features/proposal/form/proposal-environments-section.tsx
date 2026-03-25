@@ -23,6 +23,7 @@ import { Service } from "@/services/service-service";
 import { ProposalSistema, Ambiente } from "@/types/automation";
 import { useTenant } from "@/providers/tenant-provider";
 import {
+  Edit2,
   Layers,
   Minus,
   Package,
@@ -145,6 +146,7 @@ export function ProposalEnvironmentsSection({
 }: ProposalEnvironmentsSectionProps) {
   const { tenant } = useTenant();
   const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
+  const allowCurtainProductPriceEditing = tenant?.niche === "cortinas";
   const isMeterMode = inventoryConfig.mode === "meter";
   const quantityStep = inventoryConfig.step;
   const zeroQuantityLabel = isMeterMode ? "Ocultar metr. 0" : "Ocultar qtd. 0";
@@ -277,6 +279,7 @@ export function ProposalEnvironmentsSection({
                   onUpdateMarkup={onUpdateProductMarkup}
                   onUpdatePricingDetails={onUpdateProductPricingDetails}
                   onUpdatePrice={onUpdateProductPrice}
+                  allowProductPriceEditing={allowCurtainProductPriceEditing}
                   onAddExtraProduct={onAddExtraProductToAmbiente}
                   onRemoveProduct={onRemoveProduct}
                   onToggleStatus={onToggleStatus}
@@ -380,6 +383,7 @@ interface EnvironmentCardProps {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => void;
+  allowProductPriceEditing: boolean;
   onAddExtraProduct: (
     product: Product | Service,
     ambienteIndex: number,
@@ -419,6 +423,7 @@ function EnvironmentCard({
   onUpdateMarkup,
   onUpdatePricingDetails,
   onUpdatePrice,
+  allowProductPriceEditing,
   onAddExtraProduct,
   onRemoveProduct,
   onToggleStatus,
@@ -568,6 +573,7 @@ function EnvironmentCard({
                     onUpdateMarkup={onUpdateMarkup}
                     onUpdatePricingDetails={onUpdatePricingDetails}
                     onUpdatePrice={onUpdatePrice}
+                    allowProductPriceEditing={allowProductPriceEditing}
                     onRemoveProduct={onRemoveProduct}
                     onToggleStatus={onToggleStatus}
                   />
@@ -628,6 +634,7 @@ interface EnvironmentProductRowProps {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => void;
+  allowProductPriceEditing: boolean;
   onRemoveProduct: (
     productId: string,
     systemInstanceId: string,
@@ -652,6 +659,7 @@ function EnvironmentProductRow({
   onUpdateMarkup,
   onUpdatePricingDetails,
   onUpdatePrice,
+  allowProductPriceEditing,
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentProductRowProps) {
@@ -663,8 +671,14 @@ function EnvironmentProductRow({
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [markup, setMarkup] = React.useState(product.markup || 0);
   const [isEditingMarkup, setIsEditingMarkup] = React.useState(false);
+  const canEditDisplayedPrice = isService || allowProductPriceEditing;
+  const isDisplayedPriceEditingDisabled =
+    !isService && canEditDisplayedPrice && Number(product.quantity || 0) <= 0;
+  const displayedPrice = isService
+    ? product.unitPrice || 0
+    : product.total || 0;
   const [priceInput, setPriceInput] = React.useState(
-    (product.unitPrice || 0).toString(),
+    displayedPrice.toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
   const catalogPricingModel = catalogProduct && "pricingModel" in catalogProduct ? catalogProduct.pricingModel : undefined;
@@ -741,9 +755,9 @@ function EnvironmentProductRow({
 
   React.useEffect(() => {
     if (!isEditingPrice) {
-      setPriceInput((product.unitPrice || 0).toString());
+      setPriceInput(displayedPrice.toString());
     }
-  }, [product.unitPrice, isEditingPrice]);
+  }, [displayedPrice, isEditingPrice]);
 
   React.useEffect(() => {
     if (!isEditingQuantity) {
@@ -780,23 +794,54 @@ function EnvironmentProductRow({
     setIsEditingPrice(false);
     const value = priceInput.replace(/[^0-9.,]/g, "").replace(",", ".");
     const parsedValue = parseFloat(value);
-    if (!Number.isNaN(parsedValue) && parsedValue !== product.unitPrice) {
+    if (Number.isNaN(parsedValue)) {
+      setPriceInput(displayedPrice.toString());
+      return;
+    }
+
+    const nextUnitPrice = (() => {
+      if (isService) return parsedValue;
+
+      const quantity = Number(product.quantity || 0);
+      const markupFactor = 1 + (Number(product.markup || 0) / 100);
+
+      if (quantity <= 0 || markupFactor <= 0) {
+        return null;
+      }
+
+      return parsedValue / (quantity * markupFactor);
+    })();
+
+    if (nextUnitPrice === null) {
+      setPriceInput(displayedPrice.toString());
+      return;
+    }
+
+    if (Math.abs(nextUnitPrice - (product.unitPrice || 0)) > 0.0001) {
       onUpdatePrice(
         product.productId,
-        parsedValue,
+        nextUnitPrice,
         systemInstanceId,
         itemType,
         lineItemId,
       );
-    } else {
-      setPriceInput((product.unitPrice || 0).toString());
+      return;
     }
+
+    setPriceInput(displayedPrice.toString());
   };
 
   const handlePriceKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.currentTarget.blur();
     }
+  };
+
+  const handlePriceEditClick = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (isDisplayedPriceEditingDisabled) return;
+    setPriceInput(displayedPrice.toString());
+    setIsEditingPrice(true);
   };
 
   const commitQuantityChange = React.useCallback(() => {
@@ -1447,32 +1492,45 @@ function EnvironmentProductRow({
           )}
 
           <div className="flex min-w-[100px] flex-col items-end justify-center py-1">
-            {isService ? (
-              <div className="group relative flex items-center">
-                <span className="absolute left-2 text-xs text-muted-foreground">
-                  R$
-                </span>
-                <input
-                  type="text"
-                  value={
-                    isEditingPrice ? priceInput : product.unitPrice?.toFixed(2) || "0.00"
-                  }
-                  onFocus={() => {
-                    setIsEditingPrice(true);
-                    setPriceInput((product.unitPrice || 0).toString());
-                  }}
+            {canEditDisplayedPrice && isEditingPrice ? (
+              <div
+                className="relative flex items-center"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <CurrencyInput
+                  value={Number(priceInput || 0)}
                   onChange={(event) => setPriceInput(event.target.value)}
-                  onBlur={handlePriceBlur}
                   onKeyDown={handlePriceKeyDown}
-                  className="h-9 w-24 rounded-md border bg-background pl-6 pr-2 text-right text-sm transition-all hover:border-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  autoFocus
+                  className="h-8 w-28 border-primary bg-background py-1 pl-2 pr-2 text-right text-sm font-medium"
+                  onBlur={handlePriceBlur}
                 />
               </div>
             ) : (
-              <span
-                className={`font-semibold text-sm tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
+              <div
+                className={`flex items-center justify-end gap-2 ${isDisplayedPriceEditingDisabled ? "cursor-default" : ""}`}
+                title={
+                  isDisplayedPriceEditingDisabled
+                    ? "Informe a metragem ou quantidade antes de ajustar o valor."
+                    : undefined
+                }
               >
-                R$ {(product.total || 0).toFixed(2)}
-              </span>
+                <span
+                  className={`font-semibold text-sm tabular-nums ${!isActive ? "text-muted-foreground" : ""}`}
+                >
+                  R$ {displayedPrice.toFixed(2)}
+                </span>
+                {canEditDisplayedPrice && !isDisplayedPriceEditingDisabled && (
+                  <button
+                    type="button"
+                    onClick={handlePriceEditClick}
+                    className="flex cursor-pointer items-center justify-center rounded-full p-1 transition-colors hover:bg-muted"
+                    title="Clique para editar o valor"
+                  >
+                    <Edit2 className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                  </button>
+                )}
+              </div>
             )}
 
             {isActive && !isService && (
