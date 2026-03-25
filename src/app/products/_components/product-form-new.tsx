@@ -126,6 +126,8 @@ export function ProductFormNew({
     entityType === "product" &&
     isCurtainNiche &&
     formData.pricingMode === "standard";
+  const shouldShowInventorySummary =
+    entityType === "product" && (!isCurtainNiche || isCurtainQuantityProduct);
   const inventoryReadOnlyLabel = isCurtainQuantityProduct
     ? "Estoque"
     : nicheConfig.productCatalog.inventory.readOnlyLabel;
@@ -561,7 +563,7 @@ export function ProductFormNew({
                         </p>
                       </div>
                     )}
-                    {isCurtainQuantityProduct && (
+                    {shouldShowInventorySummary && (
                       <div>
                         <span className="text-muted-foreground">
                           {inventoryReadOnlyLabel}:
