@@ -85,6 +85,10 @@ export function ProductTableSection({
     );
   }
 
+  const pdfSettings = typeof window !== "undefined" // Just to ensure we don't import merge if we can avoid it. Actually, I can just do default fallback.
+    ? { showProductQuantities: true, showProductMeasurements: true, showProductPrices: false, ...proposal?.pdfSettings }
+    : { showProductQuantities: true, showProductMeasurements: true, showProductPrices: false, ...proposal?.pdfSettings };
+
   const renderProductTable = (
     items: ProposalProduct[],
     title?: string,
@@ -94,6 +98,20 @@ export function ProductTableSection({
       (sum, item) => sum + (item.total || item.quantity * item.unitPrice),
       0,
     );
+
+    const hasQuantityProducts = items.some(item => !isCortinasDimensionProductLine(tenantNiche, item));
+    const showQuantity = pdfSettings.showProductQuantities !== false && hasQuantityProducts;
+    
+    const hasDimensionProducts = items.some(item => isCortinasDimensionProductLine(tenantNiche, item));
+    const showMeasurements = tenantNiche === "cortinas" && pdfSettings.showProductMeasurements !== false && hasDimensionProducts;
+
+    const showMiddleColumn = showQuantity || showMeasurements;
+    const showPriceColumn = pdfSettings.showProductPrices !== false;
+    
+    let middleColumnLabel = "Qtd";
+    if (showQuantity && showMeasurements) middleColumnLabel = "Medida / Qtd.";
+    else if (showMeasurements) middleColumnLabel = "Medida";
+
     return (
       <div className="mb-6">
         {sistemaInfo ? (
@@ -134,53 +152,65 @@ export function ProductTableSection({
               <th className="text-left px-3 py-2 font-medium first:rounded-tl-none">
                 Item
               </th>
-              <th className="text-center px-3 py-2 font-medium w-28">
-                {tenantNiche === "cortinas" ? "Medida / Qtd." : "Qtd"}
-              </th>
-              <th className="text-right px-3 py-2 font-medium w-28">
-                Preço Unit.
-              </th>
+              {showMiddleColumn && (
+                <th className="text-center px-3 py-2 font-medium w-28">
+                  {middleColumnLabel}
+                </th>
+              )}
+              {showPriceColumn && (
+                <th className="text-right px-3 py-2 font-medium w-28">
+                  Preço Unit.
+                </th>
+              )}
               <th className="text-right px-3 py-2 font-medium w-28 last:rounded-tr-none">
                 Total
               </th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item, i) => (
-              <tr
-                key={item.productId || i}
-                className={i % 2 === 0 ? "bg-muted/30" : "bg-card"}
-              >
-                <td className="px-3 py-2 border-b border-gray-200">
-                  {item.productName || item.name}
-                </td>
-                <td className="px-3 py-2 border-b border-gray-200 text-center text-sm">
-                  {isCortinasDimensionProductLine(tenantNiche, item)
-                    ? getProposalProductMeasurementLabel(item)
-                    : item.quantity}
-                </td>
-                <td className="px-3 py-2 border-b border-gray-200 text-right">
-                  R${" "}
-                  {isCortinasDimensionProductLine(tenantNiche, item)
-                    ? getProposalLineUnitSellingPrice(item).toFixed(2)
-                    : (
-                        item.quantity > 0
-                          ? (item.total ||
-                              item.quantity * (item.unitPrice || 0)) /
-                            item.quantity
-                          : item.unitPrice || 0
-                      ).toFixed(2)}
-                </td>
-                <td className="px-3 py-2 border-b border-gray-200 text-right font-medium">
-                  R$ {(item.total || item.quantity * item.unitPrice).toFixed(2)}
-                </td>
-              </tr>
-            ))}
+            {items.map((item, i) => {
+              const isDimension = isCortinasDimensionProductLine(tenantNiche, item);
+              
+              return (
+                <tr
+                  key={item.productId || i}
+                  className={i % 2 === 0 ? "bg-muted/30" : "bg-card"}
+                >
+                  <td className="px-3 py-2 border-b border-gray-200">
+                    {item.productName || item.name}
+                  </td>
+                  {showMiddleColumn && (
+                    <td className="px-3 py-2 border-b border-gray-200 text-center text-sm">
+                      {isDimension
+                        ? (showMeasurements ? getProposalProductMeasurementLabel(item) : "-")
+                        : (showQuantity ? item.quantity : "-")}
+                    </td>
+                  )}
+                  {showPriceColumn && (
+                    <td className="px-3 py-2 border-b border-gray-200 text-right">
+                      R${" "}
+                      {isDimension
+                        ? getProposalLineUnitSellingPrice(item).toFixed(2)
+                        : (
+                            item.quantity > 0
+                              ? (item.total ||
+                                  item.quantity * (item.unitPrice || 0)) /
+                                item.quantity
+                              : item.unitPrice || 0
+                          ).toFixed(2)}
+                    </td>
+                  )}
+                  <td className="px-3 py-2 border-b border-gray-200 text-right font-medium">
+                    R$ {(item.total || item.quantity * item.unitPrice).toFixed(2)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot>
             <tr style={{ backgroundColor: `${primaryColor}10` }}>
               <td
-                colSpan={3}
+                colSpan={1 + (showMiddleColumn ? 1 : 0) + (showPriceColumn ? 1 : 0)}
                 className="px-3 py-2 text-right font-semibold"
                 style={{ color: primaryColor }}
               >

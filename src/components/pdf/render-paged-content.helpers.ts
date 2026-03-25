@@ -135,6 +135,23 @@ function isPaymentSectionContent(content?: string): boolean {
   );
 }
 
+function isPaymentHeadingOnly(content?: string): boolean {
+  const normalized = normalizePdfText((content || "").trim());
+  return (
+    normalized === "condicoes de pagamento" ||
+    normalized === "condicao de pagamento" ||
+    normalized === "formas de pagamento"
+  );
+}
+
+function resolvePaymentTextContent(content: string | undefined, proposal: Proposal): string {
+  const trimmed = (content || "").trim();
+  if (!trimmed || isPaymentHeadingOnly(trimmed)) {
+    return buildSimplePaymentTermsText(proposal);
+  }
+  return trimmed;
+}
+
 function isWarrantySectionContent(content?: string): boolean {
   const normalized = normalizePdfText(content || "");
   return normalized.includes("garantia");
@@ -616,8 +633,10 @@ export function buildContentItems(
         if (hasDynamicPaymentOptions) {
           addUnifiedPaymentBlock();
         } else {
-          const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
+          const manualPaymentText = resolvePaymentTextContent(
+            section.content,
+            proposal,
+          );
           const paymentTitleStyles: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",
@@ -717,8 +736,10 @@ export function buildContentItems(
         if (hasDynamicPaymentOptions) {
           addUnifiedPaymentBlock();
         } else {
-          const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
+          const manualPaymentText = resolvePaymentTextContent(
+            section.content,
+            proposal,
+          );
           const paymentTitleStyles2: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",

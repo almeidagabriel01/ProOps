@@ -146,6 +146,7 @@ export function PdfProductRow({
                 tenantNiche={tenantNiche}
                 showProductPrices={settings.showProductPrices}
                 showProductMeasurements={settings.showProductMeasurements}
+                showProductQuantities={settings.showProductQuantities}
                 primaryColor={
                   typeof contentStyles?.total?.color === "string"
                     ? contentStyles.total.color

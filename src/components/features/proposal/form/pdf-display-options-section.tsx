@@ -113,6 +113,11 @@ export function PdfDisplayOptionsSection({
               }
             />
             <CheckboxOption
+              label="Mostrar quantidades"
+              checked={settings.showProductQuantities ?? true}
+              onChange={(value) => updateSetting("showProductQuantities", value)}
+            />
+            <CheckboxOption
               label="Mostrar preços unitários"
               checked={settings.showProductPrices}
               onChange={(value) => updateSetting("showProductPrices", value)}

@@ -13,7 +13,10 @@ import {
 } from "../product-visibility";
 import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
-import { PdfCortinasAwareProductFooter } from "./pdf-sistema-primitives";
+import {
+  PdfCortinasAwareProductFooter,
+  hasCortinasAwareProductFooterContent,
+} from "./pdf-sistema-primitives";
 
 interface PdfProduct {
   productId: string;
@@ -230,20 +233,32 @@ export function PdfExtraProductsBlock({
                                   style={{ borderTop: "1px solid #e5e7eb" }}
                                 >
                                   <div className="text-right">
-                                    <div className="inline-flex flex-col items-end">
-                                      <PdfCortinasAwareProductFooter
-                                        product={left}
-                                        tenantNiche={tenantNiche}
-                                        showProductPrices={
-                                          settings.showProductPrices
-                                        }
-                                        showProductMeasurements={
-                                          settings.showProductMeasurements
-                                        }
-                                        grayTextClassName="text-sm text-gray-500"
-                                        totalTextClassName="font-bold text-lg text-gray-700"
-                                      />
-                                    </div>
+                                    {hasCortinasAwareProductFooterContent({
+                                      product: left,
+                                      tenantNiche,
+                                      showProductPrices: settings.showProductPrices,
+                                      showProductMeasurements: settings.showProductMeasurements,
+                                      showProductQuantities: settings.showProductQuantities,
+                                    }) && (
+                                      <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
+                                        <PdfCortinasAwareProductFooter
+                                          product={left}
+                                          tenantNiche={tenantNiche}
+                                          showProductPrices={
+                                            settings.showProductPrices
+                                          }
+                                          showProductMeasurements={
+                                            settings.showProductMeasurements
+                                          }
+                                          showProductQuantities={
+                                            settings.showProductQuantities
+                                          }
+                                          primaryColor={primaryColor}
+                                          grayTextClassName="text-sm text-gray-500"
+                                          totalTextClassName="font-bold text-lg text-gray-700"
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -305,20 +320,32 @@ export function PdfExtraProductsBlock({
                                   style={{ borderTop: "1px solid #e5e7eb" }}
                                 >
                                   <div className="text-right">
-                                    <div className="inline-flex flex-col items-end">
-                                      <PdfCortinasAwareProductFooter
-                                        product={right}
-                                        tenantNiche={tenantNiche}
-                                        showProductPrices={
-                                          settings.showProductPrices
-                                        }
-                                        showProductMeasurements={
-                                          settings.showProductMeasurements
-                                        }
-                                        grayTextClassName="text-sm text-gray-500"
-                                        totalTextClassName="font-bold text-lg text-gray-700"
-                                      />
-                                    </div>
+                                    {hasCortinasAwareProductFooterContent({
+                                      product: right,
+                                      tenantNiche,
+                                      showProductPrices: settings.showProductPrices,
+                                      showProductMeasurements: settings.showProductMeasurements,
+                                      showProductQuantities: settings.showProductQuantities,
+                                    }) && (
+                                      <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
+                                        <PdfCortinasAwareProductFooter
+                                          product={right}
+                                          tenantNiche={tenantNiche}
+                                          showProductPrices={
+                                            settings.showProductPrices
+                                          }
+                                          showProductMeasurements={
+                                            settings.showProductMeasurements
+                                          }
+                                          showProductQuantities={
+                                            settings.showProductQuantities
+                                          }
+                                          primaryColor={primaryColor}
+                                          grayTextClassName="text-sm text-gray-500"
+                                          totalTextClassName="font-bold text-lg text-gray-700"
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -381,20 +408,32 @@ export function PdfExtraProductsBlock({
                                 style={{ borderTop: "1px solid #e5e7eb" }}
                               >
                                 <div className="text-right">
-                                  <div className="inline-flex flex-col items-end">
-                                    <PdfCortinasAwareProductFooter
-                                      product={left}
-                                      tenantNiche={tenantNiche}
-                                      showProductPrices={
-                                        settings.showProductPrices
-                                      }
-                                      showProductMeasurements={
-                                        settings.showProductMeasurements
-                                      }
-                                      grayTextClassName="text-sm text-gray-500"
-                                      totalTextClassName="font-bold text-lg text-gray-700"
-                                    />
-                                  </div>
+                                  {hasCortinasAwareProductFooterContent({
+                                    product: left,
+                                    tenantNiche,
+                                    showProductPrices: settings.showProductPrices,
+                                    showProductMeasurements: settings.showProductMeasurements,
+                                    showProductQuantities: settings.showProductQuantities,
+                                  }) && (
+                                    <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
+                                      <PdfCortinasAwareProductFooter
+                                        product={left}
+                                        tenantNiche={tenantNiche}
+                                        showProductPrices={
+                                          settings.showProductPrices
+                                        }
+                                        showProductMeasurements={
+                                          settings.showProductMeasurements
+                                        }
+                                        showProductQuantities={
+                                          settings.showProductQuantities
+                                        }
+                                        primaryColor={primaryColor}
+                                        grayTextClassName="text-sm text-gray-500"
+                                        totalTextClassName="font-bold text-lg text-gray-700"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

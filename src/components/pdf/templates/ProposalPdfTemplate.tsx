@@ -203,6 +203,26 @@ function isPaymentText(section: PdfSection): boolean {
   );
 }
 
+function isPaymentHeadingText(content?: string): boolean {
+  const normalized = normalizeText(String(content || "").trim());
+  return (
+    normalized === "condicoes de pagamento" ||
+    normalized === "condicao de pagamento" ||
+    normalized === "formas de pagamento"
+  );
+}
+
+function resolvePaymentTermsSectionContent(
+  rawContent: string | undefined,
+  fallbackPaymentTerms: string,
+): string {
+  const trimmed = String(rawContent || "").trim();
+  if (!trimmed || isPaymentHeadingText(trimmed)) {
+    return fallbackPaymentTerms;
+  }
+  return trimmed;
+}
+
 function isWarrantyTitle(section: PdfSection): boolean {
   return (
     section.type === "title" && normalizeText(section.content) === "garantia"
@@ -336,7 +356,7 @@ function hydrateSections(
         ...section,
         content: hasDynamicPaymentOptions
           ? "Condicoes de Pagamento"
-          : section.content || paymentTerms,
+          : resolvePaymentTermsSectionContent(section.content, paymentTerms),
         columnWidth: 100,
       };
     }
