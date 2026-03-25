@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Layers3, Plus, Scissors, Trash2 } from "lucide-react";
+import { Boxes, Layers3, Plus, Scissors, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -20,6 +20,7 @@ import {
   getProductPricingDescription,
   getProductPricingSummary,
 } from "@/lib/product-pricing";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 
@@ -171,9 +172,24 @@ export function ProductPricingStep({
   onUpdateHeightPricingTier,
   onRemoveHeightPricingTier,
 }: ProductPricingStepProps) {
+  const nicheConfig = useCurrentNicheConfig();
   const basePrice = parseFormNumber(formData.price);
   const markupValue = parseFormNumber(formData.markup);
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
+  const isCurtainMeterMode =
+    isCurtainNiche && formData.pricingMode === "curtain_meter";
+  const isCurtainHeightMode =
+    isCurtainNiche && formData.pricingMode === "curtain_height";
+  const isCurtainQuantityMode =
+    isCurtainNiche && formData.pricingMode === "standard";
+  const shouldShowInventoryField =
+    entityType === "product" && (!isCurtainNiche || isCurtainQuantityMode);
+  const inventoryReadOnlyLabel = isCurtainQuantityMode
+    ? "Estoque"
+    : nicheConfig.productCatalog.inventory.readOnlyLabel;
+  const inventoryFormLabel = isCurtainQuantityMode
+    ? "Estoque"
+    : nicheConfig.productCatalog.inventory.formLabel;
 
   if (isReadOnly) {
     const readOnlySummary = buildPricingSummary(initialData);
@@ -189,6 +205,12 @@ export function ProductPricingStep({
                 : readOnlySummary || `R$ ${sellingPrice.toFixed(2)}`
             }
           />
+          {shouldShowInventoryField && (
+            <FormStatic
+              label={inventoryReadOnlyLabel}
+              value={formData.inventoryValue || "0"}
+            />
+          )}
         </FormGroup>
       </div>
     );
@@ -233,16 +255,23 @@ export function ProductPricingStep({
           <div className="text-sm font-medium text-foreground">
             Modelo de precificação
           </div>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <PricingModeButton
-              active={formData.pricingMode === "curtain_meter"}
+              active={isCurtainQuantityMode}
+              icon={<Boxes className="h-5 w-5" />}
+              title="Por quantidade"
+              description="Usa quantidade, preco unitario e markup, como um produto padrao."
+              onClick={() => onPricingModeChange("standard")}
+            />
+            <PricingModeButton
+              active={isCurtainMeterMode}
               icon={<Scissors className="h-5 w-5" />}
               title="Por metragem"
               description="Usa largura x altura x preço com markup na proposta."
               onClick={() => onPricingModeChange("curtain_meter")}
             />
             <PricingModeButton
-              active={formData.pricingMode === "curtain_height"}
+              active={isCurtainHeightMode}
               icon={<Layers3 className="h-5 w-5" />}
               title="Por altura"
               description="Usa faixa de altura e multiplica pela largura preenchida na proposta."
@@ -269,7 +298,7 @@ export function ProductPricingStep({
           }
         >
           <div className="space-y-5">
-            <FormGroup cols={2}>
+            <FormGroup cols={3}>
               <FormItem
                 label="Preço base bruto"
                 htmlFor="price"
@@ -303,6 +332,25 @@ export function ProductPricingStep({
                   className={errors.markup ? "border-destructive" : ""}
                 />
               </FormItem>
+
+              <FormItem
+                label={inventoryFormLabel}
+                htmlFor="inventoryValue"
+                error={errors.inventoryValue}
+              >
+                <Input
+                  id="inventoryValue"
+                  name="inventoryValue"
+                  type="number"
+                  min="0"
+                  step={nicheConfig.productCatalog.inventory.step}
+                  placeholder="0"
+                  value={formData.inventoryValue}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.inventoryValue ? "border-destructive" : ""}
+                />
+              </FormItem>
             </FormGroup>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -327,7 +375,7 @@ export function ProductPricingStep({
             </div>
           </div>
         </PricingSection>
-      ) : formData.pricingMode !== "curtain_height" ? (
+      ) : isCurtainMeterMode ? (
         <PricingSection
           title="Regra por metragem"
           description="Defina o preço bruto por metro quadrado e o markup. Largura e altura serão preenchidas quando o produto for usado."
@@ -405,6 +453,97 @@ export function ProductPricingStep({
                 <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
                   R$ {sellingPrice.toFixed(2)} / m2
+                </div>
+              </div>
+            </div>
+          </div>
+        </PricingSection>
+      ) : isCurtainQuantityMode ? (
+        <PricingSection
+          title="Regra por quantidade"
+          description="Defina o preco bruto por unidade e o markup. A proposta usara a quantidade informada para o item."
+          badge={
+            <div className="rounded-xl bg-muted/40 px-4 py-3">
+              <div className="text-xs text-muted-foreground">Preco final</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                R$ {sellingPrice.toFixed(2)} / un
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-5">
+            <FormGroup cols={3}>
+              <FormItem
+                label="Preco bruto"
+                htmlFor="price"
+                required
+                error={errors.price}
+              >
+                <CurrencyInput
+                  id="price"
+                  name="price"
+                  placeholder="0,00"
+                  value={formData.price}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.price ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <FormItem label="Markup (%)" htmlFor="markup" error={errors.markup}>
+                <Input
+                  id="markup"
+                  name="markup"
+                  type="number"
+                  placeholder="30"
+                  value={formData.markup}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  className={errors.markup ? "border-destructive" : ""}
+                />
+              </FormItem>
+
+              <FormItem
+                label={inventoryFormLabel}
+                htmlFor="inventoryValue"
+                error={errors.inventoryValue}
+              >
+                <Input
+                  id="inventoryValue"
+                  name="inventoryValue"
+                  type="number"
+                  min="0"
+                  step={nicheConfig.productCatalog.inventory.step}
+                  placeholder="0"
+                  value={formData.inventoryValue}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.inventoryValue ? "border-destructive" : ""}
+                />
+              </FormItem>
+            </FormGroup>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preco bruto</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  R$ {basePrice.toFixed(2)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Markup</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  {markupValue.toFixed(2)}%
+                </div>
+              </div>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preco com markup</div>
+                <div className="mt-1 font-semibold text-primary">
+                  R$ {sellingPrice.toFixed(2)} / un
                 </div>
               </div>
             </div>

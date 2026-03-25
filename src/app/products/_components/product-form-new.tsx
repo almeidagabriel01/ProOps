@@ -122,6 +122,15 @@ export function ProductFormNew({
   const basePrice = parseFloat(formData.price || "0");
   const markupValue = parseFloat(formData.markup || "0");
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
+  const isCurtainQuantityProduct =
+    entityType === "product" &&
+    isCurtainNiche &&
+    formData.pricingMode === "standard";
+  const shouldShowInventorySummary =
+    entityType === "product" && (!isCurtainNiche || isCurtainQuantityProduct);
+  const inventoryReadOnlyLabel = isCurtainQuantityProduct
+    ? "Estoque"
+    : nicheConfig.productCatalog.inventory.readOnlyLabel;
   const pricingConfig = React.useMemo(() => buildPricingConfig(formData), [formData]);
   const pricingSummary =
     entityType === "service"
@@ -551,6 +560,16 @@ export function ProductFormNew({
                         </span>
                         <p className="font-medium text-green-600">
                           R$ {sellingPrice.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    {shouldShowInventorySummary && (
+                      <div>
+                        <span className="text-muted-foreground">
+                          {inventoryReadOnlyLabel}:
+                        </span>
+                        <p className="font-medium">
+                          {formData.inventoryValue || "0"}
                         </p>
                       </div>
                     )}

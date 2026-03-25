@@ -676,6 +676,8 @@ export function AmbienteEditor({
                           !isService &&
                           (pricingDetails.mode === "curtain_height" ||
                             pricingModel.mode === "curtain_height");
+                        const isQuantityPricedProduct =
+                          !isService && !isCurtainMeter && !isCurtainHeight;
                         const activeHeightTiers =
                           pricingModel.mode === "curtain_height"
                             ? [...pricingModel.tiers].sort((a, b) => a.maxHeight - b.maxHeight)
@@ -689,7 +691,9 @@ export function AmbienteEditor({
                                 : ""),
                           ) || activeHeightTiers[0] || null;
                         const allowDecimalQuantity =
-                          !isService && allowDecimalProductQuantity;
+                          !isService &&
+                          allowDecimalProductQuantity &&
+                          !isQuantityPricedProduct;
                         const quantityStep = allowDecimalQuantity ? 0.01 : 1;
                         const itemLineId = item.lineItemId;
                         const catalogPrice = Number.parseFloat(
@@ -765,6 +769,14 @@ export function AmbienteEditor({
                                       className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
                                     >
                                       Por altura
+                                    </Badge>
+                                  )}
+                                  {isQuantityPricedProduct && (
+                                    <Badge
+                                      variant="outline"
+                                      className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
+                                    >
+                                      Por quantidade
                                     </Badge>
                                   )}
                                 </div>

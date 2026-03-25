@@ -17,7 +17,7 @@ import {
 } from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema, serviceSchema } from "@/lib/validations";
-import { getNicheConfig, parseInventoryValue } from "@/lib/niches/config";
+import { parseInventoryValue } from "@/lib/niches/config";
 import {
   CurtainHeightTier,
   ProductPricingMode,
@@ -83,6 +83,22 @@ function normalizeInitialInventoryValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
   const parsed = parseInventoryValue(value);
   return Number.isFinite(parsed) ? String(parsed) : "";
+}
+
+function resolveCatalogInventoryUnit(
+  niche: string | undefined,
+  entityType: CatalogEntityType,
+  pricingMode: ProductPricingMode,
+): "unit" | "meter" {
+  if (entityType !== "product") {
+    return niche === "cortinas" ? "meter" : "unit";
+  }
+
+  if (niche === "cortinas" && pricingMode === "standard") {
+    return "unit";
+  }
+
+  return niche === "cortinas" ? "meter" : "unit";
 }
 
 function createHeightPricingTierFormData(
@@ -234,10 +250,11 @@ export function useProductForm(
 ): UseProductFormReturn {
   const router = useRouter();
   const { tenant } = useTenant();
-  const nicheConfig = React.useMemo(() => getNicheConfig(tenant?.niche), [tenant?.niche]);
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
   const { createProduct } = useProductActions();
   const { createService } = useServiceActions();
+  const maxImagesPerProduct =
+    entityType === "product" && tenant?.niche === "cortinas" ? 3 : 1;
 
   const [showLimitModal, setShowLimitModal] = React.useState(false);
   const [showImageLimitModal, setShowImageLimitModal] = React.useState(false);
@@ -405,13 +422,16 @@ export function useProductForm(
   const handleAddImage = (file: File | null) => {
     if (!file) return;
 
-    // Hardcoded max images (1 for all plans)
-    const maxImages = 1;
+    const maxImages = maxImagesPerProduct;
 
     // Validation: Check plan limit
     const totalImages = imageUrls.length + pendingFiles.length;
     if (totalImages >= maxImages) {
-      toast.error("É permitido adicionar apenas 1 imagem por produto.");
+      toast.error(
+        `É permitido adicionar apenas ${maxImages} ${
+          maxImages === 1 ? "imagem" : "imagens"
+        } por produto.`,
+      );
       return;
     }
 
@@ -611,6 +631,11 @@ export function useProductForm(
       const normalizedInventoryValue = parseInventoryValue(
         formData.inventoryValue,
       );
+      const inventoryUnit = resolveCatalogInventoryUnit(
+        tenant?.niche,
+        entityType,
+        formData.pricingMode,
+      );
       const sanitizedHeightTiers = sanitizeHeightTiers(
         formData.heightPricingTiers.map((tier) => ({
           id: tier.id,
@@ -668,7 +693,7 @@ export function useProductForm(
               pricingModel,
               manufacturer: formData.manufacturer,
               inventoryValue: normalizedInventoryValue,
-              inventoryUnit: nicheConfig.productCatalog.inventory.mode,
+              inventoryUnit,
               stock: normalizedInventoryValue,
             }
           : {};
@@ -712,7 +737,7 @@ export function useProductForm(
                 pricingModel,
                 manufacturer: formData.manufacturer,
                 inventoryValue: normalizedInventoryValue,
-                inventoryUnit: nicheConfig.productCatalog.inventory.mode,
+                inventoryUnit,
                 stock: normalizedInventoryValue,
               }
             : {};
@@ -761,7 +786,7 @@ export function useProductForm(
     setShowImageLimitModal,
     currentProductCount,
     maxProducts: features?.maxProducts ?? 0,
-    maxImagesPerProduct: 1, // Enforced 1 image per product
+    maxImagesPerProduct,
     errors,
     setFieldError: setFieldError as (name: string, message: string) => void,
     handleChange,

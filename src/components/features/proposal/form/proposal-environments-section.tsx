@@ -679,6 +679,8 @@ function EnvironmentProductRow({
     !isService &&
     (pricingDetails.mode === "curtain_height" ||
       pricingModel.mode === "curtain_height");
+  const isQuantityPricedProduct =
+    !isService && !isCurtainMeter && !isCurtainHeight;
   const activeHeightTiers = React.useMemo(
     () => {
       if (pricingModel.mode !== "curtain_height") return [];
@@ -686,7 +688,8 @@ function EnvironmentProductRow({
     },
     [pricingModel],
   );
-  const allowDecimalQuantity = !isService && quantityStep < 1;
+  const allowDecimalQuantity =
+    !isService && quantityStep < 1 && !isQuantityPricedProduct;
   const quantityDelta = allowDecimalQuantity ? quantityStep : 1;
   const [quantityInput, setQuantityInput] = React.useState(
     formatItemQuantity(product.quantity, allowDecimalQuantity),
@@ -940,6 +943,20 @@ function EnvironmentProductRow({
           pricingDetails.mode === "curtain_height" ? pricingDetails.maxHeight : 0,
         )}`
       : "";
+  const priceSuffix = isCurtainMeter
+    ? " /mÂ²"
+    : isCurtainHeight
+      ? " /m larg."
+      : isQuantityPricedProduct
+        ? " /un"
+        : ` /${priceUnitLabel}`;
+  const sellingUnitLabel = isCurtainMeter
+    ? "m2"
+    : isCurtainHeight
+      ? "m larg."
+      : isQuantityPricedProduct
+        ? "un"
+        : priceUnitLabel || priceSuffix;
 
   return (
     <div
@@ -998,6 +1015,11 @@ function EnvironmentProductRow({
               {isCurtainHeight && (
                 <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
                   Por altura
+                </Badge>
+              )}
+              {isQuantityPricedProduct && (
+                <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
+                  Por quantidade
                 </Badge>
               )}
               {isExtra && (
@@ -1262,84 +1284,89 @@ function EnvironmentProductRow({
               )}
             </div>
           ) : (
-            <div className="flex h-9 items-center gap-0.5 shrink-0 rounded-lg border bg-muted/50 p-1 shadow-sm">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-md hover:bg-background hover:text-destructive transition-colors"
-                onClick={() =>
-                  onUpdateQuantity(
-                    product.productId,
-                    -quantityDelta,
-                    systemInstanceId,
-                    itemType,
-                    lineItemId,
-                  )
-                }
-              >
-                <Minus className="w-3.5 h-3.5" />
-              </Button>
-              {allowDecimalQuantity ? (
-                <DecimalInput
-                  value={product.quantity}
-                  onChange={(val) => {
-                    const currentQuantity = normalizeItemQuantity(product.quantity, true);
-                    if (val !== currentQuantity) {
-                      onUpdateQuantity(
-                        product.productId,
-                        val - currentQuantity,
-                        systemInstanceId,
-                        itemType,
-                        lineItemId,
-                      );
-                    }
-                  }}
-                  className="w-16 font-mono font-medium"
-                  aria-label="Metragem do item"
-                />
-              ) : (
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={quantityInput}
-                  onFocus={() => setIsEditingQuantity(true)}
-                  onChange={(event) => setQuantityInput(event.target.value)}
-                  onBlur={commitQuantityChange}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.currentTarget.blur();
-                    }
+            <div className="flex min-w-[120px] flex-col items-start">
+              <span className="mb-0.5 text-[10px] text-muted-foreground">
+                Quantidade
+              </span>
+              <div className="flex h-9 items-center gap-0.5 shrink-0 rounded-lg border bg-muted/50 p-1 shadow-sm">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-md hover:bg-background hover:text-destructive transition-colors"
+                  onClick={() =>
+                    onUpdateQuantity(
+                      product.productId,
+                      -quantityDelta,
+                      systemInstanceId,
+                      itemType,
+                      lineItemId,
+                    )
+                  }
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </Button>
+                {allowDecimalQuantity ? (
+                  <DecimalInput
+                    value={product.quantity}
+                    onChange={(val) => {
+                      const currentQuantity = normalizeItemQuantity(product.quantity, true);
+                      if (val !== currentQuantity) {
+                        onUpdateQuantity(
+                          product.productId,
+                          val - currentQuantity,
+                          systemInstanceId,
+                          itemType,
+                          lineItemId,
+                        );
+                      }
+                    }}
+                    className="w-16 font-mono font-medium"
+                    aria-label="Metragem do item"
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={quantityInput}
+                    onFocus={() => setIsEditingQuantity(true)}
+                    onChange={(event) => setQuantityInput(event.target.value)}
+                    onBlur={commitQuantityChange}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.currentTarget.blur();
+                      }
 
-                    if (event.key === "Escape") {
-                      setIsEditingQuantity(false);
-                      setQuantityInput(
-                        formatItemQuantity(product.quantity, false),
-                      );
-                      event.currentTarget.blur();
-                    }
-                  }}
-                  className="h-7 rounded-md border bg-background px-2 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
-                  aria-label="Quantidade do item"
-                />
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-md hover:bg-background hover:text-primary transition-colors"
-                onClick={() =>
-                  onUpdateQuantity(
-                    product.productId,
-                    quantityDelta,
-                    systemInstanceId,
-                    itemType,
-                    lineItemId,
-                  )
-                }
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
+                      if (event.key === "Escape") {
+                        setIsEditingQuantity(false);
+                        setQuantityInput(
+                          formatItemQuantity(product.quantity, false),
+                        );
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    className="h-7 rounded-md border bg-background px-2 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
+                    aria-label="Quantidade do item"
+                  />
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-md hover:bg-background hover:text-primary transition-colors"
+                  onClick={() =>
+                    onUpdateQuantity(
+                      product.productId,
+                      quantityDelta,
+                      systemInstanceId,
+                      itemType,
+                      lineItemId,
+                    )
+                  }
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1375,11 +1402,7 @@ function EnvironmentProductRow({
             {isActive && !isService && (
               <span className="text-[10px] text-muted-foreground">
                 (R$ {sellingPrice.toFixed(2)}{" "}
-                {isCurtainMeter
-                  ? "m2"
-                  : isCurtainHeight
-                    ? "m larg."
-                    : priceUnitLabel}
+                {sellingUnitLabel}
                 )
               </span>
             )}

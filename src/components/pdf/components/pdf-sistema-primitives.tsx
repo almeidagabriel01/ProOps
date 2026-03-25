@@ -157,6 +157,12 @@ export function PdfCortinasAwareProductFooter({
   const isCortinasProduct =
     tenantNiche === "cortinas" && product.itemType !== "service";
   const isDimensionProduct = isCortinasDimensionProductLine(tenantNiche, product);
+  const quantityLabel = Number.isInteger(product.quantity)
+    ? String(product.quantity)
+    : product.quantity.toLocaleString("pt-BR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
   const measurementLabel =
     showProductMeasurements && isDimensionProduct
       ? getProposalProductMeasurementLabel(product)
@@ -192,12 +198,29 @@ export function PdfCortinasAwareProductFooter({
       );
     }
 
-    if (isCortinasNeutralServiceLine(tenantNiche, product) || isCortinasProduct) {
+    if (isCortinasNeutralServiceLine(tenantNiche, product)) {
       const sellingPrice = getProposalLineUnitSellingPrice(product);
       return (
         <>
           <span className={`${grayTextClassName} block`}>
             {formatCurrency(sellingPrice)}
+          </span>
+          <span
+            className={totalTextClassName}
+            style={primaryColor ? { color: primaryColor } : undefined}
+          >
+            {formatCurrency(product.total)}
+          </span>
+        </>
+      );
+    }
+
+    if (isCortinasProduct) {
+      const sellingPrice = getProposalLineUnitSellingPrice(product);
+      return (
+        <>
+          <span className={`${grayTextClassName} block`}>
+            {`Qtd. ${quantityLabel} x ${formatCurrency(sellingPrice)}`}
           </span>
           <span
             className={totalTextClassName}
@@ -233,7 +256,7 @@ export function PdfCortinasAwareProductFooter({
   }
 
   if (isCortinasProduct) {
-    return null;
+    return <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>;
   }
 
   return (
