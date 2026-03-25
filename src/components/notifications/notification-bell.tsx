@@ -13,6 +13,7 @@ import {
 import { useNotifications } from "@/hooks/useNotifications";
 import { useTenant } from "@/providers/tenant-provider";
 import { Notification, NotificationType } from "@/types/notification";
+import { formatDateBR } from "@/utils/date-format";
 
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -119,10 +120,7 @@ export function NotificationBell() {
       if (diffMins < 60) return `ha ${diffMins}min`;
       if (diffHours < 24) return `ha ${diffHours}h`;
       if (diffDays < 7) return `ha ${diffDays}d`;
-      return date.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-      });
+      return formatDateBR(date);
     } catch {
       return "";
     }

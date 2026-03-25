@@ -3,6 +3,8 @@
  * Following DRY principle - centralizing all format functions
  */
 
+import { formatDateBR } from "@/utils/date-format";
+
 /**
  * Format a number as Brazilian currency (BRL)
  */
@@ -18,25 +20,7 @@ export function formatCurrency(value: number): string {
  * Parses dates manually to avoid timezone conversion issues
  */
 export function formatDate(dateString: string): string {
-  if (!dateString) return "-";
-  try {
-    // Extract date part if ISO format
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-
-    // Parse manually to avoid timezone issues
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) {
-      return new Date(dateString).toLocaleDateString("pt-BR");
-    }
-
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    return date.toLocaleDateString("pt-BR");
-  } catch {
-    return dateString;
-  }
+  return formatDateBR(dateString);
 }
 
 /**

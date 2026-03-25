@@ -13,6 +13,7 @@ import { KanbanService, KanbanStatusColumn, getDefaultProposalColumns } from "@/
 import { useTenant } from "@/providers/tenant-provider";
 import type { BarChartDataItem } from "@/components/charts/simple-bar-chart";
 import { toast } from "@/lib/toast";
+import { parseDateValue } from "@/utils/date-format";
 
 interface FinancialSummary {
   totalIncome: number;
@@ -224,7 +225,8 @@ export function useDashboardData(): DashboardData {
 
     transactions.forEach((t) => {
       if (t.status === "paid" || !t.dueDate) return;
-      const date = new Date(t.dueDate);
+      const date = parseDateValue(t.dueDate);
+      if (!date) return;
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       
       if (futureBalancesMap[key]) {
@@ -253,7 +255,8 @@ export function useDashboardData(): DashboardData {
 
     transactions.forEach((t) => {
       if (t.status !== "paid") return;
-      const date = new Date(t.date);
+      const date = parseDateValue(t.date);
+      if (!date) return;
       const isCurrentMonth =
         date.getMonth() === now.getMonth() &&
         date.getFullYear() === now.getFullYear();
@@ -298,7 +301,8 @@ export function useDashboardData(): DashboardData {
     );
     const upcomingDue = transactions.filter((t) => {
       if (t.status !== "pending" || !t.dueDate) return false;
-      const dueDate = new Date(t.dueDate);
+      const dueDate = parseDateValue(t.dueDate);
+      if (!dueDate) return false;
       const diffDays = Math.ceil(
         (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -307,7 +311,8 @@ export function useDashboardData(): DashboardData {
 
     // New clients this month
     const newClientsThisMonth = clients.filter((c) => {
-      const created = new Date(c.createdAt);
+      const created = parseDateValue(c.createdAt);
+      if (!created) return false;
       return (
         created.getMonth() === now.getMonth() &&
         created.getFullYear() === now.getFullYear()

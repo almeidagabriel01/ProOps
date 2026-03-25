@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { CoverElement } from "../pdf-section-editor";
 import { ALLOWED_TYPES } from "@/services/storage-service";
+import { formatDateBR } from "@/utils/date-format";
 
 interface CoverElementsEditorProps {
   elements: CoverElement[];
@@ -320,13 +321,7 @@ export function CoverElementsEditor({
 
   // Helper to format date for preview
   const formatValidUntilPreview = (dateString?: string): string => {
-    if (!dateString) return "DD/MM/AAAA";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("pt-BR");
-    } catch {
-      return "DD/MM/AAAA";
-    }
+    return formatDateBR(dateString, "DD/MM/AAAA");
   };
 
   // Get display text for element preview

@@ -8,6 +8,7 @@ import {
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { PAGE_HEIGHT_PX, PAGE_WIDTH_PX, PADDING_X } from "@/components/pdf/pdf-layout";
 import type { CoverElement } from "@/components/features/proposal/pdf-section-editor";
+import { formatDateBR } from "@/utils/date-format";
 
 interface PdfCoverPageProps {
   theme: ThemeType;
@@ -28,12 +29,7 @@ interface PdfCoverPageProps {
 
 // Helper to format date for display
 const formatValidUntil = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("pt-BR");
-  } catch {
-    return dateString;
-  }
+  return formatDateBR(dateString, dateString);
 };
 
 // Render a single cover element with X/Y positioning

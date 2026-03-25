@@ -31,7 +31,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { compareDisplayText } from "@/lib/sort-text";
+import {
+  compareCatalogDisplayItem,
+  compareConfiguredDisplayItem,
+  compareDisplayText,
+} from "@/lib/sort-text";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
@@ -49,6 +53,7 @@ import {
   ProposalProductPricingDetails,
   calculateSellingPrice,
   formatMeters,
+  getProposalProductUnitLabel,
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import {
@@ -142,7 +147,6 @@ export function ProposalEnvironmentsSection({
   const isMeterMode = inventoryConfig.mode === "meter";
   const quantityStep = inventoryConfig.step;
   const zeroQuantityLabel = isMeterMode ? "Ocultar metr. 0" : "Ocultar qtd. 0";
-  const priceUnitLabel = inventoryConfig.priceSuffix.trim() || "un";
   const [hideZeroQtyByEnvironment, setHideZeroQtyByEnvironment] =
     React.useState<Record<string, boolean>>({});
 
@@ -262,7 +266,6 @@ export function ProposalEnvironmentsSection({
                   hideZeroQty={!!hideZeroQtyByEnvironment[instanceId]}
                   zeroQuantityLabel={zeroQuantityLabel}
                   quantityStep={quantityStep}
-                  priceUnitLabel={priceUnitLabel}
                   onRemove={() =>
                     onRemoveAmbiente(index, primaryAmbiente.ambienteId)
                   }
@@ -346,7 +349,6 @@ interface EnvironmentCardProps {
   hideZeroQty: boolean;
   zeroQuantityLabel: string;
   quantityStep: number;
-  priceUnitLabel: string;
   onRemove: () => void;
   onToggleHideZeroQty: (hide: boolean) => void;
   onUpdateQuantity: (
@@ -410,7 +412,6 @@ function EnvironmentCard({
   hideZeroQty,
   zeroQuantityLabel,
   quantityStep,
-  priceUnitLabel,
   onRemove,
   onToggleHideZeroQty,
   onUpdateQuantity,
@@ -545,8 +546,8 @@ function EnvironmentCard({
 
           <div className="p-3 space-y-2">
             {visibleProducts.length > 0 ? (
-              visibleProducts
-                .sort((a, b) => compareDisplayText(a.productName, b.productName))
+              [...visibleProducts]
+                .sort(compareConfiguredDisplayItem)
                 .map((product, idx) => (
                   <EnvironmentProductRow
                     key={
@@ -562,7 +563,6 @@ function EnvironmentCard({
                     )}
                     systemInstanceId={systemInstanceId}
                     quantityStep={quantityStep}
-                    priceUnitLabel={priceUnitLabel}
                     onUpdateQuantity={onUpdateQuantity}
                     onUpdateMarkup={onUpdateMarkup}
                     onUpdatePricingDetails={onUpdatePricingDetails}
@@ -599,7 +599,6 @@ interface EnvironmentProductRowProps {
   catalogProduct?: Product | Service;
   systemInstanceId: string;
   quantityStep: number;
-  priceUnitLabel: string;
   onUpdateQuantity: (
     productId: string,
     delta: number,
@@ -648,7 +647,6 @@ function EnvironmentProductRow({
   catalogProduct,
   systemInstanceId,
   quantityStep,
-  priceUnitLabel,
   onUpdateQuantity,
   onUpdateMarkup,
   onUpdatePricingDetails,
@@ -679,8 +677,12 @@ function EnvironmentProductRow({
     !isService &&
     (pricingDetails.mode === "curtain_height" ||
       pricingModel.mode === "curtain_height");
+  const isCurtainWidth =
+    !isService &&
+    (pricingDetails.mode === "curtain_width" ||
+      pricingModel.mode === "curtain_width");
   const isQuantityPricedProduct =
-    !isService && !isCurtainMeter && !isCurtainHeight;
+    !isService && !isCurtainMeter && !isCurtainHeight && !isCurtainWidth;
   const activeHeightTiers = React.useMemo(
     () => {
       if (pricingModel.mode !== "curtain_height") return [];
@@ -707,6 +709,11 @@ function EnvironmentProductRow({
   );
   const [heightWidthInput, setHeightWidthInput] = React.useState(
     pricingDetails.mode === "curtain_height"
+      ? String(pricingDetails.width || 0)
+      : "0",
+  );
+  const [linearWidthInput, setLinearWidthInput] = React.useState(
+    pricingDetails.mode === "curtain_width"
       ? String(pricingDetails.width || 0)
       : "0",
   );
@@ -758,6 +765,15 @@ function EnvironmentProductRow({
     "width" in pricingDetails ? pricingDetails.width : undefined,
     "tierId" in pricingDetails ? pricingDetails.tierId : undefined,
     activeHeightTiers,
+  ]);
+
+  React.useEffect(() => {
+    if (pricingDetails.mode === "curtain_width") {
+      setLinearWidthInput(String(pricingDetails.width || 0));
+    }
+  }, [
+    pricingDetails.mode,
+    "width" in pricingDetails ? pricingDetails.width : undefined,
   ]);
 
   const handlePriceBlur = () => {
@@ -888,6 +904,33 @@ function EnvironmentProductRow({
     ],
   );
 
+  const commitWidthPricing = React.useCallback(
+    (widthValue: string) => {
+      const width = Math.max(
+        0,
+        Number.parseFloat(widthValue.replace(",", ".")) || 0,
+      );
+
+      onUpdatePricingDetails(
+        product.productId,
+        {
+          mode: "curtain_width",
+          width,
+        },
+        systemInstanceId,
+        itemType,
+        lineItemId,
+      );
+    },
+    [
+      itemType,
+      lineItemId,
+      onUpdatePricingDetails,
+      product.productId,
+      systemInstanceId,
+    ],
+  );
+
   const handleStatusToggle = async (event: React.MouseEvent) => {
     event.stopPropagation();
     if (!onToggleStatus || isUpdating) return;
@@ -942,11 +985,18 @@ function EnvironmentProductRow({
         )} | Alt. ate ${formatMeters(
           pricingDetails.mode === "curtain_height" ? pricingDetails.maxHeight : 0,
         )}`
+      : isCurtainWidth
+        ? `Larg. ${formatMeters(
+            pricingDetails.mode === "curtain_width" ? pricingDetails.width : 0,
+          )}`
       : "";
+  const priceUnitLabel = getProposalProductUnitLabel(product);
   const priceSuffix = isCurtainMeter
     ? " /mÂ²"
     : isCurtainHeight
       ? " /m larg."
+      : isCurtainWidth
+        ? " /m larg."
       : isQuantityPricedProduct
         ? " /un"
         : ` /${priceUnitLabel}`;
@@ -954,6 +1004,8 @@ function EnvironmentProductRow({
     ? "m2"
     : isCurtainHeight
       ? "m larg."
+      : isCurtainWidth
+        ? "m larg."
       : isQuantityPricedProduct
         ? "un"
         : priceUnitLabel || priceSuffix;
@@ -1017,6 +1069,11 @@ function EnvironmentProductRow({
                   Por altura
                 </Badge>
               )}
+              {isCurtainWidth && (
+                <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
+                  Por largura
+                </Badge>
+              )}
               {isQuantityPricedProduct && (
                 <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
                   Por quantidade
@@ -1062,7 +1119,7 @@ function EnvironmentProductRow({
               )}
               {isActive && !isService && (
                 <span className="text-[10px] text-muted-foreground">
-                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{isCurtainMeter ? " /m²" : isCurtainHeight ? " /m larg." : ` /${priceUnitLabel}`}</span>
+                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{isCurtainMeter ? " /m²" : isCurtainHeight ? " /m larg." : isCurtainWidth ? " /m larg." : ` /${priceUnitLabel}`}</span>
                 </span>
               )}
             </div>
@@ -1283,6 +1340,28 @@ function EnvironmentProductRow({
                 </div>
               )}
             </div>
+          ) : isCurtainWidth ? (
+            <div className="grid w-full gap-2 rounded-lg border bg-muted/40 p-2 shadow-sm lg:w-[220px] shrink-0">
+              <div className="space-y-1">
+                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <CurrencyInput
+                  prefixSymbol=""
+                  value={linearWidthInput}
+                  onChange={(event) => {
+                    setLinearWidthInput(event.target.value);
+                  }}
+                  onBlur={() => commitWidthPricing(linearWidthInput)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  aria-label="Largura"
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
           ) : (
             <div className="flex min-w-[120px] flex-col items-start">
               <span className="mb-0.5 text-[10px] text-muted-foreground">
@@ -1470,7 +1549,7 @@ function ExtraProductsGrid({
             return !alreadySelected || allowDuplicate;
           },
         )
-        .sort((a, b) => compareDisplayText(a.name, b.name)),
+        .sort(compareCatalogDisplayItem),
     [ambienteProducts, products],
   );
 

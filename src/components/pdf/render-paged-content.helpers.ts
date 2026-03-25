@@ -14,6 +14,7 @@ import {
   shouldCountInPdfTotals,
 } from "./product-visibility";
 import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
+import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 export type { ContentItem } from "@/components/pdf/pdf-helpers";
 import {
   PdfDisplaySettings,
@@ -133,6 +134,23 @@ function isPaymentSectionContent(content?: string): boolean {
     normalized.includes("parcelamento:") ||
     normalized.includes("saldo:")
   );
+}
+
+function isPaymentHeadingOnly(content?: string): boolean {
+  const normalized = normalizePdfText((content || "").trim());
+  return (
+    normalized === "condicoes de pagamento" ||
+    normalized === "condicao de pagamento" ||
+    normalized === "formas de pagamento"
+  );
+}
+
+function resolvePaymentTextContent(content: string | undefined, proposal: Proposal): string {
+  const trimmed = (content || "").trim();
+  if (!trimmed || isPaymentHeadingOnly(trimmed)) {
+    return buildSimplePaymentTermsText(proposal);
+  }
+  return trimmed;
 }
 
 function isWarrantySectionContent(content?: string): boolean {
@@ -355,13 +373,9 @@ export function buildContentItems(
         !sistemaProductIds.has(p.productId) &&
         shouldCountProduct(p),
     );
-    const onlyProductsExtra = extraProductsTemp.filter(
-      (p) => p.itemType !== "service",
+    const extraProducts = [...extraProductsTemp].sort(
+      compareConfiguredDisplayItemWithExtras,
     );
-    const onlyServicesExtra = extraProductsTemp.filter(
-      (p) => p.itemType === "service",
-    );
-    const extraProducts = [...onlyProductsExtra, ...onlyServicesExtra];
 
     if (extraProducts.length > 0) {
       items.push({
@@ -425,11 +439,7 @@ export function buildContentItems(
         }
 
         const sortedProducts = [...envProducts].sort(
-          (a: Product, b: Product) => {
-            if (a.isExtra && !b.isExtra) return 1;
-            if (!a.isExtra && b.isExtra) return -1;
-            return 0;
-          },
+          compareConfiguredDisplayItemWithExtras,
         );
 
         // Filter out hidden products for height calculation and rendering
@@ -437,13 +447,9 @@ export function buildContentItems(
           shouldRenderProduct(p),
         );
 
-        const onlyProducts = visibleSortedProductsTemp.filter(
-          (p) => p.itemType !== "service",
+        const visibleSortedProducts = [...visibleSortedProductsTemp].sort(
+          compareConfiguredDisplayItemWithExtras,
         );
-        const onlyServices = visibleSortedProductsTemp.filter(
-          (p) => p.itemType === "service",
-        );
-        const visibleSortedProducts = [...onlyProducts, ...onlyServices];
 
         // Calculate height for this environment
         let envHeight = 0;
@@ -572,13 +578,9 @@ export function buildContentItems(
       shouldRenderProduct(p),
     );
 
-    const onlyProducts = visibleProductsTemp.filter(
-      (p) => p.itemType !== "service",
+    const visibleProducts = [...visibleProductsTemp].sort(
+      compareConfiguredDisplayItemWithExtras,
     );
-    const onlyServices = visibleProductsTemp.filter(
-      (p) => p.itemType === "service",
-    );
-    const visibleProducts = [...onlyProducts, ...onlyServices];
 
     if (visibleProducts.length > 0) {
       items.push({
@@ -616,8 +618,10 @@ export function buildContentItems(
         if (hasDynamicPaymentOptions) {
           addUnifiedPaymentBlock();
         } else {
-          const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
+          const manualPaymentText = resolvePaymentTextContent(
+            section.content,
+            proposal,
+          );
           const paymentTitleStyles: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",
@@ -717,8 +721,10 @@ export function buildContentItems(
         if (hasDynamicPaymentOptions) {
           addUnifiedPaymentBlock();
         } else {
-          const manualPaymentText =
-            (section.content || "").trim() || buildSimplePaymentTermsText(proposal);
+          const manualPaymentText = resolvePaymentTextContent(
+            section.content,
+            proposal,
+          );
           const paymentTitleStyles2: PdfSection["styles"] = {
             fontSize: "20px",
             fontWeight: "bold",

@@ -9,6 +9,10 @@ import { Plus, Search, Check, Package, X, Minus } from "lucide-react";
 import { SistemaProduct, Ambiente } from "@/types/automation";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
+import {
+  compareCatalogDisplayItem,
+  compareConfiguredDisplayItem,
+} from "@/lib/sort-text";
 
 interface SistemaInfoSectionProps {
   name: string;
@@ -138,17 +142,19 @@ export function ProductSelectorSection({
   onRemoveProduct,
   onUpdateQuantity,
 }: ProductSelectorSectionProps) {
-  const filteredProducts = products.filter(
-    (p) =>
-      !selectedProducts.some(
-        (sp) =>
-          sp.productId === p.id &&
-          (sp.itemType || "product") === (p.itemType || "product"),
-      ) &&
-      (productSearch === "" ||
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.category?.toLowerCase().includes(productSearch.toLowerCase())),
-  );
+  const filteredProducts = products
+    .filter(
+      (p) =>
+        !selectedProducts.some(
+          (sp) =>
+            sp.productId === p.id &&
+            (sp.itemType || "product") === (p.itemType || "product"),
+        ) &&
+        (productSearch === "" ||
+          p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+          p.category?.toLowerCase().includes(productSearch.toLowerCase())),
+    )
+    .sort(compareCatalogDisplayItem);
 
   return (
     <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
@@ -165,7 +171,7 @@ export function ProductSelectorSection({
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {selectedProducts.map((sp) => (
+            {[...selectedProducts].sort(compareConfiguredDisplayItem).map((sp) => (
               <div
                 key={`${sp.productId}-${sp.itemType || "product"}`}
                 className="group relative flex flex-col p-4 rounded-xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all duration-200"

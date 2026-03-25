@@ -8,6 +8,7 @@ import { ProposalWorkflow } from "@/lib/niches/config";
 import { ProductRow } from "./product-row";
 import { SystemGroupRows } from "./system-group-rows";
 import { SummaryFooter } from "./summary-footer";
+import { compareConfiguredDisplayItem } from "@/lib/sort-text";
 
 interface ProposalSummaryTableProps {
   selectedProducts: ProposalProduct[];
@@ -38,12 +39,12 @@ export function ProposalSummaryTable({
   totalValue,
   closedValue,
 }: ProposalSummaryTableProps) {
-  const displaySelectedProducts = selectedProducts.filter(
-    (product) => product.quantity > 0,
-  );
-  const displayExtraProducts = extraProducts.filter(
-    (product) => product.quantity > 0,
-  );
+  const displaySelectedProducts = [...selectedProducts]
+    .filter((product) => product.quantity > 0)
+    .sort(compareConfiguredDisplayItem);
+  const displayExtraProducts = [...extraProducts]
+    .filter((product) => product.quantity > 0)
+    .sort(compareConfiguredDisplayItem);
   const usesGroupedRows =
     proposalWorkflow === "automation" || proposalWorkflow === "environment";
   const extraItemsLabel =

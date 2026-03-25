@@ -7,7 +7,30 @@ export type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, icon, suffix, ...props }, ref) => {
+  ({ className, type, icon, suffix, onChange, onFocus, ...props }, ref) => {
+    const handleFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+      if (type === "number" && event.currentTarget.value === "0") {
+        event.currentTarget.select();
+      }
+
+      onFocus?.(event);
+    };
+
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (type === "number") {
+        const currentValue = event.target.value;
+        const hasDecimalSeparator =
+          currentValue.includes(".") || currentValue.includes(",");
+
+        if (/^0\d+/.test(currentValue) && !hasDecimalSeparator) {
+          const normalized = currentValue.replace(/^0+/, "") || "0";
+          event.target.value = normalized;
+        }
+      }
+
+      onChange?.(event);
+    };
+
     return (
       <div className="relative group">
         {icon && (
@@ -29,6 +52,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className,
           )}
           ref={ref}
+          onFocus={handleFocus}
+          onChange={handleChange}
           {...props}
         />
         {suffix && (

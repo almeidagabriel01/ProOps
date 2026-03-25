@@ -2,6 +2,7 @@ import React from "react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
 import { formatCurrency } from "@/utils/format";
+import { formatDateBR } from "@/utils/date-format";
 import { PdfPageHeader } from "./components/pdf-page-header";
 import { PdfStatusBadge } from "./components/pdf-status-badge";
 
@@ -27,15 +28,7 @@ export function TransactionPdfViewer({
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "";
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) return dateString;
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString("pt-BR");
+    return formatDateBR(dateString, "");
   };
 
   // Calculate totals

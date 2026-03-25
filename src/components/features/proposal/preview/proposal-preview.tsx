@@ -5,6 +5,7 @@ import { Proposal } from "@/services/proposal-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { PreviewSection } from "./preview-section";
 import { cn } from "@/lib/utils";
+import { formatDateBR } from "@/utils/date-format";
 
 interface ProposalPreviewProps {
   proposal: Partial<Proposal>;
@@ -16,12 +17,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
   const { tenant } = useTenant();
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    return formatDateBR(dateString, "");
   };
 
   return (

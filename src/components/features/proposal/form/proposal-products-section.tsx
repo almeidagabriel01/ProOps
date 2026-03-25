@@ -15,6 +15,7 @@ import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { Badge } from "@/components/ui/badge";
 import { Package, Plus, Minus } from "lucide-react";
+import { compareCatalogDisplayItem } from "@/lib/sort-text";
 
 interface ProposalProductsSectionProps {
   products: Array<Product | Service>;
@@ -72,9 +73,9 @@ export function ProposalProductsSection({
   }
 
   // Filter out products that are already in systems
-  const availableProducts = products.filter(
-    (product) => !systemProductIds.has(product.id),
-  );
+  const availableProducts = [...products]
+    .filter((product) => !systemProductIds.has(product.id))
+    .sort(compareCatalogDisplayItem);
 
   return (
     <Card>

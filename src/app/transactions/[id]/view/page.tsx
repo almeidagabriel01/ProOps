@@ -26,6 +26,7 @@ import {
   FileText,
   Clock,
 } from "lucide-react";
+import { formatDateBR, formatDateTimeBR } from "@/utils/date-format";
 
 const typeConfig: Record<
   TransactionType,
@@ -105,24 +106,7 @@ export default function ViewTransactionPage() {
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-
-    // Extract date part if ISO format
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-
-    // Parse date parts manually to avoid timezone issues
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) return dateString;
-
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    return formatDateBR(dateString, "");
   };
 
   if (isLoading) {
@@ -366,8 +350,8 @@ export default function ViewTransactionPage() {
 
       {/* Metadata */}
       <div className="text-xs text-muted-foreground text-center">
-        Criado em {new Date(transaction.createdAt).toLocaleString("pt-BR")} |
-        Atualizado em {new Date(transaction.updatedAt).toLocaleString("pt-BR")}
+        Criado em {formatDateTimeBR(transaction.createdAt)} | Atualizado em{" "}
+        {formatDateTimeBR(transaction.updatedAt)}
       </div>
     </div>
   );

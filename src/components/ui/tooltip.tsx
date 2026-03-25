@@ -13,6 +13,9 @@ export function Tooltip({
   side = "top",
   align = "center",
   delayMs = 0,
+  gap = 16,
+  constrainToViewport = true,
+  flipVerticalWhenNeeded = false,
   className,
 }: {
   children: React.ReactNode;
@@ -20,6 +23,9 @@ export function Tooltip({
   side?: Side;
   align?: Align;
   delayMs?: number;
+  gap?: number;
+  constrainToViewport?: boolean;
+  flipVerticalWhenNeeded?: boolean;
   className?: string;
 }) {
   const triggerRef = React.useRef<HTMLSpanElement | null>(null);
@@ -29,6 +35,7 @@ export function Tooltip({
   const [position, setPosition] = React.useState<{ top: number; left: number }>(
     { top: 0, left: 0 },
   );
+  const [resolvedSide, setResolvedSide] = React.useState<Side>(side);
 
   const openTimer = React.useRef<number | null>(null);
 
@@ -48,11 +55,27 @@ export function Tooltip({
     const tooltipW = tooltipEl.offsetWidth || 180;
     const tooltipH = tooltipEl.offsetHeight || 0;
 
-    const gap = 16;
     let top = 0;
     let left = 0;
 
-    if (side === "top") {
+    let nextSide: Side = side;
+    let topCandidate =
+      side === "top" ? rect.top - tooltipH - gap : rect.bottom + gap;
+
+    if (flipVerticalWhenNeeded) {
+      if (side === "top" && topCandidate < 8) {
+        nextSide = "bottom";
+        topCandidate = rect.bottom + gap;
+      } else if (
+        side === "bottom" &&
+        topCandidate + tooltipH > window.innerHeight - 8
+      ) {
+        nextSide = "top";
+        topCandidate = rect.top - tooltipH - gap;
+      }
+    }
+
+    if (nextSide === "top") {
       top = rect.top - tooltipH - gap;
     } else {
       top = rect.bottom + gap;
@@ -66,11 +89,14 @@ export function Tooltip({
       left = rect.left + rect.width / 2 - tooltipW / 2;
     }
 
-    left = Math.max(8, Math.min(left, window.innerWidth - tooltipW - 8));
-    top = Math.max(8, Math.min(top, window.innerHeight - tooltipH - 8));
+    if (constrainToViewport) {
+      left = Math.max(8, Math.min(left, window.innerWidth - tooltipW - 8));
+      top = Math.max(8, Math.min(top, window.innerHeight - tooltipH - 8));
+    }
 
+    setResolvedSide(nextSide);
     setPosition({ top, left });
-  }, [side, align]);
+  }, [side, align, gap, constrainToViewport, flipVerticalWhenNeeded]);
 
   React.useLayoutEffect(() => {
     if (!open) return;
@@ -150,7 +176,7 @@ export function Tooltip({
                 className={cn(
                   "absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45",
                   "bg-foreground",
-                  side === "top" ? "-bottom-1" : "-top-1",
+                  resolvedSide === "top" ? "-bottom-1" : "-top-1",
                 )}
               />
             </div>,

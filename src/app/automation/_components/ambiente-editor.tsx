@@ -29,7 +29,10 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { compareDisplayText } from "@/lib/sort-text";
+import {
+  compareCatalogDisplayItem,
+  compareConfiguredDisplayItem,
+} from "@/lib/sort-text";
 import { toast } from "@/lib/toast";
 import { useWindowFocus } from "@/hooks/use-window-focus";
 import { getNicheConfig } from "@/lib/niches/config";
@@ -294,7 +297,7 @@ export function AmbienteEditor({
           );
         },
       )
-      .sort((a, b) => compareDisplayText(a.name, b.name));
+      .sort(compareCatalogDisplayItem);
   }, [catalogItems, catalogTypeFilter, productSearch, selectedProducts]);
 
   const catalogItemMap = React.useMemo(() => {
@@ -652,9 +655,7 @@ export function AmbienteEditor({
                 <div className="grid grid-cols-1 gap-3">
                   <AnimatePresence initial={false}>
                     {[...selectedProducts]
-                      .sort((a, b) =>
-                        compareDisplayText(a.productName, b.productName),
-                      )
+                      .sort(compareConfiguredDisplayItem)
                       .map((item) => {
                         const itemType = item.itemType || "product";
                         const isService = itemType === "service";
@@ -676,8 +677,12 @@ export function AmbienteEditor({
                           !isService &&
                           (pricingDetails.mode === "curtain_height" ||
                             pricingModel.mode === "curtain_height");
+                        const isCurtainWidth =
+                          !isService &&
+                          (pricingDetails.mode === "curtain_width" ||
+                            pricingModel.mode === "curtain_width");
                         const isQuantityPricedProduct =
-                          !isService && !isCurtainMeter && !isCurtainHeight;
+                          !isService && !isCurtainMeter && !isCurtainHeight && !isCurtainWidth;
                         const activeHeightTiers =
                           pricingModel.mode === "curtain_height"
                             ? [...pricingModel.tiers].sort((a, b) => a.maxHeight - b.maxHeight)
@@ -709,6 +714,10 @@ export function AmbienteEditor({
                             ? pricingDetails.mode === "curtain_height"
                               ? pricingDetails.width
                               : item.quantity
+                            : isCurtainWidth
+                              ? pricingDetails.mode === "curtain_width"
+                                ? pricingDetails.width
+                                : item.quantity
                             : item.quantity;
                         const estimatedSubtotal = hasCatalogPrice
                           ? catalogPrice * Math.max(0, effectiveQuantity)
@@ -771,6 +780,14 @@ export function AmbienteEditor({
                                       Por altura
                                     </Badge>
                                   )}
+                                  {isCurtainWidth && (
+                                    <Badge
+                                      variant="outline"
+                                      className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
+                                    >
+                                      Por largura
+                                    </Badge>
+                                  )}
                                   {isQuantityPricedProduct && (
                                     <Badge
                                       variant="outline"
@@ -807,6 +824,16 @@ export function AmbienteEditor({
                                     {formatMeters(
                                       pricingDetails.mode === "curtain_height"
                                         ? pricingDetails.maxHeight
+                                        : 0,
+                                    )}
+                                  </p>
+                                )}
+                                {!isService && isCurtainWidth && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Larg.{" "}
+                                    {formatMeters(
+                                      pricingDetails.mode === "curtain_width"
+                                        ? pricingDetails.width
                                         : 0,
                                     )}
                                   </p>
@@ -1022,6 +1049,33 @@ export function AmbienteEditor({
                                     </div>
                                   )}
                                 </div>
+                              ) : isCurtainWidth ? (
+                                <div className="grid w-full gap-3 md:w-[260px]">
+                                  <div className="space-y-1">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Largura (m)
+                                    </span>
+                                    <EditableMeasureInput
+                                      value={
+                                        pricingDetails.mode === "curtain_width"
+                                          ? pricingDetails.width
+                                          : 0
+                                      }
+                                      onChange={(nextWidth) => {
+                                        const width = Math.max(0, nextWidth || 0);
+                                        handleUpdatePricingDetails(
+                                          item.productId,
+                                          {
+                                            mode: "curtain_width",
+                                            width,
+                                          },
+                                          itemType,
+                                          itemLineId,
+                                        );
+                                      }}
+                                    />
+                                  </div>
+                                </div>
                               ) : (
                                 <div className="ml-auto flex items-center rounded-lg bg-muted/30 p-1">
                                   <Button
@@ -1087,6 +1141,8 @@ export function AmbienteEditor({
                                   ? "Area base"
                                   : isCurtainHeight
                                     ? "Largura base"
+                                    : isCurtainWidth
+                                      ? "Largura base"
                                     : "Quantidade"}
                               </p>
                               <p className="text-xs font-semibold text-foreground">
@@ -1094,6 +1150,8 @@ export function AmbienteEditor({
                                   ? `${effectiveQuantity.toFixed(2)} m2`
                                   : isCurtainHeight
                                     ? `${formatMeters(effectiveQuantity)}`
+                                    : isCurtainWidth
+                                      ? `${formatMeters(effectiveQuantity)}`
                                     : formatItemQuantity(
                                         effectiveQuantity,
                                         allowDecimalQuantity,

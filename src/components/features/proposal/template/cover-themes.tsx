@@ -4,6 +4,7 @@ import * as React from "react";
 import { ProposalTemplate } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { Tenant } from "@/types";
+import { formatDateBR } from "@/utils/date-format";
 
 // ============================================
 // UTILITIES
@@ -29,12 +30,7 @@ export function adjustColor(hex: string, percent: number): string {
 }
 
 export function formatDate(dateString?: string) {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDateBR(dateString, "");
 }
 
 export function formatCurrency(value: number) {

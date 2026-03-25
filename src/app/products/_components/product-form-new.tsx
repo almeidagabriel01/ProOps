@@ -64,7 +64,7 @@ const productSteps = [
   },
   {
     id: "settings",
-    title: "Configurações",
+    title: "Resumo",
     description: "Status e opções",
     icon: Settings,
   },
@@ -500,7 +500,7 @@ export function ProductFormNew({
                 <Settings className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Configurações</h3>
+                <h3 className="text-lg font-semibold">Resumo</h3>
                 <p className="text-sm text-muted-foreground">
                   Status e resumo de publicação
                 </p>
@@ -522,7 +522,7 @@ export function ProductFormNew({
                   <span className="text-muted-foreground">Categoria:</span>
                   <p className="font-medium">{formData.category || "-"}</p>
                 </div>
-                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" ? (
+                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" || formData.pricingMode === "curtain_width" ? (
                   <>
                     <div>
                       <span className="text-muted-foreground">Precificação:</span>

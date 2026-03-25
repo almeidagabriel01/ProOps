@@ -26,6 +26,10 @@ import {
   formatItemQuantity,
   normalizeItemQuantity,
 } from "@/lib/quantity-utils";
+import {
+  compareCatalogDisplayItem,
+  compareConfiguredDisplayItem,
+} from "@/lib/sort-text";
 
 interface AmbienteProductsDialogProps {
   isOpen: boolean;
@@ -226,17 +230,19 @@ export function AmbienteProductsDialog({
     }
   };
 
-  const filteredProducts = catalogItems.filter(
-    (item) =>
-      !selectedProducts.some(
-        (selected) =>
-          selected.productId === item.id &&
-          (selected.itemType || "product") === (item.itemType || "product"),
-      ) &&
-      (productSearch === "" ||
-        item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        item.category?.toLowerCase().includes(productSearch.toLowerCase())),
-  );
+  const filteredProducts = catalogItems
+    .filter(
+      (item) =>
+        !selectedProducts.some(
+          (selected) =>
+            selected.productId === item.id &&
+            (selected.itemType || "product") === (item.itemType || "product"),
+        ) &&
+        (productSearch === "" ||
+          item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+          item.category?.toLowerCase().includes(productSearch.toLowerCase())),
+    )
+    .sort(compareCatalogDisplayItem);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -338,7 +344,7 @@ export function AmbienteProductsDialog({
 
               {selectedProducts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {selectedProducts.map((item) => {
+                  {[...selectedProducts].sort(compareConfiguredDisplayItem).map((item) => {
                     const isService =
                       (item.itemType || "product") === "service";
                     const allowDecimal =

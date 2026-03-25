@@ -296,6 +296,17 @@ interface StepContentProps {
 function StepContent({ index, currentStep, children }: StepContentProps) {
   const isActive = index === currentStep;
   const direction = index > currentStep ? 1 : -1;
+  const [isAnimating, setIsAnimating] = React.useState(false);
+
+  React.useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (isActive) {
+      setIsAnimating(true);
+    } else {
+      timeoutId = setTimeout(() => setIsAnimating(false), 500); // Match duration-500
+    }
+    return () => clearTimeout(timeoutId);
+  }, [isActive]);
 
   return (
     <div
@@ -306,6 +317,7 @@ function StepContent({ index, currentStep, children }: StepContentProps) {
           : "opacity-0 absolute inset-0 pointer-events-none",
         !isActive && direction > 0 && "translate-x-8",
         !isActive && direction < 0 && "-translate-x-8",
+        !isActive && !isAnimating && "hidden"
       )}
       aria-hidden={!isActive}
     >

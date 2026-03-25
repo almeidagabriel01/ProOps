@@ -17,6 +17,7 @@ import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
 import { formatPrice } from "@/utils/format";
+import { formatDateBR } from "@/utils/date-format";
 import {
   CreditCard,
   Calendar,
@@ -276,23 +277,12 @@ export function MySubscriptionTab({
   };
 
   const formatDate = (dateInput?: unknown) => {
-    const date = normalizeDate(dateInput);
-    if (!date) return "-";
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    return formatDateBR(dateInput);
   };
 
   const getFormattedDateOrNull = (dateInput?: unknown) => {
-    const date = normalizeDate(dateInput);
-    if (!date) return null;
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
+    const formatted = formatDateBR(dateInput, "");
+    return formatted || null;
   };
 
   const statusInfo = statusLabels[subscriptionStatus] || statusLabels.active;

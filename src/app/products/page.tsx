@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   Plus,
   Search,
   Edit,
   Trash2,
+  Info,
   Package,
   Wallet,
   TrendingUp,
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +55,33 @@ import {
   getProductMarkup,
   getProductPricingSummary,
 } from "@/lib/product-pricing";
+import {
+  summarizeCurtainInventoryBalance,
+  type ProductInventoryBalanceSummary,
+} from "@/lib/product-inventory-summary";
+
+function buildCurtainBalanceTooltipContent(
+  summary: ProductInventoryBalanceSummary,
+  variant: "cost" | "revenue",
+) {
+  const valueLabel =
+    variant === "cost" ? "custo" : "valor com markup";
+
+  return (
+    <div className="max-w-[220px] text-left text-[11px] leading-4">
+      <p>Catálogo: soma todos os produtos.</p>
+      <p>Qtd: estoque x {valueLabel}</p>
+      <p>Metragem: soma o preço por m²</p>
+      <p>Largura: soma o preço por m larg.</p>
+      <p>Altura: soma todas as faixas cadastradas</p>
+      {summary.heightTierInsights.length > 0 && (
+        <p className="mt-1 text-background/80">
+          Produtos dimensionais entram mesmo sem medida da proposta.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -71,19 +100,28 @@ export default function ProductsPage() {
   const resetRef = useRef<(() => void) | null>(null);
 
   const isFiltering = searchTerm.trim() !== "";
-  const inventoryBalances = (allProducts ?? []).reduce(
-    (totals, product) => {
-      const unitCost = getProductBasePrice(product);
-      const markup = getProductMarkup(product);
-      const inventoryValue = getProductInventoryValue(product);
-      const sellingPrice = calculateSellingPrice(unitCost, markup);
+  const isCurtainNiche = nicheConfig.id === "cortinas";
+  const curtainInventorySummary = useMemo(
+    () => summarizeCurtainInventoryBalance(allProducts ?? []),
+    [allProducts],
+  );
+  const inventoryBalances = useMemo(
+    () =>
+      (allProducts ?? []).reduce(
+        (totals, product) => {
+          const unitCost = getProductBasePrice(product);
+          const markup = getProductMarkup(product);
+          const inventoryValue = getProductInventoryValue(product);
+          const sellingPrice = calculateSellingPrice(unitCost, markup);
 
-      totals.cost += unitCost * inventoryValue;
-      totals.withMarkup += sellingPrice * inventoryValue;
+          totals.cost += unitCost * inventoryValue;
+          totals.withMarkup += sellingPrice * inventoryValue;
 
-      return totals;
-    },
-    { cost: 0, withMarkup: 0 },
+          return totals;
+        },
+        { cost: 0, withMarkup: 0 },
+      ),
+    [allProducts],
   );
 
   const handleInventoryUpdate = async (product: Product, newValue: string) => {
@@ -448,53 +486,151 @@ export default function ProductsPage() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
-                <CardContent className="flex items-start justify-between gap-4 p-6">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {inventoryConfig.costBalanceLabel}
-                    </p>
-                    <p className="text-3xl font-bold tracking-tight">
-                      {allProducts === null && hasAnyProducts !== false ? (
-                        <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                          <Spinner className="w-4 h-4" />
-                          Calculando...
-                        </span>
-                      ) : (
-                        formatCurrency(inventoryBalances.cost)
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
-                    <Wallet className="h-6 w-6" />
-                  </div>
-                </CardContent>
-              </Card>
+            {isCurtainNiche ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
+                  <CardContent className="flex items-start justify-between gap-4 p-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {inventoryConfig.costBalanceLabel}
+                        </p>
+                        <Tooltip
+                          content={buildCurtainBalanceTooltipContent(
+                            curtainInventorySummary,
+                            "cost",
+                          )}
+                          className="max-w-[220px] whitespace-normal rounded-2xl px-3 py-2 text-xs leading-5"
+                          align="center"
+                          gap={8}
+                          constrainToViewport={false}
+                          flipVerticalWhenNeeded
+                        >
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-300/70 bg-white/70 text-amber-700 transition-colors hover:bg-white"
+                            aria-label="Como este saldo de custo é calculado"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <p className="text-3xl font-bold tracking-tight">
+                        {allProducts === null && hasAnyProducts !== false ? (
+                          <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                            <Spinner className="w-4 h-4" />
+                            Calculando...
+                          </span>
+                        ) : (
+                          formatCurrency(curtainInventorySummary.cost)
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Saldo unico consolidado do catalogo.
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
+                      <Wallet className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
-                <CardContent className="flex items-start justify-between gap-4 p-6">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {inventoryConfig.revenueBalanceLabel}
-                    </p>
-                    <p className="text-3xl font-bold tracking-tight">
-                      {allProducts === null && hasAnyProducts !== false ? (
-                        <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                          <Spinner className="w-4 h-4" />
-                          Calculando...
-                        </span>
-                      ) : (
-                        formatCurrency(inventoryBalances.withMarkup)
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
-                    <TrendingUp className="h-6 w-6" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
+                  <CardContent className="flex items-start justify-between gap-4 p-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {inventoryConfig.revenueBalanceLabel}
+                        </p>
+                        <Tooltip
+                          content={buildCurtainBalanceTooltipContent(
+                            curtainInventorySummary,
+                            "revenue",
+                          )}
+                          className="max-w-[220px] whitespace-normal rounded-2xl px-3 py-2 text-xs leading-5"
+                          align="center"
+                          gap={8}
+                          constrainToViewport={false}
+                          flipVerticalWhenNeeded
+                        >
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/70 bg-white/70 text-emerald-700 transition-colors hover:bg-white"
+                            aria-label="Como este saldo com markup é calculado"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </Tooltip>
+                      </div>
+                      <p className="text-3xl font-bold tracking-tight">
+                        {allProducts === null && hasAnyProducts !== false ? (
+                          <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                            <Spinner className="w-4 h-4" />
+                            Calculando...
+                          </span>
+                        ) : (
+                          formatCurrency(curtainInventorySummary.revenue)
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Saldo unico consolidado do catalogo.
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
+                      <TrendingUp className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
+                  <CardContent className="flex items-start justify-between gap-4 p-6">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {inventoryConfig.costBalanceLabel}
+                      </p>
+                      <p className="text-3xl font-bold tracking-tight">
+                        {allProducts === null && hasAnyProducts !== false ? (
+                          <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                            <Spinner className="w-4 h-4" />
+                            Calculando...
+                          </span>
+                        ) : (
+                          formatCurrency(inventoryBalances.cost)
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
+                      <Wallet className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
+                  <CardContent className="flex items-start justify-between gap-4 p-6">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {inventoryConfig.revenueBalanceLabel}
+                      </p>
+                      <p className="text-3xl font-bold tracking-tight">
+                        {allProducts === null && hasAnyProducts !== false ? (
+                          <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
+                            <Spinner className="w-4 h-4" />
+                            Calculando...
+                          </span>
+                        ) : (
+                          formatCurrency(inventoryBalances.withMarkup)
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
+                      <TrendingUp className="h-6 w-6" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {hasAnyProducts !== false && (
               <div className="max-w-md">

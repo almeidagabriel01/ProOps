@@ -9,6 +9,8 @@ import {
   getProposalProductMeasurementLabel,
   getProposalProductUnitLabel,
 } from "@/lib/product-pricing";
+import { compareConfiguredDisplayItem } from "@/lib/sort-text";
+import { formatDateBR } from "@/utils/date-format";
 
 interface ProposalReadOnlyViewProps {
   formData: Partial<Proposal>;
@@ -66,9 +68,7 @@ export function ProposalReadOnlyView({
             <div className="grid gap-2">
               <Label>Válida até</Label>
               <div className="p-2 border rounded-md bg-muted/50">
-                {formData.validUntil
-                  ? new Date(formData.validUntil).toLocaleDateString()
-                  : "-"}
+                {formatDateBR(formData.validUntil)}
               </div>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function ProposalReadOnlyView({
               Nenhum produto selecionado.
             </p>
           ) : (
-            selectedProducts.map((product, idx) => (
+            [...selectedProducts].sort(compareConfiguredDisplayItem).map((product, idx) => (
               <div
                 key={`${product.productId}-${idx}`}
                 className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"

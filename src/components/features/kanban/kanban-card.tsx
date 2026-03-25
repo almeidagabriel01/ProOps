@@ -18,41 +18,19 @@ import {
   Building2,
   FileText,
 } from "lucide-react";
+import { formatDateBR, isDateBeforeTodayBR } from "@/utils/date-format";
 
 // ============================================
 // HELPERS
 // ============================================
 
 function formatDateShort(val?: string): string | null {
-  if (!val) return null;
-  try {
-    let dateStr = val;
-    if (dateStr.length === 10 && dateStr.includes("-")) {
-      dateStr += "T12:00:00";
-    }
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return null;
-    return d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-    });
-  } catch {
-    return null;
-  }
+  const formatted = formatDateBR(val, "");
+  return formatted || null;
 }
 
 function isDatePast(val?: string): boolean {
-  if (!val) return false;
-  try {
-    let dateStr = val;
-    if (dateStr.length === 10 && dateStr.includes("-")) {
-      dateStr += "T12:00:00";
-    }
-    return new Date(dateStr) < new Date();
-  } catch {
-    return false;
-  }
+  return isDateBeforeTodayBR(val);
 }
 
 // ============================================

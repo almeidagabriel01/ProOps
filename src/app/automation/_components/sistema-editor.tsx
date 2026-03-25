@@ -52,7 +52,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
-import { compareDisplayText } from "@/lib/sort-text";
+import {
+  compareCatalogDisplayItem,
+  compareConfiguredDisplayItem,
+} from "@/lib/sort-text";
 import { useWindowFocus } from "@/hooks/use-window-focus";
 
 interface SistemaEditorProps {
@@ -469,7 +472,7 @@ export function SistemaEditor({
             p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
             p.category?.toLowerCase().includes(productSearch.toLowerCase())),
       )
-      .sort((a, b) => compareDisplayText(a.name, b.name));
+      .sort(compareCatalogDisplayItem);
   }, [products, activeConfig?.products, catalogTypeFilter, productSearch]);
 
   React.useEffect(() => {
@@ -829,10 +832,8 @@ export function SistemaEditor({
                 ) : (
                   <div className="grid grid-cols-1 gap-3">
                     <AnimatePresence initial={false}>
-                      {activeConfig.products
-                        .sort((a, b) =>
-                          compareDisplayText(a.productName, b.productName),
-                        )
+                      {[...activeConfig.products]
+                        .sort(compareConfiguredDisplayItem)
                         .map((item) => (
                           <motion.div
                             layout

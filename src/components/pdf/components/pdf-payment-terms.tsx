@@ -117,6 +117,8 @@ export function PdfPaymentTerms({
     hasDownPayment && totalValue > 0
       ? ((effectiveDownPaymentValue / totalValue) * 100).toFixed(0)
       : "0";
+  const remainingShare = 100 - parseFloat(downPaymentShare);
+  const isPercentageDownPayment = downPaymentType === "percentage";
   const resolvedDownPaymentMethod = getProposalDownPaymentMethod({
     downPaymentMethod,
     paymentMethod,
@@ -236,16 +238,26 @@ export function PdfPaymentTerms({
             <strong>{resolvedInstallmentsPaymentMethod}</strong>.
           </div>
           {hasDownPayment && hasInstallments ? (
-            <div>
-              Entrada de <strong>{downPaymentShare}%</strong> e parcelamento do
-              restante (<strong>{100 - parseFloat(downPaymentShare)}%</strong>)
-              em <strong>{installmentsCount} vezes</strong>.
-            </div>
+            isPercentageDownPayment ? (
+              <div>
+                Entrada de <strong>{downPaymentShare}%</strong> e parcelamento do
+                restante (<strong>{remainingShare}%</strong>) em <strong>{installmentsCount} vezes</strong>.
+              </div>
+            ) : (
+              <div>
+                Entrada de <strong>{formatCurrency(effectiveDownPaymentValue)}</strong> e parcelamento do restante em <strong>{installmentsCount} vezes</strong>.
+              </div>
+            )
           ) : hasDownPayment ? (
-            <div>
-              Entrada de <strong>{downPaymentShare}%</strong> e saldo de{" "}
-              <strong>{100 - parseFloat(downPaymentShare)}%</strong> à vista.
-            </div>
+            isPercentageDownPayment ? (
+              <div>
+                Entrada de <strong>{downPaymentShare}%</strong> e saldo de <strong>{remainingShare}%</strong> à vista.
+              </div>
+            ) : (
+              <div>
+                Entrada de <strong>{formatCurrency(effectiveDownPaymentValue)}</strong> e saldo de <strong>{formatCurrency(remainingValue)}</strong> à vista.
+              </div>
+            )
           ) : (
             <div>
               Parcelamento em <strong>{installmentsCount} vezes</strong>.

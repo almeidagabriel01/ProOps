@@ -3,6 +3,7 @@ import { ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalWorkflow } from "@/lib/niches/config";
 import { ProductRow } from "./product-row";
+import { compareConfiguredDisplayItem } from "@/lib/sort-text";
 
 interface SystemGroupRowsProps {
   selectedSistemas: ProposalSistema[];
@@ -72,7 +73,7 @@ export function SystemGroupRows({
                       )}
                     </td>
                   </tr>
-                  {sistemaProducts.map((product, idx) => (
+                  {[...sistemaProducts].sort(compareConfiguredDisplayItem).map((product, idx) => (
                     <ProductRow
                       key={`${product.productId}-${idx}`}
                       product={product}

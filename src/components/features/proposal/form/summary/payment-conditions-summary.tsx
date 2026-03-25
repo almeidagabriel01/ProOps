@@ -3,6 +3,7 @@ import {
   getProposalDownPaymentMethod,
   getProposalInstallmentsPaymentMethod,
 } from "@/lib/proposal-payment";
+import { formatDateBR } from "@/utils/date-format";
 
 interface PaymentConditionsSummaryProps {
   formData: Partial<Proposal>;
@@ -67,9 +68,7 @@ export function PaymentConditionsSummary({
             {formData.downPaymentDueDate && (
               <span className="text-xs ml-2">
                 (venc:{" "}
-                {new Date(
-                  formData.downPaymentDueDate + "T12:00:00",
-                ).toLocaleDateString("pt-BR")}
+                {formatDateBR(formData.downPaymentDueDate)}
                 )
               </span>
             )}
@@ -88,9 +87,7 @@ export function PaymentConditionsSummary({
             {formData.firstInstallmentDate && (
               <span className="text-xs ml-2">
                 (1ª venc:{" "}
-                {new Date(
-                  formData.firstInstallmentDate + "T12:00:00",
-                ).toLocaleDateString("pt-BR")}
+                {formatDateBR(formData.firstInstallmentDate)}
                 )
               </span>
             )}

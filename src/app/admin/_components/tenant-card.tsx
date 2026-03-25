@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { calculateNextBillingDate } from "../_utils/billing-date";
+import { formatDateBR } from "@/utils/date-format";
 
 interface TenantCardProps {
   item: TenantBillingInfo;
@@ -51,10 +52,9 @@ export function TenantCard({
     const [yyyy, mm, dd] = admin.currentPeriodEnd.split("T")[0].split("-");
     formattedBillingDate = `${dd}/${mm}/${yyyy}`;
   } else {
-    formattedBillingDate = calculateNextBillingDate(
-      tenant.createdAt,
-      billingInterval,
-    ).toLocaleDateString("pt-BR");
+    formattedBillingDate = formatDateBR(
+      calculateNextBillingDate(tenant.createdAt, billingInterval),
+    );
   }
   const isPastDue = subscriptionStatus === "past_due";
 
@@ -217,7 +217,7 @@ export function TenantCard({
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Desde:</span>
-          <span>{new Date(tenant.createdAt).toLocaleDateString("pt-BR")}</span>
+          <span>{formatDateBR(tenant.createdAt)}</span>
         </div>
       </CardContent>
 

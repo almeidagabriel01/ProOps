@@ -16,6 +16,7 @@ import {
   isProductVisibleInPdf,
   shouldCountInPdfTotals,
 } from "../product-visibility";
+import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 
 function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
   return tenantNiche === "cortinas"
@@ -215,18 +216,10 @@ export function PdfSistemaBlock({
               scopeProducts = products;
             }
 
-            const activeProductsTemp = scopeProducts.filter((product) =>
-              isProductVisibleInPdf(product),
-            );
-            if (activeProductsTemp.length === 0) return null;
-
-            const onlyProducts = activeProductsTemp.filter(
-              (p) => p.itemType !== "service",
-            );
-            const onlyServices = activeProductsTemp.filter(
-              (p) => p.itemType === "service",
-            );
-            const activeProducts = [...onlyProducts, ...onlyServices];
+            const activeProducts = [...scopeProducts]
+              .filter((product) => isProductVisibleInPdf(product))
+              .sort(compareConfiguredDisplayItemWithExtras);
+            if (activeProducts.length === 0) return null;
 
             return (
               <div key={currentInstanceId}>

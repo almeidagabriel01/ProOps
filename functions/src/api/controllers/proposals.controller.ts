@@ -301,6 +301,13 @@ function sanitizeProposalPricingDetails(
     };
   }
 
+  if (mode === "curtain_width") {
+    return {
+      mode: "curtain_width",
+      width: sanitizeProposalNumber(source.width, 4),
+    };
+  }
+
   return { mode: "standard" };
 }
 

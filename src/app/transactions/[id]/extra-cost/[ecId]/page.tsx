@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/utils/format";
+import { formatDateBR, formatDateTimeBR } from "@/utils/date-format";
 
 const statusConfig: Record<
   TransactionStatus,
@@ -37,18 +38,7 @@ const statusConfig: Record<
 };
 
 const formatDate = (dateString?: string) => {
-  if (!dateString) return "—";
-  const datePart = dateString.includes("T")
-    ? dateString.split("T")[0]
-    : dateString;
-  const parts = datePart.split("-").map(Number);
-  if (parts.length !== 3) return dateString;
-  const [year, month, day] = parts;
-  return new Date(year, month - 1, day).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDateBR(dateString, "—");
 };
 
 export default function ViewExtraCostPage() {
@@ -259,7 +249,7 @@ export default function ViewExtraCostPage() {
       {/* Metadata */}
       {extraCost.createdAt && (
         <div className="text-xs text-muted-foreground text-center">
-          Criado em {new Date(extraCost.createdAt).toLocaleString("pt-BR")}
+          Criado em {formatDateTimeBR(extraCost.createdAt)}
         </div>
       )}
     </div>

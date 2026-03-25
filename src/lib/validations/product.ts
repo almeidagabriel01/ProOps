@@ -5,7 +5,7 @@ import { ProductPricingMode } from "@/lib/product-pricing";
 
 const productPricingModeSchema = z
   .enum(
-    ["standard", "curtain_meter", "curtain_height"] satisfies [
+    ["standard", "curtain_meter", "curtain_height", "curtain_width"] satisfies [
       ProductPricingMode,
       ...ProductPricingMode[],
     ],

@@ -132,6 +132,38 @@ export function PdfAmbienteTag({
   );
 }
 
+export function hasCortinasAwareProductFooterContent({
+  product,
+  tenantNiche,
+  showProductPrices,
+  showProductMeasurements,
+  showProductQuantities,
+}: {
+  product: PdfProduct;
+  tenantNiche?: TenantNiche | null;
+  showProductPrices: boolean;
+  showProductMeasurements: boolean;
+  showProductQuantities?: boolean;
+}): boolean {
+  if (showProductPrices) return true;
+
+  const isDimensionProduct = isCortinasDimensionProductLine(tenantNiche, product);
+  
+  if (isDimensionProduct) {
+    const measurementLabel = showProductMeasurements
+      ? getProposalProductMeasurementLabel(product)
+      : null;
+    return !!measurementLabel;
+  }
+
+  if (isCortinasNeutralServiceLine(tenantNiche, product)) return true;
+
+  const shouldShowQuantity = showProductQuantities !== false && !isDimensionProduct;
+  if (shouldShowQuantity) return true;
+
+  return false;
+}
+
 /**
  * Rodapé de preço/medida para cards de sistema e extras (nicho cortinas).
  */
@@ -140,6 +172,7 @@ export function PdfCortinasAwareProductFooter({
   tenantNiche,
   showProductPrices,
   showProductMeasurements,
+  showProductQuantities,
   primaryColor,
   grayTextClassName,
   totalTextClassName,
@@ -148,6 +181,7 @@ export function PdfCortinasAwareProductFooter({
   tenantNiche?: TenantNiche | null;
   showProductPrices: boolean;
   showProductMeasurements: boolean;
+  showProductQuantities?: boolean;
   primaryColor?: string;
   grayTextClassName: string;
   totalTextClassName: string;
@@ -157,6 +191,10 @@ export function PdfCortinasAwareProductFooter({
   const isCortinasProduct =
     tenantNiche === "cortinas" && product.itemType !== "service";
   const isDimensionProduct = isCortinasDimensionProductLine(tenantNiche, product);
+  
+  // NEVER show quantity for dimension products. For others, respect the setting.
+  const shouldShowQuantity = showProductQuantities !== false && !isDimensionProduct;
+
   const quantityLabel = Number.isInteger(product.quantity)
     ? String(product.quantity)
     : product.quantity.toLocaleString("pt-BR", {
@@ -220,7 +258,7 @@ export function PdfCortinasAwareProductFooter({
       return (
         <>
           <span className={`${grayTextClassName} block`}>
-            {`Qtd. ${quantityLabel} x ${formatCurrency(sellingPrice)}`}
+            {shouldShowQuantity ? `Qtd. ${quantityLabel} x ` : ""}{formatCurrency(sellingPrice)}
           </span>
           <span
             className={totalTextClassName}
@@ -235,7 +273,7 @@ export function PdfCortinasAwareProductFooter({
     return (
       <>
         <span className={`${grayTextClassName} block`}>
-          {product.quantity}x {formatCurrency(legacyUnit)}
+          {shouldShowQuantity ? `${product.quantity}x ` : ""}{formatCurrency(legacyUnit)}
         </span>
         <span
           className={totalTextClassName}
@@ -247,34 +285,40 @@ export function PdfCortinasAwareProductFooter({
     );
   }
 
-  if (measurementLabel) {
-    return <span className="text-xs text-gray-600">{measurementLabel}</span>;
+  if (isDimensionProduct) {
+    if (measurementLabel) {
+      return <span className="text-xs text-gray-600">{measurementLabel}</span>;
+    }
+    return null;
   }
 
   if (isCortinasNeutralServiceLine(tenantNiche, product)) {
     return <span className="text-xs text-gray-600">Serviço</span>;
   }
 
-  if (isCortinasProduct) {
-    return <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>;
+  if (shouldShowQuantity) {
+    if (isCortinasProduct) {
+      return <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>;
+    }
+    return (
+      <span
+        className="font-medium text-xs text-gray-600"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: "4px",
+          lineHeight: "1",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span>Qtd:</span>
+        <span>{product.quantity}</span>
+      </span>
+    );
   }
 
-  return (
-    <span
-      className="font-medium text-xs text-gray-600"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        gap: "4px",
-        lineHeight: "1",
-        whiteSpace: "nowrap",
-      }}
-    >
-      <span>Qtd:</span>
-      <span>{product.quantity}</span>
-    </span>
-  );
+  return null;
 }
 
 export function PdfSistemaProductCard({
@@ -368,30 +412,39 @@ export function PdfSistemaProductCard({
           </p>
         )}
 
-        <div
-          data-pdf-item-qty="1"
-          className="pt-2 mt-1 flex justify-end"
-          style={{ borderTop: "1px solid #e5e7eb" }}
-        >
+        {hasCortinasAwareProductFooterContent({
+          product,
+          tenantNiche,
+          showProductPrices: settings.showProductPrices,
+          showProductMeasurements: settings.showProductMeasurements,
+          showProductQuantities: settings.showProductQuantities,
+        }) && (
           <div
-            style={{
-              display: "inline-flex",
-              flexDirection: "column",
-              alignItems: "flex-end",
-              lineHeight: "1.2",
-            }}
+            data-pdf-item-qty="1"
+            className="pt-2 mt-1 flex justify-end"
+            style={{ borderTop: "1px solid #e5e7eb" }}
           >
-            <PdfCortinasAwareProductFooter
-              product={product}
-              tenantNiche={tenantNiche}
-              showProductPrices={settings.showProductPrices}
-              showProductMeasurements={settings.showProductMeasurements}
-              primaryColor={primaryColor}
-              grayTextClassName="text-[10px] text-gray-500"
-              totalTextClassName="font-semibold text-sm"
-            />
+            <div
+              style={{
+                display: "inline-flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                lineHeight: "1.2",
+              }}
+            >
+              <PdfCortinasAwareProductFooter
+                product={product}
+                tenantNiche={tenantNiche}
+                showProductPrices={settings.showProductPrices}
+                showProductMeasurements={settings.showProductMeasurements}
+                showProductQuantities={settings.showProductQuantities}
+                primaryColor={primaryColor}
+                grayTextClassName="text-[10px] text-gray-500"
+                totalTextClassName="font-semibold text-sm"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
