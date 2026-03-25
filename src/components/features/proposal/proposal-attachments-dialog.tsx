@@ -25,6 +25,7 @@ import {
   deleteStorageObject,
   uploadProposalAttachment,
 } from "@/services/storage-service";
+import { formatDateBR } from "@/utils/date-format";
 
 interface ProposalAttachmentsDialogProps {
   proposal: Proposal;
@@ -393,9 +394,7 @@ export function ProposalAttachmentsDialog({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatFileSize(attachment.size)} •{" "}
-                        {new Date(attachment.uploadedAt).toLocaleDateString(
-                          "pt-BR",
-                        )}
+                        {formatDateBR(attachment.uploadedAt)}
                       </p>
                     </div>
 

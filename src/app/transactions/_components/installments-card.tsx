@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { Transaction } from "@/services/transaction-service";
+import { formatDateBR } from "@/utils/date-format";
 
 interface InstallmentsCardProps {
   installments: Transaction[];
@@ -17,22 +18,7 @@ interface InstallmentsCardProps {
  * Parses YYYY-MM-DD manually instead of using new Date().
  */
 function formatDateSafe(dateString: string): string {
-  if (!dateString) return "";
-
-  // Extract date part if ISO format
-  const datePart = dateString.includes("T")
-    ? dateString.split("T")[0]
-    : dateString;
-  const parts = datePart.split("-");
-
-  if (parts.length !== 3) return dateString;
-
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
-  const day = parseInt(parts[2], 10);
-
-  const date = new Date(year, month, day);
-  return date.toLocaleDateString("pt-BR");
+  return formatDateBR(dateString, "");
 }
 
 export function InstallmentsCard({

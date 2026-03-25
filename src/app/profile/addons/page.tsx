@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { AddonsSkeleton } from "./_components/addons-skeleton";
+import { formatDateBR } from "@/utils/date-format";
 
 export default function AddonsPage() {
   // ...
@@ -98,23 +99,19 @@ export default function AddonsPage() {
     return null;
   };
 
-  const formatDate = (value: unknown): string | null => {
-    const parsed = normalizeDate(value);
-    if (!parsed) return null;
-    return parsed.toLocaleDateString("pt-BR");
-  };
-
   const addonToCancelData = addonToCancel
     ? purchasedAddonsData.find((a) => a.addonType === addonToCancel.id)
     : null;
   const addonToCancelDate =
-    formatDate(addonToCancelData?.currentPeriodEnd) ||
+    (addonToCancelData?.currentPeriodEnd
+      ? formatDateBR(addonToCancelData.currentPeriodEnd)
+      : null) ||
     (() => {
       const purchasedDate = normalizeDate(addonToCancelData?.purchasedAt);
       if (!purchasedDate) return null;
       const projected = new Date(purchasedDate);
       projected.setDate(projected.getDate() + 30);
-      return formatDate(projected);
+      return formatDateBR(projected);
     })();
 
   // Handle success/canceled URL params - only after loading is complete
@@ -301,7 +298,7 @@ export default function AddonsPage() {
             );
             const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
             const cancelDate = addonData?.currentPeriodEnd
-              ? new Date(addonData.currentPeriodEnd).toLocaleDateString("pt-BR")
+              ? formatDateBR(addonData.currentPeriodEnd)
               : undefined;
 
             // Check if included in current plan (if not available for purchase but we are on a higher tier)
@@ -373,9 +370,7 @@ export default function AddonsPage() {
                 );
                 const isScheduledCancel = addonData?.cancelAtPeriodEnd === true;
                 const cancelDate = addonData?.currentPeriodEnd
-                  ? new Date(addonData.currentPeriodEnd).toLocaleDateString(
-                      "pt-BR",
-                    )
+                  ? formatDateBR(addonData.currentPeriodEnd)
                   : null;
 
                 const isRedundant = !availableAddons.find(

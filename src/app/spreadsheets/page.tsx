@@ -50,6 +50,7 @@ import {
   SUPPORTED_SPREADSHEET_ACCEPT,
 } from "@/lib/spreadsheet-import";
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
+import { formatDateBR } from "@/utils/date-format";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -275,7 +276,7 @@ export default function SpreadsheetsPage() {
       className: "col-span-3",
       render: (sheet) => (
         <div className="text-sm text-muted-foreground">
-          {new Date(sheet.createdAt || "").toLocaleDateString()}
+          {formatDateBR(sheet.createdAt)}
         </div>
       ),
     },

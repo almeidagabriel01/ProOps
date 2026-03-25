@@ -20,6 +20,7 @@ import {
   getProposalTransactionDisplayName,
   isProposalLinkedTransaction,
 } from "../_lib/proposal-transaction";
+import { formatDateBR } from "@/utils/date-format";
 
 import {
   Check,
@@ -455,15 +456,7 @@ export function TransactionListByDueDate({
     selectedIds.size > 0 && selectedIds.size < transactions.length;
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) return dateString;
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day);
-    return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+    return formatDateBR(dateString, "");
   };
 
   const getTypeColor = (transaction: Transaction) => {

@@ -72,6 +72,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
+import { formatDateBR } from "@/utils/date-format";
 
 function PdfDownloader({
   proposal,
@@ -597,12 +598,7 @@ export default function ProposalsPage() {
   );
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return formatDateBR(dateString);
   };
 
   const sortLabelsPtBr = React.useCallback((values: string[]) => {

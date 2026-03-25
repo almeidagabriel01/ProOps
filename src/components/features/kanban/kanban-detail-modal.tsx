@@ -42,6 +42,7 @@ import {
   Tag,
 } from "lucide-react";
 import Link from "next/link";
+import { formatDateBR, isDateBeforeTodayBR } from "@/utils/date-format";
 
 // ============================================
 // STATUS LABELS
@@ -109,35 +110,7 @@ function formatDate(
     | null
     | undefined,
 ): string {
-  if (!val) return "-";
-  try {
-    // Handle Firestore Timestamp
-    if (typeof val === "object" && ("_seconds" in val || "seconds" in val)) {
-      const seconds = val._seconds ?? val.seconds ?? 0;
-      return new Date(seconds * 1000).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      });
-    }
-
-    let dateStr = String(val);
-    // Prevent timezone shift for YYYY-MM-DD strings
-    if (dateStr.length === 10 && dateStr.includes("-")) {
-      dateStr += "T12:00:00";
-    }
-
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "Data Inválida";
-
-    return d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return "Data Inválida";
-  }
+  return formatDateBR(val, "Data Inválida");
 }
 
 function InfoRow({
@@ -199,9 +172,7 @@ export function ProposalDetailModal({
     proposal.products?.reduce((sum, p) => sum + (p.total || 0), 0) ||
     0;
 
-  const isExpired = proposal.validUntil
-    ? new Date(proposal.validUntil) < new Date()
-    : false;
+  const isExpired = isDateBeforeTodayBR(proposal.validUntil);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -395,7 +366,7 @@ export function TransactionDetailModal({
 
   const isOverdue =
     transaction.dueDate && !transaction.paidAt
-      ? new Date(transaction.dueDate) < new Date()
+      ? isDateBeforeTodayBR(transaction.dueDate)
       : false;
 
   return (

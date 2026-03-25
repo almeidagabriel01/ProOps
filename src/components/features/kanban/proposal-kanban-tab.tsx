@@ -28,6 +28,7 @@ import {
   ListFilter,
   Loader2,
 } from "lucide-react";
+import { isDateBeforeTodayBR } from "@/utils/date-format";
 import { cn } from "@/lib/utils";
 import { normalize } from "@/utils/text";
 import {
@@ -139,10 +140,9 @@ export function ProposalKanbanTab() {
       };
 
       if (filter.filterExpiration !== "all") {
-        const now = new Date();
         items = items.filter((p) => {
           if (!p.validUntil) return filter.filterExpiration === "valid";
-          const isValid = new Date(p.validUntil) >= now;
+          const isValid = !isDateBeforeTodayBR(p.validUntil);
           return filter.filterExpiration === "valid" ? isValid : !isValid;
         });
       }

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { ClientSelect } from "@/components/features/client-select";
 import { FormItem } from "@/components/ui/form-components";
 import { formatCurrency } from "@/utils/format";
+import { formatDateBR } from "@/utils/date-format";
 import { FormErrors } from "@/hooks/useFormValidation";
 import { TrendingUp, TrendingDown, User, RefreshCw } from "lucide-react";
 import { TransactionFormData } from "../../_hooks/useTransactionForm";
@@ -164,9 +165,7 @@ export function ReviewStep({
               <span className="text-muted-foreground">Data:</span>
               <p className="font-medium">
                 {formData.date
-                  ? new Date(formData.date + "T12:00:00").toLocaleDateString(
-                      "pt-BR",
-                    )
+                  ? formatDateBR(formData.date)
                   : "—"}
               </p>
             </div>
@@ -201,9 +200,7 @@ export function ReviewStep({
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formData.downPaymentDueDate
-                        ? new Date(
-                            formData.downPaymentDueDate + "T12:00:00",
-                          ).toLocaleDateString("pt-BR")
+                        ? formatDateBR(formData.downPaymentDueDate)
                         : "Data não definida"}
                     </p>
                   </div>
@@ -230,14 +227,10 @@ export function ReviewStep({
                       1ª:{" "}
                       {formData.paymentMode === "installmentValue"
                         ? formData.firstInstallmentDate
-                          ? new Date(
-                              formData.firstInstallmentDate + "T12:00:00",
-                            ).toLocaleDateString("pt-BR")
+                          ? formatDateBR(formData.firstInstallmentDate)
                           : "Data não definida"
                         : formData.dueDate
-                          ? new Date(
-                              formData.dueDate + "T12:00:00",
-                            ).toLocaleDateString("pt-BR")
+                          ? formatDateBR(formData.dueDate)
                           : "Data não definida"}
                     </p>
                   </div>
@@ -276,14 +269,10 @@ export function ReviewStep({
                       1ª:{" "}
                       {formData.paymentMode === "installmentValue"
                         ? formData.firstInstallmentDate
-                          ? new Date(
-                              formData.firstInstallmentDate + "T12:00:00",
-                            ).toLocaleDateString("pt-BR")
+                          ? formatDateBR(formData.firstInstallmentDate)
                           : "Data não definida"
                         : formData.dueDate
-                          ? new Date(
-                              formData.dueDate + "T12:00:00",
-                            ).toLocaleDateString("pt-BR")
+                          ? formatDateBR(formData.dueDate)
                           : "Data não definida"}
                     </p>
                   </div>

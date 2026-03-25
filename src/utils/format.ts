@@ -1,3 +1,5 @@
+import { formatDateBR } from "@/utils/date-format";
+
 /**
  * Format price to Brazilian currency
  */
@@ -22,35 +24,17 @@ export function formatCurrency(value: number): string {
 }
 
 /**
- * Parse a date string safely, avoiding timezone issues
- * When using new Date("2026-01-05"), JS interprets it as UTC midnight,
- * which becomes the previous day in timezones like Brazil (UTC-3)
- */
-function parseLocalDate(dateString: string): Date {
-    // Check specifically for YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split("-").map(Number);
-        return new Date(year, month - 1, day); // month is 0-indexed
-    }
-    // Fallback for ISO strings (e.g., 2026-02-12T14:37:58.000Z) and other formats
-    return new Date(dateString);
-}
-
-/**
  * Format date to Brazilian short format (e.g., "15 dez")
  */
 export function formatDateShort(dateString: string): string {
-    return parseLocalDate(dateString).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-    });
+    return formatDateBR(dateString, "");
 }
 
 /**
  * Format date to Brazilian full format (e.g., "15/12/2024")
  */
 export function formatDateFull(dateString: string): string {
-    return parseLocalDate(dateString).toLocaleDateString("pt-BR");
+    return formatDateBR(dateString, "");
 }
 
 /**

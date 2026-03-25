@@ -29,6 +29,7 @@ import {
   Transaction,
 } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
+import { formatDateBR } from "@/utils/date-format";
 
 interface WalletHistoryDialogProps {
   wallet: Wallet | null;
@@ -128,11 +129,7 @@ function formatDate(dateInput: unknown): string {
 
   if (isNaN(date.getTime())) return "";
 
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDateBR(date, "");
 }
 
 function formatTime(dateInput: unknown): string {

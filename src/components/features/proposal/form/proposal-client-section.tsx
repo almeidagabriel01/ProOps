@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form-components";
 import { Checkbox } from "@/components/ui/checkbox";
 import { User, FileText, Mail, MapPin, Users, Building2 } from "lucide-react";
+import { formatDateBR } from "@/utils/date-format";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -86,9 +87,7 @@ export function ProposalClientSection({
           <FormStatic
             label="Válida até"
             value={
-              formData.validUntil
-                ? new Date(formData.validUntil).toLocaleDateString("pt-BR")
-                : undefined
+              formData.validUntil ? formatDateBR(formData.validUntil) : undefined
             }
           />
         </FormGroup>

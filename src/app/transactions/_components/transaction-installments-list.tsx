@@ -27,6 +27,7 @@ import { toast } from "@/lib/toast";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
 import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransactionStatuses";
+import { formatDateBR } from "@/utils/date-format";
 
 interface TransactionInstallmentsListProps {
   installments: Transaction[];
@@ -248,24 +249,7 @@ export function TransactionInstallmentsList({
   };
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-
-    // Extract date part if ISO format
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-
-    // Parse date parts manually to avoid timezone issues
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) return dateString;
-
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return formatDateBR(dateString, "");
   };
 
   const renderStatusBadge = (

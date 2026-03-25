@@ -9,6 +9,7 @@ import {
 import { User, Tenant, UserPlan } from "@/types";
 import { getRoleLabel, getRoleBadgeVariant } from "@/utils/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatDateBR } from "@/utils/date-format";
 
 interface ProfileHeaderProps {
     user: User | null;
@@ -74,10 +75,7 @@ export function ProfileHeader({ user, tenant, userPlan }: ProfileHeaderProps) {
                 <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Membro desde</p>
                     <p className="text-sm font-semibold">
-                        {tenant?.createdAt
-                            ? new Date(tenant.createdAt).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })
-                            : new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' })
-                        }
+                        {formatDateBR(tenant?.createdAt ?? new Date())}
                     </p>
                 </div>
             </div>

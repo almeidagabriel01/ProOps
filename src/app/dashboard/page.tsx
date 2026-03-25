@@ -10,6 +10,7 @@ import {
 import { CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getGreeting, formatCurrency } from "@/utils/format";
+import { formatDateBR } from "@/utils/date-format";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { SimpleBarChart } from "@/components/charts/simple-bar-chart";
 import {
@@ -66,12 +67,7 @@ export default function DashboardPage() {
           </h1>
           <p className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <CalendarDays className="w-4 h-4" />
-            {new Date().toLocaleDateString("pt-BR", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatDateBR(new Date())}
           </p>
         </div>
 

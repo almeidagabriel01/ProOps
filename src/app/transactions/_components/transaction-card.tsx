@@ -57,6 +57,7 @@ import {
   getProposalTransactionDisplayName,
   isProposalLinkedTransaction,
 } from "../_lib/proposal-transaction";
+import { formatDateBR } from "@/utils/date-format";
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -309,26 +310,7 @@ export function TransactionCard({
     (transaction.extraCosts && transaction.extraCosts.length > 0);
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-
-    // Extract date part if ISO format
-    const datePart = dateString.includes("T")
-      ? dateString.split("T")[0]
-      : dateString;
-
-    // Parse date parts manually to avoid timezone issues
-    // When using new Date("2026-01-05"), JS interprets it as UTC midnight,
-    // which becomes the previous day in timezones like Brazil (UTC-3)
-    const parts = datePart.split("-").map(Number);
-    if (parts.length !== 3) return dateString;
-
-    const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day); // month is 0-indexed
-    return date.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return formatDateBR(dateString, "");
   };
 
   const handleShare = async (e: React.MouseEvent) => {

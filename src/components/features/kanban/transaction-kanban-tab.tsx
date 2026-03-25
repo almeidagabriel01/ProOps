@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { isDateBeforeTodayBR } from "@/utils/date-format";
 
 import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransactionStatuses";
 
@@ -97,9 +98,12 @@ export function TransactionKanbanTab() {
     let result = transactions;
 
     if (autoOverdue) {
-      const now = new Date();
       result = result.map((t) => {
-        if (t.status === "pending" && t.dueDate && new Date(t.dueDate) < now) {
+        if (
+          t.status === "pending" &&
+          t.dueDate &&
+          isDateBeforeTodayBR(t.dueDate)
+        ) {
           return { ...t, status: "overdue" as TransactionStatus };
         }
         return t;
