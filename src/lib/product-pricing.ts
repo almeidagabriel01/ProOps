@@ -460,7 +460,11 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
   }
 
   if (pricingModel.mode === "curtain_width") {
-    return "Calculado por largura x preço com markup.";
+    const sellingPrice = calculateSellingPrice(
+      getProductBasePrice(product),
+      getProductMarkup(product),
+    );
+    return `R$ ${sellingPrice.toFixed(2)} / m larg.`;
   }
 
   const sellingPrice = calculateSellingPrice(
