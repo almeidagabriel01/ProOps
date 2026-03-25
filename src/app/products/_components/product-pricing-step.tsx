@@ -20,6 +20,7 @@ import {
   getProductPricingDescription,
   getProductPricingSummary,
 } from "@/lib/product-pricing";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 
@@ -171,6 +172,7 @@ export function ProductPricingStep({
   onUpdateHeightPricingTier,
   onRemoveHeightPricingTier,
 }: ProductPricingStepProps) {
+  const nicheConfig = useCurrentNicheConfig();
   const basePrice = parseFormNumber(formData.price);
   const markupValue = parseFormNumber(formData.markup);
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
@@ -180,6 +182,14 @@ export function ProductPricingStep({
     isCurtainNiche && formData.pricingMode === "curtain_height";
   const isCurtainQuantityMode =
     isCurtainNiche && formData.pricingMode === "standard";
+  const shouldShowInventoryField =
+    entityType === "product" && (!isCurtainNiche || isCurtainQuantityMode);
+  const inventoryReadOnlyLabel = isCurtainQuantityMode
+    ? "Estoque"
+    : nicheConfig.productCatalog.inventory.readOnlyLabel;
+  const inventoryFormLabel = isCurtainQuantityMode
+    ? "Estoque"
+    : nicheConfig.productCatalog.inventory.formLabel;
 
   if (isReadOnly) {
     const readOnlySummary = buildPricingSummary(initialData);
@@ -195,8 +205,11 @@ export function ProductPricingStep({
                 : readOnlySummary || `R$ ${sellingPrice.toFixed(2)}`
             }
           />
-          {entityType === "product" && isCurtainQuantityMode && (
-            <FormStatic label="Estoque" value={formData.inventoryValue || "0"} />
+          {shouldShowInventoryField && (
+            <FormStatic
+              label={inventoryReadOnlyLabel}
+              value={formData.inventoryValue || "0"}
+            />
           )}
         </FormGroup>
       </div>
@@ -285,7 +298,7 @@ export function ProductPricingStep({
           }
         >
           <div className="space-y-5">
-            <FormGroup cols={2}>
+            <FormGroup cols={3}>
               <FormItem
                 label="Preço base bruto"
                 htmlFor="price"
@@ -317,6 +330,25 @@ export function ProductPricingStep({
                   max="1000"
                   step="0.01"
                   className={errors.markup ? "border-destructive" : ""}
+                />
+              </FormItem>
+
+              <FormItem
+                label={inventoryFormLabel}
+                htmlFor="inventoryValue"
+                error={errors.inventoryValue}
+              >
+                <Input
+                  id="inventoryValue"
+                  name="inventoryValue"
+                  type="number"
+                  min="0"
+                  step={nicheConfig.productCatalog.inventory.step}
+                  placeholder="0"
+                  value={formData.inventoryValue}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.inventoryValue ? "border-destructive" : ""}
                 />
               </FormItem>
             </FormGroup>
@@ -476,7 +508,7 @@ export function ProductPricingStep({
               </FormItem>
 
               <FormItem
-                label="Estoque inicial"
+                label={inventoryFormLabel}
                 htmlFor="inventoryValue"
                 error={errors.inventoryValue}
               >
@@ -485,7 +517,7 @@ export function ProductPricingStep({
                   name="inventoryValue"
                   type="number"
                   min="0"
-                  step="1"
+                  step={nicheConfig.productCatalog.inventory.step}
                   placeholder="0"
                   value={formData.inventoryValue}
                   onChange={onChange}
