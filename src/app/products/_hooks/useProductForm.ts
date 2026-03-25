@@ -653,10 +653,11 @@ export function useProductForm(
                 tiers: sanitizedHeightTiers,
               }
             : {
-                mode:
-                  formData.pricingMode === "curtain_meter"
-                    ? ("curtain_meter" as const)
-                    : ("standard" as const),
+                mode: (formData.pricingMode === "curtain_meter"
+                  ? "curtain_meter"
+                  : formData.pricingMode === "curtain_width"
+                    ? "curtain_width"
+                    : "standard") as "curtain_meter" | "curtain_width" | "standard",
               };
       const representativeHeightTier = sanitizedHeightTiers[0];
       const persistedPrice =

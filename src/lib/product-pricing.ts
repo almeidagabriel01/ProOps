@@ -5,7 +5,8 @@ import type { TenantNiche } from "@/types";
 export type ProductPricingMode =
   | "standard"
   | "curtain_meter"
-  | "curtain_height";
+  | "curtain_height"
+  | "curtain_width";
 
 export interface CurtainHeightTier {
   id: string;
@@ -22,6 +23,9 @@ export type ProductPricingModel =
       mode: "curtain_meter";
     }
   | {
+      mode: "curtain_width";
+    }
+  | {
       mode: "curtain_height";
       tiers: CurtainHeightTier[];
     };
@@ -35,6 +39,10 @@ export type ProposalProductPricingDetails =
       width: number;
       height: number;
       area: number;
+    }
+  | {
+      mode: "curtain_width";
+      width: number;
     }
   | {
       mode: "curtain_height";
@@ -121,6 +129,10 @@ export function normalizeProductPricingModel(
     return { mode: "curtain_meter" };
   }
 
+  if (mode === "curtain_width") {
+    return { mode: "curtain_width" };
+  }
+
   if (mode === "curtain_height") {
     return {
       mode: "curtain_height",
@@ -157,6 +169,13 @@ export function normalizeProposalPricingDetails(
     };
   }
 
+  if (mode === "curtain_width") {
+    return {
+      mode: "curtain_width",
+      width: roundPricingValue(Math.max(0, parsePricingNumber(source.width))),
+    };
+  }
+
   if (mode === "curtain_height") {
     return {
       mode: "curtain_height",
@@ -176,7 +195,11 @@ export function getProductPricingMode(product: ProductPricingSource): ProductPri
 }
 
 export function isDimensionPricingMode(mode: ProductPricingMode): boolean {
-  return mode === "curtain_meter" || mode === "curtain_height";
+  return (
+    mode === "curtain_meter" ||
+    mode === "curtain_height" ||
+    mode === "curtain_width"
+  );
 }
 
 export function isDimensionPricedProduct(product: ProductPricingSource): boolean {
@@ -240,6 +263,13 @@ export function createDefaultProposalPricingDetails(
     };
   }
 
+  if (pricingModel.mode === "curtain_width") {
+    return {
+      mode: "curtain_width",
+      width: 0,
+    };
+  }
+
   if (pricingModel.mode === "curtain_height") {
     const firstTier = pricingModel.tiers[0];
     return {
@@ -247,6 +277,29 @@ export function createDefaultProposalPricingDetails(
       width: 0,
       tierId: firstTier?.id || "",
       maxHeight: firstTier?.maxHeight || 0,
+    };
+  }
+
+  if (pricingModel.mode === "curtain_width") {
+    const details = normalizeProposalPricingDetails(
+      source.pricingDetails || createDefaultProposalPricingDetails(source),
+    );
+    const width = details.mode === "curtain_width" ? details.width : 0;
+    const unitPrice = getProductBasePrice(source);
+    const markup = getProductMarkup(source);
+    const sellingPrice = calculateSellingPrice(unitPrice, markup);
+    const total = roundPricingValue(width * sellingPrice);
+
+    return {
+      pricingDetails: {
+        mode: "curtain_width",
+        width,
+      },
+      quantity: width,
+      unitPrice,
+      markup,
+      total,
+      sellingPrice,
     };
   }
 
@@ -330,6 +383,29 @@ export function calculateProposalProductPricing(
     };
   }
 
+  if (pricingModel.mode === "curtain_width") {
+    const details = normalizeProposalPricingDetails(
+      source.pricingDetails || createDefaultProposalPricingDetails(source),
+    );
+    const width = details.mode === "curtain_width" ? details.width : 0;
+    const unitPrice = getProductBasePrice(source);
+    const markup = getProductMarkup(source);
+    const sellingPrice = calculateSellingPrice(unitPrice, markup);
+    const total = roundPricingValue(width * sellingPrice);
+
+    return {
+      pricingDetails: {
+        mode: "curtain_width",
+        width,
+      },
+      quantity: width,
+      unitPrice,
+      markup,
+      total,
+      sellingPrice,
+    };
+  }
+
   const unitPrice = fallbackUnitPrice || getProductBasePrice(source);
   const markup = fallbackMarkup;
   const sellingPrice = calculateSellingPrice(unitPrice, markup);
@@ -383,6 +459,10 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
     return `R$ ${firstPrice.toFixed(2)} a R$ ${lastPrice.toFixed(2)} / m larg.`;
   }
 
+  if (pricingModel.mode === "curtain_width") {
+    return "Calculado por largura x preço com markup.";
+  }
+
   const sellingPrice = calculateSellingPrice(
     getProductBasePrice(product),
     getProductMarkup(product),
@@ -434,6 +514,10 @@ export function getProposalProductMeasurementLabel(
     )}`;
   }
 
+  if (details.mode === "curtain_width") {
+    return `Largura ${formatMeters(details.width)}`;
+  }
+
   const quantity = roundPricingValue(Math.max(0, Number(product.quantity || 0)), 4);
   return `Qtd. ${quantity.toLocaleString("pt-BR", {
     minimumFractionDigits: 0,
@@ -451,6 +535,10 @@ export function getProposalProductUnitLabel(
   }
 
   if (details.mode === "curtain_height") {
+    return "m larg.";
+  }
+
+  if (details.mode === "curtain_width") {
     return "m larg.";
   }
 

@@ -522,7 +522,7 @@ export function ProductFormNew({
                   <span className="text-muted-foreground">Categoria:</span>
                   <p className="font-medium">{formData.category || "-"}</p>
                 </div>
-                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" ? (
+                {formData.pricingMode === "curtain_meter" || formData.pricingMode === "curtain_height" || formData.pricingMode === "curtain_width" ? (
                   <>
                     <div>
                       <span className="text-muted-foreground">Precificação:</span>

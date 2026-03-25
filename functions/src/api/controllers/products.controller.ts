@@ -68,6 +68,10 @@ function sanitizePricingModel(input: unknown) {
     return { mode: "curtain_meter" as const };
   }
 
+  if (rawMode === "curtain_width") {
+    return { mode: "curtain_width" as const };
+  }
+
   if (rawMode === "curtain_height") {
     const rawTiers = Array.isArray(source?.tiers) ? source.tiers : [];
     const tiers = rawTiers

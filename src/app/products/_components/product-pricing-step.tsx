@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Boxes, Layers3, Plus, Scissors, Trash2 } from "lucide-react";
+import { Boxes, Layers3, Plus, Ruler, Scissors, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -180,6 +180,8 @@ export function ProductPricingStep({
     isCurtainNiche && formData.pricingMode === "curtain_meter";
   const isCurtainHeightMode =
     isCurtainNiche && formData.pricingMode === "curtain_height";
+  const isCurtainWidthMode =
+    isCurtainNiche && formData.pricingMode === "curtain_width";
   const isCurtainQuantityMode =
     isCurtainNiche && formData.pricingMode === "standard";
   const shouldShowInventoryField =
@@ -255,7 +257,7 @@ export function ProductPricingStep({
           <div className="text-sm font-medium text-foreground">
             Modelo de precificação
           </div>
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
             <PricingModeButton
               active={isCurtainQuantityMode}
               icon={<Boxes className="h-5 w-5" />}
@@ -276,6 +278,13 @@ export function ProductPricingStep({
               title="Por altura"
               description="Usa faixa de altura e multiplica pela largura preenchida na proposta."
               onClick={() => onPricingModeChange("curtain_height")}
+            />
+            <PricingModeButton
+              active={isCurtainWidthMode}
+              icon={<Ruler className="h-5 w-5" />}
+              title="Por largura"
+              description="Usa apenas largura e multiplica pelo preço com markup na proposta."
+              onClick={() => onPricingModeChange("curtain_width")}
             />
           </div>
           {errors.heightPricingTiers && (
@@ -453,6 +462,83 @@ export function ProductPricingStep({
                 <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
                   R$ {sellingPrice.toFixed(2)} / m2
+                </div>
+              </div>
+            </div>
+          </div>
+        </PricingSection>
+      ) : isCurtainWidthMode ? (
+        <PricingSection
+          title="Regra por largura linear"
+          description="Defina o preço bruto por metro linear e o markup. A largura será preenchida quando o produto for usado."
+          badge={
+            <div className="rounded-xl bg-muted/40 px-4 py-3">
+              <div className="text-xs text-muted-foreground">Preço final</div>
+              <div className="mt-1 text-xl font-semibold text-foreground">
+                R$ {sellingPrice.toFixed(2)} / m larg.
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-5">
+            <FormGroup cols={2}>
+              <FormItem
+                label="Preço bruto"
+                htmlFor="price"
+                required
+                error={errors.price}
+              >
+                <CurrencyInput
+                  id="price"
+                  name="price"
+                  placeholder="0,00"
+                  value={formData.price}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.price ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <FormItem label="Markup (%)" htmlFor="markup" error={errors.markup}>
+                <Input
+                  id="markup"
+                  name="markup"
+                  type="number"
+                  placeholder="30"
+                  value={formData.markup}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  min="0"
+                  max="1000"
+                  step="0.01"
+                  className={errors.markup ? "border-destructive" : ""}
+                />
+              </FormItem>
+            </FormGroup>
+
+            <StaticMeasureField
+              label="Largura"
+              helper="Informada na proposta e no ambiente"
+            />
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preço bruto</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  R$ {basePrice.toFixed(2)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Markup</div>
+                <div className="mt-1 font-semibold text-foreground">
+                  {markupValue.toFixed(2)}%
+                </div>
+              </div>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <div className="text-xs text-muted-foreground">Preço com markup</div>
+                <div className="mt-1 font-semibold text-primary">
+                  R$ {sellingPrice.toFixed(2)} / m larg.
                 </div>
               </div>
             </div>
