@@ -19,6 +19,7 @@ export interface ProposalProduct {
   quantity: number;
   unitPrice: number; // Used in components (base/cost price)
   markup?: number; // Profit percentage
+  priceManuallyEdited?: boolean;
   pricingDetails?: ProposalProductPricingDetails;
   total: number;
   productImage?: string;

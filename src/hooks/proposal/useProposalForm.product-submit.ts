@@ -633,6 +633,7 @@ export function useProposalFormProductSubmit(
           return {
             ...p,
             unitPrice: newPrice,
+            priceManuallyEdited: true,
             total: newPrice * p.quantity * (1 + effectiveMarkup / 100),
           };
         }),

@@ -77,6 +77,7 @@ export function sanitizeProducts(products: ProposalProduct[]) {
         !isNaN(normalizedProduct.markup)
           ? normalizedProduct.markup
           : 0,
+      priceManuallyEdited: normalizedProduct.priceManuallyEdited === true,
       pricingDetails: normalizeProposalPricingDetails(
         normalizedProduct.pricingDetails,
       ),

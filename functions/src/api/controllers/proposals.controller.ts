@@ -354,6 +354,7 @@ function sanitizeProposalProductsInput(rawValue: unknown): Record<string, unknow
       quantity: sanitizeProposalNumber(source.quantity, 4),
       unitPrice: sanitizeProposalNumber(source.unitPrice, 4),
       markup: itemType === "service" ? 0 : sanitizeProposalNumber(source.markup, 4),
+      priceManuallyEdited: Boolean(source.priceManuallyEdited),
       total: sanitizeProposalNumber(source.total, 4),
       manufacturer: String(source.manufacturer || "").trim().slice(0, 160),
       category: String(source.category || "").trim().slice(0, 160),

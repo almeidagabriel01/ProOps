@@ -6,8 +6,11 @@ import { Service } from "@/services/service-service";
 import { AmbienteProduct } from "@/types/automation";
 import {
   ProposalProductPricingDetails,
+  calculateSellingPrice,
   calculateProposalProductPricing,
   createDefaultProposalPricingDetails,
+  normalizeProposalPricingDetails,
+  roundPricingValue,
 } from "@/lib/product-pricing";
 
 type CatalogItem = Product | Service;
@@ -164,6 +167,29 @@ export function recalculateProposalProduct(
       pricingDetails: { mode: "standard" },
       markup: 0,
       total: product.quantity * product.unitPrice,
+    };
+  }
+
+  if (product.priceManuallyEdited) {
+    const pricingDetails = normalizeProposalPricingDetails(product.pricingDetails);
+    const unitPrice = roundPricingValue(Math.max(0, Number(product.unitPrice || 0)));
+    const markup = roundPricingValue(Math.max(0, Number(product.markup || 0)));
+    const quantity =
+      pricingDetails.mode === "curtain_meter"
+        ? roundPricingValue(pricingDetails.width * pricingDetails.height, 4)
+        : pricingDetails.mode === "curtain_height"
+          ? roundPricingValue(pricingDetails.width, 4)
+          : pricingDetails.mode === "curtain_width"
+            ? roundPricingValue(pricingDetails.width, 4)
+            : roundPricingValue(Math.max(0, Number(product.quantity || 0)), 4);
+
+    return {
+      ...product,
+      quantity,
+      unitPrice,
+      markup,
+      pricingDetails,
+      total: roundPricingValue(quantity * calculateSellingPrice(unitPrice, markup)),
     };
   }
 

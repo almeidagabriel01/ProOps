@@ -205,6 +205,7 @@ export function useProposalFormSystemDirty(
           quantity: existingPropProduct.quantity,
           unitPrice: existingPropProduct.unitPrice,
           markup: existingPropProduct.markup,
+          priceManuallyEdited: existingPropProduct.priceManuallyEdited,
           pricingDetails:
             existingPropProduct.pricingDetails || baseProduct.pricingDetails,
           total: existingPropProduct.total,
