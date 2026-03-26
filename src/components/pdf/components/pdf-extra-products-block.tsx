@@ -1,8 +1,5 @@
 import React from "react";
 import { formatCurrency } from "@/utils/format-utils";
-import { getContrastTextColor } from "@/utils/color-utils";
-import { PdfItemTypeBadge } from "./pdf-item-type-badge";
-import { Package, Wrench } from "lucide-react";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -13,10 +10,7 @@ import {
 } from "../product-visibility";
 import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
-import {
-  PdfCortinasAwareProductFooter,
-  hasCortinasAwareProductFooterContent,
-} from "./pdf-sistema-primitives";
+import { PdfSistemaProductCard } from "./pdf-sistema-primitives";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 
 interface PdfProduct {
@@ -33,6 +27,7 @@ interface PdfProduct {
   pricingDetails?: ProposalProductPricingDetails;
   _isInactive?: boolean;
   _isGhost?: boolean;
+  isExtra?: boolean;
 }
 
 interface PdfExtraProductsBlockProps {
@@ -42,22 +37,6 @@ interface PdfExtraProductsBlockProps {
   tenantNiche?: TenantNiche | null;
 }
 
-function ItemImagePlaceholder({
-  itemType,
-}: {
-  itemType?: "product" | "service";
-}) {
-  const Icon = itemType === "service" ? Wrench : Package;
-  return (
-    <div className="w-16 h-16 bg-white rounded-md flex items-center justify-center shrink-0 border">
-      <Icon className="w-5 h-5 text-muted-foreground" />
-    </div>
-  );
-}
-
-/**
- * Renders extra products block (products not tied to systems)
- */
 export function PdfExtraProductsBlock({
   products,
   primaryColor,
@@ -78,391 +57,94 @@ export function PdfExtraProductsBlock({
 
   return (
     <div className="mt-12 mb-4">
-      <div
-        className="rounded-xl border-2 overflow-hidden"
-        style={{ borderColor: primaryColor }}
-      >
-        {/* Header */}
-        <div
-          className="p-5"
+      <div className="bg-white">
+        <table
           style={{
-            background: `linear-gradient(135deg, ${primaryColor}20 0%, ${primaryColor}10 100%)`,
-            borderBottom: `2px solid ${primaryColor}30`,
+            width: "100%",
+            borderCollapse: "separate",
+            borderSpacing: "8px",
+            tableLayout: "fixed",
+            margin: "0 auto",
+            padding: "0 8px",
+            boxSizing: "border-box",
           }}
         >
-          <div className="flex items-center gap-4">
-            <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-7 h-7 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                />
-              </svg>
-            </div>
-            <div className="flex-1">
-              {/* Avulso tag using SVG for precise text centering in html2canvas */}
-              <svg
-                width="90"
-                height="22"
-                style={{
-                  overflow: "visible",
-                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))",
-                  display: "block",
-                  marginBottom: "8px",
-                }}
-              >
-                <rect
-                  rx="11"
-                  ry="11"
-                  width="90"
-                  height="22"
-                  fill={primaryColor}
-                />
-                <text
-                  x="50%"
-                  y="50%"
-                  dominantBaseline="central"
-                  textAnchor="middle"
-                  fill={getContrastTextColor(primaryColor)}
-                  style={{
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  📍 Avulso
-                </text>
-              </svg>
-              <h3
-                className="text-2xl font-bold"
-                style={{ color: primaryColor }}
-              >
-                Produtos Extras
-              </h3>
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-                Itens adicionais não vinculados a sistemas específicos
-              </p>
-            </div>
-          </div>
-        </div>
+          <tbody>
+            {Array.from(
+              { length: Math.ceil(visibleProducts.length / 2) },
+              (_, rowIdx) => {
+                const left = visibleProducts[rowIdx * 2];
+                const right = visibleProducts[rowIdx * 2 + 1];
 
-        {/* Products */}
-        <div className="p-4 bg-white">
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "separate",
-              borderSpacing: "6px",
-              tableLayout: "fixed",
-            }}
-          >
-            <tbody>
-              {Array.from(
-                { length: Math.ceil(visibleProducts.length / 2) },
-                (_, rowIdx) => {
-                  const left = visibleProducts[rowIdx * 2];
-                  const right = visibleProducts[rowIdx * 2 + 1];
-                  return (
-                    <tr key={rowIdx}>
-                      {right ? (
-                        <>
-                          <td
-                            style={{
-                              verticalAlign: "top",
-                              width: "50%",
-                              padding: 0,
-                            }}
-                          >
-                            {left && (
-                              <div
-                                className="p-3 rounded-lg border"
-                                style={{
-                                  backgroundColor:
-                                    (rowIdx * 2) % 2 === 0
-                                      ? "#f9fafb"
-                                      : "#ffffff",
-                                  borderColor: "#e5e7eb",
-                                }}
-                              >
-                                <div className="flex items-start gap-2">
-                                  {settings.showProductImages &&
-                                    (left.productImage ||
-                                    (left.productImages &&
-                                      left.productImages.length > 0) ? (
-                                      <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                          src={
-                                            left.productImages?.[0] ||
-                                            left.productImage
-                                          }
-                                          alt=""
-                                          className="w-full h-full object-contain p-1"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <ItemImagePlaceholder
-                                        itemType={left.itemType}
-                                      />
-                                    ))}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 truncate">
-                                      {left.productName}
-                                    </h4>
-                                  </div>
-                                  <div className="shrink-0 flex items-start">
-                                    <PdfItemTypeBadge
-                                      itemType={left.itemType || "product"}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div
-                                  className="mt-2 pt-2 flex justify-end"
-                                  style={{ borderTop: "1px solid #e5e7eb" }}
-                                >
-                                  <div className="text-right">
-                                    {hasCortinasAwareProductFooterContent({
-                                      product: left,
-                                      tenantNiche,
-                                      showProductPrices: settings.showProductPrices,
-                                      showProductMeasurements: settings.showProductMeasurements,
-                                      showProductQuantities: settings.showProductQuantities,
-                                    }) && (
-                                      <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
-                                        <PdfCortinasAwareProductFooter
-                                          product={left}
-                                          tenantNiche={tenantNiche}
-                                          showProductPrices={
-                                            settings.showProductPrices
-                                          }
-                                          showProductMeasurements={
-                                            settings.showProductMeasurements
-                                          }
-                                          showProductQuantities={
-                                            settings.showProductQuantities
-                                          }
-                                          primaryColor={primaryColor}
-                                          grayTextClassName="text-sm text-gray-500"
-                                          totalTextClassName="font-bold text-lg text-gray-700"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              verticalAlign: "top",
-                              width: "50%",
-                              padding: 0,
-                            }}
-                          >
-                            {right && (
-                              <div
-                                className="p-3 rounded-lg border"
-                                style={{
-                                  backgroundColor:
-                                    (rowIdx * 2 + 1) % 2 === 0
-                                      ? "#f9fafb"
-                                      : "#ffffff",
-                                  borderColor: "#e5e7eb",
-                                }}
-                              >
-                                <div className="flex items-start gap-2">
-                                  {settings.showProductImages &&
-                                    (right.productImage ||
-                                    (right.productImages &&
-                                      right.productImages.length > 0) ? (
-                                      <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                          src={
-                                            right.productImages?.[0] ||
-                                            right.productImage
-                                          }
-                                          alt=""
-                                          className="w-full h-full object-contain p-1"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <ItemImagePlaceholder
-                                        itemType={right.itemType}
-                                      />
-                                    ))}
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 truncate">
-                                      {right.productName}
-                                    </h4>
-                                  </div>
-                                  <div className="shrink-0 flex items-start">
-                                    <PdfItemTypeBadge
-                                      itemType={right.itemType || "product"}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div
-                                  className="mt-2 pt-2 flex justify-end"
-                                  style={{ borderTop: "1px solid #e5e7eb" }}
-                                >
-                                  <div className="text-right">
-                                    {hasCortinasAwareProductFooterContent({
-                                      product: right,
-                                      tenantNiche,
-                                      showProductPrices: settings.showProductPrices,
-                                      showProductMeasurements: settings.showProductMeasurements,
-                                      showProductQuantities: settings.showProductQuantities,
-                                    }) && (
-                                      <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
-                                        <PdfCortinasAwareProductFooter
-                                          product={right}
-                                          tenantNiche={tenantNiche}
-                                          showProductPrices={
-                                            settings.showProductPrices
-                                          }
-                                          showProductMeasurements={
-                                            settings.showProductMeasurements
-                                          }
-                                          showProductQuantities={
-                                            settings.showProductQuantities
-                                          }
-                                          primaryColor={primaryColor}
-                                          grayTextClassName="text-sm text-gray-500"
-                                          totalTextClassName="font-bold text-lg text-gray-700"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                        </>
-                      ) : (
+                return (
+                  <tr key={rowIdx}>
+                    {right ? (
+                      <>
                         <td
-                          colSpan={2}
-                          style={{ verticalAlign: "top", padding: 0 }}
+                          style={{
+                            verticalAlign: "top",
+                            width: "50%",
+                            padding: 0,
+                          }}
                         >
-                          {left && (
-                            <div
-                              className="p-3 rounded-lg border"
-                              style={{
-                                backgroundColor:
-                                  (rowIdx * 2) % 2 === 0
-                                    ? "#f9fafb"
-                                    : "#ffffff",
-                                borderColor: "#e5e7eb",
-                              }}
-                            >
-                              <div className="flex items-start gap-2">
-                                {settings.showProductImages &&
-                                  (left.productImage ||
-                                  (left.productImages &&
-                                    left.productImages.length > 0) ? (
-                                    <div className="w-16 h-16 bg-white rounded-lg border overflow-hidden shrink-0">
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={
-                                          left.productImages?.[0] ||
-                                          left.productImage
-                                        }
-                                        alt=""
-                                        className="w-full h-full object-contain p-1"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <ItemImagePlaceholder
-                                      itemType={left.itemType}
-                                    />
-                                  ))}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <h4 className="font-semibold text-gray-900 truncate">
-                                      {left.productName}
-                                    </h4>
-                                  </div>
-                                </div>
-                                <div className="shrink-0 flex items-start">
-                                  <PdfItemTypeBadge
-                                    itemType={left.itemType || "product"}
-                                  />
-                                </div>
-                              </div>
-
-                              <div
-                                className="mt-2 pt-2 flex justify-end"
-                                style={{ borderTop: "1px solid #e5e7eb" }}
-                              >
-                                <div className="text-right">
-                                  {hasCortinasAwareProductFooterContent({
-                                    product: left,
-                                    tenantNiche,
-                                    showProductPrices: settings.showProductPrices,
-                                    showProductMeasurements: settings.showProductMeasurements,
-                                    showProductQuantities: settings.showProductQuantities,
-                                  }) && (
-                                    <div className="mt-1 pt-1 border-t border-gray-100 flex justify-end">
-                                      <PdfCortinasAwareProductFooter
-                                        product={left}
-                                        tenantNiche={tenantNiche}
-                                        showProductPrices={
-                                          settings.showProductPrices
-                                        }
-                                        showProductMeasurements={
-                                          settings.showProductMeasurements
-                                        }
-                                        showProductQuantities={
-                                          settings.showProductQuantities
-                                        }
-                                        primaryColor={primaryColor}
-                                        grayTextClassName="text-sm text-gray-500"
-                                        totalTextClassName="font-bold text-lg text-gray-700"
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                          <PdfSistemaProductCard
+                            product={left}
+                            primaryColor={primaryColor}
+                            settings={settings}
+                            evenBackground={(rowIdx * 2) % 2 === 0}
+                            tenantNiche={tenantNiche}
+                          />
                         </td>
-                      )}
-                    </tr>
-                  );
-                },
-              )}
-            </tbody>
-          </table>
+                        <td
+                          style={{
+                            verticalAlign: "top",
+                            width: "50%",
+                            padding: 0,
+                          }}
+                        >
+                          <PdfSistemaProductCard
+                            product={right}
+                            primaryColor={primaryColor}
+                            settings={settings}
+                            evenBackground={(rowIdx * 2 + 1) % 2 === 0}
+                            tenantNiche={tenantNiche}
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <td
+                        colSpan={2}
+                        style={{ verticalAlign: "top", padding: 0 }}
+                      >
+                        <PdfSistemaProductCard
+                          product={left}
+                          primaryColor={primaryColor}
+                          settings={settings}
+                          evenBackground={(rowIdx * 2) % 2 === 0}
+                          tenantNiche={tenantNiche}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                );
+              },
+            )}
+          </tbody>
+        </table>
 
-          {/* Subtotal - conditionally rendered */}
-          {settings.showSubtotals && (
-            <div
-              className="flex justify-between items-center pt-3 mt-2"
-              style={{ borderTop: "2px dashed #d1d5db" }}
-            >
-              <span className="font-semibold text-gray-700">
-                Subtotal Extras:
-              </span>
-              <span className="text-xl font-bold text-gray-700">
-                {formatCurrency(extraSubtotal)}
-              </span>
-            </div>
-          )}
-        </div>
+        {settings.showSubtotals && (
+          <div
+            className="flex justify-between items-center px-4 pb-3 pt-2"
+            style={{ borderTop: `2px dashed ${primaryColor}30` }}
+          >
+            <span className="font-semibold text-gray-700 text-sm">
+              Subtotal:
+            </span>
+            <span className="text-lg font-bold" style={{ color: primaryColor }}>
+              {formatCurrency(extraSubtotal)}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

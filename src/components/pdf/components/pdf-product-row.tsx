@@ -7,7 +7,10 @@ import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
-import { PdfCortinasAwareProductFooter } from "./pdf-sistema-primitives";
+import {
+  hasCortinasAwareProductFooterContent,
+  PdfCortinasAwareProductFooter,
+} from "./pdf-sistema-primitives";
 
 interface ProductData {
   productId: string;
@@ -137,27 +140,35 @@ export function PdfProductRow({
           )}
         </div>
 
-        <div className="mt-4 pt-3 border-t flex justify-between items-end">
-          <div className="text-sm text-gray-400" />
-          <div className="text-right">
-            <div className="inline-flex flex-col items-end">
-              <PdfCortinasAwareProductFooter
-                product={product}
-                tenantNiche={tenantNiche}
-                showProductPrices={settings.showProductPrices}
-                showProductMeasurements={settings.showProductMeasurements}
-                showProductQuantities={settings.showProductQuantities}
-                primaryColor={
-                  typeof contentStyles?.total?.color === "string"
-                    ? contentStyles.total.color
-                    : undefined
-                }
-                grayTextClassName="text-xs text-gray-500 mb-1"
-                totalTextClassName="text-lg font-bold whitespace-nowrap"
-              />
+        {hasCortinasAwareProductFooterContent({
+          product,
+          tenantNiche,
+          showProductPrices: settings.showProductPrices,
+          showProductMeasurements: settings.showProductMeasurements,
+          showProductQuantities: settings.showProductQuantities,
+        }) && (
+          <div className="mt-4 pt-3 border-t flex justify-between items-end">
+            <div className="text-sm text-gray-400" />
+            <div className="text-right">
+              <div className="inline-flex flex-col items-end">
+                <PdfCortinasAwareProductFooter
+                  product={product}
+                  tenantNiche={tenantNiche}
+                  showProductPrices={settings.showProductPrices}
+                  showProductMeasurements={settings.showProductMeasurements}
+                  showProductQuantities={settings.showProductQuantities}
+                  primaryColor={
+                    typeof contentStyles?.total?.color === "string"
+                      ? contentStyles.total.color
+                      : undefined
+                  }
+                  grayTextClassName="text-xs text-gray-500 mb-1"
+                  totalTextClassName="text-lg font-bold whitespace-nowrap"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

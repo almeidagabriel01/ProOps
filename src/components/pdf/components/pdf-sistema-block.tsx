@@ -7,7 +7,6 @@ import {
 } from "./pdf-sistema-primitives";
 import {
   PdfSistema,
-  PdfProduct,
   PdfSistemaBlockProps,
   resolvePdfDisplaySettings,
   resolveSistemaAmbientes,
@@ -381,40 +380,6 @@ export function PdfSistemaHeader({
             iconPaddingRight="16px"
           />
         </div>
-      </div>
-    </div>
-  );
-}
-
-export function PdfSistemaProduct({
-  product,
-  primaryColor,
-  isFirst = false,
-  pdfDisplaySettings,
-  tenantNiche,
-}: {
-  product: PdfProduct;
-  primaryColor: string;
-  isFirst?: boolean;
-  isLast?: boolean;
-  pdfDisplaySettings?: PdfDisplaySettings;
-  tenantNiche?: TenantNiche | null;
-}) {
-  const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
-
-  return (
-    <div
-      className={`border-l-2 border-r-2 bg-white ${isFirst ? "pt-3" : ""}`}
-      style={{ borderColor: primaryColor }}
-    >
-      <div className="px-2 pb-2">
-        <PdfSistemaProductCard
-          product={product}
-          primaryColor={primaryColor}
-          settings={settings}
-          evenBackground
-          tenantNiche={tenantNiche}
-        />
       </div>
     </div>
   );

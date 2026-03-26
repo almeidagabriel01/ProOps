@@ -8,7 +8,6 @@ import {
   isCortinasDimensionProductLine,
   isCortinasNeutralServiceLine,
 } from "@/lib/product-pricing";
-import { PdfExtraBadge } from "./pdf-extra-badge";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
 import { Package, Wrench } from "lucide-react";
@@ -147,8 +146,11 @@ export function hasCortinasAwareProductFooterContent({
 }): boolean {
   if (showProductPrices) return true;
 
-  const isDimensionProduct = isCortinasDimensionProductLine(tenantNiche, product);
-  
+  const isDimensionProduct = isCortinasDimensionProductLine(
+    tenantNiche,
+    product,
+  );
+
   if (isDimensionProduct) {
     const measurementLabel = showProductMeasurements
       ? getProposalProductMeasurementLabel(product)
@@ -156,16 +158,17 @@ export function hasCortinasAwareProductFooterContent({
     return !!measurementLabel;
   }
 
-  if (isCortinasNeutralServiceLine(tenantNiche, product)) return true;
+  if (isCortinasNeutralServiceLine(tenantNiche, product)) return false;
 
-  const shouldShowQuantity = showProductQuantities !== false && !isDimensionProduct;
+  const shouldShowQuantity =
+    showProductQuantities !== false && !isDimensionProduct;
   if (shouldShowQuantity) return true;
 
   return false;
 }
 
 /**
- * Rodapé de preço/medida para cards de sistema e extras (nicho cortinas).
+ * Rodape de preco/medida para cards de sistema e extras (nicho cortinas).
  */
 export function PdfCortinasAwareProductFooter({
   product,
@@ -190,10 +193,13 @@ export function PdfCortinasAwareProductFooter({
     product.quantity > 0 ? product.total / product.quantity : product.unitPrice;
   const isCortinasProduct =
     tenantNiche === "cortinas" && product.itemType !== "service";
-  const isDimensionProduct = isCortinasDimensionProductLine(tenantNiche, product);
-  
-  // NEVER show quantity for dimension products. For others, respect the setting.
-  const shouldShowQuantity = showProductQuantities !== false && !isDimensionProduct;
+  const isDimensionProduct = isCortinasDimensionProductLine(
+    tenantNiche,
+    product,
+  );
+
+  const shouldShowQuantity =
+    showProductQuantities !== false && !isDimensionProduct;
 
   const quantityLabel = Number.isInteger(product.quantity)
     ? String(product.quantity)
@@ -258,7 +264,8 @@ export function PdfCortinasAwareProductFooter({
       return (
         <>
           <span className={`${grayTextClassName} block`}>
-            {shouldShowQuantity ? `Qtd. ${quantityLabel} x ` : ""}{formatCurrency(sellingPrice)}
+            {shouldShowQuantity ? `Qtd. ${quantityLabel} x ` : ""}
+            {formatCurrency(sellingPrice)}
           </span>
           <span
             className={totalTextClassName}
@@ -273,7 +280,8 @@ export function PdfCortinasAwareProductFooter({
     return (
       <>
         <span className={`${grayTextClassName} block`}>
-          {shouldShowQuantity ? `${product.quantity}x ` : ""}{formatCurrency(legacyUnit)}
+          {shouldShowQuantity ? `${product.quantity}x ` : ""}
+          {formatCurrency(legacyUnit)}
         </span>
         <span
           className={totalTextClassName}
@@ -292,13 +300,11 @@ export function PdfCortinasAwareProductFooter({
     return null;
   }
 
-  if (isCortinasNeutralServiceLine(tenantNiche, product)) {
-    return <span className="text-xs text-gray-600">Serviço</span>;
-  }
-
   if (shouldShowQuantity) {
     if (isCortinasProduct) {
-      return <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>;
+      return (
+        <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>
+      );
     }
     return (
       <span
@@ -345,12 +351,8 @@ export function PdfSistemaProductCard({
     <div
       className="px-3 pb-3 pt-2 rounded-lg border break-inside-avoid"
       style={{
-        backgroundColor: product.isExtra
-          ? "#eff6ff"
-          : evenBackground
-            ? "#f9fafb"
-            : "#ffffff",
-        borderColor: product.isExtra ? "#bfdbfe" : "#e5e7eb",
+        backgroundColor: evenBackground ? "#f9fafb" : "#ffffff",
+        borderColor: "#e5e7eb",
       }}
     >
       <div className="space-y-2">
@@ -364,17 +366,10 @@ export function PdfSistemaProductCard({
           </div>
 
           <div
-            className="shrink-0 flex flex-col items-end gap-1"
-            style={{ minHeight: "37px" }}
+            className="shrink-0 flex items-start"
+            style={{ minHeight: "20px" }}
           >
             <PdfItemTypeBadge itemType={product.itemType || "product"} />
-            {product.isExtra ? (
-              <PdfExtraBadge />
-            ) : (
-              <span style={{ visibility: "hidden" }}>
-                <PdfExtraBadge />
-              </span>
-            )}
           </div>
         </div>
 
