@@ -59,6 +59,7 @@ import {
 type SyncTx = Transaction & {
   isExtraCostSync?: boolean;
   parentTransactionId?: string;
+  rowKey?: string;
 };
 
 interface TransactionListByDueDateProps {
@@ -545,10 +546,21 @@ export function TransactionListByDueDate({
                 const isProposalLinked = isProposalLinkedTransaction(tx);
                 const displayDescription =
                   getProposalTransactionDisplayName(tx);
+                const parentTransaction = (tx as SyncTx).isExtraCostSync
+                  ? allTransactions.find(
+                      (item) => item.id === (tx as SyncTx).parentTransactionId,
+                    )
+                  : null;
+                const parentDescription = parentTransaction
+                  ? getProposalTransactionDisplayName(parentTransaction)
+                  : "";
+                const rowKey =
+                  (tx as SyncTx).rowKey ||
+                  `${groupKey}-${isSubItem ? "sub" : "main"}-${tx.id}`;
 
                 return (
                   <div
-                    key={tx.id}
+                    key={rowKey}
                     className={cn(
                       "grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
                       isSelected
@@ -645,6 +657,16 @@ export function TransactionListByDueDate({
                           className="text-[10px] h-4 px-1 shrink-0 border-amber-200 bg-amber-50 text-amber-700 dark:text-amber-500"
                         >
                           {tx.type === "income" ? "Acréscimo" : "Custo Extra"}
+                        </Badge>
+                      )}
+                      {(tx as SyncTx).isExtraCostSync && parentDescription && (
+                        <Badge
+                          variant="secondary"
+                          title={parentDescription}
+                          className="max-w-[190px] h-5 px-1.5 shrink min-w-0 gap-1 bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-200"
+                        >
+                          <FileText className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{parentDescription}</span>
                         </Badge>
                       )}
                     </div>

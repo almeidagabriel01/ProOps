@@ -100,6 +100,10 @@ interface TransactionCardProps {
   wallets?: Wallet[];
 }
 
+type DisplayExtraCost = NonNullable<Transaction["extraCosts"]>[number] & {
+  parentTransactionId: string;
+};
+
 export function TransactionCard({
   transaction,
   relatedInstallments = [],
@@ -158,6 +162,7 @@ export function TransactionCard({
     amount: number;
     description: string;
     wallet?: string;
+    parentTransactionId?: string;
   } | null>(null);
 
   const [showPartialPaymentDialog, setShowPartialPaymentDialog] =
@@ -188,7 +193,45 @@ export function TransactionCard({
     0,
   );
 
-  const totalExtraCosts = (transaction.extraCosts || []).reduce(
+  const transactionScope = React.useMemo(() => {
+    const scope = new Map<string, Transaction>();
+    [transaction, ...proposalGroupTransactions, ...relatedInstallments].forEach(
+      (item) => {
+        scope.set(item.id, item);
+      },
+    );
+    return Array.from(scope.values());
+  }, [transaction, proposalGroupTransactions, relatedInstallments]);
+
+  const visibleExtraCosts = React.useMemo<DisplayExtraCost[]>(() => {
+    const extrasById = new Map<string, DisplayExtraCost>();
+    const groupTransactions =
+      proposalGroupTransactions.length > 0
+        ? proposalGroupTransactions
+        : relatedInstallments.length > 0
+          ? relatedInstallments
+          : [transaction];
+
+    groupTransactions.forEach((groupTransaction) => {
+      (groupTransaction.extraCosts || []).forEach((extraCost) => {
+        extrasById.set(extraCost.id, {
+          ...extraCost,
+          parentTransactionId:
+            extraCost.parentTransactionId || groupTransaction.id,
+        });
+      });
+    });
+
+    return Array.from(extrasById.values()).sort((a, b) => {
+      const aTime = Date.parse(a.createdAt || "");
+      const bTime = Date.parse(b.createdAt || "");
+      const safeATime = Number.isFinite(aTime) ? aTime : 0;
+      const safeBTime = Number.isFinite(bTime) ? bTime : 0;
+      return safeBTime - safeATime;
+    });
+  }, [proposalGroupTransactions, relatedInstallments, transaction]);
+
+  const totalExtraCosts = visibleExtraCosts.reduce(
     (sum, ec) => sum + ec.amount,
     0,
   );
@@ -307,7 +350,7 @@ export function TransactionCard({
   const hasExpandableContent =
     isProposalGroup ||
     relatedInstallments.length > 0 ||
-    (transaction.extraCosts && transaction.extraCosts.length > 0);
+    visibleExtraCosts.length > 0;
 
   const formatDate = (dateString: string) => {
     return formatDateBR(dateString, "");
@@ -608,7 +651,12 @@ export function TransactionCard({
   ) => {
     setIsUpdating(true);
     try {
-      let updatedExtraCosts = [...(transaction.extraCosts || [])];
+      const targetParentTxId =
+        editingExtraCost?.parentTransactionId || transaction.id;
+      const parentTransaction =
+        transactionScope.find((item) => item.id === targetParentTxId) ||
+        transaction;
+      let updatedExtraCosts = [...(parentTransaction.extraCosts || [])];
 
       if (editId) {
         // Edit existing
@@ -636,9 +684,9 @@ export function TransactionCard({
       }
 
       if (onUpdate) {
-        await onUpdate(transaction, { extraCosts: updatedExtraCosts });
+        await onUpdate(parentTransaction, { extraCosts: updatedExtraCosts });
       } else {
-        await TransactionService.updateTransaction(transaction.id, {
+        await TransactionService.updateTransaction(parentTransaction.id, {
           extraCosts: updatedExtraCosts,
         });
       }
@@ -665,21 +713,24 @@ export function TransactionCard({
 
   const handleExtraCostStatusChange = async (
     ecId: string,
+    parentTxId: string,
     newStatus: TransactionStatus,
   ) => {
     setUpdatingIds((prev) => new Set(prev).add(ecId));
     try {
       if (onUpdateExtraCostStatus) {
-        await onUpdateExtraCostStatus(transaction.id, ecId, newStatus);
+        await onUpdateExtraCostStatus(parentTxId, ecId, newStatus);
       } else {
-        const updatedExtraCosts = (transaction.extraCosts || []).map((ec) =>
+        const parentTransaction =
+          transactionScope.find((item) => item.id === parentTxId) || transaction;
+        const updatedExtraCosts = (parentTransaction.extraCosts || []).map((ec) =>
           ec.id === ecId ? { ...ec, status: newStatus } : ec,
         );
 
         if (onUpdate) {
-          await onUpdate(transaction, { extraCosts: updatedExtraCosts });
+          await onUpdate(parentTransaction, { extraCosts: updatedExtraCosts });
         } else {
-          await TransactionService.updateTransaction(transaction.id, {
+          await TransactionService.updateTransaction(parentTransaction.id, {
             extraCosts: updatedExtraCosts,
           });
         }
@@ -702,17 +753,19 @@ export function TransactionCard({
     }
   };
 
-  const handleDeleteExtraCost = async (ecId: string) => {
+  const handleDeleteExtraCost = async (ecId: string, parentTxId: string) => {
     setUpdatingIds((prev) => new Set(prev).add(ecId));
     try {
-      const updatedExtraCosts = (transaction.extraCosts || []).filter(
+      const parentTransaction =
+        transactionScope.find((item) => item.id === parentTxId) || transaction;
+      const updatedExtraCosts = (parentTransaction.extraCosts || []).filter(
         (ec) => ec.id !== ecId,
       );
 
       if (onUpdate) {
-        await onUpdate(transaction, { extraCosts: updatedExtraCosts });
+        await onUpdate(parentTransaction, { extraCosts: updatedExtraCosts });
       } else {
-        await TransactionService.updateTransaction(transaction.id, {
+        await TransactionService.updateTransaction(parentTransaction.id, {
           extraCosts: updatedExtraCosts,
         });
       }
@@ -731,6 +784,11 @@ export function TransactionCard({
       });
     }
   };
+
+  const [extraCostToDeleteParentId, extraCostToDeleteId] =
+    extraCostToDelete?.includes("::")
+      ? extraCostToDelete.split("::")
+      : [transaction.id, extraCostToDelete];
 
   return (
     <div className="group">
@@ -1127,8 +1185,7 @@ export function TransactionCard({
               {/* Show expand icon for standalone installment groups */}
               {!isProposalGroup &&
                 (relatedInstallments.length > 0 ||
-                  (transaction.extraCosts &&
-                    transaction.extraCosts.length > 0)) && (
+                  visibleExtraCosts.length > 0) && (
                   <div
                     className={`transform transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                   >
@@ -1498,7 +1555,7 @@ export function TransactionCard({
               )}
 
               {/* Extra Costs Section */}
-              {transaction.extraCosts && transaction.extraCosts.length > 0 && (
+              {visibleExtraCosts.length > 0 && (
                 <div className="space-y-2 mt-4">
                   <div className="flex items-center gap-2 px-1">
                     <DollarSign className="w-4 h-4 text-amber-500" />
@@ -1506,13 +1563,13 @@ export function TransactionCard({
                       {transaction.type === "income"
                         ? "Acréscimos Extras"
                         : "Custos Extras"}{" "}
-                      ({transaction.extraCosts.length})
+                      ({visibleExtraCosts.length})
                     </span>
                   </div>
                   <div className="space-y-1.5">
-                    {transaction.extraCosts.map((ec) => (
+                    {visibleExtraCosts.map((ec) => (
                       <div
-                        key={ec.id}
+                        key={`${ec.parentTransactionId}-${ec.id}`}
                         className={`flex items-center justify-between py-2 px-3 bg-amber-500/5 rounded-lg border border-amber-500/20`}
                       >
                         <div className="flex items-center gap-3">
@@ -1543,7 +1600,7 @@ export function TransactionCard({
                                 <>
                                   <span className="opacity-50">•</span>
                                   <span>
-                                    {wallets.find((w) => w.id === ec.wallet)
+                                    {wallets.find((w) => w.name === ec.wallet)
                                       ?.name || ec.wallet}
                                   </span>
                                 </>
@@ -1606,6 +1663,7 @@ export function TransactionCard({
                                     onClick={() =>
                                       handleExtraCostStatusChange(
                                         ec.id,
+                                        ec.parentTransactionId,
                                         option.id,
                                       )
                                     }
@@ -1641,6 +1699,8 @@ export function TransactionCard({
                                     amount: ec.amount,
                                     description: ec.description,
                                     wallet: ec.wallet,
+                                    parentTransactionId:
+                                      ec.parentTransactionId,
                                   });
                                   setShowExtraCostDialog(true);
                                 }}
@@ -1653,7 +1713,11 @@ export function TransactionCard({
                                   variant="ghost"
                                   size="icon"
                                   className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                  onClick={() => setExtraCostToDelete(ec.id)}
+                                  onClick={() =>
+                                    setExtraCostToDelete(
+                                      `${ec.parentTransactionId}::${ec.id}`,
+                                    )
+                                  }
                                   disabled={
                                     isUpdating || updatingIds.has(ec.id)
                                   }
@@ -1680,8 +1744,7 @@ export function TransactionCard({
           {isExpanded &&
             !isProposalGroup &&
             (relatedInstallments.length > 0 ||
-              (transaction.extraCosts &&
-                transaction.extraCosts.length > 0)) && (
+              visibleExtraCosts.length > 0) && (
               <div className="px-4 pb-4 pt-0">
                 {relatedInstallments.length > 0 && (
                   <TransactionInstallmentsList
@@ -1697,8 +1760,7 @@ export function TransactionCard({
                 )}
 
                 {/* Extra Costs Section (Standalone Groups) */}
-                {transaction.extraCosts &&
-                  transaction.extraCosts.length > 0 && (
+                {visibleExtraCosts.length > 0 && (
                     <div className="space-y-2 mt-4">
                       <div className="flex items-center gap-2 px-1">
                         <DollarSign className="w-4 h-4 text-amber-500" />
@@ -1706,13 +1768,13 @@ export function TransactionCard({
                           {transaction.type === "income"
                             ? "Acréscimos Extras"
                             : "Custos Extras"}{" "}
-                          ({transaction.extraCosts.length})
+                          ({visibleExtraCosts.length})
                         </span>
                       </div>
                       <div className="space-y-1.5">
-                        {transaction.extraCosts.map((ec) => (
+                        {visibleExtraCosts.map((ec) => (
                           <div
-                            key={ec.id}
+                            key={`${ec.parentTransactionId}-${ec.id}`}
                             className={`flex items-center justify-between py-2 px-3 bg-amber-500/5 rounded-lg border border-amber-500/20`}
                           >
                             <div className="flex items-center gap-3">
@@ -1745,7 +1807,7 @@ export function TransactionCard({
                                     <>
                                       <span className="opacity-50">•</span>
                                       <span>
-                                        {wallets.find((w) => w.id === ec.wallet)
+                                        {wallets.find((w) => w.name === ec.wallet)
                                           ?.name || ec.wallet}
                                       </span>
                                     </>
@@ -1809,6 +1871,7 @@ export function TransactionCard({
                                         onClick={() =>
                                           handleExtraCostStatusChange(
                                             ec.id,
+                                            ec.parentTransactionId,
                                             option.id,
                                           )
                                         }
@@ -1845,6 +1908,8 @@ export function TransactionCard({
                                         amount: ec.amount,
                                         description: ec.description,
                                         wallet: ec.wallet,
+                                        parentTransactionId:
+                                          ec.parentTransactionId,
                                       });
                                       setShowExtraCostDialog(true);
                                     }}
@@ -1860,7 +1925,9 @@ export function TransactionCard({
                                       size="icon"
                                       className="h-7 w-7 text-destructive hover:bg-destructive/10"
                                       onClick={() =>
-                                        setExtraCostToDelete(ec.id)
+                                        setExtraCostToDelete(
+                                          `${ec.parentTransactionId}::${ec.id}`,
+                                        )
                                       }
                                       disabled={
                                         isUpdating || updatingIds.has(ec.id)
@@ -1929,7 +1996,9 @@ export function TransactionCard({
             <AlertDialogCancel
               disabled={
                 isUpdating ||
-                (extraCostToDelete ? updatingIds.has(extraCostToDelete) : false)
+                (extraCostToDeleteId
+                  ? updatingIds.has(extraCostToDeleteId)
+                  : false)
               }
             >
               Cancelar
@@ -1938,11 +2007,16 @@ export function TransactionCard({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={
                 isUpdating ||
-                (extraCostToDelete ? updatingIds.has(extraCostToDelete) : false)
+                (extraCostToDeleteId
+                  ? updatingIds.has(extraCostToDeleteId)
+                  : false)
               }
               onClick={() => {
-                if (extraCostToDelete) {
-                  handleDeleteExtraCost(extraCostToDelete);
+                if (extraCostToDeleteId) {
+                  handleDeleteExtraCost(
+                    extraCostToDeleteId,
+                    extraCostToDeleteParentId || transaction.id,
+                  );
                   setExtraCostToDelete(null);
                 }
               }}

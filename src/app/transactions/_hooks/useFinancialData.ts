@@ -3,6 +3,7 @@
 import * as React from "react";
 import { toast } from "@/lib/toast";
 import {
+  ExtraCost,
   Transaction,
   TransactionService,
   TransactionType,
@@ -43,6 +44,88 @@ const sameClient = (a: Transaction, b: Transaction): boolean => {
 
 const baseDesc = (s: string): string =>
   s.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
+
+type AggregatedExtraCost = ExtraCost & {
+  parentTransactionId: string;
+};
+
+const getTransactionExtraCosts = (
+  transaction: Transaction,
+): AggregatedExtraCost[] =>
+  (transaction.extraCosts || []).map((ec) => ({
+    ...ec,
+    parentTransactionId: ec.parentTransactionId || transaction.id,
+  }));
+
+const aggregateExtraCosts = (
+  groupTransactions: Transaction[],
+): AggregatedExtraCost[] => {
+  const extraCostsById = new Map<string, AggregatedExtraCost>();
+
+  groupTransactions.forEach((groupTransaction) => {
+    getTransactionExtraCosts(groupTransaction).forEach((extraCost) => {
+      extraCostsById.set(extraCost.id, extraCost);
+    });
+  });
+
+  return Array.from(extraCostsById.values()).sort((a, b) => {
+    const aTime = Date.parse(a.createdAt || "");
+    const bTime = Date.parse(b.createdAt || "");
+    const safeATime = Number.isFinite(aTime) ? aTime : 0;
+    const safeBTime = Number.isFinite(bTime) ? bTime : 0;
+    return safeBTime - safeATime;
+  });
+};
+
+const getGroupedTransactionKey = (transaction: Transaction): string => {
+  if (transaction.proposalGroupId) {
+    return `proposal:${transaction.proposalGroupId}`;
+  }
+  const groupId = transaction.installmentGroupId || transaction.recurringGroupId;
+  if (groupId) {
+    return `group:${groupId}`;
+  }
+  return `transaction:${transaction.id}`;
+};
+
+const syncExtraCostsStatus = (
+  extraCosts: ExtraCost[] | undefined,
+  status: TransactionStatus,
+): ExtraCost[] | undefined =>
+  extraCosts?.map((extraCost) => ({
+    ...extraCost,
+    status,
+  }));
+
+const buildTransactionWithStatus = (
+  transaction: Transaction,
+  status: TransactionStatus,
+): Transaction => ({
+  ...transaction,
+  status,
+  extraCosts: syncExtraCostsStatus(transaction.extraCosts, status),
+});
+
+const buildNextTransactionState = (
+  transaction: Transaction,
+  data: Partial<Transaction>,
+): Transaction => {
+  const nextStatus =
+    data.status && data.status !== transaction.status ? data.status : null;
+  const nextExtraCosts =
+    nextStatus !== null
+      ? syncExtraCostsStatus(
+          (data.extraCosts as ExtraCost[] | undefined) || transaction.extraCosts,
+          nextStatus,
+        )
+      : ((data.extraCosts as ExtraCost[] | undefined) ?? transaction.extraCosts);
+
+  return {
+    ...transaction,
+    ...data,
+    ...(nextExtraCosts ? { extraCosts: nextExtraCosts } : {}),
+  };
+};
 
 const matchesGroupByHeuristic = (
   orphan: Transaction,
@@ -288,6 +371,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             effectiveTransactions.push({
               ...ec,
               id: ec.id,
+              rowKey: `extra:${t.id}:${ec.id}`,
               tenantId: t.tenantId,
               type: t.type,
               description:
@@ -361,6 +445,7 @@ export function useFinancialData(): UseFinancialDataReturn {
             const representative = {
               ...base,
               status: aggregateStatus,
+              extraCosts: aggregateExtraCosts(proposalGroup),
             };
 
             effectiveTransactions.push(representative);
@@ -387,9 +472,26 @@ export function useFinancialData(): UseFinancialDataReturn {
           const group = transactions.filter(
             (g) => (g.installmentGroupId || g.recurringGroupId) === groupId,
           );
+          const groupWithOrphans = [...group];
+          const orphanDownPayments = transactions.filter(
+            (candidate) =>
+              !candidate.installmentGroupId &&
+              !candidate.recurringGroupId &&
+              !candidate.proposalGroupId &&
+              isDownPaymentLike(candidate) &&
+              candidate.id !== t.id &&
+              candidate.type === t.type &&
+              baseDesc(candidate.description || "") ===
+                baseDesc(t.description || "") &&
+              sameClient(candidate, t) &&
+              dateOnly(candidate.date) === dateOnly(t.date),
+          );
+          if (orphanDownPayments.length === 1) {
+            groupWithOrphans.push(orphanDownPayments[0]);
+          }
 
           // Sort group: down payment first (explicit flag or installmentNumber 0), then by installment number
-          group.sort((a, b) => {
+          groupWithOrphans.sort((a, b) => {
             const aIsDown = isDownPaymentLike(a);
             const bIsDown = isDownPaymentLike(b);
             if (aIsDown && !bIsDown) return -1;
@@ -398,19 +500,42 @@ export function useFinancialData(): UseFinancialDataReturn {
           });
 
           // Find the first "pending" or "overdue" item (not paid)
-          let active = group.find((g) => g.status !== "paid");
+          let active = groupWithOrphans.find((g) => g.status !== "paid");
 
           // If all are paid, show the last one
-          if (!active && group.length > 0) {
-            active = group[group.length - 1];
+          if (!active && groupWithOrphans.length > 0) {
+            active = groupWithOrphans[groupWithOrphans.length - 1];
           }
 
           // If for some reason we didn't find one (empty group?), skip
           if (active) {
             const stableAnchor =
-              group.find((g) => isDownPaymentLike(g)) || group[0];
+              groupWithOrphans.find((g) => isDownPaymentLike(g)) ||
+              groupWithOrphans[0];
+            const groupedSource = group[0] || active;
+            let aggregateStatus: Transaction["status"] = "paid";
+            if (groupWithOrphans.some((g) => g.status === "overdue")) {
+              aggregateStatus = "overdue";
+            } else if (groupWithOrphans.some((g) => g.status === "pending")) {
+              aggregateStatus = "pending";
+            }
             const representative: Transaction = {
-              ...active,
+              ...stableAnchor,
+              isInstallment:
+                groupedSource.isInstallment ?? stableAnchor.isInstallment,
+              isRecurring: groupedSource.isRecurring ?? stableAnchor.isRecurring,
+              installmentCount:
+                groupedSource.installmentCount ?? stableAnchor.installmentCount,
+              installmentInterval:
+                groupedSource.installmentInterval ??
+                stableAnchor.installmentInterval,
+              installmentGroupId:
+                groupedSource.installmentGroupId ??
+                stableAnchor.installmentGroupId,
+              recurringGroupId:
+                groupedSource.recurringGroupId ?? stableAnchor.recurringGroupId,
+              status: aggregateStatus,
+              extraCosts: aggregateExtraCosts(groupWithOrphans),
               createdAt: stableAnchor?.createdAt || active.createdAt,
             };
 
@@ -440,7 +565,19 @@ export function useFinancialData(): UseFinancialDataReturn {
       });
     }
 
-    let filtered = effectiveTransactions;
+    let filtered =
+      viewMode === "grouped"
+        ? (() => {
+            const uniqueTransactions = new Map<string, Transaction>();
+            effectiveTransactions.forEach((transaction) => {
+              const key = getGroupedTransactionKey(transaction);
+              if (!uniqueTransactions.has(key)) {
+                uniqueTransactions.set(key, transaction);
+              }
+            });
+            return Array.from(uniqueTransactions.values());
+          })()
+        : effectiveTransactions;
 
     // Filter by type
     if (filterType !== "all") {
@@ -713,7 +850,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     return wallets
       .filter((w) => {
         const isActive = w.status === "active";
-        const matchesFilter = filterWallet ? w.id === filterWallet : true;
+        const matchesFilter = filterWallet ? w.name === filterWallet : true;
         return isActive && matchesFilter;
       })
       .reduce((sum, w) => sum + w.balance, 0);
@@ -941,14 +1078,13 @@ export function useFinancialData(): UseFinancialDataReturn {
           status: newStatus,
         });
 
+        const nextTransaction = buildTransactionWithStatus(transaction, newStatus);
+
         // Optimistic update
-        applyOptimisticWalletUpdate(transaction, {
-          ...transaction,
-          status: newStatus,
-        });
+        applyOptimisticWalletUpdate(transaction, nextTransaction);
         setTransactions((prev) =>
           prev.map((t) =>
-            t.id === transaction.id ? { ...t, status: newStatus } : t,
+            t.id === transaction.id ? nextTransaction : t,
           ),
         );
 
@@ -988,10 +1124,12 @@ export function useFinancialData(): UseFinancialDataReturn {
       try {
         await TransactionService.updateTransaction(transaction.id, data);
 
+        const nextTransaction = buildNextTransactionState(transaction, data);
+
         // Optimistic update
-        applyOptimisticWalletUpdate(transaction, { ...transaction, ...data });
+        applyOptimisticWalletUpdate(transaction, nextTransaction);
         setTransactions((prev) =>
-          prev.map((t) => (t.id === transaction.id ? { ...t, ...data } : t)),
+          prev.map((t) => (t.id === transaction.id ? nextTransaction : t)),
         );
 
         toast.success(
@@ -1039,14 +1177,17 @@ export function useFinancialData(): UseFinancialDataReturn {
           .filter((t) => updatesMap.has(t.id))
           .map((t) => ({
             oldTx: t,
-            newTx: { ...t, ...updatesMap.get(t.id) } as Transaction,
+            newTx: buildNextTransactionState(
+              t,
+              updatesMap.get(t.id) as Partial<Transaction>,
+            ),
           }));
         applyOptimisticWalletUpdateBatch(batchWalletUpdates);
 
         setTransactions((prev) => {
           return prev.map((t) => {
             const update = updatesMap.get(t.id);
-            return update ? { ...t, ...update } : t;
+            return update ? buildNextTransactionState(t, update) : t;
           });
         });
 
@@ -1108,13 +1249,13 @@ export function useFinancialData(): UseFinancialDataReturn {
           applyOptimisticWalletUpdateBatch(
             groupTransactions.map((t) => ({
               oldTx: t,
-              newTx: { ...t, status: newStatus },
+              newTx: buildTransactionWithStatus(t, newStatus),
             })),
           );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
-              groupIds.has(t.id) ? { ...t, status: newStatus } : t,
+              groupIds.has(t.id) ? buildTransactionWithStatus(t, newStatus) : t,
             ),
           );
 
@@ -1139,13 +1280,13 @@ export function useFinancialData(): UseFinancialDataReturn {
           applyOptimisticWalletUpdateBatch(
             groupTransactions.map((t) => ({
               oldTx: t,
-              newTx: { ...t, status: newStatus },
+              newTx: buildTransactionWithStatus(t, newStatus),
             })),
           );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
           setTransactions((prev) =>
             prev.map((t) =>
-              groupIds.has(t.id) ? { ...t, status: newStatus } : t,
+              groupIds.has(t.id) ? buildTransactionWithStatus(t, newStatus) : t,
             ),
           );
 
@@ -1158,13 +1299,14 @@ export function useFinancialData(): UseFinancialDataReturn {
           await TransactionService.updateTransaction(transaction.id, {
             status: newStatus,
           });
-          applyOptimisticWalletUpdate(transaction, {
-            ...transaction,
-            status: newStatus,
-          });
+          const nextTransaction = buildTransactionWithStatus(
+            transaction,
+            newStatus,
+          );
+          applyOptimisticWalletUpdate(transaction, nextTransaction);
           setTransactions((prev) =>
             prev.map((t) =>
-              t.id === transaction.id ? { ...t, status: newStatus } : t,
+              t.id === transaction.id ? nextTransaction : t,
             ),
           );
           toast.success(

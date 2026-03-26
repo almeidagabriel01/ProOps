@@ -175,6 +175,18 @@ function getWalletImpacts(data: Record<string, any>): Map<string, number> {
   return impacts;
 }
 
+function syncExtraCostsStatus(
+  extraCosts: unknown,
+  status: "paid" | "pending" | "overdue",
+): Record<string, any>[] | undefined {
+  if (!Array.isArray(extraCosts)) return undefined;
+
+  return extraCosts.map((ec) => ({
+    ...(ec as Record<string, any>),
+    status,
+  }));
+}
+
 function isDownPaymentLikeDoc(data: Record<string, any>): boolean {
   return !!data?.isDownPayment || toNumber(data?.installmentNumber, -1) === 0;
 }
@@ -903,36 +915,30 @@ export class TransactionService {
       if (!isSuperAdmin && currentData.tenantId !== tenantId)
         throw new Error("Acesso negado.");
 
-      // Calc Impact logic
-      const getWalletImpacts = (data: any) => {
-        const impacts = new Map<string, number>();
-        const addImpact = (
-          wallet: string | null | undefined,
-          amount: number,
-          type: string,
-        ) => {
-          if (!wallet) return;
-          const delta = (type === "income" ? 1 : -1) * (amount || 0);
-          impacts.set(wallet, (impacts.get(wallet) || 0) + delta);
-        };
+      const nextStatus =
+        safeUpdateData.status &&
+        safeUpdateData.status !== currentData.status &&
+        ["paid", "pending", "overdue"].includes(
+          safeUpdateData.status as string,
+        )
+          ? (safeUpdateData.status as "paid" | "pending" | "overdue")
+          : null;
 
-        if (data?.status === "paid" && data?.wallet) {
-          addImpact(data.wallet, data.amount, data.type);
-        }
+      const nextExtraCosts =
+        nextStatus !== null
+          ? syncExtraCostsStatus(
+              safeUpdateData.extraCosts ?? currentData.extraCosts,
+              nextStatus,
+            )
+          : undefined;
 
-        if (data?.extraCosts && Array.isArray(data.extraCosts)) {
-          for (const ec of data.extraCosts) {
-            if (ec.status === "paid" && (ec.wallet || data.wallet)) {
-              // Extra Costs add to the absolute value of the parent transaction
-              addImpact(ec.wallet || data.wallet, ec.amount, data.type);
-            }
-          }
-        }
-        return impacts;
-      };
+      const normalizedUpdateData =
+        nextExtraCosts !== undefined
+          ? { ...safeUpdateData, extraCosts: nextExtraCosts }
+          : safeUpdateData;
 
       const oldImpacts = getWalletImpacts(currentData);
-      const newData = { ...currentData, ...safeUpdateData };
+      const newData = { ...currentData, ...normalizedUpdateData };
       const newImpacts = getWalletImpacts(newData);
 
       const walletAdjustments = new Map<string, number>();
@@ -959,7 +965,7 @@ export class TransactionService {
       }
 
       let recurOps: DbOp[] = [];
-      if (safeUpdateData.status && safeUpdateData.status !== currentData.status) {
+      if (nextStatus) {
         recurOps = await getNextRecurringTransactionOps(
           t,
           db,
@@ -967,7 +973,7 @@ export class TransactionService {
           now,
           userId,
           currentData,
-          safeUpdateData.status as "paid" | "pending" | "overdue"
+          nextStatus,
         );
       }
 
@@ -1002,7 +1008,17 @@ export class TransactionService {
         t.update(proposalRef, proposalUpdate);
       }
 
-      t.update(ref, { ...safeUpdateData, updatedAt: now });
+      const finalUpdateData: Record<string, any> = {
+        ...normalizedUpdateData,
+        updatedAt: now,
+      };
+      if (nextStatus === "paid") {
+        finalUpdateData.paidAt = now;
+      } else if (nextStatus) {
+        finalUpdateData.paidAt = FieldValue.delete();
+      }
+
+      t.update(ref, finalUpdateData);
 
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
@@ -1029,7 +1045,11 @@ export class TransactionService {
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
-      const transactionsToUpdateWithData: { txRef: FirebaseFirestore.DocumentReference, txData: any }[] = [];
+      const transactionsToUpdateWithData: {
+        txRef: FirebaseFirestore.DocumentReference;
+        currentTxData: any;
+        nextTxData: any;
+      }[] = [];
       const walletAdjustments = new Map<
         string,
         { tenantId: string; wallet: string; delta: number }
@@ -1049,36 +1069,41 @@ export class TransactionService {
           throw new Error("Acesso negado.");
         }
 
-        const oldImpact =
-          txData.status === "paid" && txData.wallet
-            ? (txData.type === "income" ? 1 : -1) * (txData.amount || 0)
-            : 0;
-
         const nextData = {
+          ...txData,
           status: newStatus,
-          wallet: txData.wallet,
-          type: txData.type,
-          amount: txData.amount,
+          extraCosts: syncExtraCostsStatus(txData.extraCosts, newStatus),
         };
-        const newImpact =
-          nextData.status === "paid" && nextData.wallet
-            ? (nextData.type === "income" ? 1 : -1) * (nextData.amount || 0)
-            : 0;
 
-        const diff = newImpact - oldImpact;
+        const oldImpacts = getWalletImpacts(txData);
+        const newImpacts = getWalletImpacts(nextData);
+        const walletDiffs = new Map<string, number>();
+
+        for (const [wallet, amount] of oldImpacts.entries()) {
+          walletDiffs.set(wallet, (walletDiffs.get(wallet) || 0) - amount);
+        }
+        for (const [wallet, amount] of newImpacts.entries()) {
+          walletDiffs.set(wallet, (walletDiffs.get(wallet) || 0) + amount);
+        }
+
         const txTenantId = txData.tenantId || tenantId;
 
-        if (diff !== 0 && nextData.wallet) {
-          const key = `${txTenantId}::${nextData.wallet}`;
+        for (const [wallet, diff] of walletDiffs.entries()) {
+          if (diff === 0) continue;
+          const key = `${txTenantId}::${wallet}`;
           const prev = walletAdjustments.get(key);
           walletAdjustments.set(key, {
             tenantId: txTenantId,
-            wallet: nextData.wallet,
+            wallet,
             delta: (prev?.delta || 0) + diff,
           });
         }
 
-        transactionsToUpdateWithData.push({ txRef, txData });
+        transactionsToUpdateWithData.push({
+          txRef,
+          currentTxData: txData,
+          nextTxData: nextData,
+        });
       }
 
       // 2) Read all wallets before any write
@@ -1098,15 +1123,15 @@ export class TransactionService {
 
       // 2.5) Read recurrences ops
       const recurOps: DbOp[] = [];
-      for (const { txData } of transactionsToUpdateWithData) {
-        if (txData.status !== newStatus) {
+      for (const { currentTxData } of transactionsToUpdateWithData) {
+        if (currentTxData.status !== newStatus) {
             const ops = await getNextRecurringTransactionOps(
               t,
               db,
-              txData.tenantId || tenantId,
+              currentTxData.tenantId || tenantId,
               now,
               userId,
-              txData,
+              currentTxData,
               newStatus
             );
             recurOps.push(...ops);
@@ -1114,11 +1139,14 @@ export class TransactionService {
       }
 
       // 3) Write transaction statuses + paidAt timestamp & sync recurrences
-      for (const { txRef } of transactionsToUpdateWithData) {
+      for (const { txRef, nextTxData } of transactionsToUpdateWithData) {
         const statusUpdate: Record<string, any> = {
           status: newStatus,
           updatedAt: now,
         };
+        if (Array.isArray(nextTxData.extraCosts)) {
+          statusUpdate.extraCosts = nextTxData.extraCosts;
+        }
         if (newStatus === "paid") {
           statusUpdate.paidAt = now;
         } else {

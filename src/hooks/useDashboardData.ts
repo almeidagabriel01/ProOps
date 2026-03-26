@@ -168,6 +168,49 @@ export function useDashboardData(): DashboardData {
     const { transactions, proposals, clients, wallets, kanbanColumns } =
       rawData;
     const now = new Date();
+    const getEffectivePaidDate = (transaction: Transaction): string =>
+      transaction.paidAt || transaction.updatedAt || transaction.date;
+
+    const forEachFinancialEntry = (
+      callback: (entry: {
+        type: Transaction["type"];
+        amount: number;
+        status: Transaction["status"];
+        date?: string;
+        dueDate?: string;
+        wallet?: string;
+        category?: string;
+      }) => void,
+    ) => {
+      transactions.forEach((transaction) => {
+        callback({
+          type: transaction.type,
+          amount: transaction.amount,
+          status: transaction.status,
+          date: transaction.status === "paid"
+            ? getEffectivePaidDate(transaction)
+            : transaction.date,
+          dueDate: transaction.dueDate || transaction.date,
+          wallet: transaction.wallet,
+          category: transaction.category,
+        });
+
+        (transaction.extraCosts || []).forEach((extraCost) => {
+          callback({
+            type: transaction.type,
+            amount: extraCost.amount,
+            status: extraCost.status || "pending",
+            date:
+              (extraCost.status || "pending") === "paid"
+                ? getEffectivePaidDate(transaction)
+                : extraCost.createdAt || transaction.date,
+            dueDate: transaction.dueDate || transaction.date || extraCost.createdAt,
+            wallet: extraCost.wallet || transaction.wallet,
+            category: transaction.category,
+          });
+        });
+      });
+    };
 
     // Chart data - current month and next 5 months
     const months: {
@@ -184,16 +227,17 @@ export function useDashboardData(): DashboardData {
         despesas: 0,
       };
     }
-    transactions.forEach((t) => {
+    forEachFinancialEntry((entry) => {
       // Use actual date for paid, dueDate for pending/overdue to project correctly
-      const effectiveDateStr = t.status === "paid" ? t.date : (t.dueDate || t.date);
+      const effectiveDateStr =
+        entry.status === "paid" ? entry.date : (entry.dueDate || entry.date);
       if (!effectiveDateStr) return;
       
       const date = new Date(effectiveDateStr);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       if (months[key]) {
-        if (t.type === "income") months[key].receitas += t.amount;
-        else months[key].despesas += t.amount;
+        if (entry.type === "income") months[key].receitas += entry.amount;
+        else months[key].despesas += entry.amount;
       }
     });
     const chartData = Object.values(months);
@@ -223,15 +267,15 @@ export function useDashboardData(): DashboardData {
       };
     }
 
-    transactions.forEach((t) => {
-      if (t.status === "paid" || !t.dueDate) return;
-      const date = parseDateValue(t.dueDate);
+    forEachFinancialEntry((entry) => {
+      if (entry.status === "paid" || !entry.dueDate) return;
+      const date = parseDateValue(entry.dueDate);
       if (!date) return;
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       
       if (futureBalancesMap[key]) {
-        if (t.type === "income") futureBalancesMap[key].income += t.amount;
-        else futureBalancesMap[key].expense += t.amount;
+        if (entry.type === "income") futureBalancesMap[key].income += entry.amount;
+        else futureBalancesMap[key].expense += entry.amount;
       }
     });
 
@@ -253,9 +297,9 @@ export function useDashboardData(): DashboardData {
     const currentMonthIncomeByWallet: Record<string, number> = {};
     const currentMonthExpensesByWallet: Record<string, number> = {};
 
-    transactions.forEach((t) => {
-      if (t.status !== "paid") return;
-      const date = parseDateValue(t.date);
+    forEachFinancialEntry((entry) => {
+      if (entry.status !== "paid") return;
+      const date = parseDateValue(entry.date);
       if (!date) return;
       const isCurrentMonth =
         date.getMonth() === now.getMonth() &&
@@ -263,20 +307,20 @@ export function useDashboardData(): DashboardData {
 
       if (isCurrentMonth) {
         // Expenses by Category
-        if (t.type === "expense") {
-          const category = t.category || "Sem Categoria";
+        if (entry.type === "expense") {
+          const category = entry.category || "Sem Categoria";
           currentMonthExpensesByCategory[category] =
-            (currentMonthExpensesByCategory[category] || 0) + t.amount;
+            (currentMonthExpensesByCategory[category] || 0) + entry.amount;
         }
 
         // By Wallet
-        const walletName = t.wallet || "Sem Carteira";
-        if (t.type === "income") {
+        const walletName = entry.wallet || "Sem Carteira";
+        if (entry.type === "income") {
           currentMonthIncomeByWallet[walletName] =
-            (currentMonthIncomeByWallet[walletName] || 0) + t.amount;
+            (currentMonthIncomeByWallet[walletName] || 0) + entry.amount;
         } else {
           currentMonthExpensesByWallet[walletName] =
-            (currentMonthExpensesByWallet[walletName] || 0) + t.amount;
+            (currentMonthExpensesByWallet[walletName] || 0) + entry.amount;
         }
       }
     });

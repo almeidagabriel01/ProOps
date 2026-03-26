@@ -129,7 +129,11 @@ function TransactionListInfinite({
             groupMembers.push(orphanDownPayments[0]);
           }
 
-          groupMembers.sort((a, b) => {
+          const uniqueGroupMembers = Array.from(
+            new Map(groupMembers.map((member) => [member.id, member])).values(),
+          );
+
+          uniqueGroupMembers.sort((a, b) => {
             if (isDownPaymentLike(a) && !isDownPaymentLike(b)) return -1;
             if (!isDownPaymentLike(a) && isDownPaymentLike(b)) return 1;
             if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
@@ -140,13 +144,13 @@ function TransactionListInfinite({
 
           return (
             <TransactionCard
-              key={transaction.id}
+              key={`${getExpansionKey(transaction)}-${transaction.id}`}
               transaction={transaction}
               relatedInstallments={
-                !transaction.proposalGroupId ? groupMembers : []
+                !transaction.proposalGroupId ? uniqueGroupMembers : []
               }
               proposalGroupTransactions={
-                transaction.proposalGroupId ? groupMembers : []
+                transaction.proposalGroupId ? uniqueGroupMembers : []
               }
               canEdit={canEdit}
               canDelete={canDelete}
@@ -172,7 +176,7 @@ function TransactionListInfinite({
 
         return (
           <TransactionCard
-            key={transaction.id}
+            key={`${getExpansionKey(transaction)}-${transaction.id}`}
             transaction={transaction}
             relatedInstallments={[]}
             proposalGroupTransactions={[]}

@@ -383,6 +383,18 @@ html.theme-transitioning * {
   justify-content: center;
 }
 
+/*
+ * Sileo hides collapsed content with `content-visibility: hidden`, which triggers
+ * React dev warnings when the toast subtree re-renders while collapsed.
+ * Keep the content visually hidden without placing React inside a hidden
+ * content-visibility subtree.
+ */
+[data-sileo-viewport] [data-sileo-content]:not([data-visible="true"]) {
+  content-visibility: visible !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 [data-sileo-viewport] [data-sileo-description] {
   display: flex;
   align-items: center;

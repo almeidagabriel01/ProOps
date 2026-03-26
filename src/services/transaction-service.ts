@@ -21,6 +21,7 @@ export type ExtraCost = {
   status: TransactionStatus;
   wallet?: string;
   createdAt: string;
+  parentTransactionId?: string;
 };
 
 export type Transaction = {
@@ -285,6 +286,25 @@ export const TransactionService = {
           } else {
             summary.pendingExpense += t.amount;
           }
+        }
+
+        if (t.extraCosts && Array.isArray(t.extraCosts)) {
+          t.extraCosts.forEach((ec) => {
+            const status = ec.status || "pending";
+            if (t.type === "income") {
+              if (status === "paid") {
+                summary.totalIncome += ec.amount;
+              } else {
+                summary.pendingIncome += ec.amount;
+              }
+            } else {
+              if (status === "paid") {
+                summary.totalExpense += ec.amount;
+              } else {
+                summary.pendingExpense += ec.amount;
+              }
+            }
+          });
         }
       });
 
