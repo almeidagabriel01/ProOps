@@ -46,6 +46,49 @@ const AuthContext = React.createContext<AuthContextType>({
 /** Delay helper */
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+function toIsoDate(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (value instanceof Date) return value.toISOString();
+  return undefined;
+}
+
+function normalizeOnboardingState(value: unknown): User["onboarding"] {
+  if (!value || typeof value !== "object") return undefined;
+
+  const raw = value as Record<string, unknown>;
+  const completedStepIds = Array.isArray(raw.completedStepIds)
+    ? raw.completedStepIds
+        .map((stepId) => String(stepId || "").trim())
+        .filter(Boolean)
+    : [];
+
+  const status = String(raw.status || "").trim().toLowerCase();
+  const normalizedStatus =
+    status === "completed" || status === "skipped" ? status : "active";
+
+  const currentStepId = String(raw.currentStepId || "").trim();
+
+  return {
+    version: String(raw.version || "core-v1"),
+    status: normalizedStatus,
+    completedStepIds: Array.from(new Set(completedStepIds)),
+    currentStepId: currentStepId || undefined,
+    startedAt: toIsoDate(raw.startedAt),
+    updatedAt: toIsoDate(raw.updatedAt),
+    completedAt: toIsoDate(raw.completedAt),
+    skippedAt: toIsoDate(raw.skippedAt),
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -227,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userData.subscription?.cancel_at_period_end ||
             false,
           isManualSubscription,
+          onboarding: normalizeOnboardingState(userData.onboarding),
         } as User;
       } else {
         console.warn(

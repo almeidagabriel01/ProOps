@@ -4,6 +4,7 @@ import * as React from "react";
 import { Header } from "@/components/layout/header";
 import { BottomDock } from "@/components/layout/bottom-dock";
 import { SubscriptionGuard } from "@/components/shared/subscription-guard";
+import { AppOnboarding } from "@/components/onboarding/app-onboarding";
 
 export function ProtectedAppShell({
   children,
@@ -19,6 +20,7 @@ export function ProtectedAppShell({
             {children}
           </main>
         </SubscriptionGuard>
+        <AppOnboarding />
       </div>
       <BottomDock />
     </div>

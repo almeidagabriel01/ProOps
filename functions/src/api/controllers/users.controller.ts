@@ -7,10 +7,93 @@ import {
 } from "./admin.controller";
 import { validateBrazilMobilePhone } from "../../lib/contact-validation";
 
+type OnboardingStatus = "active" | "completed" | "skipped";
+
+function normalizeIsoString(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: () => Date }).toDate === "function"
+  ) {
+    return (value as { toDate: () => Date }).toDate().toISOString();
+  }
+  return undefined;
+}
+
+function normalizeOnboardingPayload(
+  rawValue: unknown,
+  currentValue: unknown,
+): Record<string, unknown> {
+  const raw =
+    rawValue && typeof rawValue === "object"
+      ? (rawValue as Record<string, unknown>)
+      : {};
+  const current =
+    currentValue && typeof currentValue === "object"
+      ? (currentValue as Record<string, unknown>)
+      : {};
+
+  const rawStatus = String(raw.status || current.status || "active")
+    .trim()
+    .toLowerCase();
+  const status: OnboardingStatus =
+    rawStatus === "completed" || rawStatus === "skipped"
+      ? rawStatus
+      : "active";
+
+  const completedStepIdsSource = Array.isArray(raw.completedStepIds)
+    ? raw.completedStepIds
+    : Array.isArray(current.completedStepIds)
+      ? current.completedStepIds
+      : [];
+
+  const completedStepIds = Array.from(
+    new Set(
+      completedStepIdsSource
+        .map((stepId) => String(stepId || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const currentStepId = String(raw.currentStepId || current.currentStepId || "")
+    .trim();
+  const startedAt =
+    normalizeIsoString(raw.startedAt) ||
+    normalizeIsoString(current.startedAt) ||
+    new Date().toISOString();
+  const updatedAt = new Date().toISOString();
+  const completedAt =
+    status === "completed"
+      ? normalizeIsoString(raw.completedAt) ||
+        normalizeIsoString(current.completedAt) ||
+        updatedAt
+      : null;
+  const skippedAt =
+    status === "skipped"
+      ? normalizeIsoString(raw.skippedAt) ||
+        normalizeIsoString(current.skippedAt) ||
+        updatedAt
+      : null;
+
+  return {
+    version: String(raw.version || current.version || "core-v1").trim(),
+    status,
+    completedStepIds,
+    currentStepId: currentStepId || null,
+    startedAt,
+    updatedAt,
+    completedAt,
+    skippedAt,
+  };
+}
+
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const { name, phoneNumber } = req.body;
+    const { name, phoneNumber, onboarding } = req.body;
 
     const userRef = db.collection("users").doc(userId);
     const userSnap = await userRef.get();
@@ -40,6 +123,13 @@ export const updateProfile = async (req: Request, res: Response) => {
         console.error("Error updating auth user profile", err);
         // Continue, not fatal usually
       }
+    }
+
+    if (onboarding !== undefined) {
+      updateData.onboarding = normalizeOnboardingPayload(
+        onboarding,
+        userData?.onboarding,
+      );
     }
 
     if (phoneNumber !== undefined) {

@@ -182,6 +182,7 @@ function GoogleSetupContent() {
 
     try {
       const tenantId = `tenant_${firebaseUser.uid}`;
+      const now = new Date().toISOString();
       const slug = companyName
         .toLowerCase()
         .trim()
@@ -199,7 +200,7 @@ function GoogleSetupContent() {
           primaryColor: companyColor,
           logoUrl: companyLogo || "",
           niche: companyNiche,
-          createdAt: new Date().toISOString(),
+          createdAt: now,
         });
       }
 
@@ -215,8 +216,16 @@ function GoogleSetupContent() {
           role: "free",
           tenantId,
           companyId: tenantId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          onboarding: {
+            version: "core-v1",
+            status: "active",
+            completedStepIds: [],
+            currentStepId: "dashboard",
+            startedAt: now,
+            updatedAt: now,
+          },
+          createdAt: now,
+          updatedAt: now,
         },
         { merge: true },
       );
