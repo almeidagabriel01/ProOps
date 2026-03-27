@@ -8,7 +8,7 @@ import {
   getDoc,
   updateDoc,
 } from "firebase/firestore";
-import { User } from "@/types";
+import { User, UserOnboardingState } from "@/types";
 
 export const UserService = {
   /**
@@ -92,12 +92,23 @@ export const UserService = {
   updateProfile: async (data: {
     name?: string;
     phoneNumber?: string;
+    onboarding?: UserOnboardingState;
   }): Promise<void> => {
     try {
       const { callApi } = await import("@/lib/api-client");
       await callApi("v1/profile", "PUT", data);
     } catch (error) {
       console.error("Error updating profile:", error);
+      throw error;
+    }
+  },
+
+  updateOnboarding: async (onboarding: UserOnboardingState): Promise<void> => {
+    try {
+      const { callApi } = await import("@/lib/api-client");
+      await callApi("v1/profile", "PUT", { onboarding });
+    } catch (error) {
+      console.error("Error updating onboarding:", error);
       throw error;
     }
   },

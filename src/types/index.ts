@@ -27,6 +27,19 @@ export type Tenant = {
   transactionStatusOrder?: string[];
 };
 
+export type UserOnboardingStatus = "active" | "completed" | "skipped";
+
+export type UserOnboardingState = {
+  version: string;
+  status: UserOnboardingStatus;
+  completedStepIds: string[];
+  currentStepId?: string;
+  startedAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  skippedAt?: string;
+};
+
 export type User = {
   id: string;
   tenantId?: string; // Optional for free users
@@ -63,6 +76,7 @@ export type User = {
     updatedAt?: string | Date;
   };
   subscriptionUpdatedAt?: string;
+  onboarding?: UserOnboardingState;
 };
 
 export type SubscriptionStatus =

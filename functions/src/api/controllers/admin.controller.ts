@@ -231,6 +231,14 @@ export const createMember = async (req: Request, res: Response) => {
           tenantId: tenantId,
           companyName: masterData.companyName || "Minha Empresa", // Legacy/Compat
           companyId: tenantId, // Standardize
+          onboarding: {
+            version: "core-v1",
+            status: "active",
+            completedStepIds: [],
+            currentStepId: "dashboard",
+            startedAt: now.toDate().toISOString(),
+            updatedAt: now.toDate().toISOString(),
+          },
           createdAt: now,
           updatedAt: now,
         });
@@ -1230,6 +1238,14 @@ export const createTenant = async (req: Request, res: Response) => {
         subscriptionStatus,
         currentPeriodEnd: body.currentPeriodEnd || null,
         isManualSubscription,
+        onboarding: {
+          version: "core-v1",
+          status: "active",
+          completedStepIds: [],
+          currentStepId: "dashboard",
+          startedAt: nowIso,
+          updatedAt: nowIso,
+        },
         usage: {
           users: 0,
           products: 0,

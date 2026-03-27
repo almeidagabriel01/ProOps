@@ -601,13 +601,15 @@ export function useLoginForm(): UseLoginFormReturn {
         .replace(/[^\w-]+/g, "");
 
       const tenantId = `tenant_${firebaseUser.uid}`;
+      const now = new Date().toISOString();
+
       await setDoc(doc(db, "tenants", tenantId), {
         name: companyName.trim(),
         slug: slug,
         primaryColor: companyColor,
         logoUrl: companyLogo || "",
         niche: companyNiche,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
       });
 
       await setDoc(doc(db, "users", firebaseUser.uid), {
@@ -615,7 +617,17 @@ export function useLoginForm(): UseLoginFormReturn {
         email: email,
         role: "free",
         tenantId: tenantId,
-        createdAt: new Date().toISOString(),
+        companyId: tenantId,
+        onboarding: {
+          version: "core-v1",
+          status: "active",
+          completedStepIds: [],
+          currentStepId: "dashboard",
+          startedAt: now,
+          updatedAt: now,
+        },
+        createdAt: now,
+        updatedAt: now,
       });
 
       await sendEmailVerification(firebaseUser, {
