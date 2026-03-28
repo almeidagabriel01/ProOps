@@ -77,7 +77,7 @@ export default function KanbanPage() {
           CRM
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Visualize suas propostas e lanÃ§amentos em um quadro visual
+          Visualize suas propostas e lançamentos em um quadro visual
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export default function KanbanPage() {
             className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <ReceiptText className="w-4 h-4" />
-            LanÃ§amentos
+            Lançamentos
           </TabsTrigger>
         </TabsList>
 
@@ -114,4 +114,3 @@ export default function KanbanPage() {
     </div>
   );
 }
-
