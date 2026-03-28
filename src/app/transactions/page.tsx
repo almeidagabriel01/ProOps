@@ -4,10 +4,21 @@ import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
+import { lightenColor } from "@/components/layout/navigation-config";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Transaction } from "@/services/transaction-service";
-import { Plus, Wallet, Search, X } from "lucide-react";
+import {
+  Crown,
+  Kanban,
+  Plus,
+  Search,
+  Wallet,
+  WalletCards,
+  X,
+} from "lucide-react";
 import type { Wallet as WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
@@ -217,6 +228,10 @@ export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("financial");
+  const { hasKanban } = usePlanLimits();
+  const upgradeModal = useUpgradeModal();
+  const canAccessCrm = hasKanban || user?.role === "superadmin";
+  const premiumColor = lightenColor(tenant?.primaryColor || "#2563eb", 25);
   const {
     summary,
     isLoading: dataLoading,
@@ -524,7 +539,7 @@ export default function FinancialPage() {
   return (
     <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
       {/* Header with Balance */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Lançamentos</h1>
           <p className="text-muted-foreground mt-1">
@@ -532,9 +547,55 @@ export default function FinancialPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="text-center md:text-right">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
+        <div className="flex flex-col items-stretch gap-3 sm:items-end">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+            {canAccessCrm ? (
+              <Button asChild variant="outline" size="lg" className="gap-2">
+                <Link href="/crm?scope=transactions">
+                  <Kanban className="w-5 h-5" />
+                  CRM de Lançamentos
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="lg"
+                className="relative gap-2 pr-10"
+                onClick={() =>
+                  upgradeModal.showUpgradeModal(
+                    "CRM",
+                    "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
+                    "enterprise",
+                  )
+                }
+              >
+                <Kanban className="w-5 h-5" />
+                CRM de Lançamentos
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
+                  <Crown className="h-3 w-3" style={{ color: premiumColor }} />
+                </span>
+              </Button>
+            )}
+
+            <Button asChild variant="outline" size="lg" className="gap-2">
+              <Link href="/wallets">
+                <WalletCards className="w-5 h-5" />
+                Carteiras
+              </Link>
+            </Button>
+
+            {canCreate && (
+              <Button asChild size="lg" className="gap-2">
+                <Link href="/transactions/new">
+                  <Plus className="w-5 h-5" />
+                  Novo Lançamento
+                </Link>
+              </Button>
+            )}
+          </div>
+
+          <div className="text-center sm:text-right">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center sm:justify-end">
               <Wallet className="w-4 h-4" />
               <span className="text-xs font-medium uppercase tracking-wide">
                 Saldo
@@ -546,15 +607,6 @@ export default function FinancialPage() {
               {formatCurrency(balance)}
             </div>
           </div>
-
-          {canCreate && (
-            <Link href="/transactions/new">
-              <Button size="lg" className="gap-2">
-                <Plus className="w-5 h-5" />
-                Novo Lançamento
-              </Button>
-            </Link>
-          )}
         </div>
       </div>
 
@@ -712,6 +764,14 @@ export default function FinancialPage() {
         transaction={transactionToDelete}
         onConfirm={confirmDelete}
         isDeleting={isDeleting}
+      />
+
+      <UpgradeModal
+        open={upgradeModal.isOpen}
+        onOpenChange={upgradeModal.setIsOpen}
+        feature={upgradeModal.feature}
+        description={upgradeModal.description}
+        requiredPlan={upgradeModal.requiredPlan}
       />
     </div>
   );

@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { lightenColor } from "@/components/layout/navigation-config";
 import { cn } from "@/lib/utils";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
 import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
@@ -19,11 +21,13 @@ import {
   ChevronDown,
   Loader2,
   Check,
+  Crown,
   Eye,
   FileDown,
   Trash2,
   Palette,
   Pencil,
+  Kanban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
@@ -31,6 +35,7 @@ import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
+import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,6 +115,10 @@ export default function ProposalsPage() {
   const { tenant } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
+  const { hasKanban } = usePlanLimits();
+  const upgradeModal = useUpgradeModal();
+  const canAccessCrm = hasKanban || user?.role === "superadmin";
+  const premiumColor = lightenColor(tenant?.primaryColor || "#2563eb", 25);
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -1077,21 +1086,54 @@ export default function ProposalsPage() {
               showFullPageSkeleton && "hidden",
             )}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
                 <p className="text-muted-foreground mt-1">
                   Gerencie suas propostas comerciais
                 </p>
               </div>
-              {canCreate && (
-                <Link href="/proposals/new">
-                  <Button size="lg" className="gap-2">
-                    <Plus className="w-5 h-5" />
-                    Novo Proposta
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {canAccessCrm ? (
+                  <Button asChild variant="outline" size="lg" className="gap-2">
+                    <Link href="/crm?scope=proposals">
+                      <Kanban className="w-5 h-5" />
+                      CRM de Propostas
+                    </Link>
                   </Button>
-                </Link>
-              )}
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="relative gap-2 pr-10"
+                    onClick={() =>
+                      upgradeModal.showUpgradeModal(
+                        "CRM",
+                        "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
+                        "enterprise",
+                      )
+                    }
+                  >
+                    <Kanban className="w-5 h-5" />
+                    CRM de Propostas
+                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
+                      <Crown
+                        className="h-3 w-3"
+                        style={{ color: premiumColor }}
+                      />
+                    </span>
+                  </Button>
+                )}
+
+                {canCreate && (
+                  <Button asChild size="lg" className="gap-2">
+                    <Link href="/proposals/new">
+                      <Plus className="w-5 h-5" />
+                      Nova Proposta
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Search */}
@@ -1226,6 +1268,14 @@ export default function ProposalsPage() {
             />
           );
         })()}
+
+      <UpgradeModal
+        open={upgradeModal.isOpen}
+        onOpenChange={upgradeModal.setIsOpen}
+        feature={upgradeModal.feature}
+        description={upgradeModal.description}
+        requiredPlan={upgradeModal.requiredPlan}
+      />
     </>
   );
 }

@@ -5,12 +5,9 @@ import {
   Contact,
   FilePenLine,
   Wallet,
-  WalletCards,
   FileSpreadsheet,
   Bot,
   ReceiptText,
-  UsersRound,
-  Kanban,
   Home,
   CalendarDays,
 } from "lucide-react";
@@ -44,13 +41,6 @@ export const menuItems: MenuItem[] = [
     pageId: "dashboard",
   },
   {
-    icon: Kanban,
-    label: "CRM",
-    href: "/crm",
-    pageId: "kanban",
-    requiresEnterprise: true,
-  },
-  {
     icon: FilePenLine,
     label: "Propostas",
     href: "/proposals",
@@ -68,12 +58,6 @@ export const menuItems: MenuItem[] = [
         label: "Lançamentos",
         href: "/transactions",
         pageId: "transactions",
-      },
-      {
-        icon: WalletCards,
-        label: "Carteiras",
-        href: "/wallets",
-        pageId: "wallet",
       },
     ],
   },
@@ -114,13 +98,6 @@ export const menuItems: MenuItem[] = [
     // But use "ambientes" for niche availability so cortinas sees this item
     // while automacao sees the /solutions item (which has solutions:true).
     availabilityPageId: "ambientes",
-  },
-  {
-    icon: UsersRound,
-    label: "Equipe",
-    href: "/team",
-    pageId: "team",
-    masterOnly: true,
   },
 ];
 

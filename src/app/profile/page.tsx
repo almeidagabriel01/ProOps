@@ -98,6 +98,7 @@ function ProfileContent() {
           user={effectiveUser}
           tenant={tenant}
           userPlan={userPlan}
+          isMaster={isMaster}
         />
 
         <Tabs

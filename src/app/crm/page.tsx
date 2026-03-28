@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
@@ -22,14 +22,23 @@ export default function KanbanPage() {
   const searchParams = useSearchParams();
   const { hasKanban, isLoading: isPlanLoading } = usePlanLimits();
 
+  const scopeParam = searchParams.get("scope");
+  const lockedTab: KanbanTab | null =
+    scopeParam === "transactions"
+      ? "transactions"
+      : scopeParam === "proposals"
+        ? "proposals"
+        : null;
   const tabParam = searchParams.get("tab");
   const tabFromUrl: KanbanTab =
     tabParam === "transactions" ? "transactions" : "proposals";
-  const [activeTab, setActiveTab] = React.useState<KanbanTab>(tabFromUrl);
+  const [activeTab, setActiveTab] = React.useState<KanbanTab>(
+    lockedTab ?? tabFromUrl,
+  );
 
   React.useEffect(() => {
-    setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
+    setActiveTab(lockedTab ?? tabFromUrl);
+  }, [lockedTab, tabFromUrl]);
 
   const handleTabChange = React.useCallback(
     (tab: string) => {
@@ -37,6 +46,8 @@ export default function KanbanPage() {
       setActiveTab(nextTab);
 
       const params = new URLSearchParams(searchParams.toString());
+      params.delete("scope");
+
       if (nextTab === "proposals") {
         params.delete("tab");
       } else {
@@ -70,47 +81,62 @@ export default function KanbanPage() {
     );
   }
 
+  const isScopedView = lockedTab !== null;
+  const currentTab = lockedTab ?? activeTab;
+  const description =
+    currentTab === "transactions"
+      ? "Visualize seus lançamentos em um quadro visual"
+      : "Visualize suas propostas em um quadro visual";
+
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-180px)]">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           CRM
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Visualize suas propostas e lançamentos em um quadro visual
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{description}</p>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="w-full space-y-6 flex-1 flex flex-col"
-      >
-        <TabsList className="w-fit bg-muted/50 p-1 rounded-xl h-auto">
-          <TabsTrigger
-            value="proposals"
-            className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Propostas
-          </TabsTrigger>
-          <TabsTrigger
-            value="transactions"
-            className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
-            <ReceiptText className="w-4 h-4" />
-            Lançamentos
-          </TabsTrigger>
-        </TabsList>
+      {isScopedView ? (
+        <div className="flex-1">
+          {currentTab === "transactions" ? (
+            <TransactionKanbanTab />
+          ) : (
+            <ProposalKanbanTab />
+          )}
+        </div>
+      ) : (
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="w-full space-y-6 flex-1 flex flex-col"
+        >
+          <TabsList className="w-fit bg-muted/50 p-1 rounded-xl h-auto">
+            <TabsTrigger
+              value="proposals"
+              className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Propostas
+            </TabsTrigger>
+            <TabsTrigger
+              value="transactions"
+              className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <ReceiptText className="w-4 h-4" />
+              Lançamentos
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="proposals" className="m-0 flex-1">
-          <ProposalKanbanTab />
-        </TabsContent>
+          <TabsContent value="proposals" className="m-0 flex-1">
+            <ProposalKanbanTab />
+          </TabsContent>
 
-        <TabsContent value="transactions" className="m-0 flex-1">
-          <TransactionKanbanTab />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="transactions" className="m-0 flex-1">
+            <TransactionKanbanTab />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }
