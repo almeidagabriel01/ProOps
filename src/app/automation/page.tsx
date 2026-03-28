@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings2, Box, Layers, Loader2 } from "lucide-react";
+import { Plus, Box, Layers, Loader2 } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
@@ -459,18 +459,12 @@ export default function AutomationAdminPage() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Settings2 className="w-6 h-6 text-primary" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                {solutionsPageConfig.pageTitle}
-              </h1>
-            </div>
-            <p className="text-muted-foreground text-lg pl-12">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {solutionsPageConfig.pageTitle}
+            </h1>
+            <p className="text-muted-foreground mt-1">
               {solutionsPageConfig.pageDescription}
             </p>
           </div>
@@ -579,18 +573,12 @@ export default function AutomationAdminPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
       >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Settings2 className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              {solutionsPageConfig.pageTitle}
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-lg pl-12">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {solutionsPageConfig.pageTitle}
+          </h1>
+          <p className="text-muted-foreground mt-1">
             {solutionsPageConfig.pageDescription}
           </p>
         </div>

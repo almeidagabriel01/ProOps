@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Plus, Settings2, Loader2, Home } from "lucide-react";
+import { Plus, Loader2, Home } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
@@ -169,7 +169,7 @@ export default function AmbientesPage() {
     return <SelectTenantState />;
   }
 
-  // ── Editor mode ──────────────────────────────────────────────────────────
+  // Editor mode
   if (editingAmbienteId) {
     const ambienteToEdit =
       editingAmbienteId === "new"
@@ -198,25 +198,13 @@ export default function AmbientesPage() {
     );
   }
 
-  // ── List mode ────────────────────────────────────────────────────────────
+  // List mode
   return (
     <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-      >
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Settings2 className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Ambientes
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-lg pl-12">
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Ambientes</h1>
+          <p className="text-muted-foreground mt-1">
             Gerencie os ambientes e configure os produtos padrões de cada
             espaço.
           </p>
@@ -224,7 +212,10 @@ export default function AmbientesPage() {
       </motion.div>
 
       <div className="flex justify-end border-b pb-4">
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
           <Button
             size="lg"
             onClick={() => openEditor("new")}
@@ -236,7 +227,6 @@ export default function AmbientesPage() {
         </motion.div>
       </div>
 
-      {/* Content */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -260,10 +250,7 @@ export default function AmbientesPage() {
                 Crie ambientes como Sala, Quarto, Escritório para usar nas suas
                 propostas de cortinas.
               </p>
-              <Button
-                className="gap-2"
-                onClick={() => openEditor("new")}
-              >
+              <Button className="gap-2" onClick={() => openEditor("new")}>
                 <Plus className="w-4 h-4" /> Criar primeiro ambiente
               </Button>
             </CardContent>
@@ -271,7 +258,10 @@ export default function AmbientesPage() {
         ) : (
           <>
             <div className="flex items-center justify-end gap-3 mb-4">
-              <Label htmlFor="ambientes-sort" className="text-sm text-muted-foreground whitespace-nowrap">
+              <Label
+                htmlFor="ambientes-sort"
+                className="text-sm text-muted-foreground whitespace-nowrap"
+              >
                 Ordenar por
               </Label>
               <div className="w-full sm:w-[260px]">
@@ -295,7 +285,6 @@ export default function AmbientesPage() {
         )}
       </motion.div>
 
-      {/* Delete confirmation AlertDialog — rendered at page level, never nested inside another Dialog */}
       <AlertDialog
         open={!!deleteTargetId}
         onOpenChange={(open) => {
@@ -324,7 +313,9 @@ export default function AmbientesPage() {
               }}
             >
               {isDeleting ? (
-                <><Spinner className="w-4 h-4 mr-2" /> Excluindo...</>
+                <>
+                  <Spinner className="w-4 h-4 mr-2" /> Excluindo...
+                </>
               ) : (
                 "Confirmar Exclusão"
               )}
