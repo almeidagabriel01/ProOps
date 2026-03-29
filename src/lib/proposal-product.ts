@@ -73,6 +73,29 @@ function getCatalogItemMarkup(item: CatalogItem): number {
   return Number.parseFloat("manufacturer" in item ? item.markup || "0" : "0") || 0;
 }
 
+function resolveProposalSnapshotMarkup(
+  product: ProposalProduct,
+  unitPrice: number,
+): number {
+  if ((product.itemType || "product") === "service") {
+    return 0;
+  }
+
+  if (typeof product.markup === "number" && Number.isFinite(product.markup)) {
+    return roundPricingValue(Math.max(0, product.markup), 4);
+  }
+
+  const quantity = Math.max(0, Number(product.quantity || 0));
+  const total = Math.max(0, Number(product.total || 0));
+
+  if (quantity > 0 && unitPrice > 0) {
+    const sellingPerUnit = total / quantity;
+    return roundPricingValue(Math.max(0, ((sellingPerUnit / unitPrice) - 1) * 100), 4);
+  }
+
+  return 0;
+}
+
 export function buildProposalProductFromCatalog(
   item: CatalogItem,
   options: BuildProposalProductOptions = {},
@@ -218,5 +241,70 @@ export function recalculateProposalProduct(
     markup: calculated.markup,
     pricingDetails: calculated.pricingDetails,
     total: calculated.total,
+  };
+}
+
+export function syncProposalProductWithCatalogSnapshot(
+  product: ProposalProduct,
+  catalogItem?: CatalogItem,
+): ProposalProduct {
+  const normalizedProduct = ensureProposalProductLineItemId(product);
+  const resolvedItemType =
+    (catalogItem?.itemType || normalizedProduct.itemType || "product") as
+      | "product"
+      | "service";
+  const isService = resolvedItemType === "service";
+  const fallbackUnitPrice =
+    catalogItem && typeof catalogItem.price !== "undefined"
+      ? Number.parseFloat(String(catalogItem.price || "0")) || 0
+      : 0;
+  const unitPrice =
+    typeof normalizedProduct.unitPrice === "number" &&
+    Number.isFinite(normalizedProduct.unitPrice)
+      ? roundPricingValue(Math.max(0, normalizedProduct.unitPrice), 4)
+      : roundPricingValue(Math.max(0, fallbackUnitPrice), 4);
+  const markup = isService
+    ? 0
+    : resolveProposalSnapshotMarkup(
+        { ...normalizedProduct, itemType: resolvedItemType },
+        unitPrice,
+      );
+  const recalculated = recalculateProposalProduct({
+    ...normalizedProduct,
+    itemType: resolvedItemType,
+    unitPrice,
+    markup,
+  });
+
+  if (!catalogItem) {
+    return recalculated;
+  }
+
+  const catalogImages = Array.isArray(catalogItem.images)
+    ? catalogItem.images.filter(Boolean)
+    : [];
+  const fallbackImage =
+    catalogImages[0] ||
+    catalogItem.image ||
+    recalculated.productImage ||
+    "";
+
+  return {
+    ...recalculated,
+    itemType: resolvedItemType,
+    productName: catalogItem.name || recalculated.productName,
+    productImage: fallbackImage,
+    productImages:
+      catalogImages.length > 0
+        ? catalogImages
+        : fallbackImage
+          ? [fallbackImage]
+          : recalculated.productImages || [],
+    productDescription:
+      catalogItem.description || recalculated.productDescription || "",
+    manufacturer:
+      ("manufacturer" in catalogItem ? catalogItem.manufacturer : undefined) ||
+      recalculated.manufacturer,
+    category: catalogItem.category || recalculated.category,
   };
 }
