@@ -19,7 +19,7 @@ import { isEnvironmentProposalSelection } from "@/lib/proposal-environment-utils
 import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
 import {
   ensureProposalProductLineItemId,
-  recalculateProposalProduct,
+  syncProposalProductWithCatalogSnapshot,
 } from "@/lib/proposal-product";
 
 interface UseProposalFormLoadingEffectsContext {
@@ -325,66 +325,11 @@ export function useProposalFormLoadingEffects(
 
         const syncedProducts = (proposal.products || []).map((rawProduct) => {
           const pp = ensureProposalProductLineItemId(rawProduct);
-          let targetType = pp.itemType || "product";
           const freshProduct = products.find((p) => p.id === pp.productId);
 
           if (!freshProduct) return pp;
 
-          // If legacy data had the wrong type, update "targetType" to the real one
-          targetType = freshProduct.itemType || "product";
-
-          const isService = (freshProduct.itemType || targetType) === "service";
-
-          // To allow custom prices on proposals, prioritize the proposal's saved unitPrice.
-          // Only use the fresh master product price if the proposal unitPrice is undefined.
-          const price =
-            pp.unitPrice !== undefined
-              ? pp.unitPrice
-              : parseFloat(freshProduct.price) || 0;
-
-          const resolvedProposalMarkup = (() => {
-            if (isService) return 0;
-            if (pp.markup !== undefined) return pp.markup;
-            const qty = Number(pp.quantity || 0);
-            const unit = Number(price || 0);
-            const total = Number(pp.total || 0);
-            if (qty > 0 && unit > 0) {
-              const sellingPerUnit = total / qty;
-              return Math.max(0, ((sellingPerUnit / unit) - 1) * 100);
-            }
-            return 0;
-          })();
-
-          const markup = isService
-            ? 0
-            : resolvedProposalMarkup;
-          return recalculateProposalProduct({
-            ...pp,
-            itemType: (freshProduct.itemType || targetType) as
-              | "product"
-              | "service",
-            productName: freshProduct.name,
-            productImage:
-              freshProduct.images?.[0] ||
-              freshProduct.image ||
-              pp.productImage ||
-              "",
-            productImages: freshProduct.images || pp.productImages || [],
-            productDescription:
-              freshProduct.description || pp.productDescription || "",
-            unitPrice: price,
-            markup,
-            pricingDetails: pp.pricingDetails,
-            total: pp.total,
-            manufacturer:
-              ((freshProduct as Record<string, unknown>).manufacturer as
-                | string
-                | undefined) || pp.manufacturer,
-            category:
-              ((freshProduct as Record<string, unknown>).category as
-                | string
-                | undefined) || pp.category,
-          }, freshProduct);
+          return syncProposalProductWithCatalogSnapshot(pp, freshProduct);
         });
 
         const loadedFormData: Partial<Proposal> = {
