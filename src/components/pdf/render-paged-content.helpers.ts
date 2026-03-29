@@ -249,6 +249,7 @@ export function buildContentItems(
   proposal: Proposal,
   primaryColor: string,
   pdfDisplaySettings?: PdfDisplaySettings,
+  tenantNiche?: TenantNiche | null,
 ): ContentItem[] {
   const settings = {
     ...defaultPdfDisplaySettings,
@@ -489,19 +490,20 @@ export function buildContentItems(
 
       // Add environments and their products
       envsWithProducts.forEach((group, index) => {
-        // Add ambiente header
-        items.push({
-          type: "ambiente-header",
-          id: generateId("ambiente-header"),
-          data: {
-            ambienteName: group.env.ambienteName,
-            ambienteId: group.env.ambienteId,
-            description: group.env.description,
-            primaryColor: primaryColor,
-            isFirst: index === 0,
-          },
-          height: group.env.description ? 60 : 40,
-        });
+        if (tenantNiche !== "cortinas") {
+          items.push({
+            type: "ambiente-header",
+            id: generateId("ambiente-header"),
+            data: {
+              ambienteName: group.env.ambienteName,
+              ambienteId: group.env.ambienteId,
+              description: group.env.description,
+              primaryColor: primaryColor,
+              isFirst: index === 0,
+            },
+            height: group.env.description ? 60 : 40,
+          });
+        }
 
         // Add products as pairs (2 per row)
         const visibleProducts = group.products;

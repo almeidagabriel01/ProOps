@@ -53,8 +53,16 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
   const measureRef = useRef<HTMLDivElement>(null);
 
   const items = useMemo(
-    () => buildContentItems(sections, products, proposal, primaryColor, settings),
-    [sections, products, proposal, primaryColor, settings],
+    () =>
+      buildContentItems(
+        sections,
+        products,
+        proposal,
+        primaryColor,
+        settings,
+        tenantNiche,
+      ),
+    [sections, products, proposal, primaryColor, settings, tenantNiche],
   );
 
   const countableProducts = useMemo(
@@ -239,6 +247,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfSistemaHeader
               sistema={item.data.sistema}
               primaryColor={primaryColor}
+              tenantNiche={tenantNiche}
             />
           </div>
         );
@@ -252,6 +261,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfAmbienteHeader
               ambienteName={item.data.ambienteName}
               primaryColor={primaryColor}
+              tenantNiche={tenantNiche}
               standalone={true}
               description={item.data.description}
             />

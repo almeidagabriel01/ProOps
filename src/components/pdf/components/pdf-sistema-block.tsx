@@ -17,6 +17,16 @@ import {
 } from "../product-visibility";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 
+function shouldUseCurtinasEnvironmentLayout(
+  tenantNiche: TenantNiche | null | undefined,
+  sistema: PdfSistema,
+): boolean {
+  return (
+    tenantNiche === "cortinas" &&
+    resolveSistemaAmbientes(sistema).length === 1
+  );
+}
+
 function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
   return tenantNiche === "cortinas"
     ? "Subtotal do Ambiente:"
@@ -26,6 +36,7 @@ function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
 function PdfSistemaHead({
   sistema,
   primaryColor,
+  tenantNiche,
   titleClassName,
   titleLineHeight,
   tagScale,
@@ -36,6 +47,7 @@ function PdfSistemaHead({
 }: {
   sistema: PdfSistema;
   primaryColor: string;
+  tenantNiche?: TenantNiche | null;
   titleClassName: string;
   titleLineHeight: string;
   tagScale: number;
@@ -45,112 +57,187 @@ function PdfSistemaHead({
   iconPaddingRight: string;
 }) {
   const ambientes = resolveSistemaAmbientes(sistema);
+  const useCurtinasEnvironmentLayout = shouldUseCurtinasEnvironmentLayout(
+    tenantNiche,
+    sistema,
+  );
+  const displayTitle = useCurtinasEnvironmentLayout
+    ? ambientes[0]?.ambienteName || sistema.sistemaName
+    : sistema.sistemaName;
 
   return (
     <div>
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          margin: 0,
-          padding: 0,
-        }}
-      >
-        <tbody>
-          <tr>
-            <td
-              valign="top"
-              style={{
-                width: iconColumnWidth,
-                verticalAlign: "top",
-                padding: 0,
-                paddingRight: iconPaddingRight,
-                margin: 0,
-              }}
-            >
-              <div
-                data-pdf-system-icon="1"
-                className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
-                style={{ backgroundColor: primaryColor }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={iconClass}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
-                  />
-                </svg>
-              </div>
-            </td>
-            <td
-              valign="top"
-              style={{
-                verticalAlign: "top",
-                padding: 0,
-                margin: 0,
-              }}
-            >
-              <table
-                data-pdf-system-head="1"
+      {useCurtinasEnvironmentLayout ? (
+        <table
+          style={{
+            width: "auto",
+            borderCollapse: "collapse",
+            margin: 0,
+            padding: 0,
+          }}
+        >
+          <tbody>
+            <tr>
+              <td
+                valign="middle"
                 style={{
-                  borderCollapse: "collapse",
-                  width: "auto",
+                  width: iconColumnWidth,
+                  verticalAlign: "middle",
+                  padding: 0,
+                  paddingRight: "8px",
+                  margin: 0,
                 }}
               >
-                <tbody>
-                  <tr>
-                    <td style={{ padding: 0 }}>
-                      <h2
-                        data-pdf-system-title="1"
-                        className={titleClassName}
-                        style={{
-                          color: primaryColor,
-                          margin: 0,
-                          lineHeight: titleLineHeight,
-                        }}
+                <div
+                  data-pdf-system-icon="1"
+                  className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={iconClass}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                    />
+                  </svg>
+                </div>
+              </td>
+              <td
+                valign="middle"
+                style={{
+                  verticalAlign: "middle",
+                  padding: 0,
+                  margin: 0,
+                  textAlign: "left",
+                }}
+              >
+                <h2
+                  data-pdf-system-title="1"
+                  className={titleClassName}
+                  style={{
+                    color: primaryColor,
+                    margin: 0,
+                    lineHeight: titleLineHeight,
+                  }}
+                >
+                  {displayTitle}
+                </h2>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            margin: 0,
+            padding: 0,
+          }}
+        >
+          <tbody>
+            <tr>
+              <td
+                valign="top"
+                style={{
+                  width: iconColumnWidth,
+                  verticalAlign: "top",
+                  padding: 0,
+                  paddingRight: iconPaddingRight,
+                  margin: 0,
+                }}
+              >
+                <div
+                  data-pdf-system-icon="1"
+                  className={`${iconSizeClass} rounded-lg flex items-center justify-center shadow-md shrink-0`}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={iconClass}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                    />
+                  </svg>
+                </div>
+              </td>
+              <td
+                valign="top"
+                style={{
+                  verticalAlign: "top",
+                  padding: 0,
+                  margin: 0,
+                }}
+              >
+                <table
+                  data-pdf-system-head="1"
+                  style={{
+                    borderCollapse: "collapse",
+                    width: "auto",
+                  }}
+                >
+                  <tbody>
+                    <tr>
+                      <td style={{ padding: 0 }}>
+                        <h2
+                          data-pdf-system-title="1"
+                          className={titleClassName}
+                          style={{
+                            color: primaryColor,
+                            margin: 0,
+                            lineHeight: titleLineHeight,
+                          }}
+                        >
+                          {displayTitle}
+                        </h2>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td
+                        data-pdf-padding-top="10px"
+                        style={{ padding: 0, paddingTop: "10px" }}
                       >
-                        {sistema.sistemaName}
-                      </h2>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      data-pdf-padding-top="10px"
-                      style={{ padding: 0, paddingTop: "10px" }}
-                    >
-                      <div
-                        data-pdf-ambiente-list="1"
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        {ambientes.map((amb, i) => (
-                          <PdfAmbienteTag
-                            key={`${amb.ambienteId}-${i}`}
-                            ambienteName={amb.ambienteName}
-                            primaryColor={primaryColor}
-                            scale={tagScale}
-                          />
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                        <div
+                          data-pdf-ambiente-list="1"
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          {ambientes.map((amb, i) => (
+                            <PdfAmbienteTag
+                              key={`${amb.ambienteId}-${i}`}
+                              ambienteName={amb.ambienteName}
+                              primaryColor={primaryColor}
+                              scale={tagScale}
+                            />
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
 
       {sistema.description && (
         <p className="text-xs text-gray-600 mt-2 leading-relaxed">
@@ -191,6 +278,7 @@ export function PdfSistemaBlock({
           <PdfSistemaHead
             sistema={sistema}
             primaryColor={primaryColor}
+            tenantNiche={tenantNiche}
             titleClassName="text-xl font-bold"
             titleLineHeight="24px"
             tagScale={0.8}
@@ -222,12 +310,15 @@ export function PdfSistemaBlock({
 
             return (
               <div key={currentInstanceId}>
-                <PdfAmbienteHeader
-                  ambienteName={amb.ambienteName || "Ambiente"}
-                  primaryColor={primaryColor}
-                  className={index > 0 ? "border-t border-dashed" : ""}
-                  description={amb.description}
-                />
+                {tenantNiche !== "cortinas" && (
+                  <PdfAmbienteHeader
+                    ambienteName={amb.ambienteName || "Ambiente"}
+                    primaryColor={primaryColor}
+                    tenantNiche={tenantNiche}
+                    className={index > 0 ? "border-t border-dashed" : ""}
+                    description={amb.description}
+                  />
+                )}
 
                 <table
                   style={{
@@ -351,9 +442,11 @@ export function PdfSistemaBlock({
 export function PdfSistemaHeader({
   sistema,
   primaryColor,
+  tenantNiche,
 }: {
   sistema: PdfSistema;
   primaryColor: string;
+  tenantNiche?: TenantNiche | null;
 }) {
   return (
     <div className="">
@@ -371,6 +464,7 @@ export function PdfSistemaHeader({
           <PdfSistemaHead
             sistema={sistema}
             primaryColor={primaryColor}
+            tenantNiche={tenantNiche}
             titleClassName="text-2xl font-bold"
             titleLineHeight="28px"
             tagScale={1}
@@ -424,16 +518,22 @@ export function PdfSistemaFooter({
 export function PdfAmbienteHeader({
   ambienteName,
   primaryColor,
+  tenantNiche,
   className = "",
   standalone = false,
   description,
 }: {
   ambienteName: string;
   primaryColor: string;
+  tenantNiche?: TenantNiche | null;
   className?: string;
   standalone?: boolean;
   description?: string;
 }) {
+  if (tenantNiche === "cortinas") {
+    return null;
+  }
+
   return (
     <div
       className={`px-4 pt-3 pb-1.5 bg-white ${className} ${
