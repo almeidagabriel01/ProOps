@@ -27,6 +27,8 @@ interface BillingTabProps {
   handleManagePayment: () => void;
   isMaster: boolean;
   openingPortal: boolean;
+  subscriptionStatus?: string;
+  trialEndsAt?: string;
 }
 
 export function BillingTab({
@@ -43,6 +45,8 @@ export function BillingTab({
   handleManagePayment,
   isMaster,
   openingPortal,
+  subscriptionStatus,
+  trialEndsAt,
 }: BillingTabProps) {
   if (!isMaster) {
     return (
@@ -121,20 +125,33 @@ export function BillingTab({
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {allPlans.map((plan) => (
-          <PlanCard
-            key={plan.id}
-            plan={plan}
-            billingInterval={billingInterval}
-            isCurrent={isCurrentPlan(plan)}
-            canUpgrade={canUpgrade(plan)}
-            isProcessing={upgradingPlan !== null || downgradingPlan !== null}
-            processingTier={upgradingPlan || downgradingPlan}
-            onUpgrade={handleUpgrade}
-            onDowngrade={handleDowngrade}
-            isMaster={isMaster}
-          />
-        ))}
+        {allPlans.map((plan) => {
+          const isCurrent = isCurrentPlan(plan);
+          const trialStillActive =
+            !!trialEndsAt && new Date(trialEndsAt) > new Date();
+          const isTrialing =
+            isCurrent &&
+            (subscriptionStatus === "trialing" || trialStillActive);
+          const isActivePlan =
+            isCurrent && subscriptionStatus === "active" && !trialStillActive;
+          return (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              billingInterval={billingInterval}
+              isCurrent={isCurrent}
+              canUpgrade={canUpgrade(plan)}
+              isProcessing={upgradingPlan !== null || downgradingPlan !== null}
+              processingTier={upgradingPlan || downgradingPlan}
+              onUpgrade={handleUpgrade}
+              onDowngrade={handleDowngrade}
+              isMaster={isMaster}
+              isTrialing={isTrialing}
+              isActivePlan={isActivePlan}
+              trialEndsAt={isTrialing ? trialEndsAt : undefined}
+            />
+          );
+        })}
       </div>
     </div>
   );

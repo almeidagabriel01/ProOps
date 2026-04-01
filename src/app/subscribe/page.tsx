@@ -31,6 +31,7 @@ function SubscribeContent() {
 
   const planTier = searchParams.get("plan");
   const billingInterval = searchParams.get("interval") || "monthly";
+  const skipTrial = searchParams.get("skipTrial") === "true";
 
   useEffect(() => {
     // If no plan specified, redirect to home
@@ -88,6 +89,7 @@ function SubscribeContent() {
         userEmail: user.email,
         billingInterval: billingInterval as "monthly" | "yearly",
         origin: window.location.origin,
+        ...(skipTrial && { skipTrial: true }),
       });
 
       if (data.url) {
@@ -147,15 +149,15 @@ function SubscribeContent() {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-2xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
             <CreditCard className="w-8 h-8 text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">
+          <h1 className="text-xl font-bold text-foreground mb-2">
             Erro na assinatura
           </h1>
-          <p className="text-neutral-400 mb-6">{error}</p>
+          <p className="text-muted-foreground mb-6">{error}</p>
           <div className="space-y-3">
             <button
               onClick={() => {
@@ -168,7 +170,7 @@ function SubscribeContent() {
             </button>
             <Link
               href="/"
-              className="block w-full py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl font-medium transition-colors text-center"
+              className="block w-full py-3 bg-muted hover:bg-muted/70 text-foreground rounded-xl font-medium transition-colors text-center"
             >
               <ArrowLeft className="w-4 h-4 inline mr-2" />
               Voltar para a home
@@ -181,22 +183,27 @@ function SubscribeContent() {
 
   // Loading/Processing state
   return (
-    <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 max-w-md w-full text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-violet-500 mx-auto mb-4" />
-        <h1 className="text-xl font-bold text-white mb-2">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-2xl p-8 max-w-md w-full text-center">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+        <h1 className="text-xl font-bold text-foreground mb-2">
           {isAuthLoading
             ? "Verificando sua conta..."
             : "Preparando pagamento..."}
         </h1>
-        <p className="text-neutral-400">
+        <p className="text-muted-foreground">
           {planTier && PLAN_NAMES[planTier] ? (
             <>
               Você está assinando o plano{" "}
-              <span className="text-violet-400 font-semibold">
+              <span className="text-primary font-semibold">
                 {PLAN_NAMES[planTier]}
               </span>{" "}
               ({INTERVAL_LABELS[billingInterval] || billingInterval})
+              {planTier === "pro" && (
+                <span className="block mt-2 text-emerald-500 text-sm font-medium">
+                  Inclui 7 dias grátis para testar
+                </span>
+              )}
             </>
           ) : (
             "Redirecionando..."
@@ -211,8 +218,8 @@ export default function SubscribePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-          <Loader2 className="w-10 h-10 animate-spin text-violet-500" />
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
         </div>
       }
     >

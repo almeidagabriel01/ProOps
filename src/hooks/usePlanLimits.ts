@@ -97,6 +97,13 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
   useEffect(() => {
     const loadFeatures = async () => {
+      if (!user) {
+        setBaseFeatures(FREE_PLAN_FEATURES);
+        setPlanTier("starter");
+        setIsPlanLoading(false);
+        return;
+      }
+
       setIsPlanLoading(true);
 
       if (user?.role === "superadmin") {
@@ -197,11 +204,19 @@ export function usePlanLimits(): UsePlanLimitsReturn {
 
     loadFeatures();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role, user?.planId, masterId, tenantOwner]);
+  }, [user, user?.role, user?.planId, masterId, tenantOwner]);
 
   // Load addons when tenant changes or finishes loading
   useEffect(() => {
     const loadAddonsAsync = async () => {
+      if (!user) {
+        setPurchasedAddons([]);
+        setPurchasedAddonsData([]);
+        setPastDueAddonsData([]);
+        setIsAddonsLoading(false);
+        return;
+      }
+
       if (user?.role === "superadmin") {
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);

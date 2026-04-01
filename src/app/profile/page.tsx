@@ -203,6 +203,8 @@ function ProfileContent() {
                 handleManagePayment={handleManagePayment}
                 isMaster={isMaster}
                 openingPortal={openingPortal}
+                subscriptionStatus={user?.subscriptionStatus}
+                trialEndsAt={tenant?.trialEndsAt as string | undefined}
               />
             </motion.div>
           </TabsContent>

@@ -22,6 +22,7 @@ export async function updateUserPlan(
   interval?: string,
   currentPeriodEnd?: Date,
   cancelAtPeriodEnd?: boolean,
+  stripeSubscriptionStatus?: string,
 ): Promise<void> {
   const planId = await getPlanIdByTier(planTier);
   const billingInterval = interval === "year" ? "yearly" : "monthly";
@@ -41,13 +42,18 @@ export async function updateUserPlan(
   const stripeIdForClaims = String(existingUserData?.stripeId || "").trim();
   const shouldPromoteFreeOwner = currentRole === "free" && !hasMasterId;
 
+  const resolvedStatus = mapStripeSubscriptionStatus(
+    stripeSubscriptionStatus || "active",
+  );
+  const clientStatus = toClientSubscriptionStatus(resolvedStatus);
+
   const updatePayload: Record<string, unknown> = {
     billingInterval: billingInterval,
     stripeSubscriptionId: stripeSubscriptionId,
     planUpdatedAt: FieldValue.serverTimestamp(),
-    subscriptionStatus: "active",
+    subscriptionStatus: clientStatus,
     cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
-    "subscription.status": "ACTIVE",
+    "subscription.status": resolvedStatus,
     "subscription.cancelAtPeriodEnd": cancelAtPeriodEnd ?? false,
     "subscription.updatedAt": FieldValue.serverTimestamp(),
   };

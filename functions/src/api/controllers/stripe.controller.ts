@@ -701,6 +701,96 @@ export const createAddonCheckoutSession = async (
   }
 };
 
+const PRO_TRIAL_DAYS = 7;
+// Trial reservation expires after this many minutes if checkout was abandoned
+const TRIAL_RESERVATION_TTL_MINUTES = 30;
+
+/**
+ * Atomically reserves the trial slot for a tenant using a Firestore transaction.
+ * Prevents race conditions where two concurrent requests could both pass an
+ * eligibility check before either writes trialUsedAt (TOCTOU vulnerability).
+ *
+ * Returns true if the slot was successfully reserved, false if already used.
+ */
+async function reserveTrialSlot(tenantId: string): Promise<boolean> {
+  const tenantRef = db.collection("tenants").doc(tenantId);
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(tenantRef);
+    if (!snap.exists) return false;
+
+    const data = snap.data() as Record<string, unknown> | undefined;
+
+    // Already used a trial
+    if (data?.trialUsedAt) return false;
+
+    // Already has an active subscription — not eligible
+    if (data?.stripeSubscriptionId && String(data.stripeSubscriptionId).trim()) {
+      return false;
+    }
+
+    // Check for a pending reservation that hasn't expired
+    if (data?.trialReservedAt) {
+      const reservedAt = new Date(String(data.trialReservedAt)).getTime();
+      const ttlMs = TRIAL_RESERVATION_TTL_MINUTES * 60 * 1000;
+      if (Date.now() - reservedAt < ttlMs) {
+        // Active unexpired reservation — could be a race or abandoned checkout
+        return false;
+      }
+      // Reservation has expired — allow re-reservation
+    }
+
+    // Atomically reserve the slot
+    tx.set(
+      tenantRef,
+      { trialReservedAt: new Date().toISOString() },
+      { merge: true },
+    );
+    return true;
+  });
+}
+
+/**
+ * Checks if the email (across all tenants/users) has already consumed a trial.
+ * Prevents abuse via creating multiple accounts with different emails is still
+ * possible, but this blocks the simpler same-email multi-account pattern.
+ */
+async function hasEmailUsedTrial(email: string): Promise<boolean> {
+  if (!email || !email.includes("@")) return false;
+  const snap = await db
+    .collection("users")
+    .where("email", "==", email.toLowerCase().trim())
+    .limit(5)
+    .get();
+
+  for (const doc of snap.docs) {
+    const userData = doc.data() as Record<string, unknown>;
+    const userTenantId = String(userData.tenantId || userData.companyId || "").trim();
+    if (!userTenantId) continue;
+    const tenantSnap = await db.collection("tenants").doc(userTenantId).get();
+    if (tenantSnap.exists) {
+      const tenantData = tenantSnap.data() as Record<string, unknown> | undefined;
+      if (tenantData?.trialUsedAt) return true;
+    }
+  }
+  return false;
+}
+
+async function markTrialUsed(tenantId: string): Promise<void> {
+  await db
+    .collection("tenants")
+    .doc(tenantId)
+    .set(
+      {
+        trialUsedAt: new Date().toISOString(),
+        trialPlanTier: "pro",
+        // Clear the reservation now that the trial is officially started
+        trialReservedAt: null,
+      },
+      { merge: true },
+    );
+}
+
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
     const {
@@ -714,6 +804,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     } = await resolveStripeUserContext(req, { allowFreeOwnerCheckout: true });
     const planTier = String(req.body?.planTier || "").trim();
     const userEmail = req.body?.userEmail;
+    const skipTrial = req.body?.skipTrial === true;
     const rawBillingInterval = String(req.body?.billingInterval || "monthly")
       .toLowerCase()
       .trim();
@@ -847,6 +938,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         intervalForUserPlan,
         currentPeriodEnd,
         hydratedSubscription.cancel_at_period_end,
+        hydratedSubscription.status,
       );
 
       const whatsappItem = hydratedSubscription.items.data.find(
@@ -927,18 +1019,71 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     const appOrigin = resolveRequestOrigin(req);
 
-    const session = await stripe.checkout.sessions.create({
+    // --- Trial eligibility: atomic reservation + email dedup ---
+    let trialEligible = false;
+    if (planTier === "pro" && !skipTrial) {
+      // 1. Atomically reserve trial slot (prevents race conditions)
+      const slotReserved = await reserveTrialSlot(tenantId);
+      if (slotReserved) {
+        // 2. Check email-level abuse (same email, different tenant accounts)
+        const userEmail2 = String(
+          userData?.email || req.user?.email || "",
+        ).trim();
+        const emailAbused = userEmail2
+          ? await hasEmailUsedTrial(userEmail2)
+          : false;
+
+        if (emailAbused) {
+          // Release the reservation — this email already used a trial
+          await db
+            .collection("tenants")
+            .doc(tenantId)
+            .set({ trialReservedAt: null }, { merge: true });
+        } else {
+          trialEligible = true;
+        }
+      }
+    }
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
+      // Always collect payment method — even during trial (no free rides without card)
+      payment_method_collection: "always",
       payment_method_types: ["card"],
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appOrigin}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appOrigin}/subscribe`,
-      metadata: { userId, tenantId, planTier, billingInterval: validInterval },
+      metadata: {
+        userId,
+        tenantId,
+        planTier,
+        billingInterval: validInterval,
+        ...(trialEligible && { trial: "true" }),
+      },
       allow_promotion_codes: true,
-    });
+    };
 
-    return res.json({ url: session.url });
+    if (trialEligible) {
+      sessionParams.subscription_data = {
+        trial_period_days: PRO_TRIAL_DAYS,
+        trial_settings: {
+          // If payment fails at trial end, cancel immediately (no involuntary trial extension)
+          end_behavior: { missing_payment_method: "cancel" },
+        },
+        metadata: {
+          userId,
+          tenantId,
+          planTier,
+          billingInterval: validInterval,
+          trial: "true",
+        },
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    return res.json({ url: session.url, trialDays: trialEligible ? PRO_TRIAL_DAYS : 0 });
   } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
     return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
@@ -1040,8 +1185,10 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         interval,
         new Date((subscription as any).current_period_end * 1000),
         subscription.cancel_at_period_end,
+        subscription.status,
       );
     } else {
+      const confirmStatus = mapStripeSubscriptionStatus(subscription.status);
       await db
         .collection("users")
         .doc(userId)
@@ -1050,8 +1197,22 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
           currentPeriodEnd: new Date(
             (subscription as any).current_period_end * 1000,
           ).toISOString(),
-          subscriptionStatus: "active",
+          subscriptionStatus: confirmStatus.toLowerCase(),
         });
+    }
+
+    // Mark trial as used on tenant
+    if (
+      subscription.status === "trialing" ||
+      session.metadata?.trial === "true"
+    ) {
+      const trialEnd = (subscription as any).trial_end
+        ? new Date((subscription as any).trial_end * 1000).toISOString()
+        : undefined;
+      await markTrialUsed(tenantId);
+      if (trialEnd) {
+        await tenantRef.set({ trialEndsAt: trialEnd }, { merge: true });
+      }
     }
 
     const overageItemId = await addWhatsAppOverageToSubscription(subscription.id);
@@ -1114,11 +1275,17 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       subscription.cancel_at_period_end,
     );
 
+    const isTrial = subscription.status === "trialing";
+    const trialEndDate = isTrial && (subscription as any).trial_end
+      ? new Date((subscription as any).trial_end * 1000).toISOString()
+      : undefined;
+
     return res.json({
       success: true,
       subscriptionId: subscription.id,
       planTier: planTier || undefined,
       status,
+      ...(isTrial && { trial: true, trialEndsAt: trialEndDate }),
     });
   } catch (error: unknown) {
     console.error("Confirm Checkout Error:", error);
@@ -1509,6 +1676,7 @@ export const getPlans = async (_req: Request, res: Response) => {
           order: metadata.order,
           highlighted: metadata.highlighted || false,
           features: metadata.features,
+          trialDays: tier === "pro" ? PRO_TRIAL_DAYS : 0,
         };
       },
     );

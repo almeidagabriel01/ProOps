@@ -25,6 +25,10 @@ export type Tenant = {
   stripeSubscriptionId?: string;
   whatsappOverageSubscriptionItemId?: string;
   transactionStatusOrder?: string[];
+  trialUsedAt?: string;
+  trialReservedAt?: string | null;
+  trialEndsAt?: string;
+  trialPlanTier?: string;
 };
 
 export type UserOnboardingStatus = "active" | "completed" | "skipped";

@@ -630,8 +630,11 @@ export function useLoginForm(): UseLoginFormReturn {
         updatedAt: now,
       });
 
+      const verifyUrl = redirectUrl
+        ? `${window.location.origin}/login?redirect=${encodeURIComponent(redirectUrl)}`
+        : `${window.location.origin}/login`;
       await sendEmailVerification(firebaseUser, {
-        url: `${window.location.origin}/login`,
+        url: verifyUrl,
       });
 
       setIsRegistering(false);
