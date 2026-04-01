@@ -203,7 +203,6 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadFeatures();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, user?.role, user?.planId, masterId, tenantOwner]);
 
   // Load addons when tenant changes or finishes loading
@@ -277,7 +276,7 @@ export function usePlanLimits(): UsePlanLimitsReturn {
     };
 
     loadAddonsAsync();
-  }, [tenant, isTenantLoading, user?.role]);
+  }, [tenant, isTenantLoading, user]);
 
   // Refresh addons function (for external calls)
   const refreshAddons = useCallback(async () => {
