@@ -1,0 +1,92 @@
+{
+  "env": {
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "8000",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(.claude/**)",
+      "Write(**/CLAUDE.md)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(echo:*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run build*)",
+      "Bash(npm run type-check*)",
+      "Bash(npm audit*)"
+    ],
+    "deny": [
+      "Read(.env.local)",
+      "Read(.env.*.local)",
+      "Read(.env.production)",
+      "Read(.env.production.local)",
+      "Read(functions/.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/credentials/**)",
+      "Read(*serviceAccount*)",
+      "Read(*firebase-adminsdk*)",
+      "Write(src/**)",
+      "Write(functions/**)",
+      "Write(public/**)",
+      "Write(node_modules/**)",
+      "Write(.next/**)",
+      "Write(dist/**)",
+      "Write(.firebase/**)",
+      "Write(middleware.ts)",
+      "Write(next.config.ts)",
+      "Write(firebase.json)",
+      "Write(firestore.rules)",
+      "Write(firestore.indexes.json)",
+      "Write(storage.rules)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-check-update.js"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-context-monitor.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-prompt-guard.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node .claude/hooks/gsd-statusline.js"
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "claude-seo@claude-seo-marketplace": true,
+    "skillx@skillx-marketplace": true,
+    "frontend-design@claude-plugins-official": true
+  }
+}
