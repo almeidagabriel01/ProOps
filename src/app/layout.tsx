@@ -18,6 +18,7 @@ import { PermissionsProvider } from "@/providers/permissions-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -122,6 +123,7 @@ export default function RootLayout({
           </AuthProvider>
           <ToastProvider />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
