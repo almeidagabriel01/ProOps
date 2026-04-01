@@ -1,8 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
-import { useEffect } from "react";
-
 // global-error.tsx replaces the root layout — cannot rely on CSS being loaded.
 // Uses inline styles as a safe fallback for critical error rendering.
 export default function GlobalError({
@@ -12,11 +9,6 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      Sentry.captureException(error);
-    }
-  }, [error]);
 
   return (
     <html lang="pt-BR">

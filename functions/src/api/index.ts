@@ -1,7 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
 import cors from "cors";
-import { initSentry, Sentry } from "../lib/sentry";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { CORS_OPTIONS } from "../deploymentConfig";
@@ -38,7 +37,6 @@ import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 
 const app = express();
 
-initSentry();
 runSecretRotationGuard({ source: "api" });
 
 const DEFAULT_PUBLIC_WINDOW_MS = 60_000;
@@ -425,20 +423,6 @@ app.use(
     const requestId = (
       req as express.Request & { requestId?: string }
     ).requestId;
-
-    // Report to Sentry with per-request context
-    Sentry.withScope((scope) => {
-      if (req.user) {
-        scope.setUser({ id: (req.user as { uid?: string }).uid });
-        scope.setTag(
-          "tenantId",
-          String((req.user as { tenantId?: string }).tenantId || "unknown"),
-        );
-      }
-      if (requestId) scope.setTag("requestId", requestId);
-      scope.setTag("route", sanitizeLoggedPath(req.path));
-      Sentry.captureException(err);
-    });
 
     // Emit structured log entry picked up by GCP Cloud Logging
     logger.error("Unhandled Express error", {
