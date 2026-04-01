@@ -2,13 +2,16 @@
 
 Antes de fazer deploy, execute esta checklist completa:
 
-1. **Build check:**
+1. **Build check — TODOS devem passar sem erros nem warnings:**
    ```bash
-   npm run lint                           # ESLint frontend
+   npm run lint                           # ESLint frontend — zero erros e zero warnings
    npm run build                          # Next.js production build
    cd functions && npm run build && cd .. # Compila TypeScript das Cloud Functions
    ```
-   Reporte qualquer error (não só warning). Confirme que ambos os builds passam antes de continuar.
+   - **Erros de lint devem ser corrigidos**, nunca suprimidos com `// eslint-disable` ou regras desabilitadas.
+   - **Warnings de lint também devem ser corrigidos** — eles indicam bugs potenciais (deps ausentes em hooks, diretivas desnecessárias, etc.).
+   - Se o build falhar (frontend ou backend), **parar aqui e corrigir** antes de continuar.
+   - Nunca usar `// @ts-ignore`, `// @ts-expect-error` ou `any` para fazer TypeScript passar.
 
 2. **TypeScript check:**
    Verifique se há erros de tipo óbvios nos arquivos modificados nesta sessão.
