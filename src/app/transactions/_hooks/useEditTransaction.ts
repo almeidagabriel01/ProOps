@@ -302,11 +302,12 @@ export function useEditTransaction() {
       // If it's an installment or recurring, fetch related ones
       const groupId = safeData.installmentGroupId || safeData.recurringGroupId;
       if (
+        groupId &&
+        groupId !== "stub-group-id" &&
         (safeData.isInstallment ||
           safeData.isDownPayment ||
-          safeData.isRecurring) &&
-        groupId &&
-        groupId !== "stub-group-id"
+          safeData.isRecurring ||
+          !!safeData.installmentGroupId)
       ) {
         try {
           // For recurring, query by recurringGroupId since installmentGroupId is null
@@ -441,7 +442,7 @@ export function useEditTransaction() {
         notes: safeData.notes || "",
         isInstallment: safeData.isRecurring
           ? false
-          : hasGroup || (safeData.isInstallment ?? false),
+          : regularInstallments.length > 1 || (safeData.isInstallment ?? false),
         isRecurring: safeData.isRecurring ?? false,
         installmentCount: instCount > 0 ? instCount : 1,
         installmentInterval:

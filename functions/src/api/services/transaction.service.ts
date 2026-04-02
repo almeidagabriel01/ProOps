@@ -779,6 +779,7 @@ export class TransactionService {
           installmentNumber: i + 1,
           installmentGroupId: effectiveGroupId,
           installmentInterval: payload.installmentInterval || 1,
+          paymentMode: paymentMode,
           notes,
           updatedAt: now,
         };
@@ -831,6 +832,7 @@ export class TransactionService {
           installmentNumber: 0,
           installmentGroupId: effectiveGroupId,
           installmentInterval: payload.installmentInterval || 1,
+          paymentMode: paymentMode,
           notes,
           updatedAt: now,
         };

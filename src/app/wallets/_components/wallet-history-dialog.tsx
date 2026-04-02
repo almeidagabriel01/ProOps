@@ -201,7 +201,11 @@ export function WalletHistoryDialog({
 
         allTransactions.forEach((t: Transaction) => {
           // Check Main Transaction
-          if (t.wallet === wallet.name && t.status === "paid") {
+          // t.wallet can be wallet.id (new format, since Apr/2025) or wallet.name (legacy)
+          if (
+            (t.wallet === wallet.id || t.wallet === wallet.name) &&
+            t.status === "paid"
+          ) {
             // Show the payment date (when money moved), not the original transaction date
             const paidDate = t.paidAt || t.updatedAt || t.date;
             regularItems.push({
@@ -220,7 +224,10 @@ export function WalletHistoryDialog({
           if (t.extraCosts && Array.isArray(t.extraCosts)) {
             t.extraCosts.forEach((ec, index) => {
               const ecWallet = ec.wallet || t.wallet;
-              if (ecWallet === wallet.name && ec.status === "paid") {
+              if (
+                (ecWallet === wallet.id || ecWallet === wallet.name) &&
+                ec.status === "paid"
+              ) {
                 regularItems.push({
                   id: `ec_${t.id}_${index}`,
                   type: t.type as "income" | "expense", // Matches parent transaction type
