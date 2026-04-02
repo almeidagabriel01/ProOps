@@ -87,8 +87,7 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "claude-seo@claude-seo-marketplace": true,
     "skillx@skillx-marketplace": true,
-    "frontend-design@claude-plugins-official": true,
-    "context-mode@context-mode": true
+    "frontend-design@claude-plugins-official": true
   },
   "defaultMode": "auto"
 }

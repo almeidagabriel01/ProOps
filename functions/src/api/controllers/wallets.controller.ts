@@ -64,20 +64,6 @@ export const createWallet = async (req: Request, res: Response) => {
     const now = Timestamp.now();
     const initialBalance = data.initialBalance || 0;
 
-    if (data.isDefault) {
-      const defaults = await db
-        .collection(WALLETS_COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .where("isDefault", "==", true)
-        .get();
-
-      const batch = db.batch();
-      defaults.docs.forEach((d) =>
-        batch.update(d.ref, { isDefault: false, updatedAt: now }),
-      );
-      if (!defaults.empty) await batch.commit();
-    }
-
     // Enforce unique wallet names per tenant
     const existingByName = await db
       .collection(WALLETS_COLLECTION)
@@ -105,7 +91,27 @@ export const createWallet = async (req: Request, res: Response) => {
       updatedAt: now,
     };
 
-    const walletRef = await db.collection(WALLETS_COLLECTION).add(walletData);
+    let walletRefId: string;
+    if (data.isDefault) {
+      await db.runTransaction(async (t) => {
+        const defaults = await db
+          .collection(WALLETS_COLLECTION)
+          .where("tenantId", "==", tenantId)
+          .where("isDefault", "==", true)
+          .get();
+        defaults.docs.forEach((d) =>
+          t.update(d.ref, { isDefault: false, updatedAt: now }),
+        );
+        const newRef = db.collection(WALLETS_COLLECTION).doc();
+        walletRefId = newRef.id;
+        t.set(newRef, walletData);
+      });
+    } else {
+      const addedRef = await db.collection(WALLETS_COLLECTION).add(walletData);
+      walletRefId = addedRef.id;
+    }
+
+    const walletRef = db.collection(WALLETS_COLLECTION).doc(walletRefId!);
 
     if (initialBalance !== 0) {
       await db.collection(WALLET_TRANSACTIONS_COLLECTION).add({
@@ -156,21 +162,6 @@ export const updateWallet = async (req: Request, res: Response) => {
 
     const now = Timestamp.now();
 
-    if (updateData.isDefault) {
-      const defaults = await db
-        .collection(WALLETS_COLLECTION)
-        .where("tenantId", "==", tenantId)
-        .where("isDefault", "==", true)
-        .get();
-
-      const batch = db.batch();
-      defaults.docs.forEach((d) => {
-        if (d.id !== id)
-          batch.update(d.ref, { isDefault: false, updatedAt: now });
-      });
-      if (!defaults.empty) await batch.commit();
-    }
-
     const safeUpdate: Record<string, unknown> = { updatedAt: now };
     const fields = [
       "name",
@@ -205,7 +196,21 @@ export const updateWallet = async (req: Request, res: Response) => {
       }
     }
 
-    await walletRef.update(safeUpdate);
+    if (updateData.isDefault) {
+      await db.runTransaction(async (t) => {
+        const defaults = await db
+          .collection(WALLETS_COLLECTION)
+          .where("tenantId", "==", tenantId)
+          .where("isDefault", "==", true)
+          .get();
+        defaults.docs.forEach((d) => {
+          if (d.id !== id) t.update(d.ref, { isDefault: false, updatedAt: now });
+        });
+        t.update(walletRef, safeUpdate);
+      });
+    } else {
+      await walletRef.update(safeUpdate);
+    }
     return res.json({ success: true, message: "Carteira atualizada." });
   } catch (error: unknown) {
     const message =
@@ -241,14 +246,24 @@ export const deleteWallet = async (req: Request, res: Response) => {
       });
     }
 
-    const transactions = await db
-      .collection(WALLET_TRANSACTIONS_COLLECTION)
-      .where("walletId", "==", id)
-      .get();
-    const batch = db.batch();
-    transactions.docs.forEach((d) => batch.delete(d.ref));
-    batch.delete(walletRef);
-    await batch.commit();
+    // Delete wallet_transactions in paginated batches (Firestore batch limit is 500)
+    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    do {
+      let query = db
+        .collection(WALLET_TRANSACTIONS_COLLECTION)
+        .where("walletId", "==", id)
+        .limit(400);
+      if (lastDoc) query = query.startAfter(lastDoc);
+      const snap = await query.get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      lastDoc = snap.docs[snap.docs.length - 1];
+      if (snap.docs.length < 400) break;
+    } while (true);
+
+    await walletRef.delete();
 
     return res.json({ success: true, message: "Carteira excluída." });
   } catch (error: unknown) {

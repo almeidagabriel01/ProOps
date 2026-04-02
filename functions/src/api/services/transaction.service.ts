@@ -74,6 +74,8 @@ const UPDATABLE_TRANSACTION_FIELDS = new Set([
   "paymentMode",
   "notes",
   "extraCosts",
+  "isPartialPayment",
+  "parentTransactionId",
 ]);
 
 function sanitizeTransactionUpdateData(
@@ -347,13 +349,13 @@ export class TransactionService {
             amount: baseAmount,
             date: currentDate,
             dueDate: currentDueDate,
-
             status: currentStatus,
             clientId: data.clientId || null,
             clientName: data.clientName || null,
             proposalId: data.proposalId || null,
             category: data.category || null,
             wallet: data.wallet || null,
+            isDownPayment: false,
             isInstallment: !!data.isInstallment,
             isRecurring: !!data.isRecurring,
             downPaymentType: data.downPaymentType || null,
@@ -421,6 +423,47 @@ export class TransactionService {
             wallet,
             (walletAdjustments.get(wallet) || 0) + adj,
           );
+        }
+      }
+
+      // If a down payment is bundled, add it to the same atomic batch
+      if (data.downPayment) {
+        const dp = data.downPayment;
+        const dpTx = {
+          tenantId,
+          type: data.type,
+          description: data.description.trim(),
+          amount: dp.amount,
+          date: dp.date,
+          dueDate: dp.dueDate || null,
+          status: dp.status,
+          clientId: data.clientId || null,
+          clientName: data.clientName || null,
+          proposalId: data.proposalId || null,
+          category: data.category || null,
+          wallet: dp.wallet || null,
+          isDownPayment: true,
+          isInstallment: false,
+          isRecurring: false,
+          downPaymentType: dp.downPaymentType || null,
+          downPaymentPercentage: dp.downPaymentPercentage || null,
+          installmentCount: dp.installmentCount || null,
+          installmentNumber: dp.installmentNumber ?? 0,
+          installmentGroupId: groupId,
+          installmentInterval: data.installmentInterval || null,
+          paymentMode: dp.paymentMode || null,
+          notes: dp.notes || null,
+          extraCosts: [],
+          createdAt: now,
+          updatedAt: now,
+          createdById: userId,
+        };
+
+        transactionsToCreate.push(dpTx);
+
+        const dpImpacts = getWalletImpacts(dpTx);
+        for (const [wallet, adj] of dpImpacts.entries()) {
+          walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + adj);
         }
       }
 
@@ -764,7 +807,7 @@ export class TransactionService {
           type,
           description,
           amount: downPaymentAmount,
-          date: downPaymentDueDate,
+          date: launchDate,
           dueDate: downPaymentDueDate,
           status:
             existingDownPayment?.data?.status ||
@@ -1064,6 +1107,11 @@ export class TransactionService {
   /**
    * Batch update status of multiple transactions.
    */
+  // Each ID in a batch generates ~2 Firestore writes (transaction + wallet).
+  // Firestore transactions cap at 500 writes, so 200 IDs keeps a safe margin.
+  static readonly BATCH_STATUS_MAX_IDS = 200;
+  static readonly BATCH_UPDATE_MAX_IDS = 100;
+
   static async updateStatusBatch(
     userId: string,
     user: any,
@@ -1071,6 +1119,13 @@ export class TransactionService {
     newStatus: "paid" | "pending" | "overdue",
   ) {
     const uniqueIds = Array.from(new Set(ids.filter(Boolean)));
+
+    if (uniqueIds.length > TransactionService.BATCH_STATUS_MAX_IDS) {
+      throw new Error(
+        `Limite de ${TransactionService.BATCH_STATUS_MAX_IDS} lançamentos por operação em lote excedido. Divida em operações menores.`,
+      );
+    }
+
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,
       "canEdit",
@@ -1226,6 +1281,156 @@ export class TransactionService {
   }
 
   /**
+   * Atomically updates multiple transactions in a single Firestore transaction.
+   * Recalculates wallet balances for all affected wallets correctly.
+   * Intended for bulk field changes (wallet, amount, date, etc.).
+   */
+  static async updateTransactionsBatch(
+    userId: string,
+    user: any,
+    updates: Array<{ id: string; data: Record<string, unknown> }>,
+  ) {
+    if (updates.length === 0) return 0;
+    if (updates.length > TransactionService.BATCH_UPDATE_MAX_IDS) {
+      throw new Error(
+        `Limite de ${TransactionService.BATCH_UPDATE_MAX_IDS} lançamentos por operação em lote excedido.`,
+      );
+    }
+
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+
+    return await db.runTransaction(async (t) => {
+      const now = Timestamp.now();
+      type TxEntry = {
+        ref: FirebaseFirestore.DocumentReference;
+        current: Record<string, any>;
+        safeUpdate: Record<string, unknown>;
+      };
+      const entries: TxEntry[] = [];
+      const walletAdjustments = new Map<string, { tenantId: string; delta: number }>();
+
+      // Phase 1: read all transaction docs
+      for (const { id, data } of updates) {
+        const ref = db.collection(COLLECTION_NAME).doc(id);
+        const snap = await t.get(ref);
+        if (!snap.exists) continue;
+
+        const current = snap.data() as Record<string, any>;
+        if (!current) continue;
+        if (!isSuperAdmin && current.tenantId !== tenantId) throw new Error("Acesso negado.");
+
+        const safeUpdate = sanitizeTransactionUpdateData(data);
+        const next = { ...current, ...safeUpdate };
+
+        const oldImpacts = getWalletImpacts(current);
+        const newImpacts = getWalletImpacts(next);
+        const txTenantId = current.tenantId as string || tenantId;
+
+        for (const [wallet, amt] of oldImpacts.entries()) {
+          const key = `${txTenantId}::${wallet}`;
+          const prev = walletAdjustments.get(key);
+          walletAdjustments.set(key, { tenantId: txTenantId, delta: (prev?.delta || 0) - amt });
+        }
+        for (const [wallet, amt] of newImpacts.entries()) {
+          const key = `${txTenantId}::${wallet}`;
+          const prev = walletAdjustments.get(key);
+          walletAdjustments.set(key, { tenantId: txTenantId, delta: (prev?.delta || 0) + amt });
+        }
+
+        entries.push({ ref, current, safeUpdate });
+      }
+
+      // Phase 2: read all wallet docs (must precede any write)
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [key, adj] of walletAdjustments.entries()) {
+        if (adj.delta === 0) continue;
+        const wallet = key.split("::")[1];
+        const walletInfo = await resolveWalletRef(t, db, adj.tenantId, wallet);
+        if (!walletInfo) {
+          logger.error("Wallet not found during batch update", { tenantId: adj.tenantId, wallet, delta: adj.delta });
+          throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        }
+        walletRefs.set(key, walletInfo.ref);
+      }
+
+      // Phase 3: write all updates
+      for (const { ref, current, safeUpdate } of entries) {
+        const nextStatus = (safeUpdate.status as string | undefined);
+        const statusChanged = nextStatus && nextStatus !== current.status;
+        const finalUpdate: Record<string, any> = { ...safeUpdate, updatedAt: now };
+        if (statusChanged && nextStatus === "paid") {
+          finalUpdate.paidAt = now;
+        } else if (statusChanged) {
+          finalUpdate.paidAt = FieldValue.delete();
+        }
+        t.update(ref, finalUpdate);
+      }
+
+      for (const [key, adj] of walletAdjustments.entries()) {
+        if (adj.delta === 0) continue;
+        const walletRef = walletRefs.get(key);
+        if (!walletRef) continue;
+        t.update(walletRef, { balance: FieldValue.increment(adj.delta), updatedAt: now });
+      }
+
+      return entries.length;
+    });
+  }
+
+  /**
+   * Atomically updates status for all transactions belonging to a group.
+   * Discovers group members server-side (authoritative — no stale client IDs).
+   * Supports installmentGroupId, recurringGroupId, and proposalGroupId.
+   */
+  static async updateGroupStatus(
+    userId: string,
+    user: any,
+    groupId: string,
+    newStatus: "paid" | "pending" | "overdue",
+  ) {
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+
+    // Discover all members of this group server-side before entering the transaction.
+    const [installmentSnap, recurringSnap, proposalSnap] = await Promise.all([
+      db.collection(COLLECTION_NAME)
+        .where("tenantId", "==", tenantId)
+        .where("installmentGroupId", "==", groupId)
+        .get(),
+      db.collection(COLLECTION_NAME)
+        .where("tenantId", "==", tenantId)
+        .where("recurringGroupId", "==", groupId)
+        .get(),
+      db.collection(COLLECTION_NAME)
+        .where("tenantId", "==", tenantId)
+        .where("proposalGroupId", "==", groupId)
+        .get(),
+    ]);
+
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const snap of [installmentSnap, recurringSnap, proposalSnap]) {
+      for (const doc of snap.docs) {
+        if (!seen.has(doc.id)) {
+          seen.add(doc.id);
+          if (!isSuperAdmin && doc.data().tenantId !== tenantId) {
+            throw new Error("Acesso negado.");
+          }
+          ids.push(doc.id);
+        }
+      }
+    }
+
+    if (ids.length === 0) throw new Error("Grupo não encontrado.");
+    if (ids.length > TransactionService.BATCH_STATUS_MAX_IDS) {
+      throw new Error(
+        `Grupo contém ${ids.length} lançamentos, excedendo o limite de ${TransactionService.BATCH_STATUS_MAX_IDS} por operação.`,
+      );
+    }
+
+    return TransactionService.updateStatusBatch(userId, user, ids, newStatus);
+  }
+
+  /**
    * Deletes a transaction and reverts any wallet balance changes.
    */
   static async deleteTransaction(userId: string, user: any, id: string) {
@@ -1325,6 +1530,196 @@ export class TransactionService {
       }
 
       t.delete(ref);
+    });
+  }
+
+  /**
+   * Deletes all transactions in a group atomically, reverting all wallet balances.
+   */
+  static async deleteTransactionGroup(userId: string, user: any, groupId: string) {
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canDelete", user);
+
+    await db.runTransaction(async (t) => {
+      const installmentSnap = await t.get(
+        db.collection(COLLECTION_NAME).where("tenantId", "==", tenantId).where("installmentGroupId", "==", groupId),
+      );
+      const recurringSnap = await t.get(
+        db.collection(COLLECTION_NAME).where("tenantId", "==", tenantId).where("recurringGroupId", "==", groupId),
+      );
+
+      const seen = new Set<string>();
+      const docs = [...installmentSnap.docs, ...recurringSnap.docs].filter((d) => {
+        if (seen.has(d.id)) return false;
+        seen.add(d.id);
+        return true;
+      });
+
+      if (docs.length === 0) throw new Error("Grupo não encontrado.");
+
+      // Validate tenant access on the first authoritative doc.
+      if (!isSuperAdmin && docs[0].data().tenantId !== tenantId) {
+        throw new Error("Acesso negado.");
+      }
+
+      // BUG-10: Also find orphan down payments linked via proposalGroupId.
+      // Old down payments (pre-migration) were created without installmentGroupId
+      // but share a proposalGroupId with their sibling installments.
+      const proposalGroupIds = new Set<string>();
+      docs.forEach((d) => {
+        const pgId = d.data().proposalGroupId as string | undefined;
+        if (pgId) proposalGroupIds.add(pgId);
+      });
+      for (const pgId of proposalGroupIds) {
+        const pgSnap = await t.get(
+          db.collection(COLLECTION_NAME)
+            .where("tenantId", "==", tenantId)
+            .where("proposalGroupId", "==", pgId),
+        );
+        pgSnap.docs.forEach((d) => {
+          if (!seen.has(d.id)) {
+            seen.add(d.id);
+            docs.push(d);
+          }
+        });
+      }
+
+      // BUG-11: Check proposal lock across ALL docs, not just the first.
+      // In normal data every doc shares the same proposalId, but defensively
+      // we check all unique proposalIds to guard against corrupted data.
+      const proposalIds = new Set<string>();
+      docs.forEach((d) => {
+        const pid = d.data().proposalId as string | undefined;
+        if (pid) proposalIds.add(pid);
+      });
+      for (const proposalId of proposalIds) {
+        const proposalSnap = await t.get(db.collection("proposals").doc(proposalId));
+        if (proposalSnap.exists && proposalSnap.data()?.status === "approved") {
+          throw new Error(
+            "Não é possível excluir lançamentos vinculados a uma proposta Aprovada. Reverta o status da proposta para Rascunho antes de excluir.",
+          );
+        }
+      }
+
+      const txTenantId = (docs[0].data().tenantId as string) || tenantId;
+      const walletAdjustments = new Map<string, number>();
+
+      for (const doc of docs) {
+        const data = doc.data();
+        const addImpact = (wallet: string | null | undefined, amount: number, isIncome: boolean) => {
+          if (!wallet) return;
+          const delta = (isIncome ? 1 : -1) * (amount || 0);
+          walletAdjustments.set(wallet, (walletAdjustments.get(wallet) || 0) + delta);
+        };
+        if (data.status === "paid" && data.wallet) {
+          addImpact(data.wallet, data.amount, data.type === "income");
+        }
+        if (data.extraCosts && Array.isArray(data.extraCosts)) {
+          for (const ec of data.extraCosts) {
+            if (ec.status === "paid" && (ec.wallet || data.wallet)) {
+              addImpact(ec.wallet || data.wallet, ec.amount, data.type === "income");
+            }
+          }
+        }
+      }
+
+      // Resolve wallet refs (reads before writes)
+      const walletRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+      for (const [wallet, adj] of walletAdjustments.entries()) {
+        if (adj === 0) continue;
+        const w = await resolveWalletRef(t, db, txTenantId, wallet);
+        if (!w) {
+          logger.error("Wallet not found during group deletion", { tenantId: txTenantId, wallet, adjustment: adj });
+          throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        }
+        walletRefs.set(wallet, w.ref);
+      }
+
+      for (const [wallet, adj] of walletAdjustments.entries()) {
+        if (adj === 0) continue;
+        const walletRef = walletRefs.get(wallet);
+        if (walletRef) {
+          t.update(walletRef, { balance: FieldValue.increment(-adj), updatedAt: Timestamp.now() });
+        }
+      }
+
+      for (const doc of docs) {
+        t.delete(doc.ref);
+      }
+    });
+  }
+
+  /**
+   * Registers a partial payment atomically:
+   * updates the original transaction to the paid partial amount and
+   * creates a new pending transaction for the remaining amount.
+   */
+  static async registerPartialPayment(
+    userId: string,
+    user: any,
+    id: string,
+    partialAmount: number,
+    date: string,
+  ) {
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+
+    await db.runTransaction(async (t) => {
+      const ref = db.collection(COLLECTION_NAME).doc(id);
+      const snap = await t.get(ref);
+      if (!snap.exists) throw new Error("Transação não encontrada.");
+
+      const data = snap.data()!;
+      const txTenantId = data.tenantId as string;
+      if (!isSuperAdmin && txTenantId !== tenantId) throw new Error("Acesso negado.");
+      if (partialAmount <= 0) throw new Error("Valor parcial deve ser maior que zero.");
+
+      const remainingAmount = roundCurrency(data.amount - partialAmount);
+      if (remainingAmount <= 0) throw new Error("Valor parcial deve ser menor que o valor total.");
+
+      const now = Timestamp.now();
+      const wallet = data.wallet as string | null | undefined;
+      const isIncome = data.type === "income";
+
+      // Wallet delta: if previously paid → refund remaining; if pending → credit partial
+      let walletDelta = 0;
+      if (wallet) {
+        if (data.status === "paid") {
+          walletDelta = (isIncome ? -1 : 1) * remainingAmount;
+        } else {
+          walletDelta = (isIncome ? 1 : -1) * partialAmount;
+        }
+      }
+
+      if (wallet && walletDelta !== 0) {
+        const w = await resolveWalletRef(t, db, txTenantId, wallet);
+        if (!w) throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        t.update(w.ref, { balance: FieldValue.increment(walletDelta), updatedAt: now });
+      }
+
+      // Mark original as paid with the partial amount; paidAt must be set explicitly
+      // because this path bypasses the generic updateTransaction paidAt logic.
+      t.update(ref, {
+        amount: partialAmount,
+        status: "paid",
+        date,
+        isPartialPayment: true,
+        paidAt: now,
+        updatedAt: now,
+      });
+
+      // Remaining amount is always a new pending obligation regardless of whether
+      // the original was overdue — the user just settled part of it.
+      const remainingRef = db.collection(COLLECTION_NAME).doc();
+      t.set(remainingRef, {
+        ...data,
+        amount: remainingAmount,
+        status: "pending",
+        isPartialPayment: false,
+        parentTransactionId: id,
+        paidAt: null,
+        createdAt: now,
+        updatedAt: now,
+        createdById: userId,
+      });
     });
   }
 }

@@ -93,18 +93,18 @@ export function TransactionInstallmentsList({
     );
   }, [installments]);
 
+  // Whether the group contains real installments (not just a down payment + main tx)
+  const hasTrueInstallments = React.useMemo(
+    () => installments.some((i) => i.isInstallment && !i.isDownPayment),
+    [installments],
+  );
+
   // Group installments by number
   const groupedInstallments = React.useMemo(() => {
     const groups = new Map<
       number,
       { main: Transaction; subs: Transaction[] }
     >();
-
-    // Determine if we have actual installments (not just down payment or leftovers)
-    // This helps in hiding the "Restante" (non-installment remainder) if true installments exist.
-    const hasTrueInstallments = installments.some(
-      (i) => i.isInstallment && !i.isDownPayment,
-    );
 
     // Filter out the "Restante" item if we have actual installments.
     // The "Restante" item is characterized by !isInstallment, !isDownPayment, !isPartialPayment (usually).
@@ -406,24 +406,26 @@ export function TransactionInstallmentsList({
         {/* Installments Section */}
         {sortedInstallments.some((i) => !i.isDownPayment) && (
           <div className="space-y-1">
-            {/* Only show header if there are installments */}
-            <div className="flex items-center gap-2 px-1">
-              {installments.some((i) => i.isRecurring) ? (
-                <>
-                  <RefreshCw className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Recorrências ({groupedInstallments.length})
-                  </span>
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Parcelas ({groupedInstallments.length}x)
-                  </span>
-                </>
-              )}
-            </div>
+            {/* Header: only for recurring or true installment groups */}
+            {(isRecurringGroup || hasTrueInstallments) && (
+              <div className="flex items-center gap-2 px-1">
+                {isRecurringGroup ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Recorrências ({groupedInstallments.length})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Parcelas ({groupedInstallments.length}x)
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="space-y-2">
@@ -514,19 +516,20 @@ export function TransactionInstallmentsList({
 
                           <div>
                             <div className="font-medium text-sm">
-                              {hasSubs
-                                ? group.main.isRecurring
-                                  ? `Recorrência #${group.main.installmentNumber}`
-                                  : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`
-                                : group.main.isPartialPayment // If single item is partial (rare/impossible in this flow?)
-                                  ? group.main.isRecurring
-                                    ? `Recorrência #${group.main.installmentNumber} (Parcial)`
-                                    : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount} (Parcial)`
-                                  : group.main.description === "Restante"
-                                    ? "Restante"
-                                    : group.main.isRecurring
-                                      ? `Recorrência #${group.main.installmentNumber}`
-                                      : `Parcela ${group.main.installmentNumber}/${group.main.installmentCount}`}
+                              {(() => {
+                                const tx = group.main;
+                                if (tx.isRecurring) {
+                                  return hasSubs || tx.isPartialPayment
+                                    ? `Recorrência #${tx.installmentNumber} (Parcial)`
+                                    : `Recorrência #${tx.installmentNumber}`;
+                                }
+                                if (tx.isInstallment) {
+                                  const label = `Parcela ${tx.installmentNumber}/${tx.installmentCount}`;
+                                  return tx.isPartialPayment ? `${label} (Parcial)` : label;
+                                }
+                                // Non-installment item (e.g. main tx of a group with only a down payment)
+                                return tx.description || "Restante";
+                              })()}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Venc:{" "}
@@ -639,7 +642,9 @@ export function TransactionInstallmentsList({
                                       <span>
                                         {subItem.isRecurring
                                           ? `Recorrência #${subItem.installmentNumber}`
-                                          : `Parcela ${subItem.installmentNumber}/${subItem.installmentCount}`}
+                                          : subItem.isInstallment
+                                            ? `Parcela ${subItem.installmentNumber}/${subItem.installmentCount}`
+                                            : subItem.description || "Restante"}
                                       </span>
                                       <Badge
                                         variant="secondary"

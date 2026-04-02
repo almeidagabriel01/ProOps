@@ -29,6 +29,21 @@ export interface CreateTransactionDTO {
   
   notes?: string;
   extraCosts?: any[];
+
+  // Bundled down payment — created atomically with the main transaction
+  downPayment?: {
+    amount: number;
+    date: string;
+    dueDate?: string;
+    wallet?: string;
+    status: "paid" | "pending" | "overdue";
+    downPaymentType?: string;
+    downPaymentPercentage?: number;
+    installmentNumber?: number;
+    installmentCount?: number;
+    paymentMode?: "total" | "installmentValue";
+    notes?: string;
+  };
 }
 
 export const validateTransactionData = (data: Partial<CreateTransactionDTO>) => {
@@ -45,10 +60,12 @@ export const validateTransactionData = (data: Partial<CreateTransactionDTO>) => 
     };
   }
   
-  if (data.amount <= 0 && data.type !== 'expense') { 
-     // While technically amount could be negative in some apps, usually for transaction it's absolute value + type.
-     // But let's keep it simple and just check required fields for now matching original controller logic.
-     // Original logic: just checks falsy values.
+  if (data.amount <= 0) {
+    return { isValid: false, message: "O valor deve ser maior que zero." };
+  }
+
+  if (data.downPayment !== undefined && !["paid", "pending"].includes(data.downPayment.status)) {
+    return { isValid: false, message: "Status da entrada deve ser 'paid' ou 'pending'." };
   }
 
   return { isValid: true, message: "" };

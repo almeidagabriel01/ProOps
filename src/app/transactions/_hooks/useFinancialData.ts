@@ -515,9 +515,16 @@ export function useFinancialData(): UseFinancialDataReturn {
 
           // If for some reason we didn't find one (empty group?), skip
           if (active) {
-            const stableAnchor =
-              groupWithOrphans.find((g) => isDownPaymentLike(g)) ||
-              groupWithOrphans[0];
+            const hasTrueInstallments = groupWithOrphans.some(
+              (g) => g.isInstallment && !g.isDownPayment,
+            );
+            // For installment groups: anchor on the down payment (installmentNumber 0 is stable).
+            // For simple groups (down payment + main tx only): anchor on the main tx so the
+            // card shows the correct total amount and metadata instead of the entrada's data.
+            // Uses the explicit isDownPayment flag — not the heuristic — to find the main tx.
+            const stableAnchor = hasTrueInstallments
+              ? (groupWithOrphans.find((g) => isDownPaymentLike(g)) || groupWithOrphans[0])
+              : (groupWithOrphans.find((g) => !g.isDownPayment) || groupWithOrphans[0]);
             const groupedSource = group[0] || active;
             let aggregateStatus: Transaction["status"] = "paid";
             if (groupWithOrphans.some((g) => g.status === "overdue")) {
@@ -719,7 +726,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           if (!t.dueDate) return Infinity; // Items without due date go to the end
           const dateStr = getDateString(t.dueDate);
           if (!dateStr) return Infinity;
-          return new Date(dateStr).getTime();
+          return new Date(dateStr + "T12:00:00").getTime();
         };
         return getDueDateMs(a) - getDueDateMs(b);
       });
@@ -946,7 +953,9 @@ export function useFinancialData(): UseFinancialDataReturn {
           }
         });
         return prev.map((w) => {
-          const diff = (netDeltas.get(w.name) || 0) + (netDeltas.get(w.id) || 0);
+          // Use OR (not sum) to avoid double-counting when the same wallet is keyed
+          // by both its ID (new data) and its name (legacy data) in the deltas map.
+          const diff = netDeltas.get(w.id) ?? netDeltas.get(w.name) ?? 0;
           if (diff === 0) return w;
           return { ...w, balance: w.balance + diff };
         });
@@ -997,29 +1006,29 @@ export function useFinancialData(): UseFinancialDataReturn {
   // Delete all installments in a group
   const deleteTransactionGroup = React.useCallback(
     async (transaction: Transaction): Promise<boolean> => {
+      const groupId = transaction.installmentGroupId || transaction.recurringGroupId;
+      // Lock on the group ID (or the single transaction ID) to prevent double-click races.
+      const lockKey = groupId || transaction.id;
+      if (updatingIdsRef.current.has(lockKey)) return false;
+      updatingIdsRef.current.add(lockKey);
+
       const transactionLabel = formatTransactionLabel(transaction);
 
       try {
-        // If it's an installment or recurrence, delete all in the group
-        const groupId =
-          transaction.installmentGroupId || transaction.recurringGroupId;
         if (groupId) {
           const groupTransactions = transactions.filter(
             (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
           );
 
-          // Delete all installments
-          await Promise.all(
-            groupTransactions.map((t) =>
-              TransactionService.deleteTransaction(t.id),
-            ),
-          );
+          await TransactionService.deleteTransactionGroup(groupId);
 
-          // Optimistic update
+          // Batch optimistic update: single setWallets call = single re-render (BUG-9).
+          // Pass newTx with no wallet so calculateWalletImpacts returns 0 for it,
+          // effectively reverting only the paid transactions' wallet impact.
           applyOptimisticWalletUpdateBatch(
             groupTransactions.map((t) => ({
               oldTx: t,
-              newTx: { ...t, status: "pending" as const } as Transaction,
+              newTx: { ...t, wallet: undefined, status: "pending" as TransactionStatus },
             })),
           );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
@@ -1033,9 +1042,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           // Single transaction
           await TransactionService.deleteTransaction(transaction.id);
           applyOptimisticWalletUpdate(transaction, undefined);
-          setTransactions((prev) =>
-            prev.filter((t) => t.id !== transaction.id),
-          );
+          setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
           toast.success(
             `Lancamento ${transactionLabel} foi excluido com sucesso.`,
             { title: "Sucesso ao excluir" },
@@ -1057,6 +1064,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           { title: "Erro ao excluir" },
         );
         return false;
+      } finally {
+        updatingIdsRef.current.delete(lockKey);
       }
     },
     [
@@ -1169,58 +1178,47 @@ export function useFinancialData(): UseFinancialDataReturn {
     [fetchData, applyOptimisticWalletUpdate],
   );
 
-  // Batch update transactions
+  // Batch update transactions — single atomic backend call (no partial failures)
   const updateBatchTransactions = React.useCallback(
     async (
       updates: { id: string; data: Partial<Transaction> }[],
     ): Promise<boolean> => {
+      if (updates.some((u) => updatingIdsRef.current.has(u.id))) return false;
+      updates.forEach((u) => updatingIdsRef.current.add(u.id));
       try {
-        await Promise.all(
-          updates.map((update) =>
-            TransactionService.updateTransaction(update.id, update.data),
-          ),
-        );
+        await TransactionService.updateTransactionsBatch(updates);
 
-        // Optimistic update
         const updatesMap = new Map(updates.map((u) => [u.id, u.data]));
         const batchWalletUpdates = transactions
           .filter((t) => updatesMap.has(t.id))
           .map((t) => ({
             oldTx: t,
-            newTx: buildNextTransactionState(
-              t,
-              updatesMap.get(t.id) as Partial<Transaction>,
-            ),
+            newTx: buildNextTransactionState(t, updatesMap.get(t.id) as Partial<Transaction>),
           }));
         applyOptimisticWalletUpdateBatch(batchWalletUpdates);
 
-        setTransactions((prev) => {
-          return prev.map((t) => {
+        setTransactions((prev) =>
+          prev.map((t) => {
             const update = updatesMap.get(t.id);
             return update ? buildNextTransactionState(t, update) : t;
-          });
-        });
-
-        toast.success(
-          `${updates.length} lançamentos foram atualizados com sucesso.`,
-          { title: "Sucesso ao editar" },
+          }),
         );
 
-        // Refresh truth from server (background)
-        await fetchData(true);
+        toast.success(`${updates.length} lançamentos foram atualizados com sucesso.`, {
+          title: "Sucesso ao editar",
+        });
 
+        await fetchData(true);
         return true;
       } catch (error) {
         console.error("Error updating batch:", error);
-        const errorMessage = getErrorMessage(
-          error,
-          "Falha inesperada ao editar os lançamentos.",
-        );
-        toast.error(
-          `Não foi possível editar ${updates.length} lançamentos. Detalhes: ${errorMessage}`,
-          { title: "Erro ao editar" },
-        );
+        const errorMessage = getErrorMessage(error, "Falha inesperada ao editar os lançamentos.");
+        toast.error(`Não foi possível editar ${updates.length} lançamentos. Detalhes: ${errorMessage}`, {
+          title: "Erro ao editar",
+        });
         return false;
+      } finally {
+        updates.forEach((u) => updatingIdsRef.current.delete(u.id));
       }
     },
     [fetchData, applyOptimisticWalletUpdateBatch, transactions],
@@ -1246,64 +1244,39 @@ export function useFinancialData(): UseFinancialDataReturn {
           (transaction.installmentGroupId || transaction.recurringGroupId) &&
           updateAll;
 
-        if (hasProposalGroup) {
-          // Update all transactions in the proposal group (down payment + all installments)
-          const groupTransactions = transactions.filter(
-            (t) => t.proposalGroupId === transaction.proposalGroupId,
-          );
-
-          await TransactionService.updateTransactionsStatusBatch(
-            groupTransactions.map((t) => t.id),
-            newStatus,
-          );
-
-          // Update local state for all
-          applyOptimisticWalletUpdateBatch(
-            groupTransactions.map((t) => ({
-              oldTx: t,
-              newTx: buildTransactionWithStatus(t, newStatus),
-            })),
-          );
-          const groupIds = new Set(groupTransactions.map((t) => t.id));
-          setTransactions((prev) =>
-            prev.map((t) =>
-              groupIds.has(t.id) ? buildTransactionWithStatus(t, newStatus) : t,
-            ),
-          );
-
-          toast.success(
-            `${groupTransactions.length} lançamentos da proposta ${transactionLabel} tiveram status atualizado para "${formatStatusLabel(newStatus)}".`,
-            { title: "Sucesso ao editar" },
-          );
-        } else if (hasInstallmentGroup) {
-          // Update all elements in the installment or recurring group
+        if (hasProposalGroup || hasInstallmentGroup) {
+          // Use the authoritative group ID — server will discover all members,
+          // including ones added from other tabs after our local state was loaded (BUG-12).
           const groupId =
-            transaction.installmentGroupId || transaction.recurringGroupId;
-          const groupTransactions = transactions.filter(
-            (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
+            transaction.proposalGroupId ||
+            transaction.installmentGroupId ||
+            transaction.recurringGroupId;
+
+          await TransactionService.updateGroupStatus(groupId!, newStatus);
+
+          // Optimistic local update based on what we know locally.
+          // Background refresh below will reconcile any server-discovered extras.
+          const localGroupTransactions = transactions.filter(
+            (t) =>
+              (hasProposalGroup && t.proposalGroupId === transaction.proposalGroupId) ||
+              (hasInstallmentGroup &&
+                (t.installmentGroupId || t.recurringGroupId) ===
+                  (transaction.installmentGroupId || transaction.recurringGroupId)),
           );
 
-          await TransactionService.updateTransactionsStatusBatch(
-            groupTransactions.map((t) => t.id),
-            newStatus,
-          );
-
-          // Update local state for all
           applyOptimisticWalletUpdateBatch(
-            groupTransactions.map((t) => ({
+            localGroupTransactions.map((t) => ({
               oldTx: t,
               newTx: buildTransactionWithStatus(t, newStatus),
             })),
           );
-          const groupIds = new Set(groupTransactions.map((t) => t.id));
+          const groupIds = new Set(localGroupTransactions.map((t) => t.id));
           setTransactions((prev) =>
-            prev.map((t) =>
-              groupIds.has(t.id) ? buildTransactionWithStatus(t, newStatus) : t,
-            ),
+            prev.map((t) => (groupIds.has(t.id) ? buildTransactionWithStatus(t, newStatus) : t)),
           );
 
           toast.success(
-            `${groupTransactions.length} parcelas de ${transactionLabel} tiveram status atualizado para "${formatStatusLabel(newStatus)}".`,
+            `${localGroupTransactions.length} lançamentos de ${transactionLabel} tiveram status atualizado para "${formatStatusLabel(newStatus)}".`,
             { title: "Sucesso ao editar" },
           );
         } else {
@@ -1360,6 +1333,9 @@ export function useFinancialData(): UseFinancialDataReturn {
       ecId: string,
       newStatus: TransactionStatus,
     ): Promise<boolean> => {
+      const lockKey = `${parentTxId}:${ecId}`;
+      if (updatingIdsRef.current.has(lockKey)) return false;
+      updatingIdsRef.current.add(lockKey);
       try {
         const parentTx = transactions.find((t) => t.id === parentTxId);
         if (!parentTx) throw new Error("Parent transaction not found");
@@ -1409,6 +1385,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           { title: "Erro ao editar" },
         );
         return false;
+      } finally {
+        updatingIdsRef.current.delete(lockKey);
       }
     },
     [transactions, applyOptimisticWalletUpdate, fetchData],
@@ -1422,55 +1400,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       date: string,
     ): Promise<void> => {
       try {
-        const remainingAmount = originalTransaction.amount - amount;
-
-        // 1. Update original to be the PAID part (isPartialPayment = true)
-        // This ensures the history/log shows this specific ID was paid
-        await TransactionService.updateTransaction(originalTransaction.id, {
-          amount: amount,
-          status: "paid",
-          date: date,
-          isPartialPayment: true,
-          // Keep installment info so it stays linked to the group
-        });
-
-        // 2. Create new transaction for the REMAINING part (Pending)
-        // Explicitly remove ID to ensure clean creation
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { id: _id, ...originalData } = originalTransaction;
-
-        // CRITICAL FIX: The backend auto-generates installments if isInstallment=true AND installmentCount > 1 AND installmentNumber=1.
-        // Since we are splitting Installment 1, we must avoid this auto-generation which creates duplicates (IDs 5,7,9,10 etc).
-        // We temporarily set installmentCount to 1 to bypass creation logic, then update it back.
-
-        // 2.1 Create with count 1
-        const createResult = await TransactionService.createTransaction({
-          ...originalData,
-          amount: remainingAmount,
-          status:
-            originalTransaction.status === "paid"
-              ? "pending"
-              : originalTransaction.status,
-          isPartialPayment: false, // This is the new "Main" one
-          parentTransactionId: originalTransaction.id,
-          installmentCount: 1, // Bypass backend recursion
-          // Keep other metadata
-        } as unknown as Omit<Transaction, "id">);
-
-        // 2.2 Restore correct installment count if needed
-        if (
-          originalData.isInstallment &&
-          (originalData.installmentCount || 0) > 1 &&
-          createResult?.id
-        ) {
-          await TransactionService.updateTransaction(createResult.id, {
-            installmentCount: originalData.installmentCount,
-          });
-        }
-
+        await TransactionService.registerPartialPayment(originalTransaction.id, amount, date);
         toast.success("Pagamento parcial registrado com sucesso!");
-
-        // Refresh truth from server (background)
         await fetchData(true);
       } catch (error) {
         console.error("Error registering partial payment:", error);

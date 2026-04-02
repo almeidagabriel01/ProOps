@@ -512,9 +512,11 @@ export function useTransactionForm(): UseTransactionFormReturn {
       }
 
       // Generate Group ID
-      const submitDbCount = formData.isRecurring
-        ? 1
-        : formData.installmentCount;
+      const submitDbCount = formData.isInstallment
+        ? formData.isRecurring
+          ? 1
+          : formData.installmentCount
+        : 1;
       if (
         (formData.isInstallment && submitDbCount >= 1) ||
         (formData.isRecurring && submitDbCount >= 1) ||
@@ -523,44 +525,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
         installmentGroupId = `installment_${Date.now()}`;
       }
 
-      // 1. Create Down Payment (if any)
-      if (
-        formData.downPaymentEnabled &&
-        downPaymentAmount > 0 &&
-        installmentGroupId
-      ) {
-        await TransactionService.createTransaction({
-          tenantId: tenant.id,
-          type: formData.type,
-          description: formData.description.trim(),
-          amount: downPaymentAmount,
-          date: formData.date,
-          dueDate: formData.downPaymentDueDate || formData.date,
-          status: formData.status,
-          clientId,
-          clientName: formData.clientName || undefined,
-          category: formData.category || undefined,
-          wallet: formData.downPaymentWallet || walletToUse,
-          isInstallment: false,
-          isRecurring: false,
-          isDownPayment: true,
-          downPaymentType: formData.downPaymentType,
-          downPaymentPercentage:
-            formData.downPaymentType === "percentage"
-              ? parseFloat(formData.downPaymentPercentage || "0")
-              : 0,
-          installmentNumber: 0,
-          installmentCount: submitDbCount + 1,
-          installmentGroupId,
-          installmentInterval: formData.installmentInterval || 1,
-          paymentMode: formData.paymentMode,
-          notes: formData.notes || undefined,
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-
-      // 2. Create Installments (Backend Generator)
+      // Create transaction (+ down payment atomically if enabled)
       await TransactionService.createTransaction({
         tenantId: tenant.id,
         type: formData.type,
@@ -578,13 +543,41 @@ export function useTransactionForm(): UseTransactionFormReturn {
         installmentCount: submitDbCount,
         installmentGroupId: formData.isInstallment
           ? installmentGroupId
-          : undefined,
+          : !formData.isRecurring && formData.downPaymentEnabled && downPaymentAmount > 0
+            ? installmentGroupId
+            : undefined,
         recurringGroupId: formData.isRecurring ? installmentGroupId : undefined,
+        installmentNumber:
+          !formData.isInstallment &&
+          !formData.isRecurring &&
+          formData.downPaymentEnabled &&
+          downPaymentAmount > 0
+            ? 1
+            : undefined,
         installmentInterval: formData.installmentInterval || 1,
         paymentMode: formData.paymentMode,
         notes: formData.notes || undefined,
         createdAt: now,
         updatedAt: now,
+        downPayment:
+          formData.downPaymentEnabled && downPaymentAmount > 0 && installmentGroupId
+            ? {
+                amount: downPaymentAmount,
+                date: formData.date,
+                dueDate: formData.downPaymentDueDate || formData.date,
+                status: formData.status,
+                wallet: formData.downPaymentWallet || walletToUse || undefined,
+                downPaymentType: formData.downPaymentType,
+                downPaymentPercentage:
+                  formData.downPaymentType === "percentage"
+                    ? parseFloat(formData.downPaymentPercentage || "0")
+                    : 0,
+                installmentNumber: 0,
+                installmentCount: submitDbCount + 1,
+                paymentMode: formData.paymentMode,
+                notes: formData.notes || undefined,
+              }
+            : undefined,
       });
 
       toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
