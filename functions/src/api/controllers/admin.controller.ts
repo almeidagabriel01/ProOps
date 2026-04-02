@@ -722,6 +722,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
     // Batch fetch all plan docs at once
     const planNameMap = new Map<string, string>();
     const planTierMap = new Map<string, string>(); // Maps document ID -> tier name
+    const planFeaturesMap = new Map<string, Record<string, unknown>>();
     if (planIds.size > 0) {
       try {
         const planRefs = Array.from(planIds).map((id) =>
@@ -738,6 +739,9 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             // Store the tier so we can normalize planId for the frontend
             if (planData?.tier) {
               planTierMap.set(snap.id, String(planData.tier).toLowerCase());
+            }
+            if (planData?.features) {
+              planFeaturesMap.set(snap.id, planData.features as Record<string, unknown>);
             }
           }
         }
@@ -842,6 +846,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       return "active";
     };
 
+    const TIER_DEFAULT_FEATURES: Record<string, Record<string, unknown>> = {
+      free:       { maxUsers: 1,  hasFinancial: false, maxProposals: 15,  maxClients: 30,  maxProducts: 50  },
+      starter:    { maxUsers: 1,  hasFinancial: false, maxProposals: 80,  maxClients: 120, maxProducts: 220 },
+      pro:        { maxUsers: 2,  hasFinancial: true,  maxProposals: -1,  maxClients: -1,  maxProducts: -1  },
+      enterprise: { maxUsers: -1, hasFinancial: true,  maxProposals: -1,  maxClients: -1,  maxProducts: -1  },
+    };
+
     // Process all users synchronously using pre-fetched data
     const tenantsData = [];
     for (const userDoc of usersSnapshot.docs) {
@@ -889,6 +900,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           planName: planName || planId,
           planId,
           subscriptionStatus: effectiveStatus,
+          billingInterval: String(userData.billingInterval || "monthly"),
+          planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
           usage: {
             users: userData.usage?.users || 0,
             proposals: userData.usage?.proposals || 0,
