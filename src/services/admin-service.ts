@@ -60,6 +60,9 @@ export interface TenantBillingInfo {
     proposals: number;
     clients: number;
     products: number;
+    transactions: number;
+    wallets: number;
+    calendarEvents: number;
   };
   planFeatures?: Partial<PlanFeatures>;
 }

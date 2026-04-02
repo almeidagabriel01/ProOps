@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, LayoutDashboard } from "lucide-react";
+import { ArrowLeft, BarChart2, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
@@ -64,15 +64,26 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.print()}
-          className="shadow-sm hover:shadow transition-all"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Exportar Relatório
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/admin/analytics")}
+            className="shadow-sm hover:shadow transition-all"
+          >
+            <BarChart2 className="w-4 h-4 mr-2" />
+            Analytics
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.print()}
+            className="shadow-sm hover:shadow transition-all"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exportar Relatório
+          </Button>
+        </div>
       </motion.div>
 
       {/* Metrics Cards */}

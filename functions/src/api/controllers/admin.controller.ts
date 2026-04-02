@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
+import { logger } from "../../lib/logger";
 import {
   enforceTenantPlanLimit,
   getTenantUsersUsage,
@@ -748,6 +749,28 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       }
     }
 
+    // Batch count queries for extended usage (transactions, wallets, calendar_events)
+    const usageCountsMap = new Map<string, { transactions: number; wallets: number; calendarEvents: number }>();
+    try {
+      const uniqueTenantIds = Array.from(tenantIds);
+      await Promise.all(
+        uniqueTenantIds.map(async (tenantId) => {
+          const [txSnap, walletSnap, calSnap] = await Promise.all([
+            db.collection("transactions").where("tenantId", "==", tenantId).count().get(),
+            db.collection("wallets").where("tenantId", "==", tenantId).count().get(),
+            db.collection("calendar_events").where("tenantId", "==", tenantId).count().get(),
+          ]);
+          usageCountsMap.set(tenantId, {
+            transactions: txSnap.data().count,
+            wallets: walletSnap.data().count,
+            calendarEvents: calSnap.data().count,
+          });
+        })
+      );
+    } catch (error) {
+      logger.error("Failed to fetch extended usage counts", { error });
+    }
+
     const normalizeStatus = (rawStatus: unknown): string => {
       if (!rawStatus) return "";
       return String(rawStatus).trim().toLowerCase();
@@ -871,6 +894,9 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             proposals: userData.usage?.proposals || 0,
             clients: userData.usage?.clients || 0,
             products: userData.usage?.products || 0,
+            transactions: usageCountsMap.get(tenantId ?? "")?.transactions ?? 0,
+            wallets: usageCountsMap.get(tenantId ?? "")?.wallets ?? 0,
+            calendarEvents: usageCountsMap.get(tenantId ?? "")?.calendarEvents ?? 0,
           },
         });
       } catch (docErr) {
