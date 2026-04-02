@@ -78,6 +78,19 @@ export const createWallet = async (req: Request, res: Response) => {
       if (!defaults.empty) await batch.commit();
     }
 
+    // Enforce unique wallet names per tenant
+    const existingByName = await db
+      .collection(WALLETS_COLLECTION)
+      .where("tenantId", "==", tenantId)
+      .where("name", "==", data.name.trim())
+      .limit(1)
+      .get();
+    if (!existingByName.empty) {
+      return res
+        .status(400)
+        .json({ message: "Já existe uma carteira com este nome." });
+    }
+
     const walletData = {
       tenantId,
       name: data.name.trim(),
@@ -173,6 +186,24 @@ export const updateWallet = async (req: Request, res: Response) => {
     });
     if (typeof safeUpdate.name === "string")
       safeUpdate.name = safeUpdate.name.trim();
+
+    // Enforce unique wallet names per tenant on rename
+    if (
+      typeof safeUpdate.name === "string" &&
+      safeUpdate.name !== walletData?.name
+    ) {
+      const existingByName = await db
+        .collection(WALLETS_COLLECTION)
+        .where("tenantId", "==", tenantId)
+        .where("name", "==", safeUpdate.name)
+        .limit(1)
+        .get();
+      if (!existingByName.empty) {
+        return res
+          .status(400)
+          .json({ message: "Já existe uma carteira com este nome." });
+      }
+    }
 
     await walletRef.update(safeUpdate);
     return res.json({ success: true, message: "Carteira atualizada." });

@@ -209,11 +209,11 @@ Firebase projects: `erp-softcode` (dev), `erp-softcode-prod` (prod). Configured 
 - **Structured Logger** (`functions/src/lib/logger.ts`) — emite JSON com campo `severity` reconhecido pelo GCP Cloud Logging. Use `logger.info/warn/error()` em vez de `console.log` em código novo.
 - **Security Observability** (`functions/src/lib/security-observability.ts`) — audit trail e métricas de segurança no Firestore (`security_audit_events`, `security_metrics`).
 
-### Infraestrutura / GCP
-- **Cloud Monitoring alerts** — configurar com o script:
-  ```bash
-  bash scripts/setup-gcp-monitoring.sh erp-softcode-prod ops@empresa.com
-  bash scripts/setup-gcp-monitoring.sh erp-softcode dev@empresa.com
-  ```
-  Cria: uptime check no `/api/health`, alerta de indisponibilidade (CRITICAL), alerta de erros 5xx (ERROR), alerta de latência p95 > 8s (WARNING), alerta de pico de instâncias (WARNING).
-- **GCP Cloud Logging** — logs de todas as Cloud Functions disponíveis em GCP Console → Logging. Filtrar por `severity=ERROR` ou pelo campo `tenantId` nos logs estruturados.
+---
+
+## Módulo Financeiro
+
+Documentação detalhada está nos CLAUDE.md específicos de cada camada:
+
+- **Frontend** (hooks, componentes, migração ID vs NAME, guards de UI): `src/app/transactions/CLAUDE.md`
+- **Backend** (transaction.service, wallets.controller, finance-helpers, lógica de saldo): `functions/CLAUDE.md` → seção "Módulo Financeiro"

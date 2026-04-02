@@ -90,12 +90,16 @@ const getGroupedTransactionKey = (transaction: Transaction): string => {
 
 const syncExtraCostsStatus = (
   extraCosts: ExtraCost[] | undefined,
-  status: TransactionStatus,
+  newStatus: TransactionStatus,
+  oldParentStatus?: TransactionStatus,
 ): ExtraCost[] | undefined =>
-  extraCosts?.map((extraCost) => ({
-    ...extraCost,
-    status,
-  }));
+  extraCosts?.map((extraCost) => {
+    // Only sync extra costs that were aligned with the old parent status
+    if (oldParentStatus && extraCost.status && extraCost.status !== oldParentStatus) {
+      return extraCost;
+    }
+    return { ...extraCost, status: newStatus };
+  });
 
 const buildTransactionWithStatus = (
   transaction: Transaction,
@@ -103,7 +107,7 @@ const buildTransactionWithStatus = (
 ): Transaction => ({
   ...transaction,
   status,
-  extraCosts: syncExtraCostsStatus(transaction.extraCosts, status),
+  extraCosts: syncExtraCostsStatus(transaction.extraCosts, status, transaction.status),
 });
 
 const buildNextTransactionState = (
@@ -117,6 +121,7 @@ const buildNextTransactionState = (
       ? syncExtraCostsStatus(
           (data.extraCosts as ExtraCost[] | undefined) || transaction.extraCosts,
           nextStatus,
+          transaction.status,
         )
       : ((data.extraCosts as ExtraCost[] | undefined) ?? transaction.extraCosts);
 
@@ -299,6 +304,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     "byDueDate",
   );
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
+  const updatingIdsRef = React.useRef(new Set<string>());
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [serverSummary, setServerSummary] = React.useState<FinancialSummary>({
     totalIncome: 0,
@@ -599,15 +605,22 @@ export function useFinancialData(): UseFinancialDataReturn {
       });
     }
 
-    // Filter by wallet
+    // Filter by wallet (supports both wallet ID and legacy wallet NAME)
     if (filterWallet) {
+      const filterWalletObj = wallets.find((w) => w.id === filterWallet || w.name === filterWallet);
+      const matchesWallet = (walletField: string | undefined | null): boolean => {
+        if (!walletField) return false;
+        if (walletField === filterWallet) return true;
+        if (filterWalletObj && (walletField === filterWalletObj.id || walletField === filterWalletObj.name)) return true;
+        return false;
+      };
       filtered = filtered.filter((t) => {
-        if (t.wallet === filterWallet) return true;
+        if (matchesWallet(t.wallet)) return true;
         // In byDueDate mode, extra costs are already own rows — don't double-match via parent
         if (
           viewMode !== "byDueDate" &&
           t.extraCosts &&
-          t.extraCosts.some((ec) => (ec.wallet || t.wallet) === filterWallet)
+          t.extraCosts.some((ec) => matchesWallet(ec.wallet || t.wallet))
         )
           return true;
         return false;
@@ -731,6 +744,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     }
   }, [
     transactions,
+    wallets,
     searchTerm,
     filterType,
     filterStatus,
@@ -771,7 +785,11 @@ export function useFinancialData(): UseFinancialDataReturn {
       if (filterEndDate && dateStr > filterEndDate) return;
 
       // Accumulate Main Transaction
-      const mainTxMatchesWallet = !filterWallet || t.wallet === filterWallet;
+      const mainTxMatchesWallet = !filterWallet || (() => {
+        if (t.wallet === filterWallet) return true;
+        const fwObj = wallets.find((w) => w.id === filterWallet || w.name === filterWallet);
+        return !!fwObj && (t.wallet === fwObj.id || t.wallet === fwObj.name);
+      })();
       const mainTxMatchesStatus =
         filterStatus === "all" || t.status === filterStatus;
 
@@ -810,7 +828,11 @@ export function useFinancialData(): UseFinancialDataReturn {
           const ecWallet = ec.wallet || t.wallet;
           const ecStatus = ec.status || "pending";
 
-          if (filterWallet && ecWallet !== filterWallet) return;
+          if (filterWallet) {
+            const fwObj = wallets.find((w) => w.id === filterWallet || w.name === filterWallet);
+            const ecMatches = ecWallet === filterWallet || (!!fwObj && (ecWallet === fwObj.id || ecWallet === fwObj.name));
+            if (!ecMatches) return;
+          }
           if (filterStatus !== "all" && ecStatus !== filterStatus) return;
 
           let ecMatchesSearch = true;
@@ -837,6 +859,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     return result;
   }, [
     transactions,
+    wallets,
     filterWallet,
     filterType,
     filterStatus,
@@ -850,7 +873,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     return wallets
       .filter((w) => {
         const isActive = w.status === "active";
-        const matchesFilter = filterWallet ? w.name === filterWallet : true;
+        const matchesFilter = filterWallet ? (w.id === filterWallet || w.name === filterWallet) : true;
         return isActive && matchesFilter;
       })
       .reduce((sum, w) => sum + w.balance, 0);
@@ -897,8 +920,8 @@ export function useFinancialData(): UseFinancialDataReturn {
         const oldImpacts = oldTx ? calculateWalletImpacts(oldTx) : new Map();
         const newImpacts = newTx ? calculateWalletImpacts(newTx) : new Map();
         return prev.map((w) => {
-          const oldVal = oldImpacts.get(w.id) || 0;
-          const newVal = newImpacts.get(w.id) || 0;
+          const oldVal = oldImpacts.get(w.name) || oldImpacts.get(w.id) || 0;
+          const newVal = newImpacts.get(w.name) || newImpacts.get(w.id) || 0;
           const diff = newVal - oldVal;
           if (diff === 0) return w;
           return { ...w, balance: w.balance + diff };
@@ -923,7 +946,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           }
         });
         return prev.map((w) => {
-          const diff = netDeltas.get(w.id) || 0;
+          const diff = (netDeltas.get(w.name) || 0) + (netDeltas.get(w.id) || 0);
           if (diff === 0) return w;
           return { ...w, balance: w.balance + diff };
         });
@@ -942,14 +965,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         await TransactionService.deleteTransaction(transaction.id);
 
         // Optimistic update
-        applyOptimisticWalletUpdate(transaction, {
-          ...transaction,
-          status: "pending",
-          extraCosts: transaction.extraCosts?.map((ec) => ({
-            ...ec,
-            status: "pending" as const,
-          })),
-        } as Transaction);
+        applyOptimisticWalletUpdate(transaction, undefined);
         setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
 
         // Refresh truth from server (background)
@@ -1003,14 +1019,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           applyOptimisticWalletUpdateBatch(
             groupTransactions.map((t) => ({
               oldTx: t,
-              newTx: {
-                ...t,
-                status: "pending",
-                extraCosts: t.extraCosts?.map((ec) => ({
-                  ...ec,
-                  status: "pending" as const,
-                })),
-              } as Transaction,
+              newTx: { ...t, status: "pending" as const } as Transaction,
             })),
           );
           const groupIds = new Set(groupTransactions.map((t) => t.id));
@@ -1023,14 +1032,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         } else {
           // Single transaction
           await TransactionService.deleteTransaction(transaction.id);
-          applyOptimisticWalletUpdate(transaction, {
-            ...transaction,
-            status: "pending",
-            extraCosts: transaction.extraCosts?.map((ec) => ({
-              ...ec,
-              status: "pending" as const,
-            })),
-          } as Transaction);
+          applyOptimisticWalletUpdate(transaction, undefined);
           setTransactions((prev) =>
             prev.filter((t) => t.id !== transaction.id),
           );
@@ -1071,6 +1073,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       transaction: Transaction,
       newStatus: Transaction["status"],
     ): Promise<boolean> => {
+      if (updatingIdsRef.current.has(transaction.id)) return false;
+      updatingIdsRef.current.add(transaction.id);
       const transactionLabel = formatTransactionLabel(transaction);
 
       try {
@@ -1108,6 +1112,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           { title: "Erro ao editar" },
         );
         return false;
+      } finally {
+        updatingIdsRef.current.delete(transaction.id);
       }
     },
     [fetchData, applyOptimisticWalletUpdate],
@@ -1119,6 +1125,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       transaction: Transaction,
       data: Partial<Transaction>,
     ): Promise<boolean> => {
+      if (updatingIdsRef.current.has(transaction.id)) return false;
+      updatingIdsRef.current.add(transaction.id);
       const transactionLabel = formatTransactionLabel(transaction);
 
       try {
@@ -1154,6 +1162,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           { title: "Erro ao editar" },
         );
         return false;
+      } finally {
+        updatingIdsRef.current.delete(transaction.id);
       }
     },
     [fetchData, applyOptimisticWalletUpdate],
@@ -1223,6 +1233,8 @@ export function useFinancialData(): UseFinancialDataReturn {
       newStatus: Transaction["status"],
       updateAll: boolean = true,
     ): Promise<boolean> => {
+      if (updatingIdsRef.current.has(transaction.id)) return false;
+      updatingIdsRef.current.add(transaction.id);
       const transactionLabel = formatTransactionLabel(transaction);
 
       try {
@@ -1330,6 +1342,8 @@ export function useFinancialData(): UseFinancialDataReturn {
           { title: "Erro ao editar" },
         );
         return false;
+      } finally {
+        updatingIdsRef.current.delete(transaction.id);
       }
     },
     [

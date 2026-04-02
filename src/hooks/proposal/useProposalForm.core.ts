@@ -109,8 +109,8 @@ export function useProposalFormCore({
     if (!defaultWallet) return;
 
     setFormData((prev) => {
-      const downPaymentWallet = prev.downPaymentWallet || defaultWallet.name;
-      const installmentsWallet = prev.installmentsWallet || defaultWallet.name;
+      const downPaymentWallet = prev.downPaymentWallet || defaultWallet.id;
+      const installmentsWallet = prev.installmentsWallet || defaultWallet.id;
 
       // Update initial snapshot so wallet pre-selection doesn't trigger false dirty
       if (

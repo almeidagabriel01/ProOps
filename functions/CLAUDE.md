@@ -95,6 +95,62 @@ cd functions && npm run lint
 - NUNCA logar tokens, senhas, `FIREBASE_PRIVATE_KEY` ou dados pessoais (CPF, email completo, telefone).
 - Erros não tratados em rotas Express são capturados automaticamente pelo global error handler em `api/index.ts` (reporta ao Sentry + loga estruturado).
 
+## Módulo Financeiro: Lançamentos & Carteiras (backend)
+
+### Arquivos principais
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `src/api/services/transaction.service.ts` | TODA lógica de negócio de lançamentos (~1350 linhas) |
+| `src/api/controllers/wallets.controller.ts` | CRUD de carteiras |
+| `src/lib/finance-helpers.ts` | `resolveWalletRef()`, `addMonths()`, permissões |
+
+### Arquitetura de Carteiras (CRÍTICO)
+
+**Saldos são DESNORMALIZADOS** no documento Firestore da carteira (campo `balance`). Não são calculados on-the-fly. Toda operação que afeta saldo usa `FieldValue.increment()` dentro de uma Firestore Transaction atômica.
+
+**Campo `wallet` nas transações** = string que pode ser wallet NAME (dados antigos) ou wallet ID (dados novos após migração de abril/2025). O backend resolve ambos via `resolveWalletRef()` em `finance-helpers.ts` — tenta ID primeiro, depois NAME.
+
+**`resolveWalletRef()`** nunca deve retornar null silenciosamente quando há ajuste de saldo — se retornar null, deve lançar erro (comportamento implementado em abril/2025).
+
+Nomes de carteiras são únicos por tenant (validado no create e update de wallet).
+
+### Lógica de Saldo: getWalletImpacts()
+
+```typescript
+// Regra: SÓ afeta saldo se status === "paid" E wallet está definido
+if (data.status === "paid" && data.wallet) {
+  impact = type === "income" ? +amount : -amount
+}
+// extraCosts seguem o mesmo sinal do pai
+```
+
+Ao atualizar: calcula `oldImpacts` (estado atual no DB) e `newImpacts` (novo estado), aplica o delta. Tudo dentro de `db.runTransaction()`.
+
+### syncExtraCostsStatus()
+
+Quando o status do pai muda, custos extras **alinhados** com o status antigo do pai são sincronizados. Custos extras com status independente (diferente do pai) são preservados.
+
+### Proposta → Transação
+
+`syncApprovedProposalTransactions()` em `proposals.controller.ts` cria transações com `proposalId` + `proposalGroupId` + `installmentGroupId`. Wallet resolvida de `proposal.installmentsWallet` ou `proposal.downPaymentWallet` (fallback: carteira padrão do tenant).
+
+Quando a transação muda de carteira, o campo correspondente na proposta é atualizado de volta (`installmentsWallet` ou `downPaymentWallet`).
+
+**Guard crítico:** transações pagas vinculadas a propostas aprovadas NÃO podem ser revertidas para pendente. Para reverter: primeiro reverter a proposta para rascunho.
+
+### Infraestrutura / GCP
+
+- **Cloud Monitoring alerts** — configurar com o script:
+  ```bash
+  bash scripts/setup-gcp-monitoring.sh erp-softcode-prod ops@empresa.com
+  bash scripts/setup-gcp-monitoring.sh erp-softcode dev@empresa.com
+  ```
+  Cria: uptime check no `/api/health`, alerta de indisponibilidade (CRITICAL), erros 5xx (ERROR), latência p95 > 8s (WARNING), pico de instâncias (WARNING).
+- **GCP Cloud Logging** — filtrar por `severity=ERROR` ou pelo campo `tenantId` nos logs estruturados.
+
+---
+
 ## Checklist antes de deploy para prod
 - [ ] Testado localmente com `npm run dev:backend`
 - [ ] `cd functions && npm run build` sem erros
