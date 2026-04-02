@@ -4,12 +4,21 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { useAuth } from "@/providers/auth-provider";
+import { StripeService } from "@/services/stripe-service";
 
 export interface AnalyticsKPIs {
+  // Business revenue metrics
+  totalMRR: number;
+  totalARR: number;
+  arpu: number;
+  pqlCount: number;
+  // Tenant health
   totalTenants: number;
   activeTenants: number;
+  paidTenants: number;
   churnRiskCount: number;
-  avgUsageScore: number;
+  avgHealthScore: number;
+  // Module adoption
   whatsappAdoptionPct: number;
   financialAdoptionPct: number;
   topPlan: string;
@@ -46,6 +55,7 @@ export interface StatusDistributionItem {
 
 export interface ActivityLeaderboardItem extends TenantBillingInfo {
   score: number;
+  healthScore: number;
 }
 
 export interface ChurnRiskTenant extends TenantBillingInfo {
@@ -160,6 +170,43 @@ function computeGrowthByMonth(tenants: TenantBillingInfo[]): GrowthDataPoint[] {
 function avg(nums: number[]): number {
   if (nums.length === 0) return 0;
   return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+}
+
+function computeHealthScore(t: TenantBillingInfo): number {
+  const billingScore: Record<string, number> = {
+    active: 40, trialing: 30, free: 15, past_due: 8, canceled: 0, inactive: 0,
+  };
+  const billing = billingScore[t.subscriptionStatus ?? ""] ?? 10;
+
+  const modulesUsed = [
+    t.usage.proposals > 0,
+    t.usage.clients > 0,
+    t.usage.products > 0,
+    (t.usage.transactions ?? 0) > 0,
+    t.usage.users > 1,
+  ].filter(Boolean).length;
+  const engagement = Math.round((modulesUsed / 5) * 40);
+
+  const avgItems = (t.usage.proposals + t.usage.clients + t.usage.products) / 3;
+  const depth = Math.min(Math.round((avgItems / 50) * 20), 20);
+
+  return billing + engagement + depth;
+}
+
+function computePqlCount(tenants: TenantBillingInfo[]): number {
+  return tenants.filter((t) => {
+    const f = t.planFeatures as Record<string, number> | undefined;
+    if (!f) return false;
+    const u = t.usage;
+    const near = (used: number, limit?: number) =>
+      typeof limit === "number" && limit > 0 && used / limit >= 0.8;
+    return (
+      near(u.proposals, f.maxProposals) ||
+      near(u.clients, f.maxClients) ||
+      near(u.products, f.maxProducts) ||
+      near(u.users, f.maxUsers)
+    );
+  }).length;
 }
 
 function computeModuleAdoption(tenants: TenantBillingInfo[]): ModuleAdoptionItem[] {
@@ -288,8 +335,8 @@ function computeActivityLeaderboard(tenants: TenantBillingInfo[]): ActivityLeade
   return tenants
     .map((t) => ({
       ...t,
-      score:
-        t.usage.proposals + t.usage.clients + t.usage.products + t.usage.users,
+      score: t.usage.proposals + t.usage.clients + t.usage.products + t.usage.users,
+      healthScore: computeHealthScore(t),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
@@ -414,10 +461,15 @@ function computeNicheDistribution(tenants: TenantBillingInfo[]): NicheDistributi
 }
 
 const EMPTY_KPIS: AnalyticsKPIs = {
+  totalMRR: 0,
+  totalARR: 0,
+  arpu: 0,
+  pqlCount: 0,
   totalTenants: 0,
   activeTenants: 0,
+  paidTenants: 0,
   churnRiskCount: 0,
-  avgUsageScore: 0,
+  avgHealthScore: 0,
   whatsappAdoptionPct: 0,
   financialAdoptionPct: 0,
   topPlan: "-",
@@ -428,6 +480,7 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [tenants, setTenants] = React.useState<TenantBillingInfo[]>([]);
+  const [planPriceMap, setPlanPriceMap] = React.useState<Map<string, { monthly: number; yearly: number }>>(new Map());
 
   const loadData = React.useCallback(async () => {
     if (!user) return;
@@ -437,7 +490,17 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
     }
 
     try {
-      const data = await AdminService.getAllTenantsBilling();
+      const [data, plansData] = await Promise.all([
+        AdminService.getAllTenantsBilling(),
+        StripeService.getPlans().catch(() => []),
+      ]);
+      const priceMap = new Map<string, { monthly: number; yearly: number }>();
+      for (const plan of plansData as { tier?: string; pricing?: { monthly: number; yearly: number } }[]) {
+        if (plan.tier && plan.pricing) {
+          priceMap.set(plan.tier, plan.pricing);
+        }
+      }
+      setPlanPriceMap(priceMap);
       setTenants(data);
     } catch (error) {
       console.error("Failed to load analytics data:", error);
@@ -454,44 +517,65 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
     const total = tenants.length;
     if (total === 0) return EMPTY_KPIS;
 
-    const activeTenants = tenants.filter(
-      (t) => t.subscriptionStatus === "active",
-    ).length;
+    const paidStatuses = new Set(["active", "trialing", "past_due"]);
+    const activeTenants = tenants.filter((t) => t.subscriptionStatus === "active").length;
+    const paidTenants = tenants.filter((t) => paidStatuses.has(t.subscriptionStatus ?? "")).length;
 
     const now = new Date();
-    const churnCount = tenants.filter(
-      (t) => scoreChurnRisk(t, now).score > 0,
-    ).length;
+    const churnCount = tenants.filter((t) => scoreChurnRisk(t, now).score > 0).length;
 
-    const scores = tenants.map(
-      (t) => t.usage.proposals + t.usage.clients + t.usage.products + t.usage.users,
-    );
-    const avgUsageScore =
-      scores.reduce((a, b) => a + b, 0) / total;
+    // MRR/ARR
+    let totalMRR = 0;
+    for (const t of tenants) {
+      if (!paidStatuses.has(t.subscriptionStatus ?? "")) continue;
+      const pricing = planPriceMap.get(t.planId ?? "");
+      if (!pricing) continue;
+      const interval = (t as TenantBillingInfo & { billingInterval?: string }).billingInterval ?? "monthly";
+      totalMRR += interval === "yearly" ? pricing.yearly / 12 : pricing.monthly;
+    }
+    const totalARR = Math.round(totalMRR * 12);
+    const arpu = paidTenants > 0 ? Math.round(totalMRR / paidTenants) : 0;
+    totalMRR = Math.round(totalMRR);
 
+    // PQL
+    const pqlCount = computePqlCount(tenants);
+
+    // Avg health score
+    const healthScores = tenants.map(computeHealthScore);
+    const avgHealthScore = Math.round(healthScores.reduce((a, b) => a + b, 0) / total);
+
+    // Adoption
     const whatsappCount = tenants.filter((t) => t.tenant.whatsappEnabled).length;
-    const financialCount = tenants.filter(
-      (t) => (t.usage.transactions ?? 0) > 0,
-    ).length;
+    const financialEligible = tenants.filter(
+      (t) => (t.planFeatures as Record<string, unknown> | undefined)?.hasFinancial === true,
+    );
+    const financialCount = financialEligible.filter((t) => (t.usage.transactions ?? 0) > 0).length;
+    const financialAdoptionPct = financialEligible.length > 0
+      ? Math.round((financialCount / financialEligible.length) * 100)
+      : 0;
 
     const planCounts: Record<string, number> = {};
     for (const t of tenants) {
       const key = t.planId ?? t.planName ?? "unknown";
       planCounts[key] = (planCounts[key] ?? 0) + 1;
     }
-    const topPlan =
-      Object.entries(planCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
+    const topPlan = Object.entries(planCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
 
     return {
+      totalMRR,
+      totalARR,
+      arpu,
+      pqlCount,
       totalTenants: total,
       activeTenants,
+      paidTenants,
       churnRiskCount: churnCount,
-      avgUsageScore: Math.round(avgUsageScore * 10) / 10,
+      avgHealthScore,
       whatsappAdoptionPct: Math.round((whatsappCount / total) * 100),
-      financialAdoptionPct: Math.round((financialCount / total) * 100),
+      financialAdoptionPct,
       topPlan,
     };
-  }, [tenants]);
+  }, [tenants, planPriceMap]);
 
   const growthByMonth = React.useMemo(() => computeGrowthByMonth(tenants), [tenants]);
   const moduleAdoption = React.useMemo(() => computeModuleAdoption(tenants), [tenants]);

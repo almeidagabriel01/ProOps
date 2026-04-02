@@ -70,7 +70,8 @@ export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
                 <th className="pb-2 pr-3 text-right font-medium">Clientes</th>
                 <th className="pb-2 pr-3 text-right font-medium">Produtos</th>
                 <th className="pb-2 pr-3 text-right font-medium">Usuários</th>
-                <th className="pb-2 text-right font-medium">Score</th>
+                <th className="pb-2 pr-3 text-right font-medium">Score</th>
+                <th className="pb-2 text-right font-medium">Health</th>
               </tr>
             </thead>
             <tbody>
@@ -105,9 +106,22 @@ export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
                   <td className="py-2.5 pr-3 text-right tabular-nums">
                     {item.usage.users.toLocaleString("pt-BR")}
                   </td>
-                  <td className="py-2.5 text-right">
+                  <td className="py-2.5 pr-3 text-right">
                     <span className="font-semibold tabular-nums text-primary">
                       {item.score.toLocaleString("pt-BR")}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <span
+                      className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
+                        item.healthScore >= 70
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                          : item.healthScore >= 40
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                      }`}
+                    >
+                      {item.healthScore}
                     </span>
                   </td>
                 </motion.tr>
