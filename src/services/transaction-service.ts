@@ -14,6 +14,24 @@ import {
 export type TransactionType = "income" | "expense";
 export type TransactionStatus = "paid" | "pending" | "overdue";
 
+export type DownPaymentInput = {
+  amount: number;
+  date: string;
+  dueDate?: string;
+  wallet?: string;
+  status: TransactionStatus;
+  downPaymentType?: string;
+  downPaymentPercentage?: number;
+  installmentNumber?: number;
+  installmentCount?: number;
+  paymentMode?: "total" | "installmentValue";
+  notes?: string;
+};
+
+export type CreateTransactionInput = Omit<Transaction, "id"> & {
+  downPayment?: DownPaymentInput;
+};
+
 export type ExtraCost = {
   id: string;
   amount: number;
@@ -133,7 +151,7 @@ export const TransactionService = {
   },
 
   createTransaction: async (
-    transaction: Omit<Transaction, "id">,
+    transaction: CreateTransactionInput,
   ): Promise<Transaction> => {
     try {
       const result = await callApi<{ success: boolean; transactionId: string }>(
@@ -164,6 +182,7 @@ export const TransactionService = {
           paymentMode: transaction.paymentMode,
           notes: transaction.notes,
           targetTenantId: transaction.tenantId, // Pass tenantId to backend (for super admin)
+          downPayment: transaction.downPayment,
         },
       );
 
@@ -208,13 +227,32 @@ export const TransactionService = {
     newStatus: TransactionStatus,
   ) => {
     try {
-      await callApi("v1/transactions/status-batch", "POST", {
-        ids,
-        newStatus,
-      });
+      await callApi("v1/transactions/status-batch", "POST", { ids, newStatus });
       return true;
     } catch (error) {
       console.error("Error updating transactions status batch:", error);
+      throw error;
+    }
+  },
+
+  updateTransactionsBatch: async (
+    updates: Array<{ id: string; data: Partial<Omit<Transaction, "id">> }>,
+  ) => {
+    try {
+      await callApi("v1/transactions/batch", "PUT", { updates });
+      return true;
+    } catch (error) {
+      console.error("Error updating transactions batch:", error);
+      throw error;
+    }
+  },
+
+  updateGroupStatus: async (groupId: string, newStatus: TransactionStatus) => {
+    try {
+      await callApi(`v1/transactions/group/${groupId}/status`, "PUT", { newStatus });
+      return true;
+    } catch (error) {
+      console.error("Error updating group status:", error);
       throw error;
     }
   },
@@ -225,6 +263,26 @@ export const TransactionService = {
       return true;
     } catch (error) {
       console.error("Error deleting transaction:", error);
+      throw error;
+    }
+  },
+
+  deleteTransactionGroup: async (groupId: string) => {
+    try {
+      await callApi(`v1/transactions/group/${groupId}`, "DELETE");
+      return true;
+    } catch (error) {
+      console.error("Error deleting transaction group:", error);
+      throw error;
+    }
+  },
+
+  registerPartialPayment: async (id: string, amount: number, date: string) => {
+    try {
+      await callApi(`v1/transactions/${id}/partial-payment`, "POST", { amount, date });
+      return true;
+    } catch (error) {
+      console.error("Error registering partial payment:", error);
       throw error;
     }
   },

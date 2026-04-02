@@ -288,6 +288,9 @@ export function TransactionCard({
         (t) => !t.isDownPayment && t.isInstallment,
       );
 
+      // No true installments in group (e.g. non-installment tx with down payment) — no badge
+      if (installmentsOnly.length === 0) return null;
+
       const uniqueNumbers = new Set(
         installmentsOnly.map((t) => t.installmentNumber || 0),
       );
@@ -297,18 +300,12 @@ export function TransactionCard({
         const txs = installmentsOnly.filter(
           (t) => (t.installmentNumber || 0) === num,
         );
-        // If all parts of this installment are paid, it counts as paid
         if (txs.length > 0 && txs.every((t) => t.status === "paid")) {
           paidCount++;
         }
       });
 
-      // Use the explicitly separate total count from the first item if available,
-      // otherwise use the number of unique installments found.
-      const total =
-        installmentsOnly.length > 0
-          ? installmentsOnly[0].installmentCount || uniqueNumbers.size
-          : uniqueNumbers.size;
+      const total = uniqueNumbers.size;
 
       return { paid: paidCount, total };
     }
@@ -351,11 +348,13 @@ export function TransactionCard({
     return resolveWalletName(transaction.wallet);
   }, [isProposalGroup, installments, relatedInstallments, transaction, wallets]);
 
-  // Check how many items are expandable
+  // Has meaningful expandable content — not just the transaction itself sitting in a group
   const hasExpandableContent =
     isProposalGroup ||
-    relatedInstallments.length > 0 ||
-    visibleExtraCosts.length > 0;
+    visibleExtraCosts.length > 0 ||
+    relatedInstallments.some(
+      (t) => t.isDownPayment || t.isInstallment || t.isRecurring,
+    );
 
   const formatDate = (dateString: string) => {
     return formatDateBR(dateString, "");
@@ -969,25 +968,14 @@ export function TransactionCard({
                           </span>
                         )}
 
-                        {/* Show Installment Count Badge */}
-                        <span className="text-primary font-medium flex items-center gap-1">
-                          <CreditCard className="w-3 h-3" />
-                          {installmentStatusCounts ? (
-                            <>
-                              {installmentStatusCounts.paid}/
-                              {installmentStatusCounts.total}x
-                            </>
-                          ) : (
-                            <>
-                              {
-                                relatedInstallments.filter(
-                                  (t) => !t.isDownPayment,
-                                ).length
-                              }
-                              x
-                            </>
-                          )}
-                        </span>
+                        {/* Show Installment Count Badge only when there are real installments */}
+                        {installmentStatusCounts && (
+                          <span className="text-primary font-medium flex items-center gap-1">
+                            <CreditCard className="w-3 h-3" />
+                            {installmentStatusCounts.paid}/
+                            {installmentStatusCounts.total}x
+                          </span>
+                        )}
                       </div>
                     </>
                   )}
@@ -1178,25 +1166,14 @@ export function TransactionCard({
                 )}
               </div>
 
-              {/* Show expand icon for proposal groups */}
-              {isProposalGroup && (
+              {/* Expand chevron — only when there is real content to show */}
+              {hasExpandableContent && (
                 <div
                   className={`transform transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                 >
                   <ChevronDown className="w-5 h-5 text-muted-foreground" />
                 </div>
               )}
-
-              {/* Show expand icon for standalone installment groups */}
-              {!isProposalGroup &&
-                (relatedInstallments.length > 0 ||
-                  visibleExtraCosts.length > 0) && (
-                  <div
-                    className={`transform transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                  >
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                )}
             </div>
 
             <div

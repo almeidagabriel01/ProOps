@@ -358,8 +358,31 @@ export function useEditTransaction() {
           setExtraTransactionIds([]);
         }
       } else {
-        setRelatedInstallments([]);
-        setExtraTransactionIds([]);
+        // Even without a group ID, check for orphan down payments linked to this transaction.
+        // This handles "entrada + sem parcelamento" where installmentGroupId was lost on the main tx.
+        try {
+          if (!safeData.isDownPayment && !safeData.isInstallment && !safeData.isRecurring) {
+            const allTenantTransactions = await TransactionService.getTransactions(safeData.tenantId);
+            const orphanDownPayments = allTenantTransactions.filter((t) =>
+              isLikelyOrphanDownPaymentForGroup(t, safeData),
+            );
+            if (orphanDownPayments.length === 1) {
+              setRelatedInstallments([orphanDownPayments[0], safeData]);
+              setExtraTransactionIds([orphanDownPayments[0].id]);
+              groupTransactions = [orphanDownPayments[0], safeData];
+            } else {
+              setRelatedInstallments([]);
+              setExtraTransactionIds([]);
+            }
+          } else {
+            setRelatedInstallments([]);
+            setExtraTransactionIds([]);
+          }
+        } catch (error) {
+          console.error("Error checking for orphan down payments:", error);
+          setRelatedInstallments([]);
+          setExtraTransactionIds([]);
+        }
       }
 
       // DERIVE FORM STATE FROM GROUP (if exists) OR SINGLE TRANSACTION

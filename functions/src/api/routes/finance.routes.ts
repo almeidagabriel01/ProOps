@@ -3,8 +3,12 @@ import {
   createTransaction,
   updateTransaction,
   updateTransactionWithInstallments,
+  updateTransactionsBatch,
   updateTransactionsStatusBatch,
+  updateGroupStatus,
   deleteTransaction,
+  deleteTransactionGroup,
+  registerPartialPayment,
 } from "../controllers/transactions.controller";
 import {
   createWallet,
@@ -23,9 +27,13 @@ const router = Router();
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.post("/transactions/status-batch", updateTransactionsStatusBatch);
+router.put("/transactions/batch", updateTransactionsBatch);
+router.put("/transactions/group/:groupId/status", updateGroupStatus);
 router.put("/transactions/:id", updateTransaction);
 router.put("/transactions/:id/installments", updateTransactionWithInstallments);
+router.delete("/transactions/group/:groupId", deleteTransactionGroup);
 router.delete("/transactions/:id", deleteTransaction);
+router.post("/transactions/:id/partial-payment", registerPartialPayment);
 // Download autenticado do PDF de recibo (não cria share link público)
 router.get("/transactions/:id/pdf", pdfRateLimiter, downloadTransactionPdf);
 

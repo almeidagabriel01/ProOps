@@ -36,11 +36,16 @@ export const createTransaction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: validation.message });
     }
 
-    // Safety Lock: Prevent ghost installments
+    // Safety Lock: Prevent ghost installments on create
     if (!data.isInstallment && !data.isDownPayment && !data.isRecurring) {
       data.installmentCount = 1;
-      delete data.installmentNumber;
-      delete data.installmentGroupId;
+      // Preserve group link when:
+      // a) This is the "restante" member of a down payment group (installmentNumber > 0), OR
+      // b) A bundled downPayment is present — both documents must share the same groupId.
+      if (!(data.installmentNumber != null && data.installmentNumber > 0) && !data.downPayment) {
+        delete data.installmentNumber;
+        delete data.installmentGroupId;
+      }
     }
 
     const result = await TransactionService.createTransaction(
@@ -75,8 +80,12 @@ export const updateTransaction = async (req: Request, res: Response) => {
     // Safety Lock: Prevent ghost installments on update
     if (updateData.isInstallment === false && updateData.isDownPayment !== true && updateData.isRecurring !== true) {
       updateData.installmentCount = 1;
-      updateData.installmentNumber = null;
-      updateData.installmentGroupId = null;
+      // Preserve group link if this is the "restante" member of a down payment group
+      // (identified by an explicit installmentNumber > 0)
+      if (!(updateData.installmentNumber != null && updateData.installmentNumber > 0)) {
+        updateData.installmentNumber = null;
+        updateData.installmentGroupId = null;
+      }
     }
 
     await TransactionService.updateTransaction(
@@ -174,6 +183,98 @@ export const deleteTransaction = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error("deleteTransaction Error:", error);
     const message = error instanceof Error ? error.message : "Erro ao excluir.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+export const deleteTransactionGroup = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { groupId } = req.params;
+
+    if (!groupId) return res.status(400).json({ message: "ID de grupo inválido." });
+
+    await TransactionService.deleteTransactionGroup(userId, req.user, groupId);
+
+    return res.json({ success: true, message: "Grupo excluído com sucesso." });
+  } catch (error: unknown) {
+    console.error("deleteTransactionGroup Error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao excluir grupo.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+export const updateTransactionsBatch = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { updates } = req.body as {
+      updates?: Array<{ id?: string; data?: Record<string, unknown> }>;
+    };
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({ message: "updates deve ser um array não vazio." });
+    }
+
+    if (updates.some((u) => !u.id || typeof u.id !== "string" || !u.data || typeof u.data !== "object")) {
+      return res.status(400).json({ message: "Cada item de updates deve ter id (string) e data (object)." });
+    }
+
+    const count = await TransactionService.updateTransactionsBatch(
+      userId,
+      req.user,
+      updates as Array<{ id: string; data: Record<string, unknown> }>,
+    );
+
+    return res.json({ success: true, message: `${count} lançamentos atualizados com sucesso.`, count });
+  } catch (error: unknown) {
+    console.error("updateTransactionsBatch Error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao atualizar em lote.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+export const updateGroupStatus = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { groupId } = req.params;
+    const { newStatus } = req.body as { newStatus?: string };
+
+    if (!groupId) return res.status(400).json({ message: "ID de grupo inválido." });
+    if (!newStatus || !["paid", "pending", "overdue"].includes(newStatus)) {
+      return res.status(400).json({ message: "Status inválido." });
+    }
+
+    const count = await TransactionService.updateGroupStatus(
+      userId,
+      req.user,
+      groupId,
+      newStatus as "paid" | "pending" | "overdue",
+    );
+
+    return res.json({ success: true, message: `${count} lançamentos do grupo atualizados.`, count });
+  } catch (error: unknown) {
+    console.error("updateGroupStatus Error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao atualizar status do grupo.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+export const registerPartialPayment = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { id } = req.params;
+    const { amount, date } = req.body as { amount?: number; date?: string };
+
+    if (!id) return res.status(400).json({ message: "ID inválido." });
+    if (!amount || amount <= 0) return res.status(400).json({ message: "Valor parcial inválido." });
+    if (!date) return res.status(400).json({ message: "Data inválida." });
+
+    await TransactionService.registerPartialPayment(userId, req.user, id, amount, date);
+
+    return res.json({ success: true, message: "Pagamento parcial registrado com sucesso." });
+  } catch (error: unknown) {
+    console.error("registerPartialPayment Error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao registrar pagamento parcial.";
     return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };
