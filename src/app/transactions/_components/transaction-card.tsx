@@ -319,10 +319,15 @@ export function TransactionCard({
   // Determine which wallet to display
   // Prioritize Installment Wallet over Down Payment Wallet for groups
   const displayWallet = React.useMemo(() => {
+    const resolveWalletName = (v?: string) => {
+      if (!v) return undefined;
+      return wallets.find((w) => w.id === v || w.name === v)?.name ?? v;
+    };
+
     // 1. Proposal Group
     if (isProposalGroup) {
       const firstInstallment = installments.find((t) => t.wallet);
-      if (firstInstallment) return firstInstallment.wallet;
+      if (firstInstallment) return resolveWalletName(firstInstallment.wallet);
     }
 
     // 2. Installment Group
@@ -330,7 +335,7 @@ export function TransactionCard({
       const firstInstallment = relatedInstallments.find(
         (t) => !t.isDownPayment && t.wallet,
       );
-      if (firstInstallment) return firstInstallment.wallet;
+      if (firstInstallment) return resolveWalletName(firstInstallment.wallet);
     }
 
     // 3. Fallback
@@ -343,8 +348,8 @@ export function TransactionCard({
       return undefined;
     }
 
-    return transaction.wallet;
-  }, [isProposalGroup, installments, relatedInstallments, transaction]);
+    return resolveWalletName(transaction.wallet);
+  }, [isProposalGroup, installments, relatedInstallments, transaction, wallets]);
 
   // Check how many items are expandable
   const hasExpandableContent =
@@ -1297,7 +1302,7 @@ export function TransactionCard({
                       <div className="text-xs text-muted-foreground">
                         Venc:{" "}
                         {formatDate(downPayment.dueDate || downPayment.date)}
-                        {downPayment.wallet && ` • ${downPayment.wallet}`}
+                        {downPayment.wallet && ` • ${wallets.find(w => w.id === downPayment.wallet || w.name === downPayment.wallet)?.name ?? downPayment.wallet}`}
                       </div>
                     </div>
                   </div>
@@ -1438,7 +1443,7 @@ export function TransactionCard({
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Venc: {formatDate(inst.dueDate || inst.date)}
-                              {inst.wallet && ` • ${inst.wallet}`}
+                              {inst.wallet && ` • ${wallets.find(w => w.id === inst.wallet || w.name === inst.wallet)?.name ?? inst.wallet}`}
                             </div>
                           </div>
                         </div>
@@ -1600,7 +1605,7 @@ export function TransactionCard({
                                 <>
                                   <span className="opacity-50">•</span>
                                   <span>
-                                    {wallets.find((w) => w.name === ec.wallet)
+                                    {wallets.find((w) => w.id === ec.wallet || w.name === ec.wallet)
                                       ?.name || ec.wallet}
                                   </span>
                                 </>
@@ -1807,7 +1812,7 @@ export function TransactionCard({
                                     <>
                                       <span className="opacity-50">•</span>
                                       <span>
-                                        {wallets.find((w) => w.name === ec.wallet)
+                                        {wallets.find((w) => w.id === ec.wallet || w.name === ec.wallet)
                                           ?.name || ec.wallet}
                                       </span>
                                     </>

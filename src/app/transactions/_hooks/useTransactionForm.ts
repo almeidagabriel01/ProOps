@@ -393,7 +393,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
 
     const defaultWallet = wallets.find((w) => w.isDefault);
     if (defaultWallet) {
-      setFormData((prev) => ({ ...prev, wallet: defaultWallet.name }));
+      setFormData((prev) => ({ ...prev, wallet: defaultWallet.id }));
       // Also clear error if any
       if (errors.wallet) {
         clearFieldError("wallet");

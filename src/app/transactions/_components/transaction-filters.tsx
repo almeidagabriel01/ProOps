@@ -169,7 +169,7 @@ export function TransactionFilters({
         >
           <option value="">Todas Carteiras</option>
           {wallets.map((wallet) => (
-            <option key={wallet.id} value={wallet.name}>
+            <option key={wallet.id} value={wallet.id}>
               {wallet.name}
             </option>
           ))}

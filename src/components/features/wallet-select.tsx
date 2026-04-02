@@ -66,11 +66,11 @@ export function WalletSelect({
     if (!value && wallets.length > 0) {
       const defaultWallet = wallets.find((w) => w.isDefault);
       if (defaultWallet) {
-        triggerChange(defaultWallet.name);
+        triggerChange(defaultWallet.id);
         hasAutoSelected.current = true;
       } else if (wallets.length > 0) {
         // If no default, select the first wallet
-        triggerChange(wallets[0].name);
+        triggerChange(wallets[0].id);
         hasAutoSelected.current = true;
       }
     }
@@ -87,8 +87,8 @@ export function WalletSelect({
       // However, createWallet calls refreshData internally in the hook.
       // We can optimisticly set it or wait.
       // Actually, if we are storing Name, we can use data.name.
-      if (data.name) {
-        triggerChange(data.name);
+      if (newId) {
+        triggerChange(newId);
       }
       return true;
     }
@@ -160,7 +160,7 @@ export function WalletSelect({
             >
               <option value="">Selecione...</option>
               {wallets.map((wallet) => (
-                <option key={wallet.id} value={wallet.name}>
+                <option key={wallet.id} value={wallet.id}>
                   {wallet.name}
                 </option>
               ))}

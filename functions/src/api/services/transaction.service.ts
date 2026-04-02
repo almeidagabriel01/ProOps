@@ -6,6 +6,7 @@ import {
   addMonths,
 } from "../../lib/finance-helpers";
 import { CreateTransactionDTO } from "../helpers/transaction-validation";
+import { logger } from "../../lib/logger";
 
 const COLLECTION_NAME = "transactions";
 
@@ -177,14 +178,20 @@ function getWalletImpacts(data: Record<string, any>): Map<string, number> {
 
 function syncExtraCostsStatus(
   extraCosts: unknown,
-  status: "paid" | "pending" | "overdue",
+  newStatus: "paid" | "pending" | "overdue",
+  oldParentStatus?: string,
 ): Record<string, any>[] | undefined {
   if (!Array.isArray(extraCosts)) return undefined;
 
-  return extraCosts.map((ec) => ({
-    ...(ec as Record<string, any>),
-    status,
-  }));
+  return extraCosts.map((ec) => {
+    const ecData = ec as Record<string, any>;
+    // Only sync extra costs that were aligned with the old parent status
+    // (or had no status set). Leave independently-set statuses untouched.
+    if (oldParentStatus && ecData.status && ecData.status !== oldParentStatus) {
+      return ecData;
+    }
+    return { ...ecData, status: newStatus };
+  });
 }
 
 function isDownPaymentLikeDoc(data: Record<string, any>): boolean {
@@ -429,12 +436,14 @@ export class TransactionService {
           tenantId,
           walletIdentifier,
         );
-        if (walletInfo) {
-          t.update(walletInfo.ref, {
-            balance: FieldValue.increment(adjustment),
-            updatedAt: now,
-          });
+        if (!walletInfo) {
+          logger.error("Wallet not found during transaction creation", { tenantId, wallet: walletIdentifier, adjustment });
+          throw new Error(`Carteira "${walletIdentifier}" não encontrada. Operação cancelada.`);
         }
+        t.update(walletInfo.ref, {
+          balance: FieldValue.increment(adjustment),
+          updatedAt: now,
+        });
       }
 
       // Write Transactions
@@ -836,7 +845,11 @@ export class TransactionService {
       for (const [wallet, delta] of walletAdjustments.entries()) {
         if (delta === 0) continue;
         const walletInfo = await resolveWalletRef(t, db, txTenantId, wallet);
-        if (walletInfo) walletRefs.set(wallet, walletInfo.ref);
+        if (!walletInfo) {
+          logger.error("Wallet not found during installment update", { tenantId: txTenantId, wallet, delta });
+          throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        }
+        walletRefs.set(wallet, walletInfo.ref);
       }
 
       let proposalRef: FirebaseFirestore.DocumentReference | null = null;
@@ -924,11 +937,28 @@ export class TransactionService {
           ? (safeUpdateData.status as "paid" | "pending" | "overdue")
           : null;
 
+      // Guard: prevent reverting paid proposal-linked transactions
+      if (
+        nextStatus &&
+        nextStatus !== "paid" &&
+        currentData.status === "paid" &&
+        currentData.proposalId
+      ) {
+        const proposalRef = db.collection("proposals").doc(currentData.proposalId);
+        const proposalSnap = await t.get(proposalRef);
+        if (proposalSnap.exists && proposalSnap.data()?.status === "approved") {
+          throw new Error(
+            "Não é possível reverter o pagamento de um lançamento vinculado a uma proposta Aprovada. Reverta o status da proposta antes.",
+          );
+        }
+      }
+
       const nextExtraCosts =
         nextStatus !== null
           ? syncExtraCostsStatus(
               safeUpdateData.extraCosts ?? currentData.extraCosts,
               nextStatus,
+              currentData.status,
             )
           : undefined;
 
@@ -961,7 +991,11 @@ export class TransactionService {
       for (const [wallet, adjustment] of walletAdjustments.entries()) {
         if (adjustment === 0) continue;
         const walletInfo = await resolveWalletRef(t, db, txTenantId, wallet);
-        if (walletInfo) walletRefs.set(wallet, walletInfo.ref);
+        if (!walletInfo) {
+          logger.error("Wallet not found during transaction update", { tenantId: txTenantId, wallet, adjustment });
+          throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        }
+        walletRefs.set(wallet, walletInfo.ref);
       }
 
       let recurOps: DbOp[] = [];
@@ -1072,7 +1106,7 @@ export class TransactionService {
         const nextData = {
           ...txData,
           status: newStatus,
-          extraCosts: syncExtraCostsStatus(txData.extraCosts, newStatus),
+          extraCosts: syncExtraCostsStatus(txData.extraCosts, newStatus, txData.status),
         };
 
         const oldImpacts = getWalletImpacts(txData);
@@ -1116,9 +1150,11 @@ export class TransactionService {
           adj.tenantId,
           adj.wallet,
         );
-        if (walletInfo) {
-          walletRefs.set(key, walletInfo.ref);
+        if (!walletInfo) {
+          logger.error("Wallet not found during batch status update", { tenantId: adj.tenantId, wallet: adj.wallet, delta: adj.delta });
+          throw new Error(`Carteira "${adj.wallet}" não encontrada. Operação cancelada.`);
         }
+        walletRefs.set(key, walletInfo.ref);
       }
 
       // 2.5) Read recurrences ops
@@ -1171,6 +1207,18 @@ export class TransactionService {
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
+      }
+
+      // 6) Sync proposal updatedAt for affected proposals
+      const proposalIds = new Set<string>();
+      for (const { currentTxData } of transactionsToUpdateWithData) {
+        if (currentTxData.proposalId) {
+          proposalIds.add(currentTxData.proposalId);
+        }
+      }
+      for (const proposalId of proposalIds) {
+        const proposalRef = db.collection("proposals").doc(proposalId);
+        t.update(proposalRef, { updatedAt: now });
       }
 
       return uniqueIds.length;
@@ -1257,7 +1305,11 @@ export class TransactionService {
       for (const [wallet, adj] of walletAdjustments.entries()) {
         if (adj === 0) continue;
         const w = await resolveWalletRef(t, db, txTenantId, wallet);
-        if (w) walletRefs.set(wallet, w.ref);
+        if (!w) {
+          logger.error("Wallet not found during transaction deletion", { tenantId: txTenantId, wallet, adjustment: adj });
+          throw new Error(`Carteira "${wallet}" não encontrada. Operação cancelada.`);
+        }
+        walletRefs.set(wallet, w.ref);
       }
 
       // 4. Revert impact

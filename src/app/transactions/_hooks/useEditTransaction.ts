@@ -52,6 +52,8 @@ const isLikelyOrphanDownPaymentForGroup = (
   return true;
 };
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { Wallet } from "@/types";
+import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 
 export interface EditTransactionFormData {
   type: TransactionType;
@@ -144,6 +146,13 @@ const buildEditTransactionSnapshot = (data: EditTransactionFormData): string =>
     downPaymentDueDate: data.downPaymentDueDate,
   });
 
+function resolveWalletId(value: string, walletList: Wallet[]): string {
+  if (!value || walletList.length === 0) return value;
+  if (walletList.find((w) => w.id === value)) return value;
+  const byName = walletList.find((w) => w.name === value);
+  return byName ? byName.id : value;
+}
+
 export function useEditTransaction() {
   const router = useRouter();
   const params = useParams();
@@ -196,6 +205,45 @@ export function useEditTransaction() {
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
     null,
   );
+
+  const { wallets } = useWalletsData();
+  const walletsRef = React.useRef<Wallet[]>([]);
+  const pendingWalletResolution = React.useRef<{
+    wallet: string;
+    installmentsWallet: string;
+    downPaymentWallet: string;
+  } | null>(null);
+
+  // Sync wallets ref and apply deferred wallet resolution
+  React.useEffect(() => {
+    walletsRef.current = wallets;
+    if (!pendingWalletResolution.current || wallets.length === 0) return;
+
+    const { wallet, installmentsWallet, downPaymentWallet } =
+      pendingWalletResolution.current;
+    pendingWalletResolution.current = null;
+
+    const rW = resolveWalletId(wallet, wallets);
+    const rIW = resolveWalletId(installmentsWallet, wallets);
+    const rDW = resolveWalletId(downPaymentWallet, wallets);
+
+    setFormData((prev) => ({
+      ...prev,
+      wallet: rW,
+      installmentsWallet: rIW,
+      downPaymentWallet: rDW,
+    }));
+    setInitialSnapshot((prev) => {
+      if (!prev) return null;
+      const snap = JSON.parse(prev) as EditTransactionFormData;
+      return buildEditTransactionSnapshot({
+        ...snap,
+        wallet: rW,
+        installmentsWallet: rIW,
+        downPaymentWallet: rDW,
+      });
+    });
+  }, [wallets]);
 
   // Independent buffers for each mode
   const [modeBuffers, setModeBuffers] = React.useState<{
@@ -404,11 +452,34 @@ export function useEditTransaction() {
               : "",
       };
 
+      // Resolve wallet NAME → ID (backward compat: old data stored wallet names)
+      const currentWallets = walletsRef.current;
+      const resolvedWallet = resolveWalletId(initialFormData.wallet, currentWallets);
+      const resolvedInstallmentsWallet = resolveWalletId(initialFormData.installmentsWallet, currentWallets);
+      const resolvedDownPaymentWallet = resolveWalletId(initialFormData.downPaymentWallet, currentWallets);
+
+      if (currentWallets.length === 0 && (initialFormData.wallet || initialFormData.installmentsWallet || initialFormData.downPaymentWallet)) {
+        pendingWalletResolution.current = {
+          wallet: initialFormData.wallet,
+          installmentsWallet: initialFormData.installmentsWallet,
+          downPaymentWallet: initialFormData.downPaymentWallet,
+        };
+      } else {
+        pendingWalletResolution.current = null;
+      }
+
+      const resolvedInitialFormData: EditTransactionFormData = {
+        ...initialFormData,
+        wallet: resolvedWallet,
+        installmentsWallet: resolvedInstallmentsWallet,
+        downPaymentWallet: resolvedDownPaymentWallet,
+      };
+
       setFormData((prev) => ({
         ...prev,
-        ...initialFormData,
+        ...resolvedInitialFormData,
       }));
-      setInitialSnapshot(buildEditTransactionSnapshot(initialFormData));
+      setInitialSnapshot(buildEditTransactionSnapshot(resolvedInitialFormData));
     } catch (error) {
       console.error("Error fetching transaction:", error);
       toast.error("Erro ao carregar lançamento.");

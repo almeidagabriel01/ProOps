@@ -703,7 +703,7 @@ export function TransactionListByDueDate({
                               ) : (
                                 <>
                                   <span className="truncate">
-                                    {wallets.find((w) => w.name === tx.wallet)
+                                    {wallets.find((w) => w.id === tx.wallet || w.name === tx.wallet)
                                       ?.name ||
                                       tx.wallet ||
                                       "Sem carteira"}
