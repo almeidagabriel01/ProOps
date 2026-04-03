@@ -59,8 +59,8 @@ export default function PrivacyPage() {
                 realizadas e permitir o uso dos módulos contratados;
               </p>
               <p>
-                prestar suporte, corrigir falhas, prevenir fraude, cumprir
-                obrigações legais e melhorar a experiência de uso;
+                prestar suporte, corrigir falhas técnicas, prevenir fraude e
+                cumprir obrigações legais;
               </p>
               <p>
                 viabilizar integrações ativadas pelo próprio usuário ou pela
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
               </p>
               <p>
                 O uso e a transferência de informações recebidas das APIs do
-                Google obedecem à{" "}
+                Google para qualquer outro aplicativo observarão a{" "}
                 <a
                   href="https://developers.google.com/terms/api-services-user-data-policy"
                   target="_blank"
@@ -97,13 +97,16 @@ export default function PrivacyPage() {
                 >
                   Política de Dados de Usuário dos Serviços de API do Google
                 </a>
-                , incluindo os requisitos de Uso Limitado quando aplicáveis.
+                , incluindo os requisitos de Uso Limitado.
               </p>
               <p>
-                O token de acesso necessário para manter a sincronização é
-                armazenado de forma restrita para permitir a continuidade da
-                integração até que ela seja desconectada pelo administrador da
-                empresa.
+                Os dados obtidos por meio das APIs do Google não são usados para
+                veicular anúncios, não são transferidos a terceiros para fins
+                que não sejam os de fornecer ou melhorar a funcionalidade de
+                sincronização de agenda solicitada pelo usuário, e não são
+                utilizados para determinar a elegibilidade a crédito, fins de
+                empréstimo ou qualquer outra finalidade não relacionada
+                diretamente ao funcionamento do módulo de agenda do ProOps.
               </p>
             </>
           ),

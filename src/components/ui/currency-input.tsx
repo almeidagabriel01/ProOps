@@ -12,16 +12,51 @@ export interface CurrencyInputProps extends Omit<
   prefixSymbol?: string;
 }
 
-/**
- * Currency input with Brazilian Real formatting (R$ X.XXX,XX)
- * Formats as user types treating input as cents:
- * - "1" becomes "0,01" (1 cent)
- * - "100" becomes "1,00" (1 real)
- * - "12345" becomes "123,45"
- */
+const formatCents = (raw: string): string => {
+  if (!raw) return "";
+  const cents = parseInt(raw, 10);
+  if (isNaN(cents)) return "";
+  return (cents / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+// Count digits before a given cursor position in the display string
+const cursorToDigitIndex = (display: string, cursorPos: number): number => {
+  let count = 0;
+  for (let i = 0; i < cursorPos && i < display.length; i++) {
+    if (/\d/.test(display[i])) count++;
+  }
+  return count;
+};
+
+// Map digit index back to display cursor position (after the nth digit)
+const digitIndexToDisplayPos = (display: string, n: number): number => {
+  if (n === 0) return 0;
+  let count = 0;
+  for (let i = 0; i < display.length; i++) {
+    if (/\d/.test(display[i])) {
+      count++;
+      if (count === n) return i + 1;
+    }
+  }
+  return display.length;
+};
+
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ className, value, onChange, name, prefixSymbol = "R$", ...props }, ref) => {
+  ({ className, value, onChange, name, prefixSymbol = "R$", onKeyDown: externalOnKeyDown, onPaste: externalOnPaste, ...props }, ref) => {
     const [rawValue, setRawValue] = React.useState<string>("");
+    const internalRef = React.useRef<HTMLInputElement>(null);
+
+    const setRef = React.useCallback(
+      (node: HTMLInputElement | null) => {
+        (internalRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
+      },
+      [ref]
+    );
 
     React.useEffect(() => {
       const numValue = typeof value === "string" ? parseFloat(value) : value;
@@ -33,90 +68,103 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       }
     }, [value]);
 
-    const getDisplayValue = (): string => {
-      if (!rawValue) return "";
-
-      const centsValue = parseInt(rawValue, 10);
-      if (isNaN(centsValue)) return "";
-
-      const decimalValue = centsValue / 100;
-
-      return decimalValue.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value;
-
-      const newRaw = inputValue.replace(/\D/g, "");
-
-      setRawValue(newRaw);
-
+    const fireChange = (newRaw: string) => {
       const centsValue = newRaw ? parseInt(newRaw, 10) : 0;
       const decimalValue = centsValue / 100;
-
-      const syntheticEvent = {
-        ...e,
+      onChange({
         target: {
-          ...e.target,
           name: name || "",
           value: newRaw ? String(decimalValue) : "",
         },
-      } as React.ChangeEvent<HTMLInputElement>;
+      } as React.ChangeEvent<HTMLInputElement>);
+    };
 
-      onChange(syntheticEvent);
+    const applyEdit = (
+      newRaw: string,
+      newCursorDigit: number
+    ) => {
+      setRawValue(newRaw);
+      requestAnimationFrame(() => {
+        const inp = internalRef.current;
+        if (inp) {
+          const newDisplay = formatCents(newRaw);
+          const pos = digitIndexToDisplayPos(newDisplay, newCursorDigit);
+          inp.setSelectionRange(pos, pos);
+        }
+      });
+      fireChange(newRaw);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if ([8, 46, 9, 27, 13, 37, 38, 39, 40].includes(e.keyCode)) {
-        if (e.keyCode === 8 || e.keyCode === 46) {
-          e.preventDefault();
-          const newRaw = rawValue.slice(0, -1);
-          setRawValue(newRaw);
+      // Navigation keys — let browser handle
+      if ([9, 27, 13, 37, 38, 39, 40].includes(e.keyCode)) return;
+      // Ctrl+A, Ctrl+C — let browser handle
+      if ((e.ctrlKey || e.metaKey) && ["a", "c"].includes(e.key.toLowerCase())) return;
 
-          const centsValue = newRaw ? parseInt(newRaw, 10) : 0;
-          const decimalValue = centsValue / 100;
-
-          const syntheticEvent = {
-            target: {
-              name: name || "",
-              value: newRaw ? String(decimalValue) : "",
-            },
-          } as React.ChangeEvent<HTMLInputElement>;
-
-          onChange(syntheticEvent);
-        }
-        return;
-      }
-
-      // Allow numbers
-      if (
+      const isBackspace = e.keyCode === 8;
+      const isDelete = e.keyCode === 46;
+      const isDigit =
         (e.keyCode >= 48 && e.keyCode <= 57) ||
-        (e.keyCode >= 96 && e.keyCode <= 105)
-      ) {
+        (e.keyCode >= 96 && e.keyCode <= 105);
+      const isCut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x";
+
+      if (!isBackspace && !isDelete && !isDigit && !isCut) {
         e.preventDefault();
-        const digit = e.key;
-        const newRaw = rawValue + digit;
-        setRawValue(newRaw);
-
-        const centsValue = parseInt(newRaw, 10);
-        const decimalValue = centsValue / 100;
-
-        const syntheticEvent = {
-          target: {
-            name: name || "",
-            value: String(decimalValue),
-          },
-        } as React.ChangeEvent<HTMLInputElement>;
-
-        onChange(syntheticEvent);
         return;
       }
 
-      // Prevent other keys
       e.preventDefault();
+
+      const input = e.currentTarget;
+      const selStart = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? 0;
+      const hasSelection = selStart !== selEnd;
+      const display = formatCents(rawValue);
+
+      const startDigit = cursorToDigitIndex(display, selStart);
+      const endDigit = hasSelection ? cursorToDigitIndex(display, selEnd) : startDigit;
+
+      if (isDigit) {
+        const digit = e.key;
+        const newRaw = rawValue.slice(0, startDigit) + digit + rawValue.slice(endDigit);
+        applyEdit(newRaw, startDigit + 1);
+      } else if (isBackspace) {
+        if (hasSelection) {
+          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
+        } else if (startDigit > 0) {
+          applyEdit(rawValue.slice(0, startDigit - 1) + rawValue.slice(startDigit), startDigit - 1);
+        }
+      } else if (isDelete) {
+        if (hasSelection) {
+          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
+        } else if (startDigit < rawValue.length) {
+          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(startDigit + 1), startDigit);
+        }
+      } else if (isCut) {
+        if (hasSelection) {
+          const selected = display.slice(selStart, selEnd);
+          navigator.clipboard?.writeText(selected).catch(() => {});
+          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
+        }
+      }
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const digits = e.clipboardData.getData("text").replace(/\D/g, "");
+      if (!digits) return;
+
+      const input = e.currentTarget;
+      const selStart = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? 0;
+      const hasSelection = selStart !== selEnd;
+      const display = formatCents(rawValue);
+
+      const startDigit = cursorToDigitIndex(display, selStart);
+      const endDigit = hasSelection ? cursorToDigitIndex(display, selEnd) : startDigit;
+
+      const newRaw = rawValue.slice(0, startDigit) + digits + rawValue.slice(endDigit);
+      applyEdit(newRaw, startDigit + digits.length);
     };
 
     return (
@@ -140,11 +188,12 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
             "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
             className
           )}
-          ref={ref}
+          ref={setRef}
           name={name}
-          value={getDisplayValue()}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
+          value={formatCents(rawValue)}
+          onChange={() => {}}
+          onKeyDown={(e) => { handleKeyDown(e); externalOnKeyDown?.(e); }}
+          onPaste={(e) => { handlePaste(e); externalOnPaste?.(e); }}
           {...props}
         />
       </div>

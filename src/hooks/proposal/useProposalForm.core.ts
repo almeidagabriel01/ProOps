@@ -101,27 +101,32 @@ export function useProposalFormCore({
   // Get wallets to pre-select default wallet
   const { wallets } = useWalletsData();
 
-  // Pre-select default wallet for payment options
+  // Pre-select default wallet and resolve legacy name→ID for payment options
   React.useEffect(() => {
     if (wallets.length === 0) return;
 
     const defaultWallet = wallets.find((w) => w.isDefault);
-    if (!defaultWallet) return;
+
+    // Resolves a wallet value that may be an ID (new), a name (legacy), or empty
+    const resolveWalletId = (val: string): string => {
+      if (!val) return defaultWallet?.id || "";
+      if (wallets.find((w) => w.id === val)) return val;
+      const byName = wallets.find((w) => w.name === val);
+      if (byName) return byName.id;
+      return defaultWallet?.id || val;
+    };
 
     setFormData((prev) => {
-      const downPaymentWallet = prev.downPaymentWallet || defaultWallet.id;
-      const installmentsWallet = prev.installmentsWallet || defaultWallet.id;
+      const downPaymentWallet = resolveWalletId(prev.downPaymentWallet || "");
+      const installmentsWallet = resolveWalletId(prev.installmentsWallet || "");
 
-      // Update initial snapshot so wallet pre-selection doesn't trigger false dirty
-      if (
-        initialFormDataRef.current &&
-        (!prev.downPaymentWallet || !prev.installmentsWallet)
-      ) {
+      // Update initial snapshot so wallet resolution doesn't trigger false dirty
+      if (initialFormDataRef.current) {
         try {
           const initialData = JSON.parse(initialFormDataRef.current);
-          if (!initialData.downPaymentWallet)
+          if (!initialData.downPaymentWallet || wallets.every((w) => w.id !== initialData.downPaymentWallet))
             initialData.downPaymentWallet = downPaymentWallet;
-          if (!initialData.installmentsWallet)
+          if (!initialData.installmentsWallet || wallets.every((w) => w.id !== initialData.installmentsWallet))
             initialData.installmentsWallet = installmentsWallet;
           initialFormDataRef.current = buildFullFormSnapshot(initialData);
         } catch {
