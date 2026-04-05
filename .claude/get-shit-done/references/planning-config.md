@@ -10,9 +10,17 @@ Configuration options for `.planning/` directory behavior.
 },
 "git": {
   "branching_strategy": "none",
+  "base_branch": null,
   "phase_branch_template": "gsd/phase-{phase}-{slug}",
   "milestone_branch_template": "gsd/{milestone}-{slug}",
   "quick_branch_template": null
+},
+"manager": {
+  "flags": {
+    "discuss": "",
+    "plan": "",
+    "execute": ""
+  }
 }
 ```
 
@@ -21,9 +29,16 @@ Configuration options for `.planning/` directory behavior.
 | `commit_docs` | `true` | Whether to commit planning artifacts to git |
 | `search_gitignored` | `false` | Add `--no-ignore` to broad rg searches |
 | `git.branching_strategy` | `"none"` | Git branching approach: `"none"`, `"phase"`, or `"milestone"` |
+| `git.base_branch` | `null` (auto-detect) | Target branch for PRs and merges (e.g. `"master"`, `"develop"`). When `null`, auto-detects from `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `"main"`. |
 | `git.phase_branch_template` | `"gsd/phase-{phase}-{slug}"` | Branch template for phase strategy |
 | `git.milestone_branch_template` | `"gsd/{milestone}-{slug}"` | Branch template for milestone strategy |
 | `git.quick_branch_template` | `null` | Optional branch template for quick-task runs |
+| `workflow.use_worktrees` | `true` | Whether executor agents run in isolated git worktrees. Set to `false` to disable worktrees — agents execute sequentially on the main working tree instead. Recommended for solo developers or when worktree merges cause issues. |
+| `workflow.subagent_timeout` | `300000` | Timeout in milliseconds for parallel subagent tasks (e.g. codebase mapping). Increase for large codebases or slower models. Default: 300000 (5 minutes). |
+| `manager.flags.discuss` | `""` | Flags passed to `/gsd:discuss-phase` when dispatched from manager (e.g. `"--auto --analyze"`) |
+| `manager.flags.plan` | `""` | Flags passed to plan workflow when dispatched from manager |
+| `manager.flags.execute` | `""` | Flags passed to execute workflow when dispatched from manager |
+| `response_language` | `null` | Language for user-facing questions and prompts across all phases/subagents (e.g. `"Portuguese"`, `"Japanese"`, `"Spanish"`). When set, all spawned agents include a directive to respond in this language. |
 </config_schema>
 
 <commit_docs_behavior>
@@ -42,15 +57,15 @@ Configuration options for `.planning/` directory behavior.
 
 ```bash
 # Commit with automatic commit_docs + gitignore checks:
-node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: update state" --files .planning/STATE.md
+node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: update state" --files .planning/STATE.md
 
 # Load config via state load (returns JSON):
-INIT=$(node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" state load)
+INIT=$(node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" state load)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # commit_docs is available in the JSON output
 
 # Or use init commands which include commit_docs:
-INIT=$(node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" init execute-phase "1")
+INIT=$(node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" init execute-phase "1")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # commit_docs is included in all init command outputs
 ```
@@ -60,7 +75,7 @@ if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 **Commit via CLI (handles checks automatically):**
 
 ```bash
-node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: update state" --files .planning/STATE.md
+node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" commit "docs: update state" --files .planning/STATE.md
 ```
 
 The CLI checks `commit_docs` config and gitignore status internally — no manual conditionals needed.
@@ -148,14 +163,14 @@ To use uncommitted mode:
 
 Use `init execute-phase` which returns all config as JSON:
 ```bash
-INIT=$(node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" init execute-phase "1")
+INIT=$(node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" init execute-phase "1")
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # JSON output includes: branching_strategy, phase_branch_template, milestone_branch_template
 ```
 
 Or use `state load` for the config values:
 ```bash
-INIT=$(node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" state load)
+INIT=$(node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" state load)
 if [[ "$INIT" == @file:* ]]; then INIT=$(cat "${INIT#@file:}"); fi
 # Parse branching_strategy, phase_branch_template, milestone_branch_template from JSON
 ```
