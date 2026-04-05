@@ -1,65 +1,29 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-
 export function ContactsSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Header / Title Actions */}
+    <div className="space-y-6 animate-pulse">
+      {/* Header: Title + Button */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-9 w-40" />
-          <Skeleton className="h-4 w-60" />
+          <div className="h-9 w-56 rounded bg-muted" />
+          <div className="h-4 w-72 rounded bg-muted" />
         </div>
-        <Skeleton className="h-10 w-36" />
+        <div className="h-10 w-36 rounded-xl bg-muted" />
       </div>
 
-      {/* Search Bar & Filters */}
+      {/* Search + Filter Tabs */}
       <div className="flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative max-w-md w-full">
-          <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Skeleton className="h-9 w-[68px]" />
-          <Skeleton className="h-9 w-[95px]" />
-          <Skeleton className="h-9 w-[124px]" />
+        <div className="h-10 w-full max-w-md rounded-xl bg-muted" />
+        <div className="flex gap-2">
+          <div className="h-9 w-[68px] rounded-lg bg-muted" />
+          <div className="h-9 w-[95px] rounded-lg bg-muted" />
+          <div className="h-9 w-[124px] rounded-lg bg-muted" />
         </div>
       </div>
 
-      {/* Grid Table */}
-      <div className="space-y-4">
-        {/* Header Row */}
-        <div className="grid grid-cols-12 gap-4 px-4 py-2">
-          <Skeleton className="col-span-3 h-4 w-full" /> {/* Name */}
-          <Skeleton className="col-span-3 h-4 w-full" /> {/* Contact */}
-          <Skeleton className="col-span-2 h-4 w-full" /> {/* Source */}
-          <Skeleton className="col-span-2 h-4 w-full" /> {/* Registered */}
-          <Skeleton className="col-span-2 h-4 w-full" /> {/* Actions */}
-        </div>
-
-        {/* Data Rows */}
+      {/* Table Rows */}
+      <div className="space-y-3">
         {Array.from({ length: 8 }).map((_, i) => (
-          <Card key={i} className="border-border">
-            <CardContent className="grid grid-cols-12 gap-4 items-center py-4 px-4">
-              <div className="col-span-3">
-                <Skeleton className="h-5 w-3/4 mb-1" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-              <div className="col-span-3 space-y-1">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-              <div className="col-span-2">
-                <Skeleton className="h-6 w-20" />
-              </div>
-              <div className="col-span-2">
-                <Skeleton className="h-4 w-24" />
-              </div>
-              <div className="col-span-2 flex justify-end gap-1">
-                <Skeleton className="h-8 w-8" />
-                <Skeleton className="h-8 w-8" />
-              </div>
-            </CardContent>
-          </Card>
+          <div key={i} className="h-[72px] rounded-2xl bg-muted" />
         ))}
       </div>
     </div>

@@ -1,69 +1,78 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-
 export function FinancialSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 animate-pulse">
+      {/* Header: Title + Action Buttons */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64" />
+          <div className="h-8 w-48 rounded bg-muted" />
+          <div className="h-4 w-52 rounded bg-muted" />
         </div>
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="text-center md:text-right">
-            <div className="flex items-center gap-2 mb-1 justify-center md:justify-end">
-              <Skeleton className="h-4 w-4" />
-              <Skeleton className="h-3 w-12" />
-            </div>
-            <Skeleton className="h-8 w-32" />
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-44 rounded-xl bg-muted" />
+          <div className="h-10 w-32 rounded-xl bg-muted" />
+          <div className="h-10 w-44 rounded-xl bg-muted" />
+        </div>
+      </div>
+
+      {/* Balance */}
+      <div className="flex justify-end">
+        <div className="space-y-1 text-right">
+          <div className="h-3 w-16 rounded bg-muted ml-auto" />
+          <div className="h-7 w-36 rounded bg-muted" />
+        </div>
+      </div>
+
+      {/* Summary Cards: 3 large + 2 small stacked */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="h-28 rounded-2xl bg-muted" />
+        <div className="h-28 rounded-2xl bg-muted" />
+        <div className="h-28 rounded-2xl bg-muted" />
+        <div className="space-y-4">
+          <div className="h-[50px] rounded-2xl bg-muted" />
+          <div className="h-[50px] rounded-2xl bg-muted" />
+        </div>
+      </div>
+
+      {/* Filters row 1: Search + Type tabs */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="h-10 w-full max-w-sm rounded-xl bg-muted" />
+        <div className="flex gap-2">
+          <div className="h-9 w-20 rounded-lg bg-muted" />
+          <div className="h-9 w-24 rounded-lg bg-muted" />
+          <div className="h-9 w-24 rounded-lg bg-muted" />
+        </div>
+      </div>
+
+      {/* Filters row 2: Status badges + Wallet */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="h-9 w-20 rounded-lg bg-muted" />
+        <div className="h-9 w-20 rounded-lg bg-muted" />
+        <div className="h-9 w-24 rounded-lg bg-muted" />
+        <div className="h-9 w-24 rounded-lg bg-muted" />
+        <div className="h-9 w-36 rounded-lg bg-muted" />
+      </div>
+
+      {/* Filters row 3: Date range + Sort + View toggle */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-32 rounded-lg bg-muted" />
+          <div className="h-9 w-36 rounded-lg bg-muted" />
+          <div className="h-4 w-8 rounded bg-muted" />
+          <div className="h-9 w-36 rounded-lg bg-muted" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-40 rounded-lg bg-muted" />
+          <div className="flex gap-1">
+            <div className="h-9 w-36 rounded-lg bg-muted" />
+            <div className="h-9 w-28 rounded-lg bg-muted" />
           </div>
-          <Skeleton className="h-10 w-40" />
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                <Skeleton className="h-4 w-24" />
-              </CardTitle>
-              <Skeleton className="h-4 w-4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-32 mb-1" />
-              <Skeleton className="h-3 w-48" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-
-      {/* Transactions List */}
-      <div className="grid gap-3">
+      {/* Transaction Rows */}
+      <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-4">
-                <Skeleton className="w-10 h-10" />
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-              </div>
-              <div className="text-right space-y-1">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-3 w-16 ml-auto" />
-              </div>
-            </CardContent>
-          </Card>
+          <div key={i} className="h-[52px] rounded-2xl bg-muted" />
         ))}
       </div>
     </div>
