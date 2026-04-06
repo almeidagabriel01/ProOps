@@ -48,6 +48,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:demo'
           FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080'
           FIREBASE_AUTH_EMULATOR_HOST: '127.0.0.1:9099'
+          FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199'
 
       - name: Upload Playwright report
         if: always()
