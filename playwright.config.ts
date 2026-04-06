@@ -14,10 +14,6 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
-    env: {
-      FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080",
-      FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
-    },
   },
   projects: [
     {
@@ -38,6 +34,9 @@ export default defineConfig({
       NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "demo-proops-test.appspot.com",
       NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000",
       NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:demo",
+      FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080",
+      FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
+      FIREBASE_STORAGE_EMULATOR_HOST: "127.0.0.1:9199",
     },
   },
 });
