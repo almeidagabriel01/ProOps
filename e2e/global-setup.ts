@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import { seedAll, clearAll } from "./seed/seed-factory";
 
 // Poll individual emulator ports — firebase.json has no hub port configured,
 // so the hub URL at :4400 is not reliably available (especially on Windows).
@@ -84,8 +85,6 @@ async function globalSetup(): Promise<void> {
     throw err;
   }
 
-  // Dynamically import seedAll and clearAll after emulators are confirmed ready
-  const { seedAll, clearAll } = await import("./seed/seed-factory");
   await clearAll();
   await seedAll();
 
