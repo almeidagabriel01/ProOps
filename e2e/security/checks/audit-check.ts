@@ -61,6 +61,16 @@ export async function runAuditCheck(): Promise<AuditCheckResult> {
   const frontend = runNpmAudit();
   const functions = runNpmAudit('functions');
 
+  if (frontend.error || functions.error) {
+    return {
+      name: 'npm-audit',
+      status: 'warn',
+      details: `Audit could not complete: ${frontend.error ?? functions.error}`,
+      highCount: 0,
+      criticalCount: 0,
+    };
+  }
+
   const totalHigh = frontend.highCount + functions.highCount;
   const totalCritical = frontend.criticalCount + functions.criticalCount;
 
