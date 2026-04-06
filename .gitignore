@@ -68,11 +68,7 @@ service-account.json
 # Claude Code local overrides (settings.local.json may contain personal tokens)
 .claude/settings.local.json
 
-# Playwright
-playwright-report/
-test-results/
-e2e/dist/
-
-# Firebase Emulator (test)
-.emulator-pid
+# Test reports (generated locally, not committed)
+lighthouse-report/
+security-report/
 
