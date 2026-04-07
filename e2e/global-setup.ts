@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from "child_process";
+import { spawn, spawnSync, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { seedAll, clearAll } from "./seed/seed-factory";
@@ -74,6 +74,18 @@ async function waitForEmulators(): Promise<void> {
 }
 
 async function globalSetup(): Promise<void> {
+  console.log("[global-setup] Building Cloud Functions...");
+  const functionsDir = path.join(process.cwd(), "functions");
+  const buildResult = spawnSync("npm", ["run", "build"], {
+    cwd: functionsDir,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+  if (buildResult.status !== 0) {
+    throw new Error("[global-setup] functions build failed — emulator start aborted.");
+  }
+  console.log("[global-setup] Functions build complete.");
+
   console.log("[global-setup] Starting Firebase Emulators...");
 
   const FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
