@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:test": "next dev -p 3001",
     "predev:backend": "npm --prefix functions run build",
     "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
     "build": "next build",
@@ -68,6 +69,8 @@
   },
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19.2.13",

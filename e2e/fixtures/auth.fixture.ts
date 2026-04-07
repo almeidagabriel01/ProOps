@@ -10,12 +10,58 @@ interface AuthFixtures {
   authenticatedAsBeta: Page;
 }
 
+function rewriteFirebaseUrl(url: string): string {
+  if (url.includes("identitytoolkit.googleapis.com")) {
+    return url.replace("https://identitytoolkit.googleapis.com", "http://127.0.0.1:9099/identitytoolkit.googleapis.com");
+  }
+  if (url.includes("securetoken.googleapis.com")) {
+    return url.replace("https://securetoken.googleapis.com", "http://127.0.0.1:9099/securetoken.googleapis.com");
+  }
+  if (url.includes("firestore.googleapis.com")) {
+    return url.replace("https://firestore.googleapis.com", "http://127.0.0.1:8080");
+  }
+  return url;
+}
+
+// Override fetch AND XHR in the browser before any SDK code runs.
+// Needed because .env.local bakes real Firebase credentials into the client
+// bundle; Firebase SDK would otherwise talk to Google's production servers.
+async function interceptFirebaseRequests(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    // Override fetch
+    const _fetch = window.fetch;
+    window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+      let url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+      const rewritten = url
+        .replace("https://identitytoolkit.googleapis.com", "http://127.0.0.1:9099/identitytoolkit.googleapis.com")
+        .replace("https://securetoken.googleapis.com", "http://127.0.0.1:9099/securetoken.googleapis.com")
+        .replace("https://firestore.googleapis.com", "http://127.0.0.1:8080");
+      if (rewritten !== url) {
+        return _fetch(rewritten, init);
+      }
+      return _fetch(input, init);
+    } as typeof fetch;
+
+    // Override XHR (Firebase SDK may use XHR for some requests)
+    const _open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...rest: unknown[]) {
+      const urlStr = url.toString()
+        .replace("https://identitytoolkit.googleapis.com", "http://127.0.0.1:9099/identitytoolkit.googleapis.com")
+        .replace("https://securetoken.googleapis.com", "http://127.0.0.1:9099/securetoken.googleapis.com")
+        .replace("https://firestore.googleapis.com", "http://127.0.0.1:8080");
+      return (_open as Function).call(this, method, urlStr, ...rest);
+    };
+  });
+}
+
 /**
  * Auth fixture that provides pre-authenticated browser contexts.
  * Uses LoginPage to log in seeded users before handing the page to tests.
  */
 export const test = base.extend<AuthFixtures>({
   authenticatedPage: async ({ page }, use) => {
+    await interceptFirebaseRequests(page);
+
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_ALPHA.email, USER_ADMIN_ALPHA.password);
@@ -27,6 +73,8 @@ export const test = base.extend<AuthFixtures>({
   },
 
   authenticatedAsBeta: async ({ page }, use) => {
+    await interceptFirebaseRequests(page);
+
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);

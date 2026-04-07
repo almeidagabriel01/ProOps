@@ -20,7 +20,7 @@ export class LoginPage {
     this.page = page;
     this.emailInput = page.locator('#email[type="email"], input[type="email"]').first();
     this.passwordInput = page.locator('#password[type="password"], input[type="password"]').first();
-    this.submitButton = page.getByRole("button", { name: /entrar|login|sign in/i });
+    this.submitButton = page.getByRole("button", { name: "Entrar", exact: true });
     this.errorMessage = page.locator(".text-destructive").first();
   }
 

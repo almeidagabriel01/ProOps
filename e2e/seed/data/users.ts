@@ -7,7 +7,7 @@ export interface SeedUser {
   password: string;
   name: string;
   tenantId: string;
-  role: "master" | "member";
+  role: "admin" | "member";
   masterId?: string;
 }
 
@@ -17,7 +17,7 @@ export const USER_ADMIN_ALPHA: SeedUser = {
   password: "Test1234!",
   name: "Admin Alpha",
   tenantId: "tenant-alpha",
-  role: "master",
+  role: "admin",
 };
 
 export const USER_MEMBER_ALPHA: SeedUser = {
@@ -36,7 +36,7 @@ export const USER_ADMIN_BETA: SeedUser = {
   password: "Test1234!",
   name: "Admin Beta",
   tenantId: "tenant-beta",
-  role: "master",
+  role: "admin",
 };
 
 export const USER_MEMBER_BETA: SeedUser = {
@@ -65,6 +65,7 @@ export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
         email: user.email,
         password: user.password,
         displayName: user.name,
+        emailVerified: true,
       });
     } catch (err: unknown) {
       const firebaseErr = err as { code?: string };

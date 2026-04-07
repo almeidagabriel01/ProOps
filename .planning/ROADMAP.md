@@ -34,9 +34,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Seed data factory deterministically populates emulators with 2 tenants, multiple roles, proposals, transactions, and wallets; CI uploads test reports as downloadable artifacts on every PR
 **Plans:** 3 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
-- [ ] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
-- [ ] 01-03-PLAN.md -- GitHub Actions CI Pipeline
+- [x] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
+- [x] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
+- [x] 01-03-PLAN.md -- GitHub Actions CI Pipeline
 
 ### Phase 2: Auth & Multi-Tenant E2E
 **Goal**: E2E tests prove that authentication works end-to-end and that multi-tenant data isolation is enforced — the security foundation for all other test phases.
@@ -49,9 +49,9 @@ Plans:
   4. Test suite validates that Tenant A cannot read, create, or modify any document belonging to Tenant B — CI blocks the PR if this test fails
 **Plans:** 3 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
-- [ ] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
-- [ ] 01-03-PLAN.md -- GitHub Actions CI Pipeline
+- [x] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
+- [x] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
+- [x] 01-03-PLAN.md -- GitHub Actions CI Pipeline
 
 ### Phase 3: Proposals & CRM E2E
 **Goal**: E2E tests cover the full proposal lifecycle — the highest-value business flow in ProOps — from creation through status transitions, PDF generation, and public sharing.
