@@ -19,11 +19,11 @@ E2E tests covering the full proposal lifecycle — CRUD operations (PROP-01/02/0
 - **D-03:** Deletion is also UI-driven (click delete/confirm dialog). Follows the `create-then-delete` pattern from Phase 1 D-02 — tests that mutate data create their own fixture and clean up after.
 
 ### PDF Test Approach (PROP-04)
-- **D-04:** The test verifies the **HTTP response only** — `GET /api/backend/proposals/:id/pdf` must return HTTP 200 with `Content-Type: application/pdf`. No PDF content inspection. Rationale: Firebase Emulators don't run Chromium/Playwright headless, so actual PDF generation is not exercised in the emulator environment; endpoint reachability and auth enforcement are what matters here.
+- **D-04:** The test verifies the **HTTP response only** — `GET /api/backend/proposals/:id/pdf` must return a non-401/non-403 status, proving the auth layer works. A 500 is acceptable in the emulator environment because Playwright/Chromium is not available server-side for actual PDF rendering (see RESEARCH.md Pitfall 2). If the endpoint returns 200, also verify `Content-Type: application/pdf`. No PDF content inspection. Rationale: the test validates auth enforcement and endpoint reachability, not PDF byte content.
 
 ### Status Transition Mechanics (PROP-06)
 - **D-05:** Status changes are driven via **backend API** — `PUT /api/backend/proposals/:id` with the updated status field. Not through the kanban/UI. Rationale: kanban UI is complex and brittle for test purposes; what needs validation is that the status persists correctly and the UI reflects it.
-- **D-06:** Status transitions are **separate tests per transition**, not a single chain. Tests: draft→sent, sent→approved, sent→rejected. Clearer failure messages; each transition is independently verifiable.
+- **D-06:** Status transitions are **separate tests per transition**, not a single chain. Tests: draft->sent, sent->approved, sent->rejected. Clearer failure messages; each transition is independently verifiable.
 - **D-07:** Seed data already provides `PROPOSAL_ALPHA_DRAFT` (draft), `PROPOSAL_ALPHA_SENT` (sent), and `PROPOSAL_ALPHA_APPROVED` (approved) — tests should use these as starting states where possible, or create fresh proposals and set status via API.
 
 ### Public Share Link (PROP-05)
