@@ -38,8 +38,8 @@
 - [x] **FIN-01**: E2E valida que usuário consegue criar uma transação com dados válidos
 - [x] **FIN-02**: E2E valida que usuário consegue editar uma transação existente
 - [x] **FIN-03**: E2E valida que usuário consegue deletar uma transação
-- [ ] **FIN-04**: E2E valida que usuário consegue criar uma carteira e transferir saldo entre carteiras
-- [ ] **FIN-05**: E2E valida que saldo da carteira é atualizado corretamente após operações (atomic Firestore)
+- [x] **FIN-04**: E2E valida que usuário consegue criar uma carteira e transferir saldo entre carteiras
+- [x] **FIN-05**: E2E valida que saldo da carteira é atualizado corretamente após operações (atomic Firestore)
 - [ ] **FIN-06**: E2E valida que usuário consegue criar transação parcelada e baixar parcelas individualmente
 
 ### Stripe & Billing
@@ -113,8 +113,8 @@
 | FIN-01 | Phase 4 | Complete |
 | FIN-02 | Phase 4 | Complete |
 | FIN-03 | Phase 4 | Complete |
-| FIN-04 | Phase 4 | Pending |
-| FIN-05 | Phase 4 | Pending |
+| FIN-04 | Phase 4 | Complete |
+| FIN-05 | Phase 4 | Complete |
 | FIN-06 | Phase 4 | Pending |
 | BILL-01 | Phase 5 | Pending |
 | BILL-02 | Phase 5 | Pending |

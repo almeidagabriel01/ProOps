@@ -75,10 +75,10 @@ Plans:
   2. Test suite validates that a user can create a wallet and transfer balance between wallets
   3. Test suite validates that wallet balance is updated correctly and atomically after operations
   4. Test suite validates that a user can create an installment transaction and mark individual installments as paid
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 04-01-PLAN.md — Transaction CRUD POM Extension + E2E Tests (FIN-01, FIN-02, FIN-03)
-- [ ] 04-02-PLAN.md — Wallet Operations POM + E2E Tests (FIN-04, FIN-05)
+- [x] 04-02-PLAN.md — Wallet Operations POM + E2E Tests (FIN-04, FIN-05)
 - [ ] 04-03-PLAN.md — Installment Hybrid E2E Test (FIN-06)
 
 ### Phase 5: Stripe & Billing E2E
@@ -136,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Test Infrastructure | 0/? | Not started | - |
 | 2. Auth & Multi-Tenant E2E | 0/? | Not started | - |
 | 3. Proposals & CRM E2E | 2/2 | Complete   | 2026-04-07 |
-| 4. Financial Module E2E | 1/3 | In Progress|  |
+| 4. Financial Module E2E | 2/3 | In Progress|  |
 | 5. Stripe & Billing E2E | 0/? | Not started | - |
 | 6. Performance Tests | 0/? | Not started | - |
 | 7. Security Tests | 0/? | Not started | - |
