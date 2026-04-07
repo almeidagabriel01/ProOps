@@ -37,7 +37,7 @@ type PricingCard = {
 
 const ENTERPRISE_EXTRA_FEATURES = [
   "Consultoria dedicada",
-  "IA no WhatsApp para tarefas rápidas e úteis do dia a dia",
+  "WhatsApp integrado para consultas e envio de documentos",
 ];
 
 const ENTERPRISE_CONTACT_EMAIL = "gestao@proops.com.br";
@@ -81,7 +81,7 @@ const FALLBACK_PLANS: PricingCard[] = [
     features: [
       "Tudo do Profissional",
       "Consultoria dedicada",
-      "IA no WhatsApp para tarefas rápidas e úteis do dia a dia",
+      "WhatsApp integrado para consultas e envio de documentos",
       "Acordo de SLA",
       "Acompanhamento de implantação",
       "Arquitetura dedicada",
@@ -207,18 +207,17 @@ export function LandingPricing({
         headingItems.forEach((item) => {
           gsap.fromTo(
             item,
-            { y: 28, opacity: 0, autoAlpha: 0 },
+            { y: 22, opacity: 0, autoAlpha: 0 },
             {
               y: 0,
               opacity: 1,
               autoAlpha: 1,
-              duration: 0.85,
-              ease: "power2.out",
+              ease: "none",
               scrollTrigger: {
                 trigger: item,
-                start: "top 92%",
-                end: "bottom 14%",
-                toggleActions: "restart none restart reset",
+                start: "top 94%",
+                end: "top 68%",
+                scrub: true,
                 invalidateOnRefresh: true,
               },
             },
@@ -229,38 +228,23 @@ export function LandingPricing({
       const cards = section.querySelectorAll<HTMLElement>(".pricing-card");
       if (cards.length > 0) {
         cards.forEach((card) => {
-          gsap.set(card, { y: 34, opacity: 0, autoAlpha: 0 });
-
-          const cardTimeline = gsap.timeline({
-            defaults: { ease: "none" },
-            scrollTrigger: {
-              trigger: card,
-              start: "top 94%",
-              end: "top -34%",
-              scrub: 0.8,
-              invalidateOnRefresh: true,
+          gsap.fromTo(
+            card,
+            { y: 26, opacity: 0, autoAlpha: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              autoAlpha: 1,
+              ease: "none",
+              scrollTrigger: {
+                trigger: card,
+                start: "top 98%",
+                end: "top 70%",
+                scrub: true,
+                invalidateOnRefresh: true,
+              },
             },
-          });
-
-          cardTimeline
-            .to(card, {
-              y: 0,
-              opacity: 1,
-              autoAlpha: 1,
-              duration: 0.22,
-            })
-            .to(card, {
-              y: 0,
-              opacity: 1,
-              autoAlpha: 1,
-              duration: 0.5,
-            })
-            .to(card, {
-              y: -20,
-              opacity: 0,
-              autoAlpha: 0,
-              duration: 0.28,
-            });
+          );
         });
       }
     },
