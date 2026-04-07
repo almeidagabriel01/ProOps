@@ -45,4 +45,20 @@ export class DashboardPage {
     };
     await this.page.goto(sectionPaths[section]);
   }
+
+  /**
+   * Logs out the current user via the header dropdown menu.
+   * Opens the avatar/user dropdown and clicks "Sair", then waits for /login redirect.
+   */
+  async logout(): Promise<void> {
+    // The header renders a DropdownMenuTrigger (ghost button) wrapping the Avatar.
+    // Click the last button in the header to open the user dropdown menu.
+    await this.page.locator("header").getByRole("button").last().click();
+
+    // Wait for the dropdown to appear and click "Sair"
+    await this.page.getByRole("menuitem", { name: /sair/i }).click();
+
+    // Wait for redirect back to login
+    await this.page.waitForURL(/\/login/, { timeout: 15000 });
+  }
 }
