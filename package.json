@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "dev:test": "next dev -p 3001",
+    "dev:test": "next dev -p 3001 --env-file .env.test",
     "predev:backend": "npm --prefix functions run build",
     "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
     "build": "next build",
