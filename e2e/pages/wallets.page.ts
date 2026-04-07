@@ -50,7 +50,12 @@ export class WalletsPage {
   }
 
   async isLoaded(): Promise<boolean> {
-    await this.page.waitForURL(/wallets/, { timeout: 15000 });
+    // Use a URL predicate to match /wallets in the pathname only (not query string).
+    // A plain regex like /wallets/ would falsely match /login?redirect=/wallets.
+    await this.page.waitForURL(
+      (url) => url.pathname === "/wallets" || url.pathname.startsWith("/wallets/"),
+      { timeout: 15000 },
+    );
     // Wait for the seeded "Conta Principal" wallet card to confirm the grid has rendered
     await this.page.getByText("Conta Principal").first().waitFor({
       state: "visible",
@@ -102,6 +107,25 @@ export class WalletsPage {
   }
 
   /**
+   * Returns a locator for a wallet card identified by its name (h3 text).
+   *
+   * WalletCard renders as:
+   *   <Card>  →  <div class="rounded-lg border bg-card ...">
+   *     <CardContent className="p-5">  →  <div class="p-6 pt-0 p-5">
+   *       ...
+   *       <h3 class="font-semibold text-lg">{wallet.name}</h3>
+   *
+   * We locate the outer Card div (has class "rounded-lg border") that contains
+   * an h3 with the wallet name. Using .filter({has: h3}) on the card container.
+   */
+  private getWalletCard(walletName: string): Locator {
+    return this.page
+      .locator("div.rounded-lg.border")
+      .filter({ has: this.page.locator("h3").filter({ hasText: walletName }) })
+      .first();
+  }
+
+  /**
    * Opens the TransferDialog from a specific wallet card's context menu.
    *
    * The DropdownMenu trigger (MoreVertical icon) is opacity-0 by default and only
@@ -111,12 +135,7 @@ export class WalletsPage {
    * (which opens the dialog without pre-selecting the fromWallet).
    */
   async openTransferDialog(walletName: string): Promise<void> {
-    // Find the wallet card that contains the wallet name as an h3 heading
-    const walletCard = this.page
-      .locator("div[class*='CardContent']")
-      .filter({ has: this.page.locator("h3").filter({ hasText: walletName }) })
-      .first();
-
+    const walletCard = this.getWalletCard(walletName);
     await walletCard.waitFor({ state: "visible", timeout: 10000 });
 
     // Hover over the card to make the DropdownMenu trigger visible
@@ -128,8 +147,12 @@ export class WalletsPage {
     }).last();
     await dropdownTrigger.click({ force: true });
 
-    // Wait for the dropdown menu to appear and click "Transferir"
-    const transferItem = this.page.getByRole("menuitem", { name: /transferir/i });
+    // Wait for the dropdown menu to appear and click "Transferir".
+    // Radix DropdownMenuItem renders as a generic div (no ARIA menuitem role in Playwright snapshot).
+    // Match by exact text content to avoid collision with the summary card "Transferir" button.
+    const transferItem = this.page.locator("[data-radix-collection-item], div[role='menuitem'], div").filter({
+      hasText: /^Transferir$/,
+    }).last();
     await transferItem.waitFor({ state: "visible", timeout: 5000 });
     await transferItem.click();
 
@@ -177,11 +200,10 @@ export class WalletsPage {
     );
     await toSelect.selectOption(toValue);
 
-    // CurrencyInput for amount — keyboard-only cent digits
-    const amountInput = this.page.locator("input#initialBalance, input[placeholder='R$ 0,00']").last();
-    // The CurrencyInput in TransferDialog has no id — find it by its placeholder
+    // CurrencyInput for amount — keyboard-only cent digits.
+    // The TransferDialog's CurrencyInput has no id — find by placeholder within the dialog.
     const transferAmountInput = this.page
-      .locator("dialog, [role='dialog']")
+      .locator("[role='dialog']")
       .locator("input[placeholder='R$ 0,00']")
       .last();
 
@@ -211,11 +233,7 @@ export class WalletsPage {
    * Returns the raw formatted string, e.g. "R$ 15.000,00".
    */
   async getWalletBalance(walletName: string): Promise<string> {
-    // Find the card containing the wallet name as an h3, then get the balance paragraph
-    const walletCard = this.page
-      .locator("div[class*='CardContent']")
-      .filter({ has: this.page.locator("h3").filter({ hasText: walletName }) })
-      .first();
+    const walletCard = this.getWalletCard(walletName);
 
     await walletCard.waitFor({ state: "visible", timeout: 10000 });
 
@@ -239,11 +257,7 @@ export class WalletsPage {
    * The confirm button text is "Excluir" (zero balance) or "Excluir mesmo assim" (non-zero).
    */
   async deleteWallet(walletName: string): Promise<void> {
-    // Find the wallet card
-    const walletCard = this.page
-      .locator("div[class*='CardContent']")
-      .filter({ has: this.page.locator("h3").filter({ hasText: walletName }) })
-      .first();
+    const walletCard = this.getWalletCard(walletName);
 
     await walletCard.waitFor({ state: "visible", timeout: 10000 });
 
@@ -256,8 +270,10 @@ export class WalletsPage {
     }).last();
     await dropdownTrigger.click({ force: true });
 
-    // Click "Excluir" in the dropdown
-    const deleteItem = this.page.getByRole("menuitem", { name: /excluir/i });
+    // Click "Excluir" in the dropdown — same generic div pattern as Transferir item
+    const deleteItem = this.page.locator("[data-radix-collection-item], div[role='menuitem'], div").filter({
+      hasText: /^Excluir$/,
+    }).last();
     await deleteItem.waitFor({ state: "visible", timeout: 5000 });
     await deleteItem.click();
 

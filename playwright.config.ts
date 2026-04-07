@@ -27,7 +27,7 @@ export default defineConfig({
     // so Next.js does NOT override them when loading .env.local — the demo values win.
     command: "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && npm run dev:test",
     port: 3001,
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     timeout: 120000,
     env: {
       NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true",
