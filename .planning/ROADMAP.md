@@ -77,9 +77,9 @@ Plans:
   4. Test suite validates that a user can create an installment transaction and mark individual installments as paid
 **Plans:** 3 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
-- [ ] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
-- [ ] 01-03-PLAN.md -- GitHub Actions CI Pipeline
+- [ ] 04-01-PLAN.md — Transaction CRUD POM Extension + E2E Tests (FIN-01, FIN-02, FIN-03)
+- [ ] 04-02-PLAN.md — Wallet Operations POM + E2E Tests (FIN-04, FIN-05)
+- [ ] 04-03-PLAN.md — Installment Hybrid E2E Test (FIN-06)
 
 ### Phase 5: Stripe & Billing E2E
 **Goal**: E2E tests cover Stripe subscription flows, webhook handling, plan enforcement, and WhatsApp overage billing — the complex async paths that must not regress silently.
@@ -136,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Test Infrastructure | 0/? | Not started | - |
 | 2. Auth & Multi-Tenant E2E | 0/? | Not started | - |
 | 3. Proposals & CRM E2E | 2/2 | Complete   | 2026-04-07 |
-| 4. Financial Module E2E | 0/? | Not started | - |
+| 4. Financial Module E2E | 0/3 | Planning complete | - |
 | 5. Stripe & Billing E2E | 0/? | Not started | - |
 | 6. Performance Tests | 0/? | Not started | - |
 | 7. Security Tests | 0/? | Not started | - |
