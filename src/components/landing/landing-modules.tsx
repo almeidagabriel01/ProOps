@@ -12,6 +12,7 @@ if (typeof window !== "undefined") {
 }
 
 type ModuleHighlight = {
+  badgeLabel: string;
   title: string;
   description: string;
   bullets: string[];
@@ -22,6 +23,7 @@ type ModuleHighlight = {
 
 const MODULES: ModuleHighlight[] = [
   {
+    badgeLabel: "Financeiro",
     title: "Financeiro e carteiras em tempo real.",
     description:
       "Controle receitas e despesas, acompanhe saldos por carteira e execute transferências internas com visão consolidada da operação financeira.",
@@ -35,6 +37,7 @@ const MODULES: ModuleHighlight[] = [
     icon: Wallet,
   },
   {
+    badgeLabel: "CRM",
     title: "CRM visual para propostas e lançamentos.",
     description:
       "Acompanhe o funil em quadro kanban com colunas configuráveis para propostas e cobranças, atualizando status por arraste e com visão instantânea da carteira.",
@@ -48,6 +51,7 @@ const MODULES: ModuleHighlight[] = [
     icon: Kanban,
   },
   {
+    badgeLabel: "Propostas & PDF",
     title: "Propostas comerciais com editor de PDF.",
     description:
       "Monte propostas com produtos, serviços, soluções e ambientes, personalize capa e seções e gere PDF com preview em tempo real para envio imediato.",
@@ -161,7 +165,7 @@ export function LandingModules() {
               >
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/15 dark:border-white/15 bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white text-sm font-medium gsap-fade-up">
                   <Icon className="w-4 h-4" />
-                  Módulo ProOps
+                  Módulo {module.badgeLabel}
                 </div>
 
                 <h3 className="text-3xl md:text-5xl font-bold leading-tight text-black dark:text-white gsap-fade-up">

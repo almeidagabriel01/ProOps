@@ -6,7 +6,6 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import {
   Bot,
-  CalendarClock,
   FileSpreadsheet,
   Layers,
   Package,
@@ -50,16 +49,10 @@ const FEATURE_CARDS = [
       "Crie planilhas internas por empresa para organizar dados de operação fora do fluxo padrão.",
   },
   {
-    icon: CalendarClock,
-    title: "Agenda e Google Agenda",
-    description:
-      "Sincronização opcional com Google Agenda para criar, atualizar e excluir compromissos da operação.",
-  },
-  {
     icon: Bot,
-    title: "Automações e integrações",
+    title: "WhatsApp integrado",
     description:
-      "Fluxos com WhatsApp, webhooks e API para conectar ferramentas externas sem sair da plataforma.",
+      "Consultas rápidas de propostas, financeiro e documentos direto no celular via WhatsApp.",
   },
 ];
 
@@ -129,7 +122,7 @@ export function LandingFeatures() {
             Recursos da Plataforma
           </h2>
           <h3 className="features-heading mx-auto mb-6 max-w-4xl text-4xl font-bold text-black dark:text-white md:text-5xl">
-            Funcoes visiveis para explicar claramente o que o ProOps faz.
+            Tudo que você precisa para operar.
           </h3>
         </div>
 
