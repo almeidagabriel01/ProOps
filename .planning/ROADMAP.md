@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Test Infrastructure** - Playwright, Firebase Emulators, seed data, CI pipeline
 - [ ] **Phase 2: Auth & Multi-Tenant E2E** - Login, session, logout, claims, route guards, tenant isolation
-- [ ] **Phase 3: Proposals & CRM E2E** - CRUD, PDF generation, public links, status transitions
+- [x] **Phase 3: Proposals & CRM E2E** - CRUD, PDF generation, public links, status transitions (completed 2026-04-07)
 - [ ] **Phase 4: Financial Module E2E** - Transactions, wallets, transfers, installments
 - [ ] **Phase 5: Stripe & Billing E2E** - Subscription flows, webhooks, plan limits, WhatsApp overage
 - [ ] **Phase 6: Performance Tests** - Lighthouse CI with Core Web Vitals thresholds and API baselines
@@ -61,10 +61,10 @@ Plans:
   2. Test suite validates that a proposal generates a PDF correctly via the backend endpoint
   3. Test suite validates that a public proposal link is accessible without authentication
   4. Test suite validates the full status lifecycle: draft → sent → approved/rejected
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 03-01-PLAN.md — Proposal CRUD POM Extension + E2E Tests (PROP-01, PROP-02, PROP-03)
-- [ ] 03-02-PLAN.md — PDF, Public Share, and Status Transition E2E Tests (PROP-04, PROP-05, PROP-06)
+- [x] 03-02-PLAN.md — PDF, Public Share, and Status Transition E2E Tests (PROP-04, PROP-05, PROP-06)
 
 ### Phase 4: Financial Module E2E
 **Goal**: E2E tests validate the complete financial module — transactions, wallets, transfers, and installments — ensuring the core billing cycle works correctly and atomically.
@@ -135,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Test Infrastructure | 0/? | Not started | - |
 | 2. Auth & Multi-Tenant E2E | 0/? | Not started | - |
-| 3. Proposals & CRM E2E | 1/2 | In Progress|  |
+| 3. Proposals & CRM E2E | 2/2 | Complete   | 2026-04-07 |
 | 4. Financial Module E2E | 0/? | Not started | - |
 | 5. Stripe & Billing E2E | 0/? | Not started | - |
 | 6. Performance Tests | 0/? | Not started | - |

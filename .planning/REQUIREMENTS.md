@@ -29,9 +29,9 @@
 - [x] **PROP-01**: E2E valida que usuário consegue criar uma nova proposta com dados válidos
 - [x] **PROP-02**: E2E valida que usuário consegue editar uma proposta existente
 - [x] **PROP-03**: E2E valida que usuário consegue deletar uma proposta
-- [ ] **PROP-04**: E2E valida que proposta gera PDF corretamente via endpoint backend
-- [ ] **PROP-05**: E2E valida que link público de proposta é acessível sem autenticação
-- [ ] **PROP-06**: E2E valida que proposta muda de status (rascunho → enviada → aprovada/rejeitada)
+- [x] **PROP-04**: E2E valida que proposta gera PDF corretamente via endpoint backend
+- [x] **PROP-05**: E2E valida que link público de proposta é acessível sem autenticação
+- [x] **PROP-06**: E2E valida que proposta muda de status (rascunho → enviada → aprovada/rejeitada)
 
 ### Módulo Financeiro
 
@@ -107,9 +107,9 @@
 | PROP-01 | Phase 3 | Complete |
 | PROP-02 | Phase 3 | Complete |
 | PROP-03 | Phase 3 | Complete |
-| PROP-04 | Phase 3 | Pending |
-| PROP-05 | Phase 3 | Pending |
-| PROP-06 | Phase 3 | Pending |
+| PROP-04 | Phase 3 | Complete |
+| PROP-05 | Phase 3 | Complete |
+| PROP-06 | Phase 3 | Complete |
 | FIN-01 | Phase 4 | Pending |
 | FIN-02 | Phase 4 | Pending |
 | FIN-03 | Phase 4 | Pending |
