@@ -47,16 +47,16 @@ export class DashboardPage {
   }
 
   /**
-   * Logs out the current user via the header dropdown menu.
-   * Opens the avatar/user dropdown and clicks "Sair", then waits for /login redirect.
+   * Logs out the current user via the bottom-dock "Sair" button.
+   * The bottom dock has a direct logout button (no dropdown) that calls the same
+   * logout() from useAuth() as the header dropdown item.
    */
   async logout(): Promise<void> {
-    // The header renders a DropdownMenuTrigger (ghost button) wrapping the Avatar.
-    // Click the last button in the header to open the user dropdown menu.
-    await this.page.locator("header").getByRole("button").last().click();
-
-    // Wait for the dropdown to appear and click "Sair"
-    await this.page.getByRole("menuitem", { name: /sair/i }).click();
+    // The bottom dock renders a button with aria-label="Sair" that directly calls logout().
+    // This avoids the complexity of opening the header Radix DropdownMenu in headless Playwright.
+    const sairButton = this.page.locator('[aria-label="Sair"]').first();
+    await sairButton.waitFor({ state: "visible", timeout: 15000 });
+    await sairButton.click();
 
     // Wait for redirect back to login
     await this.page.waitForURL(/\/login/, { timeout: 15000 });
