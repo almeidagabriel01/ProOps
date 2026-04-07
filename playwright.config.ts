@@ -12,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3001",
     trace: "on-first-retry",
   },
   projects: [
@@ -22,8 +22,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    port: 3000,
+    // Use port 3001 so the test server never conflicts with `npm run dev` (port 3000).
+    // Playwright's webServer.env vars are already in process.env before Next.js starts,
+    // so Next.js does NOT override them when loading .env.local — the demo values win.
+    command: "npm run dev:test",
+    port: 3001,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
     env: {
@@ -37,6 +40,7 @@ export default defineConfig({
       FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080",
       FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
       FIREBASE_STORAGE_EMULATOR_HOST: "127.0.0.1:9199",
+      NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION: "true",
     },
   },
 });

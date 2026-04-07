@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commit Rules
+
+- **Never** include `Co-Authored-By`, `co-author`, or any attribution to Claude/Anthropic in commit messages.
+- The only author on every commit is the repository owner (Mauricio Krziminski).
+- This applies to all commits: fixes, docs, features, chores — no exceptions.
+
 ## Project Overview
 
 ProOps is a multi-tenant SaaS business management platform (proposals, CRM, finances, team, integrations). Stack: Next.js 16 (App Router) frontend + Firebase Cloud Functions (Express) backend, with Firestore as the database and Firebase Auth.

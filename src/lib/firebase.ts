@@ -7,6 +7,9 @@ import { connectStorageEmulator, getStorage } from "firebase/storage";
 declare global {
   interface Window {
     __templateErpFirebaseEmulatorsConnected?: boolean;
+    /** Set by Playwright e2e tests via addInitScript to force emulator connections
+     *  regardless of NEXT_PUBLIC_USE_FIREBASE_EMULATORS env var. */
+    __E2E_USE_FIREBASE_EMULATORS?: boolean;
   }
 }
 
@@ -29,10 +32,14 @@ const storage = getStorage(app);
 // Cloud Functions are deployed to 'southamerica-east1' (São Paulo)
 const functions = getFunctions(app, "southamerica-east1");
 
+// Also auto-enable emulators for "demo-*" project IDs (Firebase convention) or when
+// Playwright e2e tests inject __E2E_USE_FIREBASE_EMULATORS via addInitScript.
 const useFirebaseEmulators =
   String(process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS || "")
     .trim()
-    .toLowerCase() === "true";
+    .toLowerCase() === "true" ||
+  String(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "").startsWith("demo-") ||
+  (typeof window !== "undefined" && window.__E2E_USE_FIREBASE_EMULATORS === true);
 
 if (useFirebaseEmulators && typeof window !== "undefined") {
   if (!window.__templateErpFirebaseEmulatorsConnected) {

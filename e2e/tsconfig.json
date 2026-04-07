@@ -1,17 +1,24 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": ".",
     "noEmit": false,
     "jsx": "react-jsx",
     "paths": {
-      "@e2e/*": ["./*"],
-      "@/*": ["../src/*"]
+      "@e2e/*": [
+        "./*"
+      ],
+      "@/*": [
+        "../src/*"
+      ]
     }
   },
-  "include": ["**/*.ts"],
-  "exclude": ["dist", "../node_modules"]
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "dist",
+    "../node_modules"
+  ]
 }

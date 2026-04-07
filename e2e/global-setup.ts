@@ -47,6 +47,16 @@ async function globalSetup(): Promise<void> {
   process.env.FIREBASE_AUTH_EMULATOR_HOST = FIREBASE_AUTH_EMULATOR_HOST;
   process.env.FIREBASE_STORAGE_EMULATOR_HOST = FIREBASE_STORAGE_EMULATOR_HOST;
 
+  // Ensure Java is on PATH — Firebase emulators require the JVM.
+  // Eclipse Adoptium (Temurin) installs to a versioned directory that Windows
+  // does not always add to the shell PATH inherited by Node child processes.
+  const JAVA_BIN =
+    "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.10.7-hotspot\\bin";
+  if (process.env.PATH && !process.env.PATH.includes(JAVA_BIN)) {
+    process.env.PATH = `${JAVA_BIN};${process.env.PATH}`;
+    console.log("[global-setup] Added Java to PATH:", JAVA_BIN);
+  }
+
   // On Windows, spawn npx via cmd /c to avoid shell:true deprecation warning.
   // shell:true is unreliable with detached:true on Windows — use explicit cmd invocation.
   const isWin = process.platform === "win32";
