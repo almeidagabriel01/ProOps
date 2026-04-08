@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Proposals & CRM E2E** - CRUD, PDF generation, public links, status transitions (completed 2026-04-07)
 - [x] **Phase 4: Financial Module E2E** - Transactions, wallets, transfers, installments (completed 2026-04-07)
 - [x] **Phase 5: Stripe & Billing E2E** - Subscription flows, webhooks, plan limits, WhatsApp overage (completed 2026-04-08)
-- [ ] **Phase 6: Performance Tests** - Lighthouse CI with Core Web Vitals thresholds and API baselines
+- [ ] **Phase 6: Performance Tests** - Playwright-based Core Web Vitals thresholds and API baselines
 - [ ] **Phase 7: Security Tests** - OWASP ZAP scan, Firestore rules audit, tenant isolation validation
 
 ## Phase Details
@@ -96,19 +96,17 @@ Plans:
 - [x] 05-02-PLAN.md — Plan Limit Enforcement + WhatsApp Overage Cron Tests (BILL-04, BILL-05)
 
 ### Phase 6: Performance Tests
-**Goal**: Lighthouse CI enforces Core Web Vitals thresholds on critical pages and API response time baselines are documented and validated — CI fails on regression.
+**Goal**: Playwright-based performance tests enforce Core Web Vitals thresholds (LCP, CLS, TTFB) on critical pages and validate API response time baselines — CI fails on regression.
 **Depends on**: Phase 1
 **Requirements**: PERF-01, PERF-02, PERF-03
 **Success Criteria** (what must be TRUE):
-  1. Lighthouse CI measures LCP ≤ 2.5s, FID ≤ 100ms, CLS ≤ 0.1 on dashboard, proposals, and transactions pages and produces a report
-  2. CI pipeline fails automatically if Lighthouse scores degrade beyond configured thresholds
-  3. API response time baselines for proposals list and transactions list (≤ 500ms p95) are documented and validated in CI
-**Plans:** 3 plans
+  1. Playwright measures LCP <= 4000ms, CLS <= 0.1, TTFB <= 1000ms on login, dashboard, proposals, and transactions pages
+  2. CI pipeline fails automatically if performance thresholds are breached
+  3. API response time baselines for proposals list and transactions list (p95 <= 500ms) are validated in CI
+**Plans:** 2 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
-- [ ] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
-- [ ] 01-03-PLAN.md -- GitHub Actions CI Pipeline
-**UI hint**: yes
+- [ ] 06-01-PLAN.md — Playwright perf config + Core Web Vitals spec + API baselines spec (PERF-01, PERF-03)
+- [ ] 06-02-PLAN.md — CI integration + Lighthouse cleanup (PERF-02)
 
 ### Phase 7: Security Tests
 **Goal**: OWASP ZAP automated scanning and Firestore rules tests provide a security baseline, with explicit validation that tenant isolation holds across all critical collections.
@@ -137,5 +135,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Proposals & CRM E2E | 2/2 | Complete   | 2026-04-07 |
 | 4. Financial Module E2E | 3/3 | Complete   | 2026-04-07 |
 | 5. Stripe & Billing E2E | 2/2 | Complete   | 2026-04-08 |
-| 6. Performance Tests | 0/? | Not started | - |
+| 6. Performance Tests | 0/2 | Not started | - |
 | 7. Security Tests | 0/? | Not started | - |
