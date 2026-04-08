@@ -25,9 +25,9 @@ export default defineConfig({
     // Use port 3001 so the test server never conflicts with `npm run dev` (port 3000).
     // Playwright's webServer.env vars are already in process.env before Next.js starts,
     // so Next.js does NOT override them when loading .env.local — the demo values win.
-    command: "npm run dev:test",
+    command: "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && npm run dev:test",
     port: 3001,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120000,
     env: {
       NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true",

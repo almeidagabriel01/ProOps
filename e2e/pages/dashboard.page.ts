@@ -45,4 +45,20 @@ export class DashboardPage {
     };
     await this.page.goto(sectionPaths[section]);
   }
+
+  /**
+   * Logs out the current user via the bottom-dock "Sair" button.
+   * The bottom dock has a direct logout button (no dropdown) that calls the same
+   * logout() from useAuth() as the header dropdown item.
+   */
+  async logout(): Promise<void> {
+    // The bottom dock renders a button with aria-label="Sair" that directly calls logout().
+    // This avoids the complexity of opening the header Radix DropdownMenu in headless Playwright.
+    const sairButton = this.page.locator('[aria-label="Sair"]').first();
+    await sairButton.waitFor({ state: "visible", timeout: 15000 });
+    await sairButton.click();
+
+    // Wait for redirect back to login
+    await this.page.waitForURL(/\/login/, { timeout: 15000 });
+  }
 }

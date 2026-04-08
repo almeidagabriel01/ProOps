@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "dev:test": "next dev -p 3001",
+    "dev:test": "cross-env NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-proops-test NEXT_PUBLIC_FIREBASE_API_KEY=demo-key NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-proops-test.firebaseapp.com NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=demo-proops-test.appspot.com NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=000000000000 NEXT_PUBLIC_FIREBASE_APP_ID=1:000000000000:web:demo NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true next dev -p 3001",
     "predev:backend": "npm --prefix functions run build",
     "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
     "build": "next build",
@@ -79,6 +79,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "baseline-browser-mapping": "^2.9.19",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "patch-package": "^8.0.1",
