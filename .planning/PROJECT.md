@@ -18,6 +18,11 @@ Propostas e gestão financeira funcionando com confiança — se tudo mais falha
 - FIN-04: Wallet creation + balance transfer E2E — Validated in Phase 04: financial-module-e2e
 - FIN-05: Wallet balance atomicity verification E2E — Validated in Phase 04: financial-module-e2e
 - FIN-06: Installment group E2E (API create + UI mark-as-paid) — Validated in Phase 04: financial-module-e2e
+- BILL-01: Active subscription allows proposal creation E2E — Validated in Phase 05: stripe-billing-e2e
+- BILL-02: Expired subscription blocks proposal creation E2E — Validated in Phase 05: stripe-billing-e2e
+- BILL-03: Stripe webhook subscription state transition E2E — Validated in Phase 05: stripe-billing-e2e
+- BILL-04: Plan limit enforcement (402 + error body) E2E — Validated in Phase 05: stripe-billing-e2e
+- BILL-05: WhatsApp overage cron E2E — Validated in Phase 05: stripe-billing-e2e
 
 ### Active
 
@@ -93,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 — Phase 04 complete: financial module E2E coverage (FIN-01 through FIN-06 passing)*
+*Last updated: 2026-04-08 — Phase 05 complete: Stripe billing E2E coverage (BILL-01 through BILL-05 passing)*
