@@ -138,12 +138,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. Firestore rules tests validate that a user without custom claims cannot access any collection
 3. Firestore rules tests validate that tenant isolation is enforced across all critical Firestore collections
 4. Firestore rules tests validate that a user from Tenant A cannot read or write documents belonging to Tenant B
-   **Plans:** 3 plans
+   **Plans:** 1/2 plans executed
    Plans:
 
-- [ ] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
-- [ ] 01-02-PLAN.md -- Lighthouse Performance + Security Scan Scripts
-- [ ] 01-03-PLAN.md -- GitHub Actions CI Pipeline
+- [x] 07-01-PLAN.md — Jest + @firebase/rules-unit-testing setup + Firestore rules test suite (SEC-02, SEC-03, SEC-04)
+- [ ] 07-02-PLAN.md — CI integration (firestore-rules job) + ZAP job validation (SEC-01)
 
 ## Progress
 
@@ -158,6 +157,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Financial Module E2E    | 3/3            | Complete    | 2026-04-07 |
 | 5. Stripe & Billing E2E    | 2/2            | Complete    | 2026-04-08 |
 | 6. Performance Tests       | 0/2            | Not started | -          |
-| 7. Security Tests          | 0/?            | Not started | -          |
+| 7. Security Tests          | 1/2 | In Progress|  |
 
 **Total tests passing: 38** (smoke: 2 · auth: 15 · proposals: 8 · financial: 6 · billing: 7)

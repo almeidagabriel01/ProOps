@@ -59,9 +59,9 @@
 ### Security
 
 - [ ] **SEC-01**: OWASP ZAP scan automatizado identifica e reporta vulnerabilidades da aplicação
-- [ ] **SEC-02**: Firestore rules tests validam que tenant isolation é aplicado em todas as coleções críticas
-- [ ] **SEC-03**: Firestore rules tests validam que usuário sem claims não acessa nenhuma coleção
-- [ ] **SEC-04**: Firestore rules tests validam que usuário de Tenant A não acessa documentos do Tenant B
+- [x] **SEC-02**: Firestore rules tests validam que tenant isolation é aplicado em todas as coleções críticas
+- [x] **SEC-03**: Firestore rules tests validam que usuário sem claims não acessa nenhuma coleção
+- [x] **SEC-04**: Firestore rules tests validam que usuário de Tenant A não acessa documentos do Tenant B
 
 ## v2 Requirements
 
@@ -125,9 +125,9 @@
 | PERF-02     | Phase 6 | Pending  |
 | PERF-03     | Phase 6 | Pending  |
 | SEC-01      | Phase 7 | Pending  |
-| SEC-02      | Phase 7 | Pending  |
-| SEC-03      | Phase 7 | Pending  |
-| SEC-04      | Phase 7 | Pending  |
+| SEC-02      | Phase 7 | Complete |
+| SEC-03      | Phase 7 | Complete |
+| SEC-04      | Phase 7 | Complete |
 
 **Coverage:**
 
