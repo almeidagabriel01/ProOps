@@ -79,20 +79,6 @@ All backend controllers use `req.user.tenantId` (never request body) for Firesto
 
 </code_context>
 
-<implementation_notes>
-## Implementation Notes (post-execution)
-
-### Test count delta: 15 implemented vs 17 planned
-The audit target was 17 auth tests; 15 were implemented (auth-flow: 6, route-guards: 5, tenant-isolation: 4).
-
-The 2 missing tests are the AUTH-05 query-param assertions:
-- "redirect URL includes the original path as 'redirect' query param"
-- "redirect URL includes 'redirect_reason=session_expired' query param"
-
-Both tests exist in `route-guards.spec.ts` but assert only that the page lands on `/login` — they cannot verify the actual query params. In Next.js dev mode under Playwright, the Edge Middleware 307 redirect response is not observable via `page.on("response")` or `waitForResponse`. The param-setting logic is documented as verified at the source level (`middleware.ts` lines 113-116). This is an intentional scope reduction, not a missing coverage gap.
-
-</implementation_notes>
-
 <deferred>
 ## Deferred Ideas
 
