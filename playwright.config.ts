@@ -1,5 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// globalSetup env changes don't propagate to test workers in Playwright.
+// Set emulator hosts here so every worker process inherits them before any
+// Admin SDK is initialized (e.g. getTestDb() in billing seed helpers).
+process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
@@ -9,6 +16,7 @@ export default defineConfig({
   expect: {
     timeout: 10000,
   },
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
