@@ -82,11 +82,8 @@ export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
     });
 
     // Write user document to Firestore
-<<<<<<< HEAD
-=======
     // admin users get "pro" plan so E2E tests are not blocked by the 5-proposal free-plan limit
     const planId = user.role === "admin" ? "pro" : undefined;
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
     await db.collection("users").doc(user.uid).set({
       id: user.uid,
       tenantId: user.tenantId,
@@ -96,10 +93,7 @@ export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
       masterId: user.masterId ?? user.uid,
       status: "active",
       createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
-<<<<<<< HEAD
-=======
       ...(planId ? { planId } : {}),
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
     });
   }
 

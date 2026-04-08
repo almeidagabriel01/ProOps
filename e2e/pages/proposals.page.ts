@@ -13,13 +13,8 @@ export class ProposalsPage {
     this.page = page;
     // Proposal list items — rows in the list/table
     this.proposalList = page.locator('[data-testid="proposal-item"], [data-testid="proposals-list"] > *');
-<<<<<<< HEAD
-    // New proposal CTA button
-    this.newProposalButton = page.getByRole("button", { name: /nova proposta|new proposal|criar/i });
-=======
     // New proposal CTA — rendered as a <Link> (anchor tag) in the UI
     this.newProposalButton = page.getByRole("link", { name: /nova proposta|new proposal|criar/i });
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
     this.pageHeading = page.locator('h1, [data-testid="page-heading"]').first();
   }
 
@@ -28,9 +23,6 @@ export class ProposalsPage {
   }
 
   async isLoaded(): Promise<boolean> {
-<<<<<<< HEAD
-    await this.page.waitForURL(/proposals/, { timeout: 15000 });
-=======
     await this.page.waitForURL(/\/proposals$/, { timeout: 15000 });
     // Wait for a seeded proposal link to confirm the list has rendered.
     // "Automação Residencial - Casa Verde" is always present from seed data.
@@ -38,7 +30,6 @@ export class ProposalsPage {
       state: "visible",
       timeout: 15000,
     });
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
     return true;
   }
 
@@ -56,9 +47,6 @@ export class ProposalsPage {
   }
 
   async getProposalByTitle(title: string): Promise<Locator> {
-<<<<<<< HEAD
-    return this.page.locator(`text="${title}"`).first();
-=======
     // The title renders as a link in the proposals list. Use getByRole for precision.
     return this.page.getByRole("link", { name: title }).first();
   }
@@ -306,6 +294,5 @@ export class ProposalsPage {
     }
 
     return "";
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
   }
 }

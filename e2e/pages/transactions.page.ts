@@ -1,8 +1,6 @@
 import type { Page, Locator } from "@playwright/test";
 
 /**
-<<<<<<< HEAD
-=======
  * Data shape for creating a transaction through the UI wizard.
  * Only fields required by the "total" payment mode are included.
  * For income transactions, walletName defaults to "Conta Principal"
@@ -20,7 +18,6 @@ export interface TransactionCreateData {
 }
 
 /**
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
  * Page Object Model for the transactions list page (/transactions).
  */
 export class TransactionsPage {
@@ -33,13 +30,8 @@ export class TransactionsPage {
     this.page = page;
     // Transaction list items
     this.transactionList = page.locator('[data-testid="transaction-item"], [data-testid="transactions-list"] > *');
-<<<<<<< HEAD
-    // New transaction CTA button
-    this.newTransactionButton = page.getByRole("button", { name: /novo lançamento|nova transação|new transaction|adicionar/i });
-=======
     // New transaction CTA — rendered as <Link> inside <Button asChild>, so it's an <a> element
     this.newTransactionButton = page.getByRole("link", { name: /novo lançamento|nova transação|new transaction/i });
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
     this.pageHeading = page.locator('h1, [data-testid="page-heading"]').first();
   }
 
@@ -64,8 +56,6 @@ export class TransactionsPage {
   async clickNewTransaction(): Promise<void> {
     await this.newTransactionButton.click();
   }
-<<<<<<< HEAD
-=======
 
   /**
    * Returns a Locator for the transaction row/card containing the description text.
@@ -331,5 +321,4 @@ export class TransactionsPage {
       // Acceptable: item may already be removed before waitFor completes
     });
   }
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
 }

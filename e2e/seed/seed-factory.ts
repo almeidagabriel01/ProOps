@@ -6,12 +6,9 @@ import { seedUsers } from "./data/users";
 import { seedProposals } from "./data/proposals";
 import { seedTransactions } from "./data/transactions";
 import { seedWallets } from "./data/wallets";
-<<<<<<< HEAD
-=======
 import { seedSistemas } from "./data/sistemas";
 import { seedContacts } from "./data/contacts";
 import { seedProducts } from "./data/products";
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
 
 const PROJECT_ID = "demo-proops-test";
 
@@ -57,12 +54,9 @@ export async function seedAll(): Promise<void> {
   await seedTenants(db);
   await seedUsers(auth, db);
   await seedWallets(db);
-<<<<<<< HEAD
-=======
   await seedSistemas(db);
   await seedContacts(db);
   await seedProducts(db);
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
   await seedProposals(db);
   await seedTransactions(db);
 
@@ -79,11 +73,7 @@ export async function clearAll(): Promise<void> {
   const db = getDb();
   const auth = getAuth();
 
-<<<<<<< HEAD
-  const collections = ["tenants", "users", "wallets", "proposals", "transactions"];
-=======
   const collections = ["tenants", "users", "wallets", "sistemas", "ambientes", "clients", "products", "proposals", "transactions"];
->>>>>>> 2c6982bef13951fae8ecc56b63c8ed4ad69705eb
 
   for (const col of collections) {
     const snapshot = await db.collection(col).get();
