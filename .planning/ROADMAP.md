@@ -13,8 +13,8 @@ This milestone builds a complete testing suite from zero for a brownfield multi-
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Test Infrastructure** - Playwright, Firebase Emulators, seed data, CI pipeline
-- [ ] **Phase 2: Auth & Multi-Tenant E2E** - Login, session, logout, claims, route guards, tenant isolation
+- [x] **Phase 1: Test Infrastructure** - Playwright, Firebase Emulators, seed data, CI pipeline (completed 2026-04-08)
+- [x] **Phase 2: Auth & Multi-Tenant E2E** - Login, session, logout, claims, route guards, tenant isolation (completed 2026-04-08)
 - [x] **Phase 3: Proposals & CRM E2E** - CRUD, PDF generation, public links, status transitions (completed 2026-04-07)
 - [x] **Phase 4: Financial Module E2E** - Transactions, wallets, transfers, installments (completed 2026-04-07)
 - [x] **Phase 5: Stripe & Billing E2E** - Subscription flows, webhooks, plan limits, WhatsApp overage (completed 2026-04-08)
@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 3. Developer runs `npm run test:security` and an OWASP ZAP report is generated locally
 4. Playwright is configured with TypeScript, Page Object Model, and reusable fixtures for main pages
 5. Seed data factory deterministically populates emulators with 2 tenants, multiple roles, proposals, transactions, and wallets; CI uploads test reports as downloadable artifacts on every PR
-   **Plans:** 3 plans
+   **Plans:** 3/3 plans complete
    Plans:
 
 - [x] 01-01-PLAN.md -- Playwright + Firebase Emulators + Seed Data + Page Object Model
@@ -152,10 +152,12 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase                      | Plans Complete | Status      | Completed  |
 | -------------------------- | -------------- | ----------- | ---------- |
-| 1. Test Infrastructure     | 0/?            | Not started | -          |
-| 2. Auth & Multi-Tenant E2E | 0/?            | Not started | -          |
+| 1. Test Infrastructure     | 3/3            | Complete    | 2026-04-08 |
+| 2. Auth & Multi-Tenant E2E | 2/2            | Complete    | 2026-04-08 |
 | 3. Proposals & CRM E2E     | 2/2            | Complete    | 2026-04-07 |
 | 4. Financial Module E2E    | 3/3            | Complete    | 2026-04-07 |
 | 5. Stripe & Billing E2E    | 2/2            | Complete    | 2026-04-08 |
 | 6. Performance Tests       | 0/2            | Not started | -          |
 | 7. Security Tests          | 0/?            | Not started | -          |
+
+**Total tests passing: 38** (smoke: 2 · auth: 15 · proposals: 8 · financial: 6 · billing: 7)
