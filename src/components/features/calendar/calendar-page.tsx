@@ -402,6 +402,7 @@ export function CalendarPage() {
     React.useState<CalendarViewType>("dayGridMonth");
   const [currentTitle, setCurrentTitle] = React.useState("");
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [googleStatus, setGoogleStatus] =
     React.useState<GoogleCalendarConnectionStatus>({
       enabled: GOOGLE_CALENDAR_SYNC_ENABLED,
@@ -455,6 +456,17 @@ export function CalendarPage() {
     });
     setEvents(nextEvents);
   }, [tenant?.id, range.endMs, range.startMs]);
+
+  const handleManualRefresh = React.useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshEvents();
+    } catch {
+      toast.error("Não foi possível atualizar os compromissos.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshEvents]);
 
   React.useEffect(() => {
     if (!tenant?.id) {
@@ -946,6 +958,18 @@ export function CalendarPage() {
                         <span className="text-muted-foreground">Fim de semana</span>
                         <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
                       </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 rounded-full border-border/60 bg-background/80"
+                        onClick={handleManualRefresh}
+                        disabled={isRefreshing || isLoadingEvents}
+                        title="Atualizar compromissos"
+                      >
+                        <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                      </Button>
 
                       {canCreate ? (
                         <Button

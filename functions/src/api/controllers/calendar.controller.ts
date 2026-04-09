@@ -927,8 +927,24 @@ async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
   }
 }
 
+// For super admins viewing a tenant's panel, the tenantId comes from the
+// x-tenant-id header (set by the frontend when sessionStorage has viewingAsTenant).
+// Regular users always use their own tenantId from auth claims.
+function resolveCalendarTenantId(req: Request): string {
+  if (req.user?.tenantId) {
+    return req.user.tenantId;
+  }
+  if (req.user?.isSuperAdmin) {
+    const headerTenantId = String(req.headers["x-tenant-id"] || "").trim();
+    if (headerTenantId) {
+      return headerTenantId;
+    }
+  }
+  return "";
+}
+
 function canViewCalendarEvents(req: Request): boolean {
-  return Boolean(req.user?.uid && req.user.tenantId);
+  return Boolean(req.user?.uid && resolveCalendarTenantId(req));
 }
 
 function canManageGoogleCalendarIntegration(req: Request): boolean {
@@ -954,11 +970,12 @@ function canManageCalendarEvent(
   req: Request,
   eventData: CalendarEventDocument,
 ): boolean {
-  if (!req.user?.uid || !req.user?.tenantId) {
+  const tenantId = resolveCalendarTenantId(req);
+  if (!req.user?.uid || !tenantId) {
     return false;
   }
 
-  if (eventData.tenantId !== req.user.tenantId) {
+  if (eventData.tenantId !== tenantId) {
     return false;
   }
 
@@ -1147,7 +1164,8 @@ async function listCalendarEventsWithTenantFallback(params: {
 
 export async function getCalendarEvents(req: Request, res: Response) {
   try {
-    if (!canViewCalendarEvents(req) || !req.user?.tenantId || !req.user.uid) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!canViewCalendarEvents(req) || !tenantId || !req.user?.uid) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
@@ -1160,7 +1178,7 @@ export async function getCalendarEvents(req: Request, res: Response) {
 
     try {
       await syncGoogleEventsToLocalCalendar({
-        tenantId: req.user.tenantId,
+        tenantId,
         startMs,
         endMs,
       });
@@ -1175,7 +1193,7 @@ export async function getCalendarEvents(req: Request, res: Response) {
 
     try {
       events = await listCalendarEventsWithOptimizedQuery({
-        tenantId: req.user.tenantId,
+        tenantId,
         startMs,
         endMs,
       });
@@ -1186,7 +1204,7 @@ export async function getCalendarEvents(req: Request, res: Response) {
       );
 
       events = await listCalendarEventsWithTenantFallback({
-        tenantId: req.user.tenantId,
+        tenantId,
         startMs,
         endMs,
       });
@@ -1312,7 +1330,8 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
       });
     }
 
-    if (!req.user?.uid || !req.user.tenantId) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
     if (!canManageGoogleCalendarIntegration(req)) {
@@ -1326,7 +1345,7 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
 
     await db.collection(CALENDAR_OAUTH_STATES_COLLECTION).doc(state).set({
       uid: req.user.uid,
-      tenantId: req.user.tenantId,
+      tenantId,
       createdAt: nowIso(),
       expiresAtMs: Date.now() + OAUTH_STATE_TTL_MS,
     });
@@ -1458,11 +1477,12 @@ export async function getGoogleCalendarStatus(req: Request, res: Response) {
       });
     }
 
-    if (!req.user?.uid || !req.user.tenantId) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
-    const integration = await getGoogleIntegration(req.user.tenantId);
+    const integration = await getGoogleIntegration(tenantId);
 
     if (!integration) {
       return res.json({
@@ -1496,7 +1516,8 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
       return res.status(204).send();
     }
 
-    if (!req.user?.uid || !req.user.tenantId) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
     if (!canManageGoogleCalendarIntegration(req)) {
@@ -1505,14 +1526,14 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
       });
     }
 
-    const integration = await getGoogleIntegration(req.user.tenantId);
+    const integration = await getGoogleIntegration(tenantId);
     if (!integration) {
       return res.status(204).send();
     }
     const docRef = db.collection(CALENDAR_INTEGRATIONS_COLLECTION).doc(integration.id);
 
     await cleanupLocalEventsAfterGoogleDisconnect({
-      tenantId: req.user.tenantId,
+      tenantId,
       integration: integration.data,
       req,
     });
@@ -1531,7 +1552,7 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
 
     const allIntegrationDocs = await db
       .collection(CALENDAR_INTEGRATIONS_COLLECTION)
-      .where("tenantId", "==", req.user.tenantId)
+      .where("tenantId", "==", tenantId)
       .where("provider", "==", "google")
       .get();
 
@@ -1552,14 +1573,15 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
 
 export async function createCalendarEvent(req: Request, res: Response) {
   try {
-    if (!req.user?.uid || !req.user.tenantId) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
     const docRef = db.collection(CALENDAR_EVENTS_COLLECTION).doc();
     const eventData = buildCalendarEventDocument({
       input: req.body as Record<string, unknown>,
-      tenantId: req.user.tenantId,
+      tenantId,
       ownerUserId: req.user.uid,
       actingUserId: req.user.uid,
     });
@@ -1605,7 +1627,7 @@ export async function createCalendarEvent(req: Request, res: Response) {
 
 export async function updateCalendarEvent(req: Request, res: Response) {
   try {
-    if (!req.user?.uid || !req.user.tenantId) {
+    if (!req.user?.uid || !resolveCalendarTenantId(req)) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
@@ -1679,7 +1701,7 @@ export async function updateCalendarEvent(req: Request, res: Response) {
 
 export async function deleteCalendarEvent(req: Request, res: Response) {
   try {
-    if (!req.user?.uid || !req.user.tenantId) {
+    if (!req.user?.uid || !resolveCalendarTenantId(req)) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 

@@ -1020,11 +1020,53 @@ export const updateUserPlan = async (req: Request, res: Response) => {
       });
     }
 
-    // Update Plan
-    await db.collection("users").doc(userId).update({
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+
+    const userData = userSnap.data() as Record<string, unknown>;
+    const currentRole = String(userData?.role || "").trim().toLowerCase();
+    const hasMasterId = Boolean(String(userData?.masterId || "").trim());
+    const tenantId = String(
+      userData?.tenantId || userData?.companyId || "",
+    ).trim();
+
+    // Promote free account owners to MASTER when a plan is assigned
+    const shouldPromote = currentRole === "free" && !hasMasterId;
+
+    const updatePayload: Record<string, unknown> = {
       planId,
       updatedAt: FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (shouldPromote) {
+      updatePayload.role = "MASTER";
+    }
+
+    await userRef.update(updatePayload);
+
+    if (shouldPromote && tenantId) {
+      try {
+        const userRecord = await auth.getUser(userId);
+        const previousClaims = (userRecord.customClaims || {}) as Record<
+          string,
+          unknown
+        >;
+        await auth.setCustomUserClaims(userId, {
+          ...previousClaims,
+          role: "MASTER",
+          tenantId,
+        });
+      } catch (claimsError) {
+        logger.error(
+          `[updateUserPlan] Failed to set custom claims for user ${userId}`,
+          { userId, error: (claimsError as Error).message },
+        );
+      }
+    }
 
     return res.json({
       success: true,

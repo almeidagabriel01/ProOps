@@ -59,6 +59,16 @@ export const callApi = async <T = unknown>(
     "Content-Type": "application/json",
   };
 
+  // When a super admin is viewing a specific tenant's panel, pass the tenant ID
+  // so the backend can scope queries correctly (super admin has no tenantId in claims).
+  const viewingTenantId =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("viewingAsTenant")
+      : null;
+  if (viewingTenantId) {
+    (headers as Record<string, string>)["x-tenant-id"] = viewingTenantId;
+  }
+
   const config: RequestInit = {
     method,
     headers,
