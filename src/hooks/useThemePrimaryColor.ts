@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useTenant } from "@/providers/tenant-provider";
 import {
@@ -17,11 +18,25 @@ function resolveSafe(input: string | undefined): string {
  * In dark mode, lightness is raised enough for WCAG AA contrast while
  * hue + saturation (brand identity) are preserved — Material Design 3 tonal
  * palette approach.
+ *
+ * Uses a mounted guard to prevent hydration mismatches: next-themes resolves
+ * the theme client-side (from localStorage/class) before React hydrates, so
+ * resolvedTheme can differ between server and the first client render.
+ * Before mount both sides return the raw safe color — no adjustment applied.
  */
 export function useThemePrimaryColor(): string {
   const { tenant } = useTenant();
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const safe = resolveSafe(tenant?.primaryColor);
+
+  if (!mounted) return safe;
+
   return resolvedTheme === "dark"
     ? ensureDarkModeContrast(safe)
     : ensureLightModeContrast(safe);

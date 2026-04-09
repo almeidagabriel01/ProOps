@@ -68,8 +68,17 @@ service-account.json
 # Claude Code local overrides (settings.local.json may contain personal tokens)
 .claude/settings.local.json
 
-# Test reports (generated locally, not committed)
+# Firebase emulator debug logs
+firestore-debug.log
+ui-debug.log
+
+# Test reports and results (generated locally, not committed)
 lighthouse-report/
 security-report/
 performance-report/
+playwright-report/
+test-results/
+
+# env files (can opt-in for committing if needed)
+!.env.test
 
