@@ -28,9 +28,28 @@ const serviceAccount: ServiceAccount = {
     privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
 };
 
+function isEmulatorMode(): boolean {
+    return Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+}
+
 export function getAdminApp() {
     if (getApps().length > 0) {
         return getApp();
+    }
+
+    // In emulator mode, initialize without cert() so the Admin SDK uses the emulator
+    // project ID from NEXT_PUBLIC_FIREBASE_PROJECT_ID. Using cert() with a real
+    // service account forces aud verification against the real project ID, which
+    // breaks token verification when the emulator issues demo-* project tokens.
+    if (isEmulatorMode()) {
+        const emulatorProjectId =
+            process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || serviceAccount.projectId;
+        return initializeApp({
+            projectId: emulatorProjectId,
+            storageBucket:
+                process.env.FIREBASE_STORAGE_BUCKET ||
+                process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        });
     }
 
     // Only initialize if we have credentials

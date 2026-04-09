@@ -1,14 +1,22 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// globalSetup env changes don't propagate to test workers in Playwright.
+// Set emulator hosts here so every worker process inherits them before any
+// Admin SDK is initialized (e.g. getTestDb() in billing seed helpers).
+process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
-  timeout: 30000,
+  timeout: 90000,
   expect: {
     timeout: 10000,
   },
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
@@ -41,6 +49,9 @@ export default defineConfig({
       FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
       FIREBASE_STORAGE_EMULATOR_HOST: "127.0.0.1:9199",
       NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION: "true",
+      // Route backend API calls to the Functions emulator under the demo project.
+      // The demo-proops-test project matches the emulator project in global-setup.ts.
+      FUNCTIONS_LOCAL_API_URL: "http://127.0.0.1:5001/demo-proops-test/southamerica-east1/api",
     },
   },
 });

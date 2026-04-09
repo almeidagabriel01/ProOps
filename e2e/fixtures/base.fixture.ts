@@ -3,12 +3,14 @@ import { LoginPage } from "../pages/login.page";
 import { DashboardPage } from "../pages/dashboard.page";
 import { ProposalsPage } from "../pages/proposals.page";
 import { TransactionsPage } from "../pages/transactions.page";
+import { WalletsPage } from "../pages/wallets.page";
 
 interface PageFixtures {
   loginPage: LoginPage;
   dashboardPage: DashboardPage;
   proposalsPage: ProposalsPage;
   transactionsPage: TransactionsPage;
+  walletsPage: WalletsPage;
 }
 
 // Proxy Firebase API calls to local emulators.
@@ -48,6 +50,17 @@ async function setupEmulatorRoutes(page: import("@playwright/test").Page) {
       status: resp.status,
       headers: Object.fromEntries(resp.headers.entries()),
       body: Buffer.from(await resp.arrayBuffer()),
+    });
+  });
+
+  // Stub /v1/stripe/plans — the Functions emulator has no Stripe configured and
+  // returns 504, which blocks dashboard load and cascades into navigation failures.
+  // Return an empty plans array so the app renders normally in the test environment.
+  await page.route("**/api/backend/v1/stripe/plans", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ plans: [] }),
     });
   });
 
@@ -91,6 +104,9 @@ export const test = base.extend<PageFixtures>({
   },
   transactionsPage: async ({ page }, use) => {
     await use(new TransactionsPage(page));
+  },
+  walletsPage: async ({ page }, use) => {
+    await use(new WalletsPage(page));
   },
 });
 

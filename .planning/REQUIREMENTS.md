@@ -26,29 +26,29 @@
 
 ### Proposals / CRM
 
-- [ ] **PROP-01**: E2E valida que usuário consegue criar uma nova proposta com dados válidos
-- [ ] **PROP-02**: E2E valida que usuário consegue editar uma proposta existente
-- [ ] **PROP-03**: E2E valida que usuário consegue deletar uma proposta
-- [ ] **PROP-04**: E2E valida que proposta gera PDF corretamente via endpoint backend
-- [ ] **PROP-05**: E2E valida que link público de proposta é acessível sem autenticação
-- [ ] **PROP-06**: E2E valida que proposta muda de status (rascunho → enviada → aprovada/rejeitada)
+- [x] **PROP-01**: E2E valida que usuário consegue criar uma nova proposta com dados válidos
+- [x] **PROP-02**: E2E valida que usuário consegue editar uma proposta existente
+- [x] **PROP-03**: E2E valida que usuário consegue deletar uma proposta
+- [x] **PROP-04**: E2E valida que proposta gera PDF corretamente via endpoint backend
+- [x] **PROP-05**: E2E valida que link público de proposta é acessível sem autenticação
+- [x] **PROP-06**: E2E valida que proposta muda de status (rascunho → enviada → aprovada/rejeitada)
 
 ### Módulo Financeiro
 
-- [ ] **FIN-01**: E2E valida que usuário consegue criar uma transação com dados válidos
-- [ ] **FIN-02**: E2E valida que usuário consegue editar uma transação existente
-- [ ] **FIN-03**: E2E valida que usuário consegue deletar uma transação
-- [ ] **FIN-04**: E2E valida que usuário consegue criar uma carteira e transferir saldo entre carteiras
-- [ ] **FIN-05**: E2E valida que saldo da carteira é atualizado corretamente após operações (atomic Firestore)
-- [ ] **FIN-06**: E2E valida que usuário consegue criar transação parcelada e baixar parcelas individualmente
+- [x] **FIN-01**: E2E valida que usuário consegue criar uma transação com dados válidos
+- [x] **FIN-02**: E2E valida que usuário consegue editar uma transação existente
+- [x] **FIN-03**: E2E valida que usuário consegue deletar uma transação
+- [x] **FIN-04**: E2E valida que usuário consegue criar uma carteira e transferir saldo entre carteiras
+- [x] **FIN-05**: E2E valida que saldo da carteira é atualizado corretamente após operações (atomic Firestore)
+- [x] **FIN-06**: E2E valida que usuário consegue criar transação parcelada e baixar parcelas individualmente
 
 ### Stripe & Billing
 
-- [ ] **BILL-01**: E2E valida que tenant consegue assinar um plano e que features são desbloqueadas conforme o plano
-- [ ] **BILL-02**: E2E valida que webhook Stripe `subscription.created` atualiza status do tenant corretamente
-- [ ] **BILL-03**: E2E valida que webhook Stripe `subscription.cancelled` revoga acesso ao plano
-- [ ] **BILL-04**: E2E valida que tenant no plano free recebe bloqueio ao atingir limite de criação (ex: max proposals)
-- [ ] **BILL-05**: E2E valida que cron de overage WhatsApp calcula e registra cobrança correta para o mês
+- [x] **BILL-01**: E2E valida que tenant consegue assinar um plano e que features são desbloqueadas conforme o plano
+- [x] **BILL-02**: E2E valida que webhook Stripe `subscription.created` atualiza status do tenant corretamente
+- [x] **BILL-03**: E2E valida que webhook Stripe `subscription.cancelled` revoga acesso ao plano
+- [x] **BILL-04**: E2E valida que tenant no plano free recebe bloqueio ao atingir limite de criação (ex: max proposals)
+- [x] **BILL-05**: E2E valida que cron de overage WhatsApp calcula e registra cobrança correta para o mês
 
 ### Performance
 
@@ -58,10 +58,10 @@
 
 ### Security
 
-- [ ] **SEC-01**: OWASP ZAP scan automatizado identifica e reporta vulnerabilidades da aplicação
-- [ ] **SEC-02**: Firestore rules tests validam que tenant isolation é aplicado em todas as coleções críticas
-- [ ] **SEC-03**: Firestore rules tests validam que usuário sem claims não acessa nenhuma coleção
-- [ ] **SEC-04**: Firestore rules tests validam que usuário de Tenant A não acessa documentos do Tenant B
+- [x] **SEC-01**: OWASP ZAP scan automatizado identifica e reporta vulnerabilidades da aplicação
+- [x] **SEC-02**: Firestore rules tests validam que tenant isolation é aplicado em todas as coleções críticas
+- [x] **SEC-03**: Firestore rules tests validam que usuário sem claims não acessa nenhuma coleção
+- [x] **SEC-04**: Firestore rules tests validam que usuário de Tenant A não acessa documentos do Tenant B
 
 ## v2 Requirements
 
@@ -80,60 +80,62 @@
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Testes unitários de componentes React | Foco em confiança E2E, não cobertura granular de UI |
-| Load testing / stress test | Não é objetivo do v1.0 — baseline de performance sim, carga não |
-| Testes de mobile nativo | App é web-only |
-| Visual regression testing (screenshots) | Alta manutenção, baixo ROI para esta fase |
+| Feature                                 | Reason                                                          |
+| --------------------------------------- | --------------------------------------------------------------- |
+| Testes unitários de componentes React   | Foco em confiança E2E, não cobertura granular de UI             |
+| Load testing / stress test              | Não é objetivo do v1.0 — baseline de performance sim, carga não |
+| Testes de mobile nativo                 | App é web-only                                                  |
+| Visual regression testing (screenshots) | Alta manutenção, baixo ROI para esta fase                       |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
-| INFRA-06 | Phase 1 | Pending |
-| INFRA-07 | Phase 1 | Pending |
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
-| PROP-01 | Phase 3 | Pending |
-| PROP-02 | Phase 3 | Pending |
-| PROP-03 | Phase 3 | Pending |
-| PROP-04 | Phase 3 | Pending |
-| PROP-05 | Phase 3 | Pending |
-| PROP-06 | Phase 3 | Pending |
-| FIN-01 | Phase 4 | Pending |
-| FIN-02 | Phase 4 | Pending |
-| FIN-03 | Phase 4 | Pending |
-| FIN-04 | Phase 4 | Pending |
-| FIN-05 | Phase 4 | Pending |
-| FIN-06 | Phase 4 | Pending |
-| BILL-01 | Phase 5 | Pending |
-| BILL-02 | Phase 5 | Pending |
-| BILL-03 | Phase 5 | Pending |
-| BILL-04 | Phase 5 | Pending |
-| BILL-05 | Phase 5 | Pending |
-| PERF-01 | Phase 6 | Pending |
-| PERF-02 | Phase 6 | Pending |
-| PERF-03 | Phase 6 | Pending |
-| SEC-01 | Phase 7 | Pending |
-| SEC-02 | Phase 7 | Pending |
-| SEC-03 | Phase 7 | Pending |
-| SEC-04 | Phase 7 | Pending |
+| Requirement | Phase   | Status   |
+| ----------- | ------- | -------- |
+| INFRA-01    | Phase 1 | Pending  |
+| INFRA-02    | Phase 1 | Pending  |
+| INFRA-03    | Phase 1 | Pending  |
+| INFRA-04    | Phase 1 | Pending  |
+| INFRA-05    | Phase 1 | Pending  |
+| INFRA-06    | Phase 1 | Pending  |
+| INFRA-07    | Phase 1 | Pending  |
+| AUTH-01     | Phase 2 | Pending  |
+| AUTH-02     | Phase 2 | Pending  |
+| AUTH-03     | Phase 2 | Pending  |
+| AUTH-04     | Phase 2 | Pending  |
+| AUTH-05     | Phase 2 | Pending  |
+| AUTH-06     | Phase 2 | Pending  |
+| PROP-01     | Phase 3 | Complete |
+| PROP-02     | Phase 3 | Complete |
+| PROP-03     | Phase 3 | Complete |
+| PROP-04     | Phase 3 | Complete |
+| PROP-05     | Phase 3 | Complete |
+| PROP-06     | Phase 3 | Complete |
+| FIN-01      | Phase 4 | Complete |
+| FIN-02      | Phase 4 | Complete |
+| FIN-03      | Phase 4 | Complete |
+| FIN-04      | Phase 4 | Complete |
+| FIN-05      | Phase 4 | Complete |
+| FIN-06      | Phase 4 | Complete |
+| BILL-01     | Phase 5 | Complete |
+| BILL-02     | Phase 5 | Complete |
+| BILL-03     | Phase 5 | Complete |
+| BILL-04     | Phase 5 | Complete |
+| BILL-05     | Phase 5 | Complete |
+| PERF-01     | Phase 6 | Pending  |
+| PERF-02     | Phase 6 | Pending  |
+| PERF-03     | Phase 6 | Pending  |
+| SEC-01      | Phase 7 | Complete |
+| SEC-02      | Phase 7 | Complete |
+| SEC-03      | Phase 7 | Complete |
+| SEC-04      | Phase 7 | Complete |
 
 **Coverage:**
+
 - v1.0 requirements: 34 total
 - Mapped to phases: 34
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-06*
-*Last updated: 2026-04-06 — traceability filled after roadmap creation*
+
+_Requirements defined: 2026-04-06_
+_Last updated: 2026-04-06 — traceability filled after roadmap creation_

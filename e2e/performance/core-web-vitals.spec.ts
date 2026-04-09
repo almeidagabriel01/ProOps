@@ -1,0 +1,107 @@
+import { test, expect } from '../fixtures/auth.fixture';
+
+async function collectWebVitals(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    (window as any).__perfMetrics = { lcpValue: 0, clsValue: 0 };
+
+    new PerformanceObserver((list) => {
+      const entries = list.getEntries();
+      const last = entries[entries.length - 1];
+      (window as any).__perfMetrics.lcpValue = last.startTime;
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const shift = entry as any;
+        if (!shift.hadRecentInput) {
+          (window as any).__perfMetrics.clsValue += shift.value;
+        }
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  });
+}
+
+async function getMetrics(page: import('@playwright/test').Page) {
+  // Allow buffered performance observer callbacks to fire
+  await page.waitForTimeout(1000);
+
+  return page.evaluate(() => {
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    const ttfb = nav ? nav.responseStart - nav.requestStart : -1;
+    return {
+      lcp: (window as any).__perfMetrics?.lcpValue ?? -1,
+      cls: (window as any).__perfMetrics?.clsValue ?? 0,
+      ttfb,
+    };
+  });
+}
+
+const THRESHOLDS = {
+  LCP_MS: 6000,
+  CLS: 0.1,
+  TTFB_MS: 3000, // 3000ms accommodates CI runner slowness (~40% slower than local)
+} as const;
+
+test.describe('Core Web Vitals', () => {
+  test.beforeAll(async ({ request }) => {
+    // Warm up the Next.js server before collecting metrics to avoid cold-start inflation
+    await request.get('http://localhost:3001').catch(() => { /* ignore — server may redirect */ });
+  });
+
+  test('/login page performance', async ({ page }) => {
+    await collectWebVitals(page);
+    await page.goto('/login');
+    // Wait for the login form to confirm React has rendered the route
+    await page.waitForSelector('input[type="email"]', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(page);
+
+    console.log('Login page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
+
+  test('/dashboard page performance', async ({ authenticatedPage }) => {
+    await collectWebVitals(authenticatedPage);
+    await authenticatedPage.goto('/dashboard');
+    // Wait for the page heading to confirm the route has rendered
+    await authenticatedPage.waitForURL(/dashboard/, { timeout: 15000 });
+    await authenticatedPage.waitForSelector('h1, h2', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(authenticatedPage);
+
+    console.log('Dashboard page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
+
+  test('/proposals page performance', async ({ authenticatedPage }) => {
+    await collectWebVitals(authenticatedPage);
+    await authenticatedPage.goto('/proposals');
+    await authenticatedPage.waitForURL(/\/proposals$/, { timeout: 15000 });
+    await authenticatedPage.waitForSelector('h1', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(authenticatedPage);
+
+    console.log('Proposals page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
+
+  test('/transactions page performance', async ({ authenticatedPage }) => {
+    await collectWebVitals(authenticatedPage);
+    await authenticatedPage.goto('/transactions');
+    await authenticatedPage.waitForURL(/\/transactions$/, { timeout: 15000 });
+    await authenticatedPage.waitForSelector('h1', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(authenticatedPage);
+
+    console.log('Transactions page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
+});

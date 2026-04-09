@@ -5,11 +5,14 @@ import type { NextRequest } from "next/server";
 const FUNCTIONS_REGION = "southamerica-east1";
 const DEV_PROJECT_ID = "erp-softcode";
 const PROD_PROJECT_ID = "erp-softcode-prod";
+// Test emulator project — used by Playwright E2E tests (demo-* prefix disables real auth)
+const TEST_PROJECT_ID = "demo-proops-test";
 const LOCAL_UPSTREAM = `http://127.0.0.1:5001/${DEV_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
+const LOCAL_TEST_UPSTREAM = `http://127.0.0.1:5001/${TEST_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
 const DEV_UPSTREAM = `https://${FUNCTIONS_REGION}-${DEV_PROJECT_ID}.cloudfunctions.net/api`;
 const PROD_UPSTREAM = `https://${FUNCTIONS_REGION}-${PROD_PROJECT_ID}.cloudfunctions.net/api`;
 const PRODUCTION_HOSTS = new Set(["proops.com.br", "www.proops.com.br"]);
-const ALLOWED_UPSTREAMS = new Set([LOCAL_UPSTREAM, DEV_UPSTREAM, PROD_UPSTREAM]);
+const ALLOWED_UPSTREAMS = new Set([LOCAL_UPSTREAM, LOCAL_TEST_UPSTREAM, DEV_UPSTREAM, PROD_UPSTREAM]);
 
 export type UpstreamTarget = {
   baseUrl: string;

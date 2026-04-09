@@ -71,4 +71,5 @@ service-account.json
 # Test reports (generated locally, not committed)
 lighthouse-report/
 security-report/
+performance-report/
 

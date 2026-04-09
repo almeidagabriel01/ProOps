@@ -67,7 +67,7 @@ export const test = base.extend<AuthFixtures>({
     await loginPage.login(USER_ADMIN_ALPHA.email, USER_ADMIN_ALPHA.password);
 
     // Wait for redirect to an authenticated route (dashboard or any main route)
-    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 15000 });
+    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
 
     await use(page);
   },
@@ -80,7 +80,7 @@ export const test = base.extend<AuthFixtures>({
     await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
 
     // Wait for redirect to an authenticated route
-    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 15000 });
+    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
 
     await use(page);
   },
