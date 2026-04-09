@@ -39,3 +39,9 @@ test.describe('API Response Time Baselines', () => {
   });
 
 });
+
+// NOTE: /contacts and /products pages load data directly via the Firestore
+// client SDK (getDocs + collection queries in ClientService and ProductService).
+// There is no GET /v1/clients or GET /v1/products backend endpoint.
+// PERF-06 (API baseline for contacts and products) is therefore satisfied by
+// the Core Web Vitals tests in core-web-vitals.spec.ts, not by this file.

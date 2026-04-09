@@ -104,4 +104,32 @@ test.describe('Core Web Vitals', () => {
     expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
     expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
   });
+
+  test('/contacts page performance', async ({ authenticatedPage }) => {
+    await collectWebVitals(authenticatedPage);
+    await authenticatedPage.goto('/contacts');
+    await authenticatedPage.waitForURL(/\/contacts$/, { timeout: 15000 });
+    await authenticatedPage.waitForSelector('h1', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(authenticatedPage);
+
+    console.log('Contacts page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
+
+  test('/products page performance', async ({ authenticatedPage }) => {
+    await collectWebVitals(authenticatedPage);
+    await authenticatedPage.goto('/products');
+    await authenticatedPage.waitForURL(/\/products$/, { timeout: 15000 });
+    await authenticatedPage.waitForSelector('h1', { state: 'visible', timeout: 15000 });
+    const metrics = await getMetrics(authenticatedPage);
+
+    console.log('Products page metrics:', metrics);
+
+    expect(metrics.lcp, `LCP ${metrics.lcp}ms exceeds ${THRESHOLDS.LCP_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.LCP_MS);
+    expect(metrics.cls, `CLS ${metrics.cls} exceeds ${THRESHOLDS.CLS}`).toBeLessThanOrEqual(THRESHOLDS.CLS);
+    expect(metrics.ttfb, `TTFB ${metrics.ttfb}ms exceeds ${THRESHOLDS.TTFB_MS}ms`).toBeLessThanOrEqual(THRESHOLDS.TTFB_MS);
+  });
 });
