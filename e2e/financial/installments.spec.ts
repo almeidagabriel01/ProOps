@@ -188,3 +188,102 @@ test.describe("FIN-06: Installment transactions", () => {
     expect([200, 204]).toContain(deleteResponse.status());
   });
 });
+
+test.describe("FIN-08: Selective installment payment", () => {
+  test("pays installments 1/3 and 2/3 via UI; installment 3/3 stays Pendente", async ({ authenticatedPage }) => {
+    const { idToken } = await signInWithEmailPassword(
+      USER_ADMIN_ALPHA.email,
+      USER_ADMIN_ALPHA.password,
+    );
+
+    const timestamp = Date.now();
+    const description = `Parcelas FIN-08 ${timestamp}`;
+
+    // Step 1: Create 3-installment group via backend API (D-05 pattern from Phase 4)
+    const createResponse = await authenticatedPage.request.post("/api/backend/v1/transactions", {
+      headers: { Authorization: `Bearer ${idToken}` },
+      data: {
+        type: "income",
+        description,
+        amount: 300,
+        date: "2024-07-01",
+        dueDate: "2024-07-01",
+        status: "pending",
+        wallet: "wallet-alpha-main",
+        isInstallment: true,
+        installmentCount: 3,
+        paymentMode: "total",
+      },
+    });
+    expect(createResponse.status()).toBe(201);
+    const createData = await createResponse.json();
+    const transactionId = createData.transactionId;
+    expect(transactionId).toBeTruthy();
+
+    // Step 2: Navigate to /transactions and switch to "Agrupados" view
+    await authenticatedPage.goto("/transactions");
+    await authenticatedPage.waitForURL(/\/transactions/, { timeout: 15000 });
+
+    const agroupadosBtn = authenticatedPage.getByRole("button", { name: /agrupados/i });
+    await agroupadosBtn.click();
+
+    // Step 3: Expand the group card
+    await expect(authenticatedPage.getByText(description)).toBeVisible({ timeout: 15000 });
+    await authenticatedPage.getByText(description).first().click();
+
+    // Step 4: Wait for installment rows
+    await expect(authenticatedPage.getByText("Parcela 1/3", { exact: true })).toBeVisible({ timeout: 10000 });
+
+    // Step 5: Mark installment 1/3 as paid (sequential order — must be before 2/3)
+    const installment1Label = authenticatedPage.getByText("Parcela 1/3", { exact: true });
+    const installment1Row = installment1Label.locator("..").locator("..").locator("..");
+    const statusBtn1 = installment1Row.getByRole("button", { name: /pendente/i });
+    await statusBtn1.scrollIntoViewIfNeeded();
+    await statusBtn1.click();
+
+    await authenticatedPage.waitForFunction(() => {
+      return Array.from(document.body.children).some(
+        (el) => el instanceof HTMLElement && el.style.position === "fixed" && el.textContent?.includes("Pago"),
+      );
+    }, { timeout: 5000 });
+
+    const portalContent1 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
+    await portalContent1.getByText("Pago", { exact: true }).click();
+    await authenticatedPage.waitForTimeout(1500);
+
+    await expect(installment1Row.getByRole("button", { name: /^pago$/i })).toBeVisible({ timeout: 10000 });
+
+    // Step 6: Mark installment 2/3 as paid
+    await expect(authenticatedPage.getByText("Parcela 2/3", { exact: true })).toBeVisible({ timeout: 5000 });
+    const installment2Label = authenticatedPage.getByText("Parcela 2/3", { exact: true });
+    const installment2Row = installment2Label.locator("..").locator("..").locator("..");
+    const statusBtn2 = installment2Row.getByRole("button", { name: /pendente/i });
+    await statusBtn2.scrollIntoViewIfNeeded();
+    await statusBtn2.click();
+
+    await authenticatedPage.waitForFunction(() => {
+      return Array.from(document.body.children).some(
+        (el) => el instanceof HTMLElement && el.style.position === "fixed" && el.textContent?.includes("Pago"),
+      );
+    }, { timeout: 5000 });
+
+    const portalContent2 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
+    await portalContent2.getByText("Pago", { exact: true }).click();
+    await authenticatedPage.waitForTimeout(1500);
+
+    await expect(installment2Row.getByRole("button", { name: /^pago$/i })).toBeVisible({ timeout: 10000 });
+
+    // Step 7: FIN-08 core assertion — installment 3/3 MUST still show "Pendente"
+    await expect(authenticatedPage.getByText("Parcela 3/3", { exact: true })).toBeVisible({ timeout: 5000 });
+    const installment3Label = authenticatedPage.getByText("Parcela 3/3", { exact: true });
+    const installment3Row = installment3Label.locator("..").locator("..").locator("..");
+    await expect(installment3Row.getByRole("button", { name: /^pendente$/i })).toBeVisible({ timeout: 5000 });
+
+    // Cleanup: delete the installment group via API
+    const deleteResponse = await authenticatedPage.request.delete(
+      `/api/backend/v1/transactions/${transactionId}`,
+      { headers: { Authorization: `Bearer ${idToken}` } },
+    );
+    expect([200, 204]).toContain(deleteResponse.status());
+  });
+});

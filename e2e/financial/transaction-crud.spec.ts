@@ -125,3 +125,94 @@ test.describe("FIN-03: Delete transaction", () => {
     await expect(after).not.toBeVisible();
   });
 });
+
+// ─── FIN-07: Expense CRUD ─────────────────────────────────────────────────────
+
+test.describe("FIN-07-A: Create expense transaction", () => {
+  test("creates an expense transaction via UI wizard and it appears in the list", async ({ authenticatedPage }) => {
+    const transactionsPage = new TransactionsPage(authenticatedPage);
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const testDescription = `Test Expense ${Date.now()}`;
+
+    await transactionsPage.createTransaction({
+      type: "expense",
+      description: testDescription,
+      amount: "750.00",
+      walletName: "Conta Principal",
+    });
+
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const item = await transactionsPage.getTransactionByDescription(testDescription);
+    await expect(item).toBeVisible();
+
+    await transactionsPage.deleteTransaction(testDescription);
+  });
+});
+
+test.describe("FIN-07-B: Edit expense transaction", () => {
+  test("edits an expense transaction description and the change persists in the list", async ({ authenticatedPage }) => {
+    const transactionsPage = new TransactionsPage(authenticatedPage);
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const originalDescription = `Expense Edit Target ${Date.now()}`;
+    await transactionsPage.createTransaction({
+      type: "expense",
+      description: originalDescription,
+      amount: "320.00",
+      walletName: "Conta Principal",
+    });
+
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const beforeEdit = await transactionsPage.getTransactionByDescription(originalDescription);
+    await expect(beforeEdit).toBeVisible();
+
+    const editedDescription = `Edited Expense ${Date.now()}`;
+    await transactionsPage.editTransaction(originalDescription, {
+      description: editedDescription,
+    });
+
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const afterEdit = await transactionsPage.getTransactionByDescription(editedDescription);
+    await expect(afterEdit).toBeVisible();
+
+    await transactionsPage.deleteTransaction(editedDescription);
+  });
+});
+
+test.describe("FIN-07-C: Delete expense transaction", () => {
+  test("deletes an expense transaction and it disappears from the list", async ({ authenticatedPage }) => {
+    const transactionsPage = new TransactionsPage(authenticatedPage);
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const deleteDescription = `Expense Delete Target ${Date.now()}`;
+    await transactionsPage.createTransaction({
+      type: "expense",
+      description: deleteDescription,
+      amount: "200.00",
+      walletName: "Conta Principal",
+    });
+
+    await transactionsPage.goto();
+    await transactionsPage.isLoaded();
+
+    const before = await transactionsPage.getTransactionByDescription(deleteDescription);
+    await expect(before).toBeVisible();
+
+    await transactionsPage.deleteTransaction(deleteDescription);
+
+    await expect(authenticatedPage).toHaveURL(/\/transactions/);
+
+    const after = await transactionsPage.getTransactionByDescription(deleteDescription);
+    await expect(after).not.toBeVisible();
+  });
+});
