@@ -104,9 +104,9 @@ export class ProposalsPage {
     // Click "Hoje" in the calendar footer to select today's date
     const hojeButton = this.page.getByRole("button", { name: /hoje/i });
     await hojeButton.waitFor({ state: "visible", timeout: 5000 });
-    // The calendar popover is position:fixed — scrollIntoViewIfNeeded can't help.
-    // Use force:true to click regardless of viewport position.
-    await hojeButton.click({ force: true });
+    // Use JS click via evaluate — works even when the element is outside the CI viewport
+    // (position:fixed popovers are not scrollable into view in headless).
+    await hojeButton.evaluate((el) => (el as HTMLElement).click());
 
     // Click "Próximo" to advance to step 2
     await this.page.getByRole("button", { name: /próximo/i }).click();

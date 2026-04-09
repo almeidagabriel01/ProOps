@@ -95,6 +95,9 @@ async function globalSetup(): Promise<void> {
   process.env.FIRESTORE_EMULATOR_HOST = FIRESTORE_EMULATOR_HOST;
   process.env.FIREBASE_AUTH_EMULATOR_HOST = FIREBASE_AUTH_EMULATOR_HOST;
   process.env.FIREBASE_STORAGE_EMULATOR_HOST = FIREBASE_STORAGE_EMULATOR_HOST;
+  if (!process.env.CRON_SECRET) {
+    process.env.CRON_SECRET = "test-cron-secret";
+  }
 
   // Ensure Java is on PATH — Firebase emulators require the JVM.
   // Eclipse Adoptium (Temurin) installs to a versioned directory that Windows
