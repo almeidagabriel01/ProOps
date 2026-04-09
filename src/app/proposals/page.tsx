@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { lightenColor } from "@/components/layout/navigation-config";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { cn } from "@/lib/utils";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
@@ -118,7 +118,7 @@ export default function ProposalsPage() {
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
-  const premiumColor = lightenColor(tenant?.primaryColor || "#2563eb", 25);
+  const premiumColor = useThemePrimaryColor();
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");

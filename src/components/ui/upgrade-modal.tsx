@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import {
   Dialog,
   DialogContent,
@@ -29,22 +29,7 @@ export function UpgradeModal({
   requiredPlan = "pro",
 }: UpgradeModalProps) {
   const router = useRouter();
-  const { tenant } = useTenant();
-
-  // Helper function to lighten a hex color
-  const lightenColor = (hex: string, percent: number): string => {
-    const num = parseInt(hex.replace("#", ""), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, ((num >> 8) & 0x00ff) + amt);
-    const B = Math.min(255, (num & 0x0000ff) + amt);
-    return (
-      "#" + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)
-    );
-  };
-
-  const primaryColor = tenant?.primaryColor || "#2563eb";
-  const premiumColor = lightenColor(primaryColor, 25);
+  const premiumColor = useThemePrimaryColor();
 
   const planName =
     requiredPlan === "enterprise" ? "Enterprise" : "Profissional";

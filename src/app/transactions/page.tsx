@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { lightenColor } from "@/components/layout/navigation-config";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Transaction } from "@/services/transaction-service";
@@ -231,7 +231,7 @@ export default function FinancialPage() {
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
-  const premiumColor = lightenColor(tenant?.primaryColor || "#2563eb", 25);
+  const premiumColor = useThemePrimaryColor();
   const {
     summary,
     isLoading: dataLoading,

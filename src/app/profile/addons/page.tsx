@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AddonCard } from "@/components/ui/addon-card";
 import { AddonConfirmDialog } from "@/components/ui/addon-confirm-dialog";
-import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
@@ -41,8 +41,8 @@ export default function AddonsPage() {
   // (inside component)
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenant } = useTenant();
   const { user } = useAuth();
+  const primaryColor = useThemePrimaryColor();
   const {
     purchasedAddons,
     purchasedAddonsData,
@@ -269,11 +269,11 @@ export default function AddonsPage() {
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${tenant?.primaryColor}20` }}
+              style={{ backgroundColor: `${primaryColor}20` }}
             >
               <Sparkles
                 className="w-5 h-5"
-                style={{ color: tenant?.primaryColor }}
+                style={{ color: primaryColor }}
               />
             </div>
             <div>

@@ -12,11 +12,10 @@ import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   getVisibleChildren,
-  lightenColor,
   MenuItem,
 } from "@/components/layout/navigation-config";
 import { useNavigationItems } from "@/components/layout/use-navigation-items";
-import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -82,7 +81,6 @@ type DockEntry = {
 export function BottomDock() {
   const pathname = usePathname();
   const { logout } = useAuth();
-  const { tenant } = useTenant();
   const { hasFinancial, hasKanban } = usePlanLimits();
   const { isMaster } = usePermissions();
   const upgradeModal = useUpgradeModal();
@@ -213,8 +211,7 @@ export function BottomDock() {
 
   const isAdminPage = pathname.startsWith("/admin");
 
-  const primaryColor = tenant?.primaryColor || "#2563eb";
-  const premiumColor = lightenColor(primaryColor, 25);
+  const premiumColor = useThemePrimaryColor();
 
   const dockEntries: DockEntry[] = React.useMemo(() => {
     const entries: DockEntry[] = [];

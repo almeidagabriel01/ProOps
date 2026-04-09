@@ -20,6 +20,7 @@ import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { downloadSharedProposalPdf } from "@/services/pdf/download-shared-proposal-pdf";
+import { computePrimaryForeground } from "@/utils/color-utils";
 
 export default function SharedProposalPage() {
   const params = useParams();
@@ -249,7 +250,7 @@ export default function SharedProposalPage() {
                 tenant?.primaryColor
                   ? {
                       backgroundColor: tenant.primaryColor,
-                      color: "#ffffff",
+                      color: computePrimaryForeground(tenant.primaryColor),
                       borderColor: tenant.primaryColor,
                     }
                   : {

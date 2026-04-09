@@ -3,6 +3,7 @@
 import { ProposalSection } from "@/types";
 import { Proposal } from "@/services/proposal-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { PreviewSection } from "./preview-section";
 import { cn } from "@/lib/utils";
 import { formatDateBR } from "@/utils/date-format";
@@ -15,6 +16,7 @@ interface ProposalPreviewProps {
 
 export function ProposalPreview({ proposal, sections, className }: ProposalPreviewProps) {
   const { tenant } = useTenant();
+  const primaryColor = useThemePrimaryColor();
 
   const formatDate = (dateString?: string) => {
     return formatDateBR(dateString, "");
@@ -30,7 +32,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
         {/* Header */}
         <div
           className="flex items-start justify-between border-b pb-6"
-          style={{ borderColor: tenant?.primaryColor || "#333" }}
+          style={{ borderColor: primaryColor || "#333" }}
         >
           <div>
             {tenant?.logoUrl ? (
@@ -43,7 +45,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
             ) : (
               <div
                 className="text-2xl font-bold"
-                style={{ color: tenant?.primaryColor || "#333" }}
+                style={{ color: primaryColor || "#333" }}
               >
                 {tenant?.name || "Empresa"}
               </div>
@@ -65,7 +67,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
           <div className="text-center py-4">
             <h1
               className="text-2xl font-bold"
-              style={{ color: tenant?.primaryColor || "#333" }}
+              style={{ color: primaryColor || "#333" }}
             >
               {proposal.title}
             </h1>
@@ -98,7 +100,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
             <PreviewSection
               key={index}
               section={section}
-              primaryColor={tenant?.primaryColor}
+              primaryColor={primaryColor}
               proposal={proposal}
               tenantNiche={tenant?.niche}
             />
@@ -110,7 +112,7 @@ export function ProposalPreview({ proposal, sections, className }: ProposalPrevi
           <p>Esta proposta é válida por 30 dias a partir da data de emissão.</p>
           <p
             className="mt-2 font-semibold"
-            style={{ color: tenant?.primaryColor || "#333" }}
+            style={{ color: primaryColor || "#333" }}
           >
             {tenant?.name || "Empresa"}
           </p>

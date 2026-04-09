@@ -18,6 +18,7 @@ import { Tenant } from "@/types";
 import { TransactionPdfViewer } from "@/components/pdf/transaction-pdf-viewer";
 import Image from "next/image";
 import { downloadSharedTransactionPdf } from "@/services/pdf/download-shared-transaction-pdf";
+import { computePrimaryForeground } from "@/utils/color-utils";
 
 export default function SharedTransactionPage() {
   const params = useParams();
@@ -210,7 +211,7 @@ export default function SharedTransactionPage() {
                 tenant?.primaryColor
                   ? {
                       backgroundColor: tenant.primaryColor,
-                      color: "#ffffff",
+                      color: computePrimaryForeground(tenant.primaryColor),
                       borderColor: tenant.primaryColor,
                     }
                   : {

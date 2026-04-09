@@ -21,6 +21,11 @@ import {
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
 import type { TenantBillingInfo } from "@/services/admin-service";
+import {
+  ensureDarkModeContrast,
+  ensureLightModeContrast,
+  computePrimaryForeground,
+} from "@/utils/color-utils";
 
 interface TenantContextType {
   tenant: Tenant | null;
@@ -462,13 +467,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, isLoading, tenant, endGlobalLoading]);
 
-  // Apply tenant theme synchronously to avoid flash
+  // Apply tenant theme synchronously to avoid flash.
+  // Uses a <style> tag with :root / .dark selectors so the browser cascade
+  // automatically picks the right variant when the theme toggles — no
+  // re-render needed. The stored brand color is the "seed"; lightness is
+  // adjusted per-theme while hue+saturation (brand identity) are preserved.
   React.useLayoutEffect(() => {
+    const styleId = "tenant-styles";
     if (tenant) {
-      const safePrimaryColor = resolveSafeTenantColor(tenant.primaryColor);
-      document.documentElement.style.setProperty("--primary", safePrimaryColor);
-      // We could add more advanced theming here later
-      const styleId = "tenant-styles";
+      const seed = resolveSafeTenantColor(tenant.primaryColor);
+      const lightPrimary = ensureLightModeContrast(seed);
+      const darkPrimary = ensureDarkModeContrast(seed);
+      const lightFg = computePrimaryForeground(lightPrimary);
+      const darkFg = computePrimaryForeground(darkPrimary);
+
       let styleTag = document.getElementById(styleId);
       if (!styleTag) {
         styleTag = document.createElement("style");
@@ -476,22 +488,28 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         document.head.appendChild(styleTag);
       }
       styleTag.innerHTML = `
-               ::selection {
-               background-color: ${safePrimaryColor} !important;
-                   color: #ffffff !important;
-               }
-               .tenant-border {
-               border-color: ${safePrimaryColor} !important;
-               }
-           `;
+        :root {
+          --primary: ${lightPrimary};
+          --primary-foreground: ${lightFg};
+          --ring: ${lightPrimary};
+        }
+        .dark {
+          --primary: ${darkPrimary};
+          --primary-foreground: ${darkFg};
+          --ring: ${darkPrimary};
+        }
+        ::selection {
+          background-color: var(--primary) !important;
+          color: var(--primary-foreground) !important;
+        }
+        .tenant-border {
+          border-color: var(--primary) !important;
+        }
+      `;
     } else {
       // Reset to default system theme (e.g. Blue) when no tenant aka Admin View
-      document.documentElement.style.removeProperty("--primary");
-      const styleId = "tenant-styles";
       const styleTag = document.getElementById(styleId);
-      if (styleTag) {
-        styleTag.remove();
-      }
+      if (styleTag) styleTag.remove();
     }
   }, [tenant]);
 
