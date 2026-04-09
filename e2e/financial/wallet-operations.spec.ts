@@ -20,6 +20,8 @@
 
 import { test, expect } from "../fixtures/auth.fixture";
 import { WalletsPage } from "../pages/wallets.page";
+import { getTestDb } from "../helpers/admin-firestore";
+import { WALLET_ALPHA_MAIN, WALLET_ALPHA_SAVINGS } from "../seed/data/wallets";
 
 /**
  * Parse a pt-BR formatted currency string to a number.
@@ -80,6 +82,33 @@ test.describe("FIN-04: Wallet creation and balance transfer", () => {
 // ─── FIN-05: Wallet balance updates correctly after operations ────────────────
 
 test.describe("FIN-05: Wallet balance updates correctly after operations", () => {
+  /**
+   * Safety net: if the test is interrupted before the reverse-transfer cleanup
+   * (timeout, assertion failure, CI kill), this afterEach directly resets the
+   * seeded wallet balances in Firestore so other financial tests don't cascade-fail.
+   * Idempotent — does nothing when balances are already at seeded values.
+   */
+  test.afterEach(async () => {
+    const db = getTestDb();
+    const mainRef = db.collection("wallets").doc(WALLET_ALPHA_MAIN.id);
+    const savingsRef = db.collection("wallets").doc(WALLET_ALPHA_SAVINGS.id);
+
+    const [mainSnap, savingsSnap] = await Promise.all([mainRef.get(), savingsRef.get()]);
+
+    const mainBalance: number = (mainSnap.data() ?? {}).balance ?? WALLET_ALPHA_MAIN.balance;
+    const savingsBalance: number = (savingsSnap.data() ?? {}).balance ?? WALLET_ALPHA_SAVINGS.balance;
+
+    const mainDrift = Math.abs(mainBalance - WALLET_ALPHA_MAIN.balance);
+    const savingsDrift = Math.abs(savingsBalance - WALLET_ALPHA_SAVINGS.balance);
+
+    if (mainDrift > 0.01 || savingsDrift > 0.01) {
+      const batch = db.batch();
+      batch.update(mainRef, { balance: WALLET_ALPHA_MAIN.balance });
+      batch.update(savingsRef, { balance: WALLET_ALPHA_SAVINGS.balance });
+      await batch.commit();
+    }
+  });
+
   test("wallet balance updates atomically after transfer between seeded wallets", async ({ authenticatedPage }) => {
     const walletsPage = new WalletsPage(authenticatedPage);
     await walletsPage.goto();

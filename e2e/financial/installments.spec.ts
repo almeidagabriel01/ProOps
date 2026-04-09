@@ -135,10 +135,15 @@ test.describe("FIN-06: Installment transactions", () => {
     const portalContent = authenticatedPage.locator("body > div[style*='position: fixed']").filter({
       hasText: "Pago",
     });
+    const installment1Updated = authenticatedPage.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/backend/") &&
+        resp.request().method() !== "GET" &&
+        resp.status() === 200,
+      { timeout: 10000 },
+    );
     await portalContent.getByText("Pago", { exact: true }).click();
-
-    // Wait for status update (API call + optimistic update)
-    await authenticatedPage.waitForTimeout(1500);
+    await installment1Updated;
 
     // Step 9: Verify installment 1/3 now shows "Pago" in its status button.
     await expect(installment1Row.getByRole("button", { name: /^pago$/i })).toBeVisible({
@@ -170,9 +175,15 @@ test.describe("FIN-06: Installment transactions", () => {
     const portalContent2 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({
       hasText: "Pago",
     });
+    const installment2Updated = authenticatedPage.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/backend/") &&
+        resp.request().method() !== "GET" &&
+        resp.status() === 200,
+      { timeout: 10000 },
+    );
     await portalContent2.getByText("Pago", { exact: true }).click();
-
-    await authenticatedPage.waitForTimeout(1500);
+    await installment2Updated;
 
     // Step 11: Verify installment 2/3 now shows "Pago".
     await expect(installment2Row.getByRole("button", { name: /^pago$/i })).toBeVisible({
@@ -248,8 +259,15 @@ test.describe("FIN-08: Selective installment payment", () => {
     }, { timeout: 5000 });
 
     const portalContent1 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
+    const fin08Installment1Updated = authenticatedPage.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/backend/") &&
+        resp.request().method() !== "GET" &&
+        resp.status() === 200,
+      { timeout: 10000 },
+    );
     await portalContent1.getByText("Pago", { exact: true }).click();
-    await authenticatedPage.waitForTimeout(1500);
+    await fin08Installment1Updated;
 
     await expect(installment1Row.getByRole("button", { name: /^pago$/i })).toBeVisible({ timeout: 10000 });
 
@@ -268,8 +286,15 @@ test.describe("FIN-08: Selective installment payment", () => {
     }, { timeout: 5000 });
 
     const portalContent2 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
+    const fin08Installment2Updated = authenticatedPage.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/backend/") &&
+        resp.request().method() !== "GET" &&
+        resp.status() === 200,
+      { timeout: 10000 },
+    );
     await portalContent2.getByText("Pago", { exact: true }).click();
-    await authenticatedPage.waitForTimeout(1500);
+    await fin08Installment2Updated;
 
     await expect(installment2Row.getByRole("button", { name: /^pago$/i })).toBeVisible({ timeout: 10000 });
 
