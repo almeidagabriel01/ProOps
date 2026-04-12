@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 
 const PID_FILE = path.join(process.cwd(), ".emulator-pid");
 
@@ -7,7 +8,6 @@ function killProcessTree(pid: number): void {
   try {
     if (process.platform === "win32") {
       // On Windows, use taskkill to kill the entire process tree
-      const { execSync } = require("child_process");
       execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" });
     } else {
       // On Unix, kill the negative PID to kill the process group

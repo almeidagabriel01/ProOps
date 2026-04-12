@@ -135,7 +135,9 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "claude-seo@claude-seo-marketplace": true,
     "skillx@skillx-marketplace": true,
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "marketing-skills@marketingskills": true,
+    "superpowers@superpowers-dev": true
   },
   "defaultMode": "auto"
 }

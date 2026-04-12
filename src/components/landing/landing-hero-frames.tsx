@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -113,14 +113,12 @@ const FONT_SIZE = "clamp(2rem, 3vw, 2.75rem)";
 
 function ActivityFeed() {
   const [visible, setVisible] = useState([0, 1, 2]);
-  const [counter, setCounter] = useState(3);
 
   useEffect(() => {
     const id = setInterval(() => {
-      setCounter((c) => {
-        const next = c % FEED.length;
-        setVisible((v) => [...v.slice(1), next]);
-        return c + 1;
+      setVisible((v) => {
+        const next = (v[v.length - 1] + 1) % FEED.length;
+        return [...v.slice(1), next];
       });
     }, 2200);
     return () => clearInterval(id);
@@ -221,10 +219,9 @@ function AnimatedHeadline({ wordIdx }: { wordIdx: number }) {
 
 export function LandingHeroFrames() {
   const [wordIdx, setWordIdx] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   useEffect(() => {
-    setMounted(true);
     const id = setInterval(
       () => setWordIdx((i) => (i + 1) % WORDS.length),
       4200,
