@@ -1,4 +1,5 @@
 name: Test Suite
+
 on:
   pull_request:
     branches: [main, develop]
@@ -7,11 +8,16 @@ concurrency:
   group: tests-${{ github.head_ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
 jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +46,13 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Cache Firebase emulators
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('firebase.json') }}
+          restore-keys: firebase-emulators-
 
       - name: Run E2E tests
         run: npm run test:e2e
@@ -62,22 +75,22 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-pr${{ github.event.number }}-${{ github.run_number }}
           path: playwright-report/
-          retention-days: 14
+          retention-days: 7
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-results
+          name: playwright-results-pr${{ github.event.number }}-${{ github.run_number }}
           path: test-results/
-          retention-days: 14
+          retention-days: 7
 
   performance:
     name: Performance Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -106,6 +119,13 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Cache Firebase emulators
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('firebase.json') }}
+          restore-keys: firebase-emulators-
 
       - name: Run performance tests
         run: npm run test:performance
@@ -181,7 +201,6 @@ jobs:
 
       - name: Run OWASP ZAP baseline scan
         uses: zaproxy/action-baseline@v0.12.0
-        continue-on-error: true
         with:
           target: 'http://localhost:3000'
           rules_file_name: '.zap-rules.tsv'
@@ -200,7 +219,7 @@ jobs:
   firestore-rules:
     name: Firestore Rules Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -221,7 +240,48 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Cache Firebase emulators
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ hashFiles('firebase.json') }}
+          restore-keys: firebase-emulators-
+
       - name: Run Firestore rules tests
         run: firebase emulators:exec --only firestore --project demo-proops-test "npm run test:rules"
         env:
           CI: true
+
+  all-checks-passed:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [e2e, performance, firestore-rules, security]
+    steps:
+      - name: Check all jobs passed
+        run: |
+          results=(
+            "e2e=${{ needs.e2e.result }}"
+            "performance=${{ needs.performance.result }}"
+            "firestore-rules=${{ needs.firestore-rules.result }}"
+            "security=${{ needs.security.result }}"
+          )
+
+          failed=()
+          for entry in "${results[@]}"; do
+            job="${entry%%=*}"
+            result="${entry##*=}"
+            if [[ "$result" != "success" && "$result" != "skipped" ]]; then
+              failed+=("$job ($result)")
+            fi
+          done
+
+          if [[ ${#failed[@]} -gt 0 ]]; then
+            echo "✗ The following jobs failed:"
+            for f in "${failed[@]}"; do
+              echo "  - $f"
+            done
+            exit 1
+          fi
+
+          echo "✓ All checks passed"
