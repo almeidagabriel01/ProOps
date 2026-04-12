@@ -46,6 +46,67 @@ npm run security:claims:backfill         # Backfill Firebase custom claims
 npm run security:claims:validate         # Validate custom claims
 ```
 
+## CI/CD
+
+### Workflows
+
+| Workflow | Arquivo | Dispara em |
+|----------|---------|-----------|
+| **Push Checks** | `.github/workflows/push-checks.yml` | Todo `push` em qualquer branch exceto `main` |
+| **Test Suite** | `.github/workflows/test-suite.yml` | Todo `pull_request` para `main` ou `develop` |
+| **Dependency Review** | `.github/workflows/dependency-review.yml` | PR com mudanças em `package.json` ou `functions/package.json` |
+| **Stale** | `.github/workflows/stale.yml` | Toda segunda às 9h UTC (limpeza automática) |
+
+### Todo push roda a suite completa
+
+`push-checks.yml` executa em paralelo:
+- `type-check` — TypeScript no frontend e functions
+- `lint` — ESLint no frontend e functions
+- `security-audit` — `npm audit --audit-level=critical` em ambos
+- `e2e-push` — 59 testes Playwright com Firebase emulators + seed
+- `firestore-rules-push` — 41 testes de regras Firestore (paralelo com E2E)
+- `performance-push` — Core Web Vitals + API baseline (após E2E passar)
+- `security-scan-push` — OWASP ZAP baseline (após E2E passar)
+- `push-gate` — job final que falha se qualquer job acima falhou
+
+### Branch protection
+
+Configure **apenas `all-checks-passed`** (test-suite.yml) como required status check no GitHub. Ele é o gate consolidado de PRs para `main`/`develop`.
+
+### Deploy manual
+
+Só faça deploy após `all-checks-passed` estar verde no PR. Fluxo:
+1. PR abre → `test-suite.yml` roda
+2. `all-checks-passed` fica verde → revisar e aprovar PR
+3. Merge → `npm run deploy:dev` → validar → `npm run deploy:prod`
+
+### Interpretando falhas
+
+| Job | Falhou? | O que fazer |
+|-----|---------|-------------|
+| `type-check` | Erro de tipagem no frontend ou functions | Corrigir `tsc --noEmit` localmente |
+| `lint` | ESLint com warnings ou erros | `npm run lint` e `cd functions && npm run lint` |
+| `security-audit` | Vulnerabilidade crítica em dependência | `npm audit fix` ou atualizar pacote |
+| `e2e-push` / `e2e` | Teste Playwright falhou | Baixar artefato `playwright-report-*` para ver o trace |
+| `firestore-rules-push` / `firestore-rules` | Regra de segurança quebrou | `npm run test:rules` localmente com emulador |
+| `performance-push` / `performance` | Core Web Vital abaixo do threshold | Ver `performance-report/` no artefato |
+| `security-scan-push` / `security` | ZAP encontrou FAIL | Ver `security-scan-report/` no artefato |
+| `dependency-review` | Nova dependência com vuln `high`/`critical` | Substituir ou versionar diferente |
+
+### Rodar localmente antes de fazer push
+
+```bash
+# Suite completa (equivalente ao CI)
+npm run test:e2e && npm run test:performance && npm run test:rules
+
+# Verificações rápidas
+npx tsc --noEmit                        # Type check frontend
+cd functions && npx tsc --noEmit        # Type check functions
+npm run lint                            # ESLint frontend
+cd functions && npm run lint            # ESLint functions
+npm audit --omit=dev --audit-level=critical  # Audit frontend
+```
+
 ## Architecture
 
 ### Split-Backend Pattern (Critical)
