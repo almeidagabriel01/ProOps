@@ -12,7 +12,7 @@
     "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint src/ --max-warnings=0",
     "postinstall": "patch-package",
     "security:claims:backfill": "node scripts/backfill-custom-claims.mjs",
     "security:claims:validate": "node scripts/validate-custom-claims.mjs",

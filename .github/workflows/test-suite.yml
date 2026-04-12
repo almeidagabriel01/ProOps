@@ -14,6 +14,54 @@ permissions:
   pull-requests: read
 
 jobs:
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install functions dependencies
+        run: cd functions && npm ci
+
+      - name: Type check frontend
+        run: npx tsc --noEmit
+
+      - name: Type check functions
+        run: cd functions && npx tsc --noEmit
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install functions dependencies
+        run: cd functions && npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Lint functions
+        run: cd functions && npm run lint
+
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
@@ -258,11 +306,13 @@ jobs:
     name: All Checks Passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [e2e, performance, firestore-rules, security]
+    needs: [type-check, lint, e2e, performance, firestore-rules, security]
     steps:
       - name: Check all jobs passed
         run: |
           results=(
+            "type-check=${{ needs.type-check.result }}"
+            "lint=${{ needs.lint.result }}"
             "e2e=${{ needs.e2e.result }}"
             "performance=${{ needs.performance.result }}"
             "firestore-rules=${{ needs.firestore-rules.result }}"
