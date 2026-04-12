@@ -133,8 +133,8 @@ jobs:
         run: npm run test:e2e
         env:
           CI: true
-          CRON_SECRET: test-cron-secret
-          STRIPE_SECRET_KEY: sk_test_fake
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           NEXT_PUBLIC_USE_FIREBASE_EMULATORS: 'true'
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-proops-test
           NEXT_PUBLIC_FIREBASE_API_KEY: demo-key
