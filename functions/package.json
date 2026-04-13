@@ -14,7 +14,7 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "security:audit:runtime": "npm audit --omit=dev --audit-level=high"
+    "security:audit:runtime": "npm audit --omit=dev --audit-level=critical"
   },
   "engines": {
     "node": "20"

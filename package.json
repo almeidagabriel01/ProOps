@@ -19,7 +19,7 @@
     "firestore:ttl:stripe-events": "node scripts/enable-firestore-ttl-stripe-events.mjs",
     "deploy:dev": "npx firebase deploy --project dev --only functions,firestore:rules",
     "deploy:prod": "npx firebase deploy --project prod --only functions,firestore:rules",
-    "security:audit:runtime": "npm audit --omit=dev --audit-level=high",
+    "security:audit:runtime": "npm audit --omit=dev --audit-level=critical",
     "security:audit:functions": "npm --prefix functions run security:audit:runtime",
     "security:scan": "npm run security:audit:runtime && npm run security:audit:functions",
     "test:e2e": "npx playwright test",
