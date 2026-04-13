@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: executing
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-04-13T16:53:38.425Z"
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-04-13T16:55:51Z"
 progress:
   total_phases: 9
   completed_phases: 7
@@ -40,7 +40,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 13 (lia-backend-core) — EXECUTING
-Plan: 1 of 3
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Plan: 1 of 3
 _Updated after each plan completion_
 | Phase 12-lia P1 | 45 | 9 tasks | 2 files |
 | Phase 13-lia-backend-core P01 | 2 | 3 tasks | 4 files |
+| Phase 13-lia-backend-core P02 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 13-lia-backend-core]: AI_LIMITS excludes free tier via TypeScript Exclude — free tier blocked at route level with 403 before usage tracking
 - [Phase 13-lia-backend-core]: Enterprise complexity routing: keyword match in user message routes to gemini-2.5-pro-preview-05-06 (~20% of requests)
 - [Phase 13-lia-backend-core]: Monthly AI usage auto-resets by design via new YYYY-MM document each month (merge:true) — no cron needed
+- [Phase 13-lia-backend-core]: Conversation store overwrites full document on save (no merge) — trimmed array always authoritative; createdAt preserved by pre-read
+- [Phase 13-lia-backend-core]: buildAvailableTools returns [] stub — real tool definitions deferred to Phase 3 Tool System
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-13T16:53:38.422Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-04-13T16:55:51Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None
