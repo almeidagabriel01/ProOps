@@ -4,6 +4,73 @@ import {
   validateTransactionData,
 } from "../helpers/transaction-validation";
 import { TransactionService } from "../services/transaction.service";
+import { z } from "zod";
+import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+
+const CreateTransactionSchema = z.object({
+  description: z.string().min(1).max(500).trim(),
+  amount: z.number().positive("O valor deve ser maior que zero."),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)."),
+  type: z.enum(["income", "expense"]),
+  status: z.enum(["paid", "pending", "overdue"]),
+  dueDate: z.string().max(10).optional(),
+  clientId: z.string().max(100).optional(),
+  clientName: z.string().max(200).optional(),
+  proposalId: z.string().max(100).optional(),
+  category: z.string().max(100).optional(),
+  wallet: z.string().max(200).optional(),
+  targetTenantId: z.string().max(100).optional(),
+  notes: z.string().max(2000).trim().optional(),
+  // Installment/recurring fields — passed through without strict validation
+  isDownPayment: z.boolean().optional(),
+  downPaymentType: z.string().max(50).optional(),
+  downPaymentPercentage: z.number().min(0).max(100).optional(),
+  isInstallment: z.boolean().optional(),
+  installmentCount: z.number().int().min(1).max(120).optional(),
+  installmentNumber: z.number().int().min(0).optional().nullable(),
+  installmentGroupId: z.string().max(100).optional().nullable(),
+  installmentInterval: z.number().int().min(1).max(365).optional(),
+  isRecurring: z.boolean().optional(),
+  recurringGroupId: z.string().max(100).optional(),
+  paymentMode: z.enum(["total", "installmentValue"]).optional(),
+  extraCosts: z.array(z.unknown()).max(50).optional(),
+  downPayment: z.object({
+    amount: z.number().positive(),
+    date: z.string(),
+    dueDate: z.string().optional(),
+    wallet: z.string().max(200).optional(),
+    status: z.enum(["paid", "pending", "overdue"]),
+    downPaymentType: z.string().max(50).optional(),
+    downPaymentPercentage: z.number().min(0).max(100).optional(),
+    installmentNumber: z.number().int().optional(),
+    installmentCount: z.number().int().optional(),
+    paymentMode: z.enum(["total", "installmentValue"]).optional(),
+    notes: z.string().max(2000).optional(),
+  }).optional(),
+});
+
+const UpdateTransactionSchema = z.object({
+  description: z.string().min(1).max(500).trim().optional(),
+  amount: z.number().positive().optional(),
+  date: z.string().max(10).optional(),
+  type: z.enum(["income", "expense"]).optional(),
+  status: z.enum(["paid", "pending", "overdue"]).optional(),
+  dueDate: z.string().max(10).optional().nullable(),
+  clientId: z.string().max(100).optional().nullable(),
+  clientName: z.string().max(200).optional().nullable(),
+  proposalId: z.string().max(100).optional().nullable(),
+  category: z.string().max(100).optional().nullable(),
+  wallet: z.string().max(200).optional().nullable(),
+  notes: z.string().max(2000).trim().optional().nullable(),
+  isDownPayment: z.boolean().optional(),
+  isInstallment: z.boolean().optional(),
+  installmentCount: z.number().int().min(1).max(120).optional(),
+  installmentNumber: z.number().int().min(0).optional().nullable(),
+  installmentGroupId: z.string().max(100).optional().nullable(),
+  isRecurring: z.boolean().optional(),
+  paymentMode: z.enum(["total", "installmentValue"]).optional(),
+  extraCosts: z.array(z.unknown()).max(50).optional(),
+}).passthrough();
 
 function mapTransactionErrorStatus(message: string): number {
   if (
@@ -28,9 +95,21 @@ function mapTransactionErrorStatus(message: string): number {
 export const createTransaction = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const data = req.body as CreateTransactionDTO;
 
-    // Validation
+    const parseResult = CreateTransactionSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
+    const data = parseResult.data as CreateTransactionDTO;
+
+    // Sanitize text fields
+    data.description = sanitizeText(data.description);
+    if (data.clientName) data.clientName = sanitizeText(data.clientName);
+    if (data.notes) data.notes = sanitizeRichText(data.notes);
+    if (data.category) data.category = sanitizeText(data.category);
+
+    // Validation (legacy — retained for business rules)
     const validation = validateTransactionData(data);
     if (!validation.isValid) {
       return res.status(400).json({ message: validation.message });
@@ -73,9 +152,21 @@ export const updateTransaction = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
-    const updateData = req.body;
 
     if (!id) return res.status(400).json({ message: "ID inválido." });
+
+    const parseResult = UpdateTransactionSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
+    const updateData = req.body;
+
+    // Sanitize text fields
+    if (typeof updateData.description === "string") updateData.description = sanitizeText(updateData.description);
+    if (typeof updateData.clientName === "string") updateData.clientName = sanitizeText(updateData.clientName);
+    if (typeof updateData.notes === "string") updateData.notes = sanitizeRichText(updateData.notes);
+    if (typeof updateData.category === "string") updateData.category = sanitizeText(updateData.category);
 
     // Safety Lock: Prevent ghost installments on update
     if (updateData.isInstallment === false && updateData.isDownPayment !== true && updateData.isRecurring !== true) {

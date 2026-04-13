@@ -6,6 +6,29 @@ import {
   enforceTenantPlanLimit,
   getTenantWalletsUsage,
 } from "../../lib/tenant-plan-policy";
+import { z } from "zod";
+import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+
+const CreateWalletSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório.").max(100).trim(),
+  type: z.string().min(1, "Tipo é obrigatório.").max(50).trim(),
+  color: z.string().min(1, "Cor é obrigatória.").max(20).trim(),
+  icon: z.string().max(50).trim().optional().nullable(),
+  description: z.string().max(500).trim().optional().nullable(),
+  isDefault: z.boolean().optional(),
+  initialBalance: z.number().optional(),
+  targetTenantId: z.string().max(100).optional(),
+});
+
+const UpdateWalletSchema = z.object({
+  name: z.string().min(1).max(100).trim().optional(),
+  type: z.string().max(50).trim().optional(),
+  color: z.string().max(20).trim().optional(),
+  icon: z.string().max(50).trim().optional().nullable(),
+  description: z.string().max(500).trim().optional().nullable(),
+  isDefault: z.boolean().optional(),
+  status: z.string().max(20).optional(),
+});
 
 const WALLETS_COLLECTION = "wallets";
 const WALLET_TRANSACTIONS_COLLECTION = "wallet_transactions";
@@ -28,13 +51,17 @@ function mapWalletErrorStatus(message: string): number {
 export const createWallet = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
+
+    const parseResult = CreateWalletSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Nome, tipo e cor são obrigatórios.";
+      return res.status(400).json({ message: firstError });
+    }
     const data = req.body;
 
-    if (!data.name || !data.type || !data.color) {
-      return res
-        .status(400)
-        .json({ message: "Nome, tipo e cor são obrigatórios." });
-    }
+    // Sanitize text fields
+    if (typeof data.name === "string") data.name = sanitizeText(data.name);
+    if (typeof data.description === "string") data.description = sanitizeRichText(data.description);
 
     const { tenantId: userTenantId, isSuperAdmin } =
       await checkFinancialPermission(userId, "canCreate", req.user);
@@ -142,7 +169,17 @@ export const updateWallet = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
+
+    const parseResult = UpdateWalletSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
     const updateData = req.body;
+
+    // Sanitize text fields
+    if (typeof updateData.name === "string") updateData.name = sanitizeText(updateData.name);
+    if (typeof updateData.description === "string") updateData.description = sanitizeRichText(updateData.description);
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(
       userId,

@@ -3,18 +3,46 @@ import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
 import { checkClientLimit } from "../../lib/billing-helpers";
+import { z } from "zod";
+import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+
+const CreateClientSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres.").max(200).trim(),
+  email: z.string().email().max(254).optional().or(z.literal("")),
+  phone: z.string().max(30).trim().optional().or(z.literal("")),
+  address: z.string().max(500).trim().optional().or(z.literal("")),
+  notes: z.string().max(2000).trim().optional().or(z.literal("")),
+  types: z.array(z.string().max(50)).max(10).optional(),
+  source: z.string().max(50).trim().optional(),
+  sourceId: z.string().max(100).trim().optional().nullable(),
+  targetTenantId: z.string().max(100).optional(),
+});
+
+const UpdateClientSchema = z.object({
+  name: z.string().min(1).max(200).trim().optional(),
+  email: z.string().email().max(254).optional().or(z.literal("")),
+  phone: z.string().max(30).trim().optional().or(z.literal("")),
+  address: z.string().max(500).trim().optional().or(z.literal("")),
+  notes: z.string().max(2000).trim().optional().or(z.literal("")),
+  types: z.array(z.string().max(50)).max(10).optional(),
+});
 
 // Create Client
 export const createClient = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const input = req.body;
 
-    if (!input.name || input.name.trim().length < 2) {
-      return res
-        .status(400)
-        .json({ message: "Nome deve ter pelo menos 2 caracteres." });
+    const parseResult = CreateClientSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
     }
+    const input = parseResult.data;
+
+    // Sanitize text fields
+    input.name = sanitizeText(input.name);
+    if (input.address) input.address = sanitizeRichText(input.address);
+    if (input.notes) input.notes = sanitizeRichText(input.notes);
 
     const { userData, masterData, masterRef, isMaster, isSuperAdmin, tenantId } =
       await resolveUserAndTenant(userId, req.user);
@@ -167,10 +195,21 @@ export const updateClient = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
-    const updateData = req.body;
 
     if (!id)
       return res.status(400).json({ message: "ID do cliente inválido." });
+
+    const parseResult = UpdateClientSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
+    const updateData = parseResult.data;
+
+    // Sanitize text fields
+    if (updateData.name) updateData.name = sanitizeText(updateData.name);
+    if (updateData.address) updateData.address = sanitizeRichText(updateData.address);
+    if (updateData.notes) updateData.notes = sanitizeRichText(updateData.notes);
 
     const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(
       userId,
