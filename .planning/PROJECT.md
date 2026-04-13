@@ -118,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-08 — Phase 05 complete: Stripe billing E2E coverage (BILL-01 through BILL-05 passing)_
+_Last updated: 2026-04-13 — Phase 12 complete: Lia AI assistant architecture research (Fase 1) — RESEARCH.md populated, CONTEXT.md decisions closed, Firestore schemas validated_
