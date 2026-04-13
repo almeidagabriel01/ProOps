@@ -20,6 +20,7 @@
     "node": "22"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@sparticuz/chromium": "^143.0.4",
     "axios": "^1.13.5",
     "cors": "^2.8.5",
