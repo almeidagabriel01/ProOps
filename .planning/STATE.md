@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: — E2E Coverage Expansion
+milestone: v3.0
+milestone_name: — AI Assistant
 status: executing
-stopped_at: Completed 12-1-PLAN.md
-last_updated: "2026-04-13T16:07:18.241Z"
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-04-13T16:53:38.425Z"
 progress:
-  total_phases: 11
-  completed_phases: 8
-  total_plans: 22
-  completed_plans: 17
+  total_phases: 9
+  completed_phases: 7
+  total_plans: 20
+  completed_plans: 16
 ---
 
 ---
@@ -35,12 +35,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 12 — lia
+**Current focus:** Phase 13 — lia-backend-core
 
 ## Current Position
 
-Phase: 12 (lia) — EXECUTING
-Plan: 1 of 1
+Phase: 13 (lia-backend-core) — EXECUTING
+Plan: 1 of 3
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Plan: 1 of 1
 
 _Updated after each plan completion_
 | Phase 12-lia P1 | 45 | 9 tasks | 2 files |
+| Phase 13-lia-backend-core P01 | 2 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 12-lia]: Hard delete across all domains — Lia always uses request_confirmation for DELETE
 - [Phase 12-lia]: Plan limits enforced in controllers — Lia tool executor handles 402/403, no duplication
 - [Phase 12-lia]: aiChat as Express route /v1/ai/chat in existing monolith — reuses all middleware
+- [Phase 13-lia-backend-core]: AI_LIMITS excludes free tier via TypeScript Exclude — free tier blocked at route level with 403 before usage tracking
+- [Phase 13-lia-backend-core]: Enterprise complexity routing: keyword match in user message routes to gemini-2.5-pro-preview-05-06 (~20% of requests)
+- [Phase 13-lia-backend-core]: Monthly AI usage auto-resets by design via new YYYY-MM document each month (merge:true) — no cron needed
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-13T16:01:31.631Z
-Stopped at: Completed 12-1-PLAN.md
+Last session: 2026-04-13T16:53:38.422Z
+Stopped at: Completed 13-01-PLAN.md
 Resume file: None

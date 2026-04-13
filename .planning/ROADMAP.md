@@ -182,7 +182,7 @@ Plans:
 4. Histórico persiste em `aiConversations/{sessionId}` para planos Pro/Enterprise; Starter retorna array vazio
 5. Todos os testes passam nos emuladores Firebase locais
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
 
 - [ ] 13-01-PLAN.md -- Fundacao: tipos AI_LIMITS, model-router, usage-tracker
@@ -274,4 +274,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Financial Gaps E2E          | 1/2 | In Progress|  |
 | 11. Performance Expansion       | 0/1            | Not started | -          |
 | 12. Lia — Arquitetura & Pesquisa | 1/1           | Complete    | 2026-04-13 |
-| 13. Lia — Backend Core          | 0/3            | Not started | -          |
+| 13. Lia — Backend Core          | 1/3 | In Progress|  |
