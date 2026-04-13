@@ -19,6 +19,7 @@ import { whatsappRoutes } from "./routes/whatsapp.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
+import { aiRouter } from "../ai";
 import {
   allowCorsFallbackInCurrentEnvironment,
   evaluateCorsDecision,
@@ -401,6 +402,7 @@ app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
+app.use("/v1/ai", aiRouter);
 
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   const user = req.user;
