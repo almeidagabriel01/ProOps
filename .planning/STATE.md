@@ -3,6 +3,20 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: — E2E Coverage Expansion
 status: executing
+stopped_at: Completed 12-1-PLAN.md
+last_updated: "2026-04-13T16:01:31.633Z"
+progress:
+  total_phases: 11
+  completed_phases: 8
+  total_plans: 22
+  completed_plans: 17
+---
+
+---
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: — E2E Coverage Expansion
+status: Executing Phase 12
 stopped_at: Completed 10-01-PLAN.md
 last_updated: "2026-04-09T14:22:14.488Z"
 last_activity: 2026-04-09 -- Phase 10 execution started
@@ -21,16 +35,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 10 — financial-gaps-e2e
+**Current focus:** Phase 12 — lia
 
 ## Current Position
 
-Phase: 10 (financial-gaps-e2e) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 10
-Last activity: 2026-04-09 -- Phase 10 execution started
-
-Progress: [█████░░░░░] 50%
+Phase: 12 (lia) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -53,6 +63,7 @@ Progress: [█████░░░░░] 50%
 - Trend: —
 
 _Updated after each plan completion_
+| Phase 12-lia P1 | 45 | 9 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +83,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - Step 2 StepNavigation uses default nextLabel="Próximo" (not "Continuar" like step 1)
 - waitForURL must use URL predicate `(url) => url.pathname === "/"` not regex — regex matches full URL string not just path
 - Email domain for registration tests: use gmail.com (has valid MX records); test.com is a parked domain with no MX records and fails backend DNS validation
+- [Phase 12-lia]: Hard delete across all domains — Lia always uses request_confirmation for DELETE
+- [Phase 12-lia]: Plan limits enforced in controllers — Lia tool executor handles 402/403, no duplication
+- [Phase 12-lia]: aiChat as Express route /v1/ai/chat in existing monolith — reuses all middleware
 
 ### Pending Todos
 
@@ -83,6 +97,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-09T14:17:23.926Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-04-13T16:01:31.631Z
+Stopped at: Completed 12-1-PLAN.md
 Resume file: None
