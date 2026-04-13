@@ -71,13 +71,25 @@ service-account.json
 # Firebase emulator debug logs
 firestore-debug.log
 ui-debug.log
+database-debug.log
+pubsub-debug.log
+.emulator-pid
+
+# Playwright
+.last-run.json
+playwright-report/
+test-results/
 
 # Test reports and results (generated locally, not committed)
 lighthouse-report/
 security-report/
 performance-report/
-playwright-report/
-test-results/
+
+# ZAP scan outputs
+zap.yaml
+report_json.json
+report_md.md
+report_html.html
 
 # env files (can opt-in for committing if needed)
 !.env.test
