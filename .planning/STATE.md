@@ -40,7 +40,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 13 (lia-backend-core) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3 (COMPLETE)
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ _Updated after each plan completion_
 | Phase 12-lia P1 | 45 | 9 tasks | 2 files |
 | Phase 13-lia-backend-core P01 | 2 | 3 tasks | 4 files |
 | Phase 13-lia-backend-core P02 | 2 | 2 tasks | 2 files |
+| Phase 13-lia-backend-core P03 | 20 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 13-lia-backend-core]: Monthly AI usage auto-resets by design via new YYYY-MM document each month (merge:true) — no cron needed
 - [Phase 13-lia-backend-core]: Conversation store overwrites full document on save (no merge) — trimmed array always authoritative; createdAt preserved by pre-read
 - [Phase 13-lia-backend-core]: buildAvailableTools returns [] stub — real tool definitions deferred to Phase 3 Tool System
+- [Phase 13-lia-backend-core]: Promise<void> on async Express handler — use statement+return instead of return res.json() to satisfy TypeScript strict mode
+- [Phase 13-lia-backend-core]: res.setTimeout(0) before SSE flushHeaders disables the 20s protected route timeout for streaming connections
+- [Phase 13-lia-backend-core]: AI route mounted after notificationsRoutes at app.use('/v1/ai') — auth already enforced by global validateFirebaseIdToken middleware
 
 ### Pending Todos
 
@@ -104,6 +108,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-13T16:55:51Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-04-13T18:00:00Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None
