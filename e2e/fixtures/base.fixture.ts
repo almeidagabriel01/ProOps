@@ -88,25 +88,25 @@ async function setupEmulatorRoutes(page: import("@playwright/test").Page) {
  * Extend this for all e2e tests to get automatic POM instances.
  */
 export const test = base.extend<PageFixtures>({
-  page: async ({ page }, use) => {
+  page: async ({ page }, provide) => {
     await setupEmulatorRoutes(page);
-    await use(page);
+    await provide(page);
   },
 
-  loginPage: async ({ page }, use) => {
-    await use(new LoginPage(page));
+  loginPage: async ({ page }, provide) => {
+    await provide(new LoginPage(page));
   },
-  dashboardPage: async ({ page }, use) => {
-    await use(new DashboardPage(page));
+  dashboardPage: async ({ page }, provide) => {
+    await provide(new DashboardPage(page));
   },
-  proposalsPage: async ({ page }, use) => {
-    await use(new ProposalsPage(page));
+  proposalsPage: async ({ page }, provide) => {
+    await provide(new ProposalsPage(page));
   },
-  transactionsPage: async ({ page }, use) => {
-    await use(new TransactionsPage(page));
+  transactionsPage: async ({ page }, provide) => {
+    await provide(new TransactionsPage(page));
   },
-  walletsPage: async ({ page }, use) => {
-    await use(new WalletsPage(page));
+  walletsPage: async ({ page }, provide) => {
+    await provide(new WalletsPage(page));
   },
 });
 

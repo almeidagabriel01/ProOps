@@ -72,14 +72,18 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/automation" || pathname.startsWith("/automation/")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = pathname.replace("/automation", "/solutions");
-    return NextResponse.redirect(redirectUrl);
+    const resp = NextResponse.redirect(redirectUrl);
+    resp.headers.set("Content-Type", "text/plain");
+    return resp;
   }
 
   // Legacy route redirect: /settings/team -> /team
   if (pathname === "/settings/team" || pathname.startsWith("/settings/team/")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = pathname.replace("/settings/team", "/team");
-    return NextResponse.redirect(redirectUrl);
+    const resp = NextResponse.redirect(redirectUrl);
+    resp.headers.set("Content-Type", "text/plain");
+    return resp;
   }
 
   // Skip static assets and API routes
@@ -113,7 +117,9 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     loginUrl.searchParams.set("redirect_reason", "session_expired");
-    return NextResponse.redirect(loginUrl);
+    const resp = NextResponse.redirect(loginUrl);
+    resp.headers.set("Content-Type", "text/plain");
+    return resp;
   }
 
   // This middleware only checks session presence.

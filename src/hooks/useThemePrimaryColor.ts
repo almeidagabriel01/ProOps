@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { useTenant } from "@/providers/tenant-provider";
 import {
@@ -27,11 +27,7 @@ function resolveSafe(input: string | undefined): string {
 export function useThemePrimaryColor(): string {
   const { tenant } = useTenant();
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
 
   const safe = resolveSafe(tenant?.primaryColor);
 

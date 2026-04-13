@@ -7,6 +7,40 @@ import {
   UserDoc,
 } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
+import { z } from "zod";
+import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+
+const CreateProductSchema = z.object({
+  name: z.string().min(2, "Nome inválido.").max(200).trim(),
+  description: z.string().max(2000).trim().optional().or(z.literal("")),
+  price: z.coerce.number().min(0).optional(),
+  markup: z.union([z.string().max(20), z.number()]).optional(),
+  manufacturer: z.string().max(200).trim().optional().or(z.literal("")),
+  category: z.string().max(100).trim().optional().or(z.literal("")),
+  inventoryValue: z.union([z.string(), z.number()]).optional(),
+  inventoryUnit: z.enum(["unit", "meter"]).optional(),
+  stock: z.union([z.string(), z.number()]).optional(),
+  status: z.string().max(20).optional(),
+  images: z.array(z.string().url().max(2048)).max(20).optional(),
+  pricingModel: z.unknown().optional(),
+  targetTenantId: z.string().max(100).optional(),
+}).passthrough();
+
+const UpdateProductSchema = z.object({
+  name: z.string().min(1).max(200).trim().optional(),
+  description: z.string().max(2000).trim().optional().or(z.literal("")),
+  price: z.coerce.number().min(0).optional(),
+  markup: z.union([z.string().max(20), z.number()]).optional(),
+  manufacturer: z.string().max(200).trim().optional().or(z.literal("")),
+  category: z.string().max(100).trim().optional().or(z.literal("")),
+  inventoryValue: z.union([z.string(), z.number()]).optional(),
+  inventoryUnit: z.enum(["unit", "meter"]).optional(),
+  stock: z.union([z.string(), z.number()]).optional(),
+  status: z.string().max(20).optional(),
+  images: z.array(z.string().url().max(2048)).max(20).optional(),
+  image: z.string().max(2048).optional(),
+  pricingModel: z.unknown().optional(),
+}).passthrough();
 
 const parseInventoryValue = (value: unknown): number => {
   if (typeof value === "number") {
@@ -93,7 +127,20 @@ function sanitizePricingModel(input: unknown) {
 export const createProduct = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
+
+    const parseResult = CreateProductSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
     const input = req.body;
+
+    // Sanitize text fields
+    if (typeof input.name === "string") input.name = sanitizeText(input.name);
+    if (typeof input.description === "string") input.description = sanitizeRichText(input.description);
+    if (typeof input.manufacturer === "string") input.manufacturer = sanitizeText(input.manufacturer);
+    if (typeof input.category === "string") input.category = sanitizeText(input.category);
+
     const inventoryValue = parseInventoryValue(
       input.inventoryValue ?? input.stock,
     );
@@ -108,10 +155,6 @@ export const createProduct = async (req: Request, res: Response) => {
       return res.status(400).json({
         message: "Cadastre pelo menos uma faixa de altura valida.",
       });
-    }
-
-    if (!input.name || input.name.trim().length < 2) {
-      return res.status(400).json({ message: "Nome inválido." });
     }
 
     const { masterData, masterRef, tenantId, isMaster, isSuperAdmin } =
@@ -228,10 +271,22 @@ export const updateProduct = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
-    const updateData = req.body;
 
     if (!id)
       return res.status(400).json({ message: "ID do produto inválido." });
+
+    const parseResult = UpdateProductSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
+    const updateData = req.body;
+
+    // Sanitize text fields
+    if (typeof updateData.name === "string") updateData.name = sanitizeText(updateData.name);
+    if (typeof updateData.description === "string") updateData.description = sanitizeRichText(updateData.description);
+    if (typeof updateData.manufacturer === "string") updateData.manufacturer = sanitizeText(updateData.manufacturer);
+    if (typeof updateData.category === "string") updateData.category = sanitizeText(updateData.category);
 
     const { tenantId, isMaster, isSuperAdmin } =
       await resolveUserAndTenant(userId, req.user);

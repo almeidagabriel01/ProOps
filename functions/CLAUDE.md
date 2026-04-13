@@ -5,7 +5,7 @@ Backend em produção com clientes ativos. Express monolith registrado como uma 
 rodando no Cloud Run em `southamerica-east1`. Mudanças aqui afetam TODOS os tenants imediatamente após deploy.
 
 ## Stack
-- Node.js 20
+- Node.js 22
 - Firebase Functions V2
 - Express (monolith)
 - TypeScript → compila para CommonJS em `functions/lib/`

@@ -38,5 +38,5 @@
 
 ## Build & Deploy
 - Always run `npm run build` in `functions/` before deploying — TypeScript compiles to CommonJS in `functions/lib/`
-- Functions run on Node.js 20 in Cloud Run (`southamerica-east1`)
+- Functions run on Node.js 22 in Cloud Run (`southamerica-east1`)
 - Secrets stay in `functions/.env.erp-softcode` or `functions/.env.erp-softcode-prod` — never in source code

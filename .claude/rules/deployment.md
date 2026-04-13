@@ -21,7 +21,7 @@ Before deploying to any environment:
 ## Functions Build
 - Functions TypeScript compiles to `functions/lib/` (CommonJS)
 - Always run `npm run build` in `functions/` before running emulators or deploying
-- Target runtime: Node.js 20, Cloud Run region `southamerica-east1`
+- Target runtime: Node.js 22, Cloud Run region `southamerica-east1`
 
 ## Emulators
 - Start all emulators: `firebase emulators:start`

@@ -46,6 +46,100 @@ npm run security:claims:backfill         # Backfill Firebase custom claims
 npm run security:claims:validate         # Validate custom claims
 ```
 
+## CI/CD
+
+### Workflows
+
+| Workflow | Arquivo | Dispara em |
+|----------|---------|-----------|
+| **Push Checks** | `.github/workflows/push-checks.yml` | Todo `push` em qualquer branch exceto `main` |
+| **Test Suite** | `.github/workflows/test-suite.yml` | Todo `pull_request` para `main` ou `develop` |
+| **Deploy Functions** | `.github/workflows/deploy-functions.yml` | Push em `develop`/`main` com mudanças em `functions/`, `firestore.rules` ou `firebase.json` |
+| **Dependency Review** | `.github/workflows/dependency-review.yml` | PR com mudanças em `package.json` ou `functions/package.json` |
+| **Stale** | `.github/workflows/stale.yml` | Toda segunda às 9h UTC (limpeza automática) |
+
+### Todo push roda a suite completa
+
+`push-checks.yml` executa em paralelo:
+- `type-check` — TypeScript no frontend e functions
+- `lint` — ESLint no frontend e functions
+- `security-audit` — `npm audit --audit-level=critical` em ambos
+- `e2e-push` — 59 testes Playwright com Firebase emulators + seed
+- `firestore-rules-push` — 41 testes de regras Firestore (paralelo com E2E)
+- `performance-push` — Core Web Vitals + API baseline (após E2E passar)
+- `security-scan-push` — OWASP ZAP baseline (após E2E passar)
+- `push-gate` — job final que falha se qualquer job acima falhou
+
+### Branch protection
+
+Configure **apenas `all-checks-passed`** (test-suite.yml) como required status check no GitHub. Ele é o gate consolidado de PRs para `main`/`develop`.
+
+### Deploy automático de Firebase Functions
+
+`deploy-functions.yml` faz deploy automático quando há push com mudanças em `functions/`, `firestore.rules` ou `firebase.json`:
+- Push para `develop` → deploy no projeto `dev` (environment: **staging**)
+- Push para `main` → deploy no projeto `prod` (environment: **production**)
+
+O frontend (Next.js) é deployado automaticamente pelo Vercel — não precisa de workflow.
+
+### Deploy manual
+
+Só faça deploy manual após `all-checks-passed` estar verde no PR. Fluxo:
+1. PR abre → `test-suite.yml` roda
+2. `all-checks-passed` fica verde → revisar e aprovar PR
+3. Merge → deploy automático via `deploy-functions.yml` (se `functions/` mudou)
+4. Se precisar forçar deploy manual: `npm run deploy:dev` → validar → `npm run deploy:prod`
+
+### GitHub Secrets necessários
+
+**Repository secrets** (CI com emuladores — Settings → Secrets → Actions):
+
+| Secret | Valor para CI | Descrição |
+|--------|--------------|-----------|
+| `CRON_SECRET` | qualquer string (ex: `test-cron-secret`) | Autenticação dos cron jobs nos testes |
+| `STRIPE_SECRET_KEY` | chave de teste Stripe (ex: `sk_test_fake`) | Testes de billing com emuladores |
+
+**Environment: staging** (Settings → Environments → staging):
+
+| Secret | Descrição |
+|--------|-----------|
+| `FIREBASE_SERVICE_ACCOUNT_STAGING` | JSON completo da Service Account do projeto `erp-softcode` (dev) |
+
+**Environment: production** (Settings → Environments → production):
+
+| Secret | Descrição |
+|--------|-----------|
+| `FIREBASE_SERVICE_ACCOUNT_PRODUCTION` | JSON completo da Service Account do projeto `erp-softcode-prod` |
+
+**Como gerar a Service Account:** Firebase Console → Project Settings → Service Accounts → Generate new private key. Copie o JSON completo e adicione como secret `FIREBASE_SERVICE_ACCOUNT_STAGING` (projeto dev) ou `FIREBASE_SERVICE_ACCOUNT_PRODUCTION` (projeto prod) no GitHub.
+
+### Interpretando falhas
+
+| Job | Falhou? | O que fazer |
+|-----|---------|-------------|
+| `type-check` | Erro de tipagem no frontend ou functions | Corrigir `tsc --noEmit` localmente |
+| `lint` | ESLint com warnings ou erros | `npm run lint` e `cd functions && npm run lint` |
+| `security-audit` | Vulnerabilidade crítica em dependência | `npm audit fix` ou atualizar pacote |
+| `e2e-push` / `e2e` | Teste Playwright falhou | Baixar artefato `playwright-report-*` para ver o trace |
+| `firestore-rules-push` / `firestore-rules` | Regra de segurança quebrou | `npm run test:rules` localmente com emulador |
+| `performance-push` / `performance` | Core Web Vital abaixo do threshold | Ver `performance-report/` no artefato |
+| `security-scan-push` / `security` | ZAP encontrou FAIL | Ver `security-scan-report/` no artefato |
+| `dependency-review` | Nova dependência com vuln `high`/`critical` | Substituir ou versionar diferente |
+
+### Rodar localmente antes de fazer push
+
+```bash
+# Suite completa (equivalente ao CI)
+npm run test:e2e && npm run test:performance && npm run test:rules
+
+# Verificações rápidas
+npx tsc --noEmit                        # Type check frontend
+cd functions && npx tsc --noEmit        # Type check functions
+npm run lint                            # ESLint frontend
+cd functions && npm run lint            # ESLint functions
+npm audit --omit=dev --audit-level=critical  # Audit frontend
+```
+
 ## Architecture
 
 ### Split-Backend Pattern (Critical)
@@ -137,7 +231,7 @@ Firebase projects: `erp-softcode` (dev), `erp-softcode-prod` (prod). Configured 
 - Firebase Admin: 12.7.0
 - Tailwind CSS: v4 (configured via CSS, no `tailwind.config.ts`)
 - Stripe SDK: 20.0.0
-- Node.js target: 20
+- Node.js target: 22
 
 ## Repository Structure
 

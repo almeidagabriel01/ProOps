@@ -1,0 +1,40 @@
+name: Stale
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Mark and Close Stale PRs and Issues
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-pr-message: >
+            Este PR ficou sem atividade por 14 dias e foi marcado como stale.
+            Se ainda estiver em desenvolvimento, adicione o label `work-in-progress` ou `keep-open`.
+            Ele será fechado automaticamente em 7 dias sem nova atividade.
+          close-pr-message: >
+            Este PR foi fechado automaticamente por inatividade.
+            Reabra se o trabalho for retomado.
+          stale-issue-message: >
+            Esta issue ficou sem atividade por 30 dias e foi marcada como stale.
+            Ela será fechada se não houver nova atividade.
+          days-before-pr-stale: 14
+          days-before-pr-close: 7
+          days-before-issue-stale: 30
+          days-before-issue-close: -1
+          stale-pr-label: stale
+          stale-issue-label: stale
+          exempt-pr-labels: 'keep-open,work-in-progress'
+          exempt-issue-labels: 'keep-open'
+          operations-per-run: 100

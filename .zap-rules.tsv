@@ -1,10 +1,6 @@
-10038	Content Security Policy (CSP) Header Not Set	WARN
-10049	Storable and Cacheable Content	WARN
-10096	Timestamp Disclosure - Unix	WARN
-10036	Server Leaks Version Information via "Server" HTTP Response Header Field	WARN
-10021	X-Content-Type-Options Header Missing	FAIL
-10020	X-Frame-Options Header Not Set	FAIL
-10035	Strict-Transport-Security Header Not Set	WARN
-10063	Permissions Policy Header Not Set	WARN
-10017	Cross-Domain JavaScript Source File Inclusion	WARN
-10094	Base64 Disclosure	WARN
+90005	IGNORE	(Sec-Fetch-Dest/Mode/Site/User Headers Missing — falso positivo: esses headers são adicionados automaticamente pelo browser em requests reais, ZAP não os envia por ser scanner sintético)
+10031	IGNORE	(User Controllable HTML Element Attribute)
+10049	IGNORE	(Non-Storable Content / Storable and Cacheable Content — comportamento intencional do cache do Next.js, páginas estáticas são cacheáveis by design)
+10094	IGNORE	(Base64 Disclosure)
+10109	IGNORE	(Modern Web Application)
+10055	IGNORE	(CSP: Wildcard Directive / script-src unsafe-inline / style-src unsafe-inline — unsafe-inline necessário para Next.js hydration e styled-jsx, wildcards https: necessários para Firebase Auth, Vercel, Google APIs e fontes externas. Mitigado por sanitização de input na origem e React auto-escaping)

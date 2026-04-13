@@ -17,6 +17,49 @@ import {
   enqueueStorageGcPath,
   type StorageGcReason,
 } from "../../lib/storage-gc";
+import { z } from "zod";
+import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+
+const CreateProposalSchema = z.object({
+  title: z.string().max(300).trim().optional(),
+  clientId: z.string().max(100).optional(),
+  clientName: z.string().max(200).trim().optional().or(z.literal("")),
+  clientEmail: z.string().max(254).optional().or(z.literal("")),
+  clientPhone: z.string().max(30).optional().or(z.literal("")),
+  clientAddress: z.string().max(500).optional().or(z.literal("")),
+  status: z.string().max(30).optional(),
+  notes: z.string().max(5000).trim().optional().or(z.literal("")),
+  customNotes: z.string().max(5000).trim().optional().or(z.literal("")),
+  totalValue: z.number().min(0).nullable().optional(),
+  discount: z.number().min(0).max(100).nullable().optional(),
+  extraExpense: z.number().min(0).nullable().optional(),
+  validUntil: z.string().max(30).optional(),
+  targetTenantId: z.string().max(100).optional(),
+  // Complex fields — passed through, already validated by sanitizeAttachmentsInput/sanitizeProposalProductsInput
+  products: z.array(z.unknown()).max(500).optional(),
+  attachments: z.array(z.unknown()).max(20).optional(),
+  sistemas: z.unknown().optional(),
+  sections: z.unknown().optional(),
+  pdfSettings: z.unknown().optional(),
+  // Payment options — passed through
+  downPaymentEnabled: z.boolean().optional(),
+  downPaymentType: z.string().max(50).optional(),
+  downPaymentPercentage: z.number().nullable().optional(),
+  downPaymentValue: z.number().nullable().optional(),
+  downPaymentWallet: z.string().max(200).optional(),
+  downPaymentDueDate: z.string().max(30).optional(),
+  downPaymentMethod: z.string().max(50).optional(),
+  installmentsEnabled: z.boolean().optional(),
+  installmentsCount: z.number().int().min(1).max(120).nullable().optional(),
+  installmentValue: z.number().nullable().optional(),
+  installmentsWallet: z.string().max(200).optional(),
+  firstInstallmentDate: z.string().max(30).optional(),
+  installmentsPaymentMethod: z.string().max(50).optional(),
+  paymentMethod: z.string().max(50).optional(),
+  closedValue: z.number().nullable().optional(),
+}).passthrough();
+
+const UpdateProposalSchema = CreateProposalSchema.partial();
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
@@ -983,7 +1026,21 @@ async function syncApprovedProposalTransactions(params: {
 export const createProposal = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
+
+    const parseResult = CreateProposalSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
     const input = req.body;
+
+    // Sanitize text fields
+    if (typeof input.title === "string") input.title = sanitizeText(input.title);
+    if (typeof input.clientName === "string") input.clientName = sanitizeText(input.clientName);
+    if (typeof input.notes === "string") input.notes = sanitizeRichText(input.notes);
+    if (typeof input.customNotes === "string") input.customNotes = sanitizeRichText(input.customNotes);
+    if (typeof input.clientAddress === "string") input.clientAddress = sanitizeRichText(input.clientAddress);
+
     console.log("[createProposal] request received", {
       userId,
       status: input?.status,
@@ -1356,14 +1413,28 @@ export const updateProposal = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
+
+    if (!id) return res.status(400).json({ message: "ID inválido." });
+
+    const parseResult = UpdateProposalSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
+      return res.status(400).json({ message: firstError });
+    }
     const updateData = req.body;
+
+    // Sanitize text fields
+    if (typeof updateData.title === "string") updateData.title = sanitizeText(updateData.title);
+    if (typeof updateData.clientName === "string") updateData.clientName = sanitizeText(updateData.clientName);
+    if (typeof updateData.notes === "string") updateData.notes = sanitizeRichText(updateData.notes);
+    if (typeof updateData.customNotes === "string") updateData.customNotes = sanitizeRichText(updateData.customNotes);
+    if (typeof updateData.clientAddress === "string") updateData.clientAddress = sanitizeRichText(updateData.clientAddress);
+
     console.log("[updateProposal] request received", {
       userId,
       proposalId: id,
       updatedFields: Object.keys(updateData || {}),
     });
-
-    if (!id) return res.status(400).json({ message: "ID inválido." });
 
     // Parallel fetch: auth resolution and proposal doc are independent reads
     const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(id);
