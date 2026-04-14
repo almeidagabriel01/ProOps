@@ -202,8 +202,12 @@ Plans:
 4. Criar uma proposta via Lia com emuladores funcionando end-to-end
 5. Tentar criar transação com módulo financeiro inativo → Lia recusa sem executar
 
-**Plans:** 0 plans
+**Plans:** 3 plans
 Plans:
+
+- [ ] 14-01-PLAN.md -- Tool definitions (29 FunctionDeclarations), Zod schemas, buildAvailableTools() filter
+- [ ] 14-02-PLAN.md -- Tool executor: executeToolCall() dispatcher with all 29 handlers
+- [ ] 14-03-PLAN.md -- Chat route integration: Gemini multi-turn tool calling loop wiring
 
 ---
 
@@ -291,4 +295,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. Performance Expansion       | 0/1            | Not started | -          |
 | 12. Lia — Arquitetura & Pesquisa | 1/1           | Complete    | 2026-04-13 |
 | 13. Lia — Backend Core          | 3/3 | Complete   | 2026-04-13 |
-| 14. Lia — Tool System           | 0/0            | Not started | -          |
+| 14. Lia — Tool System           | 0/3            | Not started | -          |
