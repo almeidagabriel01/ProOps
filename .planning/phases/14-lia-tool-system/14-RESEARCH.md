@@ -264,9 +264,9 @@ The tool definition uses `dd/MM/yyyy` for user-facing input — **executor must 
 
 ### Pattern 6: CRM Tools Mapping
 
-`list_crm_leads` and `update_crm_status` from `12-TOOLS.md` correspond to the `clients` collection where clients have a CRM/kanban status field. The kanban controller manages *column definitions* only (`kanban_statuses` collection). CRM lead status on individual client records is a field (`kanbanStatus` or similar) on client documents.
+`list_crm_leads` and `update_crm_status` from `12-TOOLS.md` operate on the `proposals` collection as a kanban/CRM pipeline view. They do NOT operate on `clients` documents. The kanban controller manages *column definitions* only (`kanban_statuses` collection). CRM "leads" in this context are proposals at various pipeline stages — `list_crm_leads` lists proposals filtered by status column, and `update_crm_status` moves a proposal to a different pipeline column by updating its `status` field.
 
-[ASSUMED: A1] The field name for CRM status on client documents. Needs verification against actual client docs in Firestore or the clients.controller.ts read paths before implementing `update_crm_status`.
+[RESOLVED: A1] CRM tools operate on `proposals` collection (status field), not on client documents. No client-level CRM field is needed.
 
 ### Anti-Patterns to Avoid
 
@@ -407,25 +407,25 @@ const isAdmin = (role: string) => ADMIN_ROLES.has(role.toUpperCase());
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | The field name for CRM status on client documents (used by `list_crm_leads` and `update_crm_status`) | Architecture Patterns — Pattern 6 | Wrong field name means CRM tools silently no-op or error |
+| A1 | ~~The field name for CRM status on client documents~~ **(RESOLVED)** CRM tools operate on `proposals` collection as kanban pipeline view, not client docs. `update_crm_status` updates proposal `status` field. | Architecture Patterns — Pattern 6 | N/A — resolved by design |
 | A2 | Firebase Emulators are functional on the dev machine for integration testing | Environment Availability | Cannot run Phase 3 completion criteria without emulators |
 | A3 | `GEMINI_API_KEY` is set in `functions/.env.erp-softcode` | Environment Availability | Executor cannot be tested without a valid key |
 
-**A1 requires verification:** Before implementing `list_crm_leads` and `update_crm_status`, read the actual `clients` Firestore documents or `clients.controller.ts` list handler to find the CRM status field name.
+**A1 resolved:** CRM tools (`list_crm_leads`, `update_crm_status`) operate on the `proposals` collection as a kanban pipeline view. No client-level CRM field is needed.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **CRM field name on client documents**
+1. **CRM field name on client documents** (RESOLVED)
    - What we know: `kanban.controller.ts` manages column definitions in `kanban_statuses`. Individual client CRM status must be a field on client docs.
-   - What's unclear: The exact field name (`kanbanStatus`? `crmStatus`? `status`?).
-   - Recommendation: Read `clients.controller.ts` list handler (not yet read — limited to first 80 lines) or query a sample client doc before implementing CRM tool handlers. This is a Wave 0 blocker for those two tools only.
+   - **Resolution:** CRM tools (`list_crm_leads`, `update_crm_status`) operate on the `proposals` collection as a kanban pipeline view, not on client documents. `update_crm_status` updates the proposal `status` field. No client-level CRM field name is needed.
 
-2. **`pay_installment` tool — installment data structure**
+
+2. **`pay_installment` tool — installment data structure** (RESOLVED)
    - What we know: `TransactionService` handles installments. `pay_installment` marks a specific installment number as paid.
-   - What's unclear: Whether installments are sub-documents or fields on the parent transaction. The controller has `registerPartialPayment` but this may differ from `pay_installment` semantics.
-   - Recommendation: Read `transactions.controller.ts` `registerPartialPayment` handler and the installment structure before implementing.
+   - **Resolution:** Plan 14-02 implements `pay_installment` assuming each installment is a separate transaction document with `isInstallment: true`, `installmentNumber`, and `installmentGroupId` fields. The handler reads the transaction doc, verifies `isInstallment === true` and matches `installmentNumber`, then uses `db.runTransaction()` to mark as paid and update wallet balance. Requires emulator verification during execution to confirm the actual installment data structure matches.
+
 
 ---
 
