@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, type FunctionResponsePart } from "@google/generative-ai";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getTenantPlanProfile } from "../lib/tenant-plan-policy";
@@ -9,6 +9,8 @@ import { selectModel } from "./model-router";
 import { checkAiLimit, incrementAiUsage, getAiUsage } from "./usage-tracker";
 import { loadConversation, saveConversation } from "./conversation-store";
 import { buildSystemPrompt } from "./context-builder";
+import { buildAvailableTools } from "./tools/index";
+import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import type { AiChatRequest, AiChatChunk, AiConversationMessage } from "./ai.types";
 
 const router = Router();
@@ -78,12 +80,14 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   // 7. Build system prompt — fetch tenant name/niche for context
   let tenantName = "";
   let tenantNiche = "";
+  let whatsappEnabled = false;
   try {
     const tenantSnap = await db.collection("tenants").doc(user.tenantId).get();
     if (tenantSnap.exists) {
       const tenantData = tenantSnap.data() as Record<string, unknown>;
       tenantName = String(tenantData?.name || "");
       tenantNiche = String(tenantData?.niche || "");
+      whatsappEnabled = Boolean(tenantData?.whatsappEnabled);
     }
   } catch {
     // Non-fatal — continue with empty tenant info
@@ -103,6 +107,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     },
   });
 
+  // Build available tools for this tenant's plan/role/modules
+  const tools = buildAvailableTools(planTier, user.role || "member", { whatsappEnabled });
+
   // 8. Initialize Gemini
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -115,6 +122,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const model = genAI.getGenerativeModel({
     model: modelSelection.modelName,
     systemInstruction: systemPrompt,
+    tools: tools.length > 0 ? tools : undefined,
   });
 
   // Build Gemini history from persisted conversation messages
@@ -122,6 +130,15 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     role: msg.role === "model" ? ("model" as const) : ("user" as const),
     parts: [{ text: msg.content }],
   }));
+
+  // Build tool call context — all fields from auth context, never from request body
+  const toolCtx: ToolCallContext = {
+    tenantId: user.tenantId,
+    uid: user.uid,
+    role: user.role || "member",
+    planTier,
+    confirmed: body.confirmed, // from AiChatRequest.confirmed (frontend resend)
+  };
 
   try {
     // 9. Set SSE headers — disable timeout for long-lived streaming connection
@@ -132,51 +149,113 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
-    // 10. Stream Gemini response
+    // 10. Stream Gemini response with tool calling loop
     const chat = model.startChat({ history: geminiHistory });
-    const streamResult = await chat.sendMessageStream(message);
+    let currentStream = await chat.sendMessageStream(message);
 
     let fullResponseText = "";
     let totalTokens = 0;
+    const MAX_TOOL_ROUNDS = 5; // prevent infinite tool calling loops
+    let toolRound = 0;
 
-    for await (const chunk of streamResult.stream) {
-      const text = chunk.text();
-      if (text) {
-        fullResponseText += text;
-        const sseChunk: AiChatChunk = { type: "text", content: text };
-        res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
-      }
+    // Outer loop: handles multi-turn tool calling
+    while (toolRound < MAX_TOOL_ROUNDS) {
+      const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 
-      // Tool calls (stub for Phase 3 — log but don't execute)
-      const candidates = chunk.candidates;
-      if (candidates) {
-        for (const candidate of candidates) {
-          const parts = candidate.content?.parts;
-          if (parts) {
-            for (const part of parts) {
-              if ("functionCall" in part && part.functionCall) {
-                logger.info("AI tool call received (Phase 3 stub)", {
-                  tenantId: user.tenantId,
-                  toolName: part.functionCall.name,
-                });
-                const toolChunk: AiChatChunk = {
-                  type: "tool_call",
-                  toolCall: {
+      // Inner loop: consume the current stream
+      for await (const chunk of currentStream.stream) {
+        const text = chunk.text();
+        if (text) {
+          fullResponseText += text;
+          // CORRECT: AiChatChunk.content is the field for text (not "text")
+          const sseChunk: AiChatChunk = { type: "text", content: text };
+          res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+        }
+
+        // Collect function calls from this chunk
+        const candidates = chunk.candidates;
+        if (candidates) {
+          for (const candidate of candidates) {
+            const parts = candidate.content?.parts;
+            if (parts) {
+              for (const part of parts) {
+                if ("functionCall" in part && part.functionCall) {
+                  pendingToolCalls.push({
                     name: part.functionCall.name,
                     args: (part.functionCall.args as Record<string, unknown>) || {},
-                  },
-                };
-                res.write(`data: ${JSON.stringify(toolChunk)}\n\n`);
+                  });
+                }
               }
             }
           }
         }
       }
+
+      // If no tool calls in this round, we're done streaming
+      if (pendingToolCalls.length === 0) break;
+
+      // Execute each tool call and collect responses
+      const functionResponseParts: FunctionResponsePart[] = [];
+
+      for (const tc of pendingToolCalls) {
+        // Send tool_call event to SSE client
+        const toolCallChunk: AiChatChunk = {
+          type: "tool_call",
+          toolCall: { name: tc.name, args: tc.args },
+        };
+        res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
+
+        // Execute the tool
+        const result = await executeToolCall(tc.name, tc.args, toolCtx);
+
+        // Send tool_result event to SSE client
+        const toolResultChunk: AiChatChunk = {
+          type: "tool_result",
+          toolResult: {
+            name: tc.name,
+            result: result.data,
+            requiresConfirmation: result.requiresConfirmation,
+            confirmationData: result.confirmationData,
+          },
+        };
+        res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
+
+        // If tool requires confirmation, end the stream here
+        // Frontend will show modal, user confirms, frontend resends with confirmed=true
+        if (result.requiresConfirmation) {
+          // Get usage metadata from the last stream response
+          const usageResponse = await currentStream.response;
+          totalTokens = usageResponse.usageMetadata?.totalTokenCount || 0;
+          // Force exit from the tool round loop
+          toolRound = MAX_TOOL_ROUNDS;
+          break;
+        }
+
+        // Collect function response for Gemini multi-turn
+        const responseObj: object = result.success
+          ? ((result.data as object) ?? { status: "ok" })
+          : { error: result.error ?? "unknown error" };
+        functionResponseParts.push({
+          functionResponse: {
+            name: tc.name,
+            response: responseObj,
+          },
+        });
+      }
+
+      // If we're exiting due to confirmation, don't send another message
+      if (toolRound >= MAX_TOOL_ROUNDS) break;
+
+      // Send function responses back to Gemini for the next turn
+      currentStream = await chat.sendMessageStream(functionResponseParts);
+      toolRound++;
     }
 
-    // Get usage metadata from final response
-    const usageMetadata = await streamResult.response;
-    totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
+    // Get usage metadata from final stream response
+    if (toolRound < MAX_TOOL_ROUNDS) {
+      const usageMetadata = await currentStream.response;
+      totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
+    }
 
     // 11. Increment usage atomically
     await incrementAiUsage(user.tenantId, totalTokens);
