@@ -225,7 +225,18 @@ Plans:
 3. User sees tool execution results in compact LiaToolResultCards that can be expanded for full details
 4. User is shown a confirmation dialog before Lia executes any delete action; cancelling leaves data unchanged
 5. Free plan tenants do not see the trigger button or panel; Pro/Enterprise tenants see a usage badge and chat history persists across sessions
-**Plans**: 2/7 plans complete
+**Plans**: 10 plans
+Plans:
+- [x] 15-01-PLAN.md -- SSE proxy passthrough and AI type definitions
+- [x] 15-02-PLAN.md -- Core chat hook (useAiChat) with streaming and confirmation
+- [x] 15-03-PLAN.md -- Session persistence (useLiaSession) and usage tracking (useLiaUsage)
+- [x] 15-04-PLAN.md -- Trigger button, panel shell, and chat window components
+- [x] 15-05-PLAN.md -- Message bubble, input bar, and interaction components
+- [x] 15-06-PLAN.md -- Tool result card and tool confirm dialog components
+- [x] 15-07-PLAN.md -- LiaContainer integration and ProtectedAppShell mount
+- [x] 15-08-PLAN.md -- CHAT-08 free plan guard fix
+- [ ] 15-09-PLAN.md -- Dashboard regression: clientName null safety
+- [ ] 15-10-PLAN.md -- CHAT-08 auth loading guard bypass fix
 **UI hint**: yes
 
 ### Phase 16: Lia Segurança & Billing
