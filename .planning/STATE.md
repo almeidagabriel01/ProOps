@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: unknown
-stopped_at: Completed 16-04-PLAN.md
-last_updated: "2026-04-14T21:42:09.963Z"
+status: Ready to execute
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-04-14T21:43:35.833Z"
 progress:
   total_phases: 13
   completed_phases: 10
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
+  percent: 92
 ---
 
 # Project State
@@ -24,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 16 (lia-seguranca-billing) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -66,6 +67,7 @@ _Updated after each plan completion_
 | Phase 15 P10 | 3 | 1 tasks | 1 files |
 | Phase 16 P02 | 5 | 1 tasks | 1 files |
 | Phase 16 P04 | 5 | 1 tasks | 1 files |
+| Phase 16 P03 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -121,6 +123,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 15]: user !== null explicit check before user.role access — optional chaining user?.role returns undefined when user is null, which !== 'free' evaluated to true (auth bypass); explicit null check closes this gap
 - [Phase 16]: evaluateSubscriptionStatusAccess pure function — no telemetry inside check block; pastDueSince always passed from planProfile to preserve grace-period logic for past_due tenants
 - [Phase 16]: Banner uses session-only useState so it reappears on page reload; only shown when isNearLimit=true AND isAtLimit=false to avoid double-warning at 100%
+- [Phase 16]: Progress component created from radix-ui meta-package — meta-package already installed, no new dependency needed
+- [Phase 16]: [Phase 16-03]: AiUsageCard uses !user || user.role === 'free' guard — explicit null check per Phase 15-10 pattern prevents auth bypass via undefined != 'free'
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T21:42:09.960Z
-Stopped at: Completed 16-04-PLAN.md
+Last session: 2026-04-14T21:43:35.830Z
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None

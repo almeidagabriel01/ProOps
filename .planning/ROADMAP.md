@@ -251,11 +251,11 @@ Plans:
 3. User can view an AI usage section on the billing page showing a progress bar (messages used / limit) and the next reset date in Portuguese
 4. User sees an in-app warning when their message usage reaches 80% of the monthly limit
 5. Firestore rules enforce that `aiUsage` documents are read-only from client and `aiConversations` documents are accessible only to the owning user
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 Plans:
 - [ ] 16-01-PLAN.md -- Wave 0: Install Progress component + verify AIBI-01, AIBI-03, AIBI-06
 - [x] 16-02-PLAN.md -- Backend: inactive subscription 403 check (AIBI-02)
-- [ ] 16-03-PLAN.md -- Frontend: AI usage card on billing page (AIBI-04)
+- [x] 16-03-PLAN.md -- Frontend: AI usage card on billing page (AIBI-04)
 - [x] 16-04-PLAN.md -- Frontend: near-limit warning banner in Lia panel (AIBI-05)
 
 ### Phase 17: Lia Testes & QA
@@ -273,9 +273,9 @@ Plans:
 **Plans:** 4 plans
 Plans:
 - [ ] 16-01-PLAN.md -- Wave 0: Install Progress component + verify AIBI-01, AIBI-03, AIBI-06
-- [ ] 16-02-PLAN.md -- Backend: inactive subscription 403 check (AIBI-02)
+- [x] 16-02-PLAN.md -- Backend: inactive subscription 403 check (AIBI-02)
 - [ ] 16-03-PLAN.md -- Frontend: AI usage card on billing page (AIBI-04)
-- [ ] 16-04-PLAN.md -- Frontend: near-limit warning banner in Lia panel (AIBI-05)
+- [x] 16-04-PLAN.md -- Frontend: near-limit warning banner in Lia panel (AIBI-05)
 
 ---
 
@@ -365,5 +365,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 13. Lia — Backend Core            | 3/3            | Complete    | 2026-04-13 |
 | 14. Lia — Tool System             | 4/4            | Complete    | 2026-04-14 |
 | 15. Lia Frontend Chat UI          | 10/10 | Complete    | 2026-04-14 |
-| 16. Lia Segurança & Billing       | 2/4 | In Progress|  |
+| 16. Lia Segurança & Billing       | 3/4 | In Progress|  |
 | 17. Lia Testes & QA               | 0/?            | Not started | -          |
