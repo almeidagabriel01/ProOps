@@ -109,12 +109,12 @@
 
 ### AI Billing & Security
 
-- [ ] **AIBI-01**: Free plan tenant is blocked with 403 before the stream starts
+- [x] **AIBI-01**: Free plan tenant is blocked with 403 before the stream starts
 - [x] **AIBI-02**: Tenant with inactive subscription is blocked with 403 before stream starts
-- [ ] **AIBI-03**: Tenant at message limit receives 429 with `resetAt`; input is disabled in UI
+- [x] **AIBI-03**: Tenant at message limit receives 429 with `resetAt`; input is disabled in UI
 - [x] **AIBI-04**: User can view AI usage section on the billing page (progress bar + reset date)
 - [x] **AIBI-05**: User sees in-app warning when reaching 80% of their monthly message limit
-- [ ] **AIBI-06**: Firestore rules restrict `aiUsage` (read-only) and `aiConversations` (owner-only)
+- [x] **AIBI-06**: Firestore rules restrict `aiUsage` (read-only) and `aiConversations` (owner-only)
 
 ### AI Tests & QA
 
@@ -215,12 +215,12 @@
 | CHAT-07     | Phase 15 | Complete |
 | CHAT-08     | Phase 15 | Complete |
 | CHAT-09     | Phase 15 | Complete |
-| AIBI-01     | Phase 16 | Pending  |
+| AIBI-01     | Phase 16 | Complete |
 | AIBI-02     | Phase 16 | Complete |
-| AIBI-03     | Phase 16 | Pending  |
+| AIBI-03     | Phase 16 | Complete |
 | AIBI-04     | Phase 16 | Complete |
 | AIBI-05     | Phase 16 | Complete |
-| AIBI-06     | Phase 16 | Pending  |
+| AIBI-06     | Phase 16 | Complete |
 | AIQA-01     | Phase 17 | Pending  |
 | AIQA-02     | Phase 17 | Pending  |
 | AIQA-03     | Phase 17 | Pending  |
