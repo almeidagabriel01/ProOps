@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: Ready to execute
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-04-14T01:45:37.567Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 14-04-PLAN.md
+last_updated: "2026-04-14T01:51:03.590Z"
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 24
-  completed_plans: 21
-  percent: 88
+  completed_plans: 22
+  percent: 92
 ---
 
 # Project State
@@ -54,6 +54,7 @@ _Updated after each plan completion_
 | Phase 13-lia-backend-core P03 | 20 | 2 tasks | 4 files |
 | Phase 14-lia-tool-system P01 | 4 | 2 tasks | 5 files |
 | Phase 14 P03 | 8 | 1 tasks | 1 files |
+| Phase 14 P04 | 4 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 14-lia-tool-system P02]: makeDeleteSchema() uses z.literal(true) with Zod v4 error callback syntax { error: () => "..." } not { errorMap: () => ({message: "..."}) }
 - [Phase 14-lia-tool-system P02]: ADMIN_ROLES includes WK — WK is a functional-admin role needing admin-level tool access
 - [Phase 14]: Proposal items mapped at executor boundary: AI schema uses productId+unitPrice, service uses name+price — resolveProposalItems() looks up product names from productsService.getProduct()
+- [Phase 14]: FunctionResponsePart[] typed array satisfies sendMessageStream parameter in Gemini SDK v0.24+ — avoids discriminant union mismatch with plain object literals
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T01:45:37.564Z
-Stopped at: Completed 14-03-PLAN.md
+Last session: 2026-04-14T01:51:03.587Z
+Stopped at: Completed 14-04-PLAN.md
 Resume file: None
