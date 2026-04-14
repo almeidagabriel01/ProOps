@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: Ready to execute
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-04-14T13:44:52.438Z"
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-04-14T13:48:08Z"
 progress:
   total_phases: 13
   completed_phases: 9
   total_plans: 31
-  completed_plans: 23
-  percent: 74
+  completed_plans: 24
+  percent: 77
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 15 (lia-frontend-chat-ui) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ _Updated after each plan completion_
 | Phase 14 P03 | 8 | 1 tasks | 1 files |
 | Phase 14 P04 | 4 | 2 tasks | 3 files |
 | Phase 15 P01 | 259 | 2 tasks | 6 files |
+| Phase 15 P02 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 14]: Proposal items mapped at executor boundary: AI schema uses productId+unitPrice, service uses name+price — resolveProposalItems() looks up product names from productsService.getProduct()
 - [Phase 14]: FunctionResponsePart[] typed array satisfies sendMessageStream parameter in Gemini SDK v0.24+ — avoids discriminant union mismatch with plain object literals
 - [Phase 15]: SSE passthrough: detect via upstream content-type header; SSE timeout 60s vs 30s standard; content-encoding added to SAFE_RESPONSE_HEADERS; sendChatMessage IIFE pattern returns AbortController immediately
+    - [Phase 15 P02]: useAiChat isOpen captured in doSend closure to drive hasUnread — panel-closed on onDone sets hasUnread=true
+    - [Phase 15 P02]: cancelAction injects synthetic model message client-side only — no backend round-trip for cancellation acknowledgement
+    - [Phase 15 P02]: sendingRef (useRef boolean) prevents concurrent sends without triggering re-renders; AbortController ref enables clean stream cancellation
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T13:44:52.434Z
-Stopped at: Completed 15-01-PLAN.md
+Last session: 2026-04-14T13:48:08Z
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None

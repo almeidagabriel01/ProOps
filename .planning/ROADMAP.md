@@ -225,7 +225,7 @@ Plans:
 3. User sees tool execution results in compact LiaToolResultCards that can be expanded for full details
 4. User is shown a confirmation dialog before Lia executes any delete action; cancelling leaves data unchanged
 5. Free plan tenants do not see the trigger button or panel; Pro/Enterprise tenants see a usage badge and chat history persists across sessions
-**Plans**: TBD
+**Plans**: 2/7 plans complete
 **UI hint**: yes
 
 ### Phase 16: Lia Segurança & Billing

@@ -98,12 +98,12 @@
 ### Frontend Chat UI
 
 - [ ] **CHAT-01**: User can open the Lia panel from the floating trigger button (bottom-right)
-- [ ] **CHAT-02**: User can close the panel; it slides out with Tailwind animation
-- [ ] **CHAT-03**: User types a message and sees the response streamed token by token in real time
-- [ ] **CHAT-04**: User sees "Lia está digitando..." indicator during active streaming
+- [x] **CHAT-02**: User can close the panel; it slides out with Tailwind animation
+- [x] **CHAT-03**: User types a message and sees the response streamed token by token in real time
+- [x] **CHAT-04**: User sees "Lia está digitando..." indicator during active streaming
 - [ ] **CHAT-05**: User sees tool execution results in compact, expandable LiaToolResultCards
 - [ ] **CHAT-06**: User is shown a confirmation dialog before Lia executes any delete action
-- [ ] **CHAT-07**: User sees usage badge (used/limit) in the panel header
+- [x] **CHAT-07**: User sees usage badge (used/limit) in the panel header
 - [ ] **CHAT-08**: Free plan tenants cannot see or access the Lia panel
 - [ ] **CHAT-09**: Chat history persists across sessions for Pro/Enterprise tenants
 
@@ -207,12 +207,12 @@
 | PERF-06     | Phase 11 | Pending  |
 
 | CHAT-01     | Phase 15 | Pending  |
-| CHAT-02     | Phase 15 | Pending  |
-| CHAT-03     | Phase 15 | Pending  |
-| CHAT-04     | Phase 15 | Pending  |
+| CHAT-02     | Phase 15 | Complete |
+| CHAT-03     | Phase 15 | Complete |
+| CHAT-04     | Phase 15 | Complete |
 | CHAT-05     | Phase 15 | Pending  |
 | CHAT-06     | Phase 15 | Pending  |
-| CHAT-07     | Phase 15 | Pending  |
+| CHAT-07     | Phase 15 | Complete |
 | CHAT-08     | Phase 15 | Pending  |
 | CHAT-09     | Phase 15 | Pending  |
 | AIBI-01     | Phase 16 | Pending  |
