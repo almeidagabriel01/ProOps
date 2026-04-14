@@ -102,21 +102,10 @@ ${contextualHint}
 19. Nunca responda com blocos de código JSON ou IDs brutos do Firestore.
 
 # Tools disponíveis
-Nenhuma tool está disponível nesta versão. Responda apenas com texto conversacional.
-Quando o sistema de tools estiver habilitado, esta seção será preenchida automaticamente.`.trim();
+Você tem acesso a tools que permitem executar ações reais no ProOps (criar propostas, buscar contatos, lançar transações, etc.).
+As tools disponíveis são filtradas automaticamente pelo plano, papel e módulos ativos do tenant.
+Use as tools quando o usuário pedir uma ação concreta. Para perguntas gerais, responda com texto.
+IMPORTANTE: Sempre confirme com o usuário o que vai fazer ANTES de executar uma ação de criação ou edição.
+Para ações de DELETE, você DEVE chamar request_confirmation primeiro com severity: "high" e só executar após confirmed=true.`.trim();
 }
 
-/**
- * Build the list of available tools for the model.
- *
- * STUB for Phase 2 (Backend Core). Returns empty array.
- * Phase 3 (Tool System) will implement the real tool definitions
- * filtered by module, role, and planTier.
- */
-export function buildAvailableTools(
-  _planTier: Exclude<TenantPlanTier, "free">,
-  _userRole: string,
-): unknown[] {
-  // Phase 3 will replace this with real tool definitions from 12-TOOLS.md
-  return [];
-}
