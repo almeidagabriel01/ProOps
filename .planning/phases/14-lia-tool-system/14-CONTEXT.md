@@ -36,10 +36,18 @@ Phase 14 does NOT cover: frontend Chat UI (Phase 15/Fase 4), security middleware
 - **All deletes are `severity: high`** — every `request_confirmation` call for a delete must pass `severity: "high"`.
 - This applies to: `delete_proposal`, `delete_contact`, `delete_product`, `delete_transaction`, and any future delete tool.
 
-### Service Layer Contract (CONFIRMED)
+### Service Layer Contract (UPDATED — 2026-04-13)
 
-- **Tools call existing services directly, never Firestore directly.**
-- Map: `delete_proposal` → `proposals.service`, `create_contact` → `contacts.service`, `create_transaction` → `transactions.service`, etc.
+- **Tools call extracted service functions, never Firestore directly.**
+- **Why updated:** Existing controllers are Express `(req, res)` handlers — they cannot be called as plain functions from the AI executor. Resolution: extract business logic from each controller into a pure service function (no req/res), then call that from both the controller and the executor.
+- **Pattern:** For each affected controller, extract a `createXxx(params, tenantId)` / `deleteXxx(id, tenantId)` etc. pure async function. The controller becomes a thin wrapper.
+- **Files to create/update:**
+  - `functions/src/api/services/proposals.service.ts` — extract from `proposals.controller.ts`
+  - `functions/src/api/services/contacts.service.ts` — extract from `clients.controller.ts`
+  - `functions/src/api/services/products.service.ts` — extract from `products.controller.ts`
+  - `functions/src/api/services/transactions.service.ts` — extract/extend from `transaction.service.ts` (may already exist in part)
+  - `functions/src/api/services/wallets.service.ts` — extract from `wallets.controller.ts`
+- **Scope limit:** Only extract the operations actually called by the AI tools (list, get, create, update, delete per domain). Do NOT refactor the entire controller — just the subset needed.
 - `tenantId` is never accepted as a tool parameter — always injected from auth context.
 
 ### Confirmation Gate (CONFIRMED)
