@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: Executing Phase 12
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-04-14T01:35:09.322Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-04-14T01:46:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 8
   total_plans: 24
-  completed_plans: 19
-  percent: 79
+  completed_plans: 20
+  percent: 83
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 14 (lia-tool-system) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -85,6 +85,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 13-lia-backend-core]: AI route mounted after notificationsRoutes at app.use('/v1/ai') — auth already enforced by global validateFirebaseIdToken middleware
 - [Phase 14-lia-tool-system]: contacts.service.ts uses collection 'clients' (not 'contacts') matching existing controller convention
 - [Phase 14-lia-tool-system]: createTransactionForAi always creates status 'pending' — avoids atomic wallet balance issues from AI-created paid transactions (carried from Phase 13 decision)
+- [Phase 14-lia-tool-system P02]: format: "enum" required on EnumStringSchema in @google/generative-ai SDK v0.24.1 — plain enum array without format field fails TypeScript type check
+- [Phase 14-lia-tool-system P02]: makeDeleteSchema() uses z.literal(true) with Zod v4 error callback syntax { error: () => "..." } not { errorMap: () => ({message: "..."}) }
+- [Phase 14-lia-tool-system P02]: ADMIN_ROLES includes WK — WK is a functional-admin role needing admin-level tool access
 
 ### Pending Todos
 
