@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: Not started
-stopped_at: Phase 15 context gathered
-last_updated: "2026-04-14T02:32:45.198Z"
-last_activity: 2026-04-13 — Roadmap for v3.0 Frontend & QA written (phases 15–17)
+status: Ready to execute
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-04-14T13:44:52.438Z"
 progress:
   total_phases: 13
   completed_phases: 9
-  total_plans: 24
-  completed_plans: 22
+  total_plans: 31
+  completed_plans: 23
+  percent: 74
 ---
 
 # Project State
@@ -20,14 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 15 — Lia Frontend Chat UI
+**Current focus:** Phase 15 — lia-frontend-chat-ui
 
 ## Current Position
 
-Phase: 15 — Lia Frontend Chat UI
-Plan: —
-Status: Not started
-Last activity: 2026-04-13 — Roadmap for v3.0 Frontend & QA written (phases 15–17)
+Phase: 15 (lia-frontend-chat-ui) — EXECUTING
+Plan: 2 of 7
 
 ## Performance Metrics
 
@@ -57,6 +55,7 @@ _Updated after each plan completion_
 | Phase 14-lia-tool-system P01 | 4 | 2 tasks | 5 files |
 | Phase 14 P03 | 8 | 1 tasks | 1 files |
 | Phase 14 P04 | 4 | 2 tasks | 3 files |
+| Phase 15 P01 | 259 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -94,6 +93,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 14-lia-tool-system P02]: ADMIN_ROLES includes WK — WK is a functional-admin role needing admin-level tool access
 - [Phase 14]: Proposal items mapped at executor boundary: AI schema uses productId+unitPrice, service uses name+price — resolveProposalItems() looks up product names from productsService.getProduct()
 - [Phase 14]: FunctionResponsePart[] typed array satisfies sendMessageStream parameter in Gemini SDK v0.24+ — avoids discriminant union mismatch with plain object literals
+- [Phase 15]: SSE passthrough: detect via upstream content-type header; SSE timeout 60s vs 30s standard; content-encoding added to SAFE_RESPONSE_HEADERS; sendChatMessage IIFE pattern returns AbortController immediately
 
 ### Pending Todos
 
@@ -105,6 +105,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T02:32:45.195Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-lia-frontend-chat-ui/15-CONTEXT.md
+Last session: 2026-04-14T13:44:52.434Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

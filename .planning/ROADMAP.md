@@ -213,10 +213,6 @@ Plans:
 - [x] 14-03-PLAN.md -- Tool executor: executeToolCall() dispatcher with all 29 handlers calling service functions
 - [x] 14-04-PLAN.md -- Chat route integration: Gemini multi-turn tool calling loop wiring
 
----
-
-## v3.0 — AI Assistant (Frontend & QA)
-
 ### Phase 15: Lia Frontend Chat UI
 
 **Goal**: Users can interact with Lia through a full chat interface — opening the panel, sending messages, seeing streaming responses, reviewing tool results, and confirming or cancelling destructive actions.
@@ -274,7 +270,7 @@ Plans:
 1. Test suite validates that a user can create, edit, and delete a contact with valid data
 2. Test suite validates that a user can create, edit, and delete a product with valid data
 3. Seed data includes at least one contact and one product for tenant-alpha before tests run
-   **Plans:** 2 plans
+   **Plans:** 1/7 plans executed
    Plans:
 
 - [x] 08-01-PLAN.md -- Contacts CRUD E2E Tests
@@ -347,6 +343,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 12. Lia — Arquitetura & Pesquisa  | 1/1            | Complete    | 2026-04-13 |
 | 13. Lia — Backend Core            | 3/3            | Complete    | 2026-04-13 |
 | 14. Lia — Tool System             | 4/4            | Complete    | 2026-04-14 |
-| 15. Lia Frontend Chat UI          | 0/?            | Not started | -          |
+| 15. Lia Frontend Chat UI          | 1/7 | In Progress|  |
 | 16. Lia Segurança & Billing       | 0/?            | Not started | -          |
 | 17. Lia Testes & QA               | 0/?            | Not started | -          |
