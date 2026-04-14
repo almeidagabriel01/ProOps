@@ -270,12 +270,13 @@ Plans:
 3. E2E scenario AI-08 passes: tenant at message limit sees disabled input with reset date displayed
 4. E2E scenarios AI-10 to AI-12 pass: cross-tenant data isolation holds; member role cannot execute admin actions; delete confirmation dialog appears and cancelling does not delete
 5. Seed data creates `ai-test` pro tenant with `ai-admin@test.com` (admin) and `ai-member@test.com` (member) and all modules active; Lia smoke test job runs on every CI PR
-**Plans:** 4 plans
+**Plans:** 5 plans
 Plans:
-- [ ] 16-01-PLAN.md -- Wave 0: Install Progress component + verify AIBI-01, AIBI-03, AIBI-06
-- [x] 16-02-PLAN.md -- Backend: inactive subscription 403 check (AIBI-02)
-- [ ] 16-03-PLAN.md -- Frontend: AI usage card on billing page (AIBI-04)
-- [x] 16-04-PLAN.md -- Frontend: near-limit warning banner in Lia panel (AIBI-05)
+- [ ] 17-01-PLAN.md -- Seed infrastructure: AI tenants, page object, seed-factory, CI config (AIQA-05, AIQA-06)
+- [ ] 17-02-PLAN.md -- Access control tests: AI-01 free tier, AI-02 starter badge, AI-03 pro badge (AIQA-01)
+- [ ] 17-03-PLAN.md -- Plan limit tests: AI-06 429 at limit, AI-07 metadata, AI-08 disabled input (AIQA-02, AIQA-03)
+- [ ] 17-04-PLAN.md -- Isolation tests: AI-10 cross-tenant, AI-11 member role, AI-12 delete confirm (AIQA-04)
+- [ ] 17-05-PLAN.md -- Tool execution tests: AI-04 creates data, AI-05 inactive module (AIQA-02)
 
 ---
 
