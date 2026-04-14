@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { GoogleGenerativeAI, type FunctionResponsePart } from "@google/generative-ai";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../init";
-import { getTenantPlanProfile } from "../lib/tenant-plan-policy";
+import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/tenant-plan-policy";
 import { sanitizeText } from "../utils/sanitize";
 import { logger } from "../lib/logger";
 import { selectModel } from "./model-router";
@@ -52,6 +52,19 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.status(403).json({
       message: "Plano Free não tem acesso à Lia. Faça upgrade para Starter ou superior.",
       code: "AI_FREE_TIER_BLOCKED",
+    });
+    return;
+  }
+
+  // 3b. Block inactive subscriptions (canceled, past_due beyond grace)
+  const subscriptionAccess = evaluateSubscriptionStatusAccess({
+    subscriptionStatus: planProfile.subscriptionStatus,
+    pastDueSince: planProfile.pastDueSince,
+  });
+  if (!subscriptionAccess.allowWrite) {
+    res.status(403).json({
+      message: "Assinatura inativa. Regularize seu plano para usar a Lia.",
+      code: "AI_SUBSCRIPTION_INACTIVE",
     });
     return;
   }
