@@ -296,4 +296,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 11. Performance Expansion       | 0/1            | Not started | -          |
 | 12. Lia — Arquitetura & Pesquisa | 1/1           | Complete    | 2026-04-13 |
 | 13. Lia — Backend Core          | 3/3 | Complete   | 2026-04-13 |
-| 14. Lia — Tool System           | 4/4 | Complete   | 2026-04-14 |
+| 14. Lia — Tool System           | 4/4 | Complete    | 2026-04-14 |
