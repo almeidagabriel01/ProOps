@@ -2,30 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-04-13T16:55:51Z"
-progress:
-  total_phases: 9
-  completed_phases: 7
-  total_plans: 20
-  completed_plans: 16
----
-
----
-gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: — E2E Coverage Expansion
 status: Executing Phase 12
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-04-09T14:22:14.488Z"
-last_activity: 2026-04-09 -- Phase 10 execution started
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-04-14T01:35:09.322Z"
 progress:
-  total_phases: 11
-  completed_phases: 7
-  total_plans: 21
-  completed_plans: 16
-  percent: 76
+  total_phases: 10
+  completed_phases: 8
+  total_plans: 24
+  completed_plans: 19
+  percent: 79
 ---
 
 # Project State
@@ -35,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 13 — lia-backend-core
+**Current focus:** Phase 14 — lia-tool-system
 
 ## Current Position
 
-Phase: 13 (lia-backend-core) — EXECUTING
-Plan: 3 of 3 (COMPLETE)
+Phase: 14 (lia-tool-system) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -67,6 +52,7 @@ _Updated after each plan completion_
 | Phase 13-lia-backend-core P01 | 2 | 3 tasks | 4 files |
 | Phase 13-lia-backend-core P02 | 2 | 2 tasks | 2 files |
 | Phase 13-lia-backend-core P03 | 20 | 2 tasks | 4 files |
+| Phase 14-lia-tool-system P01 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -97,6 +83,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 13-lia-backend-core]: Promise<void> on async Express handler — use statement+return instead of return res.json() to satisfy TypeScript strict mode
 - [Phase 13-lia-backend-core]: res.setTimeout(0) before SSE flushHeaders disables the 20s protected route timeout for streaming connections
 - [Phase 13-lia-backend-core]: AI route mounted after notificationsRoutes at app.use('/v1/ai') — auth already enforced by global validateFirebaseIdToken middleware
+- [Phase 14-lia-tool-system]: contacts.service.ts uses collection 'clients' (not 'contacts') matching existing controller convention
+- [Phase 14-lia-tool-system]: createTransactionForAi always creates status 'pending' — avoids atomic wallet balance issues from AI-created paid transactions (carried from Phase 13 decision)
 
 ### Pending Todos
 
@@ -108,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-13T18:00:00Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-04-14T01:35:09.320Z
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None
