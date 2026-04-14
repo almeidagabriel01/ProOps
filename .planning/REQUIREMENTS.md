@@ -93,6 +93,38 @@
 - [ ] **PERF-05**: Lighthouse CI mede Core Web Vitals na página /products (LCP ≤ 2.5s, CLS ≤ 0.1)
 - [ ] **PERF-06**: Baseline de response time para endpoints de contacts e products está documentado e validado (≤ 500ms p95)
 
+## v3.0 Requirements
+
+### Frontend Chat UI
+
+- [ ] **CHAT-01**: User can open the Lia panel from the floating trigger button (bottom-right)
+- [ ] **CHAT-02**: User can close the panel; it slides out with Tailwind animation
+- [ ] **CHAT-03**: User types a message and sees the response streamed token by token in real time
+- [ ] **CHAT-04**: User sees "Lia está digitando..." indicator during active streaming
+- [ ] **CHAT-05**: User sees tool execution results in compact, expandable LiaToolResultCards
+- [ ] **CHAT-06**: User is shown a confirmation dialog before Lia executes any delete action
+- [ ] **CHAT-07**: User sees usage badge (used/limit) in the panel header
+- [ ] **CHAT-08**: Free plan tenants cannot see or access the Lia panel
+- [ ] **CHAT-09**: Chat history persists across sessions for Pro/Enterprise tenants
+
+### AI Billing & Security
+
+- [ ] **AIBI-01**: Free plan tenant is blocked with 403 before the stream starts
+- [ ] **AIBI-02**: Tenant with inactive subscription is blocked with 403 before stream starts
+- [ ] **AIBI-03**: Tenant at message limit receives 429 with `resetAt`; input is disabled in UI
+- [ ] **AIBI-04**: User can view AI usage section on the billing page (progress bar + reset date)
+- [ ] **AIBI-05**: User sees in-app warning when reaching 80% of their monthly message limit
+- [ ] **AIBI-06**: Firestore rules restrict `aiUsage` (read-only) and `aiConversations` (owner-only)
+
+### AI Tests & QA
+
+- [ ] **AIQA-01**: E2E AI-01 to AI-03 validate plan-based access and usage badge display
+- [ ] **AIQA-02**: E2E AI-04 to AI-07 validate tool execution, module gating, and plan limit enforcement
+- [ ] **AIQA-03**: E2E AI-08 validates message limit blocks input and shows reset date
+- [ ] **AIQA-04**: E2E AI-10 to AI-12 validate cross-tenant isolation, role permissions, and delete confirmation
+- [ ] **AIQA-05**: Seed data creates `ai-test` pro tenant with admin + member users and all modules active
+- [ ] **AIQA-06**: Lia smoke test runs automatically in CI on every PR
+
 ## Backlog Requirements
 
 ### Testes de Integração WhatsApp
@@ -174,14 +206,37 @@
 | PERF-05     | Phase 11 | Pending  |
 | PERF-06     | Phase 11 | Pending  |
 
+| CHAT-01     | Phase 15 | Pending  |
+| CHAT-02     | Phase 15 | Pending  |
+| CHAT-03     | Phase 15 | Pending  |
+| CHAT-04     | Phase 15 | Pending  |
+| CHAT-05     | Phase 15 | Pending  |
+| CHAT-06     | Phase 15 | Pending  |
+| CHAT-07     | Phase 15 | Pending  |
+| CHAT-08     | Phase 15 | Pending  |
+| CHAT-09     | Phase 15 | Pending  |
+| AIBI-01     | Phase 16 | Pending  |
+| AIBI-02     | Phase 16 | Pending  |
+| AIBI-03     | Phase 16 | Pending  |
+| AIBI-04     | Phase 16 | Pending  |
+| AIBI-05     | Phase 16 | Pending  |
+| AIBI-06     | Phase 16 | Pending  |
+| AIQA-01     | Phase 17 | Pending  |
+| AIQA-02     | Phase 17 | Pending  |
+| AIQA-03     | Phase 17 | Pending  |
+| AIQA-04     | Phase 17 | Pending  |
+| AIQA-05     | Phase 17 | Pending  |
+| AIQA-06     | Phase 17 | Pending  |
+
 **Coverage:**
 
 - v1.0 requirements: 34 total (all mapped)
-- v2.0 requirements: 15 total
-- Mapped to phases: 15
+- v2.0 requirements: 15 total (all mapped)
+- v3.0 requirements: 21 total
+- Mapped to phases: 21
 - Unmapped: 0 ✓
 
 ---
 
 _Requirements defined: 2026-04-06_
-_Last updated: 2026-04-08 — v2.0 requirements added (phases 8–11)_
+_Last updated: 2026-04-13 — v3.0 requirements added (phases 15–17): CHAT-01–09, AIBI-01–06, AIQA-01–06_
