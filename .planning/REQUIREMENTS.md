@@ -113,7 +113,7 @@
 - [x] **AIBI-02**: Tenant with inactive subscription is blocked with 403 before stream starts
 - [ ] **AIBI-03**: Tenant at message limit receives 429 with `resetAt`; input is disabled in UI
 - [ ] **AIBI-04**: User can view AI usage section on the billing page (progress bar + reset date)
-- [ ] **AIBI-05**: User sees in-app warning when reaching 80% of their monthly message limit
+- [x] **AIBI-05**: User sees in-app warning when reaching 80% of their monthly message limit
 - [ ] **AIBI-06**: Firestore rules restrict `aiUsage` (read-only) and `aiConversations` (owner-only)
 
 ### AI Tests & QA
@@ -219,7 +219,7 @@
 | AIBI-02     | Phase 16 | Complete |
 | AIBI-03     | Phase 16 | Pending  |
 | AIBI-04     | Phase 16 | Pending  |
-| AIBI-05     | Phase 16 | Pending  |
+| AIBI-05     | Phase 16 | Complete |
 | AIBI-06     | Phase 16 | Pending  |
 | AIQA-01     | Phase 17 | Pending  |
 | AIQA-02     | Phase 17 | Pending  |
