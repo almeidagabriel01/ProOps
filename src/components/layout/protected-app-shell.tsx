@@ -29,8 +29,8 @@ export function ProtectedAppShell({
         <AppOnboarding />
       </div>
       <BottomDock />
-      {/* Only render Lia for paid plan users; undefined = still loading, role "free" = free plan */}
-      {planTier !== undefined && user?.role !== "free" && <LiaContainer />}
+      {/* Only render Lia for paid plan users; undefined planTier = still loading, null user = auth loading, role "free" = free plan */}
+      {planTier !== undefined && user !== null && user.role !== "free" && <LiaContainer />}
     </div>
   );
 }
