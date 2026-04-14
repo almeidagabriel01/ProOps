@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: Ready to execute
-stopped_at: Completed 15-05-PLAN.md
-last_updated: "2026-04-14T13:57:42.705Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 15-07-PLAN.md
+last_updated: "2026-04-14T14:02:43.383Z"
 progress:
   total_phases: 13
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 31
-  completed_plans: 28
-  percent: 90
+  completed_plans: 29
+  percent: 94
 ---
 
 # Project State
@@ -61,6 +61,7 @@ _Updated after each plan completion_
 | Phase 15 P04 | 3 | 3 tasks | 3 files |
 | Phase 15 P06 | 108 | 3 tasks | 3 files |
 | Phase 15 P05 | 212 | 3 tasks | 3 files |
+| Phase 15 P07 | 5 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 15]: LiaToolConfirmDialog onOpenChange fires onCancel when Radix closes via Escape/backdrop
 - [Phase 15]: react-markdown v10 does not accept className on ReactMarkdown component — wrap in div with prose classes
 - [Phase 15]: Custom Tooltip API uses content prop (not Radix TooltipContent/TooltipTrigger) — adapted LiaInputBar accordingly
+- [Phase 15]: [Phase 15-07]: PlanTier type is starter|pro|enterprise only — free tier does not exist in TypeScript; guard uses planTier !== undefined instead of planTier !== 'free'
+- [Phase 15]: [Phase 15-07]: LiaContainer renders at root level in ProtectedAppShell as sibling to BottomDock — position:fixed components don't affect flex layout
 
 ### Pending Todos
 
@@ -119,6 +122,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T13:57:42.701Z
-Stopped at: Completed 15-05-PLAN.md
+Last session: 2026-04-14T14:02:43.380Z
+Stopped at: Completed 15-07-PLAN.md
 Resume file: None

@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 5: Stripe & Billing E2E** - Subscription flows, webhooks, plan limits, WhatsApp overage
 - [ ] **Phase 6: Performance Tests** - Lighthouse CI with Core Web Vitals thresholds and API baselines
 - [ ] **Phase 7: Security Tests** - OWASP ZAP scan, Firestore rules audit, tenant isolation validation
-- [ ] **Phase 15: Lia Frontend Chat UI** - LiaPanel, streaming SSE, message bubbles, tool dialogs, useAiChat hook
+- [x] **Phase 15: Lia Frontend Chat UI** - LiaPanel, streaming SSE, message bubbles, tool dialogs, useAiChat hook (completed 2026-04-14)
 - [ ] **Phase 16: Lia Segurança & Billing** - ai-auth middleware, AI_LIMITS, Firestore rules, billing page AI usage
 - [ ] **Phase 17: Lia Testes & QA** - E2E AI-01–12, seed tenant ai-test pro, CI smoke test
 
@@ -270,7 +270,7 @@ Plans:
 1. Test suite validates that a user can create, edit, and delete a contact with valid data
 2. Test suite validates that a user can create, edit, and delete a product with valid data
 3. Seed data includes at least one contact and one product for tenant-alpha before tests run
-   **Plans:** 6/7 plans executed
+   **Plans:** 7/7 plans complete
    Plans:
 
 - [x] 08-01-PLAN.md -- Contacts CRUD E2E Tests
@@ -343,6 +343,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 12. Lia — Arquitetura & Pesquisa  | 1/1            | Complete    | 2026-04-13 |
 | 13. Lia — Backend Core            | 3/3            | Complete    | 2026-04-13 |
 | 14. Lia — Tool System             | 4/4            | Complete    | 2026-04-14 |
-| 15. Lia Frontend Chat UI          | 6/7 | In Progress|  |
+| 15. Lia Frontend Chat UI          | 7/7 | Complete   | 2026-04-14 |
 | 16. Lia Segurança & Billing       | 0/?            | Not started | -          |
 | 17. Lia Testes & QA               | 0/?            | Not started | -          |
