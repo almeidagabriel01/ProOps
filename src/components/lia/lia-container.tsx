@@ -80,7 +80,7 @@ function QuickActionChips({
 /**
  * Self-contained Lia chat feature composite.
  * Wires all hooks and components. Mount once in ProtectedAppShell.
- * Only render when planTier !== "free" (caller responsibility).
+ * Free plan exclusion: caller implements this via useAuth().user?.role !== "free".
  */
 export function LiaContainer() {
   const pathname = usePathname();
