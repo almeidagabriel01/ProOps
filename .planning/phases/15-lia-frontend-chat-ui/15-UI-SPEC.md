@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: true
 preset: "new-york / neutral / cssVariables: true"
 created: 2026-04-14
+revised: 2026-04-14
 ---
 
 # Phase 15 — UI Design Contract
@@ -54,7 +55,7 @@ Exceptions:
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body (chat text) | 14px | 400 (regular) | 1.6 |
-| Label (header, badge, chips) | 12px | 600 (semibold) | 1.4 |
+| Label (header, badge, chips, error indicator) | 12px | 600 (semibold) | 1.4 |
 | Heading (panel title "Lia") | 16px | 600 (semibold) | 1.2 |
 | Display | Not used in this phase | — | — |
 
@@ -63,7 +64,7 @@ Notes:
 - Streaming raw text: 14px regular, same as body — no markdown parsing during stream.
 - Typing indicator ("Lia está digitando..."): 12px, muted-foreground, weight 400.
 - Usage badge: 12px semibold — uses Badge component variant.
-- Error indicator inline badge ("Resposta interrompida"): 11px semibold, destructive variant.
+- Error indicator inline badge ("Resposta interrompida — tente enviar novamente."): 12px semibold, destructive variant. Error state is distinguished by `text-destructive` color and `bg-destructive/10` background, not by a unique font size.
 
 ---
 
@@ -138,7 +139,7 @@ Radix Collapsible: use for `LiaToolResultCard` expand/collapse. Add via `npx sha
 - Layout: `flex items-center gap-3 px-4 py-3 border-b border-border`
 - Left: Avatar (32px) with initials "LI", background = `tenant.primaryColor` (inline style)
 - Center: "Lia" (16px semibold) + "Assistente ProOps" (12px muted-foreground)
-- Right: `LiaUsageBadge` + dropdown/icon button (three-dot `MoreHorizontal` icon) with "Novo Chat" action
+- Right: `LiaUsageBadge` + dropdown/icon button (three-dot `MoreHorizontal` icon, `aria-label="Opções de conversa"`) with "Novo Chat" action
 
 ### LiaChatWindow
 - `flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3`
@@ -150,12 +151,12 @@ Radix Collapsible: use for `LiaToolResultCard` expand/collapse. Add via `npx sha
 - User message: `max-w-[85%] self-end rounded-2xl rounded-tr-sm px-3 py-2 bg-card border border-border text-foreground text-sm`
 - Streaming state: render raw text token by token as plain text
 - Post-stream (`done` event): replace with `<ReactMarkdown className="prose prose-sm dark:prose-invert">` render
-- Error badge: `<span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 text-[11px] font-semibold rounded bg-destructive/10 text-destructive">Resposta interrompida</span>` appended inline after partial content
+- Error badge: `<span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 text-xs font-semibold rounded bg-destructive/10 text-destructive">Resposta interrompida — tente enviar novamente.</span>` appended inline after partial content. The recovery instruction ("tente enviar novamente") is inline within the badge; no separate button required.
 
 ### LiaInputBar
 - `flex items-end gap-2 px-4 py-3 border-t border-border bg-card`
 - Textarea: auto-grow, max 5 lines, `resize-none`, `text-sm`
-- Send button: 44px × 44px, `SendHorizontal` lucide icon, primary background
+- Send button: 44px × 44px, `SendHorizontal` lucide icon, primary background, `aria-label="Enviar mensagem"`
 - Disabled state: textarea and send button disabled when `messagesUsed >= messagesLimit`
 - Disabled tooltip (Radix Tooltip): shows reset date — "Limite atingido. Renova em {date}."
 - `Cmd+Enter` / `Ctrl+Enter` submits message (keyboard shortcut)
@@ -164,9 +165,9 @@ Radix Collapsible: use for `LiaToolResultCard` expand/collapse. Add via `npx sha
 - Uses existing `dialog.tsx` (Radix Dialog)
 - Title: "Confirmar ação"
 - Body: Lia's natural language description of the action
-- Buttons: "Cancelar" (outline) + "Confirmar" (destructive variant) — both 44px min height
+- Buttons: "Não, manter" (outline) + "Confirmar" (destructive variant) — both 44px min height
 - On "Confirmar": hook resends with `confirmed: true`
-- On "Cancelar": sends cancellation signal, Lia acknowledges in chat
+- On "Não, manter": sends cancellation signal, Lia acknowledges in chat
 
 ### LiaToolResultCard
 - Collapsed by default: shows tool name + icon + 1-line result summary
@@ -209,10 +210,10 @@ Radix Collapsible: use for `LiaToolResultCard` expand/collapse. Add via `npx sha
 | Empty state (Pro/Enterprise first use) | "Olá! Sou a Lia, sua assistente ProOps. Como posso ajudar?" |
 | Typing indicator | "Lia está digitando..." |
 | Input disabled tooltip | "Limite atingido. Renova em {data de reset}." |
-| Stream error indicator | "Resposta interrompida" |
+| Stream error indicator | "Resposta interrompida — tente enviar novamente." |
 | Confirm dialog title | "Confirmar ação" |
 | Confirm dialog primary button | "Confirmar" |
-| Confirm dialog cancel button | "Cancelar" |
+| Confirm dialog cancel button | "Não, manter" |
 | Destructive confirmation (delete actions) | "Confirmar" triggers resend with `confirmed: true`. No separate "are you sure?" — Lia's description in the dialog body serves as the warning. |
 | Notification dot aria-label | "Nova resposta da Lia" |
 | Trigger button aria-label (closed) | "Abrir Lia" |
@@ -223,7 +224,9 @@ Radix Collapsible: use for `LiaToolResultCard` expand/collapse. Add via `npx sha
 ## Accessibility Contract
 
 - All interactive elements: min 44px touch target
-- Trigger button: `aria-label` changes with open state
+- Trigger button: `aria-label` changes with open state ("Abrir Lia" / "Fechar Lia")
+- Send button: `aria-label="Enviar mensagem"`
+- Options button (MoreHorizontal): `aria-label="Opções de conversa"`
 - Dialog: full focus trap via Radix Dialog (already implemented)
 - Chat window: `role="log"` `aria-live="polite"` for streaming message updates
 - Typing indicator: `aria-label="Lia está digitando"` on the bounce container, `aria-live="polite"`
