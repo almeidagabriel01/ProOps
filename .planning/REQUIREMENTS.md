@@ -118,7 +118,7 @@
 
 ### AI Tests & QA
 
-- [ ] **AIQA-01**: E2E AI-01 to AI-03 validate plan-based access and usage badge display
+- [x] **AIQA-01**: E2E AI-01 to AI-03 validate plan-based access and usage badge display
 - [x] **AIQA-02**: E2E AI-04 to AI-07 validate tool execution, module gating, and plan limit enforcement
 - [x] **AIQA-03**: E2E AI-08 validates message limit blocks input and shows reset date
 - [x] **AIQA-04**: E2E AI-10 to AI-12 validate cross-tenant isolation, role permissions, and delete confirmation
@@ -221,7 +221,7 @@
 | AIBI-04     | Phase 16 | Complete |
 | AIBI-05     | Phase 16 | Complete |
 | AIBI-06     | Phase 16 | Complete |
-| AIQA-01     | Phase 17 | Pending  |
+| AIQA-01     | Phase 17 | Complete |
 | AIQA-02     | Phase 17 | Complete |
 | AIQA-03     | Phase 17 | Complete |
 | AIQA-04     | Phase 17 | Complete |
