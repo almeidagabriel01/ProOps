@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: Ready to execute
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-04-15T00:23:48.888Z"
+stopped_at: Completed 17-03-PLAN.md
+last_updated: "2026-04-15T00:28:29.544Z"
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 43
-  completed_plans: 37
-  percent: 86
+  completed_plans: 40
+  percent: 93
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 17 (lia-testes-qa) — EXECUTING
-Plan: 2 of 5
+Plan: 5 of 5
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ _Updated after each plan completion_
 | Phase 16 P03 | 2 | 2 tasks | 3 files |
 | Phase 16 P01 | 201 | 2 tasks | 1 files |
 | Phase 17 P01 | 6 | 3 tasks | 5 files |
+| Phase 17 P03 | 100 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 16]: progress.tsx already committed in plan 16-03 (non-sequential execution); linter-only formatting applied in plan 16-01
 - [Phase 17]: SeedUserFreeRole extends Omit<SeedUser, 'role'> with role: 'free' — accommodates free-role custom claim without casting
 - [Phase 17]: clearAll() deletes AI subcollections (aiConversations, aiUsage) per tenant — subcollections not deleted by parent document deletion in Firestore
+- [Phase 17]: AI-06/07 as pure API tests using signInWithEmailPassword+fetch; AI-08 uses uiTest fixture; custom Tooltip uses role=tooltip portal div
 
 ### Pending Todos
 
@@ -141,6 +143,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T00:23:48.884Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-04-15T00:28:04.543Z
+Stopped at: Completed 17-03-PLAN.md
 Resume file: None
