@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: Phase complete — ready for verification
-stopped_at: Completed 17-04-PLAN.md
-last_updated: "2026-04-15T00:28:58.155Z"
+stopped_at: Completed 17-05-PLAN.md
+last_updated: "2026-04-15T00:29:18.760Z"
 progress:
   total_phases: 13
   completed_phases: 12
@@ -73,6 +73,7 @@ _Updated after each plan completion_
 | Phase 17 P03 | 100 | 2 tasks | 1 files |
 | Phase 17 P04 | 99 | 2 tasks | 1 files |
 | Phase 17 P05 | 1 | 2 tasks | 1 files |
+| Phase 17 P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 17]: AI-06/07 as pure API tests using signInWithEmailPassword+fetch; AI-08 uses uiTest fixture; custom Tooltip uses role=tooltip portal div
 - [Phase 17]: Dialog role=dialog not alertdialog — LiaToolConfirmDialog uses Shadcn Dialog; cancel is Nao, manter; toolCall.name not toolName
 - [Phase 17]: AI-05 requires temporarily upgrading ai-test tenant to enterprise plan before testing whatsapp module gating — send_whatsapp_message requires enterprise plan rank so testing module-only gating requires first satisfying the plan gate
+- [Phase 17]: API tests and UI tests coexist in same spec file via import aliasing (test vs uiTest from base.fixture)
 
 ### Pending Todos
 
@@ -147,6 +149,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T00:28:49.201Z
-Stopped at: Completed 17-04-PLAN.md
+Last session: 2026-04-15T00:29:03.707Z
+Stopped at: Completed 17-05-PLAN.md
 Resume file: None
