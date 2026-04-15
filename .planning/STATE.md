@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: Phase complete — ready for verification
-stopped_at: Completed 17-05-PLAN.md
-last_updated: "2026-04-15T12:09:31.279Z"
+status: Ready to execute
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-04-15T16:35:03.295Z"
 progress:
-  total_phases: 13
-  completed_phases: 12
-  total_plans: 43
-  completed_plans: 41
-  percent: 95
+  total_phases: 14
+  completed_phases: 13
+  total_plans: 46
+  completed_plans: 44
+  percent: 96
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 17 — lia-testes-qa
+**Current focus:** Phase 18 — fix-lia-5-corre-es-contador-de-uso-hist-rico-quebras-de-linha-minimizar-sem-perder-estado-tool-results-sem-json-bruto
 
 ## Current Position
 
-Phase: 17 (lia-testes-qa) — EXECUTING
-Plan: 5 of 5
+Phase: 18 (fix-lia-5-corre-es-contador-de-uso-hist-rico-quebras-de-linha-minimizar-sem-perder-estado-tool-results-sem-json-bruto) — EXECUTING
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -75,6 +75,8 @@ _Updated after each plan completion_
 | Phase 17 P05 | 1 | 2 tasks | 1 files |
 | Phase 17 P02 | 2 | 2 tasks | 1 files |
 | Phase 17 P05 | 2 | 2 tasks | 1 files |
+| Phase 18 P02 | 5 | 2 tasks | 3 files |
+| Phase 18 P01 | 113 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -139,6 +141,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 17]: Dialog role=dialog not alertdialog — LiaToolConfirmDialog uses Shadcn Dialog; cancel is Nao, manter; toolCall.name not toolName
 - [Phase 17]: AI-05 requires temporarily upgrading ai-test tenant to enterprise plan before testing whatsapp module gating — send_whatsapp_message requires enterprise plan rank so testing module-only gating requires first satisfying the plan gate
 - [Phase 17]: API tests and UI tests coexist in same spec file via import aliasing (test vs uiTest from base.fixture)
+- [Phase 18]: remark-breaks for post-stream markdown path; whitespace-pre-wrap for user/streaming plain-text span — two rendering contexts require two separate newline-preservation approaches
+- [Phase 18]: Tool result chip uses inline-flex (rounded-full) not block — collapsed state shows name+summary inline; JSON only visible after 'Ver detalhes' click
 
 ### Pending Todos
 
@@ -150,6 +154,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T12:09:31.275Z
-Stopped at: Completed 17-05-PLAN.md
+Last session: 2026-04-15T16:34:59.529Z
+Stopped at: Completed 18-02-PLAN.md
 Resume file: None

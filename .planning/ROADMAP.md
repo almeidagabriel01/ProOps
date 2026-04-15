@@ -283,12 +283,12 @@ Plans:
 **Goal:** Fix all 5 Lia bugs identified during QA (usage counter, session history, line breaks, minimize state, tool result display) without regressions.
 **Requirements**: BUG-1, BUG-2, BUG-3, BUG-4, BUG-5A, BUG-5B
 **Depends on:** Phase 17
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 18-01-PLAN.md -- Backend: usage counter skipIncrement + system prompt ID-hiding rule (Bug 1 + Bug 5b)
-- [ ] 18-02-PLAN.md -- Frontend: line break rendering + tool result chip redesign (Bug 3 + Bug 5a)
-- [ ] 18-03-PLAN.md -- Frontend: always-mounted trigger + sessionId restoration fix (Bug 4 + Bug 2)
+- [x] 18-01-PLAN.md -- Backend: usage counter skipIncrement + system prompt ID-hiding rule (Bug 1 + Bug 5b)
+- [x] 18-02-PLAN.md -- Frontend: line break rendering + tool result chip redesign (Bug 3 + Bug 5a)
+- [x] 18-03-PLAN.md -- Frontend: always-mounted trigger + sessionId restoration fix (Bug 4 + Bug 2)
 
 ---
 
@@ -380,4 +380,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 15. Lia Frontend Chat UI          | 10/10          | Complete    | 2026-04-14 |
 | 16. Lia Segurança & Billing       | 4/4            | Complete    | 2026-04-14 |
 | 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
-| 18. fix(lia) 5 correções          | 0/3            | Not started | -          |
+| 18. fix(lia) 5 correções          | 3/3 | Complete   | 2026-04-15 |
