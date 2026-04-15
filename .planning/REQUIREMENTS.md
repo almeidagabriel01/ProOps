@@ -122,8 +122,8 @@
 - [ ] **AIQA-02**: E2E AI-04 to AI-07 validate tool execution, module gating, and plan limit enforcement
 - [ ] **AIQA-03**: E2E AI-08 validates message limit blocks input and shows reset date
 - [ ] **AIQA-04**: E2E AI-10 to AI-12 validate cross-tenant isolation, role permissions, and delete confirmation
-- [ ] **AIQA-05**: Seed data creates `ai-test` pro tenant with admin + member users and all modules active
-- [ ] **AIQA-06**: Lia smoke test runs automatically in CI on every PR
+- [x] **AIQA-05**: Seed data creates `ai-test` pro tenant with admin + member users and all modules active
+- [x] **AIQA-06**: Lia smoke test runs automatically in CI on every PR
 
 ## Backlog Requirements
 
@@ -225,8 +225,8 @@
 | AIQA-02     | Phase 17 | Pending  |
 | AIQA-03     | Phase 17 | Pending  |
 | AIQA-04     | Phase 17 | Pending  |
-| AIQA-05     | Phase 17 | Pending  |
-| AIQA-06     | Phase 17 | Pending  |
+| AIQA-05     | Phase 17 | Complete |
+| AIQA-06     | Phase 17 | Complete |
 
 **Coverage:**
 

@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: unknown
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-14T23:58:41.353Z"
+status: Ready to execute
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-04-15T00:23:48.888Z"
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 43
-  completed_plans: 36
+  completed_plans: 37
+  percent: 86
 ---
 
 # Project State
@@ -24,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-13)
 ## Current Position
 
 Phase: 17 (lia-testes-qa) — EXECUTING
-Plan: 1 of 5
+Plan: 2 of 5
 
 ## Performance Metrics
 
@@ -68,6 +69,7 @@ _Updated after each plan completion_
 | Phase 16 P04 | 5 | 1 tasks | 1 files |
 | Phase 16 P03 | 2 | 2 tasks | 3 files |
 | Phase 16 P01 | 201 | 2 tasks | 1 files |
+| Phase 17 P01 | 6 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -126,6 +128,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 16]: Progress component created from radix-ui meta-package — meta-package already installed, no new dependency needed
 - [Phase 16]: [Phase 16-03]: AiUsageCard uses !user || user.role === 'free' guard — explicit null check per Phase 15-10 pattern prevents auth bypass via undefined != 'free'
 - [Phase 16]: progress.tsx already committed in plan 16-03 (non-sequential execution); linter-only formatting applied in plan 16-01
+- [Phase 17]: SeedUserFreeRole extends Omit<SeedUser, 'role'> with role: 'free' — accommodates free-role custom claim without casting
+- [Phase 17]: clearAll() deletes AI subcollections (aiConversations, aiUsage) per tenant — subcollections not deleted by parent document deletion in Firestore
 
 ### Pending Todos
 
@@ -137,6 +141,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-14T21:44:44.413Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-04-15T00:23:48.884Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None
