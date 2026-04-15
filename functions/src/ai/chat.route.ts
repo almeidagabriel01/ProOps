@@ -17,6 +17,31 @@ import type { AiChatRequest, AiChatChunk, AiConversationMessage } from "./ai.typ
 const router = Router();
 
 /**
+ * Recursively normalize Gemini SDK SchemaType enum values to lowercase JSON Schema type names.
+ * Gemini uses uppercase ("OBJECT", "ARRAY", "STRING"); Groq/OpenAI require lowercase ("object", "array", "string").
+ * Groq silently drops tools whose schemas have uppercase types, causing "not in request.tools" errors.
+ */
+function normalizeSchemaTypes(schema: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "type" && typeof value === "string") {
+      result[key] = value.toLowerCase();
+    } else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = normalizeSchemaTypes(value as Record<string, unknown>);
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((item) =>
+        item !== null && typeof item === "object" && !Array.isArray(item)
+          ? normalizeSchemaTypes(item as Record<string, unknown>)
+          : item,
+      );
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * Convert Gemini FunctionDeclarationsTool[] to Groq/OpenAI ChatCompletionTool[] format.
  * Used when GROQ_API_KEY is set (local development only).
  */
@@ -31,7 +56,7 @@ function geminiToolsToGroqFormat(
         function: {
           name: fn.name,
           description: fn.description ?? "",
-          parameters: (fn.parameters ?? { type: "object", properties: {} }) as Record<string, unknown>,
+          parameters: normalizeSchemaTypes((fn.parameters ?? { type: "object", properties: {} }) as Record<string, unknown>),
         },
       });
     }
@@ -405,6 +430,13 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     }
 
     if (!skipIncrement) {
+      logger.info("AI stream complete, persisting usage and conversation", {
+        tenantId: user.tenantId,
+        uid: user.uid,
+        planTier,
+        totalTokens,
+        responseLength: fullResponseText.length,
+      });
       // 11. Increment usage atomically
       await incrementAiUsage(user.tenantId, totalTokens);
 
