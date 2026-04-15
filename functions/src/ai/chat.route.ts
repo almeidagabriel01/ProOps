@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { GoogleGenerativeAI, type FunctionResponsePart } from "@google/generative-ai";
+import { GoogleGenerativeAI, type FunctionResponsePart, type FunctionDeclarationsTool } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/tenant-plan-policy";
@@ -14,6 +15,29 @@ import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import type { AiChatRequest, AiChatChunk, AiConversationMessage } from "./ai.types";
 
 const router = Router();
+
+/**
+ * Convert Gemini FunctionDeclarationsTool[] to Groq/OpenAI ChatCompletionTool[] format.
+ * Used when GROQ_API_KEY is set (local development only).
+ */
+function geminiToolsToGroqFormat(
+  geminiTools: FunctionDeclarationsTool[],
+): Groq.Chat.Completions.ChatCompletionTool[] {
+  const result: Groq.Chat.Completions.ChatCompletionTool[] = [];
+  for (const tool of geminiTools) {
+    for (const fn of tool.functionDeclarations ?? []) {
+      result.push({
+        type: "function",
+        function: {
+          name: fn.name,
+          description: fn.description ?? "",
+          parameters: (fn.parameters ?? { type: "object", properties: {} }) as Record<string, unknown>,
+        },
+      });
+    }
+  }
+  return result;
+}
 
 router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const user = req.user;
@@ -84,7 +108,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  // 5. Select model
+  // 5. Select model (used for Gemini only; Groq uses llama-3.3-70b-versatile)
   const modelSelection = selectModel(planTier, message);
 
   // 6. Load conversation history
@@ -123,26 +147,15 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   // Build available tools for this tenant's plan/role/modules
   const tools = buildAvailableTools(planTier, user.role || "member", { whatsappEnabled });
 
-  // 8. Initialize Gemini
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    logger.error("GEMINI_API_KEY not configured", { tenantId: user.tenantId });
+  // 8. Select provider: GROQ_API_KEY → Groq (dev); else GEMINI_API_KEY → Gemini (prod)
+  const groqApiKey = process.env.GROQ_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+
+  if (!groqApiKey && !geminiApiKey) {
+    logger.error("No AI API key configured (GROQ_API_KEY or GEMINI_API_KEY)", { tenantId: user.tenantId });
     res.status(500).json({ message: "Serviço de IA não configurado." });
     return;
   }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelSelection.modelName,
-    systemInstruction: systemPrompt,
-    tools: tools.length > 0 ? tools : undefined,
-  });
-
-  // Build Gemini history from persisted conversation messages
-  const geminiHistory = history.map((msg) => ({
-    role: msg.role === "model" ? ("model" as const) : ("user" as const),
-    parts: [{ text: msg.content }],
-  }));
 
   // Build tool call context — all fields from auth context, never from request body
   const toolCtx: ToolCallContext = {
@@ -150,7 +163,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     uid: user.uid,
     role: user.role || "member",
     planTier,
-    confirmed: body.confirmed, // from AiChatRequest.confirmed (frontend resend)
+    confirmed: body.confirmed,
   };
 
   try {
@@ -162,139 +175,266 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
 
-    // 10. Stream Gemini response with tool calling loop
-    const chat = model.startChat({ history: geminiHistory });
-    let currentStream = await chat.sendMessageStream(message);
-
+    let skipIncrement = false;
     let fullResponseText = "";
     let totalTokens = 0;
-    const MAX_TOOL_ROUNDS = 5; // prevent infinite tool calling loops
-    let toolRound = 0;
 
-    // Outer loop: handles multi-turn tool calling
-    while (toolRound < MAX_TOOL_ROUNDS) {
-      const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    if (groqApiKey) {
+      // ── 10a. Groq streaming path (local development) ──────────────────────
+      const groqClient = new Groq({ apiKey: groqApiKey });
+      const groqTools = geminiToolsToGroqFormat(tools);
 
-      // Inner loop: consume the current stream
-      for await (const chunk of currentStream.stream) {
-        const text = chunk.text();
-        if (text) {
-          fullResponseText += text;
-          // CORRECT: AiChatChunk.content is the field for text (not "text")
-          const sseChunk: AiChatChunk = { type: "text", content: text };
-          res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+      type GroqMessage = Groq.Chat.Completions.ChatCompletionMessageParam;
+      const messages: GroqMessage[] = [
+        { role: "system", content: systemPrompt },
+        ...history.map((msg) => ({
+          role: msg.role === "model" ? ("assistant" as const) : ("user" as const),
+          content: msg.content,
+        })),
+        { role: "user", content: message },
+      ];
+
+      const MAX_TOOL_ROUNDS = 5;
+      let toolRound = 0;
+
+      while (toolRound < MAX_TOOL_ROUNDS) {
+        const stream = await groqClient.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages,
+          tools: groqTools.length > 0 ? groqTools : undefined,
+          tool_choice: groqTools.length > 0 ? "auto" : undefined,
+          stream: true,
+        });
+
+        interface ToolCallAcc { id: string; name: string; arguments: string }
+        const pendingToolCalls: ToolCallAcc[] = [];
+        let assistantContent = "";
+
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta;
+
+          if (delta?.content) {
+            assistantContent += delta.content;
+            fullResponseText += delta.content;
+            const sseChunk: AiChatChunk = { type: "text", content: delta.content };
+            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+          }
+
+          if (delta?.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index;
+              if (!pendingToolCalls[idx]) {
+                pendingToolCalls[idx] = { id: "", name: "", arguments: "" };
+              }
+              if (tc.id) pendingToolCalls[idx].id = tc.id;
+              if (tc.function?.name) pendingToolCalls[idx].name = tc.function.name;
+              if (tc.function?.arguments) pendingToolCalls[idx].arguments += tc.function.arguments;
+            }
+          }
+
         }
 
-        // Collect function calls from this chunk
-        const candidates = chunk.candidates;
-        if (candidates) {
-          for (const candidate of candidates) {
-            const parts = candidate.content?.parts;
-            if (parts) {
-              for (const part of parts) {
-                if ("functionCall" in part && part.functionCall) {
-                  pendingToolCalls.push({
-                    name: part.functionCall.name,
-                    args: (part.functionCall.args as Record<string, unknown>) || {},
-                  });
+        const completedToolCalls = pendingToolCalls.filter((tc) => tc.name);
+        if (completedToolCalls.length === 0) break;
+
+        // Add assistant turn with tool calls to message history
+        messages.push({
+          role: "assistant",
+          content: assistantContent || null,
+          tool_calls: completedToolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: tc.arguments },
+          })),
+        });
+
+        let exitLoop = false;
+        for (const tc of completedToolCalls) {
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(tc.arguments) as Record<string, unknown>;
+          } catch {
+            // Malformed JSON args — proceed with empty args
+          }
+
+          const toolCallChunk: AiChatChunk = {
+            type: "tool_call",
+            toolCall: { name: tc.name, args },
+          };
+          res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
+
+          const result = await executeToolCall(tc.name, args, toolCtx);
+
+          const toolResultChunk: AiChatChunk = {
+            type: "tool_result",
+            toolResult: {
+              name: tc.name,
+              result: result.data,
+              requiresConfirmation: result.requiresConfirmation,
+              confirmationData: result.confirmationData,
+            },
+          };
+          res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
+
+          if (result.requiresConfirmation) {
+            skipIncrement = true;
+            toolRound = MAX_TOOL_ROUNDS;
+            exitLoop = true;
+            break;
+          }
+
+          const responseObj: object = result.success
+            ? ((result.data as object) ?? { status: "ok" })
+            : { error: result.error ?? "unknown error" };
+
+          messages.push({
+            role: "tool",
+            tool_call_id: tc.id,
+            content: JSON.stringify(responseObj),
+          });
+        }
+
+        if (exitLoop) break;
+        toolRound++;
+      }
+      // ── End Groq path ─────────────────────────────────────────────────────
+    } else {
+      // ── 10b. Gemini streaming path (production) ───────────────────────────
+      const genAI = new GoogleGenerativeAI(geminiApiKey as string);
+      const model = genAI.getGenerativeModel({
+        model: modelSelection.modelName,
+        systemInstruction: systemPrompt,
+        tools: tools.length > 0 ? tools : undefined,
+      });
+
+      // Build Gemini history from persisted conversation messages
+      const geminiHistory = history.map((msg) => ({
+        role: msg.role === "model" ? ("model" as const) : ("user" as const),
+        parts: [{ text: msg.content }],
+      }));
+
+      const chat = model.startChat({ history: geminiHistory });
+      let currentStream = await chat.sendMessageStream(message);
+
+      const MAX_TOOL_ROUNDS = 5;
+      let toolRound = 0;
+
+      while (toolRound < MAX_TOOL_ROUNDS) {
+        const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+
+        for await (const chunk of currentStream.stream) {
+          const text = chunk.text();
+          if (text) {
+            fullResponseText += text;
+            const sseChunk: AiChatChunk = { type: "text", content: text };
+            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+          }
+
+          const candidates = chunk.candidates;
+          if (candidates) {
+            for (const candidate of candidates) {
+              const parts = candidate.content?.parts;
+              if (parts) {
+                for (const part of parts) {
+                  if ("functionCall" in part && part.functionCall) {
+                    pendingToolCalls.push({
+                      name: part.functionCall.name,
+                      args: (part.functionCall.args as Record<string, unknown>) || {},
+                    });
+                  }
                 }
               }
             }
           }
         }
-      }
 
-      // If no tool calls in this round, we're done streaming
-      if (pendingToolCalls.length === 0) break;
+        if (pendingToolCalls.length === 0) break;
 
-      // Execute each tool call and collect responses
-      const functionResponseParts: FunctionResponsePart[] = [];
+        const functionResponseParts: FunctionResponsePart[] = [];
 
-      for (const tc of pendingToolCalls) {
-        // Send tool_call event to SSE client
-        const toolCallChunk: AiChatChunk = {
-          type: "tool_call",
-          toolCall: { name: tc.name, args: tc.args },
-        };
-        res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
+        for (const tc of pendingToolCalls) {
+          const toolCallChunk: AiChatChunk = {
+            type: "tool_call",
+            toolCall: { name: tc.name, args: tc.args },
+          };
+          res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
 
-        // Execute the tool
-        const result = await executeToolCall(tc.name, tc.args, toolCtx);
+          const result = await executeToolCall(tc.name, tc.args, toolCtx);
 
-        // Send tool_result event to SSE client
-        const toolResultChunk: AiChatChunk = {
-          type: "tool_result",
-          toolResult: {
-            name: tc.name,
-            result: result.data,
-            requiresConfirmation: result.requiresConfirmation,
-            confirmationData: result.confirmationData,
-          },
-        };
-        res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
+          const toolResultChunk: AiChatChunk = {
+            type: "tool_result",
+            toolResult: {
+              name: tc.name,
+              result: result.data,
+              requiresConfirmation: result.requiresConfirmation,
+              confirmationData: result.confirmationData,
+            },
+          };
+          res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
 
-        // If tool requires confirmation, end the stream here
-        // Frontend will show modal, user confirms, frontend resends with confirmed=true
-        if (result.requiresConfirmation) {
-          // Get usage metadata from the last stream response
-          const usageResponse = await currentStream.response;
-          totalTokens = usageResponse.usageMetadata?.totalTokenCount || 0;
-          // Force exit from the tool round loop
-          toolRound = MAX_TOOL_ROUNDS;
-          break;
+          if (result.requiresConfirmation) {
+            skipIncrement = true;
+            const usageResponse = await currentStream.response;
+            totalTokens = usageResponse.usageMetadata?.totalTokenCount || 0;
+            toolRound = MAX_TOOL_ROUNDS;
+            break;
+          }
+
+          const responseObj: object = result.success
+            ? ((result.data as object) ?? { status: "ok" })
+            : { error: result.error ?? "unknown error" };
+          functionResponseParts.push({
+            functionResponse: {
+              name: tc.name,
+              response: responseObj,
+            },
+          });
         }
 
-        // Collect function response for Gemini multi-turn
-        const responseObj: object = result.success
-          ? ((result.data as object) ?? { status: "ok" })
-          : { error: result.error ?? "unknown error" };
-        functionResponseParts.push({
-          functionResponse: {
-            name: tc.name,
-            response: responseObj,
-          },
-        });
+        if (toolRound >= MAX_TOOL_ROUNDS) break;
+
+        currentStream = await chat.sendMessageStream(functionResponseParts);
+        toolRound++;
       }
 
-      // If we're exiting due to confirmation, don't send another message
-      if (toolRound >= MAX_TOOL_ROUNDS) break;
-
-      // Send function responses back to Gemini for the next turn
-      currentStream = await chat.sendMessageStream(functionResponseParts);
-      toolRound++;
+      if (toolRound < MAX_TOOL_ROUNDS) {
+        const usageMetadata = await currentStream.response;
+        totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
+      }
+      // ── End Gemini path ───────────────────────────────────────────────────
     }
 
-    // Get usage metadata from final stream response
-    if (toolRound < MAX_TOOL_ROUNDS) {
-      const usageMetadata = await currentStream.response;
-      totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
+    if (!skipIncrement) {
+      // 11. Increment usage atomically
+      await incrementAiUsage(user.tenantId, totalTokens);
+
+      // 12. Save conversation (Pro/Enterprise only — starter is no-op in saveConversation)
+      const now = Timestamp.now();
+      const updatedMessages: AiConversationMessage[] = [
+        ...history,
+        { role: "user" as const, content: message, timestamp: now },
+        { role: "model" as const, content: fullResponseText, timestamp: now },
+      ];
+      await saveConversation(user.tenantId, sessionId, user.uid, updatedMessages, planTier);
+
+      // 13. Send usage event and DONE sentinel
+      const currentUsage = await getAiUsage(user.tenantId);
+      const usageChunk: AiChatChunk = {
+        type: "usage",
+        usage: {
+          messagesUsed: currentUsage?.messagesUsed || limitCheck.messagesUsed + 1,
+          messagesLimit: limitCheck.messagesLimit,
+          totalTokensUsed: currentUsage?.totalTokensUsed || totalTokens,
+        },
+      };
+      res.write(`data: ${JSON.stringify(usageChunk)}\n\n`);
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } else {
+      // Confirmation pending — do not increment usage or save incomplete conversation
+      res.write("data: [DONE]\n\n");
+      res.end();
     }
-
-    // 11. Increment usage atomically
-    await incrementAiUsage(user.tenantId, totalTokens);
-
-    // 12. Save conversation (Pro/Enterprise only — starter is no-op in saveConversation)
-    const now = Timestamp.now();
-    const updatedMessages: AiConversationMessage[] = [
-      ...history,
-      { role: "user" as const, content: message, timestamp: now },
-      { role: "model" as const, content: fullResponseText, timestamp: now },
-    ];
-    await saveConversation(user.tenantId, sessionId, user.uid, updatedMessages, planTier);
-
-    // 13. Send usage event and DONE sentinel
-    const currentUsage = await getAiUsage(user.tenantId);
-    const usageChunk: AiChatChunk = {
-      type: "usage",
-      usage: {
-        messagesUsed: currentUsage?.messagesUsed || limitCheck.messagesUsed + 1,
-        messagesLimit: limitCheck.messagesLimit,
-        totalTokensUsed: currentUsage?.totalTokensUsed || totalTokens,
-      },
-    };
-    res.write(`data: ${JSON.stringify(usageChunk)}\n\n`);
-    res.write("data: [DONE]\n\n");
-    res.end();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro interno da IA";
     logger.error("AI chat stream error", {
@@ -304,12 +444,10 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!res.headersSent) {
-      // Fallback to JSON if SSE headers not yet flushed
       res.status(500).json({ message: "Erro ao processar resposta da IA.", reply: "" });
       return;
     }
 
-    // Headers already sent — send error via SSE then close
     const errorChunk: AiChatChunk = { type: "error", error: "Erro ao processar resposta da IA." };
     res.write(`data: ${JSON.stringify(errorChunk)}\n\n`);
     res.write("data: [DONE]\n\n");
