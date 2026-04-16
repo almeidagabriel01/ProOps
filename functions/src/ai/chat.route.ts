@@ -301,17 +301,17 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     };
 
     // 10. Run the provider loop
-    // Priority: mock > Gemini (with Groq fallback on 429 in dev) > Groq only
+    // Priority: mock > Gemini (with Groq fallback on 429 in emulator/localhost only) > Groq only
     try {
       await runProviderLoop(geminiApiKey, groqApiKey);
     } catch (primaryError) {
       const errorMsg = primaryError instanceof Error ? primaryError.message : "";
-      // Gemini 429 → transparent Groq fallback (dev only, no content written yet)
+      // Gemini 429 → transparent Groq fallback (emulator/localhost only, no content written yet)
       if (
         errorMsg.includes("429") &&
         groqApiKey &&
         !contentWritten &&
-        process.env.NODE_ENV !== "production"
+        process.env.FUNCTIONS_EMULATOR === "true"
       ) {
         logger.warn("Gemini rate-limited, falling back to Groq for this request", {
           tenantId: user.tenantId,
