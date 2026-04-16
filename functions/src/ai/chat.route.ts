@@ -188,6 +188,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       });
 
       const MAX_TOOL_ROUNDS = 5;
+      const MAX_TOOL_CALLS_PER_ROUND = 10;
       let toolRound = 0;
       let currentInput: string | ToolFeedback[] = message;
 
@@ -204,6 +205,14 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           } else if (event.type === "done") {
             totalTokens = event.totalTokens;
           }
+        }
+
+        // Safety cap: prevent runaway tool execution per round
+        if (pendingToolCalls.length > MAX_TOOL_CALLS_PER_ROUND) {
+          logger.warn(`AI tool calls per round capped (${pendingToolCalls.length} → ${MAX_TOOL_CALLS_PER_ROUND})`, {
+            tenantId: user.tenantId,
+          });
+          pendingToolCalls = pendingToolCalls.slice(0, MAX_TOOL_CALLS_PER_ROUND);
         }
 
         if (pendingToolCalls.length === 0) break;

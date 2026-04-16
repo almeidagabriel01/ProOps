@@ -115,13 +115,17 @@ async function resolveProposalItems(
       const productId = i.productId as string | undefined;
       let name = "";
 
+      let price: number = (i.unitPrice as number) ?? 0;
+
       if (productId) {
         try {
           const product = await productsService.getProduct(productId, tenantId);
           name = product.name;
+          // Always use catalog price — model cannot override product pricing
+          price = typeof product.price === "number" ? product.price : price;
         } catch {
-          // Product not found — use productId as name fallback
-          name = productId;
+          // Product not found — reject instead of using arbitrary model-supplied price
+          throw new Error(`Produto com ID "${productId}" não encontrado para este tenant. Verifique o ID antes de criar a proposta.`);
         }
       }
 
@@ -129,7 +133,7 @@ async function resolveProposalItems(
         productId,
         name,
         quantity: i.quantity as number,
-        price: (i.unitPrice as number) ?? 0,
+        price,
         description: i.description as string | undefined,
       };
     }),
