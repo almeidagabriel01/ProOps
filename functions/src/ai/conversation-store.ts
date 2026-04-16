@@ -96,7 +96,11 @@ export async function saveConversation(
   }
 
   // Trim to last MAX_STORED_MESSAGES (20 = 10 exchanges)
-  const trimmedMessages = messages.slice(-MAX_STORED_MESSAGES);
+  // Also drop individual messages exceeding 8 KB to prevent oversized documents
+  const MAX_MESSAGE_BYTES = 8 * 1024;
+  const trimmedMessages = messages
+    .slice(-MAX_STORED_MESSAGES)
+    .filter((m) => Buffer.byteLength(JSON.stringify(m), "utf8") <= MAX_MESSAGE_BYTES);
 
   const docRef = getConversationDocRef(tenantId, sessionId);
   const snap = await docRef.get();

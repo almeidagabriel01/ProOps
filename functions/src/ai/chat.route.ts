@@ -180,6 +180,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     sessionId: sessionId || undefined,
   };
 
+  // Heartbeat: keep the connection alive across proxies/load-balancers
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+
   try {
     // 9. Set SSE headers — disable timeout for long-lived streaming connection
     res.setTimeout(0);
@@ -188,6 +191,11 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders();
+
+    // Start heartbeat after headers are flushed — send SSE comment every 20 s
+    heartbeatTimer = setInterval(() => {
+      if (!res.writableEnded) res.write(": heartbeat\n\n");
+    }, 20_000);
 
     let skipIncrement = false;
     let fullResponseText = "";
@@ -445,6 +453,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.write("data: [DONE]\n\n");
     res.end();
   } finally {
+    clearInterval(heartbeatTimer);
     // Refund the pre-debited message slot when the stream did not complete successfully:
     // - stream error (catch path)
     // - confirmation pending (skipIncrement=true — counter re-reserved on the confirmed request)

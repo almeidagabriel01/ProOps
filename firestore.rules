@@ -443,7 +443,11 @@ service cloud.firestore {
       allow get: if isAuthenticated()
                  && belongsToTenant(tenantId)
                  && (resource == null || resource.data.uid == request.auth.uid);
-      allow list: if isAuthenticated() && belongsToTenant(tenantId);
+      // list: require uid equality on every returned document so a query without
+      // a uid filter (or one with another user's uid) is automatically rejected.
+      allow list: if isAuthenticated()
+                  && belongsToTenant(tenantId)
+                  && resource.data.uid == request.auth.uid;
       allow write: if false;
     }
 
