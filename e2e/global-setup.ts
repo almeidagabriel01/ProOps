@@ -101,6 +101,11 @@ async function globalSetup(): Promise<void> {
   if (!process.env.STRIPE_SECRET_KEY) {
     process.env.STRIPE_SECRET_KEY = "sk_test_fake_for_testing";
   }
+  // Always use mock AI provider in E2E — never call real Gemini/Groq in tests
+  process.env.AI_PROVIDER = "mock";
+  if (!process.env.CONFIRMATION_SECRET) {
+    process.env.CONFIRMATION_SECRET = "test-secret";
+  }
 
   // Ensure Java is on PATH — Firebase emulators require the JVM.
   // Eclipse Adoptium (Temurin) installs to a versioned directory that Windows

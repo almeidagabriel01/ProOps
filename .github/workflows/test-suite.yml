@@ -117,7 +117,8 @@ jobs:
           CI: true
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AI_PROVIDER: mock
+          CONFIRMATION_SECRET: test-secret
           NEXT_PUBLIC_USE_FIREBASE_EMULATORS: 'true'
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-proops-test
           NEXT_PUBLIC_FIREBASE_API_KEY: demo-key
