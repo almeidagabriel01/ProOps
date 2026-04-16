@@ -203,10 +203,17 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     let skipIncrement = false;
     let fullResponseText = "";
     let totalTokens = 0;
+    // Tracks whether any SSE data has been written — used to decide if Groq fallback is safe
+    let contentWritten = false;
 
-    if (groqApiKey) {
-      // ── 10a. Groq streaming path (local development) ──────────────────────
-      const groqClient = new Groq({ apiKey: groqApiKey });
+    const writeSSE = (data: string): void => {
+      contentWritten = true;
+      res.write(data);
+    };
+
+    // Groq path — used directly when no Gemini key, or as silent fallback when Gemini is rate-limited
+    const runGroqPath = async (): Promise<void> => {
+      const groqClient = new Groq({ apiKey: groqApiKey as string });
       const groqTools = geminiToolsToGroqFormat(tools);
 
       type GroqMessage = Groq.Chat.Completions.ChatCompletionMessageParam;
@@ -242,7 +249,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
             assistantContent += delta.content;
             fullResponseText += delta.content;
             const sseChunk: AiChatChunk = { type: "text", content: delta.content };
-            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+            writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
           }
 
           if (delta?.tool_calls) {
@@ -256,7 +263,6 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
               if (tc.function?.arguments) pendingToolCalls[idx].arguments += tc.function.arguments;
             }
           }
-
         }
 
         const completedToolCalls = pendingToolCalls.filter((tc) => tc.name);
@@ -286,7 +292,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
             type: "tool_call",
             toolCall: { name: tc.name, args },
           };
-          res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
+          writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
 
           const result = await executeToolCall(tc.name, args, toolCtx);
 
@@ -299,7 +305,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
               confirmationData: result.confirmationData,
             },
           };
-          res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
+          writeSSE(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
 
           if (result.requiresConfirmation) {
             skipIncrement = true;
@@ -322,111 +328,128 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         if (exitLoop) break;
         toolRound++;
       }
-      // ── End Groq path ─────────────────────────────────────────────────────
-    } else {
-      // ── 10b. Gemini streaming path (production) ───────────────────────────
-      const genAI = new GoogleGenerativeAI(geminiApiKey as string);
-      const model = genAI.getGenerativeModel({
-        model: modelSelection.modelName,
-        systemInstruction: systemPrompt,
-        tools: tools.length > 0 ? tools : undefined,
-      });
+    };
 
-      // Build Gemini history from persisted conversation messages
-      const geminiHistory = history.map((msg) => ({
-        role: msg.role === "model" ? ("model" as const) : ("user" as const),
-        parts: [{ text: msg.content }],
-      }));
+    if (geminiApiKey) {
+      // ── 10a. Gemini streaming path (primary) ──────────────────────────────
+      try {
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
+        const model = genAI.getGenerativeModel({
+          model: modelSelection.modelName,
+          systemInstruction: systemPrompt,
+          tools: tools.length > 0 ? tools : undefined,
+        });
 
-      const chat = model.startChat({ history: geminiHistory });
-      let currentStream = await chat.sendMessageStream(message);
+        // Build Gemini history from persisted conversation messages
+        const geminiHistory = history.map((msg) => ({
+          role: msg.role === "model" ? ("model" as const) : ("user" as const),
+          parts: [{ text: msg.content }],
+        }));
 
-      const MAX_TOOL_ROUNDS = 5;
-      let toolRound = 0;
+        const chat = model.startChat({ history: geminiHistory });
+        let currentStream = await chat.sendMessageStream(message);
 
-      while (toolRound < MAX_TOOL_ROUNDS) {
-        const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+        const MAX_TOOL_ROUNDS = 5;
+        let toolRound = 0;
 
-        for await (const chunk of currentStream.stream) {
-          const text = chunk.text();
-          if (text) {
-            fullResponseText += text;
-            const sseChunk: AiChatChunk = { type: "text", content: text };
-            res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
-          }
+        while (toolRound < MAX_TOOL_ROUNDS) {
+          const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 
-          const candidates = chunk.candidates;
-          if (candidates) {
-            for (const candidate of candidates) {
-              const parts = candidate.content?.parts;
-              if (parts) {
-                for (const part of parts) {
-                  if ("functionCall" in part && part.functionCall) {
-                    pendingToolCalls.push({
-                      name: part.functionCall.name,
-                      args: (part.functionCall.args as Record<string, unknown>) || {},
-                    });
+          for await (const chunk of currentStream.stream) {
+            const text = chunk.text();
+            if (text) {
+              fullResponseText += text;
+              const sseChunk: AiChatChunk = { type: "text", content: text };
+              writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
+            }
+
+            const candidates = chunk.candidates;
+            if (candidates) {
+              for (const candidate of candidates) {
+                const parts = candidate.content?.parts;
+                if (parts) {
+                  for (const part of parts) {
+                    if ("functionCall" in part && part.functionCall) {
+                      pendingToolCalls.push({
+                        name: part.functionCall.name,
+                        args: (part.functionCall.args as Record<string, unknown>) || {},
+                      });
+                    }
                   }
                 }
               }
             }
           }
-        }
 
-        if (pendingToolCalls.length === 0) break;
+          if (pendingToolCalls.length === 0) break;
 
-        const functionResponseParts: FunctionResponsePart[] = [];
+          const functionResponseParts: FunctionResponsePart[] = [];
 
-        for (const tc of pendingToolCalls) {
-          const toolCallChunk: AiChatChunk = {
-            type: "tool_call",
-            toolCall: { name: tc.name, args: tc.args },
-          };
-          res.write(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
+          for (const tc of pendingToolCalls) {
+            const toolCallChunk: AiChatChunk = {
+              type: "tool_call",
+              toolCall: { name: tc.name, args: tc.args },
+            };
+            writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
 
-          const result = await executeToolCall(tc.name, tc.args, toolCtx);
+            const result = await executeToolCall(tc.name, tc.args, toolCtx);
 
-          const toolResultChunk: AiChatChunk = {
-            type: "tool_result",
-            toolResult: {
-              name: tc.name,
-              result: result.data,
-              requiresConfirmation: result.requiresConfirmation,
-              confirmationData: result.confirmationData,
-            },
-          };
-          res.write(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
+            const toolResultChunk: AiChatChunk = {
+              type: "tool_result",
+              toolResult: {
+                name: tc.name,
+                result: result.data,
+                requiresConfirmation: result.requiresConfirmation,
+                confirmationData: result.confirmationData,
+              },
+            };
+            writeSSE(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
 
-          if (result.requiresConfirmation) {
-            skipIncrement = true;
-            const usageResponse = await currentStream.response;
-            totalTokens = usageResponse.usageMetadata?.totalTokenCount || 0;
-            toolRound = MAX_TOOL_ROUNDS;
-            break;
+            if (result.requiresConfirmation) {
+              skipIncrement = true;
+              const usageResponse = await currentStream.response;
+              totalTokens = usageResponse.usageMetadata?.totalTokenCount || 0;
+              toolRound = MAX_TOOL_ROUNDS;
+              break;
+            }
+
+            const responseObj: object = result.success
+              ? ((result.data as object) ?? { status: "ok" })
+              : { error: result.error ?? "unknown error" };
+            functionResponseParts.push({
+              functionResponse: {
+                name: tc.name,
+                response: responseObj,
+              },
+            });
           }
 
-          const responseObj: object = result.success
-            ? ((result.data as object) ?? { status: "ok" })
-            : { error: result.error ?? "unknown error" };
-          functionResponseParts.push({
-            functionResponse: {
-              name: tc.name,
-              response: responseObj,
-            },
-          });
+          if (toolRound >= MAX_TOOL_ROUNDS) break;
+
+          currentStream = await chat.sendMessageStream(functionResponseParts);
+          toolRound++;
         }
 
-        if (toolRound >= MAX_TOOL_ROUNDS) break;
-
-        currentStream = await chat.sendMessageStream(functionResponseParts);
-        toolRound++;
+        if (toolRound < MAX_TOOL_ROUNDS) {
+          const usageMetadata = await currentStream.response;
+          totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
+        }
+        // ── End Gemini path ─────────────────────────────────────────────────
+      } catch (geminiError) {
+        const geminiErrorMsg = geminiError instanceof Error ? geminiError.message : "";
+        if (geminiErrorMsg.includes("429") && groqApiKey && !contentWritten) {
+          // Gemini quota exceeded — fall back to Groq transparently (dev only)
+          logger.warn("Gemini rate-limited, falling back to Groq for this request", {
+            tenantId: user.tenantId,
+          });
+          await runGroqPath();
+        } else {
+          throw geminiError;
+        }
       }
-
-      if (toolRound < MAX_TOOL_ROUNDS) {
-        const usageMetadata = await currentStream.response;
-        totalTokens = usageMetadata.usageMetadata?.totalTokenCount || 0;
-      }
-      // ── End Gemini path ───────────────────────────────────────────────────
+    } else if (groqApiKey) {
+      // ── 10b. Groq only (no Gemini key configured) ────────────────────────
+      await runGroqPath();
     }
 
     if (!skipIncrement) {
@@ -475,12 +498,18 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       error: errorMessage,
     });
 
+    // Detect AI provider rate limit (Groq/Gemini return errors starting with "429")
+    const isProviderRateLimit = typeof errorMessage === "string" && errorMessage.startsWith("429");
+    const clientMessage = isProviderRateLimit
+      ? "Serviço de IA temporariamente sobrecarregado. Tente novamente em alguns instantes."
+      : "Erro ao processar resposta da IA.";
+
     if (!res.headersSent) {
-      res.status(500).json({ message: "Erro ao processar resposta da IA.", reply: "" });
+      res.status(500).json({ message: clientMessage, reply: "" });
       return;
     }
 
-    const errorChunk: AiChatChunk = { type: "error", error: "Erro ao processar resposta da IA." };
+    const errorChunk: AiChatChunk = { type: "error", error: clientMessage };
     res.write(`data: ${JSON.stringify(errorChunk)}\n\n`);
     res.write("data: [DONE]\n\n");
     res.end();

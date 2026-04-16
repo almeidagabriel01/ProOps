@@ -138,8 +138,8 @@ export function useLiaSession(): UseLiaSessionReturn {
         }
 
         setHistoryMessages(messages.map(conversationMessageToLiaMessage));
-      } catch {
-        // Silently fail history load — chat still works without history
+      } catch (error) {
+        console.error("[useLiaSession] Failed to load conversation history:", error);
         setHistoryMessages([]);
       } finally {
         if (!cancelled) setIsLoadingHistory(false);

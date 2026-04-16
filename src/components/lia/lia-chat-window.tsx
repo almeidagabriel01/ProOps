@@ -16,15 +16,19 @@ function TypingIndicator() {
     <div
       aria-label="Lia está digitando"
       aria-live="polite"
-      className="flex items-center gap-1 self-start px-3 py-2"
+      className="flex justify-start"
     >
-      {[0, 150, 300].map((delay) => (
-        <span
-          key={delay}
-          className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
+      <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-4 py-3 bg-muted">
+        <div className="flex items-center gap-1">
+          {[0, 150, 300].map((delay) => (
+            <span
+              key={delay}
+              className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
+              style={{ animationDelay: `${delay}ms` }}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -53,8 +57,10 @@ export function LiaChatWindow({
     >
       {children}
 
-      {/* Typing indicator shown while streaming */}
-      {isStreaming && <TypingIndicator />}
+      {/* Typing indicator: only while waiting for the first token */}
+      {isStreaming && !(messages.at(-1)?.isStreaming && messages.at(-1)?.content) && (
+        <TypingIndicator />
+      )}
 
       {/* Scroll anchor */}
       <div ref={bottomRef} />

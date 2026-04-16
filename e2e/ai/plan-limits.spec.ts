@@ -178,19 +178,20 @@ uiTest.describe("AI-08: At-limit disabled input with reset date", () => {
       const lia = new LiaPage(page);
       await lia.openPanel();
 
-      // Wait for panel to stabilise (usage data re-render can detach the send button mid-locate)
-      await page.waitForLoadState("networkidle");
-      await lia.sendButton.waitFor({ state: "attached" });
+      // Aguarda o botão aparecer e estabilizar sem depender de networkidle
+      const sendButton = page.getByRole("button", { name: "Enviar mensagem" });
+      await sendButton.waitFor({ state: "attached", timeout: 10000 });
+      await page.waitForTimeout(500); // aguarda re-render do uso
 
-      // Shadcn Tooltip on a disabled button is unreliable in Playwright:
-      // pointer-events are blocked by the inline-flex wrapper and re-renders detach the element.
-      // Behaviour verified manually — skip rather than keep a flaky assertion.
-      test.skip(true, "Shadcn Tooltip on disabled button cannot be reliably triggered via Playwright — verified manually");
+      // Re-localiza após estabilização para evitar detach
+      await page
+        .getByRole("button", { name: "Enviar mensagem" })
+        .hover({ force: true });
 
-      // Tooltip should contain reset date text
-      const tooltipText = await tooltip.textContent();
-      expect(tooltipText).toContain("Limite atingido");
-      expect(tooltipText).toContain("Renova em");
+      // Tooltip deve aparecer
+      const tooltip = page.getByRole("tooltip");
+      await expect(tooltip).toBeVisible({ timeout: 5000 });
+      await expect(tooltip).toContainText("Renova em");
     },
   );
 });

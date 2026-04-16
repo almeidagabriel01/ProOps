@@ -1115,6 +1115,23 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
         .json({ message: "Nenhum campo válido para atualização" });
     }
 
+    // When currentPeriodEnd is provided, derive subscriptionStatus from it
+    // to match the same logic used by the checkManualSubscriptions cron.
+    if (safeUpdates.currentPeriodEnd) {
+      const periodEnd = new Date(safeUpdates.currentPeriodEnd);
+      if (!isNaN(periodEnd.getTime())) {
+        const now = new Date();
+        const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
+        if (periodEnd > now) {
+          safeUpdates.subscriptionStatus = "active";
+        } else if (now.getTime() - periodEnd.getTime() <= GRACE_PERIOD_MS) {
+          safeUpdates.subscriptionStatus = "past_due";
+        } else {
+          safeUpdates.subscriptionStatus = "canceled";
+        }
+      }
+    }
+
     safeUpdates.updatedAt = FieldValue.serverTimestamp();
 
     // Update Subscription

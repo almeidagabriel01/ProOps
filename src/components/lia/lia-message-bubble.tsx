@@ -4,7 +4,6 @@ import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import { cn } from "@/lib/utils";
 import type { LiaMessage } from "@/types/ai";
-import { LiaToolResultCard } from "./lia-tool-result-card";
 
 interface LiaMessageBubbleProps {
   message: LiaMessage;
@@ -54,18 +53,6 @@ export function LiaMessageBubble({ message }: LiaMessageBubbleProps) {
           <ErrorBadge message={message.error} />
         )}
 
-        {/* Tool results using collapsible cards */}
-        {message.toolResults && message.toolResults.length > 0 && (
-          <div className="mt-1 space-y-1">
-            {message.toolResults.map((tr, i) => (
-              <LiaToolResultCard
-                key={i}
-                toolName={tr.name}
-                result={tr.result}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -63,14 +63,22 @@ export interface UpdateProposalParams {
 
 export async function listProposals(
   tenantId: string,
-  opts?: { status?: string; search?: string; limit?: number },
+  opts?: {
+    status?: string;
+    search?: string;
+    limit?: number;
+    orderBy?: "createdAt" | "updatedAt" | "title" | "clientName";
+    direction?: "asc" | "desc";
+  },
 ): Promise<ProposalListItem[]> {
   const maxLimit = Math.min(opts?.limit || 10, 50);
+  const orderField = opts?.orderBy ?? "createdAt";
+  const orderDir = opts?.direction ?? "desc";
 
   let query: FirebaseFirestore.Query = db
     .collection("proposals")
     .where("tenantId", "==", tenantId)
-    .orderBy("createdAt", "desc")
+    .orderBy(orderField, orderDir)
     .limit(maxLimit);
 
   if (opts?.status) {
@@ -78,7 +86,7 @@ export async function listProposals(
       .collection("proposals")
       .where("tenantId", "==", tenantId)
       .where("status", "==", opts.status)
-      .orderBy("createdAt", "desc")
+      .orderBy(orderField, orderDir)
       .limit(maxLimit);
   }
 

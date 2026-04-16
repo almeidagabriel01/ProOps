@@ -450,8 +450,8 @@ export function useLoginForm(): UseLoginFormReturn {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-
       const userCredential = await signInWithPopup(auth, provider);
+
       const firebaseUser = userCredential.user;
       const additionalInfo = getAdditionalUserInfo(userCredential);
 
@@ -463,14 +463,7 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } catch (googleError: unknown) {
       console.error("Google auth failed:", googleError);
-      const errorCode = (googleError as { code?: string })?.code;
-
-      if (errorCode === "auth/popup-closed-by-user") {
-        return;
-      }
-
       setError("Não foi possível entrar com Google. Tente novamente.");
-    } finally {
       setIsGoogleLoading(false);
     }
   };

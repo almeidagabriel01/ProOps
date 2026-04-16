@@ -47,14 +47,22 @@ export interface UpdateProductParams {
 
 export async function listProducts(
   tenantId: string,
-  opts?: { search?: string; limit?: number; category?: string },
+  opts?: {
+    search?: string;
+    limit?: number;
+    category?: string;
+    orderBy?: "createdAt" | "name" | "price" | "updatedAt";
+    direction?: "asc" | "desc";
+  },
 ): Promise<ProductListItem[]> {
   const maxLimit = Math.min(opts?.limit || 10, 50);
+  const orderField = opts?.orderBy ?? "createdAt";
+  const orderDir = opts?.direction ?? "desc";
 
   let query: FirebaseFirestore.Query = db
     .collection("products")
     .where("tenantId", "==", tenantId)
-    .orderBy("createdAt", "desc")
+    .orderBy(orderField, orderDir)
     .limit(maxLimit);
 
   if (opts?.category) {
@@ -62,7 +70,7 @@ export async function listProducts(
       .collection("products")
       .where("tenantId", "==", tenantId)
       .where("category", "==", opts.category)
-      .orderBy("createdAt", "desc")
+      .orderBy(orderField, orderDir)
       .limit(maxLimit);
   }
 

@@ -17,6 +17,8 @@ const AddressSchema = z
 
 const VALID_PROPOSAL_STATUSES = ["draft", "sent", "approved", "rejected"] as const;
 
+const SORT_DIRECTION = z.enum(["asc", "desc"]).optional();
+
 export const ListProposalsArgsSchema = z.object({
   // Accept any string from the model, coerce unrecognised values (e.g. "", "all") to undefined
   // so the executor lists all proposals instead of passing a bad filter downstream.
@@ -31,6 +33,23 @@ export const ListProposalsArgsSchema = z.object({
     }),
   search: z.string().max(500).trim().optional(),
   limit: z.number().int().min(1).max(50).optional(),
+  orderBy: z.enum(["createdAt", "updatedAt", "title", "clientName"]).optional(),
+  direction: SORT_DIRECTION,
+});
+
+export const ListContactsArgsSchema = z.object({
+  search: z.string().max(500).trim().optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  orderBy: z.enum(["createdAt", "name", "updatedAt"]).optional(),
+  direction: SORT_DIRECTION,
+});
+
+export const ListProductsArgsSchema = z.object({
+  search: z.string().max(500).trim().optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  category: z.string().max(100).trim().optional(),
+  orderBy: z.enum(["createdAt", "name", "price", "updatedAt"]).optional(),
+  direction: SORT_DIRECTION,
 });
 
 const ProposalItemSchema = z.object({
@@ -198,6 +217,8 @@ export const SearchHelpArgsSchema = z.object({
 
 export const ToolSchemas: Record<string, z.ZodType> = {
   list_proposals: ListProposalsArgsSchema,
+  list_contacts: ListContactsArgsSchema,
+  list_products: ListProductsArgsSchema,
   create_proposal: CreateProposalArgsSchema,
   update_proposal: UpdateProposalArgsSchema,
   update_proposal_status: UpdateProposalStatusArgsSchema,

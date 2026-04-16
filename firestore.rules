@@ -436,12 +436,14 @@ service cloud.firestore {
     }
 
     // AI Conversations — chat history per session
-    // Read: authenticated user can read their own conversations
+    // get: user can only fetch their own session doc (uid enforced on resource)
+    // list: tenant-scoped only; client query must include where("uid","==",uid) for user isolation
     // Write: only backend (Admin SDK) — managed by conversation-store.ts
     match /tenants/{tenantId}/aiConversations/{sessionId} {
-      allow read: if isAuthenticated()
-                  && belongsToTenant(tenantId)
-                  && resource.data.uid == request.auth.uid;
+      allow get: if isAuthenticated()
+                 && belongsToTenant(tenantId)
+                 && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if isAuthenticated() && belongsToTenant(tenantId);
       allow write: if false;
     }
 

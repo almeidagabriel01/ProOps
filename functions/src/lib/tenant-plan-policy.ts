@@ -444,6 +444,40 @@ async function resolveTenantPlanProfileUncached(
     });
   }
 
+  // Fallback: resolve plan from the tenant owner's user document.
+  // Handles tenants whose document lacks plan/planId/priceId (e.g. accounts
+  // created before the tenant document was fully populated).
+  // Strategy: query users ordered by createdAt ASC (oldest = owner) and find
+  // the first one with a planId. Role names can vary in casing across tenants,
+  // so we avoid filtering by role — ordering by age is more reliable.
+  try {
+    const usersSnap = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .orderBy("createdAt", "asc")
+      .limit(10)
+      .get();
+    for (const userDoc of usersSnap.docs) {
+      const userData = userDoc.data() as Record<string, unknown>;
+      const userPlanId = String(userData?.planId || "").trim();
+      if (!userPlanId) continue;
+      const tierFromUserPlanId = await resolveTierFromPlanId(userPlanId);
+      if (tierFromUserPlanId) {
+        return buildProfileFromTier({
+          tenantId,
+          tier: tierFromUserPlanId,
+          subscriptionStatus,
+          stripeSubscriptionId,
+          stripePriceId,
+          pastDueSince,
+          source: "tenant_owner_user.planId",
+        });
+      }
+    }
+  } catch {
+    // Non-fatal — fall through to compat default.
+  }
+
   return buildCompatDefaultTenantPlanProfile({
     tenantId,
     subscriptionStatus,

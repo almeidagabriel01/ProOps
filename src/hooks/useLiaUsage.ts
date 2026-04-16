@@ -9,8 +9,8 @@ import { AI_TIER_LIMITS } from "@/types/ai";
 
 function getCurrentYearMonth(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
@@ -88,8 +88,8 @@ export function useLiaUsage(): UseLiaUsageReturn {
           setUsage({ messagesUsed: 0, totalTokensUsed: 0, subscriptionKey: key });
         }
       },
-      () => {
-        // Silently fail — show 0 usage rather than crashing
+      (error) => {
+        console.error("[useLiaUsage] Firestore onSnapshot error:", error);
         setUsage({ messagesUsed: 0, totalTokensUsed: 0, subscriptionKey: key });
       },
     );

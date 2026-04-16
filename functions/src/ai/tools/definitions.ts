@@ -70,7 +70,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   list_proposals: {
     name: "list_proposals",
     description:
-      "Lista as propostas do tenant. Suporta filtro por status e busca por texto.",
+      "Lista as propostas do tenant. Suporta filtro por status, busca por texto e ordenação.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -86,6 +86,20 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
         limit: {
           type: SchemaType.NUMBER,
           description: "Número máximo de resultados. Default: 10. Máximo: 50.",
+        },
+        orderBy: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["createdAt", "updatedAt", "title", "clientName"],
+          description:
+            "Campo de ordenação. Valores: createdAt (data de criação), updatedAt (última atualização), title (título), clientName (nome do cliente). Default: createdAt.",
+        },
+        direction: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["asc", "desc"],
+          description:
+            "Direção da ordenação: asc (mais antigo primeiro) ou desc (mais recente primeiro). Default: desc.",
         },
       },
       required: [],
@@ -251,7 +265,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   list_contacts: {
     name: "list_contacts",
     description:
-      "Lista os clientes/contatos do tenant. Suporta busca por nome, email ou documento.",
+      "Lista os clientes/contatos do tenant. Suporta busca por nome, email ou documento e ordenação.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -262,6 +276,20 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
         limit: {
           type: SchemaType.NUMBER,
           description: "Default: 10. Máximo: 50.",
+        },
+        orderBy: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["createdAt", "name", "updatedAt"],
+          description:
+            "Campo de ordenação. Valores: createdAt (data de criação), name (nome), updatedAt (última atualização). Default: createdAt.",
+        },
+        direction: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["asc", "desc"],
+          description:
+            "Direção da ordenação: asc (mais antigo primeiro) ou desc (mais recente primeiro). Default: desc.",
         },
       },
       required: [],
@@ -389,7 +417,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   list_products: {
     name: "list_products",
     description:
-      "Lista os produtos do tenant. Suporta busca por nome e filtro por categoria.",
+      "Lista os produtos do tenant. Suporta busca por nome, filtro por categoria e ordenação.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -404,6 +432,20 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
         category: {
           type: SchemaType.STRING,
           description: "Filtrar por categoria (opcional)",
+        },
+        orderBy: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["createdAt", "name", "price", "updatedAt"],
+          description:
+            "Campo de ordenação. Valores: createdAt (data de criação), name (nome), price (preço), updatedAt (última atualização). Default: createdAt.",
+        },
+        direction: {
+          type: SchemaType.STRING,
+          format: "enum",
+          enum: ["asc", "desc"],
+          description:
+            "Direção da ordenação: asc (mais antigo primeiro) ou desc (mais recente primeiro). Default: desc.",
         },
       },
       required: [],

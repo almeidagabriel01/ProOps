@@ -50,14 +50,21 @@ export interface UpdateContactParams {
 
 export async function listContacts(
   tenantId: string,
-  opts?: { search?: string; limit?: number },
+  opts?: {
+    search?: string;
+    limit?: number;
+    orderBy?: "createdAt" | "name" | "updatedAt";
+    direction?: "asc" | "desc";
+  },
 ): Promise<ContactListItem[]> {
   const maxLimit = Math.min(opts?.limit || 10, 50);
+  const orderField = opts?.orderBy ?? "createdAt";
+  const orderDir = opts?.direction ?? "desc";
 
   const snap = await db
     .collection(CLIENTS_COLLECTION)
     .where("tenantId", "==", tenantId)
-    .orderBy("createdAt", "desc")
+    .orderBy(orderField, orderDir)
     .limit(maxLimit)
     .get();
 

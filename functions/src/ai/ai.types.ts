@@ -19,8 +19,8 @@ export interface AiLimitConfig {
  */
 export const AI_LIMITS: Record<Exclude<TenantPlanTier, "free">, AiLimitConfig> = {
   starter:    { model: "gemini-2.0-flash",              messagesPerMonth: 80,   persistHistory: false },
-  pro:        { model: "gemini-2.5-flash-preview-05-14", messagesPerMonth: 400,  persistHistory: true  },
-  enterprise: { model: "gemini-2.5-flash-preview-05-14", messagesPerMonth: 2000, persistHistory: true  },
+  pro:        { model: "gemini-2.0-flash", messagesPerMonth: 300,  persistHistory: true  },
+  enterprise: { model: "gemini-2.5-flash", messagesPerMonth: 2000, persistHistory: true  },
 } as const;
 
 /**
@@ -35,7 +35,7 @@ export const ENTERPRISE_PRO_KEYWORDS: readonly string[] = [
   "comparativo", "consolidado",
 ] as const;
 
-export const ENTERPRISE_PRO_MODEL = "gemini-2.5-pro-preview-05-06";
+export const ENTERPRISE_PRO_MODEL = "gemini-2.5-pro";
 
 /**
  * Firestore: tenants/{tenantId}/aiUsage/{YYYY-MM}

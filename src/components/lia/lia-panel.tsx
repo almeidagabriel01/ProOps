@@ -1,14 +1,8 @@
 "use client";
 
-import { ArrowLeft, History, MoreHorizontal, X } from "lucide-react";
+import { ArrowLeft, History, Plus, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +20,6 @@ interface LiaPanelProps {
   historyView: React.ReactNode;
   /** Slot: input bar */
   inputBar: React.ReactNode;
-  /** Whether persistent history is available for this plan */
-  persistHistory: boolean;
 }
 
 export function LiaPanel({
@@ -40,7 +32,6 @@ export function LiaPanel({
   chatWindow,
   historyView,
   inputBar,
-  persistHistory,
 }: LiaPanelProps) {
   const { tenant } = useTenant();
 
@@ -94,34 +85,24 @@ export function LiaPanel({
               <p className="text-xs text-muted-foreground leading-tight">Assistente ProOps</p>
             </div>
             {usageBadge}
-            {persistHistory && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 shrink-0"
-                aria-label="Ver histórico de conversas"
-                onClick={onToggleHistory}
-              >
-                <History className="w-4 h-4" />
-              </Button>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8 shrink-0"
-                  aria-label="Opções de conversa"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onStartNewSession}>
-                  Novo Chat
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 shrink-0"
+              aria-label="Ver histórico de conversas"
+              onClick={onToggleHistory}
+            >
+              <History className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 shrink-0"
+              aria-label="Novo chat"
+              onClick={onStartNewSession}
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </>
         )}
 

@@ -36,8 +36,13 @@ export interface UseAiChatReturn {
   confirmAction: () => Promise<void>;
   /** Cancel a pending destructive action */
   cancelAction: () => void;
-  /** Start a new session (clears messages) */
+  /** Start a new session (clears messages AND generates new session ID) */
   startNewSession: () => void;
+  /**
+   * Reset chat state without generating a new session ID.
+   * Used by lia-container when the session ID is managed externally by useLiaSession.
+   */
+  resetChat: () => void;
   /** Open the panel */
   openPanel: () => void;
   /** Close the panel */
@@ -107,6 +112,17 @@ export function useAiChat(): UseAiChatReturn {
     setIsStreaming(false);
     setPendingConfirmation(null);
     setSessionId(generateSessionId());
+  }, []);
+
+  // Like startNewSession but does NOT generate a new session ID.
+  // Used when the session ID is managed externally by useLiaSession.
+  const resetChat = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    sendingRef.current = false;
+    setMessages([]);
+    setIsStreaming(false);
+    setPendingConfirmation(null);
   }, []);
 
   const doSend = useCallback(
@@ -322,6 +338,7 @@ export function useAiChat(): UseAiChatReturn {
     confirmAction,
     cancelAction,
     startNewSession,
+    resetChat,
     openPanel,
     closePanel,
     setMessages,

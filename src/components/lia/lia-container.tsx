@@ -119,7 +119,8 @@ export function LiaContainer() {
     if (
       chat.isOpen &&
       chat.messages.length === 0 &&
-      !session.isLoadingHistory
+      !session.isLoadingHistory &&
+      session.historyMessages.length === 0
     ) {
       chat.setMessages([
         {
@@ -137,9 +138,16 @@ export function LiaContainer() {
 
   const handleStartNewSession = useCallback(() => {
     session.startNewSession();
-    chat.startNewSession();
+    chat.resetChat();
     setView("chat");
   }, [session, chat]);
+
+  const handleClosePanel = useCallback(() => {
+    if (chat.pendingConfirmation) {
+      chat.cancelAction();
+    }
+    chat.closePanel();
+  }, [chat]);
 
   const handleToggleHistory = useCallback(() => {
     setView((v) => {
@@ -151,7 +159,7 @@ export function LiaContainer() {
 
   const handleLoadSession = useCallback((sessionId: string) => {
     session.loadSession(sessionId);
-    chat.startNewSession();
+    chat.resetChat();
     setView("chat");
   }, [session, chat]);
 
@@ -168,16 +176,15 @@ export function LiaContainer() {
         isOpen={chat.isOpen}
         hasUnread={chat.hasUnread}
         onOpen={chat.openPanel}
-        onClose={chat.closePanel}
+        onClose={handleClosePanel}
       />
 
       <LiaPanel
         isOpen={chat.isOpen}
-        onClose={chat.closePanel}
+        onClose={handleClosePanel}
         onStartNewSession={handleStartNewSession}
         onToggleHistory={handleToggleHistory}
         view={view}
-        persistHistory={session.persistHistory}
         usageBadge={
           <LiaUsageBadge
             messagesUsed={usage.messagesUsed}
@@ -187,6 +194,7 @@ export function LiaContainer() {
         }
         historyView={
           <LiaHistoryPanel
+            persistHistory={session.persistHistory}
             sessions={history.sessions}
             isLoading={history.isLoading}
             currentSessionId={session.sessionId}

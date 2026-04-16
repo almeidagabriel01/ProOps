@@ -16,6 +16,27 @@ import {
 } from "../../api/services/transaction.service";
 import * as walletsService from "../../api/services/wallets.service";
 
+// ─── Phone normalization ─────────────────────────────────────────────────────
+
+/**
+ * Normalizes a Brazilian phone number to masked format.
+ * Strips non-digits and applies (XX) XXXX-XXXX or (XX) XXXXX-XXXX mask.
+ * Returns the original string if it doesn't look like a Brazilian phone number.
+ */
+function formatBrazilianPhone(raw: string | undefined): string | undefined {
+  if (!raw) return raw;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) {
+    // Landline: (XX) XXXX-XXXX
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11) {
+    // Mobile: (XX) XXXXX-XXXX
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  return raw;
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ToolCallContext {
@@ -59,7 +80,8 @@ function validateArgs(
   if (!schema) return { valid: true, data: args };
   const result = schema.safeParse(args);
   if (!result.success) {
-    return { valid: false, error: result.error.issues[0]?.message ?? "Dados invalidos." };
+    const messages = result.error.issues.map((i) => i.message).join("; ");
+    return { valid: false, error: `Campos inválidos ou ausentes: ${messages}` };
   }
   return { valid: true, data: result.data };
 }
@@ -187,6 +209,8 @@ const HANDLERS: Record<string, ToolHandler> = {
       status: args.status as string | undefined,
       search: args.search as string | undefined,
       limit: Number(args.limit) || 10,
+      orderBy: args.orderBy as "createdAt" | "updatedAt" | "title" | "clientName" | undefined,
+      direction: args.direction as "asc" | "desc" | undefined,
     });
     return { success: true, data };
   },
@@ -269,6 +293,8 @@ const HANDLERS: Record<string, ToolHandler> = {
     const data = await contactsService.listContacts(ctx.tenantId, {
       search: args.search as string | undefined,
       limit: Number(args.limit) || 10,
+      orderBy: args.orderBy as "createdAt" | "name" | "updatedAt" | undefined,
+      direction: args.direction as "asc" | "desc" | undefined,
     });
     return { success: true, data };
   },
@@ -286,7 +312,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       {
         name: args.name as string,
         email: args.email as string | undefined,
-        phone: args.phone as string | undefined,
+        phone: formatBrazilianPhone(args.phone as string | undefined),
         document: args.document as string | undefined,
         address: args.address as string | undefined,
         notes: args.notes as string | undefined,
@@ -299,6 +325,11 @@ const HANDLERS: Record<string, ToolHandler> = {
 
   update_contact: async (args, ctx) => {
     const { contactId, ...updates } = args;
+    if (typeof (updates as Record<string, unknown>).phone === "string") {
+      (updates as Record<string, unknown>).phone = formatBrazilianPhone(
+        (updates as Record<string, unknown>).phone as string,
+      );
+    }
     const result = await contactsService.updateContact(
       contactId as string,
       updates as contactsService.UpdateContactParams,
@@ -328,6 +359,8 @@ const HANDLERS: Record<string, ToolHandler> = {
       search: args.search as string | undefined,
       limit: Number(args.limit) || 10,
       category: args.category as string | undefined,
+      orderBy: args.orderBy as "createdAt" | "name" | "price" | "updatedAt" | undefined,
+      direction: args.direction as "asc" | "desc" | undefined,
     });
     return { success: true, data };
   },

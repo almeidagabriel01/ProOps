@@ -40,15 +40,22 @@ const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
         digits = digits.substring(2);
       }
 
-      // Apply mask: (XX) XXXXX-XXXX
+      // Apply mask:
+      //   10 digits (landline): (XX) XXXX-XXXX
+      //   11 digits (mobile):   (XX) XXXXX-XXXX
       if (digits.length === 0) return "";
       if (digits.length <= 2) return `(${digits}`;
       if (digits.length <= 7)
         return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-      if (digits.length <= 11) {
-        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+      if (digits.length === 10) {
+        // Complete landline: (XX) XXXX-XXXX
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
       }
-      // Max 11 digits
+      if (digits.length <= 11) {
+        // Mobile — partial (8-9 digits) or complete (11 digits): (XX) XXXXX-XXXX
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+      }
+      // Truncate to 11 digits max
       return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
     };
 
