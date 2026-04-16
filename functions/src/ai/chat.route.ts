@@ -104,7 +104,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   const modelSelection = selectModel(planTier, message);
 
   // 6. Load conversation history
-  const history = await loadConversation(user.tenantId, sessionId, planTier);
+  const history = await loadConversation(user.tenantId, sessionId, planTier, user.uid);
 
   // 7. Build system prompt — fetch tenant name/niche for context
   let tenantName = "";

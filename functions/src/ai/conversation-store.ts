@@ -33,6 +33,7 @@ export async function loadConversation(
   tenantId: string,
   sessionId: string,
   planTier: Exclude<TenantPlanTier, "free">,
+  uid: string,
 ): Promise<AiConversationMessage[]> {
   const config = AI_LIMITS[planTier];
 
@@ -52,6 +53,18 @@ export async function loadConversation(
   }
 
   const data = snap.data() as AiConversationDocument;
+
+  // Reject attempts to read another user's session
+  if (data.uid !== uid) {
+    const { logger } = await import("../lib/logger");
+    logger.warn("aiConversations ownership mismatch on load — returning empty history", {
+      tenantId,
+      sessionId,
+      requestUid: uid,
+    });
+    return [];
+  }
+
   return data.messages || [];
 }
 
@@ -87,6 +100,21 @@ export async function saveConversation(
 
   const docRef = getConversationDocRef(tenantId, sessionId);
   const snap = await docRef.get();
+
+  // Reject attempts to overwrite another user's session
+  if (snap.exists) {
+    const existing = snap.data() as AiConversationDocument;
+    if (existing.uid !== uid) {
+      const { logger } = await import("../lib/logger");
+      logger.warn("aiConversations ownership mismatch on save — aborting", {
+        tenantId,
+        sessionId,
+        requestUid: uid,
+      });
+      return;
+    }
+  }
+
   const now = Timestamp.now();
 
   const doc: AiConversationDocument = {
