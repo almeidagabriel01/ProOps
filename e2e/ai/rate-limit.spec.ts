@@ -33,12 +33,12 @@ test.describe("AI-13: LIA rate-limit — 20 req/min per user", () => {
         body: JSON.stringify({ message: "olá", sessionId }),
       });
 
-    // Fire 20 requests concurrently — all should start (200) with mock provider
-    const first20 = await Promise.all(
-      Array.from({ length: 20 }, (_, i) =>
-        postChat(`rate-limit-sess-${i}`).then((r) => r.status),
-      ),
-    );
+    // Fire 20 requests sequentially — concurrent would saturate the 5-SSE-per-tenant
+    // cap, causing some to be blocked and their rate-limit count undone.
+    const first20: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      first20.push(await postChat(`rate-limit-sess-${i}`).then((r) => r.status));
+    }
     expect(first20.every((s) => s === 200)).toBe(true);
 
     // 21st request should be rate-limited

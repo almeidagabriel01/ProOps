@@ -80,6 +80,6 @@ export interface AiUsageData {
 /** AI limits per tier (client-side reference) */
 export const AI_TIER_LIMITS: Record<string, { messagesPerMonth: number; persistHistory: boolean }> = {
   starter:    { messagesPerMonth: 80,   persistHistory: false },
-  pro:        { messagesPerMonth: 300,  persistHistory: true  },
+  pro:        { messagesPerMonth: 400,  persistHistory: true  },
   enterprise: { messagesPerMonth: 2000, persistHistory: true  },
 } as const;

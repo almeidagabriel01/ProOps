@@ -425,7 +425,17 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       res.write("data: [DONE]\n\n");
       res.end();
     } else {
-      // Confirmation pending — do not increment usage or save incomplete conversation
+      // Confirmation pending — refund pre-debit before ending response so that
+      // the next request sees the correct usage count immediately.
+      try {
+        await refundAiMessage(user.tenantId);
+        messageReserved = false;
+      } catch (err) {
+        logger.warn("Failed to refund pre-debited AI message (confirmation pending)", {
+          tenantId: user.tenantId,
+          error: err instanceof Error ? err.message : "unknown",
+        });
+      }
       res.write("data: [DONE]\n\n");
       res.end();
     }
