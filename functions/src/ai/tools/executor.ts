@@ -3,6 +3,7 @@ import { logger } from "../../lib/logger";
 import { TOOL_REGISTRY } from "./index";
 import { ToolSchemas } from "./schemas";
 import { generateConfirmationToken } from "../security/confirmation-token";
+import { sanitizeText } from "../../utils/sanitize";
 import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
 
 // Service imports — per user decision: tools call extracted service functions
@@ -339,11 +340,10 @@ const HANDLERS: Record<string, ToolHandler> = {
 
   update_contact: async (args, ctx) => {
     const { contactId, ...updates } = args;
-    if (typeof (updates as Record<string, unknown>).phone === "string") {
-      (updates as Record<string, unknown>).phone = formatBrazilianPhone(
-        (updates as Record<string, unknown>).phone as string,
-      );
-    }
+    const u = updates as Record<string, unknown>;
+    if (typeof u.name === "string") u.name = sanitizeText(u.name);
+    if (typeof u.notes === "string") u.notes = sanitizeText(u.notes);
+    if (typeof u.phone === "string") u.phone = formatBrazilianPhone(u.phone);
     const result = await contactsService.updateContact(
       contactId as string,
       updates as contactsService.UpdateContactParams,

@@ -561,6 +561,16 @@ export const updatePermissions = async (req: Request, res: Response) => {
     if (!isSuperAdmin && memberData?.masterId !== masterId) {
       return res.status(403).json({ message: "Permissão negada." });
     }
+    // Cross-check: member must belong to the same tenant as the requester
+    if (!isSuperAdmin && memberData?.tenantId !== req.user!.tenantId) {
+      logger.warn("updatePermissions cross-tenant attempt blocked", {
+        requesterId: masterId,
+        requesterTenantId: req.user!.tenantId,
+        memberTenantId: memberData?.tenantId,
+        memberId: actualMemberId,
+      });
+      return res.status(403).json({ message: "Permissão negada." });
+    }
 
     const permissionsRef = db
       .collection("users")
