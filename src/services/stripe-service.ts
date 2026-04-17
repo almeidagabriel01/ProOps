@@ -301,7 +301,7 @@ export const StripeService = {
 
     const result = await callPublicApi<
       BackendResponse | { data: BackendResponse }
-    >("/v1/stripe/plans", "GET", undefined, { cache: "no-store" });
+    >("/v1/stripe/plans", "GET");
 
     // Handle both direct response and { data: ... } wrapper
     const data = "data" in result ? result.data : result;
@@ -362,8 +362,6 @@ export const StripeService = {
     const result = await callPublicApi<{ plans: Record<string, unknown>[] }>(
       "/v1/stripe/plans",
       "GET",
-      undefined,
-      { cache: "no-store" }, // Ensure no cache here as well
     );
     return (result.plans || []) as unknown as Plan[];
   },
