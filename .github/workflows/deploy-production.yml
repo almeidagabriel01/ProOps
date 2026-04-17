@@ -1,25 +1,21 @@
-name: Deploy Firebase Functions — Staging
+name: Deploy Firebase Functions — Production
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   push:
-    branches: [develop]
-    paths:
-      - 'functions/**'
-      - 'firestore.rules'
-      - 'firebase.json'
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  deploy-staging:
-    name: Deploy to Staging
+  deploy-production:
+    name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: staging
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -40,11 +36,11 @@ jobs:
 
       - name: Authenticate Firebase
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}' > /tmp/sa.json
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
-      - name: Deploy to staging (dev project)
-        run: firebase deploy --project dev --only functions,firestore:rules
+      - name: Deploy to production
+        run: firebase deploy --project prod --only functions,firestore:rules
 
       - name: Revoke credentials
         if: always()

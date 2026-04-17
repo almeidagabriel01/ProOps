@@ -54,7 +54,8 @@ npm run security:claims:validate         # Validate custom claims
 |----------|---------|-----------|
 | **Push Checks** | `.github/workflows/push-checks.yml` | Todo `push` em qualquer branch exceto `main` |
 | **Test Suite** | `.github/workflows/test-suite.yml` | Todo `pull_request` para `main` ou `develop` |
-| **Deploy Functions** | `.github/workflows/deploy-functions.yml` | Push em `develop`/`main` com mudanças em `functions/`, `firestore.rules` ou `firebase.json` |
+| **Deploy Staging** | `.github/workflows/deploy-functions.yml` | Push em `develop` com mudanças em `functions/`, `firestore.rules` ou `firebase.json` |
+| **Deploy Production** | `.github/workflows/deploy-production.yml` | Todo push em `main` (qualquer arquivo) |
 | **Dependency Review** | `.github/workflows/dependency-review.yml` | PR com mudanças em `package.json` ou `functions/package.json` |
 | **Stale** | `.github/workflows/stale.yml` | Toda segunda às 9h UTC (limpeza automática) |
 
