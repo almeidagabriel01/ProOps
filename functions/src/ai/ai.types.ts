@@ -92,6 +92,7 @@ export interface AiChatChunk {
     messagesUsed: number;
     messagesLimit: number;
     totalTokensUsed: number;
+    modelName?: string;
   };
 }
 

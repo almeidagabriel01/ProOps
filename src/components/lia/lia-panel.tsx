@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { useTenant } from "@/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 
+function formatModelName(model: string): string {
+  if (model.includes("gemini-3-flash")) return "Gemini 3 Flash";
+  if (model.includes("gemini-2.5-flash-lite")) return "Gemini Flash Lite";
+  if (model.includes("gemini-2.5-flash")) return "Gemini 2.5 Flash";
+  if (model.includes("gemini-2.0-flash")) return "Gemini 2.0 Flash";
+  if (model.includes("llama")) return "Groq · Llama";
+  if (model === "mock") return "Modo teste";
+  return model;
+}
+
 interface LiaPanelProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,6 +30,8 @@ interface LiaPanelProps {
   historyView: React.ReactNode;
   /** Slot: input bar */
   inputBar: React.ReactNode;
+  /** Model that actually responded — shown in header after first response */
+  modelName?: string;
 }
 
 export function LiaPanel({
@@ -32,6 +44,7 @@ export function LiaPanel({
   chatWindow,
   historyView,
   inputBar,
+  modelName,
 }: LiaPanelProps) {
   const { tenant } = useTenant();
 
@@ -82,7 +95,9 @@ export function LiaPanel({
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold leading-tight text-foreground">Lia</p>
-              <p className="text-xs text-muted-foreground leading-tight">Assistente ProOps</p>
+              <p className="text-xs text-muted-foreground leading-tight">
+                {modelName ? formatModelName(modelName) : "Assistente ProOps"}
+              </p>
             </div>
             {usageBadge}
             <Button

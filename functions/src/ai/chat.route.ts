@@ -102,6 +102,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
   // 5. Select model (used for Gemini only; Groq uses llama-3.3-70b-versatile)
   const modelSelection = selectModel(planTier);
+  let actualModelName = modelSelection.modelName;
 
   // 6. Load conversation history
   const history = await loadConversation(user.tenantId, sessionId, planTier, user.uid);
@@ -316,6 +317,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         logger.warn("Gemini rate-limited, falling back to Groq for this request", {
           tenantId: user.tenantId,
         });
+        actualModelName = "llama-3.3-70b-versatile";
         const fallbackProvider = createGroqFallbackProvider(groqApiKey);
         const session = fallbackProvider.createSession({
           systemPrompt,
@@ -419,6 +421,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           messagesUsed: currentUsage?.messagesUsed || limitCheck.messagesUsed + 1,
           messagesLimit: limitCheck.messagesLimit,
           totalTokensUsed: currentUsage?.totalTokensUsed || totalTokens,
+          modelName: actualModelName,
         },
       };
       res.write(`data: ${JSON.stringify(usageChunk)}\n\n`);

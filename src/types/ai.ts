@@ -36,6 +36,7 @@ export interface AiChatChunk {
     messagesUsed: number;
     messagesLimit: number;
     totalTokensUsed: number;
+    modelName?: string;
   };
 }
 
@@ -81,5 +82,5 @@ export interface AiUsageData {
 export const AI_TIER_LIMITS: Record<string, { messagesPerMonth: number; persistHistory: boolean }> = {
   starter:    { messagesPerMonth: 80,   persistHistory: false },
   pro:        { messagesPerMonth: 400,  persistHistory: true  },
-  enterprise: { messagesPerMonth: 2000, persistHistory: true  },
+  enterprise: { messagesPerMonth: 1200, persistHistory: true  },
 } as const;

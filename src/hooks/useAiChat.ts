@@ -30,6 +30,8 @@ export interface UseAiChatReturn {
   pendingConfirmation: PendingConfirmation | null;
   /** Current AI usage data from the last usage SSE chunk */
   usage: AiUsageData | null;
+  /** The model name that actually responded (from last usage SSE event) */
+  modelName: string | null;
   /** Whether there is an unread response while the panel is closed */
   hasUnread: boolean;
   /** Send a new user message */
@@ -88,6 +90,7 @@ export function useAiChat(): UseAiChatReturn {
   const [sessionId, setSessionId] = useState<string>(generateSessionId);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const [usage, setUsage] = useState<AiUsageData | null>(null);
+  const [modelName, setModelName] = useState<string | null>(null);
   const [hasUnread, setHasUnread] = useState(false);
 
   // Track the current AbortController so we can cancel in-flight streams
@@ -213,6 +216,9 @@ export function useAiChat(): UseAiChatReturn {
                       messagesUsed: chunk.usage.messagesUsed,
                       totalTokensUsed: chunk.usage.totalTokensUsed,
                     });
+                    if (chunk.usage.modelName) {
+                      setModelName(chunk.usage.modelName);
+                    }
                   }
                   break;
 
@@ -341,6 +347,7 @@ export function useAiChat(): UseAiChatReturn {
     sessionId,
     pendingConfirmation,
     usage,
+    modelName,
     hasUnread,
     sendMessage,
     confirmAction,

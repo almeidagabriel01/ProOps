@@ -186,6 +186,7 @@ export function LiaContainer() {
         onStartNewSession={handleStartNewSession}
         onToggleHistory={handleToggleHistory}
         view={view}
+        modelName={chat.modelName ?? undefined}
         usageBadge={
           <LiaUsageBadge
             messagesUsed={usage.messagesUsed}
