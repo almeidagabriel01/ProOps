@@ -3,6 +3,7 @@ import type { Chat, FunctionCall, GenerateContentResponse, Part } from "@google/
 import type { FunctionDeclarationsTool } from "@google/generative-ai";
 import type { AiConversationMessage } from "../ai.types";
 import type { AiChatSession, AiProvider, ProviderEvent, ToolFeedback } from "./provider.interface";
+import { logger } from "../../lib/logger";
 
 class GeminiDeferredSession implements AiChatSession {
   private chat: Chat;
@@ -22,7 +23,7 @@ class GeminiDeferredSession implements AiChatSession {
       this.started = true;
       message = typeof input === "string" ? input : "";
     } else if (Array.isArray(input)) {
-      // Tool-result turn: send functionResponse parts with role "user" (handled by SDK).
+      // Tool-result turn: SDK wraps these as role:"user" automatically.
       message = (input as ToolFeedback[]).map((fb) => ({
         functionResponse: {
           id: this.lastCallIds.get(fb.name) ?? fb.name,
@@ -40,12 +41,28 @@ class GeminiDeferredSession implements AiChatSession {
 
     let lastChunk: GenerateContentResponse | undefined;
     let totalTokens = 0;
+    let chunkCount = 0;
+    let textChunkCount = 0;
+    // Accumulate function calls from ALL chunks (Gemini 3 may spread across chunks)
+    const allFunctionCalls = new Map<string, FunctionCall & { name: string }>();
 
     for await (const chunk of stream) {
       lastChunk = chunk;
+      chunkCount++;
 
-      if (chunk.text) {
-        yield { type: "text", content: chunk.text };
+      const text = chunk.text;
+      if (text) {
+        textChunkCount++;
+        yield { type: "text", content: text };
+      }
+
+      const chunkFunctionCalls = chunk.functionCalls;
+      if (chunkFunctionCalls && chunkFunctionCalls.length > 0) {
+        for (const call of chunkFunctionCalls) {
+          if (call.name) {
+            allFunctionCalls.set(call.name, call as FunctionCall & { name: string });
+          }
+        }
       }
 
       if (chunk.usageMetadata?.totalTokenCount) {
@@ -53,24 +70,32 @@ class GeminiDeferredSession implements AiChatSession {
       }
     }
 
-    // Function calls are aggregated by the SDK and available on the final chunk.
-    const functionCalls = lastChunk?.functionCalls;
-    if (functionCalls && functionCalls.length > 0) {
-      for (const call of functionCalls) {
-        if (call.name) {
-          this.lastCallIds.set(call.name, call.id ?? call.name);
-        }
+    logger.info("Gemini stream turn complete", {
+      chunkCount,
+      textChunkCount,
+      functionCallCount: allFunctionCalls.size,
+      totalTokens,
+      finishReason: lastChunk?.candidates?.[0]?.finishReason,
+    });
+
+    if (allFunctionCalls.size > 0) {
+      const validCalls = Array.from(allFunctionCalls.values());
+      for (const call of validCalls) {
+        this.lastCallIds.set(call.name, call.id ?? call.name);
       }
-      const validCalls = functionCalls.filter((call): call is FunctionCall & { name: string } => !!call.name);
-      if (validCalls.length > 0) {
-        yield {
-          type: "tool_calls",
-          calls: validCalls.map((call) => ({
-            name: call.name,
-            args: (call.args ?? {}) as Record<string, unknown>,
-          })),
-        };
-      }
+      yield {
+        type: "tool_calls",
+        calls: validCalls.map((call) => ({
+          name: call.name,
+          args: (call.args ?? {}) as Record<string, unknown>,
+        })),
+      };
+    } else if (textChunkCount === 0) {
+      logger.warn("Gemini stream produced no text and no function calls", {
+        chunkCount,
+        finishReason: lastChunk?.candidates?.[0]?.finishReason,
+        promptFeedback: lastChunk?.promptFeedback,
+      });
     }
 
     yield { type: "done", totalTokens };
@@ -109,11 +134,18 @@ export class GeminiProvider implements AiProvider {
       parts: [{ text: msg.content }],
     }));
 
+    // Disable thinking for Gemini 3 Flash to avoid extended latency in tool-call scenarios.
+    // Thinking is primarily useful for deep reasoning tasks, not chat assistants.
+    const thinkingConfig = opts.modelName.includes("gemini-3")
+      ? { thinkingBudget: 0 }
+      : undefined;
+
     const chat = this.ai.chats.create({
       model: opts.modelName,
       config: {
         systemInstruction: opts.systemPrompt,
         tools,
+        thinkingConfig,
       },
       history,
     });
