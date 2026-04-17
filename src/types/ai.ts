@@ -14,7 +14,7 @@ export interface AiChatRequest {
 
 /** SSE chunk received from the streaming chat endpoint */
 export interface AiChatChunk {
-  type: "text" | "tool_call" | "tool_result" | "error" | "usage";
+  type: "text" | "tool_call" | "tool_result" | "error" | "usage" | "thinking";
   content?: string;
   toolCall?: {
     name: string;

@@ -241,6 +241,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
             fullResponseText += event.content;
             const sseChunk: AiChatChunk = { type: "text", content: event.content };
             writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
+          } else if (event.type === "thinking") {
+            const thinkingChunk: AiChatChunk = { type: "thinking" };
+            writeSSE(`data: ${JSON.stringify(thinkingChunk)}\n\n`);
           } else if (event.type === "tool_calls") {
             pendingToolCalls = event.calls;
           } else if (event.type === "done") {
@@ -338,6 +341,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
               fullResponseText += event.content;
               const sseChunk: AiChatChunk = { type: "text", content: event.content };
               writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
+            } else if (event.type === "thinking") {
+              const thinkingChunk: AiChatChunk = { type: "thinking" };
+              writeSSE(`data: ${JSON.stringify(thinkingChunk)}\n\n`);
             } else if (event.type === "tool_calls") {
               pendingToolCalls = event.calls;
             } else if (event.type === "done") {

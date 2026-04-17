@@ -208,6 +208,7 @@ export function LiaContainer() {
           <LiaChatWindow
             messages={chat.messages}
             isStreaming={chat.isStreaming}
+            isThinking={chat.isThinking}
           >
             {chat.messages.map((message, index) => {
               // Skip the empty streaming placeholder — TypingIndicator handles this waiting state

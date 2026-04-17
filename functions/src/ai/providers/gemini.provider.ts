@@ -43,12 +43,21 @@ class GeminiDeferredSession implements AiChatSession {
     let totalTokens = 0;
     let chunkCount = 0;
     let textChunkCount = 0;
+    let emittedThinking = false;
     // Accumulate function calls from ALL chunks (Gemini 3 may spread across chunks)
     const allFunctionCalls = new Map<string, FunctionCall & { name: string }>();
 
     for await (const chunk of stream) {
       lastChunk = chunk;
       chunkCount++;
+
+      if (!emittedThinking) {
+        const parts = chunk.candidates?.[0]?.content?.parts;
+        if (parts?.some(p => p.thought === true)) {
+          emittedThinking = true;
+          yield { type: "thinking" };
+        }
+      }
 
       const text = chunk.text;
       if (text) {
@@ -134,18 +143,11 @@ export class GeminiProvider implements AiProvider {
       parts: [{ text: msg.content }],
     }));
 
-    // Disable thinking for Gemini 3 Flash to avoid extended latency in tool-call scenarios.
-    // Thinking is primarily useful for deep reasoning tasks, not chat assistants.
-    const thinkingConfig = opts.modelName.includes("gemini-3")
-      ? { thinkingBudget: 0 }
-      : undefined;
-
     const chat = this.ai.chats.create({
       model: opts.modelName,
       config: {
         systemInstruction: opts.systemPrompt,
         tools,
-        thinkingConfig,
       },
       history,
     });

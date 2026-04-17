@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiaMessage } from "@/types/ai";
 
 interface LiaChatWindowProps {
   messages: LiaMessage[];
   isStreaming: boolean;
+  isThinking?: boolean;
   /** Message bubble components rendered by the parent */
   children: React.ReactNode;
 }
@@ -33,9 +35,27 @@ function TypingIndicator() {
   );
 }
 
+function ThinkingIndicator() {
+  return (
+    <div
+      aria-label="Lia está pensando"
+      aria-live="polite"
+      className="flex justify-start"
+    >
+      <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-4 py-3 bg-muted">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-muted-foreground animate-pulse" />
+          <span className="text-xs text-muted-foreground animate-pulse">Pensando...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LiaChatWindow({
   messages,
   isStreaming,
+  isThinking = false,
   children,
 }: LiaChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -57,9 +77,9 @@ export function LiaChatWindow({
     >
       {children}
 
-      {/* Typing indicator: only while waiting for the first token */}
+      {/* Waiting indicator: shown while no text in the bubble yet */}
       {isStreaming && !(messages.at(-1)?.isStreaming && messages.at(-1)?.content) && (
-        <TypingIndicator />
+        isThinking ? <ThinkingIndicator /> : <TypingIndicator />
       )}
 
       {/* Scroll anchor */}

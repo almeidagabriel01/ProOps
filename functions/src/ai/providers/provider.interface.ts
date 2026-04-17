@@ -3,6 +3,7 @@ import type { AiConversationMessage } from "../ai.types";
 
 export type ProviderEvent =
   | { type: "text"; content: string }
+  | { type: "thinking" }
   | { type: "tool_calls"; calls: Array<{ name: string; args: Record<string, unknown> }> }
   | { type: "done"; totalTokens: number };
 

@@ -70,7 +70,7 @@ export interface AiChatRequest {
  * SSE chunk sent to the client during streaming.
  */
 export interface AiChatChunk {
-  type: "text" | "tool_call" | "tool_result" | "error" | "usage";
+  type: "text" | "tool_call" | "tool_result" | "error" | "usage" | "thinking";
   content?: string;
   toolCall?: {
     name: string;

@@ -22,6 +22,8 @@ export interface UseAiChatReturn {
   messages: LiaMessage[];
   /** Whether Lia is currently streaming a response */
   isStreaming: boolean;
+  /** Whether the model is in its thinking/reasoning phase (no text emitted yet) */
+  isThinking: boolean;
   /** Whether the panel is open */
   isOpen: boolean;
   /** Current session ID */
@@ -86,6 +88,7 @@ export function useAiChat(): UseAiChatReturn {
 
   const [messages, setMessages] = useState<LiaMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string>(generateSessionId);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
@@ -115,6 +118,7 @@ export function useAiChat(): UseAiChatReturn {
     sendingRef.current = false;
     setMessages([]);
     setIsStreaming(false);
+    setIsThinking(false);
     setPendingConfirmation(null);
     setSessionId(generateSessionId());
   }, []);
@@ -127,6 +131,7 @@ export function useAiChat(): UseAiChatReturn {
     sendingRef.current = false;
     setMessages([]);
     setIsStreaming(false);
+    setIsThinking(false);
     setPendingConfirmation(null);
   }, []);
 
@@ -162,7 +167,12 @@ export function useAiChat(): UseAiChatReturn {
           {
             onChunk: (chunk: AiChatChunk) => {
               switch (chunk.type) {
+                case "thinking":
+                  setIsThinking(true);
+                  break;
+
                 case "text":
+                  setIsThinking(false);
                   if (chunk.content) {
                     setMessages((prev) =>
                       prev.map((m) =>
@@ -246,6 +256,7 @@ export function useAiChat(): UseAiChatReturn {
                 ),
               );
               setIsStreaming(false);
+              setIsThinking(false);
               sendingRef.current = false;
               abortControllerRef.current = null;
 
@@ -271,6 +282,7 @@ export function useAiChat(): UseAiChatReturn {
                 ),
               );
               setIsStreaming(false);
+              setIsThinking(false);
               sendingRef.current = false;
               abortControllerRef.current = null;
             },
@@ -289,6 +301,7 @@ export function useAiChat(): UseAiChatReturn {
           ),
         );
         setIsStreaming(false);
+        setIsThinking(false);
         sendingRef.current = false;
       }
     },
@@ -343,6 +356,7 @@ export function useAiChat(): UseAiChatReturn {
   return {
     messages,
     isStreaming,
+    isThinking,
     isOpen,
     sessionId,
     pendingConfirmation,
