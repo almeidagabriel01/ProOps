@@ -20,11 +20,11 @@ Routes to the settings workflow which handles:
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/settings.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/settings.md
 </execution_context>
 
 <process>
-**Follow the settings workflow** from `@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/settings.md`.
+**Follow the settings workflow** from `@D:/DEV/ProOps/.claude/get-shit-done/workflows/settings.md`.
 
 The workflow handles all logic including:
 1. Config file creation with defaults if missing

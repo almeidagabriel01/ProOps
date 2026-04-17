@@ -204,9 +204,11 @@ export function TenantDialog({
         setFormData((prev) => ({ ...prev, subscriptionStatus: "past_due" }));
       }
     } else {
-      // Future
-      if (formData.subscriptionStatus === "past_due") {
-        // Reactivate if it was past due
+      // Future date → reactivate if previously past_due or canceled
+      if (
+        formData.subscriptionStatus === "past_due" ||
+        formData.subscriptionStatus === "canceled"
+      ) {
         setFormData((prev) => ({ ...prev, subscriptionStatus: "active" }));
       }
     }

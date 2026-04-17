@@ -17,6 +17,7 @@ import {
   getChargeableQuantityFromPricingDetails,
   normalizeProposalPricingDetails,
 } from "@/lib/product-pricing";
+import { createKeyedTTLCache } from "@/lib/service-cache";
 
 /**
  * Produto associado a um Ambiente
@@ -39,6 +40,9 @@ export interface Ambiente {
 }
 
 const COLLECTION_NAME = "ambientes";
+
+// Cache keyed by tenantId — ambientes are stable configuration data
+const _ambientesCache = createKeyedTTLCache<Ambiente[]>(5 * 60 * 1000);
 
 function normalizeAmbienteProduct(product: AmbienteProduct): AmbienteProduct {
   const normalizedPricingDetails = normalizeProposalPricingDetails(
@@ -66,32 +70,34 @@ function normalizeAmbienteProducts(
 
 export const AmbienteService = {
   getAmbientes: async (tenantId: string): Promise<Ambiente[]> => {
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-            // Ensure defaultProducts is always an array
-            defaultProducts: normalizeAmbienteProducts(doc.data().defaultProducts),
-            createdAt:
-              doc.data().createdAt?.toDate?.()?.toISOString() ||
-              doc.data().createdAt,
-          }) as Ambiente,
-      );
-    } catch (error) {
-      if (isFirestorePermissionError(error)) {
-        console.warn("[AmbienteService] Permission denied reading ambientes.");
-        return [];
+    return _ambientesCache.get(tenantId, async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+              // Ensure defaultProducts is always an array
+              defaultProducts: normalizeAmbienteProducts(doc.data().defaultProducts),
+              createdAt:
+                doc.data().createdAt?.toDate?.()?.toISOString() ||
+                doc.data().createdAt,
+            }) as Ambiente,
+        );
+      } catch (error) {
+        if (isFirestorePermissionError(error)) {
+          console.warn("[AmbienteService] Permission denied reading ambientes.");
+          return [];
+        }
+        console.error("Error fetching ambientes:", error);
+        throw error; // Let the caller handle
       }
-      console.error("Error fetching ambientes:", error);
-      throw error; // Let the caller handle
-    }
+    });
   },
 
   getAmbienteById: async (id: string): Promise<Ambiente | null> => {

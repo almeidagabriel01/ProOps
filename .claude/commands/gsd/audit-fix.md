@@ -25,9 +25,9 @@ Flags:
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/audit-fix.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/audit-fix.md
 </execution_context>
 
 <process>
-Execute the audit-fix workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/audit-fix.md end-to-end.
+Execute the audit-fix workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/audit-fix.md end-to-end.
 </process>

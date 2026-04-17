@@ -4,6 +4,11 @@ import { UserPlan } from "@/types";
 
 const COLLECTION_NAME = "plans";
 
+const PLANS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+let _plansCache: { data: UserPlan[]; expiresAt: number } | null = null;
+let _inFlightRequest: Promise<UserPlan[] | null> | null = null;
+
 // Default plans - FALLBACK ONLY when Stripe is unavailable
 // IMPORTANT: In production, prices come from Stripe via StripeService.getPlans()
 // These values are only used as a last resort if Stripe API fails
@@ -126,32 +131,42 @@ export const PlanService = {
   },
 
   /**
-   * Get plans directly from Cloud Function (Stripe synced)
-   * Use this when you need absolutely fresh prices
+   * Get plans directly from Cloud Function (Stripe synced).
+   * Results are cached for 5 minutes; concurrent callers share one in-flight request.
    */
   getLivePlans: async (): Promise<UserPlan[] | null> => {
-    try {
-      const { StripeService } = await import("./stripe-service");
+    const now = Date.now();
 
-      // Fetch directly from Stripe API
-      const stripePlans = await StripeService.getPlans();
-
-      if (stripePlans && stripePlans.length > 0) {
-        console.log("[PlanService] Returning strict Stripe API data");
-        // The API returns the exact structure we need, just force the type
-        return stripePlans as unknown as UserPlan[];
-      }
-
-      console.warn(
-        "[PlanService] StripeService.getPlans() returned empty data.",
-      );
-      // NEVER fallback to Firestore
-      return null;
-    } catch (error) {
-      console.error("Failed to fetch live plans:", error);
-      // NEVER fallback to Firestore
-      return null;
+    if (_plansCache && now < _plansCache.expiresAt) {
+      return _plansCache.data;
     }
+
+    if (_inFlightRequest) {
+      return _inFlightRequest;
+    }
+
+    _inFlightRequest = (async () => {
+      try {
+        const { StripeService } = await import("./stripe-service");
+        const stripePlans = await StripeService.getPlans();
+
+        if (stripePlans && stripePlans.length > 0) {
+          const plans = stripePlans as unknown as UserPlan[];
+          _plansCache = { data: plans, expiresAt: Date.now() + PLANS_CACHE_TTL_MS };
+          return plans;
+        }
+
+        console.warn("[PlanService] StripeService.getPlans() returned empty data.");
+        return null;
+      } catch (error) {
+        console.error("Failed to fetch live plans:", error);
+        return null;
+      } finally {
+        _inFlightRequest = null;
+      }
+    })();
+
+    return _inFlightRequest;
   },
 
   /**

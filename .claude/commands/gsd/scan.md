@@ -18,9 +18,9 @@ Lightweight alternative to `/gsd-map-codebase` — spawns one mapper agent inste
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/scan.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/scan.md
 </execution_context>
 
 <process>
-Execute the scan workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/scan.md end-to-end.
+Execute the scan workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/scan.md end-to-end.
 </process>

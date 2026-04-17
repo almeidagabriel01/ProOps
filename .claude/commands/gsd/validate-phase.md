@@ -22,7 +22,7 @@ Output: updated VALIDATION.md + generated test files.
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/validate-phase.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/validate-phase.md
 </execution_context>
 
 <context>
@@ -30,6 +30,6 @@ Phase: $ARGUMENTS — optional, defaults to last completed phase.
 </context>
 
 <process>
-Execute @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/validate-phase.md.
+Execute @D:/DEV/ProOps/.claude/get-shit-done/workflows/validate-phase.md.
 Preserve all workflow gates.
 </process>

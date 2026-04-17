@@ -10,6 +10,10 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { AddonType, PurchasedAddon, AddonDefinition, PlanTier } from "@/types";
+import { createKeyedTTLCache } from "@/lib/service-cache";
+
+const _addonsCache = createKeyedTTLCache<PurchasedAddon[]>(60 * 1000);
+const _addonsWithPastDueCache = createKeyedTTLCache<PurchasedAddon[]>(60 * 1000);
 
 const COLLECTION_NAME = "addons";
 
@@ -70,30 +74,32 @@ export const AddonService = {
       return [];
     }
 
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("status", "==", "active")
-      );
+    return _addonsCache.get(tenantId, async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "==", "active")
+        );
 
-      const snapshot = await getDocs(q);
+        const snapshot = await getDocs(q);
 
-      const addons = snapshot.docs.map((doc) => {
-        const data = doc.data();
+        const addons = snapshot.docs.map((doc) => {
+          const data = doc.data();
 
-        return {
-          id: doc.id,
-          ...data,
-        };
-      }) as PurchasedAddon[];
+          return {
+            id: doc.id,
+            ...data,
+          };
+        }) as PurchasedAddon[];
 
-      return addons;
-    } catch (error) {
-      console.error("[AddonService] Error querying addons:", error);
-      // If it's an index error, Firestore will provide a link to create it
-      throw error;
-    }
+        return addons;
+      } catch (error) {
+        console.error("[AddonService] Error querying addons:", error);
+        // If it's an index error, Firestore will provide a link to create it
+        throw error;
+      }
+    });
   },
   /**
    * Get all add-ons including past_due (for grace period handling)
@@ -104,45 +110,47 @@ export const AddonService = {
       return [];
     }
 
-    try {
-      // Query active addons
-      const activeQuery = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("status", "==", "active")
-      );
+    return _addonsWithPastDueCache.get(tenantId, async () => {
+      try {
+        // Query active addons
+        const activeQuery = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "==", "active")
+        );
 
-      // Query past_due addons
-      const pastDueQuery = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("status", "==", "past_due")
-      );
+        // Query past_due addons
+        const pastDueQuery = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "==", "past_due")
+        );
 
-      // Execute both queries in parallel
-      const [activeSnapshot, pastDueSnapshot] = await Promise.all([
-        getDocs(activeQuery),
-        getDocs(pastDueQuery),
-      ]);
+        // Execute both queries in parallel
+        const [activeSnapshot, pastDueSnapshot] = await Promise.all([
+          getDocs(activeQuery),
+          getDocs(pastDueQuery),
+        ]);
 
-      const addons: PurchasedAddon[] = [];
+        const addons: PurchasedAddon[] = [];
 
-      activeSnapshot.docs.forEach((doc) => {
-        addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
-      });
+        activeSnapshot.docs.forEach((doc) => {
+          addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
+        });
 
-      pastDueSnapshot.docs.forEach((doc) => {
-        addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
-      });
+        pastDueSnapshot.docs.forEach((doc) => {
+          addons.push({ id: doc.id, ...doc.data() } as PurchasedAddon);
+        });
 
-      return addons;
-    } catch (error) {
-      console.error(
-        "[AddonService] Error querying addons with past_due:",
-        error
-      );
-      throw error;
-    }
+        return addons;
+      } catch (error) {
+        console.error(
+          "[AddonService] Error querying addons with past_due:",
+          error
+        );
+        throw error;
+      }
+    });
   },
 
   /**

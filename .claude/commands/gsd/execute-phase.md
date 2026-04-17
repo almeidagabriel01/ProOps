@@ -1,7 +1,7 @@
 ---
 name: gsd:execute-phase
 description: Execute all plans in a phase with wave-based parallelization
-argument-hint: "<phase-number> [--wave N] [--gaps-only] [--interactive]"
+argument-hint: "<phase-number> [--wave N] [--gaps-only] [--interactive] [--tdd]"
 allowed-tools:
   - Read
   - Write
@@ -31,8 +31,8 @@ Context budget: ~15% orchestrator, 100% fresh per subagent.
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/execute-phase.md
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/references/ui-brand.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/execute-phase.md
+@D:/DEV/ProOps/.claude/get-shit-done/references/ui-brand.md
 </execution_context>
 
 <runtime_note>
@@ -58,6 +58,6 @@ Context files are resolved inside the workflow via `gsd-tools init execute-phase
 </context>
 
 <process>
-Execute the execute-phase workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/execute-phase.md end-to-end.
+Execute the execute-phase workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/execute-phase.md end-to-end.
 Preserve all workflow gates (wave execution, checkpoint handling, verification, state updates, routing).
 </process>

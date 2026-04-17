@@ -24,7 +24,7 @@ export const CORS_OPTIONS: HttpsOptions = {
   cpu: IS_DEV ? 0.083 : 1,
   maxInstances: IS_DEV ? 1 : 10,
   concurrency: IS_DEV ? 1 : 80,
-  memory: IS_DEV ? "256MiB" : "1GiB",
+  memory: IS_DEV ? "512MiB" : "1GiB",
 };
 
 export const SCHEDULE_OPTIONS = {

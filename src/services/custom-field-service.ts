@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { callApi } from "@/lib/api-client";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { CustomFieldType } from "@/types";
+import { createKeyedTTLCache } from "@/lib/service-cache";
 
 export type CustomField = {
   id: string;
@@ -16,28 +17,34 @@ export type CustomField = {
 
 const COLLECTION_NAME = "custom_fields";
 
+// Caches keyed by tenantId — custom fields are stable configuration data
+const _fieldsCache = createKeyedTTLCache<CustomField[]>(5 * 60 * 1000);
+const _fieldTypesCache = createKeyedTTLCache<CustomFieldType[]>(5 * 60 * 1000);
+
 export const CustomFieldService = {
   getFields: async (tenantId: string): Promise<CustomField[]> => {
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId)
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt:
-              doc.data().createdAt?.toDate?.()?.toISOString() ||
-              doc.data().createdAt,
-          }) as CustomField
-      );
-    } catch (error) {
-      console.error("Error fetching fields:", error);
-      return [];
-    }
+    return _fieldsCache.get(tenantId, async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId)
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+              createdAt:
+                doc.data().createdAt?.toDate?.()?.toISOString() ||
+                doc.data().createdAt,
+            }) as CustomField
+        );
+      } catch (error) {
+        console.error("Error fetching fields:", error);
+        return [];
+      }
+    });
   },
 
   createField: async (
@@ -69,23 +76,25 @@ export const CustomFieldService = {
 
   // Custom Field Types (Categorias/Tipos de Campos Personalizados com itens)
   getCustomFieldTypes: async (tenantId: string): Promise<CustomFieldType[]> => {
-    try {
-      const q = query(
-        collection(db, "custom_field_types"),
-        where("tenantId", "==", tenantId)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-          }) as CustomFieldType
-      );
-    } catch (error) {
-      console.error("Error fetching field types:", error);
-      return [];
-    }
+    return _fieldTypesCache.get(tenantId, async () => {
+      try {
+        const q = query(
+          collection(db, "custom_field_types"),
+          where("tenantId", "==", tenantId)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as CustomFieldType
+        );
+      } catch (error) {
+        console.error("Error fetching field types:", error);
+        return [];
+      }
+    });
   },
 
   getCustomFieldTypeById: async (

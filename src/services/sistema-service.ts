@@ -16,8 +16,12 @@ import {
   SistemaProduct,
   SistemaAmbienteTemplate,
 } from "@/types/automation";
+import { createKeyedTTLCache } from "@/lib/service-cache";
 
 const COLLECTION_NAME = "sistemas";
+
+// Cache keyed by tenantId — sistemas are stable configuration data
+const _sistemasCache = createKeyedTTLCache<Sistema[]>(5 * 60 * 1000);
 
 /**
  * Normaliza um Sistema para garantir compatibilidade entre formato novo e legado
@@ -75,23 +79,25 @@ function normalizeSistema(id: string, data: Record<string, unknown>): Sistema {
 
 export const SistemaService = {
   getSistemas: async (tenantId: string): Promise<Sistema[]> => {
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map((doc) =>
-        normalizeSistema(doc.id, doc.data()),
-      );
-    } catch (error) {
-      if (isFirestorePermissionError(error)) {
-        console.warn("[SistemaService] Permission denied reading sistemas.");
-        return [];
+    return _sistemasCache.get(tenantId, async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map((doc) =>
+          normalizeSistema(doc.id, doc.data()),
+        );
+      } catch (error) {
+        if (isFirestorePermissionError(error)) {
+          console.warn("[SistemaService] Permission denied reading sistemas.");
+          return [];
+        }
+        console.error("Error fetching sistemas:", error);
+        throw error;
       }
-      console.error("Error fetching sistemas:", error);
-      throw error;
-    }
+    });
   },
 
   /**

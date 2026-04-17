@@ -22,11 +22,11 @@ Routes to the resume-project workflow which handles:
   </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/resume-project.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/resume-project.md
 </execution_context>
 
 <process>
-**Follow the resume-project workflow** from `@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/resume-project.md`.
+**Follow the resume-project workflow** from `@D:/DEV/ProOps/.claude/get-shit-done/workflows/resume-project.md`.
 
 The workflow handles all resumption logic including:
 

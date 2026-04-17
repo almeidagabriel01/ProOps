@@ -405,7 +405,9 @@ async function resolveTenantPlanProfileUncached(
     normalizePlanTier(tenantData?.plan) ||
     normalizePlanTier(tenantData?.planTier) ||
     normalizePlanTier(tenantData?.tier);
-  if (directTier) {
+  // Skip "free" early-return when tenant is actively trialing a paid plan —
+  // the trialPlanTier step below will resolve the correct tier.
+  if (directTier && !(directTier === "free" && subscriptionStatus === "trialing")) {
     return buildProfileFromTier({
       tenantId,
       tier: directTier,
@@ -442,6 +444,58 @@ async function resolveTenantPlanProfileUncached(
       pastDueSince,
       source: "tenant.priceId",
     });
+  }
+
+  // Fallback: resolve plan from the tenant owner's user document.
+  // Handles tenants whose document lacks plan/planId/priceId (e.g. accounts
+  // created before the tenant document was fully populated).
+  // Strategy: query users ordered by createdAt ASC (oldest = owner) and find
+  // the first one with a planId. Role names can vary in casing across tenants,
+  // so we avoid filtering by role — ordering by age is more reliable.
+  try {
+    const usersSnap = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .orderBy("createdAt", "asc")
+      .limit(10)
+      .get();
+    for (const userDoc of usersSnap.docs) {
+      const userData = userDoc.data() as Record<string, unknown>;
+      const userPlanId = String(userData?.planId || "").trim();
+      if (!userPlanId) continue;
+      const tierFromUserPlanId = await resolveTierFromPlanId(userPlanId);
+      if (tierFromUserPlanId) {
+        return buildProfileFromTier({
+          tenantId,
+          tier: tierFromUserPlanId,
+          subscriptionStatus,
+          stripeSubscriptionId,
+          stripePriceId,
+          pastDueSince,
+          source: "tenant_owner_user.planId",
+        });
+      }
+    }
+  } catch {
+    // Non-fatal — fall through to compat default.
+  }
+
+  // Last resort before compat-default: if the tenant is actively trialing a paid
+  // plan, resolve the tier from trialPlanTier (set when the trial was activated).
+  // This covers tenants whose doc still has plan:"free" but subscriptionStatus:"trialing".
+  if (subscriptionStatus === "trialing") {
+    const trialTier = normalizePlanTier(tenantData?.trialPlanTier);
+    if (trialTier && trialTier !== "free") {
+      return buildProfileFromTier({
+        tenantId,
+        tier: trialTier,
+        subscriptionStatus,
+        stripeSubscriptionId,
+        stripePriceId,
+        pastDueSince,
+        source: "tenant.trialPlanTier",
+      });
+    }
   }
 
   return buildCompatDefaultTenantPlanProfile({

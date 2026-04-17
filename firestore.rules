@@ -424,6 +424,36 @@ service cloud.firestore {
     }
 
     // ============================================
+    // AI ASSISTANT (Lia)
+    // ============================================
+
+    // AI Usage — monthly counters per tenant
+    // Read: authenticated tenant members can see their usage; superadmin has read-only access
+    // Write: only backend (Admin SDK) — incremented atomically by usage-tracker.ts
+    match /tenants/{tenantId}/aiUsage/{month} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(tenantId));
+      allow write: if false;
+    }
+
+    // AI Conversations — chat history per session
+    // get: user can only fetch their own session doc (uid enforced on resource); superadmin can read any
+    // list: tenant-scoped only; client query must include where("uid","==",uid) for user isolation
+    // Write: only backend (Admin SDK) — managed by conversation-store.ts
+    match /tenants/{tenantId}/aiConversations/{sessionId} {
+      allow get: if isSuperAdmin()
+                 || (isAuthenticated()
+                     && belongsToTenant(tenantId)
+                     && (resource == null || resource.data.uid == request.auth.uid));
+      // list: require uid equality on every returned document so a query without
+      // a uid filter (or one with another user's uid) is automatically rejected.
+      allow list: if isSuperAdmin()
+                  || (isAuthenticated()
+                      && belongsToTenant(tenantId)
+                      && resource.data.uid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // ============================================
     // BACKEND-ONLY COLLECTIONS
     // Managed exclusively by Cloud Functions (admin SDK).
     // Explicitly denied to prevent accidental client access.

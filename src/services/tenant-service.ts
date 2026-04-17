@@ -11,8 +11,11 @@ import {
   where,
 } from "firebase/firestore";
 import { Tenant } from "@/types"; // We can reuse the type or define a new one
+import { createKeyedTTLCache } from "@/lib/service-cache";
 
 const COLLECTION_NAME = "tenants";
+
+const _tenantByIdCache = createKeyedTTLCache<Tenant | null>(60 * 1000);
 
 export const TenantService = {
   getTenants: async (): Promise<Tenant[]> => {
@@ -24,14 +27,16 @@ export const TenantService = {
   },
 
   getTenantById: async (id: string): Promise<Tenant | null> => {
-    const docRef = doc(db, COLLECTION_NAME, id);
-    const docSnap = await getDoc(docRef);
+    return _tenantByIdCache.get(id, async () => {
+      const docRef = doc(db, COLLECTION_NAME, id);
+      const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Tenant;
-    } else {
-      return null;
-    }
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Tenant;
+      } else {
+        return null;
+      }
+    });
   },
 
   createTenant: async (tenant: Omit<Tenant, "id">): Promise<Tenant> => {

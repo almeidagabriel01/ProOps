@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveFunctionsApiUpstream } from "@/lib/server-api-upstream";
 
 const REQUEST_TIMEOUT_MS = 30_000;
+const SSE_TIMEOUT_MS = 300_000;
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 const BODYLESS_RESPONSE_STATUSES = new Set([204, 205, 304]);
 const HOP_BY_HOP_HEADERS = new Set([
@@ -17,6 +18,7 @@ const HOP_BY_HOP_HEADERS = new Set([
 const SAFE_RESPONSE_HEADERS = new Set([
   "cache-control",
   "content-disposition",
+  "content-encoding",
   "content-length",
   "content-type",
   "etag",
@@ -89,8 +91,11 @@ async function proxyRequest(
   const { path } = await context.params;
   const upstream = resolveFunctionsApiUpstream(req);
   const upstreamUrl = buildUpstreamUrl(req, path);
+  const acceptHeader = req.headers.get("accept") ?? "";
+  const isSSE = acceptHeader.includes("text/event-stream");
+  const timeoutMs = isSSE ? SSE_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const init: RequestInit = {
@@ -135,15 +140,26 @@ async function proxyRequest(
     }
 
     const responseHeaders = buildResponseHeaders(upstreamResponse.headers);
-    const response = BODYLESS_RESPONSE_STATUSES.has(upstreamResponse.status)
-      ? new NextResponse(null, {
-          status: upstreamResponse.status,
-          headers: responseHeaders,
-        })
-      : new NextResponse(await upstreamResponse.arrayBuffer(), {
-          status: upstreamResponse.status,
-          headers: responseHeaders,
-        });
+    const upstreamContentType = upstreamResponse.headers.get("content-type") ?? "";
+    const isSSEResponse = upstreamContentType.includes("text/event-stream");
+
+    let response: NextResponse;
+    if (BODYLESS_RESPONSE_STATUSES.has(upstreamResponse.status)) {
+      response = new NextResponse(null, {
+        status: upstreamResponse.status,
+        headers: responseHeaders,
+      });
+    } else if (isSSEResponse) {
+      response = new NextResponse(upstreamResponse.body, {
+        status: upstreamResponse.status,
+        headers: responseHeaders,
+      });
+    } else {
+      response = new NextResponse(await upstreamResponse.arrayBuffer(), {
+        status: upstreamResponse.status,
+        headers: responseHeaders,
+      });
+    }
 
     response.headers.set("x-request-id", requestId);
 

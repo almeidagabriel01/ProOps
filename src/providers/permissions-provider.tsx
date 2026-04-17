@@ -113,32 +113,14 @@ export function PermissionsProvider({
     try {
       setIsLoading(true);
 
-      // 1. Fetch user document for role and company info
-      const userRef = doc(db, "users", user.id);
-      const userSnap = await getDoc(userRef);
+      // 1. Derive role, masterId and companyId from the user already loaded by
+      //    auth-provider — avoids a duplicate getDoc(users/{uid}) fetch.
+      const role: "MASTER" | "MEMBER" = normalizeRole(user.role);
+      const masterId: string | null = user.masterId ?? null;
+      const companyId: string = user.tenantId || "";
+      const companyName: string = "";
 
-      // If user doc doesn't exist, use role from auth-provider
-      // This handles the case where Firestore doc is missing
-      let role: "MASTER" | "MEMBER";
-      let masterId: string | null = null;
-      let companyId: string = "";
-      let companyName: string = "";
-
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        // IMPORTANT: Normalize role to handle old 'admin' format
-        role = normalizeRole(userData.role);
-        masterId = userData.masterId || null;
-        companyId = userData.companyId || userData.tenantId || "";
-        companyName = userData.companyName || "";
-      } else {
-        // Fallback: use role from auth context
-        console.warn("User document not found in Firestore, using auth role");
-        role = normalizeRole(user.role);
-        companyId = user.tenantId || "";
-      }
-
-      // 2. If MEMBER, fetch MASTER's name (Try-catch to prevent permission errors)
+      // 2. If MEMBER, fetch MASTER's name (try-catch to handle permission errors)
       let masterName: string | undefined;
       if (role === "MEMBER" && masterId) {
         try {
@@ -240,7 +222,7 @@ export function PermissionsProvider({
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, user?.role, user?.tenantId]);
+  }, [user?.id, user?.role, user?.tenantId, user?.masterId]);
 
   // Fetch permissions when user changes
   React.useEffect(() => {

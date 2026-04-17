@@ -3,6 +3,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import type { Auth } from "firebase-admin/auth";
 import { seedTenants } from "./data/tenants";
 import { seedUsers } from "./data/users";
+import { seedAiTenants } from "./data/ai";
 import { seedProposals } from "./data/proposals";
 import { seedTransactions } from "./data/transactions";
 import { seedWallets } from "./data/wallets";
@@ -53,6 +54,7 @@ export async function seedAll(): Promise<void> {
   // Order matters: tenants first, then users (which reference tenants), then data
   await seedTenants(db);
   await seedUsers(auth, db);
+  await seedAiTenants(auth, db);
   await seedWallets(db);
   await seedSistemas(db);
   await seedContacts(db);
@@ -88,6 +90,11 @@ export async function clearAll(): Promise<void> {
     "user-member-alpha",
     "user-admin-beta",
     "user-member-beta",
+    "ai-admin-uid",
+    "ai-member-uid",
+    "ai-starter-uid",
+    "ai-free-uid",
+    "ai-free-role-uid",
   ];
 
   for (const uid of uids) {
@@ -95,6 +102,19 @@ export async function clearAll(): Promise<void> {
       await auth.deleteUser(uid);
     } catch {
       // User may not exist, ignore
+    }
+  }
+
+  // Clear AI subcollections for AI test tenants
+  const aiTenantIds = ["ai-test", "ai-starter", "ai-free"];
+  for (const tid of aiTenantIds) {
+    for (const subcol of ["aiConversations", "aiUsage"]) {
+      const subSnap = await db.collection(`tenants/${tid}/${subcol}`).get();
+      if (subSnap.docs.length > 0) {
+        const subBatch = db.batch();
+        subSnap.docs.forEach((doc) => subBatch.delete(doc.ref));
+        await subBatch.commit();
+      }
     }
   }
 

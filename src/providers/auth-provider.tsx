@@ -95,8 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSessionSynced, setIsSessionSynced] = React.useState(false);
   const router = useRouter();
 
-  // Guards against concurrent syncServerSession calls
+  // Guards against concurrent and rapid sequential syncServerSession calls.
+  // Both onAuthStateChanged and onIdTokenChanged fire on startup; the cooldown
+  // prevents the second listener from making a redundant /api/auth/session call.
   const syncInProgressRef = React.useRef(false);
+  const lastSyncSuccessRef = React.useRef(0);
+  const SYNC_COOLDOWN_MS = 30_000;
 
   const createServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser) => {
@@ -136,12 +140,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const syncServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser): Promise<boolean> => {
       if (syncInProgressRef.current) return false;
+      // Skip if a successful sync happened recently (both onAuthStateChanged and
+      // onIdTokenChanged fire on startup; cooldown prevents the redundant call).
+      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) return true;
       syncInProgressRef.current = true;
 
       const attempt = async (): Promise<boolean> => {
         try {
           await createServerSession(firebaseUser);
           setIsSessionSynced(true);
+          lastSyncSuccessRef.current = Date.now();
           return true;
         } catch {
           return false;

@@ -561,6 +561,16 @@ export const updatePermissions = async (req: Request, res: Response) => {
     if (!isSuperAdmin && memberData?.masterId !== masterId) {
       return res.status(403).json({ message: "Permissão negada." });
     }
+    // Cross-check: member must belong to the same tenant as the requester
+    if (!isSuperAdmin && memberData?.tenantId !== req.user!.tenantId) {
+      logger.warn("updatePermissions cross-tenant attempt blocked", {
+        requesterId: masterId,
+        requesterTenantId: req.user!.tenantId,
+        memberTenantId: memberData?.tenantId,
+        memberId: actualMemberId,
+      });
+      return res.status(403).json({ message: "Permissão negada." });
+    }
 
     const permissionsRef = db
       .collection("users")
@@ -1113,6 +1123,23 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
       return res
         .status(400)
         .json({ message: "Nenhum campo válido para atualização" });
+    }
+
+    // When currentPeriodEnd is provided, derive subscriptionStatus from it
+    // to match the same logic used by the checkManualSubscriptions cron.
+    if (safeUpdates.currentPeriodEnd) {
+      const periodEnd = new Date(safeUpdates.currentPeriodEnd);
+      if (!isNaN(periodEnd.getTime())) {
+        const now = new Date();
+        const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
+        if (periodEnd > now) {
+          safeUpdates.subscriptionStatus = "active";
+        } else if (now.getTime() - periodEnd.getTime() <= GRACE_PERIOD_MS) {
+          safeUpdates.subscriptionStatus = "past_due";
+        } else {
+          safeUpdates.subscriptionStatus = "canceled";
+        }
+      }
     }
 
     safeUpdates.updatedAt = FieldValue.serverTimestamp();

@@ -17,9 +17,9 @@ changes that are irrelevant to code review.
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/pr-branch.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/pr-branch.md
 </execution_context>
 
 <process>
-Execute the pr-branch workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/pr-branch.md end-to-end.
+Execute the pr-branch workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/pr-branch.md end-to-end.
 </process>

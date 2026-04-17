@@ -247,3 +247,67 @@ describe('Backend-only collections: all access denied regardless of auth state',
     await assertFails(getDoc(doc(unauthDb(), 'shared_proposals', 'share-001')));
   });
 });
+
+// ============================================
+// SEC-AI: aiConversations rules
+// ============================================
+
+describe('SEC-AI: aiConversations security rules', () => {
+  function alphaUserDb(uid: string) {
+    return testEnv.authenticatedContext(uid, {
+      tenantId: 'tenant-alpha',
+      role: 'admin',
+    }).firestore();
+  }
+
+  async function seedConversation(tenantId: string, sessionId: string, ownerUid: string) {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `tenants/${tenantId}/aiConversations/${sessionId}`),
+        { sessionId, uid: ownerUid, tenantId, messages: [], createdAt: new Date(), updatedAt: new Date() },
+      );
+    });
+  }
+
+  test('owner can get their own conversation session', async () => {
+    await seedConversation('tenant-alpha', 'sess-owned', 'uid-alpha');
+    await assertSucceeds(
+      getDoc(doc(alphaUserDb('uid-alpha'), 'tenants/tenant-alpha/aiConversations/sess-owned')),
+    );
+  });
+
+  test('different user in same tenant cannot get another user\'s session', async () => {
+    await seedConversation('tenant-alpha', 'sess-owned-a', 'uid-alpha');
+    // uid-beta2 is in tenant-alpha but is NOT the owner
+    const betaInAlpha = testEnv.authenticatedContext('uid-beta2', {
+      tenantId: 'tenant-alpha',
+      role: 'admin',
+    }).firestore();
+    await assertFails(
+      getDoc(doc(betaInAlpha, 'tenants/tenant-alpha/aiConversations/sess-owned-a')),
+    );
+  });
+
+  test('cross-tenant user cannot get a session from another tenant', async () => {
+    await seedConversation('tenant-alpha', 'sess-cross', 'uid-alpha');
+    await assertFails(
+      getDoc(doc(alphaUserDb('uid-beta'), 'tenants/tenant-beta/aiConversations/sess-cross')),
+    );
+  });
+
+  test('unauthenticated access is denied', async () => {
+    await seedConversation('tenant-alpha', 'sess-unauth', 'uid-alpha');
+    await assertFails(
+      getDoc(doc(unauthDb(), 'tenants/tenant-alpha/aiConversations/sess-unauth')),
+    );
+  });
+
+  test('client cannot write to aiConversations (write: false)', async () => {
+    await assertFails(
+      setDoc(
+        doc(alphaUserDb('uid-alpha'), 'tenants/tenant-alpha/aiConversations/sess-write-attempt'),
+        { sessionId: 'sess-write-attempt', uid: 'uid-alpha', tenantId: 'tenant-alpha', messages: [] },
+      ),
+    );
+  });
+});

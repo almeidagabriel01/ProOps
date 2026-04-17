@@ -56,8 +56,15 @@ const THRESHOLDS = {
 
 test.describe('Core Web Vitals', () => {
   test.beforeAll(async ({ request }) => {
-    // Warm up the Next.js server before collecting metrics to avoid cold-start inflation
-    await request.get('http://localhost:3001').catch(() => { /* ignore — server may redirect */ });
+    // Warm up every tested route so Next.js dev-mode JIT-compiles each segment
+    // before metrics are collected. Without this, the first cold route absorbs
+    // ~800-1000ms of compilation cost that inflates TTFB beyond the 3500ms threshold.
+    const routes = ['/', '/login', '/dashboard', '/proposals', '/transactions', '/contacts', '/products'];
+    await Promise.all(
+      routes.map((r) =>
+        request.get(`http://localhost:3001${r}`).catch(() => { /* ignore redirects/401 */ }),
+      ),
+    );
   });
 
   test('/login page performance', async ({ page }) => {

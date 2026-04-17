@@ -9,4 +9,4 @@ allowed-tools:
 
 Show the following output to the user verbatim, with no extra commentary:
 
-!`node "C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" config-set-model-profile $ARGUMENTS --raw`
+!`node "D:/DEV/ProOps/.claude/get-shit-done/bin/gsd-tools.cjs" config-set-model-profile $ARGUMENTS --raw`

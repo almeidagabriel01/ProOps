@@ -154,11 +154,11 @@ export function RecentProposalsList({ proposals }: RecentProposalsListProps) {
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase shadow-sm">
-                      {p.clientName.substring(0, 2)}
+                      {(p.clientName || "??").substring(0, 2)}
                     </div>
                     <div>
                       <p className="text-sm font-semibold leading-none truncate max-w-[140px]">
-                        {p.clientName}
+                        {p.clientName || "Cliente sem nome"}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-xs font-medium text-foreground/80">

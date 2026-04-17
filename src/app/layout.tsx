@@ -16,6 +16,7 @@ import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
+import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -100,8 +101,8 @@ export default function RootLayout({
           name="description"
           content="O ProOps é um sistema ERP para gestão de serviços que permite gerenciar clientes, ordens de serviço, relatórios e operações diárias em uma plataforma online."
         />
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <link rel="shortcut icon" href="/icon.svg" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="shortcut icon" href="/favicon.svg" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
@@ -119,7 +120,9 @@ export default function RootLayout({
               ) : (
                 <PermissionsProvider>
                   <TenantProvider>
-                    <ProtectedRoute>{children}</ProtectedRoute>
+                    <PlanProvider>
+                      <ProtectedRoute>{children}</ProtectedRoute>
+                    </PlanProvider>
                   </TenantProvider>
                 </PermissionsProvider>
               )}

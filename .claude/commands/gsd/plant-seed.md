@@ -20,9 +20,9 @@ Consumed by: /gsd-new-milestone (scans seeds and presents matches)
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/plant-seed.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/plant-seed.md
 </execution_context>
 
 <process>
-Execute the plant-seed workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/plant-seed.md end-to-end.
+Execute the plant-seed workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/plant-seed.md end-to-end.
 </process>

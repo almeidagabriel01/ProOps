@@ -42,6 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AiUsageCard } from "@/components/profile/ai-usage-card";
 
 interface MySubscriptionTabProps {
   user: User | null;
@@ -557,6 +558,9 @@ export function MySubscriptionTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Usage Card */}
+      <AiUsageCard />
 
       {/* Add-ons / Included Modules Card */}
       <Card>

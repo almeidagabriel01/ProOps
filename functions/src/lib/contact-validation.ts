@@ -251,7 +251,7 @@ export function validateBrazilMobilePhone(value: unknown): {
     return {
       valid: false,
       normalizedPhone,
-      reason: "Número deve ser celular brasileiro válido (9 dígitos).",
+      reason: "Celular inválido: o número deve começar com 9 após o DDD (ex: (11) 9XXXX-XXXX).",
     };
   }
 

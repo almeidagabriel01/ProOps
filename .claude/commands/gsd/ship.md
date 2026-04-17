@@ -17,7 +17,7 @@ Closes the plan → execute → verify → ship loop.
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/ship.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/ship.md
 </execution_context>
 
-Execute the ship workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/ship.md end-to-end.
+Execute the ship workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/ship.md end-to-end.

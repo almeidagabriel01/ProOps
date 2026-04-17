@@ -6,6 +6,7 @@
  */
 
 import { callApi, callPublicApi } from "@/lib/api-client";
+import { createTTLCache } from "@/lib/service-cache";
 
 // ============================================
 // TYPES
@@ -159,6 +160,8 @@ interface SyncAllResponse {
 // SERVICE
 // ============================================
 
+const _pricesCache = createTTLCache<PricesResponse>(5 * 60 * 1000);
+
 export const StripeService = {
   createCheckoutSession: async (
     data: CheckoutRequest,
@@ -288,82 +291,82 @@ export const StripeService = {
   },
 
   getPrices: async (): Promise<PricesResponse> => {
-    // Define internal types matching the actual Backend Response
-    type BackendPlan = {
-      tier: string;
-      pricing: { monthly: number; yearly: number };
-    };
+    return _pricesCache.get(async () => {
+      // Define internal types matching the actual Backend Response
+      type BackendPlan = {
+        tier: string;
+        pricing: { monthly: number; yearly: number };
+      };
 
-    type BackendResponse = {
-      plans: BackendPlan[];
-      addons: Record<string, { monthly: { amount: number } }>;
-    };
+      type BackendResponse = {
+        plans: BackendPlan[];
+        addons: Record<string, { monthly: { amount: number } }>;
+      };
 
-    const result = await callPublicApi<
-      BackendResponse | { data: BackendResponse }
-    >("/v1/stripe/plans", "GET", undefined, { cache: "no-store" });
+      const result = await callPublicApi<
+        BackendResponse | { data: BackendResponse }
+      >("/v1/stripe/plans", "GET");
 
-    // Handle both direct response and { data: ... } wrapper
-    const data = "data" in result ? result.data : result;
+      // Handle both direct response and { data: ... } wrapper
+      const data = "data" in result ? result.data : result;
 
-    // Transform Plans Array -> Record<string, PriceSet>
-    const plansRecord: Record<string, PriceSet> = {};
+      // Transform Plans Array -> Record<string, PriceSet>
+      const plansRecord: Record<string, PriceSet> = {};
 
-    if (Array.isArray(data.plans)) {
-      data.plans.forEach((plan) => {
-        plansRecord[plan.tier] = {
-          monthly: {
-            id: `price_${plan.tier}_monthly`, // Dummy ID, we only need amount for display
-            amount: plan.pricing.monthly * 100, // Convert Unit -> Cents
-            currency: "brl",
-            interval: "monthly",
-            productId: `prod_${plan.tier}`,
-          },
-          yearly: {
-            id: `price_${plan.tier}_yearly`,
-            amount: plan.pricing.yearly * 100, // Convert Unit -> Cents
-            currency: "brl",
-            interval: "yearly",
-            productId: `prod_${plan.tier}`,
-          },
-        };
-      });
-    }
+      if (Array.isArray(data.plans)) {
+        data.plans.forEach((plan) => {
+          plansRecord[plan.tier] = {
+            monthly: {
+              id: `price_${plan.tier}_monthly`, // Dummy ID, we only need amount for display
+              amount: plan.pricing.monthly * 100, // Convert Unit -> Cents
+              currency: "brl",
+              interval: "monthly",
+              productId: `prod_${plan.tier}`,
+            },
+            yearly: {
+              id: `price_${plan.tier}_yearly`,
+              amount: plan.pricing.yearly * 100, // Convert Unit -> Cents
+              currency: "brl",
+              interval: "yearly",
+              productId: `prod_${plan.tier}`,
+            },
+          };
+        });
+      }
 
-    // Transform Addons (if needed, or pass through if structure matches enough)
-    // Backend addons: Record<string, { monthly: { amount: number } }>
-    // Frontend addons: Record<string, PriceSet>
-    const addonsRecord: Record<string, PriceSet> = {};
-    if (data.addons) {
-      Object.entries(data.addons).forEach(([key, value]) => {
-        addonsRecord[key] = {
-          monthly: {
-            id: `price_addon_${key}`,
-            amount: value.monthly.amount * 100, // Backend sends unit or cents?
-            // Controller line 508: addons[addonType] = { monthly: { amount } };
-            // amount comes from priceMap which is units (line 462).
-            // So we multiply by 100.
-            currency: "brl",
-            interval: "monthly",
-            productId: `prod_addon_${key}`,
-          },
-          yearly: null,
-        };
-      });
-    }
+      // Transform Addons (if needed, or pass through if structure matches enough)
+      // Backend addons: Record<string, { monthly: { amount: number } }>
+      // Frontend addons: Record<string, PriceSet>
+      const addonsRecord: Record<string, PriceSet> = {};
+      if (data.addons) {
+        Object.entries(data.addons).forEach(([key, value]) => {
+          addonsRecord[key] = {
+            monthly: {
+              id: `price_addon_${key}`,
+              amount: value.monthly.amount * 100, // Backend sends unit or cents?
+              // Controller line 508: addons[addonType] = { monthly: { amount } };
+              // amount comes from priceMap which is units (line 462).
+              // So we multiply by 100.
+              currency: "brl",
+              interval: "monthly",
+              productId: `prod_addon_${key}`,
+            },
+            yearly: null,
+          };
+        });
+      }
 
-    return {
-      plans: plansRecord,
-      addons: addonsRecord,
-    };
+      return {
+        plans: plansRecord,
+        addons: addonsRecord,
+      };
+    });
   },
 
   getPlans: async (): Promise<Plan[]> => {
     const result = await callPublicApi<{ plans: Record<string, unknown>[] }>(
       "/v1/stripe/plans",
       "GET",
-      undefined,
-      { cache: "no-store" }, // Ensure no cache here as well
     );
     return (result.plans || []) as unknown as Plan[];
   },

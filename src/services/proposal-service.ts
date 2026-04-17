@@ -200,6 +200,7 @@ function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   return {
     id: d.id,
     ...data,
+    clientName: (data.clientName as string) || "",
     primarySystem: getPrimarySystemFromData(data),
     primaryEnvironment: getPrimaryEnvironmentFromData(data),
     createdAt: data.createdAt?.toDate

@@ -3,6 +3,7 @@
 import { db } from "@/lib/firebase";
 import { callApi } from "@/lib/api-client";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import { createKeyedTTLCache } from "@/lib/service-cache";
 
 export type Option = {
   id: string;
@@ -14,28 +15,34 @@ export type Option = {
 
 const COLLECTION_NAME = "options";
 
+// Cache keyed by `${tenantId}:${type}` — options rarely change within a session
+const _optionsCache = createKeyedTTLCache<Option[]>(5 * 60 * 1000);
+
 export const OptionService = {
   getOptions: async (tenantId: string, type: string): Promise<Option[]> => {
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("type", "==", type) // Note: ensure field name matches API (was fieldType in old function?) API uses standard fields
-      );
+    const cacheKey = `${tenantId}:${type}`;
+    return _optionsCache.get(cacheKey, async () => {
+      try {
+        const q = query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("type", "==", type) // Note: ensure field name matches API (was fieldType in old function?) API uses standard fields
+        );
 
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(
-        (doc) =>
-          ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-          }) as Option
-      );
-    } catch (error) {
-      console.error("Error fetching options:", error);
-      return [];
-    }
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+              createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+            }) as Option
+        );
+      } catch (error) {
+        console.error("Error fetching options:", error);
+        return [];
+      }
+    });
   },
 
   createOption: async (

@@ -19,9 +19,9 @@ Accepts an optional topic argument: `/gsd-explore authentication strategy`
 </objective>
 
 <execution_context>
-@C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/explore.md
+@D:/DEV/ProOps/.claude/get-shit-done/workflows/explore.md
 </execution_context>
 
 <process>
-Execute the explore workflow from @C:/Users/Maumis/Documents/Code/ProOps/.claude/get-shit-done/workflows/explore.md end-to-end.
+Execute the explore workflow from @D:/DEV/ProOps/.claude/get-shit-done/workflows/explore.md end-to-end.
 </process>
