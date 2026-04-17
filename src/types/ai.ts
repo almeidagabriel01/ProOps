@@ -54,6 +54,7 @@ export interface LiaMessage {
   content: string;
   timestamp: Date;
   isStreaming?: boolean;
+  isThinking?: boolean;
   error?: string;
   toolCalls?: Array<{
     name: string;

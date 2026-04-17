@@ -8,7 +8,6 @@ import type { LiaMessage } from "@/types/ai";
 interface LiaChatWindowProps {
   messages: LiaMessage[];
   isStreaming: boolean;
-  isThinking?: boolean;
   /** Message bubble components rendered by the parent */
   children: React.ReactNode;
 }
@@ -55,7 +54,6 @@ function ThinkingIndicator() {
 export function LiaChatWindow({
   messages,
   isStreaming,
-  isThinking = false,
   children,
 }: LiaChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -79,7 +77,7 @@ export function LiaChatWindow({
 
       {/* Waiting indicator: shown while no text in the bubble yet */}
       {isStreaming && !(messages.at(-1)?.isStreaming && messages.at(-1)?.content) && (
-        isThinking ? <ThinkingIndicator /> : <TypingIndicator />
+        messages.at(-1)?.isThinking ? <ThinkingIndicator /> : <TypingIndicator />
       )}
 
       {/* Scroll anchor */}
