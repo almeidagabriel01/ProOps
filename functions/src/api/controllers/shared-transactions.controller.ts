@@ -3,6 +3,13 @@ import { SharedTransactionService } from "../services/shared-transactions.servic
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 
+const VALID_EXPIRE_DAYS = [15, 30, 60, 90, 180, 365, null] as const;
+type ValidExpireDays = (typeof VALID_EXPIRE_DAYS)[number];
+
+function isValidExpireDays(value: unknown): value is ValidExpireDays {
+  return (VALID_EXPIRE_DAYS as ReadonlyArray<unknown>).includes(value);
+}
+
 // Campos internos de infraestrutura que nunca devem ser expostos em rotas públicas.
 const INTERNAL_TRANSACTION_FIELDS = new Set([
   "pdfPath",
@@ -37,6 +44,16 @@ export const createShareLink = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID do lancamento e obrigatorio" });
     }
 
+    const rawExpireDays = Object.prototype.hasOwnProperty.call(req.body, "expireDays")
+      ? req.body.expireDays
+      : 30;
+
+    if (!isValidExpireDays(rawExpireDays)) {
+      return res.status(400).json({ message: "Prazo inválido" });
+    }
+
+    const expireDays: ValidExpireDays = rawExpireDays;
+
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     const transactionRef = db.collection("transactions").doc(transactionId);
@@ -62,6 +79,7 @@ export const createShareLink = async (req: Request, res: Response) => {
       transactionId,
       transactionTenantId,
       userId,
+      expireDays,
     );
 
     return res.status(201).json({
@@ -70,8 +88,54 @@ export const createShareLink = async (req: Request, res: Response) => {
       message: "Link compartilhavel gerado com sucesso",
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_EXPIRE_DAYS") {
+      return res.status(400).json({ message: "Prazo inválido" });
+    }
     console.error("Error creating shared transaction link:", error);
     const message = error instanceof Error ? error.message : "Erro ao gerar link";
+    return res.status(500).json({ message });
+  }
+};
+
+export const getShareLinkInfo = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const { id: transactionId } = req.params;
+
+    if (!transactionId) {
+      return res.status(400).json({ message: "ID do lancamento e obrigatorio" });
+    }
+
+    const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
+
+    const transactionRef = db.collection("transactions").doc(transactionId);
+    const transactionSnap = await transactionRef.get();
+
+    if (!transactionSnap.exists) {
+      return res.status(404).json({ message: "Lancamento nao encontrado" });
+    }
+
+    const transactionData = transactionSnap.data() as
+      | { tenantId?: string }
+      | undefined;
+    const transactionTenantId = String(transactionData?.tenantId || "").trim();
+    if (!transactionTenantId) {
+      return res.status(412).json({ message: "Lancamento sem tenantId valido" });
+    }
+
+    if (!isSuperAdmin && transactionTenantId !== tenantId) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+
+    const result = await SharedTransactionService.getShareLinkInfo(
+      transactionId,
+      transactionTenantId,
+    );
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Error getting share link info:", error);
+    const message = error instanceof Error ? error.message : "Erro ao buscar informações do link";
     return res.status(500).json({ message });
   }
 };

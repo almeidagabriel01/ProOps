@@ -17,7 +17,10 @@ import {
   transferValues,
   adjustBalance,
 } from "../controllers/wallets.controller";
-import { createShareLink as createTransactionShareLink } from "../controllers/shared-transactions.controller";
+import {
+  createShareLink as createTransactionShareLink,
+  getShareLinkInfo,
+} from "../controllers/shared-transactions.controller";
 import { downloadTransactionPdf } from "../controllers/transaction-pdf.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
@@ -26,6 +29,7 @@ const router = Router();
 // Transactions
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
+router.get("/transactions/:id/share-link", getShareLinkInfo);
 router.post("/transactions/status-batch", updateTransactionsStatusBatch);
 router.put("/transactions/batch", updateTransactionsBatch);
 router.put("/transactions/group/:groupId/status", updateGroupStatus);

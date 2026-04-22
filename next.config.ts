@@ -31,10 +31,6 @@ const securityHeaders = [
     value: "max-age=31536000; includeSubDomains; preload",
   },
   {
-    key: "Cross-Origin-Embedder-Policy",
-    value: "credentialless",
-  },
-  {
     key: "Cross-Origin-Opener-Policy",
     value: "same-origin-allow-popups",
   },

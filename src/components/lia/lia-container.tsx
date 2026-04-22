@@ -14,6 +14,7 @@ import { LiaInputBar } from "./lia-input-bar";
 import { LiaUsageBadge } from "./lia-usage-badge";
 import { LiaToolConfirmDialog } from "./lia-tool-confirm-dialog";
 import { LiaHistoryPanel } from "./lia-history-panel";
+import { ZapOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Route-based greetings and quick-action chips per UI-SPEC
@@ -226,6 +227,15 @@ export function LiaContainer() {
         }
         inputBar={
           <>
+            {usage.isAtLimit && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-300 dark:border-amber-700 shrink-0">
+                <ZapOff className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Limite mensal atingido</p>
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400">Suas mensagens reiniciam em {usage.resetDate}.</p>
+                </div>
+              </div>
+            )}
             {showNearLimitBanner && (
               <div className="flex items-center justify-between gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300 shrink-0">
                 <span>

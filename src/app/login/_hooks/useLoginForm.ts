@@ -13,6 +13,8 @@ import {
   RecaptchaVerifier,
   sendEmailVerification,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -447,9 +449,20 @@ export function useLoginForm(): UseLoginFormReturn {
     setRegisterSuccessMessage("");
     setIsGoogleLoading(true);
 
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    const isMobile =
+      /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
+        navigator.userAgent,
+      );
+
+    if (isMobile) {
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
       const userCredential = await signInWithPopup(auth, provider);
 
       const firebaseUser = userCredential.user;
@@ -462,11 +475,41 @@ export function useLoginForm(): UseLoginFormReturn {
         router.replace(getGoogleSetupTarget());
       }
     } catch (googleError: unknown) {
+      const code = (googleError as { code?: string })?.code;
+      const fallbackCodes = [
+        "auth/popup-closed-by-user",
+        "auth/popup-blocked",
+        "auth/cancelled-popup-request",
+        "auth/operation-not-supported-in-this-environment",
+      ];
+      if (code && fallbackCodes.includes(code)) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       console.error("Google auth failed:", googleError);
       setError("Não foi possível entrar com Google. Tente novamente.");
       setIsGoogleLoading(false);
     }
   };
+
+  React.useEffect(() => {
+    getRedirectResult(auth)
+      .then(async (userCredential) => {
+        if (!userCredential) return;
+        setIsGoogleLoading(true);
+        const firebaseUser = userCredential.user;
+        const additionalInfo = getAdditionalUserInfo(userCredential);
+        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+        const hasTenant = Boolean(userDoc.exists() && userDoc.data()?.tenantId);
+        if (additionalInfo?.isNewUser || !hasTenant) {
+          router.replace(getGoogleSetupTarget());
+        }
+      })
+      .catch((err) => {
+        console.error("getRedirectResult error:", err);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Clear login errors on change
   React.useEffect(() => {

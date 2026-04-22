@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
+import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LiaMessage } from "@/types/ai";
 
@@ -20,6 +21,15 @@ function ErrorBadge({ message }: { message: string }) {
     >
       {message}
     </span>
+  );
+}
+
+function LimitErrorCard({ message }: { message: string }) {
+  return (
+    <div className="mt-2 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+      <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">{message}</p>
+    </div>
   );
 }
 
@@ -50,7 +60,11 @@ export function LiaMessageBubble({ message }: LiaMessageBubbleProps) {
 
         {/* Inline error badge */}
         {message.error && (
-          <ErrorBadge message={message.error} />
+          message.errorType === "limit_reached" || message.errorType === "plan_blocked" ? (
+            <LimitErrorCard message={message.error} />
+          ) : (
+            <ErrorBadge message={message.error} />
+          )
         )}
 
       </div>

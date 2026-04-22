@@ -4,19 +4,49 @@ import { callApi, callPublicApi } from "@/lib/api-client";
 import { ShareLinkResponse } from "@/types/shared-proposal";
 import { Transaction } from "@/services/transaction-service";
 
+interface ShareLinkInfoResponse {
+  exists: boolean;
+  shareUrl?: string;
+  token?: string;
+  expireDays?: number | null;
+  expiresAt?: string | null;
+}
+
 export const SharedTransactionService = {
   /**
    * Gera um link compartilhável para um lançamento financeiro
    */
-  generateShareLink: async (transactionId: string): Promise<ShareLinkResponse> => {
+  generateShareLink: async (
+    transactionId: string,
+    expireDays: number | null,
+  ): Promise<ShareLinkResponse> => {
     try {
       const response = await callApi<ShareLinkResponse>(
         `/v1/transactions/${transactionId}/share-link`,
         "POST",
+        { expireDays },
       );
       return response;
     } catch (error) {
       console.error("Error generating transaction share link:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca informações do link compartilhável existente de um lançamento
+   */
+  getShareLinkInfo: async (
+    transactionId: string,
+  ): Promise<ShareLinkInfoResponse> => {
+    try {
+      const response = await callApi<ShareLinkInfoResponse>(
+        `/v1/transactions/${transactionId}/share-link`,
+        "GET",
+      );
+      return response;
+    } catch (error) {
+      console.error("Error getting transaction share link info:", error);
       throw error;
     }
   },
@@ -34,7 +64,7 @@ export const SharedTransactionService = {
         relatedTransactions: Transaction[];
         tenant: unknown;
       }>(`/v1/share/transaction/${token}`, "GET");
-      
+
       return {
         transaction: response.transaction,
         relatedTransactions: response.relatedTransactions,

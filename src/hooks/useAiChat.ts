@@ -259,10 +259,13 @@ export function useAiChat(): UseAiChatReturn {
 
             onError: (error: Error) => {
               let errorMessage = "Resposta interrompida — tente enviar novamente.";
+              let errorType: LiaMessage["errorType"] = "generic";
               if (error instanceof AiApiError) {
                 if (error.status === 429) {
-                  errorMessage = "Limite de mensagens atingido. Renova no início do mês.";
+                  errorType = "limit_reached";
+                  errorMessage = "Limite de mensagens atingido. Suas mensagens reiniciam no início do mês.";
                 } else if (error.status === 403) {
+                  errorType = "plan_blocked";
                   if (error.code === "AI_FREE_TIER_BLOCKED") {
                     errorMessage = "Plano Free não tem acesso à Lia. Faça upgrade para Starter ou superior.";
                   } else if (error.code === "AI_SUBSCRIPTION_INACTIVE") {
@@ -275,7 +278,7 @@ export function useAiChat(): UseAiChatReturn {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === liaMessageId
-                    ? { ...m, isStreaming: false, error: errorMessage }
+                    ? { ...m, isStreaming: false, error: errorMessage, errorType }
                     : m,
                 ),
               );

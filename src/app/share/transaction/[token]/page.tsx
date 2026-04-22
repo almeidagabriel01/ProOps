@@ -9,6 +9,7 @@ import {
   FileDown,
   ZoomIn,
   ZoomOut,
+  CalendarOff,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,7 +35,7 @@ export default function SharedTransactionPage() {
   >([]);
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [errorType, setErrorType] = React.useState<"expired" | "not_found" | "generic" | null>(null);
   const [previewZoom, setPreviewZoom] = React.useState(1);
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = React.useState(0);
@@ -86,7 +87,7 @@ export default function SharedTransactionPage() {
   React.useEffect(() => {
     const loadSharedTransaction = async () => {
       if (!token) {
-        setError("Token inválido");
+        setErrorType("not_found");
         setIsLoading(false);
         return;
       }
@@ -103,14 +104,15 @@ export default function SharedTransactionPage() {
         const errorAny = err as any;
 
         if (
-          errorAny?.message?.includes("410") ||
-          errorAny?.response?.data?.code === "EXPIRED_LINK"
+          errorAny?.status === 410 ||
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (errorAny?.data as any)?.code === "EXPIRED_LINK"
         ) {
-          setError("Este link expirou. Solicite um novo link ao responsável.");
-        } else if (errorAny?.message?.includes("404")) {
-          setError("Link inválido ou lançamento não encontrado.");
+          setErrorType("expired");
+        } else if (errorAny?.status === 404) {
+          setErrorType("not_found");
         } else {
-          setError("Erro ao carregar lançamento. Tente novamente mais tarde.");
+          setErrorType("generic");
         }
       } finally {
         setIsLoading(false);
@@ -131,15 +133,42 @@ export default function SharedTransactionPage() {
     );
   }
 
-  if (error) {
+  if (errorType === "expired") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-sm w-full text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center">
+              <CalendarOff className="w-10 h-10 text-amber-500 dark:text-amber-400" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Link expirado</h1>
+            <p className="text-muted-foreground leading-relaxed text-sm">
+              Este link de compartilhamento não está mais disponível.
+              Entre em contato com quem te enviou para solicitar um novo acesso.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorType) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6">
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Erro</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertTitle>
+                {errorType === "not_found" ? "Link inválido" : "Algo deu errado"}
+              </AlertTitle>
+              <AlertDescription>
+                {errorType === "not_found"
+                  ? "Link inválido ou lançamento não encontrado."
+                  : "Erro ao carregar lançamento. Tente novamente mais tarde."}
+              </AlertDescription>
             </Alert>
           </CardContent>
         </Card>

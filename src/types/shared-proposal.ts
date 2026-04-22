@@ -19,5 +19,6 @@ export interface ViewerInfo {
 export interface ShareLinkResponse {
   shareUrl: string;
   token: string;
-  expiresAt: string;
+  expireDays?: number | null;
+  expiresAt: string | null;
 }

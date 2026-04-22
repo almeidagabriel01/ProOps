@@ -56,6 +56,7 @@ export interface LiaMessage {
   isStreaming?: boolean;
   isThinking?: boolean;
   error?: string;
+  errorType?: "limit_reached" | "plan_blocked" | "generic";
   toolCalls?: Array<{
     name: string;
     args: Record<string, unknown>;
