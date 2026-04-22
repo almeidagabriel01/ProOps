@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Copy, CheckCheck, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -161,10 +162,13 @@ export function PixQrCodeView({
       </div>
 
       <div className="rounded-xl border bg-white p-3 shadow-sm">
-        <img
+        <Image
           src={`data:image/png;base64,${qrCodeBase64}`}
           alt="QR Code PIX para pagamento"
+          width={192}
+          height={192}
           className="h-48 w-48 object-contain"
+          unoptimized
         />
       </div>
 

@@ -70,13 +70,20 @@ export function aiRateLimiter(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  // Track connection; decrement on close (handles both normal end and client abort)
+  // Track connection; decrement as soon as the response finishes (finish event)
+  // or if the client aborts before the response ends (close event).
+  // Using a flag prevents double-decrement when both events fire.
   tenantSseCount.set(tenantId, currentSse + 1);
-  res.on("close", () => {
+  let decremented = false;
+  const safeDecrement = () => {
+    if (decremented) return;
+    decremented = true;
     const count = tenantSseCount.get(tenantId) ?? 0;
     if (count <= 1) tenantSseCount.delete(tenantId);
     else tenantSseCount.set(tenantId, count - 1);
-  });
+  };
+  res.once("finish", safeDecrement);
+  res.once("close", safeDecrement);
 
   next();
 }
