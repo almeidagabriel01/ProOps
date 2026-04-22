@@ -60,11 +60,12 @@ export const callbackOAuth = async (req: Request, res: Response): Promise<void> 
     let statePayload;
     try {
       statePayload = verifyAndExtractState(state);
-    } catch {
+    } catch (stateErr) {
       logger.warn("State inválido no callback MP — possível CSRF ou encoding corrompido", {
         uid: req.user?.uid,
         stateLength: state.length,
         statePrefix: state.substring(0, 20),
+        error: stateErr instanceof Error ? stateErr.message : String(stateErr),
       });
       res.status(400).json({ message: "INVALID_STATE" });
       return;

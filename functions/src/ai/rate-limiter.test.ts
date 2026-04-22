@@ -20,13 +20,18 @@ function makeReq(uid: string, tenantId: string): Request {
 }
 
 function makeRes() {
-  const state = { statusCode: null as number | null, jsonBody: undefined as unknown, onClose: () => {} };
+  const cbs: Partial<Record<string, () => void>> = {};
+  const state = {
+    statusCode: null as number | null,
+    jsonBody: undefined as unknown,
+    onClose: () => { cbs["close"]?.(); },
+    onFinish: () => { cbs["finish"]?.(); },
+  };
   const res = {
     status: jest.fn((code: number) => { state.statusCode = code; return res; }),
     json: jest.fn((body: unknown) => { state.jsonBody = body; return res; }),
-    on: jest.fn((event: string, cb: () => void) => {
-      if (event === "close") state.onClose = cb;
-    }),
+    on: jest.fn((event: string, cb: () => void) => { cbs[event] = cb; }),
+    once: jest.fn((event: string, cb: () => void) => { cbs[event] = cb; }),
   } as unknown as Response;
   return { res, state };
 }
@@ -88,12 +93,15 @@ describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
 
 // ── SSE concurrency cap ────────────────────────────────────────────────────────
 
-describe("aiRateLimiter — SSE concurrency cap (5 per tenant)", () => {
-  test("allows 5 concurrent SSE connections and blocks the 6th", () => {
+// MAX_SSE_PER_TENANT = 20 — must stay in sync with rate-limiter.ts
+const MAX_SSE = 20;
+
+describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => {
+  test(`allows ${MAX_SSE} concurrent SSE connections and blocks the next`, () => {
     const tenantId = `sse-tenant-${Date.now()}`;
     const closeFns: Array<() => void> = [];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < MAX_SSE; i++) {
       const uid = `sse-uid-${i}-${Date.now()}`;
       const { res, state: rs } = makeRes();
       const { next, state: ns } = makeNext();
@@ -102,14 +110,14 @@ describe("aiRateLimiter — SSE concurrency cap (5 per tenant)", () => {
       closeFns.push(() => rs.onClose());
     }
 
-    const uid6 = `sse-uid-6-${Date.now()}`;
-    const { res: res6, state: rs6 } = makeRes();
-    const { next: next6, state: ns6 } = makeNext();
-    aiRateLimiter(makeReq(uid6, tenantId), res6, next6);
+    const uidOver = `sse-uid-over-${Date.now()}`;
+    const { res: resOver, state: rsOver } = makeRes();
+    const { next: nextOver, state: nsOver } = makeNext();
+    aiRateLimiter(makeReq(uidOver, tenantId), resOver, nextOver);
 
-    expect(ns6.called).toBe(false);
-    expect(rs6.statusCode).toBe(429);
-    expect((rs6.jsonBody as Record<string, string>)?.code).toBe("AI_SSE_LIMIT_EXCEEDED");
+    expect(nsOver.called).toBe(false);
+    expect(rsOver.statusCode).toBe(429);
+    expect((rsOver.jsonBody as Record<string, string>)?.code).toBe("AI_SSE_LIMIT_EXCEEDED");
 
     closeFns.forEach((fn) => fn());
   });
@@ -118,7 +126,7 @@ describe("aiRateLimiter — SSE concurrency cap (5 per tenant)", () => {
     const tenantId = `sse-close-${Date.now()}`;
     const closeFns: Array<() => void> = [];
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < MAX_SSE; i++) {
       const uid = `sc-uid-${i}-${Date.now()}`;
       const { res, state: rs } = makeRes();
       const { next } = makeNext();
@@ -126,13 +134,13 @@ describe("aiRateLimiter — SSE concurrency cap (5 per tenant)", () => {
       closeFns.push(() => rs.onClose());
     }
 
-    closeFns[0](); // close first connection
+    closeFns[0](); // close first connection — SSE count drops to MAX_SSE - 1
 
-    const uid6 = `sc-uid-6-${Date.now()}`;
-    const { res: res6 } = makeRes();
-    const { next: next6, state: ns6 } = makeNext();
-    aiRateLimiter(makeReq(uid6, tenantId), res6, next6);
-    expect(ns6.called).toBe(true);
+    const uidNew = `sc-uid-new-${Date.now()}`;
+    const { res: resNew } = makeRes();
+    const { next: nextNew, state: nsNew } = makeNext();
+    aiRateLimiter(makeReq(uidNew, tenantId), resNew, nextNew);
+    expect(nsNew.called).toBe(true);
 
     closeFns.slice(1).forEach((fn) => fn());
   });

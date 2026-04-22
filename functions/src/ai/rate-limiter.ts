@@ -19,7 +19,9 @@ const userWindows = new Map<string, number[]>();
 const tenantSseCount = new Map<string, number>();
 
 const RATE_LIMIT_RPM = 20; // requests per minute per user
-const MAX_SSE_PER_TENANT = 5; // max concurrent SSE connections per tenant
+// 20 concurrent SSE connections per tenant — enough for parallel E2E tests (multiple
+// spec files each holding 1-2 SSE slots) while still protecting Cloud Run instances.
+const MAX_SSE_PER_TENANT = 20;
 const WINDOW_MS = 60_000;
 
 // Purge stale window entries every minute to prevent unbounded memory growth
@@ -61,8 +63,9 @@ export function aiRateLimiter(req: Request, res: Response, next: NextFunction): 
   const currentSse = tenantSseCount.get(tenantId) ?? 0;
   if (currentSse >= MAX_SSE_PER_TENANT) {
     logger.warn("AI SSE concurrency limit exceeded", { tenantId, activeSse: currentSse });
-    // Undo the RPM count we just added
-    userWindows.set(uid, recent.slice(0, -1));
+    // RPM count is intentionally NOT rolled back: denied requests still count against
+    // the quota. This ensures the RPM limit can be reached even when SSE slots are full
+    // (e.g., rapid sequential requests where async handlers keep slots open momentarily).
     res.status(429).json({
       message: "Muitas conversas simultâneas. Aguarde a conclusão de outra conversa.",
       code: "AI_SSE_LIMIT_EXCEEDED",
