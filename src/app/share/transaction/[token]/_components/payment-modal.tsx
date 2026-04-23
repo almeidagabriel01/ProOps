@@ -67,8 +67,10 @@ export function PaymentModal({
       if (result.method === "pix") {
         setPixData(result);
       }
-    } catch {
-      toast.error("Erro ao gerar QR Code PIX. Tente novamente.");
+    } catch (err) {
+      const d = (err as { data?: { message?: string; mpError?: { message?: string; cause?: Array<{ description?: string }> } } }).data;
+      const detail = d?.mpError?.cause?.[0]?.description ?? d?.mpError?.message ?? d?.message;
+      toast.error("Erro ao gerar QR Code PIX.", { description: detail ?? "Tente novamente." });
     } finally {
       setIsGeneratingPix(false);
     }
@@ -84,8 +86,9 @@ export function PaymentModal({
       if ("initPoint" in result && result.initPoint) {
         window.location.href = result.initPoint;
       }
-    } catch {
-      toast.error("Erro ao iniciar pagamento com cartão. Tente novamente.");
+    } catch (err) {
+      const detail = (err as { data?: { message?: string } }).data?.message;
+      toast.error("Erro ao iniciar pagamento com cartão.", { description: detail ?? "Tente novamente." });
       setIsRedirectingCard(false);
     }
   };
@@ -100,8 +103,9 @@ export function PaymentModal({
       if ("initPoint" in result && result.initPoint) {
         window.location.href = result.initPoint;
       }
-    } catch {
-      toast.error("Erro ao gerar boleto. Tente novamente.");
+    } catch (err) {
+      const detail = (err as { data?: { message?: string } }).data?.message;
+      toast.error("Erro ao gerar boleto.", { description: detail ?? "Tente novamente." });
       setIsRedirectingBoleto(false);
     }
   };

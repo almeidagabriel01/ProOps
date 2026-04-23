@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { TransactionPaymentService } from "../services/transaction-payment.service";
+import { TransactionPaymentService, MercadoPagoApiError } from "../services/transaction-payment.service";
+import { logger } from "../../lib/logger";
 
 export const createPayment = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -27,6 +28,22 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
 
     res.status(200).json(result);
   } catch (error) {
+    if (error instanceof MercadoPagoApiError) {
+      const mpStatusCode =
+        error.mpStatus === 401 || error.mpStatus >= 500 ? 502 : error.mpStatus === 429 ? 429 : 400;
+      const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : "MP_REJECTED";
+      const message =
+        error.mpStatus === 401
+          ? "Integração Mercado Pago precisa ser reconectada"
+          : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
+      res.status(mpStatusCode).json({
+        code,
+        message,
+        mpStatus: error.mpStatus,
+        mpError: { message: error.mpMessage, cause: error.mpCause },
+      });
+      return;
+    }
     const err = error instanceof Error ? error : new Error(String(error));
     if (err.message === "EXPIRED_LINK") {
       res.status(410).json({ message: "Link expirado" });
@@ -52,6 +69,11 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       res.status(403).json({ message: "Este lançamento não pertence ao grupo do link compartilhado" });
       return;
     }
+    if (err.message === "INVALID_AMOUNT") {
+      res.status(400).json({ code: "INVALID_AMOUNT", message: "Valor do lançamento inválido" });
+      return;
+    }
+    logger.error("Unexpected error in createPayment", { errorMessage: err.message });
     res.status(500).json({ message: err.message });
   }
 };

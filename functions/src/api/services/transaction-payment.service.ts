@@ -1,9 +1,21 @@
 import axios from "axios";
+import crypto from "node:crypto";
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { MercadoPagoService } from "./mercadopago.service";
 import { resolveFrontendAppOrigin, resolveMercadoPagoWebhookUrl } from "../../lib/frontend-app-url";
+
+export class MercadoPagoApiError extends Error {
+  constructor(
+    public readonly mpStatus: number,
+    public readonly mpMessage: string,
+    public readonly mpCause: Array<{ code: string; description: string }>,
+  ) {
+    super(`MP_API_ERROR:${mpStatus}`);
+    this.name = "MercadoPagoApiError";
+  }
+}
 
 export type PaymentMethod = "pix" | "credit_card" | "debit_card" | "boleto";
 
@@ -209,9 +221,15 @@ export class TransactionPaymentService {
 
     try {
       if (req.method === "pix") {
+        const rawAmount = Number(txData.amount);
+        if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+          throw new Error("INVALID_AMOUNT");
+        }
+        const roundedAmount = Math.round(rawAmount * 100) / 100;
+
         const payer = await resolvePayerFromTransaction(tenantId, txData);
         const payerPayload: Record<string, unknown> = {
-          email: payer.email || "cliente@pagamento.proops.com.br",
+          email: payer.email || `payment+${attemptId}@proops.com.br`,
         };
         if (payer.firstName) payerPayload.first_name = payer.firstName;
         if (payer.lastName) payerPayload.last_name = payer.lastName;
@@ -235,7 +253,7 @@ export class TransactionPaymentService {
         }>(
           `${MP_API_BASE}/v1/payments`,
           {
-            transaction_amount: txData.amount as number,
+            transaction_amount: roundedAmount,
             payment_method_id: "pix",
             payer: payerPayload,
             description: (txData.description as string) || "Pagamento via ProOps",
@@ -247,6 +265,7 @@ export class TransactionPaymentService {
             headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
+              "X-Idempotency-Key": attemptId,
             },
           },
         );
@@ -282,9 +301,11 @@ export class TransactionPaymentService {
       const payer = await resolvePayerFromTransaction(tenantId, txData);
       const appOrigin = resolveFrontendAppOrigin();
       const fallbackBackUrl = `${appOrigin}/share/transaction/${req.token}`;
-      const successUrl = req.backUrl || `${fallbackBackUrl}?payment_success=1`;
-      const failureUrl = req.backUrl || fallbackBackUrl;
-      const pendingUrl = req.backUrl || fallbackBackUrl;
+      const isLocalhostUrl = req.backUrl && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(req.backUrl);
+      const effectiveBackUrl = isLocalhostUrl ? undefined : req.backUrl;
+      const successUrl = effectiveBackUrl || `${fallbackBackUrl}?payment_success=1`;
+      const failureUrl = effectiveBackUrl || fallbackBackUrl;
+      const pendingUrl = effectiveBackUrl || fallbackBackUrl;
 
       const payerBlock: Record<string, unknown> = {};
       if (payer.email) payerBlock.email = payer.email;
@@ -379,15 +400,29 @@ export class TransactionPaymentService {
         // best-effort
       });
 
-      const mpErrorData = axios.isAxiosError(error) ? error.response?.data : null;
-      const mpStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
-      logger.error("Error creating MP payment", {
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data as Record<string, unknown> | undefined;
+        const mpStatus = error.response?.status ?? 0;
+        const mpMessage = typeof data?.message === "string" ? data.message : error.message;
+        const mpCause = Array.isArray(data?.cause)
+          ? (data.cause as Array<{ code: string; description: string }>)
+          : [];
+        logger.error("Error creating MP payment", {
+          tenantId,
+          transactionId,
+          method: req.method,
+          mpStatus,
+          mpMessage,
+          mpCause,
+        });
+        throw new MercadoPagoApiError(mpStatus, mpMessage, mpCause);
+      }
+
+      logger.error("Error creating MP payment (non-MP error)", {
         tenantId,
         transactionId,
         method: req.method,
         errorMessage: error instanceof Error ? error.message : String(error),
-        mpStatus,
-        mpErrorData,
       });
 
       throw error;
