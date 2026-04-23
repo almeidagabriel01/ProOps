@@ -333,6 +333,7 @@ export class TransactionPaymentService {
           payer: Object.keys(payerBlock).length > 0 ? payerBlock : undefined,
           back_urls: { success: successUrl, failure: failureUrl, pending: pendingUrl },
           auto_return: "approved",
+          binary_mode: true,
           payment_methods: paymentMethodsConfig,
           external_reference: `${transactionId}:${attemptId}`,
           notification_url: resolveMercadoPagoWebhookUrl(),
