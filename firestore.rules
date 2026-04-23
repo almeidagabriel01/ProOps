@@ -370,6 +370,11 @@ service cloud.firestore {
                         && onlyUpdatesFields(['name', 'niche', 'primaryColor', 'logoUrl', 'updatedAt']));
       // DELETE: Only super admin can delete tenants
       allow delete: if isSuperAdmin();
+
+      // MP OAuth one-time codes — written only by Admin SDK (backend)
+      match /mpOAuthCodes/{codeHash} {
+        allow read, write: if false;
+      }
     }
 
     // PURCHASED ADDONS

@@ -7,6 +7,7 @@ import { logger } from "../../lib/logger";
 function mapMercadoPagoErrorStatus(error: Error): number {
   if (error.message === "INVALID_STATE") return 400;
   if (error.message === "TENANT_NOT_FOUND") return 404;
+  if (error.message === "CONCURRENT_CALLBACK_IN_PROGRESS") return 409;
   if (
     error.message === "FORBIDDEN_TENANT_MISMATCH" ||
     error.message.startsWith("FORBIDDEN_") ||
@@ -79,9 +80,9 @@ export const callbackOAuth = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    await MercadoPagoService.connectTenant(tenantId, code);
+    const result = await MercadoPagoService.connectTenant(tenantId, code);
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, alreadyConnected: result.alreadyConnected });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,5 +1,6 @@
+import crypto from "crypto";
 import { db } from "../../init";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import {
   exchangeCodeForTokens,
@@ -44,13 +45,79 @@ export class MercadoPagoService {
    * Conecta um tenant ao Mercado Pago via OAuth.
    * Salva os tokens em tenants/{tenantId}.mercadoPago e ativa mercadoPagoEnabled.
    */
-  static async connectTenant(tenantId: string, code: string): Promise<void> {
-    const tokens = await exchangeCodeForTokens(code);
+  static async connectTenant(
+    tenantId: string,
+    code: string,
+  ): Promise<{ alreadyConnected: boolean }> {
+    const codeHash = crypto.createHash("sha256").update(code).digest("hex");
+    const lockRef = db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("mpOAuthCodes")
+      .doc(codeHash);
+
+    let isAlreadyConnected = false;
+
+    // Atomic lock: prevents the same one-time code from reaching MP twice.
+    // pending  → another request is mid-flight (409)
+    // completed → idempotent success (return early)
+    // failed   → previous attempt failed, allow retry
+    // absent   → first attempt, create lock
+    await db.runTransaction(async (txn) => {
+      const lockSnap = await txn.get(lockRef);
+      if (lockSnap.exists) {
+        const lockData = lockSnap.data()!;
+        if (lockData.status === "completed") {
+          isAlreadyConnected = true;
+          return;
+        }
+        if (lockData.status === "pending") {
+          throw new Error("CONCURRENT_CALLBACK_IN_PROGRESS");
+        }
+        // status === "failed" — reset for retry
+        txn.update(lockRef, {
+          status: "pending",
+          createdAt: Timestamp.now(),
+          expireAt: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000),
+          completedAt: FieldValue.delete(),
+          failureReason: FieldValue.delete(),
+        });
+        return;
+      }
+      txn.create(lockRef, {
+        tenantId,
+        status: "pending",
+        createdAt: Timestamp.now(),
+        expireAt: Timestamp.fromMillis(Date.now() + 10 * 60 * 1000),
+      });
+    });
+
+    if (isAlreadyConnected) {
+      logger.info("MercadoPago: código já processado, retornando sucesso idempotente", {
+        tenantId,
+      });
+      return { alreadyConnected: true };
+    }
+
+    let tokens;
+    try {
+      tokens = await exchangeCodeForTokens(code);
+    } catch (err) {
+      await lockRef
+        .update({
+          status: "failed",
+          failureReason: err instanceof Error ? err.message : String(err),
+        })
+        .catch(() => {});
+      throw err;
+    }
 
     const tenantRef = db.collection("tenants").doc(tenantId);
     const tenantSnap = await tenantRef.get();
-
     if (!tenantSnap.exists) {
+      await lockRef
+        .update({ status: "failed", failureReason: "TENANT_NOT_FOUND" })
+        .catch(() => {});
       throw new Error("TENANT_NOT_FOUND");
     }
 
@@ -71,10 +138,16 @@ export class MercadoPagoService {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    await lockRef
+      .update({ status: "completed", completedAt: Timestamp.now() })
+      .catch(() => {});
+
     logger.info("MercadoPago conectado ao tenant", {
       tenantId,
       userId: tokens.userId,
     });
+
+    return { alreadyConnected: false };
   }
 
   /**
