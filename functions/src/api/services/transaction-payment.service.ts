@@ -3,6 +3,7 @@ import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { MercadoPagoService } from "./mercadopago.service";
+import { resolveFrontendAppOrigin, resolveMercadoPagoWebhookUrl } from "../../lib/frontend-app-url";
 
 export type PaymentMethod = "pix" | "credit_card" | "debit_card" | "boleto";
 
@@ -99,6 +100,39 @@ async function resolveSharedLink(token: string): Promise<{
   };
 }
 
+async function resolvePayerFromTransaction(
+  tenantId: string,
+  txData: Record<string, unknown>,
+): Promise<{
+  email: string | null;
+  identificationType: "CPF" | "CNPJ" | null;
+  identificationNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
+}> {
+  const empty = { email: null, identificationType: null, identificationNumber: null, firstName: null, lastName: null };
+  const clientId = txData.clientId as string | undefined;
+  if (!clientId) return empty;
+
+  const contactSnap = await db.collection("clients").doc(clientId).get();
+  if (!contactSnap.exists) return empty;
+
+  const contact = contactSnap.data() as Record<string, unknown>;
+  if (contact.tenantId !== tenantId) return empty;
+
+  const email = typeof contact.email === "string" && contact.email.includes("@") ? contact.email : null;
+  const docRaw = typeof contact.document === "string" ? contact.document.replace(/\D/g, "") : "";
+  const identificationType: "CPF" | "CNPJ" | null = docRaw.length === 11 ? "CPF" : docRaw.length === 14 ? "CNPJ" : null;
+  const identificationNumber = identificationType ? docRaw : null;
+
+  const fullName = typeof contact.name === "string" ? contact.name.trim() : "";
+  const parts = fullName.split(/\s+/);
+  const firstName = parts[0] || null;
+  const lastName = parts.length > 1 ? parts.slice(1).join(" ") : null;
+
+  return { email, identificationType, identificationNumber, firstName, lastName };
+}
+
 export class TransactionPaymentService {
   static async createPayment(req: CreatePaymentRequest): Promise<PaymentResult> {
     const sharedLink = await resolveSharedLink(req.token);
@@ -106,13 +140,36 @@ export class TransactionPaymentService {
     let transactionId = sharedLink.transactionId;
 
     if (req.transactionId && req.transactionId !== sharedLink.transactionId) {
-      const candidateSnap = await db.collection("transactions").doc(req.transactionId).get();
-      if (!candidateSnap.exists) {
+      const [originSnap, candidateSnap] = await Promise.all([
+        db.collection("transactions").doc(sharedLink.transactionId).get(),
+        db.collection("transactions").doc(req.transactionId).get(),
+      ]);
+      if (!originSnap.exists || !candidateSnap.exists) {
         throw new Error("TRANSACTION_NOT_FOUND");
       }
+      const originData = originSnap.data() as Record<string, unknown>;
       const candidateData = candidateSnap.data() as Record<string, unknown>;
       if (candidateData.tenantId !== tenantId) {
         throw new Error("FORBIDDEN_TENANT_MISMATCH");
+      }
+
+      const sameInstallmentGroup =
+        originData.installmentGroupId &&
+        originData.installmentGroupId === candidateData.installmentGroupId;
+      const sameProposalGroup =
+        originData.proposalGroupId &&
+        originData.proposalGroupId === candidateData.proposalGroupId;
+      const sameProposalId =
+        originData.proposalId &&
+        originData.proposalId === candidateData.proposalId;
+
+      if (!sameInstallmentGroup && !sameProposalGroup && !sameProposalId) {
+        logger.warn("Cross-transaction payment rejected: not in same group", {
+          tenantId,
+          originTxId: sharedLink.transactionId,
+          candidateTxId: req.transactionId,
+        });
+        throw new Error("FORBIDDEN_CROSS_GROUP");
       }
       transactionId = req.transactionId;
     }
@@ -152,6 +209,19 @@ export class TransactionPaymentService {
 
     try {
       if (req.method === "pix") {
+        const payer = await resolvePayerFromTransaction(tenantId, txData);
+        const payerPayload: Record<string, unknown> = {
+          email: payer.email || "cliente@pagamento.proops.com.br",
+        };
+        if (payer.firstName) payerPayload.first_name = payer.firstName;
+        if (payer.lastName) payerPayload.last_name = payer.lastName;
+        if (payer.identificationType && payer.identificationNumber) {
+          payerPayload.identification = {
+            type: payer.identificationType,
+            number: payer.identificationNumber,
+          };
+        }
+
         const pixResponse = await axios.post<{
           id: number;
           point_of_interaction: {
@@ -167,9 +237,11 @@ export class TransactionPaymentService {
           {
             transaction_amount: txData.amount as number,
             payment_method_id: "pix",
-            payer: { email: "cliente@pagamento.proops.com.br" },
+            payer: payerPayload,
             description: (txData.description as string) || "Pagamento via ProOps",
             installments: 1,
+            external_reference: `${transactionId}:${attemptId}`,
+            notification_url: resolveMercadoPagoWebhookUrl(),
           },
           {
             headers: {
@@ -207,27 +279,64 @@ export class TransactionPaymentService {
       }
 
       // credit_card | debit_card | boleto → Checkout Pro preference
+      const payer = await resolvePayerFromTransaction(tenantId, txData);
+      const appOrigin = resolveFrontendAppOrigin();
+      const fallbackBackUrl = `${appOrigin}/share/transaction/${req.token}`;
+      const successUrl = req.backUrl || `${fallbackBackUrl}?payment_success=1`;
+      const failureUrl = req.backUrl || fallbackBackUrl;
+      const pendingUrl = req.backUrl || fallbackBackUrl;
+
+      const payerBlock: Record<string, unknown> = {};
+      if (payer.email) payerBlock.email = payer.email;
+      if (payer.firstName) payerBlock.name = payer.firstName;
+      if (payer.lastName) payerBlock.surname = payer.lastName;
+      if (payer.identificationType && payer.identificationNumber) {
+        payerBlock.identification = {
+          type: payer.identificationType,
+          number: payer.identificationNumber,
+        };
+      }
+
+      const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+      const tenantName = (tenantSnap.data()?.name as string) || "ProOps";
+      const statementDescriptor = tenantName.slice(0, 22);
+
+      const paymentMethodsConfig: Record<string, unknown> = {
+        installments: req.method === "boleto" ? 1 : (req.installments || 12),
+      };
+      if (req.method === "boleto") {
+        paymentMethodsConfig.excluded_payment_types = [
+          { id: "credit_card" }, { id: "debit_card" },
+        ];
+      } else if (req.method === "credit_card") {
+        paymentMethodsConfig.excluded_payment_types = [
+          { id: "ticket" }, { id: "bank_transfer" },
+        ];
+      }
+
       const preferenceResponse = await axios.post<{
         id: string;
         init_point: string;
+        sandbox_init_point: string;
       }>(
         `${MP_API_BASE}/checkout/preferences`,
         {
           items: [
             {
+              id: transactionId,
               title: (txData.description as string) || "Pagamento",
               quantity: 1,
               unit_price: txData.amount as number,
               currency_id: "BRL",
             },
           ],
-          back_urls: {
-            success: req.backUrl || "",
-            failure: req.backUrl || "",
-            pending: req.backUrl || "",
-          },
+          payer: Object.keys(payerBlock).length > 0 ? payerBlock : undefined,
+          back_urls: { success: successUrl, failure: failureUrl, pending: pendingUrl },
           auto_return: "approved",
-          installments: req.method === "boleto" ? 1 : (req.installments || 1),
+          payment_methods: paymentMethodsConfig,
+          external_reference: `${transactionId}:${attemptId}`,
+          notification_url: resolveMercadoPagoWebhookUrl(),
+          statement_descriptor: statementDescriptor,
         },
         {
           headers: {
@@ -270,11 +379,15 @@ export class TransactionPaymentService {
         // best-effort
       });
 
+      const mpErrorData = axios.isAxiosError(error) ? error.response?.data : null;
+      const mpStatus = axios.isAxiosError(error) ? error.response?.status : undefined;
       logger.error("Error creating MP payment", {
         tenantId,
         transactionId,
         method: req.method,
-        error: error instanceof Error ? error.message : String(error),
+        errorMessage: error instanceof Error ? error.message : String(error),
+        mpStatus,
+        mpErrorData,
       });
 
       throw error;

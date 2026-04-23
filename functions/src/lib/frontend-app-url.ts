@@ -70,3 +70,8 @@ export function resolveFrontendAppOrigin(): string {
 export function resolveFrontendAppUrl(): string {
   return `${resolveFrontendAppOrigin()}/`;
 }
+
+export function resolveMercadoPagoWebhookUrl(): string {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || "erp-softcode";
+  return `https://southamerica-east1-${projectId}.cloudfunctions.net/mercadopagoWebhook`;
+}

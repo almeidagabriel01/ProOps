@@ -1,4 +1,5 @@
 import React from "react";
+import { CreditCard } from "lucide-react";
 import { Transaction } from "@/services/transaction-service";
 import { Tenant } from "@/types";
 import { formatCurrency } from "@/utils/format";
@@ -10,12 +11,14 @@ export interface TransactionPdfViewerProps {
   transaction: Transaction;
   relatedTransactions?: Transaction[];
   tenant: Tenant | null;
+  onPayInstallment?: (tx: Transaction) => void;
 }
 
 export function TransactionPdfViewer({
   transaction,
   relatedTransactions = [],
   tenant,
+  onPayInstallment = undefined,
 }: TransactionPdfViewerProps) {
   // Use tenant color or default to a reliable blue
   const primaryColor = tenant?.primaryColor || "#3b82f6";
@@ -121,6 +124,7 @@ export function TransactionPdfViewer({
 
   const renderTableRow = (item: PdfTableItem, idx: number) => {
     if (item.type === "single") {
+      const isPayable = item.data.status === "pending" || item.data.status === "overdue";
       return (
         <tr
           key="single"
@@ -137,10 +141,27 @@ export function TransactionPdfViewer({
           <td className="py-3 px-4 text-right font-medium">
             {formatCurrency(item.data.amount)}
           </td>
+          {onPayInstallment && (
+            <td data-pdf-ui="true" className="py-3 px-4">
+              {isPayable ? (
+                <button
+                  type="button"
+                  onClick={() => onPayInstallment(item.data)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
+                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  aria-label={`Pagar ${formatCurrency(item.data.amount)}`}
+                >
+                  <CreditCard className="w-3 h-3" aria-hidden="true" />
+                  Pagar
+                </button>
+              ) : null}
+            </td>
+          )}
         </tr>
       );
     }
     if (item.type === "downpayment") {
+      const isPayable = item.data.status === "pending" || item.data.status === "overdue";
       return (
         <tr
           key="downpayment"
@@ -162,11 +183,28 @@ export function TransactionPdfViewer({
           >
             {formatCurrency(item.data.amount)}
           </td>
+          {onPayInstallment && (
+            <td data-pdf-ui="true" className="py-3 px-4">
+              {isPayable ? (
+                <button
+                  type="button"
+                  onClick={() => onPayInstallment(item.data)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
+                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  aria-label={`Pagar ${formatCurrency(item.data.amount)}`}
+                >
+                  <CreditCard className="w-3 h-3" aria-hidden="true" />
+                  Pagar
+                </button>
+              ) : null}
+            </td>
+          )}
         </tr>
       );
     }
     if (item.type === "installment") {
       const inst = item.data;
+      const isPayable = inst.status === "pending" || inst.status === "overdue";
       return (
         <tr
           key={inst.id}
@@ -184,11 +222,28 @@ export function TransactionPdfViewer({
           <td className="py-3 px-4 text-right font-medium">
             {formatCurrency(inst.amount)}
           </td>
+          {onPayInstallment && (
+            <td data-pdf-ui="true" className="py-3 px-4">
+              {isPayable ? (
+                <button
+                  type="button"
+                  onClick={() => onPayInstallment(inst)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
+                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  aria-label={`Pagar ${formatCurrency(inst.amount)}`}
+                >
+                  <CreditCard className="w-3 h-3" aria-hidden="true" />
+                  Pagar
+                </button>
+              ) : null}
+            </td>
+          )}
         </tr>
       );
     }
     if (item.type === "extracost") {
       const ec = item.data;
+      const isPayable = ec.status === "pending" || ec.status === "overdue";
       return (
         <tr
           key={ec.id || `ec-${idx}`}
@@ -208,6 +263,22 @@ export function TransactionPdfViewer({
           >
             {formatCurrency(ec.amount)}
           </td>
+          {onPayInstallment && (
+            <td data-pdf-ui="true" className="py-3 px-4">
+              {isPayable && ec.id ? (
+                <button
+                  type="button"
+                  onClick={() => onPayInstallment(ec)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
+                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  aria-label={`Pagar ${formatCurrency(ec.amount)}`}
+                >
+                  <CreditCard className="w-3 h-3" aria-hidden="true" />
+                  Pagar
+                </button>
+              ) : null}
+            </td>
+          )}
         </tr>
       );
     }
@@ -354,6 +425,11 @@ export function TransactionPdfViewer({
                 >
                   Valor
                 </th>
+                {onPayInstallment && (
+                  <th className="py-3 px-4 font-semibold" style={{ color: "#374151" }} data-pdf-ui="true">
+                    Ação
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -415,6 +491,11 @@ export function TransactionPdfViewer({
                   >
                     Valor
                   </th>
+                  {onPayInstallment && (
+                    <th className="py-3 px-4 font-semibold" style={{ color: "#374151" }} data-pdf-ui="true">
+                      Ação
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>

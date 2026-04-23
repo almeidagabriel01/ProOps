@@ -10,7 +10,6 @@ import {
   ZoomIn,
   ZoomOut,
   CalendarOff,
-  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,14 +42,12 @@ export default function SharedTransactionPage() {
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = React.useState(0);
   const [isGenerating, setIsGenerating] = React.useState(false);
-  const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+  const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
 
-  const payableTransaction = React.useMemo(() => {
-    if (!transaction) return null;
-    return [transaction, ...relatedTransactions].find(
-      (t) => t.status === "pending" || t.status === "overdue",
-    ) ?? null;
-  }, [transaction, relatedTransactions]);
+  const canPay = Boolean(tenant?.mercadoPagoEnabled);
+  const handlePayInstallment = React.useCallback((tx: Transaction) => {
+    setSelectedTransaction(tx);
+  }, []);
 
   const handleDownloadPdf = React.useCallback(async () => {
     if (!token) return;
@@ -363,52 +360,29 @@ export default function SharedTransactionPage() {
               transaction={transaction}
               relatedTransactions={relatedTransactions}
               tenant={tenant}
+              onPayInstallment={canPay ? handlePayInstallment : undefined}
             />
           </div>
         </div>
       </main>
 
-      {tenant?.mercadoPagoEnabled && payableTransaction && (
-        <>
-          <button
-            data-pdf-ui="true"
-            type="button"
-            onClick={() => setPaymentModalOpen(true)}
-            aria-label={`Pagar parcela pendente de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(payableTransaction.amount || 0)}`}
-            className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-bold shadow-lg transition-all cursor-pointer hover:brightness-110 hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-            style={{
-              backgroundColor: tenant.primaryColor || "hsl(var(--primary))",
-              color: "#ffffff",
-              paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
-            }}
-          >
-            <CreditCard className="w-4 h-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Pagar</span>
-            <span>
-              {new Intl.NumberFormat("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              }).format(payableTransaction.amount || 0)}
-            </span>
-          </button>
-
-          <PaymentModal
-            open={paymentModalOpen}
-            onOpenChange={setPaymentModalOpen}
-            token={token}
-            transaction={{
-              id: payableTransaction.id!,
-              amount: payableTransaction.amount || 0,
-              description: payableTransaction.description,
-              status: payableTransaction.status || "pending",
-            }}
-            primaryColor={tenant?.primaryColor}
-            onPaymentSuccess={() => {
-              setPaymentModalOpen(false);
-              window.location.reload();
-            }}
-          />
-        </>
+      {canPay && selectedTransaction && (
+        <PaymentModal
+          open={Boolean(selectedTransaction)}
+          onOpenChange={(next) => { if (!next) setSelectedTransaction(null); }}
+          token={token}
+          transaction={{
+            id: selectedTransaction.id!,
+            amount: selectedTransaction.amount || 0,
+            description: selectedTransaction.description,
+            status: selectedTransaction.status || "pending",
+          }}
+          primaryColor={tenant?.primaryColor}
+          onPaymentSuccess={() => {
+            setSelectedTransaction(null);
+            window.location.reload();
+          }}
+        />
       )}
     </div>
   );

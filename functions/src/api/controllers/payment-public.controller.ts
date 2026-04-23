@@ -48,6 +48,10 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       res.status(403).json({ message: "Acesso não autorizado" });
       return;
     }
+    if (err.message === "FORBIDDEN_CROSS_GROUP") {
+      res.status(403).json({ message: "Este lançamento não pertence ao grupo do link compartilhado" });
+      return;
+    }
     res.status(500).json({ message: err.message });
   }
 };
