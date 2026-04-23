@@ -55,17 +55,19 @@ export function LiaInputBar({
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, []);
 
+  const isBlocked = disabled || !value.trim();
+
   const sendButton = (
     <Button
       type="button"
       onClick={handleSend}
-      disabled={disabled || !value.trim()}
+      aria-disabled={isBlocked}
       aria-label="Enviar mensagem"
       className={cn(
         "w-11 h-11 shrink-0 rounded-xl",
         "bg-primary text-primary-foreground",
         "hover:bg-primary/90",
-        "disabled:opacity-50",
+        "aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-primary",
       )}
       size="icon"
     >

@@ -178,14 +178,13 @@ uiTest.describe("AI-08: At-limit disabled input with reset date", () => {
       const lia = new LiaPage(page);
       await lia.openPanel();
 
-      // Aguarda o botão aparecer e estabilizar sem depender de networkidle
+      // Aguarda o estado at-limit propagar no client (textarea fica disabled de verdade)
+      await expect(lia.messageInput).toBeDisabled({ timeout: 10000 });
+
+      // Botão usa aria-disabled (não disabled HTML), então hover funciona normalmente
       const sendButton = page.getByRole("button", { name: "Enviar mensagem" });
-      await sendButton.waitFor({ state: "attached", timeout: 10000 });
+      await sendButton.hover();
 
-      // Focus triggers Radix Tooltip deterministically (hover+force skips pointer events)
-      await sendButton.focus();
-
-      // Tooltip deve aparecer
       const tooltip = page.getByRole("tooltip");
       await expect(tooltip).toBeVisible({ timeout: 5000 });
       await expect(tooltip).toContainText("Renova em");
