@@ -11,6 +11,7 @@ export interface CreatePaymentRequest {
   method: PaymentMethod;
   installments?: number;
   backUrl?: string;
+  transactionId?: string;
 }
 
 export interface PixPaymentResult {
@@ -101,7 +102,20 @@ async function resolveSharedLink(token: string): Promise<{
 export class TransactionPaymentService {
   static async createPayment(req: CreatePaymentRequest): Promise<PaymentResult> {
     const sharedLink = await resolveSharedLink(req.token);
-    const { transactionId, tenantId } = sharedLink;
+    const { tenantId } = sharedLink;
+    let transactionId = sharedLink.transactionId;
+
+    if (req.transactionId && req.transactionId !== sharedLink.transactionId) {
+      const candidateSnap = await db.collection("transactions").doc(req.transactionId).get();
+      if (!candidateSnap.exists) {
+        throw new Error("TRANSACTION_NOT_FOUND");
+      }
+      const candidateData = candidateSnap.data() as Record<string, unknown>;
+      if (candidateData.tenantId !== tenantId) {
+        throw new Error("FORBIDDEN_TENANT_MISMATCH");
+      }
+      transactionId = req.transactionId;
+    }
 
     const transactionRef = db.collection("transactions").doc(transactionId);
     const transactionSnap = await transactionRef.get();

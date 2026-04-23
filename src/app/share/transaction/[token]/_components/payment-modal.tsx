@@ -63,7 +63,7 @@ export function PaymentModal({
   const handleGeneratePix = async () => {
     try {
       setIsGeneratingPix(true);
-      const result = await PublicPaymentService.createPayment(token, "pix");
+      const result = await PublicPaymentService.createPayment(token, "pix", { transactionId: transaction.id });
       if (result.method === "pix") {
         setPixData(result);
       }
@@ -79,6 +79,7 @@ export function PaymentModal({
       setIsRedirectingCard(true);
       const result = await PublicPaymentService.createPayment(token, "credit_card", {
         backUrl: `${window.location.href}?payment_success=1`,
+        transactionId: transaction.id,
       });
       if ("initPoint" in result && result.initPoint) {
         window.location.href = result.initPoint;
@@ -94,6 +95,7 @@ export function PaymentModal({
       setIsRedirectingBoleto(true);
       const result = await PublicPaymentService.createPayment(token, "boleto", {
         backUrl: `${window.location.href}?payment_success=1`,
+        transactionId: transaction.id,
       });
       if ("initPoint" in result && result.initPoint) {
         window.location.href = result.initPoint;

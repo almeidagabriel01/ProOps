@@ -52,7 +52,7 @@ export const PublicPaymentService = {
   createPayment: (
     token: string,
     method: PaymentMethod,
-    options?: { installments?: number; backUrl?: string },
+    options?: { installments?: number; backUrl?: string; transactionId?: string },
   ): Promise<PaymentResult> =>
     callPublicApi<PaymentResult>(`/v1/share/transaction/${token}/payment`, "POST", {
       method,

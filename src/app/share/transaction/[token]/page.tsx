@@ -45,6 +45,13 @@ export default function SharedTransactionPage() {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
 
+  const payableTransaction = React.useMemo(() => {
+    if (!transaction) return null;
+    return [transaction, ...relatedTransactions].find(
+      (t) => t.status === "pending" || t.status === "overdue",
+    ) ?? null;
+  }, [transaction, relatedTransactions]);
+
   const handleDownloadPdf = React.useCallback(async () => {
     if (!token) return;
     setIsGenerating(true);
@@ -360,7 +367,7 @@ export default function SharedTransactionPage() {
       </main>
 
       {(tenant as Tenant & { mercadoPagoEnabled?: boolean })?.mercadoPagoEnabled &&
-        (transaction.status === "pending" || transaction.status === "overdue") && (
+        payableTransaction && (
           <div className="container mx-auto px-4 py-4 flex justify-center">
             <button
               type="button"
@@ -376,29 +383,30 @@ export default function SharedTransactionPage() {
               {new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL",
-              }).format(transaction.amount || 0)}
+              }).format(payableTransaction.amount || 0)}
             </button>
           </div>
         )}
 
-      {(tenant as Tenant & { mercadoPagoEnabled?: boolean })?.mercadoPagoEnabled && (
-        <PaymentModal
-          open={paymentModalOpen}
-          onOpenChange={setPaymentModalOpen}
-          token={token}
-          transaction={{
-            id: transaction.id!,
-            amount: transaction.amount || 0,
-            description: transaction.description,
-            status: transaction.status || "pending",
-          }}
-          primaryColor={tenant?.primaryColor}
-          onPaymentSuccess={() => {
-            setPaymentModalOpen(false);
-            window.location.reload();
-          }}
-        />
-      )}
+      {(tenant as Tenant & { mercadoPagoEnabled?: boolean })?.mercadoPagoEnabled &&
+        payableTransaction && (
+          <PaymentModal
+            open={paymentModalOpen}
+            onOpenChange={setPaymentModalOpen}
+            token={token}
+            transaction={{
+              id: payableTransaction.id!,
+              amount: payableTransaction.amount || 0,
+              description: payableTransaction.description,
+              status: payableTransaction.status || "pending",
+            }}
+            primaryColor={tenant?.primaryColor}
+            onPaymentSuccess={() => {
+              setPaymentModalOpen(false);
+              window.location.reload();
+            }}
+          />
+        )}
     </div>
   );
 }

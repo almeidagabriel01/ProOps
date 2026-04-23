@@ -4,10 +4,11 @@ import { TransactionPaymentService } from "../services/transaction-payment.servi
 export const createPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { token } = req.params;
-    const { method, installments, backUrl } = req.body as {
+    const { method, installments, backUrl, transactionId } = req.body as {
       method?: unknown;
       installments?: unknown;
       backUrl?: unknown;
+      transactionId?: unknown;
     };
 
     const validMethods = ["pix", "credit_card", "debit_card", "boleto"];
@@ -21,6 +22,7 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       method: method as "pix" | "credit_card" | "debit_card" | "boleto",
       installments: typeof installments === "number" ? installments : undefined,
       backUrl: typeof backUrl === "string" ? backUrl : undefined,
+      transactionId: typeof transactionId === "string" ? transactionId : undefined,
     });
 
     res.status(200).json(result);
@@ -36,6 +38,14 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
     }
     if (err.message === "ALREADY_PAID") {
       res.status(409).json({ message: "Este lançamento já foi pago" });
+      return;
+    }
+    if (err.message === "TRANSACTION_NOT_FOUND") {
+      res.status(404).json({ message: "Lançamento não encontrado" });
+      return;
+    }
+    if (err.message === "FORBIDDEN_TENANT_MISMATCH") {
+      res.status(403).json({ message: "Acesso não autorizado" });
       return;
     }
     res.status(500).json({ message: err.message });
