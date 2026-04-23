@@ -35,10 +35,6 @@ function isTokenExpiringSoon(expiresAt: string): boolean {
   return Date.now() >= expiresAtMs - REFRESH_AHEAD_SECONDS * 1000;
 }
 
-function inferLiveMode(accessToken: string): boolean {
-  // Tokens de produção do MP contém "APP_USR" ou não têm prefixo "TEST"
-  return !accessToken.startsWith("TEST-");
-}
 
 export class MercadoPagoService {
   /**
@@ -121,7 +117,7 @@ export class MercadoPagoService {
       expiresAt: tokens.expiresAt,
       scope: tokens.scope,
       connectedAt: new Date().toISOString(),
-      liveMode: inferLiveMode(tokens.accessToken),
+      liveMode: tokens.liveMode,
     };
 
     try {
@@ -224,7 +220,7 @@ export class MercadoPagoService {
           refreshToken: refreshed.refreshToken,
           publicKey: refreshed.publicKey,
           expiresAt: refreshed.expiresAt,
-          liveMode: inferLiveMode(refreshed.accessToken),
+          liveMode: refreshed.liveMode,
         };
 
         await tenantRef.update({

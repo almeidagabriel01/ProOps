@@ -9,6 +9,7 @@ export interface MercadoPagoTokens {
   userId: string;
   scope: string;
   expiresAt: string; // ISO — quando o access_token expira
+  liveMode: boolean; // false = conta de teste, true = conta de produção
 }
 
 interface MercadoPagoOAuthResponse {
@@ -18,6 +19,7 @@ interface MercadoPagoOAuthResponse {
   user_id: number;
   scope: string;
   expires_in: number; // segundos até expirar
+  live_mode: boolean; // authoritative: false for test accounts, true for production
 }
 
 interface OAuthStatePayload {
@@ -49,6 +51,7 @@ function parseTokenResponse(data: MercadoPagoOAuthResponse): MercadoPagoTokens {
     userId: String(data.user_id),
     scope: data.scope,
     expiresAt: buildExpiresAt(data.expires_in),
+    liveMode: data.live_mode,
   };
 }
 
