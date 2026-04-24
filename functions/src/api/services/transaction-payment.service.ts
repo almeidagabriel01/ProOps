@@ -339,6 +339,7 @@ export class TransactionPaymentService {
         id: string;
         init_point: string;
         sandbox_init_point: string;
+        live_mode: boolean;
       }>(
         `${MP_API_BASE}/checkout/preferences`,
         {
@@ -368,6 +369,20 @@ export class TransactionPaymentService {
       );
 
       const preferenceId = preferenceResponse.data.id;
+      const preferenceIsLive = preferenceResponse.data.live_mode;
+      const resolvedEnvironment = preferenceIsLive ? "production" : "sandbox";
+
+      // Correct stored environment if MP's preference live_mode disagrees (happens with OAuth test users)
+      if (resolvedEnvironment !== environment) {
+        logger.warn("MP preference live_mode disagrees with stored environment — correcting", {
+          tenantId, stored: environment, fromPreference: resolvedEnvironment,
+        });
+        await db.collection("tenants").doc(tenantId).update({
+          "mercadoPago.environment": resolvedEnvironment,
+          "mercadoPago.liveMode": preferenceIsLive,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
 
       await attemptRef.update({
         mpPaymentId: preferenceId,
