@@ -165,14 +165,15 @@ export function PaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Pagar {formatCurrency(transaction.amount)}</DialogTitle>
           {transaction.description && (
             <DialogDescription>{transaction.description}</DialogDescription>
           )}
         </DialogHeader>
 
+        <div className="overflow-y-auto min-h-0 flex-1">
         <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); if (val === "card") handleCardTabSelect(); }}>
           <TabsList className="w-full">
             <TabsTrigger value="pix" className="flex-1">
@@ -256,28 +257,51 @@ export function PaymentModal({
                   <Alert className="mb-3">
                     <Info className="h-4 w-4" />
                     <AlertTitle>Ambiente de teste ativo</AlertTitle>
-                    <AlertDescription>
-                      Use o e-mail do comprador de teste (disponível no painel Mercado Pago → Contas de teste → clicar
-                      no comprador). Cartão de teste: <code className="font-mono text-xs">5031 4332 1540 6351</code>{" "}
-                      (MASTER, qualquer vencimento, CVV <code className="font-mono text-xs">123</code>).
+                    <AlertDescription className="space-y-1 text-xs">
+                      {mpConfig.sellerTestEmail && (
+                        <p>
+                          E-mail do vendedor:{" "}
+                          <code className="bg-muted px-1 rounded">{mpConfig.sellerTestEmail}</code>{" "}
+                          — <strong>não use este e-mail</strong>.
+                        </p>
+                      )}
+                      <p>
+                        Use o e-mail de um comprador de teste diferente. Formato:{" "}
+                        <code className="bg-muted px-1 rounded">
+                          test_user_&lt;número_do_nickname&gt;@testuser.com
+                        </code>
+                        . O nickname completo fica visível ao entrar na conta do comprador em mercadopago.com.br.
+                      </p>
+                      <p>
+                        Cartão de teste:{" "}
+                        <code className="bg-muted px-1 rounded">5031 4332 1540 6351</code>{" "}
+                        (MASTER, qualquer vencimento, CVV{" "}
+                        <code className="bg-muted px-1 rounded">123</code>).
+                      </p>
                     </AlertDescription>
                   </Alert>
                 )}
-                <CardPaymentBrick
-                  publicKey={mpConfig.publicKey}
-                  amount={transaction.amount}
-                  onSubmit={handleCardSubmit}
-                  onError={(e) => {
-                    setCardError("Erro no formulário de pagamento.");
-                    setCardStep("idle");
-                    console.error("CardPaymentBrick error", e);
-                  }}
-                />
-                {cardStep === "processing" && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Processando pagamento — não feche esta janela.
-                  </p>
-                )}
+                <div className="relative">
+                  <CardPaymentBrick
+                    publicKey={mpConfig.publicKey}
+                    amount={transaction.amount}
+                    onSubmit={handleCardSubmit}
+                    onError={(e) => {
+                      setCardError("Erro no formulário de pagamento.");
+                      setCardStep("idle");
+                      console.error("CardPaymentBrick error", e);
+                    }}
+                  />
+                  {cardStep === "processing" && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg bg-background/90 backdrop-blur-[1px]">
+                      <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" aria-hidden="true" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Processando pagamento</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Não feche esta janela.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -340,6 +364,7 @@ export function PaymentModal({
             </div>
           </TabsContent>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );

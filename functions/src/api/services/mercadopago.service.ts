@@ -1,3 +1,4 @@
+import axios from "axios";
 import crypto from "crypto";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -34,6 +35,7 @@ export interface MercadoPagoPublicStatus {
 export interface TenantMpPublicConfig {
   publicKey: string;
   environment: MercadoPagoEnvironment;
+  sellerTestEmail?: string;
 }
 
 const REFRESH_AHEAD_SECONDS = 10 * 60; // 10 minutos
@@ -290,9 +292,20 @@ export class MercadoPagoService {
   static async getPublicConfig(tenantId: string): Promise<TenantMpPublicConfig> {
     const mpData = await this.getMercadoPagoData(tenantId);
     if (!mpData) throw new Error("MP_NOT_CONFIGURED");
-    return {
-      publicKey: mpData.publicKey,
-      environment: mpData.environment ?? (mpData.liveMode ? "production" : "sandbox"),
-    };
+    const environment: MercadoPagoEnvironment =
+      mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
+    let sellerTestEmail: string | undefined;
+    if (environment === "sandbox") {
+      try {
+        const resp = await axios.get<{ email?: string }>(
+          "https://api.mercadopago.com/users/me",
+          { headers: { Authorization: `Bearer ${mpData.accessToken}` } },
+        );
+        sellerTestEmail = resp.data?.email ?? undefined;
+      } catch {
+        // non-critical — proceed without seller email
+      }
+    }
+    return { publicKey: mpData.publicKey, environment, sellerTestEmail };
   }
 }
