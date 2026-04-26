@@ -294,6 +294,16 @@ export class MercadoPagoService {
     if (!mpData) throw new Error("MP_NOT_CONFIGURED");
     const environment: MercadoPagoEnvironment =
       mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
+
+    // In sandbox, card tokenization must use the integrator's test public key
+    // (not the seller's OAuth key). Using the seller's own key causes MP error 2034
+    // because MP sees the seller tokenizing a card in their own context and then
+    // trying to pay themselves.
+    const publicKey =
+      environment === "sandbox" && process.env.MERCADOPAGO_SANDBOX_PUBLIC_KEY
+        ? process.env.MERCADOPAGO_SANDBOX_PUBLIC_KEY
+        : mpData.publicKey;
+
     let sellerTestEmail: string | undefined;
     if (environment === "sandbox") {
       try {
@@ -306,6 +316,6 @@ export class MercadoPagoService {
         // non-critical — proceed without seller email
       }
     }
-    return { publicKey: mpData.publicKey, environment, sellerTestEmail };
+    return { publicKey, environment, sellerTestEmail };
   }
 }
