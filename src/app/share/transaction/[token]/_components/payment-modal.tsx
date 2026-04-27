@@ -40,6 +40,28 @@ interface PaymentModalProps {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amount);
 
+function mapStatusDetail(detail?: string | null): string {
+  switch (detail) {
+    case "accredited": return "Pagamento aprovado com sucesso.";
+    case "cc_rejected_bad_filled_card_number": return "Número do cartão incorreto.";
+    case "cc_rejected_bad_filled_date": return "Data de vencimento incorreta.";
+    case "cc_rejected_bad_filled_other": return "Dados do cartão incorretos.";
+    case "cc_rejected_bad_filled_security_code": return "Código de segurança incorreto.";
+    case "cc_rejected_blacklist": return "Cartão não autorizado pelo banco.";
+    case "cc_rejected_call_for_authorize": return "Entre em contato com o banco para autorizar.";
+    case "cc_rejected_card_disabled": return "Cartão desativado. Entre em contato com o banco.";
+    case "cc_rejected_card_error": return "Erro no cartão. Tente outro cartão.";
+    case "cc_rejected_duplicated_payment": return "Pagamento duplicado detectado.";
+    case "cc_rejected_high_risk": return "Transação recusada por segurança.";
+    case "cc_rejected_insufficient_amount": return "Saldo insuficiente.";
+    case "cc_rejected_invalid_installments": return "Número de parcelas inválido.";
+    case "cc_rejected_max_attempts": return "Limite de tentativas atingido. Tente mais tarde.";
+    case "cc_rejected_other_reason": return "Cartão recusado. Tente outro cartão.";
+    case "pending_review_manual": return "Pagamento em análise. Você será notificado.";
+    default: return "Verifique os dados do cartão e tente novamente.";
+  }
+}
+
 export function PaymentModal({
   open,
   onOpenChange,
@@ -129,20 +151,23 @@ export function PaymentModal({
       setCardResult(result);
       if (result.status === "approved") {
         setCardStep("done");
-        onPaymentSuccess();
+        setTimeout(() => onPaymentSuccess(), 1500);
       } else if (result.status === "rejected") {
         setCardStep("rejected");
+        toast.error("Pagamento recusado", {
+          description: mapStatusDetail(result.statusDetail),
+        });
       } else {
-        // pending/in_process — webhook vai finalizar
+        // pending/in_process
         setCardStep("done");
-        onPaymentSuccess();
+        setTimeout(() => onPaymentSuccess(), 1500);
       }
     } catch (err: unknown) {
-      const msg =
-        (err as { data?: { message?: string } })?.data?.message ??
-        (err instanceof Error ? err.message : "Erro ao processar pagamento.");
+      const data = (err as { data?: { message?: string; code?: string } })?.data;
+      const msg = data?.message ?? (err instanceof Error ? err.message : "Erro ao processar pagamento.");
       setCardError(msg);
       setCardStep("ready");
+      toast.error("Erro ao processar pagamento", { description: msg });
     }
   };
 
@@ -307,8 +332,16 @@ export function PaymentModal({
             {cardStep === "done" && (
               <div className="flex flex-col items-center gap-4 py-8 text-center">
                 <CheckCircle2 className="h-12 w-12 text-green-500" aria-hidden="true" />
-                <p className="font-medium">Pagamento processado!</p>
-                <p className="text-sm text-muted-foreground">Aguarde a confirmação em breve.</p>
+                <div>
+                  <p className="font-medium">
+                    {cardResult?.status === "approved" ? "Pagamento aprovado!" : "Pagamento processado!"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {cardResult?.status === "approved"
+                      ? "Lançamento marcado como pago."
+                      : "Aguarde a confirmação em breve."}
+                  </p>
+                </div>
               </div>
             )}
 
@@ -318,7 +351,7 @@ export function PaymentModal({
                 <div>
                   <p className="font-medium">Pagamento recusado</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {cardResult?.statusDetail ?? "Verifique os dados do cartão e tente novamente."}
+                    {mapStatusDetail(cardResult?.statusDetail)}
                   </p>
                 </div>
                 <Button variant="outline" onClick={() => { setCardStep("ready"); setCardError(null); }}>

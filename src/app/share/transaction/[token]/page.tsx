@@ -380,7 +380,7 @@ export default function SharedTransactionPage() {
           primaryColor={tenant?.primaryColor}
           onPaymentSuccess={() => {
             setSelectedTransaction(null);
-            window.location.reload();
+            window.location.href = window.location.pathname + "?payment_success=1";
           }}
         />
       )}
