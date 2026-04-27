@@ -31,6 +31,14 @@ export interface CreatePaymentRequest {
     identification?: { type: "CPF" | "CNPJ"; number: string };
     firstName?: string;
     lastName?: string;
+    address?: {
+      zipCode: string;
+      streetName: string;
+      streetNumber: string;
+      neighborhood: string;
+      city: string;
+      federalUnit: string;
+    };
     // email NOT exposed (security — email always comes from resolvePayerFromTransaction)
   };
 }
@@ -357,6 +365,7 @@ export class TransactionPaymentService {
           lastName: payer.lastName ?? req.payerOverride?.lastName ?? null,
           identificationType: payer.identificationType ?? req.payerOverride?.identification?.type ?? null,
           identificationNumber: payer.identificationNumber ?? req.payerOverride?.identification?.number ?? null,
+          address: req.payerOverride?.address ?? null,
         };
 
         // Validate identification format before making the MP request.
@@ -375,6 +384,10 @@ export class TransactionPaymentService {
           throw new Error("BOLETO_MISSING_IDENTIFICATION");
         }
 
+        if (!merged.address) {
+          throw new Error("BOLETO_MISSING_ADDRESS");
+        }
+
         const payerPayload: Record<string, unknown> = {
           email: merged.email || `payment+${attemptId}@proops.com.br`,
           first_name: merged.firstName || "Cliente",
@@ -382,6 +395,14 @@ export class TransactionPaymentService {
           identification: {
             type: merged.identificationType,
             number: merged.identificationNumber,
+          },
+          address: {
+            zip_code: merged.address.zipCode.replace(/\D/g, ""),
+            street_name: merged.address.streetName,
+            street_number: merged.address.streetNumber,
+            neighborhood: merged.address.neighborhood,
+            city: merged.address.city,
+            federal_unit: merged.address.federalUnit,
           },
         };
 

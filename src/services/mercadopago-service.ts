@@ -97,6 +97,14 @@ export interface PayerOverride {
   identification?: { type: "CPF" | "CNPJ"; number: string };
   firstName?: string;
   lastName?: string;
+  address?: {
+    zipCode: string;
+    streetName: string;
+    streetNumber: string;
+    neighborhood: string;
+    city: string;
+    federalUnit: string;
+  };
 }
 
 export const PublicPaymentService = {

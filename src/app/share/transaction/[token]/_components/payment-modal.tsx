@@ -84,11 +84,17 @@ function BoletoPaymentForm({
 }: BoletoPaymentFormProps) {
   const [documento, setDocumento] = React.useState("");
   const [nome, setNome] = React.useState("");
+  const [cep, setCep] = React.useState("");
+  const [rua, setRua] = React.useState("");
+  const [numero, setNumero] = React.useState("");
+  const [bairro, setBairro] = React.useState("");
+  const [cidade, setCidade] = React.useState("");
+  const [estado, setEstado] = React.useState("");
 
   const digits = documento.replace(/\D/g, "");
-  const docValid = isDocumentoValid(digits);
-
-  const canSubmit = docValid && (!!clientName || nome.trim().length > 0);
+  const docValid = clientHasDocument || isDocumentoValid(digits);
+  const addressValid = cep.replace(/\D/g, "").length >= 8 && rua.trim().length > 0 && numero.trim().length > 0 && bairro.trim().length > 0 && cidade.trim().length > 0 && estado.trim().length === 2;
+  const canSubmit = docValid && (!!clientName || nome.trim().length > 0) && addressValid;
 
   const handleDocumentoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDocumento(formatDocumento(e.target.value));
@@ -99,37 +105,76 @@ function BoletoPaymentForm({
     const parts = resolvedName.split(" ");
     const firstName = parts[0];
     const lastName = parts.slice(1).join(" ") || "";
-    const type = digits.length === 11 ? "CPF" : "CNPJ";
-    await onSubmit({
-      identification: { type, number: digits },
-      firstName,
-      lastName,
-    });
+    const address = {
+      zipCode: cep.replace(/\D/g, ""),
+      streetName: rua.trim(),
+      streetNumber: numero.trim(),
+      neighborhood: bairro.trim(),
+      city: cidade.trim(),
+      federalUnit: estado.trim().toUpperCase(),
+    };
+    if (clientHasDocument) {
+      await onSubmit({ firstName, lastName, address });
+    } else {
+      const type = digits.length === 11 ? "CPF" : "CNPJ";
+      await onSubmit({ identification: { type, number: digits }, firstName, lastName, address });
+    }
   };
+
+  const addressFields = (
+    <>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mt-1">Endereço para o boleto</p>
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-2 w-32 shrink-0">
+          <Label htmlFor="boleto-cep">CEP</Label>
+          <Input id="boleto-cep" type="text" inputMode="numeric" placeholder="00000-000" value={cep} onChange={(e) => setCep(e.target.value)} maxLength={9} />
+        </div>
+        <div className="flex flex-col gap-2 flex-1">
+          <Label htmlFor="boleto-rua">Rua / Avenida</Label>
+          <Input id="boleto-rua" type="text" placeholder="Nome da rua" value={rua} onChange={(e) => setRua(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-2 w-24 shrink-0">
+          <Label htmlFor="boleto-numero">Número</Label>
+          <Input id="boleto-numero" type="text" placeholder="123" value={numero} onChange={(e) => setNumero(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-2 flex-1">
+          <Label htmlFor="boleto-bairro">Bairro</Label>
+          <Input id="boleto-bairro" type="text" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-2 flex-1">
+          <Label htmlFor="boleto-cidade">Cidade</Label>
+          <Input id="boleto-cidade" type="text" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-2 w-20 shrink-0">
+          <Label htmlFor="boleto-estado">UF</Label>
+          <Input id="boleto-estado" type="text" placeholder="SP" value={estado} onChange={(e) => setEstado(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} />
+        </div>
+      </div>
+    </>
+  );
 
   if (clientHasDocument && clientName) {
     return (
-      <div className="flex flex-col items-center gap-4 py-4 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-          <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-        </div>
-        <div>
+      <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+          </div>
           <p className="font-medium">Pague com Boleto</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gere a linha digitável para pagar em qualquer banco.
-          </p>
+          <p className="text-sm text-muted-foreground">Informe o endereço para emitir o boleto.</p>
         </div>
+        {addressFields}
         <Button
-          onClick={() => onSubmit(undefined)}
-          disabled={isLoading}
+          onClick={handleSubmit}
+          disabled={isLoading || !addressValid}
           className="w-full"
           style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
         >
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-          )}
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" /> : <FileText className="mr-2 h-4 w-4" aria-hidden="true" />}
           {isLoading ? "Gerando boleto..." : `Gerar Boleto para ${clientName}`}
         </Button>
       </div>
@@ -142,7 +187,7 @@ function BoletoPaymentForm({
         <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
       </div>
       <p className="text-sm text-muted-foreground text-center">
-        O CPF ou CNPJ é necessário para emitir o boleto bancário.
+        Preencha os dados para emitir o boleto bancário.
       </p>
       <div className="flex flex-col gap-2">
         <Label htmlFor="boleto-documento">CPF / CNPJ</Label>
@@ -170,6 +215,7 @@ function BoletoPaymentForm({
           />
         </div>
       )}
+      {addressFields}
       <Button
         onClick={handleSubmit}
         disabled={isLoading || !canSubmit}
