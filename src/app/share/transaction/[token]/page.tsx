@@ -11,7 +11,7 @@ import {
   ZoomOut,
   CalendarOff,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SharedTransactionService } from "@/services/shared-transaction-service";
@@ -56,7 +56,7 @@ export default function SharedTransactionPage() {
       await downloadSharedTransactionPdf(token, transaction?.description);
     } catch (error) {
       console.error("Error downloading shared transaction PDF:", error);
-      alert("Erro ao baixar PDF. Tente novamente.");
+      toast.error("Erro ao baixar PDF. Tente novamente.");
     } finally {
       setIsGenerating(false);
     }

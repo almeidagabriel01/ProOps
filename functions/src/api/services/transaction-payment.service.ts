@@ -225,6 +225,11 @@ export class TransactionPaymentService {
 
     const { accessToken, environment, liveMode } = mpData;
     const effectiveEnvironment = environment ?? (liveMode ? "production" : "sandbox");
+    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
+    const effectiveAccessToken =
+      effectiveEnvironment === "sandbox" && sandboxAccessToken
+        ? sandboxAccessToken
+        : accessToken;
     const attemptId = crypto.randomUUID();
     const attemptRef = db.collection(PAYMENT_ATTEMPTS_COLLECTION).doc(attemptId);
     const now = new Date().toISOString();
@@ -237,13 +242,11 @@ export class TransactionPaymentService {
       status: "initiated",
       createdAt: now,
       ipAnon: null,
+      environment: effectiveEnvironment,
     });
 
     try {
       if (req.method === "pix") {
-        if (effectiveEnvironment === "sandbox") {
-          throw new Error("PIX_NOT_AVAILABLE_IN_SANDBOX");
-        }
         const rawAmount = Number(txData.amount);
         if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
           throw new Error("INVALID_AMOUNT");
@@ -286,7 +289,7 @@ export class TransactionPaymentService {
           },
           {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              Authorization: `Bearer ${effectiveAccessToken}`,
               "Content-Type": "application/json",
               "X-Idempotency-Key": attemptId,
             },
@@ -560,6 +563,7 @@ export class TransactionPaymentService {
       status: "initiated",
       createdAt: now,
       ipAnon: null,
+      environment: effectiveEnvironment,
     });
 
     try {
@@ -746,10 +750,19 @@ export class TransactionPaymentService {
       throw new Error("PAYMENT_NOT_FOUND");
     }
 
+    const attemptDoc = attemptsSnap.docs[0];
+
     const mpData = await MercadoPagoService.getMercadoPagoData(tenantId);
     if (!mpData) {
       throw new Error("MP_NOT_CONFIGURED");
     }
+
+    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
+    const attemptEnvironment = (attemptDoc.data() as { environment?: string }).environment;
+    const effectiveAccessToken =
+      attemptEnvironment === "sandbox" && sandboxAccessToken
+        ? sandboxAccessToken
+        : mpData.accessToken;
 
     const mpResponse = await axios.get<{
       id: number;
@@ -757,7 +770,7 @@ export class TransactionPaymentService {
       transaction_amount: number;
       date_approved?: string;
     }>(`${MP_API_BASE}/v1/payments/${paymentId}`, {
-      headers: { Authorization: `Bearer ${mpData.accessToken}` },
+      headers: { Authorization: `Bearer ${effectiveAccessToken}` },
     });
 
     const mpPayment = mpResponse.data;

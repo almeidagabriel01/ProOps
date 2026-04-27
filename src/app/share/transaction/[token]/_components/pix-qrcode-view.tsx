@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Copy, CheckCheck, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicPaymentService } from "@/services/mercadopago-service";
@@ -59,6 +59,8 @@ export function PixQrCodeView({
   const pollingRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const { minutes, seconds, isExpired } = useCountdown(expiresAt);
 
+  const consecutiveErrorsRef = React.useRef(0);
+
   const stopPolling = React.useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -74,24 +76,44 @@ export function PixQrCodeView({
   }, [isExpired, stopPolling]);
 
   React.useEffect(() => {
-    pollingRef.current = setInterval(async () => {
+    const absoluteTimeoutId = setTimeout(() => {
+      stopPolling();
+      toast.error("O QR Code Pix expirou. Gere um novo pagamento para continuar.");
+    }, 30 * 60 * 1000);
+
+    const intervalId = setInterval(async () => {
       try {
         const result = await PublicPaymentService.getPaymentStatus(token, paymentId);
 
+        consecutiveErrorsRef.current = 0;
+
         if (result.status === "approved") {
           stopPolling();
+          clearTimeout(absoluteTimeoutId);
           setPaymentStatus("approved");
           onPaymentApproved();
         } else if (result.status === "rejected" || result.status === "cancelled") {
           stopPolling();
+          clearTimeout(absoluteTimeoutId);
           setPaymentStatus("rejected");
         }
       } catch {
-        // Silently continue polling on transient errors
+        consecutiveErrorsRef.current += 1;
+        if (consecutiveErrorsRef.current >= 3) {
+          clearInterval(intervalId);
+          clearTimeout(absoluteTimeoutId);
+          toast.error("Não foi possível verificar o status do pagamento. Recarregue a página para tentar novamente.");
+          return;
+        }
       }
     }, 3000);
 
-    return () => stopPolling();
+    pollingRef.current = intervalId;
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(absoluteTimeoutId);
+    };
   }, [token, paymentId, onPaymentApproved, stopPolling]);
 
   const handleCopy = async () => {

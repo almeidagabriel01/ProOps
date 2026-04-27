@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
-import { CreditCard, QrCode, FileText, Loader2, ExternalLink, CheckCircle2, XCircle, Info, AlertCircle } from "lucide-react";
+import { toast } from "@/lib/toast";
+import { CreditCard, QrCode, FileText, Loader2, ExternalLink, CheckCircle2, XCircle, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +82,15 @@ export function PaymentModal({
 
   const [activeTab, setActiveTab] = React.useState("pix");
 
+  const isSubmittingRef = React.useRef(false);
+
+  // Fire a toast when the card form fails to load (cardStep stays "idle" after error)
+  React.useEffect(() => {
+    if (cardError && cardStep === "idle") {
+      toast.error("Não foi possível carregar o formulário de pagamento. Tente recarregar a página.");
+    }
+  }, [cardError, cardStep]);
+
   const resetState = () => {
     setPixData(null);
     setIsGeneratingPix(false);
@@ -128,6 +137,8 @@ export function PaymentModal({
   };
 
   const handleCardSubmit = async (formData: CardPaymentFormData) => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setCardStep("processing");
     setCardError(null);
     try {
@@ -168,6 +179,8 @@ export function PaymentModal({
       setCardError(msg);
       setCardStep("ready");
       toast.error("Erro ao processar pagamento", { description: msg });
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
@@ -256,19 +269,6 @@ export function PaymentModal({
           </TabsContent>
 
           <TabsContent value="card" className="mt-4">
-            {cardStep === "idle" && cardError && (
-              <div className="flex flex-col items-center gap-4 py-6 text-center">
-                <XCircle className="h-10 w-10 text-destructive" aria-hidden="true" />
-                <div>
-                  <p className="font-medium">Erro ao carregar formulário</p>
-                  <p className="text-sm text-muted-foreground mt-1">{cardError}</p>
-                </div>
-                <Button variant="outline" onClick={() => { setCardError(null); handleCardTabSelect(); }}>
-                  Tentar novamente
-                </Button>
-              </div>
-            )}
-
             {cardStep === "loading-config" && (
               <div className="flex flex-col items-center gap-4 py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
@@ -360,13 +360,6 @@ export function PaymentModal({
               </div>
             )}
 
-            {cardError && cardStep !== "rejected" && cardStep !== "idle" && (
-              <Alert variant="destructive" className="mt-3">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Não foi possível processar</AlertTitle>
-                <AlertDescription>{cardError}</AlertDescription>
-              </Alert>
-            )}
           </TabsContent>
 
           <TabsContent value="boleto" className="mt-4">

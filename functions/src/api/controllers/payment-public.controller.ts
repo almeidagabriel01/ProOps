@@ -75,10 +75,6 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ code: "INVALID_AMOUNT", message: "Valor do lançamento inválido" });
       return;
     }
-    if (err.message === "PIX_NOT_AVAILABLE_IN_SANDBOX") {
-      res.status(422).json({ code: "PIX_NOT_AVAILABLE_IN_SANDBOX", message: "PIX não está disponível em modo sandbox. Use cartão de crédito para testar." });
-      return;
-    }
     logger.error("Unexpected error in createPayment", { errorMessage: err.message });
     res.status(500).json({ message: err.message });
   }

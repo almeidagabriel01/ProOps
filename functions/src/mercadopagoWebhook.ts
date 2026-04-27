@@ -108,10 +108,17 @@ async function handlePaymentEvent(dataId: string): Promise<void> {
     return;
   }
 
+  const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
+  const attemptEnvironment = (attemptDoc.data() as { environment?: string }).environment;
+  const effectiveAccessToken =
+    attemptEnvironment === "sandbox" && sandboxAccessToken
+      ? sandboxAccessToken
+      : mpData.accessToken;
+
   // 3. Fetch payment status from MP API
   const mpResponse = await axios.get<MpPaymentResponse>(
     `${MP_API_BASE}/v1/payments/${dataId}`,
-    { headers: { Authorization: `Bearer ${mpData.accessToken}` } },
+    { headers: { Authorization: `Bearer ${effectiveAccessToken}` } },
   );
 
   const mpPayment = mpResponse.data;
