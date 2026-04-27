@@ -401,7 +401,7 @@ export class TransactionPaymentService {
           `${MP_API_BASE}/v1/payments`,
           {
             transaction_amount: roundedAmount,
-            payment_method_id: "boleto",
+            payment_method_id: "bolbradesco",
             payer: payerPayload,
             description: (txData.description as string) || "Pagamento via ProOps",
             external_reference: `${transactionId}:${attemptId}`,

@@ -7,7 +7,7 @@ import { renderPageToPdfBuffer, resolveAppBaseUrl } from "./core-pdf.service";
 
 // Incrementar esta constante quando o template de recibo mudar estruturalmente,
 // forçando regeneração de todos os PDFs em cache.
-const PDF_TEMPLATE_VERSION = "receipt-pdf-v3-playwright";
+const PDF_TEMPLATE_VERSION = "receipt-pdf-v4-playwright";
 
 // ---------------------------------------------------------------------------
 // Tipos internos
