@@ -535,25 +535,15 @@ export class TransactionPaymentService {
     const effectiveEnvironment: string =
       mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
 
-    // In sandbox, use the integrator's TEST access token (aggregator model) so that
-    // the card token (created with the integrator's public key) is valid for the payment.
-    // collector.id routes the payment to the seller's account.
+    // In sandbox, both the card token and the payment must be in the same MP context.
+    // The card token is created with MERCADOPAGO_SANDBOX_PUBLIC_KEY (integrator's test key),
+    // so the payment must also use the integrator's test access token.
+    // In production, the seller's OAuth credentials are used directly.
     const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
     const accessToken =
       effectiveEnvironment === "sandbox" && sandboxAccessToken
         ? sandboxAccessToken
         : mpData.accessToken;
-    const usingSandboxAggregator =
-      effectiveEnvironment === "sandbox" && !!sandboxAccessToken;
-
-    logger.info("processCardPayment: sandbox diagnostics", {
-      tenantId,
-      effectiveEnvironment,
-      hasSandboxAccessToken: !!sandboxAccessToken,
-      usingSandboxAggregator,
-      sellerUserId: mpData.userId,
-      accessTokenPrefix: accessToken.slice(0, 12),
-    });
 
     const statementDescriptor = ((tenantSnap.data()?.name as string) || "ProOps").slice(0, 22);
 
@@ -600,10 +590,6 @@ export class TransactionPaymentService {
           external_reference: `${transactionId}:${attemptId}`,
           notification_url: resolveMercadoPagoWebhookUrl(),
           statement_descriptor: statementDescriptor,
-          // Aggregator model: integrator's token processes the payment, collector.id routes
-          // it to the seller. Required when the card token was created with the integrator's
-          // public key (sandbox only — production uses the seller's own credentials directly).
-          ...(usingSandboxAggregator && { collector: { id: Number(mpData.userId) } }),
         },
         {
           headers: {
