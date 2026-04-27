@@ -33,14 +33,23 @@ export interface PixPaymentResult {
   amount: number;
 }
 
+export interface BoletoPaymentResult {
+  method: "boleto";
+  paymentId: string;
+  barcodeContent: string;
+  boletoUrl: string;
+  expiresAt: string;
+  amount: number;
+}
+
 export interface CheckoutProResult {
-  method: "credit_card" | "debit_card" | "boleto";
+  method: "credit_card" | "debit_card";
   paymentId: string;
   initPoint: string;
   amount: number;
 }
 
-export type PaymentResult = PixPaymentResult | CheckoutProResult;
+export type PaymentResult = PixPaymentResult | BoletoPaymentResult | CheckoutProResult;
 
 export interface PaymentStatusResult {
   paymentId: string;

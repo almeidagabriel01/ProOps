@@ -37,8 +37,17 @@ export interface PixPaymentResult {
   amount: number;
 }
 
+export interface BoletoPaymentResult {
+  method: "boleto";
+  paymentId: string;
+  barcodeContent: string;
+  boletoUrl: string;
+  expiresAt: string;
+  amount: number;
+}
+
 export interface CheckoutProResult {
-  method: "credit_card" | "debit_card" | "boleto";
+  method: "credit_card" | "debit_card";
   paymentId: string;
   initPoint: string;
   amount: number;
@@ -51,7 +60,7 @@ export interface PaymentStatusResult {
   paidAt?: string;
 }
 
-export type PaymentResult = PixPaymentResult | CheckoutProResult;
+export type PaymentResult = PixPaymentResult | BoletoPaymentResult | CheckoutProResult;
 
 export interface ProcessCardPaymentRequest {
   token: string;
@@ -286,6 +295,7 @@ export class TransactionPaymentService {
             installments: 1,
             external_reference: `${transactionId}:${attemptId}`,
             notification_url: resolveMercadoPagoWebhookUrl(),
+            date_of_expiration: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
           },
           {
             headers: {
@@ -323,7 +333,88 @@ export class TransactionPaymentService {
         };
       }
 
-      // credit_card | debit_card | boleto → Checkout Pro preference
+      if (req.method === "boleto") {
+        const rawAmount = Number(txData.amount);
+        if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+          throw new Error("INVALID_AMOUNT");
+        }
+        const roundedAmount = Math.round(rawAmount * 100) / 100;
+
+        const payer = await resolvePayerFromTransaction(tenantId, txData);
+        const payerPayload: Record<string, unknown> = {
+          email: payer.email || `payment+${attemptId}@proops.com.br`,
+        };
+        if (payer.firstName) payerPayload.first_name = payer.firstName;
+        if (payer.lastName) payerPayload.last_name = payer.lastName;
+        if (payer.identificationType && payer.identificationNumber) {
+          payerPayload.identification = {
+            type: payer.identificationType,
+            number: payer.identificationNumber,
+          };
+        }
+
+        const boletoExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+        const boletoResponse = await axios.post<{
+          id: number;
+          transaction_amount: number;
+          date_of_expiration: string;
+          barcode?: { content?: string };
+          point_of_interaction?: {
+            transaction_data?: {
+              boleto_url?: string;
+            };
+          };
+        }>(
+          `${MP_API_BASE}/v1/payments`,
+          {
+            transaction_amount: roundedAmount,
+            payment_method_id: "boleto",
+            payer: payerPayload,
+            description: (txData.description as string) || "Pagamento via ProOps",
+            external_reference: `${transactionId}:${attemptId}`,
+            notification_url: resolveMercadoPagoWebhookUrl(),
+            date_of_expiration: boletoExpiresAt,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${effectiveAccessToken}`,
+              "Content-Type": "application/json",
+              "X-Idempotency-Key": attemptId,
+            },
+          },
+        );
+
+        const mpPaymentId = String(boletoResponse.data.id);
+        const barcodeContent = boletoResponse.data.barcode?.content ?? "";
+        const boletoUrl = boletoResponse.data.point_of_interaction?.transaction_data?.boleto_url ?? "";
+
+        await attemptRef.update({
+          mpPaymentId,
+          status: "created",
+        });
+
+        await transactionRef.update({
+          "payment.mpPaymentId": mpPaymentId,
+          "payment.method": "boleto",
+          "payment.status": "pending",
+          "payment.createdAt": now,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        logger.info("Boleto payment created", { tenantId, transactionId, mpPaymentId });
+
+        return {
+          method: "boleto",
+          paymentId: mpPaymentId,
+          barcodeContent,
+          boletoUrl,
+          expiresAt: boletoResponse.data.date_of_expiration || boletoExpiresAt,
+          amount: boletoResponse.data.transaction_amount,
+        };
+      }
+
+      // credit_card | debit_card → Checkout Pro preference
       const payer = await resolvePayerFromTransaction(tenantId, txData);
       const appOrigin = resolveFrontendAppOrigin();
       const fallbackBackUrl = `${appOrigin}/share/transaction/${req.token}`;
@@ -349,13 +440,9 @@ export class TransactionPaymentService {
       const statementDescriptor = tenantName.slice(0, 22);
 
       const paymentMethodsConfig: Record<string, unknown> = {
-        installments: req.method === "boleto" ? 1 : (req.installments || 12),
+        installments: req.installments || 12,
       };
-      if (req.method === "boleto") {
-        paymentMethodsConfig.excluded_payment_types = [
-          { id: "credit_card" }, { id: "debit_card" },
-        ];
-      } else if (req.method === "credit_card") {
+      if (req.method === "credit_card") {
         paymentMethodsConfig.excluded_payment_types = [
           { id: "ticket" }, { id: "bank_transfer" },
         ];
@@ -437,7 +524,7 @@ export class TransactionPaymentService {
         : preferenceResponse.data.init_point;
 
       return {
-        method: req.method as "credit_card" | "debit_card" | "boleto",
+        method: req.method as "credit_card" | "debit_card",
         paymentId: preferenceId,
         initPoint,
         amount: txData.amount as number,

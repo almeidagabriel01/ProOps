@@ -79,7 +79,7 @@ export function PixQrCodeView({
     const absoluteTimeoutId = setTimeout(() => {
       stopPolling();
       toast.error("O QR Code Pix expirou. Gere um novo pagamento para continuar.");
-    }, 30 * 60 * 1000);
+    }, 6 * 60 * 1000);
 
     const intervalId = setInterval(async () => {
       try {

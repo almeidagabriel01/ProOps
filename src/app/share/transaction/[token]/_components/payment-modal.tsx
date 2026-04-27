@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { CreditCard, QrCode, FileText, Loader2, ExternalLink, CheckCircle2, XCircle, Info } from "lucide-react";
+import { CreditCard, QrCode, FileText, Loader2, CheckCircle2, XCircle, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +16,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   PublicPaymentService,
   type PixPaymentResult,
+  type BoletoPaymentResult,
   type MpPublicConfig,
   type CardPaymentFormData,
   type CardPaymentResult,
 } from "@/services/mercadopago-service";
 import { PixQrCodeView } from "./pix-qrcode-view";
+import { BoletoView } from "./boleto-view";
 import { CardPaymentBrick } from "./card-payment-brick";
 
 interface PaymentModalProps {
@@ -72,7 +74,8 @@ export function PaymentModal({
 }: PaymentModalProps) {
   const [pixData, setPixData] = React.useState<PixPaymentResult | null>(null);
   const [isGeneratingPix, setIsGeneratingPix] = React.useState(false);
-  const [isRedirectingBoleto, setIsRedirectingBoleto] = React.useState(false);
+  const [boletoData, setBoletoData] = React.useState<BoletoPaymentResult | null>(null);
+  const [isGeneratingBoleto, setIsGeneratingBoleto] = React.useState(false);
 
   type CardStep = "idle" | "loading-config" | "ready" | "processing" | "done" | "rejected";
   const [cardStep, setCardStep] = React.useState<CardStep>("idle");
@@ -94,7 +97,8 @@ export function PaymentModal({
   const resetState = () => {
     setPixData(null);
     setIsGeneratingPix(false);
-    setIsRedirectingBoleto(false);
+    setBoletoData(null);
+    setIsGeneratingBoleto(false);
     setCardStep("idle");
     setMpConfig(null);
     setCardResult(null);
@@ -186,18 +190,18 @@ export function PaymentModal({
 
   const handlePayBoleto = async () => {
     try {
-      setIsRedirectingBoleto(true);
+      setIsGeneratingBoleto(true);
       const result = await PublicPaymentService.createPayment(token, "boleto", {
-        backUrl: `${window.location.href}?payment_success=1`,
         transactionId: transaction.id,
       });
-      if ("initPoint" in result && result.initPoint) {
-        window.location.href = result.initPoint;
+      if (result.method === "boleto") {
+        setBoletoData(result);
       }
     } catch (err) {
       const detail = (err as { data?: { message?: string } }).data?.message;
       toast.error("Erro ao gerar boleto.", { description: detail ?? "Tente novamente." });
-      setIsRedirectingBoleto(false);
+    } finally {
+      setIsGeneratingBoleto(false);
     }
   };
 
@@ -363,30 +367,40 @@ export function PaymentModal({
           </TabsContent>
 
           <TabsContent value="boleto" className="mt-4">
-            <div className="flex flex-col items-center gap-4 py-4 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+            {boletoData ? (
+              <BoletoView
+                barcodeContent={boletoData.barcodeContent}
+                boletoUrl={boletoData.boletoUrl}
+                expiresAt={boletoData.expiresAt}
+                amount={boletoData.amount}
+                primaryColor={primaryColor}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-4 py-4 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="font-medium">Pague com Boleto</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Gere a linha digitável para pagar em qualquer banco.
+                  </p>
+                </div>
+                <Button
+                  onClick={handlePayBoleto}
+                  disabled={isGeneratingBoleto}
+                  className="w-full"
+                  style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+                >
+                  {isGeneratingBoleto ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+                  )}
+                  {isGeneratingBoleto ? "Gerando boleto..." : "Gerar Boleto"}
+                </Button>
               </div>
-              <div>
-                <p className="font-medium">Pague com Boleto</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Gere seu boleto para pagar em qualquer banco.
-                </p>
-              </div>
-              <Button
-                onClick={handlePayBoleto}
-                disabled={isRedirectingBoleto}
-                className="w-full"
-                style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
-              >
-                {isRedirectingBoleto ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
-                )}
-                {isRedirectingBoleto ? "Gerando boleto..." : "Gerar Boleto"}
-              </Button>
-            </div>
+            )}
           </TabsContent>
         </Tabs>
         </div>
