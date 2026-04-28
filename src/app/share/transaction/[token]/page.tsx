@@ -28,6 +28,7 @@ export default function SharedTransactionPage() {
   const searchParams = useSearchParams();
   const token = params.token as string;
   const isPrintMode = searchParams.get("print") === "1";
+  const paymentSuccess = searchParams.get("payment_success");
 
   const [transaction, setTransaction] = React.useState<Transaction | null>(
     null,
@@ -118,7 +119,7 @@ export default function SharedTransactionPage() {
         setTenant(data.tenant as Tenant);
         setClientInfo(data.client);
 
-        if (searchParams.get("payment_success") === "1") {
+        if (paymentSuccess === "1") {
           toast.success("Pagamento realizado com sucesso!");
         }
       } catch (err: unknown) {
@@ -143,7 +144,7 @@ export default function SharedTransactionPage() {
     };
 
     loadSharedTransaction();
-  }, [token, searchParams]);
+  }, [token, paymentSuccess]);
 
   if (isLoading) {
     return (
