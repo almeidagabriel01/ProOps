@@ -5,7 +5,7 @@ import { db } from "../../init";
 import { SharedProposalService } from "./shared-proposal.service";
 import { renderPageToPdfBuffer, resolveAppBaseUrl } from "./core-pdf.service";
 
-const PDF_TEMPLATE_VERSION = "proposal-pdf-v6-playwright";
+const PDF_TEMPLATE_VERSION = "proposal-pdf-v7-playwright";
 const PDF_GENERATION_LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 const PDF_LOCK_WAIT_ATTEMPTS = 6;
 const PDF_LOCK_WAIT_INTERVAL_MS = 1_500;

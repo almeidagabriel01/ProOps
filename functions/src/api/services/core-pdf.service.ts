@@ -225,14 +225,39 @@ export async function renderPageToPdfBuffer(options: RenderPdfOptions): Promise<
 
     await page.emulateMedia({ media: "print" });
 
-    // Diagnóstico pré-PDF: confirma que o viewer está no DOM antes de gerar.
-    const prePdfState = await page.evaluate(() => ({
-      bodyH: document.body.offsetHeight,
-      htmlLen: document.documentElement.outerHTML.length,
-      viewerIn: !!document.querySelector('[data-page-index="1"]'),
-      markerVal: document.querySelector('[data-pdf-transaction-ready]')?.getAttribute('data-pdf-transaction-ready') ?? null,
-    }));
+    // Guard pré-PDF: verifica que a página ainda está em estado de sucesso.
+    // Sem este guard, se o fetch in-page falhar após o waitForFunction passar,
+    // page.pdf() captura a UI de erro e o buffer é salvo no cache como PDF válido.
+    const ERROR_PHRASES = [
+      "erro ao carregar",
+      "algo deu errado",
+      "link inválido",
+      "link expirado",
+      "não foi possível",
+      "não encontrada",
+      "não encontrado",
+    ];
+    const prePdfState = await page.evaluate(
+      (args: { selector: string; errorPhrases: string[] }) => {
+        const bodyText = (document.body.innerText || "").toLowerCase();
+        return {
+          markerPresent: !!document.querySelector(args.selector),
+          errorTextPresent: args.errorPhrases.some((p) => bodyText.includes(p)),
+          bodyTextPreview: bodyText.slice(0, 200),
+          bodyH: document.body.offsetHeight,
+          htmlLen: document.documentElement.outerHTML.length,
+        };
+      },
+      { selector: readySelector, errorPhrases: ERROR_PHRASES },
+    );
+
     console.log("[core-pdf] pre-pdf state", prePdfState);
+
+    if (!prePdfState.markerPresent || prePdfState.errorTextPresent) {
+      throw new Error(
+        `PDF_RENDER_ERROR_STATE: marker=${prePdfState.markerPresent} errorText=${prePdfState.errorTextPresent} preview="${prePdfState.bodyTextPreview.slice(0, 100)}"`,
+      );
+    }
 
     console.time("pdf:generate");
     const pdf = await page.pdf({
