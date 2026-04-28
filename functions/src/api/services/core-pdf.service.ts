@@ -217,10 +217,21 @@ export async function renderPageToPdfBuffer(options: RenderPdfOptions): Promise<
     );
     console.timeEnd("pdf:ready");
 
-    // Pequena pausa para garantir animações CSS.
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Pausa para layout/paint completarem após React commit.
+    // 1000ms é necessário: o marker de readiness dispara no mesmo tick que o
+    // viewer é montado; 150ms não é suficiente para layout + paint de grids complexos.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     await page.emulateMedia({ media: "print" });
+
+    // Diagnóstico pré-PDF: confirma que o viewer está no DOM antes de gerar.
+    const prePdfState = await page.evaluate(() => ({
+      bodyH: document.body.offsetHeight,
+      htmlLen: document.documentElement.outerHTML.length,
+      viewerIn: !!document.querySelector('[data-page-index="1"]'),
+      markerVal: document.querySelector('[data-pdf-transaction-ready]')?.getAttribute('data-pdf-transaction-ready') ?? null,
+    }));
+    console.log("[core-pdf] pre-pdf state", prePdfState);
 
     console.time("pdf:generate");
     const pdf = await page.pdf({
