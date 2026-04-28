@@ -94,3 +94,6 @@ report_html.html
 # env files (can opt-in for committing if needed)
 !.env.test
 
+
+# Git worktrees
+.worktrees/
