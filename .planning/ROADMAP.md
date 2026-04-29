@@ -56,12 +56,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 2. Test suite validates that session persists after page refresh via `__session` cookie and that logout clears the session
 3. Test suite validates that unauthenticated requests to protected routes are redirected to the login page
 4. Test suite validates that Tenant A cannot read, create, or modify any document belonging to Tenant B — CI blocks the PR if this test fails
-   **Plans:** 3 plans
+   **Plans:** 4 plans
    Plans:
 
 - [x] 02-01-PLAN.md -- Auth Flow E2E Tests (Login, Session, Logout, Custom Claims)
 - [x] 02-02-PLAN.md -- Route Guards + Tenant Isolation E2E Tests
 - [x] 02-03-PLAN.md -- AUTH-06 gap closure: tighten backend API isolation assertion to [403, 404]
+- [ ] 02-04-PLAN.md -- AUTH-05 gap closure: diagnose + fix redirect params stripped from final login URL
 
 ### Phase 3: Proposals & CRM E2E
 
