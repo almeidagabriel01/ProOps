@@ -9,6 +9,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
 import {
   Card,
@@ -88,7 +89,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
             <TrendingUp className="w-5 h-5 text-blue-500" />
             Balanço Futuro
           </CardTitle>
-          <CardDescription>Projeção de caixa</CardDescription>
+          <CardDescription>Projeção acumulada de caixa</CardDescription>
         </div>
         <Select
           value={monthsToShow.toString()}
@@ -132,21 +133,27 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) =>
-                  `R$ ${value >= 1000 ? (value / 1000).toFixed(1) + "k" : value}`
+                  `R$ ${Math.abs(value) >= 1000 ? (value / 1000).toFixed(1) + "k" : value}`
                 }
                 tick={{ fill: "currentColor", opacity: 0.6 }}
-                width={60}
+                width={65}
+              />
+              <ReferenceLine
+                y={0}
+                stroke="hsl(var(--muted-foreground))"
+                strokeDasharray="4 4"
+                opacity={0.4}
               />
               <Tooltip
                 cursor={{ fill: "var(--muted)", opacity: 0.1 }}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    const isPositive = data.balance >= 0;
+                    const d = payload[0].payload as FutureBalanceData;
+                    const isPositive = d.balance >= 0;
                     return (
-                      <div className="rounded-lg border bg-background p-3 shadow-md space-y-1.5 min-w-[150px]">
+                      <div className="rounded-lg border bg-background p-3 shadow-md space-y-1.5 min-w-[170px]">
                         <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
-                          {data.monthYear}
+                          {d.monthYear}
                         </p>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-muted-foreground flex items-center gap-1.5">
@@ -154,7 +161,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
                             A receber:
                           </span>
                           <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(data.income)}
+                            {formatCurrency(d.income)}
                           </span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
@@ -163,12 +170,12 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
                             A pagar:
                           </span>
                           <span className="font-medium text-rose-600 dark:text-rose-400">
-                            {formatCurrency(data.expense)}
+                            {formatCurrency(d.expense)}
                           </span>
                         </div>
                         <div className="border-t my-2 border-border/60" />
                         <div className="flex justify-between items-center text-sm font-bold">
-                          <span>Balanço:</span>
+                          <span>Saldo projetado:</span>
                           <span
                             className={
                               isPositive
@@ -176,7 +183,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
                                 : "text-rose-600 dark:text-rose-400"
                             }
                           >
-                            {formatCurrency(data.balance)}
+                            {formatCurrency(d.balance)}
                           </span>
                         </div>
                       </div>
@@ -188,8 +195,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="currentColor"
-                strokeWidth={2}
+                strokeWidth={2.5}
                 dot={{
                   r: 4,
                   strokeWidth: 2,

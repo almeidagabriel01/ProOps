@@ -53,7 +53,9 @@ interface DashboardData {
   };
   proposalStats: ProposalStats;
   overdueTransactions: Transaction[];
+  overdueAmount: number;
   upcomingDue: Transaction[];
+  upcomingDueAmount: number;
   newClientsThisMonth: number;
   recentTransactions: Transaction[];
   recentProposals: Proposal[];
@@ -83,7 +85,9 @@ const initialState: DashboardData = {
   },
   proposalStats: { approved: 0, pending: 0, total: 0, conversionRate: 0 },
   overdueTransactions: [],
+  overdueAmount: 0,
   upcomingDue: [],
+  upcomingDueAmount: 0,
   newClientsThisMonth: 0,
   recentTransactions: [],
   recentProposals: [],
@@ -267,16 +271,16 @@ export function useDashboardData(): DashboardData {
       };
     }
 
+    const firstKey = Object.keys(futureBalancesMap)[0];
     forEachFinancialEntry((entry) => {
       if (entry.status === "paid" || !entry.dueDate) return;
       const date = parseDateValue(entry.dueDate);
       if (!date) return;
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      
-      if (futureBalancesMap[key]) {
-        if (entry.type === "income") futureBalancesMap[key].income += entry.amount;
-        else futureBalancesMap[key].expense += entry.amount;
-      }
+      // Overdue transactions (past dueDate) land in the current month
+      const targetKey = futureBalancesMap[key] ? key : firstKey;
+      if (entry.type === "income") futureBalancesMap[targetKey].income += entry.amount;
+      else futureBalancesMap[targetKey].expense += entry.amount;
     });
 
     const futureBalances = Object.values(futureBalancesMap);
@@ -284,12 +288,10 @@ export function useDashboardData(): DashboardData {
       .filter((w) => w.status === "active")
       .reduce((sum, w) => sum + w.balance, 0);
 
-    futureBalances.forEach((fb, index) => {
-      if (index === 0) {
-        fb.balance = totalBalance + fb.income - fb.expense;
-      } else {
-        fb.balance = fb.income - fb.expense;
-      }
+    let runningBalance = totalBalance;
+    futureBalances.forEach((fb) => {
+      runningBalance += fb.income - fb.expense;
+      fb.balance = runningBalance;
     });
 
     // Current Month Stats (Breakdown)
@@ -343,6 +345,7 @@ export function useDashboardData(): DashboardData {
     const overdueTransactions = transactions.filter(
       (t) => t.status === "overdue"
     );
+    const overdueAmount = overdueTransactions.reduce((sum, t) => sum + t.amount, 0);
     const upcomingDue = transactions.filter((t) => {
       if (t.status !== "pending" || !t.dueDate) return false;
       const dueDate = parseDateValue(t.dueDate);
@@ -352,6 +355,7 @@ export function useDashboardData(): DashboardData {
       );
       return diffDays >= 0 && diffDays <= 7;
     });
+    const upcomingDueAmount = upcomingDue.reduce((sum, t) => sum + t.amount, 0);
 
     // New clients this month
     const newClientsThisMonth = clients.filter((c) => {
@@ -374,7 +378,9 @@ export function useDashboardData(): DashboardData {
       },
       proposalStats: { approved, pending, total, conversionRate },
       overdueTransactions,
+      overdueAmount,
       upcomingDue,
+      upcomingDueAmount,
       newClientsThisMonth,
       recentTransactions: transactions.slice(0, 5),
       recentProposals: proposals.slice(0, 5),

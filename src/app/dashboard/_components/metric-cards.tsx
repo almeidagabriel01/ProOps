@@ -119,12 +119,16 @@ export function FinancialMetricCards({
 
 interface AlertsCardProps {
   overdueCount: number;
+  overdueAmount: number;
   upcomingDueCount: number;
+  upcomingDueAmount: number;
 }
 
 export function AlertsCard({
   overdueCount,
+  overdueAmount,
   upcomingDueCount,
+  upcomingDueAmount,
 }: AlertsCardProps) {
   if (overdueCount === 0 && upcomingDueCount === 0) return null;
 
@@ -136,19 +140,31 @@ export function AlertsCard({
       <div className="flex-1 text-center md:text-left">
         <h3 className="font-semibold text-orange-900 dark:text-orange-100">Atenção Necessária</h3>
         <p className="text-sm text-orange-700/80 dark:text-orange-300/80">
-          {overdueCount > 0 ? `Você tem ${overdueCount} pagamento(s) atrasado(s).` : "Existem pagamentos vencendo em breve."}
+          {overdueCount > 0
+            ? `Você tem ${overdueCount} pagamento(s) atrasado(s) totalizando ${formatCurrency(overdueAmount)}.`
+            : `Existem ${upcomingDueCount} pagamento(s) vencendo nos próximos 7 dias.`}
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         {overdueCount > 0 && (
-          <Badge variant="destructive" className="px-3 py-1.5 text-sm shadow-sm hover:bg-destructive/90">
-            {overdueCount} atrasado(s)
-          </Badge>
+          <div className="flex flex-col items-center">
+            <Badge variant="destructive" className="px-3 py-1.5 text-sm shadow-sm hover:bg-destructive/90">
+              {overdueCount} atrasado(s)
+            </Badge>
+            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">
+              {formatCurrency(overdueAmount)}
+            </span>
+          </div>
         )}
         {upcomingDueCount > 0 && (
-          <Badge className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-sm shadow-sm border-none">
-            {upcomingDueCount} vencendo
-          </Badge>
+          <div className="flex flex-col items-center">
+            <Badge className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 text-sm shadow-sm border-none">
+              {upcomingDueCount} vencendo
+            </Badge>
+            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium mt-0.5">
+              {formatCurrency(upcomingDueAmount)}
+            </span>
+          </div>
         )}
       </div>
     </div>

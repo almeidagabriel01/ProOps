@@ -37,7 +37,9 @@ export default function DashboardPage() {
     futureBalances,
     proposalStats,
     overdueTransactions,
+    overdueAmount,
     upcomingDue,
+    upcomingDueAmount,
     newClientsThisMonth,
     recentTransactions,
     recentProposals,
@@ -91,7 +93,9 @@ export default function DashboardPage() {
       {/* Alerts */}
       <AlertsCard
         overdueCount={overdueTransactions.length}
+        overdueAmount={overdueAmount}
         upcomingDueCount={upcomingDue.length}
+        upcomingDueAmount={upcomingDueAmount}
       />
 
       {/* Quick Actions */}
