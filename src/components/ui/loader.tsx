@@ -19,17 +19,11 @@ interface LoaderProps {
   label?: string;
 }
 
-const DOT_PX: Record<NonNullable<LoaderProps["size"]>, number> = {
-  sm: 3,
-  md: 5,
-  lg: 7,
-};
-
-const DOT_GAP: Record<NonNullable<LoaderProps["size"]>, string> = {
-  sm: "gap-[3px]",
-  md: "gap-[5px]",
-  lg: "gap-[7px]",
-};
+const SIZES = {
+  sm: { px: 4, bounce: 7, gap: "gap-[4px]" },
+  md: { px: 6, bounce: 10, gap: "gap-[6px]" },
+  lg: { px: 8, bounce: 14, gap: "gap-[8px]" },
+} satisfies Record<NonNullable<LoaderProps["size"]>, { px: number; bounce: number; gap: string }>;
 
 function LoaderDots({
   size = "md",
@@ -37,19 +31,17 @@ function LoaderDots({
   label = "Carregando",
   className,
 }: LoaderProps) {
-  const px = DOT_PX[size];
+  const { px, bounce, gap } = SIZES[size];
   const dotColor = variant === "button" ? "bg-current" : "bg-primary";
 
   return (
     <motion.span
       role="status"
       aria-label={label}
-      className={cn("inline-flex items-center shrink-0", DOT_GAP[size], className)}
+      className={cn("inline-flex items-end shrink-0", gap, className)}
       animate="animate"
       initial="initial"
-      variants={{
-        animate: { transition: { staggerChildren: 0.12 } },
-      }}
+      variants={{ animate: { transition: { staggerChildren: 0.15 } } }}
     >
       {[0, 1, 2].map((i) => (
         <motion.span
@@ -57,12 +49,13 @@ function LoaderDots({
           className={cn("rounded-full shrink-0", dotColor)}
           style={{ width: px, height: px }}
           variants={{
-            initial: { scale: 0.4, opacity: 0.35 },
+            initial: { y: 0, opacity: 0.45, scale: 1 },
             animate: {
-              scale: [0.4, 1, 0.4],
-              opacity: [0.35, 1, 0.35],
+              y: [0, -bounce, 0],
+              opacity: [0.45, 1, 0.45],
+              scale: [1, 1.08, 1],
               transition: {
-                duration: 0.7,
+                duration: 0.6,
                 repeat: Infinity,
                 ease: "easeInOut",
               },
