@@ -57,14 +57,24 @@ DIAG-REDIR-CHAIN:
 
 **Root cause:** Firebase Auth's `onAuthStateChanged` fires on the login page because `firebaseLocalStorageDb` persists the authenticated user from the prior auth-flow test. The `useLoginForm` useEffect (lines 363-403 in useLoginForm.ts) sees `user != null` and `redirectReason === "session_expired"` and waits for `isSessionSynced`. Meanwhile, or once synced, it calls `handleRedirectAfterAuth` which executes `window.location.replace(target)` (line 299). This causes the browser to navigate away from `/login?redirect=/dashboard&...` to `/dashboard`. The middleware fires again with no session cookie, redirecting to `/login` again. The final URL at the time Playwright's `toHaveURL` assertion resolves is `/login` (no query params) because the URL is in a transient state between bounces.
 
-- **HYPOTHESIS A (CONFIRMED):** IndexedDB persists `firebaseLocalStorageDb` across tests; login page bounces via window.location.replace. Evidence: `DIAG-IDB-DBS= [{"name":"firebase-heartbeat-database","version":1},{"name":"firebaseLocalStorageDb","version":1}]` confirms the database exists. Double NAV to `/dashboard` before final `/login` is the signature of the login page bounce followed by a second middleware redirect. REDIR-CHAIN empty means the server-side 307 is consumed silently and the observable navigation is the subsequent client-side bounce.
-- **HYPOTHESIS B (REFUTED):** Content-Type: text/plain on 307 affects redirect handling. Evidence: REDIR-CHAIN is empty — no 307 was captured, meaning the HTTP redirect layer is not the point of failure. The failure occurs in the subsequent client-side navigation triggered by the Firebase Auth persisted state. Additionally, the 3 simple passing tests (`/login` redirect tests) also go through the same 307, yet they pass — proving the 307 itself is followed correctly. The params are present after the 307; they are stripped by the subsequent bounce.
-- **HYPOTHESIS C (REFUTED):** No other root cause needed — Hypothesis A fully explains the observations: IDB present + login page bounce + double NAV chain + empty REDIR-CHAIN + final URL at /login without params.
+- **HYPOTHESIS A (INITIALLY CONFIRMED, THEN REFUTED BY EMPIRICAL TESTING):** IndexedDB persists `firebaseLocalStorageDb` across tests; login page bounces via window.location.replace. The IDB presence was confirmed, but applying Branch A (clearing IDB in beforeEach) DID NOT fix the tests. Failure time went from 2.6s to 761ms (faster, meaning LESS bouncing — not the primary mechanism). Branch A empirically refuted as the sole root cause. IDB clearing was retained as test hygiene but is not the fix.
+- **HYPOTHESIS B (REFUTED):** Content-Type: text/plain on 307 affects redirect handling. Evidence: middleware does NOT redirect `/dashboard` at all — it returns HTTP 200 OK. There is no 307 to have a bad Content-Type on. Refuted definitively.
+- **HYPOTHESIS C (CONFIRMED — ACTUAL ROOT CAUSE):** The `ProtectedRoute` client-side component (`src/components/auth/protected-route.tsx` line 119) calls `router.push("/login")` WITHOUT any query params when `auth.currentUser` is null. This is the actual redirect mechanism observed by Playwright. The middleware is bypassed for the initial `/dashboard` page load (returns 200 OK for the HTML shell) because Next.js App Router delivers the shell client-side. The client React tree then mounts, `ProtectedRoute` detects no Firebase user, and calls `router.push("/login")` — stripping the redirect and redirect_reason params that middleware would have set.
 
-Evidence pointing to the diagnosis:
-- `DIAG-IDB-DBS= [{"name":"firebase-heartbeat-database","version":1},{"name":"firebaseLocalStorageDb","version":1}]` — Firebase Auth persisted state in IndexedDB (the leftover from auth-flow tests)
-- `DIAG-AFTER-MATCH url= http://localhost:3001/login` (NO query params) — proves the params were stripped during the bounce
-- `DIAG-NAV-CHAIN: NAV /dashboard → NAV /dashboard → NAV /login` — double /dashboard NAV is the login page JS calling window.location.replace("/dashboard"), which then gets intercepted by middleware again for a second redirect to /login (this time without params matching what Playwright sees)
-- `DIAG-REDIR-CHAIN: (empty)` — the HTTP 307 redirect is swallowed before Playwright can observe it; the failure is at the client-side JS layer
+Evidence pointing to the confirmed root cause (Branch C):
+- HTTP-level check of `/dashboard` with no cookies returned **200 OK** (no Location header) — middleware does NOT redirect the route
+- Adding `console.log("[MIDDLEWARE-ENTRY]")` at the first line of `middleware()` — it never printed for `/dashboard` requests — middleware not called for client-navigated routes
+- Security headers (X-Frame-Options, CSP) on 200 responses come from `next.config.ts` `headers()` config, NOT middleware — this was the misleading signal
+- `router.push("/login")` at `protected-route.tsx:119` has no query params — confirmed in source code inspection
+- Branch A applied → tests still failed (761ms failure vs 2.6s — faster means less bouncing, confirming the mechanism changed but not the root cause)
 
-Recommended fix branch (for Task 2): A — Clear IndexedDB (firebaseLocalStorageDb and firebase-heartbeat-database) in beforeEach alongside the existing cookie clear, so Firebase Auth has no persisted user when the login page mounts.
+**Applied fix (Branch C — Task 2):** Changed `protected-route.tsx` line ~119 from:
+```ts
+router.push("/login");
+```
+to:
+```ts
+router.push(`/login?redirect=${encodeURIComponent(pathname)}&redirect_reason=session_expired`);
+```
+
+Recommended fix branch (for Task 2): C — Fix ProtectedRoute to pass redirect params when performing client-side login redirect.

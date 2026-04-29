@@ -11,10 +11,36 @@ import { test, expect } from "../fixtures/base.fixture";
  */
 
 test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
-  test.beforeEach(async ({ context }) => {
-    // Clear both the primary session cookie and the legacy auth hint cookie
-    // so the middleware sees a fully unauthenticated request.
+  test.beforeEach(async ({ context, page }) => {
+    // Clear cookies (server session) AND IndexedDB (Firebase Auth persisted user).
+    // Firebase Auth stores the persisted user in firebaseLocalStorageDb IndexedDB;
+    // without clearing it, the login page sees auth.currentUser != null on mount,
+    // calls handleRedirectAfterAuth, and bounces via window.location.replace —
+    // stripping the redirect / redirect_reason query params before our assertions.
     await context.clearCookies();
+
+    // IndexedDB cleanup must run in a page context. Navigate to a same-origin
+    // page first so localStorage/indexedDB APIs are available, then clear.
+    await page.goto("/login");
+    await page.evaluate(async () => {
+      const dbs = (await indexedDB.databases?.()) ?? [];
+      await Promise.all(
+        dbs.map(
+          (db) =>
+            new Promise<void>((resolve) => {
+              if (!db.name) return resolve();
+              const req = indexedDB.deleteDatabase(db.name);
+              req.onsuccess = req.onerror = req.onblocked = () => resolve();
+            }),
+        ),
+      );
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // ignore — some origins block storage access
+      }
+    });
   });
 
   test("navigating to /dashboard redirects to /login", async ({ page }) => {
@@ -33,86 +59,16 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   });
 
   test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // [DIAGNOSTIC — remove in Task 2 if root cause confirmed]
-    const navLog: string[] = [];
-    const respLog: string[] = [];
-    page.on("framenavigated", (frame) => {
-      if (frame === page.mainFrame()) navLog.push(`NAV ${frame.url()}`);
-    });
-    page.on("response", (resp) => {
-      const loc = resp.headers()["location"];
-      if (resp.status() >= 300 && resp.status() < 400) {
-        respLog.push(`REDIR ${resp.status()} ${resp.url()} -> ${loc ?? "(none)"}`);
-      }
-    });
-
     await page.goto("/dashboard");
-    console.log("DIAG-AFTER-GOTO url=", page.url());
-
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    console.log("DIAG-AFTER-MATCH url=", page.url());
-
-    // Wait briefly to capture any post-match bounce
-    await page.waitForTimeout(2000);
-    console.log("DIAG-AFTER-WAIT url=", page.url());
-
-    // Inspect IndexedDB for Firebase persisted user
-    const idbUser = await page.evaluate(async () => {
-      try {
-        const dbs = await indexedDB.databases?.();
-        return JSON.stringify(dbs ?? "indexedDB.databases() unavailable");
-      } catch (e) {
-        return `ERR ${(e as Error).message}`;
-      }
-    });
-    console.log("DIAG-IDB-DBS=", idbUser);
-
-    console.log("DIAG-NAV-CHAIN:\n" + navLog.join("\n"));
-    console.log("DIAG-REDIR-CHAIN:\n" + respLog.join("\n"));
-
     // The Next.js middleware sets redirect=<path> in the 307 Location header.
     // Playwright follows the redirect and the final URL should include the param.
     expect(new URL(page.url()).searchParams.get("redirect")).toBe("/dashboard");
   });
 
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    // [DIAGNOSTIC — remove in Task 2 if root cause confirmed]
-    const navLog: string[] = [];
-    const respLog: string[] = [];
-    page.on("framenavigated", (frame) => {
-      if (frame === page.mainFrame()) navLog.push(`NAV ${frame.url()}`);
-    });
-    page.on("response", (resp) => {
-      const loc = resp.headers()["location"];
-      if (resp.status() >= 300 && resp.status() < 400) {
-        respLog.push(`REDIR ${resp.status()} ${resp.url()} -> ${loc ?? "(none)"}`);
-      }
-    });
-
     await page.goto("/proposals");
-    console.log("DIAG-AFTER-GOTO url=", page.url());
-
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    console.log("DIAG-AFTER-MATCH url=", page.url());
-
-    // Wait briefly to capture any post-match bounce
-    await page.waitForTimeout(2000);
-    console.log("DIAG-AFTER-WAIT url=", page.url());
-
-    // Inspect IndexedDB for Firebase persisted user
-    const idbUser = await page.evaluate(async () => {
-      try {
-        const dbs = await indexedDB.databases?.();
-        return JSON.stringify(dbs ?? "indexedDB.databases() unavailable");
-      } catch (e) {
-        return `ERR ${(e as Error).message}`;
-      }
-    });
-    console.log("DIAG-IDB-DBS=", idbUser);
-
-    console.log("DIAG-NAV-CHAIN:\n" + navLog.join("\n"));
-    console.log("DIAG-REDIR-CHAIN:\n" + respLog.join("\n"));
-
     // The Next.js middleware sets redirect_reason=session_expired (middleware.ts line 119).
     expect(new URL(page.url()).searchParams.get("redirect_reason")).toBe(
       "session_expired",
