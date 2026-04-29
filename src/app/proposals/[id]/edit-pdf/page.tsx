@@ -14,6 +14,7 @@ import { lightenColor } from "@/components/features/proposal/edit-pdf/pdf-theme-
 import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/save-confirmation-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { Loader } from "@/components/ui/loader";
+import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 
 export default function EditPdfPage() {
   // Modal states
@@ -107,11 +108,7 @@ export default function EditPdfPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader size="lg" />
-      </div>
-    );
+    return <EntityLoadingState message="Carregando editor de PDF..." />;
   }
 
   if (!proposal || !template) {

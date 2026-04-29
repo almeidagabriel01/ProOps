@@ -120,6 +120,11 @@ export function ProposalSummaryControls({
                 target: { name: "customNotes", value },
               } as React.ChangeEvent<HTMLTextAreaElement>)
             }
+            disabledReason={
+              !proposalContext?.title
+                ? "Preencha o título da proposta primeiro"
+                : undefined
+            }
           />
         </div>
         <Textarea

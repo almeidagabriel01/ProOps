@@ -13,7 +13,10 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  const isLandingPage = pathname === "/";
+  const isPublicMarketingPage =
+    pathname === "/" ||
+    pathname === "/automacao-residencial" ||
+    pathname === "/decoracao";
 
   const isAuthOnlyPage =
     pathname === "/login" ||
@@ -33,7 +36,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <ErrorBoundary>
         <AuthProvider>
-          {isLandingPage ? (
+          {isPublicMarketingPage ? (
             <main className="min-h-screen">{children}</main>
           ) : pathname.startsWith("/share/") ? (
             <main className="min-h-screen">{children}</main>

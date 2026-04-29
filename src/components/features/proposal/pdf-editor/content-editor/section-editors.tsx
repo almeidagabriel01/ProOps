@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Upload } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { Upload, Bold, Italic } from "lucide-react";
 import { PdfSection } from "../../pdf-section-editor";
 import {
   HorizontalAlignControls,
@@ -117,12 +118,46 @@ export function TitleEditor({ section, updateSection }: TitleEditorProps) {
 // TEXT EDITOR
 // ============================================
 
+function hasMinimumContent(content?: string): boolean {
+  const trimmed = (content ?? "").trim();
+  return trimmed.length >= 10 || /\s/.test(trimmed);
+}
+
+function toggleWrap(
+  value: string,
+  start: number,
+  end: number,
+  marker: string,
+): { value: string; start: number; end: number } | null {
+  if (start === end) return null;
+  const before = value.slice(0, start);
+  const sel = value.slice(start, end);
+  const after = value.slice(end);
+  if (
+    sel.startsWith(marker) &&
+    sel.endsWith(marker) &&
+    sel.length >= marker.length * 2
+  ) {
+    return {
+      value: before + sel.slice(marker.length, -marker.length) + after,
+      start,
+      end: end - marker.length * 2,
+    };
+  }
+  return {
+    value: before + marker + sel + marker + after,
+    start: start + marker.length,
+    end: end + marker.length,
+  };
+}
+
 interface TextEditorProps {
   section: PdfSection;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
   label?: string;
   proposalContext?: PdfSectionProposalContext;
   sectionType?: "generic" | "scope" | "terms";
+  sectionTitle?: string;
 }
 
 export function TextEditor({
@@ -131,30 +166,82 @@ export function TextEditor({
   label = "Conteúdo",
   proposalContext,
   sectionType = "generic",
+  sectionTitle,
 }: TextEditorProps) {
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  function applyWrap(marker: string) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const result = toggleWrap(ta.value, ta.selectionStart, ta.selectionEnd, marker);
+    if (!result) return;
+    updateSection(section.id, { content: result.value });
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(result.start, result.end);
+    });
+  }
+
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between">
         <Label>{label}</Label>
-        <AIFieldButton
-          field="proposal.pdfSection"
-          context={() => ({
-            title: proposalContext?.title ?? "",
-            sectionType,
-            products: proposalContext?.products ?? [],
-            niche: proposalContext?.niche ?? "automacao_residencial",
-          })}
-          onGenerated={(value) =>
-            updateSection(section.id, { content: value })
-          }
-        />
+        <div className="flex items-center gap-1">
+          <Tooltip content="Negrito (selecione texto primeiro)" delayMs={300}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground"
+              onClick={() => applyWrap("**")}
+            >
+              <Bold className="h-3.5 w-3.5" />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Itálico (selecione texto primeiro)" delayMs={300}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground"
+              onClick={() => applyWrap("*")}
+            >
+              <Italic className="h-3.5 w-3.5" />
+            </Button>
+          </Tooltip>
+          <AIFieldButton
+            field="proposal.pdfSection"
+            context={() => ({
+              title: proposalContext?.title ?? "",
+              sectionType,
+              sectionTitle: sectionTitle ?? "",
+              currentContent: section.content ?? "",
+              products: proposalContext?.products ?? [],
+              niche: proposalContext?.niche ?? "automacao_residencial",
+            })}
+            onGenerated={(value) =>
+              updateSection(section.id, { content: value })
+            }
+            disabledReason={
+              !hasMinimumContent(section.content)
+                ? "Digite ao menos algumas palavras para ativar"
+                : undefined
+            }
+          />
+        </div>
       </div>
       <Textarea
+        ref={textareaRef}
         value={section.content}
         onChange={(e) => updateSection(section.id, { content: e.target.value })}
         placeholder="Digite o texto..."
         rows={4}
       />
+      {!hasMinimumContent(section.content) && (
+        <p className="text-[11px] text-muted-foreground">
+          Digite ao menos algumas palavras para ativar a geração com IA
+        </p>
+      )}
     </div>
   );
 }
@@ -208,6 +295,11 @@ export function ProductTableEditor({
               })}
               onGenerated={(value) =>
                 updateSection(linkedScopeTextSection.id, { content: value })
+              }
+              disabledReason={
+                !proposalContext?.products?.length
+                  ? "Adicione produtos à proposta primeiro"
+                  : undefined
               }
             />
           </div>

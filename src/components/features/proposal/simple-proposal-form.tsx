@@ -40,7 +40,7 @@ import {
   ProposalReadOnlyView,
   PdfDisplayOptionsSection,
 } from "./form";
-import { Loader } from "@/components/ui/loader";
+import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -988,16 +988,7 @@ export function SimpleProposalForm({
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader size="lg" />
-          <p className="text-sm text-muted-foreground">
-            Carregando Proposta...
-          </p>
-        </div>
-      </div>
-    );
+    return <ProposalLoadingState />;
   }
 
   // Read-only view

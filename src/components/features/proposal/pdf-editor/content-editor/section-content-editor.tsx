@@ -110,6 +110,7 @@ export function SectionContentEditor({
               ? "terms"
               : "generic"
           }
+          sectionTitle={section.content}
           proposalContext={proposalContext}
         />
       )}
@@ -145,6 +146,7 @@ export function SectionContentEditor({
           section={section}
           primaryColor={primaryColor}
           updateStyle={updateStyle}
+          hideSectionLevelBoldItalic={section.type === "text"}
         />
       )}
 

@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { SimpleProposalForm } from "@/components/features/proposal/simple-proposal-form"
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 
 export default function EditProposalPage() {
     const params = useParams()
@@ -17,7 +18,7 @@ export default function EditProposalPage() {
         }
     }, [isLoading, canView, router]);
 
-    if (isLoading) return null;
+    if (isLoading) return <ProposalLoadingState />;
 
     return <SimpleProposalForm proposalId={proposalId} isReadOnly={!canEdit} />
 }

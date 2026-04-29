@@ -24,6 +24,8 @@ import type { NextRequest } from "next/server";
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
   "/",
+  "/automacao-residencial",
+  "/decoracao",
   "/login",
   "/register",
   "/forgot-password",

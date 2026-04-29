@@ -11,6 +11,7 @@ import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-ov
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
 import { ServicesSkeleton } from "@/app/services/_components/services-skeleton";
 import { ProposalsSkeleton } from "@/app/proposals/_components/proposals-skeleton";
+import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { ContactsSkeleton } from "@/app/contacts/_components/contacts-skeleton";
 import { AddonsSkeleton } from "@/app/profile/addons/_components/addons-skeleton";
 import { AutomationSkeleton } from "@/components/features/automation/automation-skeleton";
@@ -79,7 +80,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     return pathname === "/proposals" ? (
       <ProposalsSkeleton />
     ) : (
-      <SpinnerFallback message="Carregando Proposta..." />
+      <ProposalLoadingState />
     );
   }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AIFieldButton } from "@/components/shared/ai-field-button";
@@ -15,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { FileUpload } from "@/components/ui/file-upload";
-import { DynamicSelect } from "@/components/features/dynamic-select";
+import { DynamicSelect, DynamicSelectHandle } from "@/components/features/dynamic-select";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -87,6 +88,8 @@ export function ServiceForm({
     handleRemoveImage,
     handleSubmit,
   } = useProductForm(initialData, serviceId, "service");
+
+  const categoryRef = React.useRef<DynamicSelectHandle>(null);
 
   const servicePrice = parseFloat(formData.price || "0");
 
@@ -206,6 +209,7 @@ export function ServiceForm({
 
               <div className="relative">
                 <DynamicSelect
+                  ref={categoryRef}
                   storageKey="product_categories"
                   label="Categoria"
                   id="category"
@@ -220,11 +224,7 @@ export function ServiceForm({
                   <AIFieldButton
                     field="product.category"
                     context={() => ({ name: formData.name, description: formData.description, niche: nicheConfig.id })}
-                    onGenerated={(value) =>
-                      handleChange({
-                        target: { name: "category", value },
-                      } as React.ChangeEvent<HTMLSelectElement>)
-                    }
+                    onGenerated={(value) => categoryRef.current?.createAndSelectOption(value)}
                     disabledReason={!formData.name ? "Preencha o nome do serviço primeiro" : undefined}
                   />
                 </div>

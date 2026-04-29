@@ -19,6 +19,7 @@ import { toast } from "@/lib/toast";
 import { usePdfGenerator } from "@/components/features/proposal/pdf/use-pdf-generator";
 import { syncProposalProductWithCatalogSnapshot } from "@/lib/proposal-product";
 import { Loader } from "@/components/ui/loader";
+import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 
 export default function ViewProposalPage() {
   const params = useParams();
@@ -192,11 +193,7 @@ export default function ViewProposalPage() {
   }, [handleGenerate]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader size="lg" />
-      </div>
-    );
+    return <EntityLoadingState message="Carregando Proposta..." />;
   }
 
   if (!proposal) {

@@ -77,7 +77,7 @@ export const AnimatedGradientText: React.FC<AnimatedGradientTextProps> = ({
 }) => {
     return (
         <span
-            className={`bg-gradient-to-r from-primary via-blue-400 to-primary bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-text ${className}`}
+            className={`bg-gradient-to-r from-black via-neutral-500 to-black dark:from-white dark:via-neutral-400 dark:to-white bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient-text ${className}`}
         >
             {children}
         </span>

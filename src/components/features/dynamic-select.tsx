@@ -12,6 +12,10 @@ import { toast } from "@/lib/toast";
 import { normalize } from "@/utils/text";
 import { OptionManagerDialog } from "./option-manager-dialog";
 
+export type DynamicSelectHandle = {
+  createAndSelectOption: (label: string) => Promise<void>;
+};
+
 interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   storageKey: string;
   label: string;
@@ -20,139 +24,149 @@ interface DynamicSelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   error?: string;
 }
 
-export function DynamicSelect({
-  storageKey,
-  label,
-  defaultOptions = [],
-  className,
-  required,
-  error,
-  ...props
-}: DynamicSelectProps) {
-  const [options, setOptions] = React.useState<Option[]>([]);
-  const [isManagerOpen, setIsManagerOpen] = React.useState(false);
-  const [isCreatingOption, setIsCreatingOption] = React.useState(false);
+export const DynamicSelect = React.forwardRef<DynamicSelectHandle, DynamicSelectProps>(
+  function DynamicSelect(
+    { storageKey, label, defaultOptions = [], className, required, error, ...props },
+    ref,
+  ) {
+    const [options, setOptions] = React.useState<Option[]>([]);
+    const [isManagerOpen, setIsManagerOpen] = React.useState(false);
+    const [isCreatingOption, setIsCreatingOption] = React.useState(false);
 
-  // Stabilize defaultOptions to prevent infinite re-fetching
-  // Stabilize defaultOptions to prevent infinite re-fetching
-  const defaultOptionsJson = JSON.stringify(defaultOptions);
-  const stableDefaultOptions = React.useMemo(() => {
-    return JSON.parse(defaultOptionsJson) as typeof defaultOptions;
-  }, [defaultOptionsJson]);
+    const defaultOptionsJson = JSON.stringify(defaultOptions);
+    const stableDefaultOptions = React.useMemo(() => {
+      return JSON.parse(defaultOptionsJson) as typeof defaultOptions;
+    }, [defaultOptionsJson]);
 
-  const { tenant } = useTenant();
+    const { tenant } = useTenant();
 
-  // Load from Firestore
-  const loadOptions = React.useCallback(async () => {
-    if (!tenant) return;
-    try {
-      const data = await OptionService.getOptions(tenant.id, storageKey);
-      if (data.length > 0) {
-        setOptions(data);
-      } else {
-        const defaults: Option[] = stableDefaultOptions.map((opt) => ({
-          id: opt.id,
-          tenantId: tenant.id,
-          type: storageKey,
-          label: opt.label,
-          createdAt: new Date().toISOString(),
-        }));
-        setOptions(defaults);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro ao carregar opções.");
-    }
-  }, [tenant, storageKey, stableDefaultOptions]);
-
-  React.useEffect(() => {
-    if (tenant) {
-      loadOptions();
-    }
-  }, [tenant, loadOptions]);
-
-  const handleCreateOption = React.useCallback(
-    async (inputLabel: string) => {
-      const nextLabel = inputLabel.trim();
-      if (!tenant?.id || !nextLabel || isCreatingOption) return;
-
-      const existingOption = options.find(
-        (option) => normalize(option.label) === normalize(nextLabel),
-      );
-      if (existingOption) {
-        return existingOption.label;
-      }
-
-      setIsCreatingOption(true);
+    const loadOptions = React.useCallback(async () => {
+      if (!tenant) return;
       try {
-        const createdOption = await OptionService.createOption(
-          tenant.id,
-          storageKey,
-          nextLabel,
-        );
-        setOptions((prev) => [...prev, createdOption]);
-        toast.success(`${label} cadastrado com sucesso.`);
-        return createdOption.label;
+        const data = await OptionService.getOptions(tenant.id, storageKey);
+        if (data.length > 0) {
+          setOptions(data);
+        } else {
+          const defaults: Option[] = stableDefaultOptions.map((opt) => ({
+            id: opt.id,
+            tenantId: tenant.id,
+            type: storageKey,
+            label: opt.label,
+            createdAt: new Date().toISOString(),
+          }));
+          setOptions(defaults);
+        }
       } catch (error) {
         console.error(error);
-        toast.error(`Erro ao cadastrar ${label.toLowerCase()}.`);
-        return;
-      } finally {
-        setIsCreatingOption(false);
+        toast.error("Erro ao carregar opções.");
       }
-    },
-    [tenant?.id, isCreatingOption, options, storageKey, label],
-  );
+    }, [tenant, storageKey, stableDefaultOptions]);
 
-  return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-center justify-between">
-        <Label>
-          {label}
-          {required && <span className="text-destructive ml-1">*</span>}
-        </Label>
-        <Button
-          variant="ghost"
-          size="sm"
-          type="button"
-          onClick={() => setIsManagerOpen(true)}
-          className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
-        >
-          <Settings className="w-3 h-3 mr-1" /> Gerenciar
-        </Button>
+    React.useEffect(() => {
+      if (tenant) {
+        loadOptions();
+      }
+    }, [tenant, loadOptions]);
+
+    const handleCreateOption = React.useCallback(
+      async (inputLabel: string) => {
+        const nextLabel = inputLabel.trim();
+        if (!tenant?.id || !nextLabel || isCreatingOption) return;
+
+        const existingOption = options.find(
+          (option) => normalize(option.label) === normalize(nextLabel),
+        );
+        if (existingOption) {
+          return existingOption.label;
+        }
+
+        setIsCreatingOption(true);
+        try {
+          const createdOption = await OptionService.createOption(
+            tenant.id,
+            storageKey,
+            nextLabel,
+          );
+          setOptions((prev) => [...prev, createdOption]);
+          toast.success(`${label} cadastrado com sucesso.`);
+          return createdOption.label;
+        } catch (error) {
+          console.error(error);
+          toast.error(`Erro ao cadastrar ${label.toLowerCase()}.`);
+          return;
+        } finally {
+          setIsCreatingOption(false);
+        }
+      },
+      [tenant?.id, isCreatingOption, options, storageKey, label],
+    );
+
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        async createAndSelectOption(inputLabel: string) {
+          const createdLabel = await handleCreateOption(inputLabel);
+          if (createdLabel !== undefined) {
+            const event = {
+              target: { value: createdLabel, name: props.name ?? "" },
+            } as React.ChangeEvent<HTMLSelectElement>;
+            props.onChange?.(event);
+          }
+        },
+      }),
+      [handleCreateOption, props.name, props.onChange],
+    );
+
+    return (
+      <div className={cn("space-y-2", className)}>
+        <div className="flex items-center justify-between">
+          <Label>
+            {label}
+            {required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={() => setIsManagerOpen(true)}
+            className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+          >
+            <Settings className="w-3 h-3 mr-1" /> Gerenciar
+          </Button>
+        </div>
+
+        <SearchableSelect
+          options={options.map((opt) => ({
+            value: opt.label,
+            label: opt.label,
+          }))}
+          value={typeof props.value === "string" ? props.value : ""}
+          onValueChange={(val) => {
+            const event = {
+              target: { value: val, name: props.name ?? "" },
+            } as React.ChangeEvent<HTMLSelectElement>;
+            props.onChange?.(event);
+          }}
+          onCreateOption={handleCreateOption}
+          createOptionLabel="Cadastrar"
+          creatingOptionLabel="Cadastrando..."
+          isCreatingOption={isCreatingOption}
+          placeholder="Selecione..."
+          searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
+          disabled={props.disabled}
+          name={props.name}
+          id={props.id}
+        />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <OptionManagerDialog
+          isOpen={isManagerOpen}
+          onClose={() => setIsManagerOpen(false)}
+          onOptionsChange={loadOptions}
+          storageKey={storageKey}
+          label={label}
+        />
       </div>
-
-      <SearchableSelect
-        options={options.map((opt) => ({
-          value: opt.label,
-          label: opt.label,
-        }))}
-        value={typeof props.value === "string" ? props.value : ""}
-        onValueChange={(val) => {
-          const event = {
-            target: { value: val, name: props.name ?? "" },
-          } as React.ChangeEvent<HTMLSelectElement>;
-          props.onChange?.(event);
-        }}
-        onCreateOption={handleCreateOption}
-        createOptionLabel="Cadastrar"
-        creatingOptionLabel="Cadastrando..."
-        isCreatingOption={isCreatingOption}
-        placeholder="Selecione..."
-        searchPlaceholder={`Buscar ${label.toLowerCase()}...`}
-        disabled={props.disabled}
-        name={props.name}
-        id={props.id}
-      />
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      <OptionManagerDialog
-        isOpen={isManagerOpen}
-        onClose={() => setIsManagerOpen(false)}
-        onOptionsChange={loadOptions}
-        storageKey={storageKey}
-        label={label}
-      />
-    </div>
-  );
-}
+    );
+  },
+);

@@ -21,7 +21,7 @@ import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { Loader } from "@/components/ui/loader";
+import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 
 const transactionSteps = [
   {
@@ -201,14 +201,7 @@ export default function EditTransactionPage() {
 
   // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader size="lg" />
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
+    return <EntityLoadingState message="Carregando transação..." />;
   }
 
   // Check plan access after loading is complete

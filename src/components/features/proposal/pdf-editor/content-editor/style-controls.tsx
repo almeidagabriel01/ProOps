@@ -161,6 +161,7 @@ interface TextStyleOptionsProps {
     styleKey: keyof PdfSection["styles"],
     value: string,
   ) => void;
+  hideSectionLevelBoldItalic?: boolean;
 }
 
 interface SectionSpacingControlsProps {
@@ -227,6 +228,7 @@ export function TextStyleOptions({
   section,
   primaryColor,
   updateStyle,
+  hideSectionLevelBoldItalic = false,
 }: TextStyleOptionsProps) {
   return (
     <div className="space-y-4 pt-4 border-t">
@@ -271,45 +273,47 @@ export function TextStyleOptions({
       <div className="grid gap-2">
         <Label className="text-xs">Formatação e Alinhamento</Label>
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Text Style Buttons */}
-          <div className="flex bg-muted/50 rounded-md p-1 gap-1">
-            <Button
-              variant={
-                section.styles.fontWeight === "bold" ? "default" : "ghost"
-              }
-              size="icon"
-              className="h-7 w-7"
-              onClick={() =>
-                updateStyle(
-                  section.id,
-                  "fontWeight",
-                  section.styles.fontWeight === "bold" ? "normal" : "bold",
-                )
-              }
-              title="Negrito"
-            >
-              <Bold className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={
-                section.styles.fontStyle === "italic" ? "default" : "ghost"
-              }
-              size="icon"
-              className="h-7 w-7"
-              onClick={() =>
-                updateStyle(
-                  section.id,
-                  "fontStyle",
-                  section.styles.fontStyle === "italic" ? "normal" : "italic",
-                )
-              }
-              title="Itálico"
-            >
-              <Italic className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="w-px bg-border h-6 hidden sm:block" />
+          {!hideSectionLevelBoldItalic && (
+            <>
+              <div className="flex bg-muted/50 rounded-md p-1 gap-1">
+                <Button
+                  variant={
+                    section.styles.fontWeight === "bold" ? "default" : "ghost"
+                  }
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() =>
+                    updateStyle(
+                      section.id,
+                      "fontWeight",
+                      section.styles.fontWeight === "bold" ? "normal" : "bold",
+                    )
+                  }
+                  title="Negrito da seção inteira"
+                >
+                  <Bold className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={
+                    section.styles.fontStyle === "italic" ? "default" : "ghost"
+                  }
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() =>
+                    updateStyle(
+                      section.id,
+                      "fontStyle",
+                      section.styles.fontStyle === "italic" ? "normal" : "italic",
+                    )
+                  }
+                  title="Itálico da seção inteira"
+                >
+                  <Italic className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="w-px bg-border h-6 hidden sm:block" />
+            </>
+          )}
 
           <HorizontalAlignControls
             section={section}

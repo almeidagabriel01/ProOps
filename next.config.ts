@@ -61,15 +61,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async redirects() {
-    return [
-      {
-        source: "/cortinas",
-        destination: "/decoracao",
-        permanent: true,
-      },
-    ];
-  },
   async headers() {
     return [
       {

@@ -27,6 +27,7 @@ export type GenerateFieldRequest =
         title: string;
         sectionType: "cover" | "scope" | "terms" | "generic";
         sectionTitle?: string;
+        currentContent?: string;
         products?: { name: string; quantity: number }[];
         niche: NicheKey;
       };
@@ -111,13 +112,15 @@ export function buildPrompt(req: GenerateFieldRequest): { system: string; user: 
         terms: "condições e garantias",
         generic: "seção informativa",
       };
+      const topicLabel = req.context.sectionTitle?.trim() || sectionLabels[req.context.sectionType];
       const productList = (req.context.products ?? [])
         .slice(0, 10)
         .map((p) => `- ${truncate(p.name, 100)} (×${p.quantity})`)
         .join("\n");
+      const currentContent = req.context.currentContent?.trim();
       return {
-        system: `Você é redator de propostas comerciais para empresas de ${nicheLabel(req.context.niche)}. Escreva em PT-BR a seção de ${sectionLabels[req.context.sectionType]} para um PDF profissional. Tom formal e confiante. Sem títulos ou subtítulos repetindo o nome da seção. Sem markdown.`,
-        user: `Título da proposta: ${truncate(req.context.title)}${req.context.sectionTitle ? `\nTítulo da seção: ${truncate(req.context.sectionTitle, 100)}` : ""}${productList ? `\nItens:\n${productList}` : ""}`,
+        system: `Você é redator de propostas comerciais para empresas de ${nicheLabel(req.context.niche)}. Escreva em PT-BR o conteúdo da seção "${topicLabel}" para um PDF profissional. Tom formal e adequado ao tema da seção. Sem títulos ou subtítulos repetindo o nome da seção. Você pode usar **palavra** para destacar termos importantes (e nada mais de markdown). Não use listas, títulos, links nem emojis.`,
+        user: `Título da proposta: ${truncate(req.context.title)}\nTema da seção: ${topicLabel}${currentContent ? `\nConteúdo atual (mantenha o tema, reescreva com mais qualidade): ${truncate(currentContent, 300)}` : ""}${productList ? `\nItens:\n${productList}` : ""}`,
       };
     }
 

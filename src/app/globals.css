@@ -185,12 +185,12 @@ body {
 .luma-spin-seg {
   position: absolute;
   border-radius: 50px;
-  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, #003884);
+  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, #1f2937);
   animation: luma-spin 2.5s infinite;
   will-change: inset;
 }
 .dark .luma-spin-seg {
-  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, oklch(0.6 0.15 250));
+  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, #f3f4f6);
 }
 .luma-spin-seg-delay {
   animation-delay: -1.25s;
@@ -276,6 +276,62 @@ body {
 
 .scroll-stack-end {
   pointer-events: none;
+}
+
+/* Card shine on hover */
+@keyframes card-shine {
+  0% { transform: translateX(-120%) skewX(-20deg); }
+  100% { transform: translateX(220%) skewX(-20deg); }
+}
+.card-shine-on-hover {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine-on-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgba(0,0,0,0.06) 50%, transparent 100%);
+  transform: translateX(-120%) skewX(-20deg);
+  pointer-events: none;
+  z-index: 1;
+}
+.card-shine-on-hover:hover::before {
+  animation: card-shine 0.9s ease-out forwards;
+}
+.dark .card-shine-on-hover::before {
+  background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+}
+
+/* Button sweep on hover */
+.btn-sweep {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-sweep::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  transform: translateX(-110%);
+  transition: transform 0.55s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.btn-sweep:hover::before {
+  transform: translateX(110%);
+}
+.dark .btn-sweep::before {
+  background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
+}
+
+/* Slow spin for idle border glow */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
 }
 
 @theme inline {

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/form-components";
 import { ProductFormNew } from "../_components/product-form-new";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
-import { Loader } from "@/components/ui/loader";
+import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -25,14 +25,7 @@ export default function NewProductPage() {
 
     // Show loading while checking permissions OR while redirecting (no permission)
     if (isLoading || !canCreate) {
-        return (
-            <div className="flex items-center justify-center min-h-[50vh]">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader size="lg" />
-                    <p className="text-sm text-muted-foreground">Carregando...</p>
-                </div>
-            </div>
-        );
+        return <EntityLoadingState message="Carregando produto..." />;
     }
 
     return (

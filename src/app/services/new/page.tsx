@@ -6,7 +6,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { Wrench } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { ServiceForm } from "../_components/service-form";
-import { Loader } from "@/components/ui/loader";
+import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 
 export default function NewServicePage() {
   const router = useRouter();
@@ -19,14 +19,7 @@ export default function NewServicePage() {
   }, [isLoading, canCreate, router]);
 
   if (isLoading || !canCreate) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader size="lg" />
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
+    return <EntityLoadingState message="Carregando serviço..." />;
   }
 
   return (

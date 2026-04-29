@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/lib/toast";
 import {
   generateField,
@@ -23,6 +24,7 @@ interface AIFieldButtonProps {
   context: () => GenerateFieldRequest["context"];
   onGenerated: (value: string) => void;
   disabledReason?: string;
+  enabledHint?: string;
   className?: string;
 }
 
@@ -31,17 +33,30 @@ export function AIFieldButton({
   context,
   onGenerated,
   disabledReason,
+  enabledHint,
   className,
 }: AIFieldButtonProps) {
   const [loading, setLoading] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+
+  const tooltipContent = disabledReason
+    ? disabledReason
+    : loading
+      ? "Gerando..."
+      : (enabledHint ?? "Gerar conteúdo com IA");
 
   async function handleClick() {
     if (disabledReason) return;
     setLoading(true);
     try {
       const result = await generateField({ field, context: context() });
-      onGenerated(result.value);
+      const isPdfSection = field === "proposal.pdfSection";
+      const cleanValue = isPdfSection
+        ? result.value
+        : result.value
+            .replace(/\*\*(.*?)\*\*/g, "$1")
+            .replace(/\*(.*?)\*/g, "$1");
+      onGenerated(cleanValue);
       toast.success("Sugestão preenchida — revise antes de salvar");
     } catch (err) {
       if (err instanceof AiApiError) {
@@ -67,19 +82,20 @@ export function AIFieldButton({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={cn("h-6 w-6 text-muted-foreground hover:text-primary", className)}
-        onClick={handleClick}
-        disabled={loading || !!disabledReason}
-        title={disabledReason ?? "Gerar com IA"}
-        aria-label={disabledReason ?? "Gerar com IA"}
-        loading={loading}
-      >
-        {!loading && <WandSparkles className="h-3.5 w-3.5" />}
-      </Button>
+      <Tooltip content={tooltipContent} delayMs={300}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("h-6 w-6 text-muted-foreground hover:text-primary", className)}
+          onClick={handleClick}
+          disabled={loading || !!disabledReason}
+          aria-label={tooltipContent}
+          loading={loading}
+        >
+          {!loading && <WandSparkles className="h-3.5 w-3.5" />}
+        </Button>
+      </Tooltip>
 
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
         <DialogContent>

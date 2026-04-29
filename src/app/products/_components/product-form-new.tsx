@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/ui/file-upload";
-import { DynamicSelect } from "@/components/features/dynamic-select";
+import { DynamicSelect, DynamicSelectHandle } from "@/components/features/dynamic-select";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { useProductForm } from "../_hooks/useProductForm";
 import { Product } from "@/services/product-service";
@@ -117,6 +117,9 @@ export function ProductFormNew({
     removeHeightPricingTier,
     handleSubmit,
   } = useProductForm(initialData, productId, entityType);
+
+  const serviceCategoryRef = React.useRef<DynamicSelectHandle>(null);
+  const productCategoryRef = React.useRef<DynamicSelectHandle>(null);
 
   const entityLabel = entityType === "service" ? "Serviço" : "Produto";
   const entityLabelLower = entityType === "service" ? "serviço" : "produto";
@@ -318,6 +321,7 @@ export function ProductFormNew({
 
                 <div className="relative">
                   <DynamicSelect
+                    ref={serviceCategoryRef}
                     storageKey="product_categories"
                     label="Categoria"
                     id="category"
@@ -332,11 +336,7 @@ export function ProductFormNew({
                     <AIFieldButton
                       field="product.category"
                       context={() => ({ name: formData.name, description: formData.description, niche: nicheConfig.id })}
-                      onGenerated={(value) =>
-                        handleChange({
-                          target: { name: "category", value },
-                        } as React.ChangeEvent<HTMLSelectElement>)
-                      }
+                      onGenerated={(value) => serviceCategoryRef.current?.createAndSelectOption(value)}
                       disabledReason={!formData.name ? "Preencha o nome do serviço primeiro" : undefined}
                     />
                   </div>
@@ -366,6 +366,7 @@ export function ProductFormNew({
                 <FormGroup cols={2}>
                   <div className="relative">
                     <DynamicSelect
+                      ref={productCategoryRef}
                       storageKey="product_categories"
                       label="Categoria"
                       id="category"
@@ -380,11 +381,7 @@ export function ProductFormNew({
                       <AIFieldButton
                         field="product.category"
                         context={() => ({ name: formData.name, description: formData.description, niche: nicheConfig.id })}
-                        onGenerated={(value) =>
-                          handleChange({
-                            target: { name: "category", value },
-                          } as React.ChangeEvent<HTMLSelectElement>)
-                        }
+                        onGenerated={(value) => productCategoryRef.current?.createAndSelectOption(value)}
                         disabledReason={!formData.name ? "Preencha o nome do produto primeiro" : undefined}
                       />
                     </div>
