@@ -10,6 +10,7 @@
 
 import { test, expect } from "../fixtures/base.fixture";
 import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
+import { PROPOSAL_BETA_DRAFT } from "../seed/data/proposals";
 import { USER_ADMIN_ALPHA, USER_ADMIN_BETA } from "../seed/data/users";
 
 const FIRESTORE_EMULATOR_URL =
@@ -23,7 +24,7 @@ test.describe("AUTH-06: Tenant isolation", () => {
     );
 
     const response = await fetch(
-      `${FIRESTORE_EMULATOR_URL}/proposals/proposal-beta-draft`,
+      `${FIRESTORE_EMULATOR_URL}/proposals/${PROPOSAL_BETA_DRAFT.id}`,
       {
         method: "GET",
         headers: {
@@ -42,7 +43,7 @@ test.describe("AUTH-06: Tenant isolation", () => {
     );
 
     const response = await fetch(
-      `${FIRESTORE_EMULATOR_URL}/proposals/proposal-beta-draft`,
+      `${FIRESTORE_EMULATOR_URL}/proposals/${PROPOSAL_BETA_DRAFT.id}`,
       {
         method: "PATCH",
         headers: {
@@ -66,7 +67,7 @@ test.describe("AUTH-06: Tenant isolation", () => {
       USER_ADMIN_ALPHA.password,
     );
 
-    const response = await request.put("/api/backend/proposals/proposal-beta-draft", {
+    const response = await request.put(`/api/backend/proposals/${PROPOSAL_BETA_DRAFT.id}`, {
       headers: {
         Authorization: `Bearer ${idToken}`,
       },
