@@ -20,50 +20,83 @@ interface LoaderProps {
 }
 
 const SIZES = {
-  sm: { px: 4, bounce: 7, gap: "gap-[4px]" },
-  md: { px: 6, bounce: 10, gap: "gap-[6px]" },
-  lg: { px: 8, bounce: 14, gap: "gap-[8px]" },
-} satisfies Record<NonNullable<LoaderProps["size"]>, { px: number; bounce: number; gap: string }>;
+  sm: { dot: 4, w: 24 },
+  md: { dot: 6, w: 34 },
+  lg: { dot: 8, w: 50 },
+} satisfies Record<NonNullable<LoaderProps["size"]>, { dot: number; w: number }>;
 
-function LoaderDots({
+// Keyframe times: converge → hold → diverge → hold
+const TIMES = [0, 0.38, 0.5, 0.88, 1];
+const DURATION = 1.5;
+
+function LoaderMark({
   size = "md",
   variant = "inline",
   label = "Carregando",
   className,
 }: LoaderProps) {
-  const { px, bounce, gap } = SIZES[size];
-  const dotColor = variant === "button" ? "bg-current" : "bg-primary";
+  const { dot, w } = SIZES[size];
+  const converge = (w - dot) / 2;
+  const color = variant === "button" ? "bg-current" : "bg-primary";
 
   return (
-    <motion.span
+    <span
       role="status"
       aria-label={label}
-      className={cn("inline-flex items-end shrink-0", gap, className)}
-      animate="animate"
-      initial="initial"
-      variants={{ animate: { transition: { staggerChildren: 0.15 } } }}
+      className={cn(
+        "relative inline-flex items-center justify-between shrink-0",
+        className,
+      )}
+      style={{ width: w, height: dot }}
     >
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className={cn("rounded-full shrink-0", dotColor)}
-          style={{ width: px, height: px }}
-          variants={{
-            initial: { y: 0, opacity: 0.45, scale: 1 },
-            animate: {
-              y: [0, -bounce, 0],
-              opacity: [0.45, 1, 0.45],
-              scale: [1, 1.08, 1],
-              transition: {
-                duration: 0.6,
-                repeat: Infinity,
-                ease: "easeInOut",
-              },
-            },
-          }}
-        />
-      ))}
-    </motion.span>
+      {/* Left dot — moves right toward center */}
+      <motion.span
+        className={cn("rounded-full shrink-0", color)}
+        style={{ width: dot, height: dot }}
+        animate={{
+          x: [0, converge, converge, 0, 0],
+          opacity: [1, 0.15, 0.15, 1, 1],
+        }}
+        transition={{
+          duration: DURATION,
+          times: TIMES,
+          ease: ["easeIn", "linear", "easeOut", "linear"],
+          repeat: Infinity,
+        }}
+      />
+
+      {/* Center dot — pulses when outer dots arrive */}
+      <motion.span
+        className={cn("absolute rounded-full shrink-0", color)}
+        style={{ width: dot, height: dot, left: (w - dot) / 2 }}
+        animate={{
+          scale: [1, 1, 1.5, 1, 1],
+          opacity: [0.45, 0.45, 1, 0.45, 0.45],
+        }}
+        transition={{
+          duration: DURATION,
+          times: TIMES,
+          ease: ["linear", "easeOut", "easeIn", "linear"],
+          repeat: Infinity,
+        }}
+      />
+
+      {/* Right dot — moves left toward center */}
+      <motion.span
+        className={cn("rounded-full shrink-0", color)}
+        style={{ width: dot, height: dot }}
+        animate={{
+          x: [0, -converge, -converge, 0, 0],
+          opacity: [1, 0.15, 0.15, 1, 1],
+        }}
+        transition={{
+          duration: DURATION,
+          times: TIMES,
+          ease: ["easeIn", "linear", "easeOut", "linear"],
+          repeat: Infinity,
+        }}
+      />
+    </span>
   );
 }
 
@@ -76,7 +109,7 @@ export function Loader({
   if (variant === "contained") {
     return (
       <div className="flex items-center justify-center min-h-[200px] w-full">
-        <LoaderDots size={size === "sm" ? "md" : size} label={label} />
+        <LoaderMark size={size === "sm" ? "md" : size} label={label} />
       </div>
     );
   }
@@ -85,7 +118,7 @@ export function Loader({
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
         <div className="bg-card border border-border/50 shadow-2xl rounded-2xl p-8 max-w-sm w-full text-center flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-200">
-          <LoaderDots size="lg" label={label} />
+          <LoaderMark size="lg" label={label} />
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
         </div>
       </div>
@@ -93,6 +126,6 @@ export function Loader({
   }
 
   return (
-    <LoaderDots size={size} variant={variant} label={label} className={className} />
+    <LoaderMark size={size} variant={variant} label={label} className={className} />
   );
 }
