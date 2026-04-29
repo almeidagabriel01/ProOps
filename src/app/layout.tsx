@@ -1,6 +1,4 @@
-"use client";
-
-import { usePathname } from "next/navigation";
+import type { Metadata, Viewport } from "next";
 import {
   Geist,
   Geist_Mono,
@@ -11,17 +9,9 @@ import {
   Roboto,
 } from "next/font/google";
 import "./globals.css";
-import { ToastProvider } from "@/components/shared/toast-provider";
-import { ErrorBoundary } from "@/components/shared/error-boundary";
-import { TenantProvider } from "@/providers/tenant-provider";
-import { AuthProvider } from "@/providers/auth-provider";
-import { PermissionsProvider } from "@/providers/permissions-provider";
-import { PlanProvider } from "@/providers/plan-provider";
-import { ThemeProvider } from "@/providers/theme-provider";
-import { ProtectedRoute } from "@/components/auth/protected-route";
-import { usePageTitle } from "@/hooks/usePageTitle";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,71 +58,83 @@ const playfairPdf = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://proops.com.br"
+  ),
+  title: {
+    default: "ProOps — ERP para automação residencial e cortinas",
+    template: "%s | ProOps",
+  },
+  description:
+    "ProOps é o ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados em uma plataforma online com editor de PDF profissional.",
+  applicationName: "ProOps",
+  keywords: [
+    "ERP automação residencial",
+    "ERP cortinas",
+    "sistema gestão de serviços",
+    "propostas comerciais",
+    "CRM kanban",
+    "ERP brasileiro",
+    "gestão financeira PMEs",
+    "editor PDF propostas",
+  ],
+  authors: [{ name: "ProOps" }],
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "ProOps",
+    url: "/",
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProOps — ERP para gestão de serviços",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/opengraph-image.png"],
+  },
+  alternates: { canonical: "/" },
+  verification: {
+    google: process.env.NEXT_PUBLIC_SEARCH_CONSOLE_VERIFICATION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+    },
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-
-  usePageTitle();
-
-  const isLandingPage = pathname === "/";
-
-  const isAuthOnlyPage =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password" ||
-    pathname === "/privacy" ||
-    pathname === "/terms" ||
-    pathname.startsWith("/email-verification-pending") ||
-    pathname.startsWith("/subscribe") ||
-    pathname.startsWith("/checkout-success") ||
-    pathname.startsWith("/auth") ||
-    pathname === "/403" ||
-    pathname.startsWith("/subscription-blocked") ||
-    pathname.startsWith("/share/"); // Public shared proposal pages
-
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <title>ProOps - Sistema ERP para gestão de serviços</title>
-        <meta
-          name="description"
-          content="O ProOps é um sistema ERP para gestão de serviços que permite gerenciar clientes, ordens de serviço, relatórios e operações diárias em uma plataforma online."
-        />
-        <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-        <link rel="shortcut icon" href="/favicon.ico" />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
-        <ThemeProvider>
-          <ErrorBoundary>
-            <AuthProvider>
-              {isLandingPage ? (
-                <main className="min-h-screen">{children}</main>
-              ) : pathname.startsWith("/share/") ? (
-                // Public shared proposal pages - no authentication required
-                <main className="min-h-screen">{children}</main>
-              ) : isAuthOnlyPage ? (
-                <main className="min-h-screen flex flex-col">{children}</main>
-              ) : (
-                <PermissionsProvider>
-                  <TenantProvider>
-                    <PlanProvider>
-                      <ProtectedRoute>{children}</ProtectedRoute>
-                    </PlanProvider>
-                  </TenantProvider>
-                </PermissionsProvider>
-              )}
-            </AuthProvider>
-          </ErrorBoundary>
-          <ToastProvider />
-          <Analytics />
-          <SpeedInsights />
-        </ThemeProvider>
+        <Providers>{children}</Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
