@@ -62,6 +62,55 @@ export interface AiStreamCallbacks {
  * For non-2xx responses (403, 429, etc.), throws AiApiError immediately
  * before streaming starts.
  */
+const AI_FIELD_GEN_URL = "/api/backend/v1/ai/generate-field";
+
+export interface GenerateFieldRequest {
+  field:
+    | "product.description"
+    | "product.category"
+    | "proposal.notes"
+    | "proposal.pdfSection"
+    | "item.description";
+  context: Record<string, unknown>;
+}
+
+export interface GenerateFieldResponse {
+  value: string;
+  tokensUsed: number;
+  remainingMessages: number;
+}
+
+export async function generateField(
+  request: GenerateFieldRequest,
+): Promise<GenerateFieldResponse> {
+  const user = await getAuthenticatedUser();
+  if (!user) throw new Error("User not authenticated");
+
+  const token = await user.getIdToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  const viewingTenantId =
+    typeof window !== "undefined"
+      ? sessionStorage.getItem("viewingAsTenant")
+      : null;
+  if (viewingTenantId) headers["x-tenant-id"] = viewingTenantId;
+
+  const response = await fetch(AI_FIELD_GEN_URL, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new AiApiError(response.status, data?.code, data);
+  }
+  return data as GenerateFieldResponse;
+}
+
 export async function sendChatMessage(
   request: AiChatRequest,
   callbacks: AiStreamCallbacks,

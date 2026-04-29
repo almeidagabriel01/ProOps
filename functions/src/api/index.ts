@@ -21,7 +21,7 @@ import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { mercadoPagoRoutes } from "./routes/mercadopago.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
-import { aiRouter } from "../ai";
+import { aiRouter, fieldGenRouter } from "../ai";
 import { aiRateLimiter } from "../ai/rate-limiter";
 import {
   allowCorsFallbackInCurrentEnvironment,
@@ -415,6 +415,7 @@ app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", mercadoPagoRoutes);
 app.use("/v1/ai", aiRateLimiter, aiRouter);
+app.use("/v1/ai", fieldGenRouter);
 
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   const user = req.user;

@@ -28,6 +28,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { ProductPricingStep } from "./product-pricing-step";
 import {
   calculateSellingPrice,
@@ -376,7 +377,27 @@ export function ProductFormNew({
               </>
             )}
 
-            <FormItem label="Descrição" htmlFor="description">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="description" className="text-sm font-medium leading-none">
+                  Descrição
+                </label>
+                <AIFieldButton
+                  field="product.description"
+                  context={() => ({
+                    name: formData.name,
+                    category: formData.category,
+                    manufacturer: formData.manufacturer,
+                    niche: nicheConfig.id,
+                  })}
+                  onGenerated={(value) =>
+                    handleChange({
+                      target: { name: "description", value },
+                    } as React.ChangeEvent<HTMLTextAreaElement>)
+                  }
+                  disabledReason={!formData.name ? "Preencha o nome primeiro" : undefined}
+                />
+              </div>
               <Textarea
                 id="description"
                 name="description"
@@ -385,7 +406,7 @@ export function ProductFormNew({
                 onChange={handleChange}
                 className="min-h-[140px]"
               />
-            </FormItem>
+            </div>
           </div>
 
           <StepNavigation onBeforeNext={validateStep1} />
