@@ -170,6 +170,32 @@ body {
   }
 }
 
+@keyframes luma-spin {
+  0%    { inset: 0 var(--ls-off) var(--ls-off) 0; }
+  12.5% { inset: 0 var(--ls-off) 0 0; }
+  25%   { inset: var(--ls-off) var(--ls-off) 0 0; }
+  37.5% { inset: var(--ls-off) 0 0 0; }
+  50%   { inset: var(--ls-off) 0 0 var(--ls-off); }
+  62.5% { inset: 0 0 0 var(--ls-off); }
+  75%   { inset: 0 0 var(--ls-off) var(--ls-off); }
+  87.5% { inset: 0 0 var(--ls-off) 0; }
+  100%  { inset: 0 var(--ls-off) var(--ls-off) 0; }
+}
+
+.luma-spin-seg {
+  position: absolute;
+  border-radius: 50px;
+  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, #003884);
+  animation: luma-spin 2.5s infinite;
+  will-change: inset;
+}
+.dark .luma-spin-seg {
+  box-shadow: inset 0 0 0 var(--ls-border) var(--ls-color, oklch(0.6 0.15 250));
+}
+.luma-spin-seg-delay {
+  animation-delay: -1.25s;
+}
+
 /* Animation Utilities */
 .animate-gradient-text {
   animation: gradient-text 3s ease infinite;

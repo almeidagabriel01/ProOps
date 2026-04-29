@@ -316,17 +316,31 @@ export function ProductFormNew({
                   />
                 </FormItem>
 
-                <DynamicSelect
-                  storageKey="product_categories"
-                  label="Categoria"
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  error={errors.category}
-                  className="flex flex-col gap-4 space-y-0 [&>div:first-child]:h-5 [&_label]:leading-5"
-                />
+                <div className="relative">
+                  <DynamicSelect
+                    storageKey="product_categories"
+                    label="Categoria"
+                    id="category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                    error={errors.category}
+                    className="flex flex-col gap-4 space-y-0 [&>div:first-child]:h-5 [&_label]:leading-5"
+                  />
+                  <div className="absolute top-0 right-20 flex items-center h-5">
+                    <AIFieldButton
+                      field="product.category"
+                      context={() => ({ name: formData.name, description: formData.description, niche: nicheConfig.id })}
+                      onGenerated={(value) =>
+                        handleChange({
+                          target: { name: "category", value },
+                        } as React.ChangeEvent<HTMLSelectElement>)
+                      }
+                      disabledReason={!formData.name ? "Preencha o nome do serviço primeiro" : undefined}
+                    />
+                  </div>
+                </div>
               </FormGroup>
             ) : (
               <>
@@ -350,17 +364,31 @@ export function ProductFormNew({
                 </FormItem>
 
                 <FormGroup cols={2}>
-                  <DynamicSelect
-                    storageKey="product_categories"
-                    label="Categoria"
-                    id="category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    required
-                    error={errors.category}
-                    className="flex flex-col gap-4 space-y-0 [&>div:first-child]:h-5 [&_label]:leading-5"
-                  />
+                  <div className="relative">
+                    <DynamicSelect
+                      storageKey="product_categories"
+                      label="Categoria"
+                      id="category"
+                      name="category"
+                      value={formData.category}
+                      onChange={handleChange}
+                      required
+                      error={errors.category}
+                      className="flex flex-col gap-4 space-y-0 [&>div:first-child]:h-5 [&_label]:leading-5"
+                    />
+                    <div className="absolute top-0 right-20 flex items-center h-5">
+                      <AIFieldButton
+                        field="product.category"
+                        context={() => ({ name: formData.name, description: formData.description, niche: nicheConfig.id })}
+                        onGenerated={(value) =>
+                          handleChange({
+                            target: { name: "category", value },
+                          } as React.ChangeEvent<HTMLSelectElement>)
+                        }
+                        disabledReason={!formData.name ? "Preencha o nome do produto primeiro" : undefined}
+                      />
+                    </div>
+                  </div>
 
                   <DynamicSelect
                     storageKey="product_manufacturers"

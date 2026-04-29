@@ -11,6 +11,7 @@ import {
   PaymentTermsEditor,
   ImageEditor,
 } from "./section-editors";
+import type { PdfSectionProposalContext } from "./section-editors";
 
 const normalizeText = (value?: string) =>
   (value || "")
@@ -34,6 +35,7 @@ interface SectionContentEditorProps {
   linkedScopeTextSection?: PdfSection;
   linkedPairedTextSection?: PdfSection;
   primaryColor: string;
+  proposalContext?: PdfSectionProposalContext;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
   updateStyle: (
     id: string,
@@ -55,6 +57,7 @@ export function SectionContentEditor({
   linkedScopeTextSection,
   linkedPairedTextSection,
   primaryColor,
+  proposalContext,
   updateSection,
   updateStyle,
   handleImageUpload,
@@ -88,7 +91,12 @@ export function SectionContentEditor({
       )}
 
       {section.type === "text" && (
-        <TextEditor section={section} updateSection={updateSection} />
+        <TextEditor
+          section={section}
+          updateSection={updateSection}
+          sectionType="generic"
+          proposalContext={proposalContext}
+        />
       )}
 
       {linkedPairedTextSection && (
@@ -96,6 +104,13 @@ export function SectionContentEditor({
           section={linkedPairedTextSection}
           updateSection={updateSection}
           label={linkedTextLabel}
+          sectionType={
+            normalizedTitle.includes("condicoes de pagamento") ||
+            normalizedTitle.includes("condicao de pagamento")
+              ? "terms"
+              : "generic"
+          }
+          proposalContext={proposalContext}
         />
       )}
 
@@ -104,11 +119,16 @@ export function SectionContentEditor({
           linkedScopeTitleSection={linkedScopeTitleSection}
           linkedScopeTextSection={linkedScopeTextSection}
           updateSection={updateSection}
+          proposalContext={proposalContext}
         />
       )}
 
       {section.type === "payment-terms" && (
-        <PaymentTermsEditor section={section} updateSection={updateSection} />
+        <PaymentTermsEditor
+          section={section}
+          updateSection={updateSection}
+          proposalContext={proposalContext}
+        />
       )}
 
       {section.type === "image" && (

@@ -68,6 +68,7 @@ export interface GenerateFieldRequest {
   field:
     | "product.description"
     | "product.category"
+    | "service.description"
     | "proposal.notes"
     | "proposal.pdfSection"
     | "item.description";

@@ -13,6 +13,14 @@ import {
   VerticalAlignControls,
 } from "./style-controls";
 import { ALLOWED_TYPES } from "@/services/storage-service";
+import { AIFieldButton } from "@/components/shared/ai-field-button";
+
+export interface PdfSectionProposalContext {
+  title?: string;
+  clientName?: string;
+  niche?: string;
+  products?: { name: string; quantity: number }[];
+}
 
 // ============================================
 // COLUMN LAYOUT CONTROL
@@ -113,16 +121,34 @@ interface TextEditorProps {
   section: PdfSection;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
   label?: string;
+  proposalContext?: PdfSectionProposalContext;
+  sectionType?: "generic" | "scope" | "terms";
 }
 
 export function TextEditor({
   section,
   updateSection,
   label = "Conteúdo",
+  proposalContext,
+  sectionType = "generic",
 }: TextEditorProps) {
   return (
     <div className="grid gap-2">
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <AIFieldButton
+          field="proposal.pdfSection"
+          context={() => ({
+            title: proposalContext?.title ?? "",
+            sectionType,
+            products: proposalContext?.products ?? [],
+            niche: proposalContext?.niche ?? "automacao_residencial",
+          })}
+          onGenerated={(value) =>
+            updateSection(section.id, { content: value })
+          }
+        />
+      </div>
       <Textarea
         value={section.content}
         onChange={(e) => updateSection(section.id, { content: e.target.value })}
@@ -141,12 +167,14 @@ interface ProductTableEditorProps {
   linkedScopeTitleSection?: PdfSection;
   linkedScopeTextSection?: PdfSection;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
+  proposalContext?: PdfSectionProposalContext;
 }
 
 export function ProductTableEditor({
   linkedScopeTitleSection,
   linkedScopeTextSection,
   updateSection,
+  proposalContext,
 }: ProductTableEditorProps) {
   return (
     <div className="space-y-4">
@@ -167,7 +195,22 @@ export function ProductTableEditor({
 
       {linkedScopeTextSection && (
         <div className="grid gap-2">
-          <Label>Texto Introdutório do Escopo</Label>
+          <div className="flex items-center justify-between">
+            <Label>Texto Introdutório do Escopo</Label>
+            <AIFieldButton
+              field="proposal.pdfSection"
+              context={() => ({
+                title: proposalContext?.title ?? "",
+                sectionType: "scope" as const,
+                sectionTitle: "Escopo do Projeto",
+                products: proposalContext?.products ?? [],
+                niche: proposalContext?.niche ?? "automacao_residencial",
+              })}
+              onGenerated={(value) =>
+                updateSection(linkedScopeTextSection.id, { content: value })
+              }
+            />
+          </div>
           <Textarea
             value={linkedScopeTextSection.content}
             onChange={(e) =>
@@ -192,16 +235,33 @@ export function ProductTableEditor({
 interface PaymentTermsEditorProps {
   section: PdfSection;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
+  proposalContext?: PdfSectionProposalContext;
 }
 
 export function PaymentTermsEditor({
   section,
   updateSection,
+  proposalContext,
 }: PaymentTermsEditorProps) {
   return (
     <div className="space-y-4">
       <div className="grid gap-2">
-        <Label>Texto das Condições de Pagamento</Label>
+        <div className="flex items-center justify-between">
+          <Label>Texto das Condições de Pagamento</Label>
+          <AIFieldButton
+            field="proposal.pdfSection"
+            context={() => ({
+              title: proposalContext?.title ?? "",
+              sectionType: "terms" as const,
+              sectionTitle: "Condições de Pagamento",
+              products: proposalContext?.products ?? [],
+              niche: proposalContext?.niche ?? "automacao_residencial",
+            })}
+            onGenerated={(value) =>
+              updateSection(section.id, { content: value })
+            }
+          />
+        </div>
         <Textarea
           value={section.content || ""}
           onChange={(e) =>

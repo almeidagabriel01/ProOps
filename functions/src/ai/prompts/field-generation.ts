@@ -25,13 +25,18 @@ export type GenerateFieldRequest =
       field: "proposal.pdfSection";
       context: {
         title: string;
-        sectionType: "cover" | "scope" | "terms";
+        sectionType: "cover" | "scope" | "terms" | "generic";
+        sectionTitle?: string;
         products?: { name: string; quantity: number }[];
         niche: NicheKey;
       };
     }
   | {
       field: "item.description";
+      context: { name: string; category?: string; niche: NicheKey };
+    }
+  | {
+      field: "service.description";
       context: { name: string; category?: string; niche: NicheKey };
     };
 
@@ -44,11 +49,12 @@ export const MAX_OUTPUT_TOKENS: Record<GenerateFieldRequestField, number> = {
   "proposal.notes": 500,
   "proposal.pdfSection": 800,
   "item.description": 200,
+  "service.description": 200,
 };
 
 const NICHE_LABELS: Record<string, string> = {
   automacao_residencial: "automação residencial",
-  cortinas: "cortinas e persianas",
+  cortinas: "decoração de interiores (cortinas, persianas, papéis de parede)",
 };
 
 function nicheLabel(niche: string): string {
@@ -103,6 +109,7 @@ export function buildPrompt(req: GenerateFieldRequest): { system: string; user: 
         cover: "capa / apresentação",
         scope: "escopo do projeto",
         terms: "condições e garantias",
+        generic: "seção informativa",
       };
       const productList = (req.context.products ?? [])
         .slice(0, 10)
@@ -110,7 +117,7 @@ export function buildPrompt(req: GenerateFieldRequest): { system: string; user: 
         .join("\n");
       return {
         system: `Você é redator de propostas comerciais para empresas de ${nicheLabel(req.context.niche)}. Escreva em PT-BR a seção de ${sectionLabels[req.context.sectionType]} para um PDF profissional. Tom formal e confiante. Sem títulos ou subtítulos repetindo o nome da seção. Sem markdown.`,
-        user: `Título da proposta: ${truncate(req.context.title)}${productList ? `\nItens:\n${productList}` : ""}`,
+        user: `Título da proposta: ${truncate(req.context.title)}${req.context.sectionTitle ? `\nTítulo da seção: ${truncate(req.context.sectionTitle, 100)}` : ""}${productList ? `\nItens:\n${productList}` : ""}`,
       };
     }
 
@@ -118,6 +125,12 @@ export function buildPrompt(req: GenerateFieldRequest): { system: string; user: 
       return {
         system: `Você é redator técnico para o nicho de ${nicheLabel(req.context.niche)}. Escreva em PT-BR 1-2 frases descrevendo o item de forma objetiva para uma proposta comercial. Sem prefixo. Sem aspas. Sem markdown.`,
         user: `Item: ${truncate(req.context.name)}\nCategoria: ${truncate(req.context.category)}`,
+      };
+
+    case "service.description":
+      return {
+        system: `Você é redator técnico especializado no nicho de ${nicheLabel(req.context.niche)}. Escreva em PT-BR 2-3 frases objetivas descrevendo o escopo do serviço, seus principais diferenciais e as condições de entrega ou execução. Sem prefixo como "Descrição:". Sem aspas. Sem markdown.`,
+        user: `Serviço: ${truncate(req.context.name)}\nCategoria: ${truncate(req.context.category)}`,
       };
   }
 }

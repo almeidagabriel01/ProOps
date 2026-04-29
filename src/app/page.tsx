@@ -8,6 +8,7 @@ import {
   LandingShowcase,
   LandingModules,
   LandingFeatures,
+  LandingNiches,
   LandingPricing,
   LandingCTA,
   LandingFooter,
@@ -45,6 +46,7 @@ export default function LandingPage() {
         <LandingShowcase />
         <LandingModules />
         <LandingFeatures />
+        <LandingNiches />
 
         <div className="mx-auto h-px w-full max-w-7xl bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15" />
 

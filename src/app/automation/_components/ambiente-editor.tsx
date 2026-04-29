@@ -35,7 +35,9 @@ import {
 } from "@/lib/sort-text";
 import { toast } from "@/lib/toast";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { getNicheConfig } from "@/lib/niches/config";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   formatItemQuantity,
   normalizeItemQuantity,
@@ -114,6 +116,7 @@ export function AmbienteEditor({
   onSave,
 }: AmbienteEditorProps) {
   const { tenant } = useTenant();
+  const nicheConfig = useCurrentNicheConfig();
   const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
   const allowDecimalProductQuantity = inventoryConfig.step < 1;
   const [isSaving, setIsSaving] = React.useState(false);
@@ -501,7 +504,15 @@ export function AmbienteEditor({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Descrição</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Descrição</Label>
+                  <AIFieldButton
+                    field="product.description"
+                    context={() => ({ name, niche: nicheConfig.id })}
+                    onGenerated={(value) => setDescription(value)}
+                    disabledReason={!name ? "Preencha o nome do ambiente primeiro" : undefined}
+                  />
+                </div>
                 <Textarea
                   value={description}
                   onChange={(event) => setDescription(event.target.value)}

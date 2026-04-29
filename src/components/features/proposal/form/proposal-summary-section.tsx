@@ -189,6 +189,13 @@ export function ProposalSummarySection({
           customNotes={formData.customNotes || ""}
           onFormChange={onFormChange}
           statusOptions={dynamicStatusOptions}
+          proposalContext={{
+            title: formData.title,
+            clientName: formData.clientName,
+            products: selectedProducts.map((p) => ({ name: p.productName, quantity: p.quantity })),
+            totalValue: totalValue,
+            niche: tenant?.niche,
+          }}
         />
 
         {/* Payment Summary (read-only) */}

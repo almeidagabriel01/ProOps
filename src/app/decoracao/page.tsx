@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  FileText,
-  Kanban,
-  DollarSign,
-  Package,
+  Ruler,
+  Layers,
+  Palette,
+  CreditCard,
   MessageCircle,
   CalendarDays,
 } from "lucide-react";
@@ -14,115 +14,113 @@ import {
 } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "ERP para Automação Residencial — propostas, projetos e gestão",
+  title: "ERP para Decoração — cortinas, persianas e papéis de parede",
   description:
-    "ProOps é o sistema ERP especializado para empresas de automação residencial. Gerencie propostas comerciais com PDF profissional, CRM, financeiro, agenda e WhatsApp em uma plataforma integrada.",
+    "ProOps é o ERP para lojas de decoração. Propostas com cálculo automático de metros, CRM, financeiro e WhatsApp integrados.",
   keywords: [
-    "ERP automação residencial",
-    "sistema gestão automação residencial",
-    "software proposta automação residencial",
-    "CRM integradores",
-    "ERP integradores AV",
-    "gestão projetos automação",
-    "proposta comercial automação residencial",
+    "ERP decoração",
+    "sistema gestão loja cortinas",
+    "ERP persianas",
+    "software proposta decoração",
+    "sistema decoração interiores",
   ],
-  alternates: { canonical: "/automacao-residencial" },
+  alternates: { canonical: "/decoracao" },
   openGraph: {
-    title: "ERP para Automação Residencial — ProOps",
+    title: "ERP para Decoração — ProOps",
     description:
-      "Sistema completo para integradores: propostas em PDF, CRM, financeiro, agenda e WhatsApp integrados.",
-    url: "/automacao-residencial",
+      "Sistema completo para lojas de decoração: propostas com medidas, CRM, financeiro e WhatsApp.",
+    url: "/decoracao",
   },
 };
 
 const FEATURES = [
   {
-    icon: FileText,
-    title: "Propostas com PDF profissional",
+    icon: Ruler,
+    title: "Cálculo por metro quadrado",
     description:
-      "Monte propostas detalhadas com lista de produtos, preços, prazo de entrega e condições de pagamento. Gere PDF com sua marca e envie direto ao cliente.",
+      "Monte propostas com cálculo automático por m², por largura de painel ou por faixa de altura. O preço total é calculado em tempo real.",
   },
   {
-    icon: Kanban,
-    title: "CRM Kanban para projetos",
+    icon: Layers,
+    title: "Catálogo de tecidos e materiais",
     description:
-      "Acompanhe cada oportunidade de venda em um quadro Kanban visual. Saiba exatamente em qual etapa cada projeto está e nunca perca um follow-up.",
+      "Cadastre cortinas, persianas, papéis de parede, trilhos e acessórios com fotos e preços. Adicione a propostas em segundos.",
   },
   {
-    icon: DollarSign,
+    icon: Palette,
+    title: "Múltiplos modos de precificação",
+    description:
+      "Configure preços por m², por largura com painéis, por faixa de altura ou preço fixo. Flexibilidade total para o seu modelo de negócio.",
+  },
+  {
+    icon: CreditCard,
     title: "Financeiro integrado",
     description:
-      "Ao aprovar uma proposta, as parcelas e entradas são criadas automaticamente no financeiro. Controle o fluxo de caixa sem planilhas.",
-  },
-  {
-    icon: Package,
-    title: "Catálogo de produtos",
-    description:
-      "Cadastre painéis, centrais, sensores, câmeras e equipamentos com fotos, descrições técnicas e preços. Adicione a propostas em segundos.",
+      "Ao aprovar um orçamento, entradas e parcelas são criadas automaticamente no financeiro. Controle entradas e saídas sem planilhas.",
   },
   {
     icon: MessageCircle,
     title: "WhatsApp integrado",
     description:
-      "Notifique clientes pelo WhatsApp quando a proposta é enviada ou aprovada. Comunicação profissional sem sair da plataforma.",
+      "Envie propostas e notificações pelo WhatsApp diretamente da plataforma. Comunique-se de forma profissional com cada cliente.",
   },
   {
     icon: CalendarDays,
-    title: "Agenda e calendário",
+    title: "Agenda de instalações",
     description:
-      "Organize visitas técnicas, instalações e reuniões. Integração com Google Calendar para sua equipe.",
+      "Organize visitas de medição e instalações com calendário integrado. Sua equipe fica alinhada e o cliente recebe confirmação automática.",
   },
 ];
 
 const MODULES = [
   {
-    label: "Catálogo de produtos",
+    label: "Precificação por m²",
     description:
-      "Sensores, câmeras, painéis de controle e centrais de automação. Cadastre com fotos e especificações técnicas e adicione a qualquer proposta.",
+      "Defina o preço por metro quadrado e o ProOps calcula o total automaticamente ao informar largura e altura de cada ambiente.",
   },
   {
-    label: "Sistemas e ambientes",
+    label: "Por faixa de altura",
     description:
-      "Monte soluções completas por cômodo — iluminação, climatização, segurança e entretenimento — organizados por ambiente do projeto.",
+      "Configure tabelas de preço por faixa de altura — ideal para persianas e cortinas com variação de custo por tamanho.",
   },
   {
-    label: "Propostas com PDF profissional",
+    label: "Largura com painéis",
     description:
-      "Gere propostas técnicas e comerciais em PDF com capa personalizada, lista de itens, valores e condições de pagamento.",
+      "Para papéis de parede e revestimentos vendidos em painéis ou rolos, calcule automaticamente a quantidade e o custo total.",
   },
 ];
 
 const FAQS = [
   {
-    question: "O ProOps é específico para automação residencial?",
+    question: "O ProOps funciona para lojas de cortinas e persianas?",
     answer:
-      "Sim. O ProOps tem suporte nativo ao nicho de automação residencial com catálogo de produtos, templates de proposta e campos específicos para projetos de integração AV.",
+      "Sim. O ProOps tem suporte nativo ao nicho de decoração, com campos específicos para medidas, tipos de produto e ambiente do cliente.",
   },
   {
-    question: "Posso personalizar os templates de proposta com minha marca?",
+    question: "Posso incluir fotos dos produtos nas propostas?",
     answer:
-      "Sim. Você adiciona logotipo, cores e informações da sua empresa. O PDF gerado sai com a identidade visual do seu negócio.",
+      "Sim. Ao cadastrar um produto no catálogo, você adiciona a foto. Ela aparece automaticamente no PDF da proposta.",
   },
   {
-    question: "Tem app mobile?",
+    question: "O sistema calcula o preço total automaticamente?",
     answer:
-      "O ProOps é um sistema web responsivo que funciona bem em smartphones e tablets. Um app nativo está no roadmap.",
+      "Sim. Ao adicionar itens com quantidade e preço unitário — ou com medidas e preço por m² —, o ProOps calcula o total da proposta e atualiza o financeiro automaticamente.",
   },
   {
     question: "Qual o custo para começar?",
     answer:
-      "Há um plano gratuito para você testar. Os planos pagos começam com preço acessível para pequenas empresas e integradores independentes.",
+      "Há um plano gratuito para testar. Os planos pagos têm preço acessível para lojas de todos os portes.",
   },
 ];
 
-export default function AutomacaoResidencialPage() {
+export default function DecoracaoPage() {
   return (
     <>
-      <SoftwareApplicationJsonLd niche="automacao_residencial" />
+      <SoftwareApplicationJsonLd niche="cortinas" />
       <BreadcrumbJsonLd
         items={[
           { name: "Início", url: "/" },
-          { name: "Automação Residencial", url: "/automacao-residencial" },
+          { name: "Decoração", url: "/decoracao" },
         ]}
       />
 
@@ -131,7 +129,7 @@ export default function AutomacaoResidencialPage() {
         <section className="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 py-24 px-4 text-center text-white">
           <div className="max-w-4xl mx-auto">
             <span className="inline-block mb-4 text-xs font-semibold uppercase tracking-widest text-blue-300">
-              Para integradores
+              Para lojas de decoração
             </span>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
               ERP para{" "}
@@ -139,14 +137,12 @@ export default function AutomacaoResidencialPage() {
                 className="animate-gradient-text bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-400"
                 style={{ backgroundSize: "200% auto" }}
               >
-                Automação Residencial
+                Lojas de Decoração
               </span>
             </h1>
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-              O ProOps foi criado para integradores e empresas de automação
-              residencial que precisam profissionalizar suas propostas
-              comerciais, organizar o CRM e controlar o financeiro em um só
-              lugar.
+              Propostas com cálculo automático de metros, catálogo de tecidos,
+              persianas e papéis de parede, CRM e financeiro integrados.
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <Link
@@ -189,11 +185,11 @@ export default function AutomacaoResidencialPage() {
         <section className="py-20 px-4 bg-muted/30">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-4">
-              Tudo o que sua empresa de automação residencial precisa
+              Tudo o que sua loja de decoração precisa
             </h2>
             <p className="text-center text-muted-foreground mb-12 max-w-xl mx-auto">
-              Do catálogo técnico ao PDF profissional, o ProOps cobre todo o
-              fluxo comercial de integradores.
+              Do catálogo de produtos ao PDF profissional, o ProOps cobre todo o
+              fluxo comercial da sua loja.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
               {FEATURES.map(({ icon: Icon, title, description }) => (
@@ -218,11 +214,11 @@ export default function AutomacaoResidencialPage() {
         <section className="py-20 px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-center mb-4">
-              Módulos específicos para automação
+              Modos de precificação para decoração
             </h2>
             <p className="text-center text-muted-foreground mb-12 max-w-xl mx-auto">
-              O ProOps oferece módulos pensados para a realidade de integradores
-              e empresas de AV.
+              O ProOps oferece três modelos de cálculo de preço específicos para
+              lojas de decoração.
             </p>
             <div className="grid md:grid-cols-3 gap-6">
               {MODULES.map(({ label, description }) => (
@@ -271,11 +267,11 @@ export default function AutomacaoResidencialPage() {
         <section className="py-16 px-4 bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 text-white text-center">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-3xl font-bold mb-4">
-              Profissionalize sua empresa de automação residencial
+              Sua loja de decoração merece um sistema profissional
             </h2>
             <p className="text-lg text-slate-300 mb-8">
-              Junte-se a integradores que já usam o ProOps para fechar mais
-              projetos com propostas profissionais.
+              Junte-se a lojas de cortinas, persianas e papéis de parede que já
+              usam o ProOps para fechar mais vendas com propostas profissionais.
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <Link
@@ -285,10 +281,10 @@ export default function AutomacaoResidencialPage() {
                 Criar conta grátis
               </Link>
               <Link
-                href="/decoracao"
+                href="/automacao-residencial"
                 className="inline-flex items-center justify-center rounded-md border border-white/30 text-white px-8 py-3 font-semibold hover:bg-white/10 transition-colors"
               >
-                Ver também: ERP para Decoração
+                Ver também: ERP para Automação Residencial
               </Link>
             </div>
           </div>

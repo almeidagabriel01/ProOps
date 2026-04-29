@@ -14,6 +14,7 @@ export type {
   CoverElementPosition,
 } from "@/types/pdf.types";
 import type { PdfSection, CoverElement } from "@/types/pdf.types";
+import type { PdfSectionProposalContext } from "./pdf-editor/content-editor/section-editors";
 
 // Helper to create default cover elements
 export function createDefaultCoverElements(): CoverElement[] {
@@ -188,12 +189,14 @@ interface PdfSectionEditorProps {
   sections: PdfSection[];
   onChange: (sections: PdfSection[]) => void;
   primaryColor: string;
+  proposalContext?: PdfSectionProposalContext;
 }
 
 export function PdfSectionEditor({
   sections,
   onChange,
   primaryColor,
+  proposalContext,
 }: PdfSectionEditorProps) {
   const {
     expandedSections,
@@ -380,6 +383,7 @@ export function PdfSectionEditor({
             onMove={moveSection}
             onRemove={removeSection}
             onHoverHandle={setHoveredHandleId}
+            proposalContext={proposalContext}
             updateSection={updateSection}
             updateStyle={updateStyle}
             handleImageUpload={handleImageUpload}

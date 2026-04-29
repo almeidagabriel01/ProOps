@@ -220,6 +220,9 @@ export default function EditPdfPage() {
             clientName={proposal.clientName}
             tenantColor={tenant?.primaryColor}
             validUntil={proposal.validUntil}
+            proposalTitle={proposal.title}
+            proposalProducts={proposal.products?.map((p) => ({ name: p.productName, quantity: p.quantity }))}
+            proposalNiche={tenant?.niche}
           />
         </div>
 

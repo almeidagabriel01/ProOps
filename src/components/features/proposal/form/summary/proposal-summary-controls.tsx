@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ProposalStatus } from "@/types/proposal";
 import { Tag, CheckCircle2, Clock, Send, XCircle, FileEdit, Handshake } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AIFieldButton } from "@/components/shared/ai-field-button";
 
 interface ProposalSummaryControlsProps {
   status: ProposalStatus;
@@ -15,6 +16,14 @@ interface ProposalSummaryControlsProps {
     >,
   ) => void;
   statusOptions: { value: ProposalStatus; label: string }[];
+  /** Optional context for AI notes generation */
+  proposalContext?: {
+    title?: string;
+    clientName?: string;
+    products?: { name: string; quantity: number }[];
+    totalValue?: number;
+    niche?: string;
+  };
 }
 
 function getStatusMeta(status: string) {
@@ -46,6 +55,7 @@ export function ProposalSummaryControls({
   customNotes,
   onFormChange,
   statusOptions,
+  proposalContext,
 }: ProposalSummaryControlsProps) {
   const meta = getStatusMeta(status || "draft");
   const StatusIcon = meta.icon;
@@ -91,10 +101,27 @@ export function ProposalSummaryControls({
 
       {/* Custom Notes */}
       <div className="grid gap-2">
-        <Label htmlFor="customNotes" className="flex items-center gap-2 font-medium">
-          <Tag className="w-4 h-4 text-muted-foreground" />
-          Observações Adicionais
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="customNotes" className="flex items-center gap-2 font-medium">
+            <Tag className="w-4 h-4 text-muted-foreground" />
+            Observações Adicionais
+          </Label>
+          <AIFieldButton
+            field="proposal.notes"
+            context={() => ({
+              title: proposalContext?.title ?? "",
+              clientName: proposalContext?.clientName ?? "",
+              products: proposalContext?.products ?? [],
+              totalValue: proposalContext?.totalValue ?? 0,
+              niche: proposalContext?.niche ?? "automacao_residencial",
+            })}
+            onGenerated={(value) =>
+              onFormChange({
+                target: { name: "customNotes", value },
+              } as React.ChangeEvent<HTMLTextAreaElement>)
+            }
+          />
+        </div>
         <Textarea
           id="customNotes"
           name="customNotes"

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PdfSection } from "../pdf-section-editor";
 import { SectionContentEditor } from "./section-content-editor";
+import type { PdfSectionProposalContext } from "./content-editor/section-editors";
 
 const normalizeText = (value?: string) =>
   (value || "")
@@ -49,6 +50,7 @@ interface SectionCardProps {
   onMove: (id: string, direction: "up" | "down") => void;
   onRemove: (id: string) => void;
   onHoverHandle: (id: string | null) => void;
+  proposalContext?: PdfSectionProposalContext;
   updateSection: (id: string, updates: Partial<PdfSection>) => void;
   updateStyle: (
     id: string,
@@ -118,6 +120,7 @@ export function SectionCard({
   onMove,
   onRemove,
   onHoverHandle,
+  proposalContext,
   updateSection,
   updateStyle,
   handleImageUpload,
@@ -310,6 +313,7 @@ export function SectionCard({
             linkedScopeTextSection={linkedScopeTextSection}
             linkedPairedTextSection={linkedPairedTextSection}
             primaryColor={primaryColor}
+            proposalContext={proposalContext}
             updateSection={updateSection}
             updateStyle={updateStyle}
             handleImageUpload={handleImageUpload}

@@ -7,6 +7,7 @@ import {
   PdfSection,
   CoverElement,
 } from "@/components/features/proposal/pdf-section-editor";
+import type { PdfSectionProposalContext } from "@/components/features/proposal/pdf-editor/content-editor/section-editors";
 import { PdfCoverTab } from "./pdf-cover-tab";
 import { PdfStyleTab } from "./pdf-style-tab";
 import { ThemeType } from "./pdf-theme-utils";
@@ -54,6 +55,9 @@ interface PdfEditorTabsProps {
   clientName?: string;
   tenantColor?: string; // Tenant's primary color
   validUntil?: string;
+  proposalTitle?: string;
+  proposalProducts?: { name: string; quantity: number }[];
+  proposalNiche?: string;
 }
 
 export function PdfEditorTabs({
@@ -90,7 +94,16 @@ export function PdfEditorTabs({
   clientName,
   tenantColor,
   validUntil,
+  proposalTitle,
+  proposalProducts,
+  proposalNiche,
 }: PdfEditorTabsProps) {
+  const proposalContext: PdfSectionProposalContext = {
+    title: proposalTitle,
+    clientName,
+    niche: proposalNiche,
+    products: proposalProducts,
+  };
   return (
     <Tabs defaultValue="cover">
       <TabsList className="grid grid-cols-3 w-full">
@@ -177,6 +190,7 @@ export function PdfEditorTabs({
                   sections={sections}
                   onChange={setSections}
                   primaryColor={primaryColor}
+                  proposalContext={proposalContext}
                 />
               </CardContent>
             </>

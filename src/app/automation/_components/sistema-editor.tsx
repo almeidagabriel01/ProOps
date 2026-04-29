@@ -57,6 +57,8 @@ import {
   compareConfiguredDisplayItem,
 } from "@/lib/sort-text";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { AIFieldButton } from "@/components/shared/ai-field-button";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 
 interface SistemaEditorProps {
   sistema: Sistema | null;
@@ -101,6 +103,7 @@ export function SistemaEditor({
   onAmbienteCreated,
 }: SistemaEditorProps) {
   const { tenant } = useTenant();
+  const nicheConfig = useCurrentNicheConfig();
   const [isSaving, setIsSaving] = React.useState(false);
 
   // Form State
@@ -551,7 +554,15 @@ export function SistemaEditor({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Descrição</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Descrição</Label>
+                  <AIFieldButton
+                    field="product.description"
+                    context={() => ({ name, niche: nicheConfig.id })}
+                    onGenerated={(value) => setDescription(value)}
+                    disabledReason={!name ? "Preencha o nome da solução primeiro" : undefined}
+                  />
+                </div>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
