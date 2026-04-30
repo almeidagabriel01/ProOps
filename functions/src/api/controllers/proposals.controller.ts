@@ -609,19 +609,13 @@ async function syncApprovedProposalTransactions(params: {
   } = params;
   const defaultWalletName =
     await resolveDefaultWalletNameForTenant(proposalTenantId);
-  const {
-    drafts: desiredDrafts,
-    effectiveDownPaymentValue: _effectiveDownPaymentValue,
-    effectiveInstallmentValue: _effectiveInstallmentValue,
-  } = buildApprovedProposalTransactionDrafts({
+  const { drafts: desiredDrafts } = buildApprovedProposalTransactionDrafts({
     proposalId,
     proposalData,
     userId,
     defaultWalletName,
     initialStatus,
   });
-  void _effectiveDownPaymentValue;
-  void _effectiveInstallmentValue;
   const desiredByKey = new Map(
     desiredDrafts.map((draft) => [
       draft.isDownPayment
