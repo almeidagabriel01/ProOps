@@ -298,12 +298,27 @@ export function useLoginForm(): UseLoginFormReturn {
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
-      if (redirectReason === "session_expired") {
-        window.location.replace(target);
+      // Guard against open redirect and javascript: XSS — only follow same-origin paths
+      const isSameOrigin = (() => {
+        try {
+          return new URL(target, window.location.origin).origin === window.location.origin;
+        } catch {
+          return false;
+        }
+      })();
+      if (!isSameOrigin) {
+        // Unsafe target — fall through to role-based default redirect
+      } else if (redirectReason === "session_expired") {
+        const isSuperAdminRoute = target.startsWith("/admin");
+        if (!isSuperAdminRoute || user?.role === "superadmin") {
+          window.location.replace(target);
+          return;
+        }
+        // Role mismatch — fall through to role-based default redirect
       } else {
         router.replace(target);
+        return;
       }
-      return;
     }
 
     // Default redirects based on role
@@ -380,8 +395,10 @@ export function useLoginForm(): UseLoginFormReturn {
           return;
         }
 
-        // For session_expired, we MUST wait until the session cookie is synced back
-        if (redirectReason === "session_expired" && !isSessionSynced) {
+        // Always wait for the session cookie before redirecting.
+        // Without this, the middleware rejects the navigation (no cookie),
+        // redirects to /login?session_expired, and creates a redirect loop.
+        if (!isSessionSynced) {
           return;
         }
 
