@@ -198,6 +198,11 @@ export function transformSistemas(
   });
 }
 
+const toNumberOrNull = (v: unknown): number | null =>
+  v === null || v === undefined || v === "" ? null : Number(v);
+const toNumberOrZero = (v: unknown): number =>
+  v === null || v === undefined || v === "" ? 0 : Number(v) || 0;
+
 // Update existing proposal
 export async function updateProposal(
   payload: UpdateProposalPayload,
@@ -218,8 +223,9 @@ export async function updateProposal(
   const productsForUpdate = sanitizeProducts(selectedProducts);
   const safeTotal = productsForUpdate.reduce((sum, p) => sum + p.total, 0);
   const discountAmount = (safeTotal * (formData.discount || 0)) / 100;
-  const computedTotalValue =
-    safeTotal - discountAmount + (formData.extraExpense || 0);
+  const baseTotalValue = safeTotal - discountAmount + (formData.extraExpense || 0);
+  const closedValueNumber = Number(formData.closedValue) || 0;
+  const computedTotalValue = closedValueNumber > 0 ? closedValueNumber : baseTotalValue;
 
   const downPaymentType = formData.downPaymentType || "value";
   const downPaymentPercentage = formData.downPaymentPercentage || 0;
@@ -247,9 +253,9 @@ export async function updateProposal(
     clientAddress: sanitizeStringField(formData.clientAddress),
     validUntil: sanitizeStringField(formData.validUntil),
     customNotes: sanitizeStringField(formData.customNotes),
-    discount: formData.discount || 0,
-    closedValue: formData.closedValue ?? null,
-    extraExpense: formData.extraExpense || 0,
+    discount: toNumberOrZero(formData.discount),
+    closedValue: toNumberOrNull(formData.closedValue),
+    extraExpense: toNumberOrZero(formData.extraExpense),
     products: productsForUpdate,
     sistemas: sistemasPayload,
     status: (formData.status as ProposalStatus) || "in_progress",
@@ -262,8 +268,8 @@ export async function updateProposal(
     downPaymentDueDate: formData.downPaymentDueDate || "",
     downPaymentMethod: formData.downPaymentMethod || formData.paymentMethod || "",
     installmentsEnabled: formData.installmentsEnabled || false,
-    installmentsCount: formData.installmentsCount || 1,
-    installmentValue: formData.installmentValue || 0,
+    installmentsCount: toNumberOrZero(formData.installmentsCount) || 1,
+    installmentValue: toNumberOrZero(formData.installmentValue),
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
     installmentsPaymentMethod:
@@ -316,9 +322,9 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     clientAddress: sanitizeStringField(formData.clientAddress),
     validUntil: sanitizeStringField(formData.validUntil),
     totalValue: totalValue,
-    discount: formData.discount || 0,
-    closedValue: formData.closedValue ?? null,
-    extraExpense: formData.extraExpense || 0,
+    discount: toNumberOrZero(formData.discount),
+    closedValue: toNumberOrNull(formData.closedValue),
+    extraExpense: toNumberOrZero(formData.extraExpense),
     notes: formData.customNotes,
     customNotes: formData.customNotes,
     products: sanitizedProducts,
@@ -337,8 +343,8 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     downPaymentDueDate: formData.downPaymentDueDate || "",
     downPaymentMethod: formData.downPaymentMethod || formData.paymentMethod || "",
     installmentsEnabled: formData.installmentsEnabled || false,
-    installmentsCount: formData.installmentsCount || 1,
-    installmentValue: formData.installmentValue || 0,
+    installmentsCount: toNumberOrZero(formData.installmentsCount) || 1,
+    installmentValue: toNumberOrZero(formData.installmentValue),
     installmentsWallet: formData.installmentsWallet || "",
     firstInstallmentDate: formData.firstInstallmentDate || "",
     installmentsPaymentMethod:

@@ -44,6 +44,12 @@ const digitIndexToDisplayPos = (display: string, n: number): number => {
   return display.length;
 };
 
+// Display digits that have no counterpart in rawValue (e.g. "0,02" → 2 leading zeros for raw "2").
+// These are always at the front of the display and shift the digit-index ↔ raw-index mapping.
+const getLeadingZeros = (raw: string, display: string): number => {
+  return Math.max(0, display.replace(/\D/g, "").length - raw.length);
+};
+
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onChange, name, prefixSymbol = "R$", onKeyDown: externalOnKeyDown, onPaste: externalOnPaste, ...props }, ref) => {
     const [rawValue, setRawValue] = React.useState<string>("");
@@ -79,16 +85,15 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       } as React.ChangeEvent<HTMLInputElement>);
     };
 
-    const applyEdit = (
-      newRaw: string,
-      newCursorDigit: number
-    ) => {
+    // newRawCursorPos: position within the raw digit sequence (0 = before first raw digit)
+    const applyEdit = (newRaw: string, newRawCursorPos: number) => {
       setRawValue(newRaw);
       requestAnimationFrame(() => {
         const inp = internalRef.current;
         if (inp) {
           const newDisplay = formatCents(newRaw);
-          const pos = digitIndexToDisplayPos(newDisplay, newCursorDigit);
+          const newLeadingZeros = getLeadingZeros(newRaw, newDisplay);
+          const pos = digitIndexToDisplayPos(newDisplay, newLeadingZeros + newRawCursorPos);
           inp.setSelectionRange(pos, pos);
         }
       });
@@ -96,9 +101,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Navigation keys — let browser handle
       if ([9, 27, 13, 37, 38, 39, 40].includes(e.keyCode)) return;
-      // Ctrl+A, Ctrl+C — let browser handle
       if ((e.ctrlKey || e.metaKey) && ["a", "c"].includes(e.key.toLowerCase())) return;
 
       const isBackspace = e.keyCode === 8;
@@ -121,30 +124,37 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       const hasSelection = selStart !== selEnd;
       const display = formatCents(rawValue);
 
+      // How many display digits appear before the cursor
       const startDigit = cursorToDigitIndex(display, selStart);
       const endDigit = hasSelection ? cursorToDigitIndex(display, selEnd) : startDigit;
 
+      // Subtract leading zeros to get cursor position within rawValue.
+      // Clamp to 0: cursor placed in the leading-zero area maps to raw position 0.
+      const leadingZeros = getLeadingZeros(rawValue, display);
+      const startRawDigit = Math.max(0, startDigit - leadingZeros);
+      const endRawDigit = Math.max(0, endDigit - leadingZeros);
+
       if (isDigit) {
         const digit = e.key;
-        const newRaw = rawValue.slice(0, startDigit) + digit + rawValue.slice(endDigit);
-        applyEdit(newRaw, startDigit + 1);
+        const newRaw = rawValue.slice(0, startRawDigit) + digit + rawValue.slice(endRawDigit);
+        applyEdit(newRaw, startRawDigit + 1);
       } else if (isBackspace) {
         if (hasSelection) {
-          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
-        } else if (startDigit > 0) {
-          applyEdit(rawValue.slice(0, startDigit - 1) + rawValue.slice(startDigit), startDigit - 1);
+          applyEdit(rawValue.slice(0, startRawDigit) + rawValue.slice(endRawDigit), startRawDigit);
+        } else if (startRawDigit > 0) {
+          applyEdit(rawValue.slice(0, startRawDigit - 1) + rawValue.slice(startRawDigit), startRawDigit - 1);
         }
       } else if (isDelete) {
         if (hasSelection) {
-          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
-        } else if (startDigit < rawValue.length) {
-          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(startDigit + 1), startDigit);
+          applyEdit(rawValue.slice(0, startRawDigit) + rawValue.slice(endRawDigit), startRawDigit);
+        } else if (startRawDigit < rawValue.length) {
+          applyEdit(rawValue.slice(0, startRawDigit) + rawValue.slice(startRawDigit + 1), startRawDigit);
         }
       } else if (isCut) {
         if (hasSelection) {
           const selected = display.slice(selStart, selEnd);
           navigator.clipboard?.writeText(selected).catch(() => {});
-          applyEdit(rawValue.slice(0, startDigit) + rawValue.slice(endDigit), startDigit);
+          applyEdit(rawValue.slice(0, startRawDigit) + rawValue.slice(endRawDigit), startRawDigit);
         }
       }
     };
@@ -163,8 +173,12 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
       const startDigit = cursorToDigitIndex(display, selStart);
       const endDigit = hasSelection ? cursorToDigitIndex(display, selEnd) : startDigit;
 
-      const newRaw = rawValue.slice(0, startDigit) + digits + rawValue.slice(endDigit);
-      applyEdit(newRaw, startDigit + digits.length);
+      const leadingZeros = getLeadingZeros(rawValue, display);
+      const startRawDigit = Math.max(0, startDigit - leadingZeros);
+      const endRawDigit = Math.max(0, endDigit - leadingZeros);
+
+      const newRaw = rawValue.slice(0, startRawDigit) + digits + rawValue.slice(endRawDigit);
+      applyEdit(newRaw, startRawDigit + digits.length);
     };
 
     return (
