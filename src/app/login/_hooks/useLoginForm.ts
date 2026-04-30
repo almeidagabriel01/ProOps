@@ -88,6 +88,8 @@ interface UseLoginFormReturn {
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
   isGoogleLoading: boolean;
+  sessionRecoveryFailed: boolean;
+  redirectReason: string | null;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -135,6 +137,7 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const [sessionRecoveryFailed, setSessionRecoveryFailed] = React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -230,7 +233,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, user, isLoading, isSessionSynced } = useAuth();
+  const { login, user, isLoading, isSessionSynced, forceSyncSession } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -402,6 +405,28 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsEmailVerificationPending,
   ]);
 
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (!user) return;
+    if (redirectReason !== "session_expired") return;
+    if (isSessionSynced) return;
+    if (sessionRecoveryFailed) return;
+
+    const timeoutId = window.setTimeout(async () => {
+      const ok = await forceSyncSession();
+      if (!ok) setSessionRecoveryFailed(true);
+    }, 4000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    isLoading,
+    user,
+    redirectReason,
+    isSessionSynced,
+    sessionRecoveryFailed,
+    forceSyncSession,
+  ]);
+
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
@@ -432,13 +457,16 @@ export function useLoginForm(): UseLoginFormReturn {
 
     setIsLoggingIn(true);
 
-    const result = await login(email, password);
-    if (!result.success) {
-      if (result.code === "email-not-verified") {
-        setIsEmailVerificationPending(true);
-      } else {
-        setError("Falha no login. Verifique suas credenciais.");
+    try {
+      const result = await login(email, password);
+      if (!result.success) {
+        if (result.code === "email-not-verified") {
+          setIsEmailVerificationPending(true);
+        } else {
+          setError("Falha no login. Verifique suas credenciais.");
+        }
       }
+    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -793,6 +821,8 @@ export function useLoginForm(): UseLoginFormReturn {
     isSendingSms,
     isVerifyingSmsCode,
     isGoogleLoading,
+    sessionRecoveryFailed,
+    redirectReason,
     handleLogin,
     handleRegister,
     handleForgotPassword,

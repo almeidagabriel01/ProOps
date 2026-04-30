@@ -129,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to clear server session:", error);
     }
     setIsSessionSynced(false);
+    lastSyncSuccessRef.current = 0;
   }, []);
 
   /**
@@ -142,7 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (syncInProgressRef.current) return false;
       // Skip if a successful sync happened recently (both onAuthStateChanged and
       // onIdTokenChanged fire on startup; cooldown prevents the redundant call).
-      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) return true;
+      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) {
+        setIsSessionSynced(true);
+        return true;
+      }
       syncInProgressRef.current = true;
 
       const attempt = async (): Promise<boolean> => {
@@ -402,6 +406,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
+    setIsSessionSynced(false);
+    lastSyncSuccessRef.current = 0;
     try {
       await signInWithEmailAndPassword(auth, email, pass);
 
