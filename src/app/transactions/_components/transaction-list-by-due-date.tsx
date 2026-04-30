@@ -289,7 +289,11 @@ export function TransactionListByDueDate({
         groupId =
           transaction.installmentGroupId || transaction.proposalGroupId || "";
         installNum = transaction.installmentNumber || 0;
-        key = `${groupId}-${installNum}`;
+        key = transaction.isDownPayment
+          ? `${groupId}-dp`
+          : transaction.isInstallment
+            ? `${groupId}-${installNum}`
+            : `${groupId}-saldo`;
       }
 
       if (!groups.has(key)) {
