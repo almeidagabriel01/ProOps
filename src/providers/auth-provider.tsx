@@ -453,6 +453,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await clearServerSession();
+      router.push("/login");
       await signOut(auth);
       setUser(null);
 
@@ -463,8 +464,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (styleTag) {
         styleTag.remove();
       }
-
-      router.push("/login");
     } catch (error) {
       console.error("Logout failed", error);
     }
