@@ -22,6 +22,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/ai/**/*.ts',
     '!src/ai/**/*.test.ts',
+    'src/api/controllers/proposals.helpers.ts',
   ],
   coverageThreshold: {
     global: {

@@ -19,6 +19,12 @@ import {
 } from "../../lib/storage-gc";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import {
+  normalizeProposalTransactionTitle,
+  resolveDefaultWalletNameForTenant,
+  buildApprovedProposalTransactionDrafts,
+  getProposalLinkedTransactionKey,
+} from "./proposals.helpers";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -50,7 +56,7 @@ const CreateProposalSchema = z.object({
   downPaymentDueDate: z.string().max(30).optional(),
   downPaymentMethod: z.string().max(50).optional(),
   installmentsEnabled: z.boolean().optional(),
-  installmentsCount: z.number().int().min(1).max(120).nullable().optional(),
+  installmentsCount: z.number().int().min(0).max(120).nullable().optional(),
   installmentValue: z.number().nullable().optional(),
   installmentsWallet: z.string().max(200).optional(),
   firstInstallmentDate: z.string().max(30).optional(),
@@ -585,243 +591,6 @@ async function deleteStorageObjectsBestEffort(
   );
 }
 
-type ProposalLinkedTransactionDraft = {
-  tenantId: string;
-  type: "income";
-  description: string;
-  amount: number;
-  date: string;
-  dueDate: string;
-  status: "paid" | "pending" | "overdue";
-  clientId: string | null;
-  clientName: string | null;
-  proposalId: string;
-  proposalGroupId: string | null;
-  category: null;
-  wallet: string | null;
-  isDownPayment: boolean;
-  downPaymentType?: "value" | "percentage";
-  downPaymentPercentage?: number;
-  isInstallment: boolean;
-  installmentCount: number | null;
-  installmentNumber: number | null;
-  installmentGroupId: string | null;
-  notes: string;
-  createdById: string;
-};
-
-function normalizeProposalTransactionTitle(value: unknown): string {
-  return String(value || "").trim() || "Proposta";
-}
-
-function buildProposalGroupId(proposalId: string): string {
-  return `proposal_${proposalId}`;
-}
-
-function buildProposalInstallmentGroupId(proposalId: string): string {
-  return `proposal_installments_${proposalId}`;
-}
-
-async function resolveDefaultWalletNameForTenant(
-  tenantId: string,
-): Promise<string | null> {
-  const walletsQuery = await db
-    .collection("wallets")
-    .where("tenantId", "==", tenantId)
-    .where("isDefault", "==", true)
-    .limit(1)
-    .get();
-
-  if (!walletsQuery.empty) {
-    return walletsQuery.docs[0].data().name || null;
-  }
-
-  const anyWallet = await db
-    .collection("wallets")
-    .where("tenantId", "==", tenantId)
-    .where("status", "==", "active")
-    .limit(1)
-    .get();
-
-  if (!anyWallet.empty) {
-    return anyWallet.docs[0].data().name || null;
-  }
-
-  return null;
-}
-
-function buildApprovedProposalTransactionDrafts(params: {
-  proposalId: string;
-  proposalData: Record<string, unknown>;
-  userId: string;
-  defaultWalletName: string | null;
-  initialStatus?: "paid" | "pending" | "overdue";
-}): ProposalLinkedTransactionDraft[] {
-  const { proposalId, proposalData, userId, defaultWalletName } = params;
-  const initialStatus = params.initialStatus || "pending";
-  const title = normalizeProposalTransactionTitle(proposalData.title);
-  const tenantId = String(proposalData.tenantId || "").trim();
-  const clientId = proposalData.clientId ? String(proposalData.clientId) : null;
-  const clientName = proposalData.clientName
-    ? String(proposalData.clientName)
-    : null;
-  const downPaymentEnabled =
-    !!proposalData.downPaymentEnabled &&
-    Number(proposalData.downPaymentValue || 0) > 0;
-  const installmentsEnabled =
-    !!proposalData.installmentsEnabled &&
-    Number(proposalData.installmentsCount || 0) > 0 &&
-    Number(proposalData.installmentValue || 0) > 0;
-  const useProposalGrouping = downPaymentEnabled && installmentsEnabled;
-  const proposalGroupId = useProposalGrouping
-    ? buildProposalGroupId(proposalId)
-    : null;
-  const installmentGroupId = installmentsEnabled
-    ? buildProposalInstallmentGroupId(proposalId)
-    : null;
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
-  const drafts: ProposalLinkedTransactionDraft[] = [];
-
-  if (downPaymentEnabled) {
-    drafts.push({
-      tenantId,
-      type: "income",
-      description: title,
-      amount: Number(proposalData.downPaymentValue || 0),
-      date: String(proposalData.downPaymentDueDate || todayStr),
-      dueDate: String(proposalData.downPaymentDueDate || todayStr),
-      status: initialStatus,
-      clientId,
-      clientName,
-      proposalId,
-      proposalGroupId,
-      category: null,
-      wallet: proposalData.downPaymentWallet
-        ? String(proposalData.downPaymentWallet)
-        : defaultWalletName,
-      isDownPayment: true,
-      downPaymentType:
-        String(proposalData.downPaymentType || "value") === "percentage"
-          ? "percentage"
-          : "value",
-      downPaymentPercentage: Number(proposalData.downPaymentPercentage || 0),
-      isInstallment: false,
-      installmentCount: null,
-      installmentNumber: null,
-      installmentGroupId: null,
-      notes: "Entrada gerada automaticamente pela proposta",
-      createdById: userId,
-    });
-  }
-
-  if (installmentsEnabled) {
-    const walletName = proposalData.installmentsWallet
-      ? String(proposalData.installmentsWallet)
-      : defaultWalletName;
-    const installmentsCount = Math.max(
-      0,
-      Number(proposalData.installmentsCount || 0),
-    );
-    let firstInstDate: Date;
-
-    if (proposalData.firstInstallmentDate) {
-      firstInstDate = new Date(
-        String(proposalData.firstInstallmentDate) + "T12:00:00",
-      );
-    } else {
-      firstInstDate = new Date(today);
-      firstInstDate.setDate(firstInstDate.getDate() + 30);
-    }
-
-    for (let i = 0; i < installmentsCount; i++) {
-      const installmentDate = new Date(firstInstDate);
-      installmentDate.setMonth(firstInstDate.getMonth() + i);
-      const dueDate = installmentDate.toISOString().split("T")[0];
-
-      drafts.push({
-        tenantId,
-        type: "income",
-        description: title,
-        amount: Number(proposalData.installmentValue || 0),
-        date: dueDate,
-        dueDate,
-        status: initialStatus,
-        clientId,
-        clientName,
-        proposalId,
-        proposalGroupId,
-        category: null,
-        wallet: walletName,
-        isDownPayment: false,
-        isInstallment: true,
-        installmentCount: installmentsCount,
-        installmentNumber: i + 1,
-        installmentGroupId,
-        notes: `Parcela ${i + 1}/${installmentsCount} gerada automaticamente`,
-        createdById: userId,
-      });
-    }
-  }
-
-  const effectiveTotalValue = Number(proposalData.closedValue) > 0 
-    ? Number(proposalData.closedValue) 
-    : Number(proposalData.totalValue || 0);
-
-  if (
-    !downPaymentEnabled &&
-    !installmentsEnabled &&
-    effectiveTotalValue > 0
-  ) {
-    let dueDate = proposalData.validUntil
-      ? String(proposalData.validUntil)
-      : "";
-    if (!dueDate) {
-      const fallbackDate = new Date(today);
-      fallbackDate.setDate(fallbackDate.getDate() + 30);
-      dueDate = fallbackDate.toISOString().split("T")[0];
-    }
-
-    drafts.push({
-      tenantId,
-      type: "income",
-      description: title,
-      amount: effectiveTotalValue,
-      date: todayStr,
-      dueDate,
-      status: initialStatus,
-      clientId,
-      clientName,
-      proposalId,
-      proposalGroupId: null,
-      category: null,
-      wallet: defaultWalletName,
-      isDownPayment: false,
-      isInstallment: false,
-      installmentCount: null,
-      installmentNumber: null,
-      installmentGroupId: null,
-      notes: "Receita gerada automaticamente pela aprovação da proposta",
-      createdById: userId,
-    });
-  }
-
-  return drafts;
-}
-
-function getProposalLinkedTransactionKey(
-  transaction: Record<string, unknown>,
-): string | null {
-  if (transaction.isPartialPayment || transaction.parentTransactionId) {
-    return null;
-  }
-  if (transaction.isDownPayment) return "down_payment";
-  if (transaction.isInstallment) {
-    return `installment_${Number(transaction.installmentNumber || 0)}`;
-  }
-  return "single";
-}
-
 async function syncApprovedProposalTransactions(params: {
   proposalId: string;
   proposalTenantId: string;
@@ -840,7 +609,7 @@ async function syncApprovedProposalTransactions(params: {
   } = params;
   const defaultWalletName =
     await resolveDefaultWalletNameForTenant(proposalTenantId);
-  const desiredDrafts = buildApprovedProposalTransactionDrafts({
+  const { drafts: desiredDrafts, effectiveDownPaymentValue, effectiveInstallmentValue } = buildApprovedProposalTransactionDrafts({
     proposalId,
     proposalData,
     userId,
@@ -1021,6 +790,12 @@ async function syncApprovedProposalTransactions(params: {
   }
 
   await batch.commit();
+
+  await db.collection(PROPOSALS_COLLECTION).doc(proposalId).update({
+    installmentValue: effectiveInstallmentValue,
+    downPaymentValue: effectiveDownPaymentValue,
+    updatedAt: now,
+  });
 }
 
 export const createProposal = async (req: Request, res: Response) => {
@@ -1564,7 +1339,23 @@ export const updateProposal = async (req: Request, res: Response) => {
         updateData.extraExpense !== undefined
           ? Number(updateData.extraExpense)
           : Number(proposalData?.extraExpense) || 0;
-      safeUpdate.totalValue = subtotal - discountAmount + extraExpense;
+      const computedTotal = subtotal - discountAmount + extraExpense;
+
+      // If closedValue was explicitly included in the payload, use safeUpdate.closedValue (already processed).
+      // If not included, fall back to the existing document value.
+      // hasOwnProperty is required: frontend sends closedValue: null when the user clears the field,
+      // so safeUpdate.closedValue may already be null — using ?? would incorrectly fall back to the old doc value.
+      const effectiveClosedValue = Object.prototype.hasOwnProperty.call(
+        updateData,
+        "closedValue",
+      )
+        ? Number(safeUpdate.closedValue) || 0
+        : Number(proposalData?.closedValue) || 0;
+
+      safeUpdate.totalValue =
+        effectiveClosedValue > 0
+          ? effectiveClosedValue
+          : Math.max(0, computedTotal);
     }
 
     await proposalRef.update(safeUpdate);

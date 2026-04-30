@@ -23,6 +23,8 @@ interface AuthContextType {
   isLoading: boolean;
   /** Whether the __session cookie is known to be in sync with the current token. */
   isSessionSynced: boolean;
+  /** Returns true while logout() is executing — prevents ProtectedRoute from racing. */
+  getIsLoggingOut: () => boolean;
   login: (
     email: string,
     pass: string,
@@ -37,6 +39,7 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isSessionSynced: false,
+  getIsLoggingOut: () => false,
   login: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
@@ -93,6 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSessionSynced, setIsSessionSynced] = React.useState(false);
+  const isLoggingOutRef = React.useRef(false);
+  const getIsLoggingOut = React.useCallback(() => isLoggingOutRef.current, []);
   const router = useRouter();
 
   // Guards against concurrent and rapid sequential syncServerSession calls.
@@ -129,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to clear server session:", error);
     }
     setIsSessionSynced(false);
+    lastSyncSuccessRef.current = 0;
   }, []);
 
   /**
@@ -142,7 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (syncInProgressRef.current) return false;
       // Skip if a successful sync happened recently (both onAuthStateChanged and
       // onIdTokenChanged fire on startup; cooldown prevents the redundant call).
-      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) return true;
+      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) {
+        setIsSessionSynced(true);
+        return true;
+      }
       syncInProgressRef.current = true;
 
       const attempt = async (): Promise<boolean> => {
@@ -370,10 +379,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // ── bfcache restore guard ──
+    // Back-button after logout can restore the authenticated page from bfcache.
+    // Detect the persisted restore and redirect to /login if auth is gone.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      if (auth.currentUser) return;
+      window.location.replace("/login");
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
     return () => {
       unsubscribeAuth();
       unsubscribeToken();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, [clearServerSession, syncServerSession]);
 
@@ -402,6 +422,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
+    setIsSessionSynced(false);
+    lastSyncSuccessRef.current = 0;
     try {
       await signInWithEmailAndPassword(auth, email, pass);
 
@@ -445,23 +467,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    isLoggingOutRef.current = true;
     try {
       await clearServerSession();
       await signOut(auth);
-      setUser(null);
-
       clearViewingTenantId();
-
       document.documentElement.style.removeProperty("--primary");
       const styleTag = document.getElementById("tenant-styles");
       if (styleTag) {
         styleTag.remove();
       }
-
       router.push("/login");
     } catch (error) {
       console.error("Logout failed", error);
     }
+    // Defer reset to the next macro-task so the ProtectedRoute effect that fires
+    // on user=null reads isLoggingOutRef.current=true and skips the session_expired redirect.
+    setTimeout(() => {
+      isLoggingOutRef.current = false;
+    }, 0);
   };
 
   return (
@@ -470,6 +494,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         isSessionSynced,
+        getIsLoggingOut,
         login,
         logout,
         refreshUser,

@@ -68,6 +68,8 @@ function LoginContent() {
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     isGoogleLoading,
+    sessionRecoveryFailed,
+    redirectReason,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -135,13 +137,12 @@ function LoginContent() {
     );
   }
 
-  if (user && !isLoggingIn && !isRegistering) {
+  if (user && !isLoggingIn && !isRegistering && !sessionRecoveryFailed) {
     if (user.role === "free") return null;
 
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader size="lg" />
-        <p className="mt-4 text-sm text-muted-foreground">Redirecionando...</p>
       </div>
     );
   }
@@ -601,7 +602,9 @@ function LoginContent() {
               <div className="text-left mb-6">
                 <h1 className="text-3xl font-bold tracking-tight">Entrar</h1>
                 <p className="text-muted-foreground mt-2">
-                  Bem-vindo de volta! Insira suas credenciais.
+                  {redirectReason === "session_expired"
+                    ? "Sua sessão expirou. Entre novamente para continuar."
+                    : "Bem-vindo de volta! Insira suas credenciais."}
                 </p>
               </div>
 

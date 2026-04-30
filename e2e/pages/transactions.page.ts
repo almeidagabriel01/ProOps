@@ -29,7 +29,7 @@ export class TransactionsPage {
   constructor(page: Page) {
     this.page = page;
     // Transaction list items
-    this.transactionList = page.locator('[data-testid="transaction-item"], [data-testid="transactions-list"] > *');
+    this.transactionList = page.locator('[data-testid="transaction-card"]');
     // New transaction CTA — rendered as <Link> inside <Button asChild>, so it's an <a> element
     this.newTransactionButton = page.getByRole("link", { name: /novo lançamento|nova transação|new transaction/i });
     this.pageHeading = page.locator('h1, [data-testid="page-heading"]').first();
@@ -64,11 +64,8 @@ export class TransactionsPage {
    */
   async getTransactionByDescription(description: string): Promise<Locator> {
     return this.page
-      .locator("article, [class*='card'], div[class*='CardContent'], div")
+      .locator('[data-testid="transaction-card"], [data-testid="transaction-row"]')
       .filter({ hasText: description })
-      .filter({
-        has: this.page.getByTitle("Excluir"),
-      })
       .first();
   }
 

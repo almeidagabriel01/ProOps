@@ -443,13 +443,17 @@ export function useProposalFormProductSubmit(
       "extraExpense",
       "downPaymentValue",
       "installmentsCount",
+      "closedValue",
+      "installmentValue",
     ];
     setFormData((prev) => ({
       ...prev,
       [name]:
-        numericFields.includes(name) || type === "number"
-          ? Number(value)
-          : value,
+        value === null || value === ""
+          ? name === "closedValue" ? null : value
+          : numericFields.includes(name) || type === "number"
+            ? Number(value)
+            : value,
     }));
   };
 

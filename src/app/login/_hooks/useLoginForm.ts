@@ -88,6 +88,8 @@ interface UseLoginFormReturn {
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
   isGoogleLoading: boolean;
+  sessionRecoveryFailed: boolean;
+  redirectReason: string | null;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -135,6 +137,7 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+  const [sessionRecoveryFailed, setSessionRecoveryFailed] = React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -230,7 +233,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, user, isLoading, isSessionSynced } = useAuth();
+  const { login, user, isLoading, isSessionSynced, forceSyncSession } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -295,12 +298,27 @@ export function useLoginForm(): UseLoginFormReturn {
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
-      if (redirectReason === "session_expired") {
-        window.location.replace(target);
+      // Guard against open redirect and javascript: XSS — only follow same-origin paths
+      const isSameOrigin = (() => {
+        try {
+          return new URL(target, window.location.origin).origin === window.location.origin;
+        } catch {
+          return false;
+        }
+      })();
+      if (!isSameOrigin) {
+        // Unsafe target — fall through to role-based default redirect
+      } else if (redirectReason === "session_expired") {
+        const isSuperAdminRoute = target.startsWith("/admin");
+        if (!isSuperAdminRoute || user?.role === "superadmin") {
+          window.location.replace(target);
+          return;
+        }
+        // Role mismatch — fall through to role-based default redirect
       } else {
         router.replace(target);
+        return;
       }
-      return;
     }
 
     // Default redirects based on role
@@ -377,8 +395,10 @@ export function useLoginForm(): UseLoginFormReturn {
           return;
         }
 
-        // For session_expired, we MUST wait until the session cookie is synced back
-        if (redirectReason === "session_expired" && !isSessionSynced) {
+        // Always wait for the session cookie before redirecting.
+        // Without this, the middleware rejects the navigation (no cookie),
+        // redirects to /login?session_expired, and creates a redirect loop.
+        if (!isSessionSynced) {
           return;
         }
 
@@ -400,6 +420,28 @@ export function useLoginForm(): UseLoginFormReturn {
     handleRedirectAfterAuth,
     getGoogleSetupTarget,
     setIsEmailVerificationPending,
+  ]);
+
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (!user) return;
+    if (redirectReason !== "session_expired") return;
+    if (isSessionSynced) return;
+    if (sessionRecoveryFailed) return;
+
+    const timeoutId = window.setTimeout(async () => {
+      const ok = await forceSyncSession();
+      if (!ok) setSessionRecoveryFailed(true);
+    }, 4000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    isLoading,
+    user,
+    redirectReason,
+    isSessionSynced,
+    sessionRecoveryFailed,
+    forceSyncSession,
   ]);
 
   const handleLogin = async (e?: React.FormEvent) => {
@@ -432,13 +474,16 @@ export function useLoginForm(): UseLoginFormReturn {
 
     setIsLoggingIn(true);
 
-    const result = await login(email, password);
-    if (!result.success) {
-      if (result.code === "email-not-verified") {
-        setIsEmailVerificationPending(true);
-      } else {
-        setError("Falha no login. Verifique suas credenciais.");
+    try {
+      const result = await login(email, password);
+      if (!result.success) {
+        if (result.code === "email-not-verified") {
+          setIsEmailVerificationPending(true);
+        } else {
+          setError("Falha no login. Verifique suas credenciais.");
+        }
       }
+    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -793,6 +838,8 @@ export function useLoginForm(): UseLoginFormReturn {
     isSendingSms,
     isVerifyingSmsCode,
     isGoogleLoading,
+    sessionRecoveryFailed,
+    redirectReason,
     handleLogin,
     handleRegister,
     handleForgotPassword,

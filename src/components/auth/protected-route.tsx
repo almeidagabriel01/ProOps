@@ -51,7 +51,7 @@ const PUBLIC_ROUTES = [
 ];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: isAuthLoading, forceSyncSession } = useAuth();
+  const { user, isLoading: isAuthLoading, forceSyncSession, getIsLoggingOut } = useAuth();
   const {
     permissions,
     isLoading: isPermLoading,
@@ -116,9 +116,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
               isRecoveringRef.current = false;
             });
         } else if (!firebaseUser) {
-          router.push(
-            `/login?redirect=${encodeURIComponent(pathname)}&redirect_reason=session_expired`,
-          );
+          if (!getIsLoggingOut()) {
+            router.push(
+              `/login?redirect=${encodeURIComponent(pathname)}&redirect_reason=session_expired`,
+            );
+          }
         }
       }
       return;
@@ -152,6 +154,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     pageConfig,
     hasPermission,
     forceSyncSession,
+    getIsLoggingOut,
   ]);
 
   if (isSelfHandled) {

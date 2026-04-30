@@ -289,7 +289,11 @@ export function TransactionListByDueDate({
         groupId =
           transaction.installmentGroupId || transaction.proposalGroupId || "";
         installNum = transaction.installmentNumber || 0;
-        key = `${groupId}-${installNum}`;
+        key = transaction.isDownPayment
+          ? `${groupId}-dp`
+          : transaction.isInstallment
+            ? `${groupId}-${installNum}`
+            : `${groupId}-saldo`;
       }
 
       if (!groups.has(key)) {
@@ -547,6 +551,8 @@ export function TransactionListByDueDate({
                 return (
                   <div
                     key={rowKey}
+                    data-testid="transaction-row"
+                    data-transaction-id={tx.id}
                     className={cn(
                       "grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
                       isSelected

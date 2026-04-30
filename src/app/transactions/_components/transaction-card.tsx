@@ -174,6 +174,7 @@ export function TransactionCard({
   const isProposalGroup = proposalGroupTransactions.length > 1;
   const downPayment = proposalGroupTransactions.find((t) => t.isDownPayment);
   const installments = proposalGroupTransactions.filter((t) => t.isInstallment);
+  const saldoTx = proposalGroupTransactions.find((t) => !t.isDownPayment && !t.isInstallment);
   const proposalTotalAmount = proposalGroupTransactions.reduce(
     (sum, t) => sum + t.amount,
     0,
@@ -733,7 +734,11 @@ export function TransactionCard({
       : [transaction.id, extraCostToDelete];
 
   return (
-    <div className="group">
+    <div
+      className="group"
+      data-testid="transaction-card"
+      data-transaction-id={transaction.id}
+    >
       <Card
         className={`transition-all duration-200 ${
           isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
@@ -1190,6 +1195,7 @@ export function TransactionCard({
               {/* Down Payment Section */}
               {downPayment && (
                 <div
+                  data-testid="down-payment-row"
                   className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
                 >
                   <div className="flex items-center gap-3">
@@ -1465,6 +1471,132 @@ export function TransactionCard({
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Saldo Restante Section */}
+              {saldoTx && !installments.length && (
+                <div
+                  data-testid="saldo-row"
+                  className={`flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(saldoTx.id) ? "ring-2 ring-primary" : ""}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {onToggleSelection && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds?.has(saldoTx.id) || false}
+                          onCheckedChange={() =>
+                            onToggleSelection(saldoTx.id)
+                          }
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    )}
+                    <div className="p-1.5 rounded-full bg-primary/10">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">Saldo restante</div>
+                      <div className="text-xs text-muted-foreground">
+                        Venc:{" "}
+                        {formatDate(saldoTx.dueDate || saldoTx.date)}
+                        {saldoTx.wallet && ` • ${wallets.find(w => w.id === saldoTx.wallet || w.name === saldoTx.wallet)?.name ?? saldoTx.wallet}`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="font-bold text-primary">
+                      {formatCurrency(saldoTx.amount)}
+                    </div>
+                    {onStatusChange && canEdit ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1.5 rounded-md text-xs font-medium border"
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={updatingIds.has(saldoTx.id)}
+                          >
+                            {updatingIds.has(saldoTx.id) ? (
+                              <>
+                                <Loader size="sm" />
+                                <span>Atualizando...</span>
+                              </>
+                            ) : (
+                              <>
+                                {(() => {
+                                  const option = statusOptions.find(
+                                    (o) => o.value === saldoTx.status,
+                                  );
+                                  const Icon = option?.icon || Check;
+                                  return <Icon className="h-3 w-3" />;
+                                })()}
+                                <span>
+                                  {statusConfig[saldoTx.status].label}
+                                </span>
+                                <ChevronDown className="h-2.5 w-2.5 opacity-50" />
+                              </>
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[130px]">
+                          {statusOptions.map((option) => (
+                            <DropdownMenuItem
+                              key={option.id}
+                              onClick={() =>
+                                handleIndividualStatusChange(
+                                  saldoTx,
+                                  option.id,
+                                )
+                              }
+                              className="gap-2 cursor-pointer text-xs"
+                            >
+                              <option.icon className="h-3.5 w-3.5" />
+                              <span>{option.label}</span>
+                              {saldoTx.status === option.id && (
+                                <Check className="h-3 w-3 ml-auto opacity-50" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Badge
+                        variant={statusConfig[saldoTx.status].variant}
+                        className="text-xs"
+                      >
+                        {statusConfig[saldoTx.status].label}
+                      </Badge>
+                    )}
+                    {canEdit &&
+                      (saldoTx.proposalId ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary ml-1"
+                          title="Editar (Gerenciado pela Proposta)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowEditBlockDialog(true);
+                          }}
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : (
+                        <Link href={`/transactions/${saldoTx.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 ml-1"
+                            title="Editar"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
+                      ))}
                   </div>
                 </div>
               )}
