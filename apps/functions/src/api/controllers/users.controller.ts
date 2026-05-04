@@ -155,8 +155,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       const tenantId = String(
         userData?.tenantId || userData?.companyId || "",
       ).trim();
-      const previousPhone = String(userData?.phoneNumber || "").trim();
-      const phoneIsBeingAdded = !previousPhone && !isExplicitlyEmpty;
+      const phoneIsBeingAdded = !isExplicitlyEmpty;
 
       try {
         await db.runTransaction(async (transaction) => {
