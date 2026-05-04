@@ -143,7 +143,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder assets (hero/, etc.)
+     * - robots.txt, sitemap.xml, manifest.webmanifest (must be publicly accessible for crawlers)
      */
-    "/((?!_next/static|_next/image|favicon.ico|hero/|logo/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|hero/|logo/|robots.txt|sitemap.xml|manifest.webmanifest).*)",
   ],
 };
