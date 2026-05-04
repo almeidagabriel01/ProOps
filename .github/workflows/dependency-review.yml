@@ -25,6 +25,6 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: always
-          allow-licenses: 'MIT, Apache-2.0, ISC, BSD-2-Clause, BSD-3-Clause, BlueOak-1.0.0, 0BSD, Unlicense, CC0-1.0, Python-2.0'
+          allow-licenses: 'MIT, MIT-0, Apache-2.0, ISC, BSD-2-Clause, BSD-3-Clause, BlueOak-1.0.0, 0BSD, Unlicense, CC0-1.0, Python-2.0, JSON'
           warn-on-openssf-scorecard-level: 1
           allow-dependencies-licenses: 'pkg:github/actions/cache, pkg:github/actions/checkout, pkg:github/actions/setup-node, pkg:github/actions/upload-artifact, pkg:github/actions/setup-java, pkg:github/actions/stale, pkg:github/actions/dependency-review-action'
