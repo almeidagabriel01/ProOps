@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import {
   SoftwareApplicationJsonLd,
   BreadcrumbJsonLd,
+  FAQPageJsonLd,
 } from "@/components/seo/json-ld";
+import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
 
 export const metadata: Metadata = {
@@ -35,6 +37,7 @@ export default function DecoracaoPage() {
           { name: "Decoração", url: "/decoracao" },
         ]}
       />
+      <FAQPageJsonLd items={NICHE_LANDING_CONFIG.cortinas.faq} />
       <NicheLandingPage slug="cortinas" />
     </>
   );

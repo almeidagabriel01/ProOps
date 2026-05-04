@@ -1,70 +1,31 @@
-"use client";
-
-import React from "react";
+import type { Metadata } from "next";
 import {
-  useLandingPage,
-  LandingNavbar,
-  LandingHeroFrames,
-  LandingShowcase,
-  LandingModules,
-  LandingFeatures,
-  LandingNiches,
-  LandingPricing,
-  LandingCTA,
-  LandingFooter,
-} from "@/components/landing";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+  OrganizationJsonLd,
+  WebSiteJsonLd,
+  SoftwareApplicationJsonLd,
+} from "@/components/seo/json-ld";
+import { LandingPageClient } from "./_components/landing-page-client";
 
-export default function LandingPage() {
-  const {
-    currentUser,
-    isAuthLoading,
-    billingInterval,
-    setBillingInterval,
-    plans,
-    isLoadingPlans,
-    handleSignOut,
-  } = useLandingPage();
+export const metadata: Metadata = {
+  title: "ProOps — ERP para automação residencial e cortinas",
+  description:
+    "ProOps é o ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados em uma plataforma online com editor de PDF profissional.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "ProOps — ERP para automação residencial e cortinas",
+    description:
+      "CRM, propostas, financeiro e agenda integrados numa plataforma feita para empresas de serviço que querem crescer sem perder o controle.",
+    url: "/",
+  },
+};
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      gsap.registerPlugin(ScrollTrigger);
-      const timeoutId = window.setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 500);
-
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, []);
-
+export default function Page() {
   return (
-    <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
-      <LandingNavbar currentUser={currentUser} isAuthLoading={isAuthLoading} onSignOut={handleSignOut} />
-
-      <main>
-        <LandingHeroFrames />
-        <LandingShowcase />
-        <LandingModules />
-        <LandingFeatures />
-        <LandingNiches />
-
-        <div className="mx-auto h-px w-full max-w-7xl bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15" />
-
-        <LandingPricing
-          plans={plans}
-          currentUser={currentUser}
-          billingInterval={billingInterval}
-          setBillingInterval={setBillingInterval}
-          isLoading={isLoadingPlans}
-        />
-
-        <div className="mx-auto h-px w-full max-w-7xl bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15" />
-
-        <LandingCTA />
-      </main>
-
-      <LandingFooter />
-    </div>
+    <>
+      <OrganizationJsonLd />
+      <WebSiteJsonLd />
+      <SoftwareApplicationJsonLd />
+      <LandingPageClient />
+    </>
   );
 }
