@@ -1,28 +1,12 @@
-"use client";
+import type { Metadata } from "next";
+import { AdminGuard } from "./_components/admin-guard";
 
-import { useAuth } from "@/providers/auth-provider";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { AdminSkeleton } from "./_components/admin-skeleton";
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    // Only superadmins can access this layout's routes
-    if (!isLoading && (!user || user.role !== "superadmin")) {
-      router.push("/403");
-    }
-  }, [user, isLoading, router]);
-
-  if (isLoading || !user || user.role !== "superadmin") {
-    return <AdminSkeleton />;
-  }
-
-  return <>{children}</>;
+  return <AdminGuard>{children}</AdminGuard>;
 }
