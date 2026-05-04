@@ -6,7 +6,7 @@ Antes de fazer deploy, execute esta checklist completa:
    ```bash
    npm run lint                           # ESLint frontend — zero erros e zero warnings
    npm run build                          # Next.js production build
-   cd functions && npm run build && cd .. # Compila TypeScript das Cloud Functions
+   cd apps/functions && npm run build && cd .. # Compila TypeScript das Cloud Functions
    ```
    - **Erros de lint devem ser corrigidos**, nunca suprimidos com `// eslint-disable` ou regras desabilitadas.
    - **Warnings de lint também devem ser corrigidos** — eles indicam bugs potenciais (deps ausentes em hooks, diretivas desnecessárias, etc.).
@@ -19,7 +19,7 @@ Antes de fazer deploy, execute esta checklist completa:
 3. **Security scan rápido:**
    - Verifique se há `console.log` com dados sensíveis (tokens, senhas, dados de usuário) no código modificado
    - Confirme que nenhum arquivo `.env*` ou `*serviceAccount*` foi tocado
-   - Verifique se `functions/.env.*` não foi alterado acidentalmente
+   - Verifique se `apps/functions/.env.*` não foi alterado acidentalmente
 
 4. **Impacto Firestore:**
    - Algum schema de coleção foi alterado (campos adicionados/removidos/renomeados)?

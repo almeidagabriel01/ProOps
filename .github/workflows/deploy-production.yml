@@ -23,13 +23,13 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: functions/package-lock.json
+          cache-dependency-path: apps/functions/package-lock.json
 
       - name: Install functions dependencies
-        run: cd functions && npm ci
+        run: cd apps/functions &&npm ci
 
       - name: Build functions
-        run: cd functions && npm run build
+        run: cd apps/functions &&npm run build
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools

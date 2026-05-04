@@ -16,11 +16,11 @@ Com essas respostas, vou seguir este fluxo:
 
 ### 1. Tipos TypeScript (sempre primeiro)
 - Definir interfaces em `src/types/` para o domínio da feature
-- Tipos compartilhados com backend em `functions/src/shared/` se necessário
+- Tipos compartilhados com backend em `apps/functions/src/shared/` se necessário
 
 ### 2. Backend (se necessário)
-- Criar/atualizar controller em `functions/src/api/controllers/`
-- Registrar rota em `functions/src/api/routes/`
+- Criar/atualizar controller em `apps/functions/src/api/controllers/`
+- Registrar rota em `apps/functions/src/api/routes/`
 - Garantir: `tenantId` filtrado, inputs validados, `limit()` nas queries
 
 ### 3. Service frontend

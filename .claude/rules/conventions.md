@@ -21,7 +21,7 @@
 
 ## File Organization
 - `controllers/` — one file per domain, Express handlers only
-- `services/` — business logic and API calls (client-side in `src/services/`, server-side in `functions/src/api/services/`)
+- `services/` — business logic and API calls (client-side in `src/services/`, server-side in `apps/functions/src/api/services/`)
 - `helpers/` — pure utility functions with no side effects
 - `middleware/` — Express middleware only (auth, rate limiting)
 - `types/` — domain-specific TypeScript interfaces

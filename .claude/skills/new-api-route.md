@@ -20,9 +20,9 @@ Há dois casos:
    - Autenticada? (quase sempre sim)
    - Precisa de nova coleção Firestore?
 
-2. **Defina tipos em `functions/src/shared/`** (se for tipo compartilhado)
+2. **Defina tipos em `apps/functions/src/shared/`** (se for tipo compartilhado)
 
-3. **Crie o método no controller existente** `functions/src/api/controllers/[recurso].controller.ts`
+3. **Crie o método no controller existente** `apps/functions/src/api/controllers/[recurso].controller.ts`
    ou crie um novo controller se for recurso novo.
 
 4. **Template de handler:**
@@ -58,7 +58,7 @@ export async function nomeHandler(req: AuthenticatedRequest, res: Response) {
 }
 ```
 
-5. **Registrar na rota** `functions/src/api/routes/[recurso].routes.ts`
+5. **Registrar na rota** `apps/functions/src/api/routes/[recurso].routes.ts`
 
 6. **Adicionar service no frontend** `src/services/[recurso]-service.ts`:
 ```typescript

@@ -13,9 +13,11 @@
 # testing
 /coverage
 
-# next.js
+# next.js (app lives in apps/web/ after monorepo migration)
 /.next/
 /out/
+apps/web/.next/
+apps/web/out/
 
 # production
 /build
@@ -43,15 +45,15 @@ yarn-error.log*
 next-env.d.ts
 
 # Firebase Functions
-functions/node_modules
-functions/lib
+apps/functions/node_modules
+apps/functions/lib
 firebase-debug.log
 firebase-debug.*.log
 .firebase/
 
 # Firebase secrets (project-specific env files)
-functions/.env.*
-!functions/.env.example
+apps/functions/.env.*
+!apps/functions/.env.example
 
 # Firebase service account keys
 *serviceAccount*.json
@@ -80,6 +82,7 @@ pubsub-debug.log
 .last-run.json
 playwright-report/
 test-results/
+tests/e2e/dist/
 
 # Test reports and results (generated locally, not committed)
 lighthouse-report/
@@ -98,3 +101,6 @@ report_html.html
 
 # Git worktrees
 .worktrees/
+
+# Claude Code tooling artifacts (cache gerado, não pertence ao repo)
+.agents/

@@ -18,7 +18,7 @@ tools: Read, Write, Edit, Bash
 - Mudanças em tipos TypeScript compartilhados
 
 ## Fluxo de trabalho
-1. **Tipos primeiro** — define interfaces em `src/types/` e `functions/src/shared/`
+1. **Tipos primeiro** — define interfaces em `src/types/` e `apps/functions/src/shared/`
 2. **Backend** — Cloud Function ou API route com toda a lógica de negócio
 3. **Service** — adiciona chamada em `src/services/` (→ `/api/backend/*`)
 4. **Hook** — cria hook em `src/hooks/` que usa o service

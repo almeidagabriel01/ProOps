@@ -1,11 +1,19 @@
 # Deployment Rules
 
+## Commit & PR Workflow
+
+- **Commit after each task** — one logical commit per completed task, with a clear message.
+- **Never run `git push`** — the user pushes manually after reviewing.
+- **Never merge to `main`** — only the user performs merges to `main`.
+- **PRs target `develop` only** — never create a PR targeting `main`. Only the user creates PRs to `main`.
+- Commit messages: imperative, lowercase, no period. No `Co-Authored-By`.
+
 ## Pre-Deploy Checklist
 Before deploying to any environment:
-- [ ] `cd functions && npm run build` succeeds (TypeScript compiles to CommonJS in `functions/lib/`)
+- [ ] `cd apps/functions && npm run build` succeeds (TypeScript compiles to CommonJS in `apps/functions/lib/`)
 - [ ] `npm run lint` passes (no ESLint errors in frontend)
-- [ ] `cd functions && npm run lint` passes (no ESLint errors in functions)
-- [ ] No secrets in committed files — check `.env.local`, `functions/.env.*`
+- [ ] `cd apps/functions && npm run lint` passes (no ESLint errors in functions)
+- [ ] No secrets in committed files — check `.env.local`, `apps/functions/.env.*`
 - [ ] New Firestore indexes exported to `firestore.indexes.json` if queries changed
 - [ ] Firestore security rules tested with emulator if modified
 - [ ] Cron logic tested locally if changed
@@ -19,8 +27,8 @@ Before deploying to any environment:
 - Deploy commands: `npm run deploy:dev` | `npm run deploy:prod`
 
 ## Functions Build
-- Functions TypeScript compiles to `functions/lib/` (CommonJS)
-- Always run `npm run build` in `functions/` before running emulators or deploying
+- Functions TypeScript compiles to `apps/functions/lib/` (CommonJS)
+- Always run `npm run build` in `apps/functions/` before running emulators or deploying
 - Target runtime: Node.js 22, Cloud Run region `southamerica-east1`
 
 ## Emulators

@@ -1,6 +1,6 @@
 {
   "functions": {
-    "source": "functions",
+    "source": "apps/functions",
     "codebase": "default",
     "ignore": [
       "node_modules",
@@ -14,11 +14,11 @@
     ]
   },
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
   },
   "storage": {
-    "rules": "storage.rules"
+    "rules": "firebase/storage.rules"
   },
   "emulators": {
     "functions": {

@@ -4,7 +4,7 @@ Gero documentação de uma API route ou Cloud Function.
 
 ## Como usar
 Informe o path do arquivo ou o nome da rota. Ex:
-- `/document-api functions/src/api/controllers/proposals.controller.ts`
+- `/document-api apps/functions/src/api/controllers/proposals.controller.ts`
 - `/document-api POST /proposals`
 
 ## O que vou fazer

@@ -4,7 +4,6 @@
     "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1"
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Read(**)",
       "Write(.claude/**)",
@@ -42,7 +41,8 @@
       "Write(firestore.rules)",
       "Write(firestore.indexes.json)",
       "Write(storage.rules)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
   "hooks": {
     "SessionStart": [
@@ -147,7 +147,8 @@
     "claude-seo@claude-seo-marketplace": true,
     "frontend-design@claude-plugins-official": true,
     "marketing-skills@marketingskills": true,
-    "superpowers@superpowers-dev": true
+    "superpowers@superpowers-dev": true,
+    "impeccable@impeccable": true
   },
   "defaultMode": "auto"
 }

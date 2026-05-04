@@ -14,7 +14,7 @@ Vou determinar onde está o problema:
 - **Frontend**: componente, hook, state, routing
 - **Service/API call**: `src/services/`, chamada para `/api/backend/*`
 - **Next.js proxy**: `src/app/api/backend/`
-- **Cloud Function Express**: `functions/src/api/`
+- **Cloud Function Express**: `apps/functions/src/api/`
 - **Firestore**: query, regras de segurança, índice faltando
 - **Firebase Auth**: token expirado, custom claims desatualizados
 - **Stripe/WhatsApp**: webhook, billing
@@ -41,12 +41,7 @@ Vou propor a correção explicando:
 - Para investigar: usar Firebase Console (leitura) ou emulador com dados de teste
 
 ### Custom claims
-Se o bug for de auth/permissão:
-```bash
-# Verificar e reprocessar claims
-npm run security:claims:validate
-npm run security:claims:backfill
-```
+Se o bug for de auth/permissão, verificar logs do middleware de auth e o documento `users/{uid}` no Firestore para checar consistência de claims.
 
 ### Logs de Cloud Functions
 - Logs ficam no Firebase Console → Functions → Logs

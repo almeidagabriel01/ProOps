@@ -24,10 +24,10 @@ Quando o usuário pede para revisar segurança de uma feature, endpoint ou códi
 - [ ] Rate limiting considerado para endpoints públicos (PDF, shared proposals)
 
 ### Secrets e Ambiente
-- [ ] Secrets apenas em `functions/.env.*` — nunca no frontend
+- [ ] Secrets apenas em `apps/functions/.env.*` — nunca no frontend
 - [ ] `NEXT_PUBLIC_*` apenas para dados verdadeiramente públicos
 - [ ] Sem `console.log` com tokens, IDs de usuários ou dados de negócio
-- [ ] `.env.local` e `functions/.env.*` não commitados
+- [ ] `.env.local` e `apps/functions/.env.*` não commitados
 
 ## Checklist — Firebase Security Rules
 - [ ] Regras DENY-by-default — toda coleção nova tem regra explícita

@@ -11,13 +11,12 @@
 - Backend validates tokens in `validateFirebaseIdToken` middleware on every request
 - Next.js middleware reads `__session` cookie for SSR route protection
 - Stale-claims fallback reads `users/{uid}` doc — errors if tenantId mismatches between claims and doc
-- Run `npm run security:claims:validate` to audit completeness of custom claims
 
 ## Secrets Management
-- `STRIPE_SECRET_KEY`, `WHATSAPP_APP_SECRET`, Firebase private key → only in `functions/.env.*`
+- `STRIPE_SECRET_KEY`, `WHATSAPP_APP_SECRET`, Firebase private key → only in `apps/functions/.env.*`
 - `NEXT_PUBLIC_*` vars are public — never put sensitive values in them
-- Never commit `.env.local`, `functions/.env.erp-softcode`, or `functions/.env.erp-softcode-prod`
-- Use `.env.local.example` and `functions/.env.example` with placeholders for documentation
+- Never commit `.env.local`, `apps/functions/.env.erp-softcode`, or `apps/functions/.env.erp-softcode-prod`
+- Use `.env.local.example` and `apps/functions/.env.example` with placeholders for documentation
 
 ## CORS
 - Origins are resolved from env vars in order: `CORS_ALLOWED_ORIGINS` → `NEXT_PUBLIC_APP_URL` → `VERCEL_URL`

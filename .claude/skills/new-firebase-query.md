@@ -7,7 +7,7 @@ Quando o usuário pede para criar uma nova query ou operação no Firestore.
 - Firestore é o banco principal
 - Todo documento tem `tenantId` — SEMPRE filtrar por ele
 - Firebase client SDK: `src/lib/firebase.ts`
-- Firebase Admin SDK: `src/lib/firebase-admin.ts` (server-side) e `functions/src/init.ts`
+- Firebase Admin SDK: `src/lib/firebase-admin.ts` (server-side) e `apps/functions/src/init.ts`
 - Services client-side: `src/services/` (chamam `/api/backend/*`, não Firestore diretamente do frontend)
 
 ## Para queries no backend (Cloud Functions) — mais comum
