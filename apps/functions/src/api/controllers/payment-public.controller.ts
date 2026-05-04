@@ -80,11 +80,14 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
     if (error instanceof MercadoPagoApiError) {
       const mpStatusCode =
         error.mpStatus === 401 || error.mpStatus >= 500 ? 502 : error.mpStatus === 429 ? 429 : 400;
-      const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : "MP_REJECTED";
+      const isNoPixKey = error.mpMessage?.toLowerCase().includes("without key enabled for qr render");
+      const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : isNoPixKey ? "MP_PIX_KEY_NOT_CONFIGURED" : "MP_REJECTED";
       const message =
         error.mpStatus === 401
           ? "Integração Mercado Pago precisa ser reconectada"
-          : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
+          : isNoPixKey
+            ? "Conta Mercado Pago sem chave PIX cadastrada. O recebedor precisa cadastrar uma chave PIX no painel do Mercado Pago para aceitar pagamentos via PIX."
+            : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
       res.status(mpStatusCode).json({
         code,
         message,

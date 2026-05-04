@@ -151,7 +151,7 @@ export function MercadoPagoConnectCard() {
           <>
             {status?.connected && (
               <div className="rounded-md border bg-muted/30 p-3 space-y-1.5 text-sm">
-                {status.userId && (
+                {(status.environment ?? (status.liveMode ? "production" : "sandbox")) !== "production" && status.userId && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">ID da conta</span>
                     <span className="font-mono text-xs">{status.userId}</span>
@@ -169,12 +169,12 @@ export function MercadoPagoConnectCard() {
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Ambiente</span>
-                  <Badge variant={(status.environment ?? (status.liveMode ? "production" : "sandbox")) === "production" ? "default" : "warning"}>
-                    {(status.environment ?? (status.liveMode ? "production" : "sandbox")) === "production" ? "Produção" : "Sandbox"}
-                  </Badge>
-                </div>
+                {(status.environment ?? (status.liveMode ? "production" : "sandbox")) !== "production" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Ambiente</span>
+                    <Badge variant="warning">Sandbox</Badge>
+                  </div>
+                )}
               </div>
             )}
 
