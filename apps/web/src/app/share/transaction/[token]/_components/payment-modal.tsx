@@ -316,9 +316,15 @@ export function PaymentModal({
         setPixData(result);
       }
     } catch (err) {
-      const d = (err as { data?: { message?: string; mpError?: { message?: string; cause?: Array<{ description?: string }> } } }).data;
-      const detail = d?.mpError?.cause?.[0]?.description ?? d?.mpError?.message ?? d?.message;
-      toast.error("Erro ao gerar QR Code PIX.", { description: detail ?? "Tente novamente." });
+      const d = (err as { data?: { message?: string; code?: string; mpError?: { message?: string; cause?: Array<{ description?: string }> } } }).data;
+      if (d?.code === "MP_PIX_KEY_NOT_CONFIGURED") {
+        toast.error("PIX não disponível", {
+          description: "O vendedor não possui chave PIX cadastrada no Mercado Pago. Tente outro método de pagamento.",
+        });
+      } else {
+        const detail = d?.mpError?.cause?.[0]?.description ?? d?.mpError?.message ?? d?.message;
+        toast.error("Erro ao gerar QR Code PIX.", { description: detail ?? "Tente novamente." });
+      }
     } finally {
       setIsGeneratingPix(false);
     }
