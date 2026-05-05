@@ -1,31 +1,76 @@
 # CI/CD Rules
 
+## Design: Tiered CI
+
+Two distinct layers prevent redundant work:
+
+| Layer | Workflow | Trigger | Wall-clock | Purpose |
+|---|---|---|---|---|
+| **Fast gate** | `push-checks.yml` | Every push except `main` | ~5 min | Structural health (types, lint, audit, rules) |
+| **Full gate** | `test-suite.yml` | PRs to `main`/`develop` + Merge Queue | ~15 min | Behavioral correctness (E2E, performance, ZAP) |
+
+E2E, performance, and ZAP run **only in test-suite** — never on every push.
+
 ## Workflows
 
 | Workflow | File | Triggers |
 |---|---|---|
-| **Push Checks** | `push-checks.yml` | Every push except `main` |
-| **Test Suite** | `test-suite.yml` | PRs to `main` or `develop` |
+| **Push Checks** | `push-checks.yml` | Every push except `main` (skips `*.md`, `docs/**`) |
+| **Test Suite** | `test-suite.yml` | PRs to `main`/`develop` + `merge_group` (skips `*.md`, `docs/**`) |
 | **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` |
 | **Deploy Production** | `deploy-production.yml` | Every push to `main` |
 | **Dependency Review** | `dependency-review.yml` | PR with changes to `package.json` |
 | **Stale** | `stale.yml` | Mondays 9h UTC |
 
+## Reusable Workflows
+
+Jobs shared between `push-checks` and `test-suite` live in dedicated reusable workflow files (prefixed with `_`). Change once, applies to both:
+
+| File | Used by |
+|---|---|
+| `_reusable-type-check.yml` | push-checks, test-suite |
+| `_reusable-lint.yml` | push-checks, test-suite |
+| `_reusable-firestore-rules.yml` | push-checks, test-suite |
+
 ## Push Checks Pipeline (`push-checks.yml`)
 
-Runs in parallel on every push:
-- `type-check` — TypeScript on frontend and functions
-- `lint` — ESLint on frontend and functions
+Runs in parallel on every push to non-main branches:
+- `type-check` — TypeScript on frontend and functions (reusable)
+- `lint` — ESLint on frontend and functions (reusable)
 - `security-audit` — `npm audit --audit-level=critical` on both
-- `e2e-push` — Playwright E2E with Firebase emulators + seed
-- `firestore-rules-push` — Jest security rules tests (parallel with E2E)
-- `performance-push` — Core Web Vitals + API baseline (after E2E passes)
-- `security-scan-push` — OWASP ZAP baseline (after E2E passes)
+- `firestore-rules` — Jest security rules with Firestore emulator (reusable)
 - `push-gate` — final job that fails if any job above failed
+
+## Test Suite Pipeline (`test-suite.yml`)
+
+Runs on PRs and Merge Queue events:
+- `type-check` — TypeScript on the merge commit (reusable)
+- `lint` — ESLint on the merge commit (reusable)
+- `firestore-rules` — Jest security rules (reusable)
+- `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
+- `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
+- `security` — OWASP ZAP baseline (runs after all E2E shards pass)
+- `all-checks-passed` — consolidated gate required by branch protection
+
+## E2E Sharding
+
+The E2E job uses a matrix strategy with 4 shards:
+- Each shard runs on a separate GitHub Actions runner
+- `fail-fast: false` so other shards continue if one fails
+- Artifacts are named `playwright-report-shardN-<run>` per shard
+- Playwright distributes test files automatically across shards
+
+## Merge Queue (`merge_group` trigger)
+
+When Merge Queue is enabled on a branch, GitHub creates a temporary branch with the real merge commit before merging. `test-suite.yml` runs on this commit via the `merge_group` trigger. This catches cases where develop + main integrate correctly in isolation but break when merged.
+
+To enable: GitHub → Settings → Branches → edit rule → enable "Require merge queue".
 
 ## Branch Protection
 
 Configure **only `all-checks-passed`** (test-suite.yml) as required status check on GitHub — it's the consolidated gate for PRs to `main`/`develop`.
+
+Do NOT add `push-gate` (push-checks.yml) as a required status check for PRs — it runs on pushes, not on the PR merge commit.
 
 ## Auto-Deploy
 
@@ -65,22 +110,22 @@ To generate: Firebase Console → Project Settings → Service Accounts → Gene
 | `type-check` | TypeScript error | Fix `tsc --noEmit` locally |
 | `lint` | ESLint errors | `npm run lint` and `cd apps/functions && npm run lint` |
 | `security-audit` | Critical vulnerability | `npm audit fix` or update package |
-| `e2e-push` / `e2e` | Playwright test failed | Download `playwright-report-*` artifact for trace |
-| `firestore-rules-push` | Security rule broken | `npm run test:rules` locally with emulator |
-| `performance-push` | CWV below threshold | See `performance-report/` artifact |
-| `security-scan-push` | ZAP found FAIL | See `security-scan-report/` artifact |
+| `e2e` (any shard) | Playwright test failed | Download `playwright-report-shardN-*` artifact for trace |
+| `firestore-rules` | Security rule broken | `npm run test:rules` locally with emulator |
+| `performance` | CWV below threshold | See `performance-report-*/` artifact |
+| `security` | ZAP found FAIL | See `zap-report-*/` artifact |
 | `dependency-review` | New dep with `high`/`critical` vuln | Replace or pin a different version |
 
 ## Running Locally Before Push
 
 ```bash
-# Full suite (CI equivalent)
-npm run test:e2e && npm run test:performance && npm run test:rules
-
-# Quick checks
+# Quick checks (mirrors push-checks)
 cd apps/web && npx tsc --noEmit
 cd apps/functions && npx tsc --noEmit
 npm run lint
 cd apps/functions && npm run lint
 npm audit --omit=dev --audit-level=critical
+
+# Full suite (mirrors test-suite — run before opening a PR)
+npm run test:e2e && npm run test:performance && npm run test:rules
 ```
