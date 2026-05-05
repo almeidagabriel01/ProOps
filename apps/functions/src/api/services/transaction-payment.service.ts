@@ -310,7 +310,7 @@ export class TransactionPaymentService {
             installments: 1,
             external_reference: `${transactionId}:${attemptId}`,
             notification_url: resolveMercadoPagoWebhookUrl(),
-            date_of_expiration: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            date_of_expiration: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
           },
           {
             headers: {

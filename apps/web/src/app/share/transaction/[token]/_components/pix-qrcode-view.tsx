@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Image from "next/image";
@@ -17,6 +17,7 @@ interface PixQrCodeViewProps {
   expiresAt: string;
   onPaymentApproved: () => void;
   primaryColor?: string;
+  onReset?: () => void;
 }
 
 function useCountdown(expiresAt: string) {
@@ -52,6 +53,7 @@ export function PixQrCodeView({
   expiresAt,
   onPaymentApproved,
   primaryColor,
+  onReset,
 }: PixQrCodeViewProps) {
   const [copied, setCopied] = React.useState(false);
   const [paymentStatus, setPaymentStatus] = React.useState<
@@ -80,7 +82,7 @@ export function PixQrCodeView({
     const absoluteTimeoutId = setTimeout(() => {
       stopPolling();
       toast.error("O QR Code Pix expirou. Gere um novo pagamento para continuar.");
-    }, 6 * 60 * 1000);
+    }, 31 * 60 * 1000);
 
     const intervalId = setInterval(async () => {
       try {
@@ -103,7 +105,7 @@ export function PixQrCodeView({
         if (consecutiveErrorsRef.current >= 3) {
           clearInterval(intervalId);
           clearTimeout(absoluteTimeoutId);
-          toast.error("Não foi possível verificar o status do pagamento. Recarregue a página para tentar novamente.");
+          toast.error("NÃ£o foi possÃ­vel verificar o status do pagamento. Recarregue a pÃ¡gina para tentar novamente.");
           return;
         }
       }
@@ -121,10 +123,10 @@ export function PixQrCodeView({
     try {
       await navigator.clipboard.writeText(qrCode);
       setCopied(true);
-      toast.success("Código PIX copiado!");
+      toast.success("CÃ³digo PIX copiado!");
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      toast.error("Erro ao copiar código. Copie manualmente.");
+      toast.error("Erro ao copiar cÃ³digo. Copie manualmente.");
     }
   };
 
@@ -149,11 +151,16 @@ export function PixQrCodeView({
           <AlertCircle className="h-8 w-8 text-destructive" aria-hidden="true" />
         </div>
         <div>
-          <p className="font-semibold text-lg">Pagamento não aprovado</p>
+          <p className="font-semibold text-lg">Pagamento nÃ£o aprovado</p>
           <p className="text-sm text-muted-foreground">
             O pagamento foi recusado ou cancelado. Tente novamente.
           </p>
         </div>
+        {onReset && (
+          <Button variant="outline" onClick={onReset}>
+            Gerar novo QR Code
+          </Button>
+        )}
       </div>
     );
   }
@@ -196,7 +203,7 @@ export function PixQrCodeView({
       </div>
 
       <p className="text-xs text-muted-foreground text-center max-w-xs">
-        Abra o app do seu banco, acesse o PIX e escaneie o QR Code acima, ou copie o código abaixo.
+        Abra o app do seu banco, acesse o PIX e escaneie o QR Code acima, ou copie o cÃ³digo abaixo.
       </p>
 
       <Button
@@ -215,7 +222,7 @@ export function PixQrCodeView({
         ) : (
           <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
         )}
-        {copied ? "Copiado!" : "Copiar código PIX"}
+        {copied ? "Copiado!" : "Copiar cÃ³digo PIX"}
       </Button>
     </div>
   );
