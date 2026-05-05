@@ -7,6 +7,16 @@ import { CreditCard, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { MercadoPagoService, type MercadoPagoStatus } from "@/services/mercadopago-service";
 import { Loader } from "@/components/ui/loader";
 
@@ -19,6 +29,7 @@ export function MercadoPagoConnectCard() {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
   const [isProcessingCallback, setIsProcessingCallback] = React.useState(false);
+  const [showDisconnectDialog, setShowDisconnectDialog] = React.useState(false);
   const processedCodeRef = React.useRef<string | null>(null);
 
   const loadStatus = React.useCallback(async () => {
@@ -84,12 +95,11 @@ export function MercadoPagoConnectCard() {
     }
   };
 
-  const handleDisconnect = async () => {
-    const confirmed = window.confirm(
-      "Tem certeza que deseja desconectar o Mercado Pago? Isso desativará os pagamentos nos links compartilhados.",
-    );
-    if (!confirmed) return;
+  const handleDisconnect = () => {
+    setShowDisconnectDialog(true);
+  };
 
+  const handleConfirmDisconnect = async () => {
     try {
       setIsDisconnecting(true);
       await MercadoPagoService.disconnect();
@@ -105,6 +115,23 @@ export function MercadoPagoConnectCard() {
   const isLoading = isLoadingStatus || isProcessingCallback;
 
   return (
+    <>
+    <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Desconectar Mercado Pago?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Isso desativará os pagamentos nos links compartilhados. Você poderá reconectar a qualquer momento.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmDisconnect}>
+            Desconectar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
@@ -211,5 +238,6 @@ export function MercadoPagoConnectCard() {
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
