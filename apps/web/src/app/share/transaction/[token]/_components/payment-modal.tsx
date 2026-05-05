@@ -452,6 +452,7 @@ export function PaymentModal({
                 expiresAt={pixData.expiresAt}
                 onPaymentApproved={onPaymentSuccess}
                 primaryColor={primaryColor}
+                onReset={() => setPixData(null)}
               />
             ) : (
               <div className="flex flex-col items-center gap-4 py-4 text-center">

@@ -146,6 +146,7 @@ export const getPaymentStatus = async (req: Request, res: Response): Promise<voi
   try {
     const { token, paymentId } = req.params;
     const result = await TransactionPaymentService.getPaymentStatus(token, paymentId);
+    res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(result);
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

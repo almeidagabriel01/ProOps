@@ -17,6 +17,7 @@ interface PixQrCodeViewProps {
   expiresAt: string;
   onPaymentApproved: () => void;
   primaryColor?: string;
+  onReset?: () => void;
 }
 
 function useCountdown(expiresAt: string) {
@@ -52,6 +53,7 @@ export function PixQrCodeView({
   expiresAt,
   onPaymentApproved,
   primaryColor,
+  onReset,
 }: PixQrCodeViewProps) {
   const [copied, setCopied] = React.useState(false);
   const [paymentStatus, setPaymentStatus] = React.useState<
@@ -154,6 +156,11 @@ export function PixQrCodeView({
             O pagamento foi recusado ou cancelado. Tente novamente.
           </p>
         </div>
+        {onReset && (
+          <Button variant="outline" onClick={onReset}>
+            Gerar novo QR Code
+          </Button>
+        )}
       </div>
     );
   }
