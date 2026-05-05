@@ -91,6 +91,19 @@ export const handleWebhook = async (req: Request, res: Response) => {
     if (body.object === "whatsapp_business_account") {
       const changeValue = body.entry?.[0]?.changes?.[0]?.value;
 
+      // Ignore messages intended for a different phone number (e.g., dev number
+      // landing on prod webhook when both share the same Meta app).
+      const expectedPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+      const incomingPhoneNumberId = (changeValue?.metadata as any)
+        ?.phone_number_id as string | undefined;
+      if (
+        expectedPhoneNumberId &&
+        incomingPhoneNumberId &&
+        incomingPhoneNumberId !== expectedPhoneNumberId
+      ) {
+        return res.status(200).send("OK");
+      }
+
       if (changeValue?.statuses?.length) {
         logIncomingStatuses(changeValue.statuses);
       }
