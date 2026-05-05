@@ -890,12 +890,16 @@ export class TransactionPaymentService {
     paymentId: string,
   ): Promise<PaymentStatusResult> {
     const sharedLink = await resolveSharedLink(token);
-    const { transactionId, tenantId } = sharedLink;
+    const { tenantId } = sharedLink;
 
+    // Query by tenantId (not transactionId) so that payments created for related
+    // transactions (e.g. entrada paid via a link created for a different installment)
+    // are still found — the attempt may carry a different transactionId than the
+    // shared link's own transactionId.
     const attemptsSnap = await db
       .collection(PAYMENT_ATTEMPTS_COLLECTION)
       .where("mpPaymentId", "==", paymentId)
-      .where("transactionId", "==", transactionId)
+      .where("tenantId", "==", tenantId)
       .limit(1)
       .get();
 
@@ -928,6 +932,14 @@ export class TransactionPaymentService {
 
     const mpPayment = mpResponse.data;
     const status = mapMpStatus(mpPayment.status);
+
+    if (status === "cancelled" || status === "rejected") {
+      logger.warn("PIX payment polling: non-active status from MP", {
+        tenantId,
+        paymentId,
+        mpRawStatus: mpPayment.status,
+      });
+    }
 
     return {
       paymentId,
