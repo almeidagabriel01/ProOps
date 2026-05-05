@@ -111,6 +111,14 @@ export function LandingFooter() {
               </li>
               <li>
                 <Link
+                  href="/data-deletion"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
+                >
+                  Exclusão de Dados
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/login"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >

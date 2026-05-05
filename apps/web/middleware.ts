@@ -31,6 +31,7 @@ const PUBLIC_ROUTES = [
   "/forgot-password",
   "/privacy",
   "/terms",
+  "/data-deletion",
   "/subscribe",
   "/checkout-success",
   "/pricing",
