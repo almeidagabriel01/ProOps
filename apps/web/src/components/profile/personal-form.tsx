@@ -38,14 +38,19 @@ export function PersonalForm({ user }: PersonalFormProps) {
 
     setIsLoading(true);
     try {
-      await UserService.updateProfile({ name, phoneNumber });
+      await UserService.updateProfile({
+        name,
+        phoneNumber: phoneNumber.trim() === "" ? null : phoneNumber,
+      });
       toast.success("Perfil atualizado com sucesso!");
       window.location.reload();
     } catch (error) {
       console.error(error);
-      toast.error(
-        "Erro ao atualizar o perfil. O telefone pode já estar em uso.",
-      );
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Erro ao atualizar o perfil.";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

@@ -91,7 +91,7 @@ export const UserService = {
 
   updateProfile: async (data: {
     name?: string;
-    phoneNumber?: string;
+    phoneNumber?: string | null;
     onboarding?: UserOnboardingState;
   }): Promise<void> => {
     try {

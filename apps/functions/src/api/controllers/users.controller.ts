@@ -6,6 +6,8 @@ import {
   normalizePhoneNumber,
 } from "./admin.controller";
 import { validateBrazilMobilePhone } from "../../lib/contact-validation";
+import { maybeAutoEnableWhatsApp } from "../../lib/whatsapp-eligibility";
+import { logger } from "../../lib/logger";
 
 type OnboardingStatus = "active" | "completed" | "skipped";
 
@@ -133,22 +135,34 @@ export const updateProfile = async (req: Request, res: Response) => {
     }
 
     if (phoneNumber !== undefined) {
-      const phoneValidation = validateBrazilMobilePhone(phoneNumber);
-      if (!phoneValidation.valid) {
-        return res.status(400).json({
-          message: phoneValidation.reason || "Telefone inválido.",
-        });
+      const isExplicitlyEmpty =
+        phoneNumber === null ||
+        phoneNumber === "" ||
+        (typeof phoneNumber === "string" && phoneNumber.trim() === "");
+
+      if (!isExplicitlyEmpty) {
+        const phoneValidation = validateBrazilMobilePhone(phoneNumber);
+        if (!phoneValidation.valid) {
+          return res.status(400).json({
+            message: phoneValidation.reason || "Telefone inválido.",
+          });
+        }
+        updateData.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
+      } else {
+        updateData.phoneNumber = null;
       }
 
-      // Normalize inside the tx function
-      updateData.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
+      const tenantId = String(
+        userData?.tenantId || userData?.companyId || "",
+      ).trim();
+      const phoneIsBeingAdded = !isExplicitlyEmpty;
 
       try {
         await db.runTransaction(async (transaction) => {
           await upsertPhoneNumberIndexTx(transaction, {
             userId,
-            tenantId: userData?.tenantId || userData?.companyId || "", // Needed for whatsapp limits mapping
-            newPhoneNumber: phoneNumber,
+            tenantId,
+            newPhoneNumber: isExplicitlyEmpty ? "" : phoneNumber,
             previousPhoneNumber: userData?.phoneNumber,
             now,
           });
@@ -162,6 +176,15 @@ export const updateProfile = async (req: Request, res: Response) => {
           });
         }
         throw err;
+      }
+
+      if (phoneIsBeingAdded && tenantId) {
+        maybeAutoEnableWhatsApp(tenantId).catch((err) =>
+          logger.warn("whatsapp auto-enable failed on profile update", {
+            tenantId,
+            err: String(err),
+          }),
+        );
       }
     } else {
       // Just update user doc if no phone change requested

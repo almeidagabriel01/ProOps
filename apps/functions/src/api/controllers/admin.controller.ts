@@ -16,6 +16,7 @@ import {
   validateBrazilMobilePhone,
   validateEmailForSignup,
 } from "../../lib/contact-validation";
+import { maybeAutoEnableWhatsApp } from "../../lib/whatsapp-eligibility";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -276,6 +277,15 @@ export const createMember = async (req: Request, res: Response) => {
         }
       });
 
+      if (input.phoneNumber) {
+        maybeAutoEnableWhatsApp(tenantId).catch((err) =>
+          logger.warn("whatsapp auto-enable failed on member create", {
+            tenantId,
+            err: String(err),
+          }),
+        );
+      }
+
       return res.status(201).json({
         success: true,
         memberId,
@@ -415,6 +425,18 @@ export const updateMember = async (req: Request, res: Response) => {
         return res.status(409).json({ message: "Telefone já vinculado" });
       }
       throw err;
+    }
+
+    const memberTenantId = String(
+      memberData?.tenantId || memberData?.companyId || "",
+    ).trim();
+    if (phoneNumber && memberTenantId) {
+      maybeAutoEnableWhatsApp(memberTenantId).catch((err) =>
+        logger.warn("whatsapp auto-enable failed on member update", {
+          tenantId: memberTenantId,
+          err: String(err),
+        }),
+      );
     }
 
     return res.json({
