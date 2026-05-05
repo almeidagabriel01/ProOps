@@ -6,16 +6,65 @@ env:
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/functions/**'
+      - 'firebase/firestore.rules'
+      - 'firebase.json'
 
 permissions:
   contents: read
+  checks: read
+  pull-requests: read
 
 jobs:
+  verify-pr-checks:
+    name: Verify CI passed on PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find merged PR and verify all-checks-passed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+            });
+
+            const mergedPR = prs.find(pr => pr.state === 'closed' && pr.merged_at);
+            if (!mergedPR) {
+              core.setFailed(
+                `No merged PR found for commit ${context.sha}. ` +
+                `Direct pushes to main are not allowed — open a PR from develop.`
+              );
+              return;
+            }
+
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: mergedPR.head.sha,
+              check_name: 'all-checks-passed',
+            });
+
+            const passed = checks.check_runs.some(r => r.conclusion === 'success');
+            if (!passed) {
+              core.setFailed(
+                `all-checks-passed did not pass for PR #${mergedPR.number} ` +
+                `(head SHA: ${mergedPR.head.sha}). Deploy blocked.`
+              );
+            } else {
+              console.log(
+                `✓ PR #${mergedPR.number} passed all-checks-passed on ${mergedPR.head.sha} — safe to deploy`
+              );
+            }
+
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
+    needs: [verify-pr-checks]
     steps:
       - uses: actions/checkout@v4
 
@@ -26,10 +75,10 @@ jobs:
           cache-dependency-path: apps/functions/package-lock.json
 
       - name: Install functions dependencies
-        run: cd apps/functions &&npm ci
+        run: cd apps/functions && npm ci
 
       - name: Build functions
-        run: cd apps/functions &&npm run build
+        run: cd apps/functions && npm run build
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
