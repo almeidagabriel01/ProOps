@@ -1026,6 +1026,14 @@ async function handleSubscriptionDeleted(
     },
     { merge: true },
   );
+  // Cancel whatsapp_addon before recomputing eligibility — prevents the race
+  // where base sub is deleted but addon doc still shows active briefly.
+  const addonRef = db.collection("addons").doc(`${tenantId}_whatsapp_addon`);
+  const addonSnap = await addonRef.get();
+  if (addonSnap.exists && addonSnap.data()?.status === "active") {
+    await cancelAddon(tenantId, "whatsapp_addon");
+  }
+
   // Recompute WhatsApp eligibility now that the plan has been reset to free.
   // Note: user doc is downgraded to "starter" above (pre-existing behaviour) while
   // tenant is reset to "free" — these intentionally differ; the tenant tier is

@@ -13,6 +13,7 @@ import {
   deleteTenant,
   copyTenantData,
   recomputeTenantFeatures,
+  forceSetTenantPlan,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -32,6 +33,7 @@ router.post("/tenants", createTenant);
 router.post("/tenants/copy-data", copyTenantData);
 router.delete("/tenants/:tenantId", deleteTenant);
 router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
+router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
 
 router.post("/test-whatsapp-billing", testWhatsAppBilling);
 
