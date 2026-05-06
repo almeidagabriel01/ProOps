@@ -2,7 +2,7 @@ import { db } from "../init";
 import { logger } from "./logger";
 import { getTenantPlanProfile } from "./tenant-plan-policy";
 
-const WHATSAPP_ENABLED_TIERS = new Set<string>(["pro", "enterprise"]);
+const WHATSAPP_ENABLED_TIERS = new Set<string>(["enterprise"]);
 
 export async function tenantPlanAllowsWhatsApp(
   tenantId: string,
