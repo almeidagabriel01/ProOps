@@ -23,6 +23,7 @@ import {
   writeSecurityAuditEvent,
 } from "../lib/security-observability";
 import { clearTenantPlanCache, resolvePriceToTier } from "../lib/tenant-plan-policy";
+import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -121,6 +122,9 @@ async function syncTenantPlanBillingSnapshot(params: {
 
   const tenantRef = db.collection("tenants").doc(tenantId);
   const nowIso = new Date().toISOString();
+  const derivedTier = params.stripePriceId
+    ? resolvePriceToTier(params.stripePriceId)
+    : null;
 
   await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
@@ -135,15 +139,23 @@ async function syncTenantPlanBillingSnapshot(params: {
       nowIso,
     });
 
-    transaction.set(
-      tenantRef,
-      {
-        ...lifecyclePatch,
-        updatedAt: nowIso,
-      },
-      { merge: true },
-    );
+    const patch: Record<string, unknown> = {
+      ...lifecyclePatch,
+      updatedAt: nowIso,
+    };
+    if (derivedTier) {
+      patch.plan = derivedTier;
+    }
+
+    transaction.set(tenantRef, patch, { merge: true });
   });
+
+  // Re-evaluate WhatsApp eligibility against the freshly-written plan.
+  // Done outside the transaction because tenantPlanAllowsWhatsApp issues
+  // additional reads (plan cache + addons doc) incompatible with a transaction.
+  clearTenantPlanCache(tenantId);
+  const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+  await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
 }
 
 function getWebhookClientIp(req: any): string {

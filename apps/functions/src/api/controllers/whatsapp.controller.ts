@@ -224,24 +224,34 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         const tenantData = tenantSnap.data()!;
 
-        if (tenantData.whatsappEnabled !== true) {
-          // Self-heal: flag may be out of sync if a plan upgrade didn't propagate correctly
-          const planAllows = await tenantPlanAllowsWhatsApp(tenantId);
-          if (planAllows) {
-            await tenantRef.update({ whatsappEnabled: true });
-            clearTenantPlanCache(tenantId);
-            logSecurityEvent("whatsapp_flag_drift_corrected", {
-              tenantId,
-              reason: "whatsappEnabled was false but plan/addon allows WhatsApp — auto-corrected",
-              route: "/webhooks/whatsapp",
-            }, "WARN");
-          } else {
-            await sendWhatsAppMessage(
-              from,
-              "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
-            );
-            return res.status(200).send("OK");
-          }
+        const planAllows = await tenantPlanAllowsWhatsApp(tenantId);
+
+        if (planAllows && tenantData.whatsappEnabled !== true) {
+          // Self-heal up: flag false but plan/addon allows
+          await tenantRef.update({ whatsappEnabled: true });
+          clearTenantPlanCache(tenantId);
+          logSecurityEvent("whatsapp_flag_drift_corrected", {
+            tenantId,
+            reason: "[enable] whatsappEnabled was false but plan/addon allows WhatsApp — auto-corrected",
+            route: "/webhooks/whatsapp",
+          }, "WARN");
+        } else if (!planAllows && tenantData.whatsappEnabled === true) {
+          // Self-heal down: flag true but plan no longer allows (e.g. downgrade or drift)
+          await tenantRef.update({ whatsappEnabled: false });
+          clearTenantPlanCache(tenantId);
+          logSecurityEvent("whatsapp_flag_drift_corrected", {
+            tenantId,
+            reason: "[disable] whatsappEnabled was true but plan no longer allows WhatsApp — auto-corrected",
+            route: "/webhooks/whatsapp",
+          }, "WARN");
+        }
+
+        if (!planAllows) {
+          await sendWhatsAppMessage(
+            from,
+            "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
+          );
+          return res.status(200).send("OK");
         }
 
         const limit = tenantData.whatsappMonthlyLimit || MONTHLY_LIMIT;
