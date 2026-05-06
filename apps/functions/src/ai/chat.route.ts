@@ -3,6 +3,7 @@ import { type FunctionDeclarationsTool } from "@google/generative-ai";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/tenant-plan-policy";
+import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { sanitizeText } from "../utils/sanitize";
 import { logger } from "../lib/logger";
 import { selectModel } from "./model-router";
@@ -136,10 +137,16 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       const tenantData = tenantSnap.data() as Record<string, unknown>;
       tenantName = String(tenantData?.name || "");
       tenantNiche = String(tenantData?.niche || "");
-      whatsappEnabled = Boolean(tenantData?.whatsappEnabled);
     }
   } catch {
     // Non-fatal — continue with empty tenant info
+  }
+  // Use the canonical eligibility resolver instead of the cached Firestore flag
+  // so plan changes are reflected immediately without waiting for a flag sync.
+  try {
+    whatsappEnabled = await tenantPlanAllowsWhatsApp(user.tenantId);
+  } catch {
+    // Non-fatal — default remains false
   }
 
   const systemPrompt = buildSystemPrompt({

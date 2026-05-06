@@ -199,7 +199,6 @@ function resolveAddonId(rawAddonId: unknown): string | null {
     "pdf_editor_partial",
     "pdf_editor_full",
     "crm",
-    "whatsapp_addon",
   ]);
   if (!purchaseableAddonIds.has(addonId)) return null;
   return getPriceIdForAddon(addonId) ? addonId : null;

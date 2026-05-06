@@ -143,7 +143,7 @@ const PLAN_LIMITS_BY_TIER: Record<TenantPlanTier, TenantPlanLimits> = {
   },
 };
 
-function normalizePlanTier(value: unknown): TenantPlanTier | null {
+export function normalizePlanTier(value: unknown): TenantPlanTier | null {
   const normalized = String(value || "").trim().toLowerCase();
   if (
     normalized === "free" ||
@@ -288,6 +288,12 @@ function emitAudit(input: {
   ).catch(() => undefined);
 }
 
+export function compareTiers(a: TenantPlanTier, b: TenantPlanTier): -1 | 0 | 1 {
+  const TIER_ORDER: Record<TenantPlanTier, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+  const diff = (TIER_ORDER[a] ?? 0) - (TIER_ORDER[b] ?? 0);
+  return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+}
+
 export function resolvePriceToTier(priceId: string): TenantPlanTier | null {
   if (!priceId) return null;
   const config = getPriceConfig();
@@ -342,6 +348,7 @@ export function buildCompatDefaultTenantPlanProfile(input: {
   subscriptionStatus: string;
   stripeSubscriptionId?: string;
   stripePriceId?: string;
+  stripeCustomerId?: string;
   pastDueSince?: string;
   requestId?: string;
   route?: string;
@@ -357,6 +364,11 @@ export function buildCompatDefaultTenantPlanProfile(input: {
     source: "compat_default_starter",
   });
 
+  // Stripe-managed tenants should never fall through to compat-default — it
+  // means plan fields are missing or corrupt. Elevate to ERROR so it pages.
+  const isStripeManagedTenant = Boolean(input.stripeCustomerId);
+  const logLevel = isStripeManagedTenant ? "ERROR" : "WARN";
+
   telemetryHooks.logEvent(
     "tenant_plan_source_compat_default",
     {
@@ -368,7 +380,7 @@ export function buildCompatDefaultTenantPlanProfile(input: {
       reason: "compat_default_starter",
       status: 200,
     },
-    "WARN",
+    logLevel,
   );
   emitCounter("plan_source_compat_default", {
     requestId: input.requestId,
@@ -379,6 +391,19 @@ export function buildCompatDefaultTenantPlanProfile(input: {
     reason: "compat_default_starter",
     status: 200,
   });
+
+  if (isStripeManagedTenant) {
+    emitAudit({
+      eventType: "tenant_plan_compat_default_stripe_managed",
+      requestId: input.requestId,
+      route: input.route,
+      tenantId: input.tenantId,
+      uid: input.uid,
+      reason: "compat_default_starter",
+      source: "tenant_plan_policy",
+    });
+  }
+
   return profile;
 }
 
@@ -399,7 +424,30 @@ async function resolveTenantPlanProfileUncached(
   const stripePriceId = normalizeOptionalString(
     tenantData?.priceId || tenantData?.stripePriceId,
   );
+  const stripeCustomerId = normalizeOptionalString(tenantData?.stripeCustomerId);
   const pastDueSince = toIsoStringOrUndefined(tenantData?.pastDueSince);
+
+  // Scheduled plan deferral: if a plan transition was scheduled and its
+  // effective date has passed, apply it immediately instead of the stored tier.
+  const scheduledPlanRaw = tenantData?.scheduledPlan;
+  const scheduledPlanAtRaw = tenantData?.scheduledPlanAt;
+  const scheduledTier = normalizePlanTier(scheduledPlanRaw);
+  if (
+    scheduledTier &&
+    scheduledPlanAtRaw != null &&
+    typeof (scheduledPlanAtRaw as { toMillis?: unknown }).toMillis === "function" &&
+    (scheduledPlanAtRaw as { toMillis: () => number }).toMillis() <= Date.now()
+  ) {
+    return buildProfileFromTier({
+      tenantId,
+      tier: scheduledTier,
+      subscriptionStatus,
+      stripeSubscriptionId,
+      stripePriceId,
+      pastDueSince,
+      source: "tenant.scheduledPlan_due",
+    });
+  }
 
   const directTier =
     normalizePlanTier(tenantData?.plan) ||
@@ -503,6 +551,7 @@ async function resolveTenantPlanProfileUncached(
     subscriptionStatus,
     stripeSubscriptionId,
     stripePriceId,
+    stripeCustomerId,
     pastDueSince,
   });
 }

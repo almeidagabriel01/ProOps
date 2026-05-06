@@ -226,8 +226,7 @@ export type AddonType =
   | "financial"
   | "pdf_editor_partial"
   | "pdf_editor_full"
-  | "crm"
-  | "whatsapp_addon";
+  | "crm";
 
 export async function saveAddon(
   tenantId: string,
@@ -244,12 +243,6 @@ export async function saveAddon(
     purchasedAt: FieldValue.serverTimestamp(),
   });
 
-  if (addonType === "whatsapp_addon") {
-    await db.collection("tenants").doc(tenantId).update({
-      whatsappEnabled: true,
-    });
-  }
-
   console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
 }
 
@@ -263,17 +256,6 @@ export async function cancelAddon(
     status: "cancelled",
     expiresAt: FieldValue.serverTimestamp(),
   });
-
-  if (addonType === "whatsapp_addon") {
-    // Addon is already marked cancelled above, so tenantPlanAllowsWhatsApp will
-    // only return true if the tenant's base plan (pro/enterprise) covers WhatsApp.
-    const keepEnabled = await tenantPlanAllowsWhatsApp(tenantId);
-    if (!keepEnabled) {
-      await db.collection("tenants").doc(tenantId).update({
-        whatsappEnabled: false,
-      });
-    }
-  }
 
   console.log(`Cancelled add-on ${addonType} for tenant ${tenantId}`);
 }
@@ -300,25 +282,6 @@ export async function updateAddonStatus(
   }
 
   await db.collection("addons").doc(addonId).update(updateData);
-
-  if (addonType === "whatsapp_addon") {
-    if (status === "active") {
-      await db
-        .collection("tenants")
-        .doc(tenantId)
-        .update({ whatsappEnabled: true });
-    } else if (status === "cancelled") {
-      // Addon is already marked cancelled above, so tenantPlanAllowsWhatsApp will
-      // only return true if the tenant's base plan (pro/enterprise) covers WhatsApp.
-      const keepEnabled = await tenantPlanAllowsWhatsApp(tenantId);
-      if (!keepEnabled) {
-        await db
-          .collection("tenants")
-          .doc(tenantId)
-          .update({ whatsappEnabled: false });
-      }
-    }
-  }
 
   console.log(
     `Updated add-on ${addonType} for tenant ${tenantId} to ${status}`,

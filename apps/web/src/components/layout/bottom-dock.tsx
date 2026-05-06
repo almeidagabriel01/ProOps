@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, LogOut } from "lucide-react";
+import { Crown, LogOut, LayoutDashboard, BarChart3, UserCircle } from "lucide-react";
 
 import { Dock, DockIcon } from "@/components/ui/dock";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -19,6 +19,7 @@ import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 
 const HOTZONE_HEIGHT_PX = 6;
 const HIDE_DELAY_MS = 700;
@@ -73,6 +74,7 @@ type DockEntry = {
   icon: MenuItem["icon"];
   label: string;
   href: string;
+  external?: boolean;
   requiresFinancial?: boolean;
   requiresEnterprise?: boolean;
   pageId?: string;
@@ -80,7 +82,8 @@ type DockEntry = {
 
 export function BottomDock() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const { tenant } = useTenant();
   const { hasFinancial, hasKanban } = usePlanLimits();
   const { isMaster } = usePermissions();
   const upgradeModal = useUpgradeModal();
@@ -210,6 +213,7 @@ export function BottomDock() {
   }, [pathname, hasHover, isAtTop, clearHideTimeout]);
 
   const isAdminPage = pathname.startsWith("/admin");
+  const isSuperAdminMode = user?.role === "superadmin" && !tenant;
 
   const premiumColor = useThemePrimaryColor();
 
@@ -240,6 +244,7 @@ export function BottomDock() {
         icon: item.icon,
         label: item.label,
         href: item.href,
+        external: item.external,
         requiresFinancial: item.requiresFinancial,
         requiresEnterprise: item.requiresEnterprise,
         pageId: item.pageId,
@@ -260,8 +265,8 @@ export function BottomDock() {
     return best;
   }, [dockEntries, pathname]);
 
-  // não mostrar dock no admin
-  if (isAdminPage) {
+  // não mostrar dock no admin (exceto quando superadmin sem tenant)
+  if (isAdminPage && !isSuperAdminMode) {
     return null;
   }
 
@@ -327,24 +332,117 @@ export function BottomDock() {
         data-active={active ? "true" : undefined}
       >
         <DockItemContent label={entry.label}>
-          <Link
-            href={entry.href}
-            className={cn(
-              "absolute inset-0 flex items-center justify-center",
-              active
-                ? "text-foreground"
-                : "text-foreground/85 hover:text-foreground",
-            )}
-            aria-label={entry.label}
-          >
-            <entry.icon className="w-6 h-6" />
-          </Link>
+          {entry.external ? (
+            <a
+              href={entry.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute inset-0 flex items-center justify-center text-foreground/85 hover:text-foreground"
+              aria-label={entry.label}
+            >
+              <entry.icon className="w-6 h-6" />
+            </a>
+          ) : (
+            <Link
+              href={entry.href}
+              className={cn(
+                "absolute inset-0 flex items-center justify-center",
+                active
+                  ? "text-foreground"
+                  : "text-foreground/85 hover:text-foreground",
+              )}
+              aria-label={entry.label}
+            >
+              <entry.icon className="w-6 h-6" />
+            </Link>
+          )}
         </DockItemContent>
       </DockIcon>
     );
   };
 
   const shouldAutoHide = hasHover;
+
+  if (isSuperAdminMode) {
+    const superAdminItems = [
+      { icon: LayoutDashboard, label: "Painel", href: "/admin" },
+      { icon: BarChart3, label: "Visão Geral", href: "/admin/overview" },
+      { icon: UserCircle, label: "Perfil", href: "/profile" },
+    ];
+
+    const activeHrefSA = superAdminItems.reduce<string | null>((best, item) => {
+      const matches = pathname === item.href || pathname.startsWith(item.href + "/");
+      if (!matches) return best;
+      if (!best || item.href.length > best.length) return item.href;
+      return best;
+    }, null);
+
+    return (
+      <>
+        {shouldAutoHide && (
+          <div
+            className="fixed left-0 right-0 bottom-0 z-30"
+            style={{ height: HOTZONE_HEIGHT_PX }}
+            onMouseEnter={showDock}
+            onMouseMove={showDock}
+          />
+        )}
+        <div
+          className={cn(
+            "fixed left-1/2 bottom-4 -translate-x-1/2 z-40",
+            "transition-transform duration-300 ease-out",
+            isVisible ? "translate-y-0" : "translate-y-[calc(100%+24px)]",
+          )}
+          onMouseEnter={() => { setIsDockInteracting(true); showDock(); }}
+          onMouseLeave={() => { setIsDockInteracting(false); scheduleHide(); }}
+          onFocusCapture={() => { setIsDockInteracting(true); showDock(); }}
+          onBlurCapture={() => { setIsDockInteracting(false); scheduleHide(); }}
+        >
+          <Dock className="mt-0" direction="middle" iconSize={44} iconMagnification={66} iconDistance={170}>
+            {superAdminItems.map((item) => {
+              const active = activeHrefSA === item.href;
+              return (
+                <DockIcon
+                  key={item.href}
+                  aria-label={item.label}
+                  className={cn(
+                    active && "bg-primary/20 dark:bg-primary/25 ring-1 ring-primary/35 dark:ring-primary/25 shadow-sm transition-[background-color,box-shadow] duration-200 ease-out",
+                  )}
+                  data-active={active ? "true" : undefined}
+                >
+                  <DockItemContent label={item.label}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "absolute inset-0 flex items-center justify-center",
+                        active ? "text-foreground" : "text-foreground/85 hover:text-foreground",
+                      )}
+                      aria-label={item.label}
+                    >
+                      <item.icon className="w-6 h-6" />
+                    </Link>
+                  </DockItemContent>
+                </DockIcon>
+              );
+            })}
+            <DockDivider />
+            <DockIcon aria-label="Sair">
+              <DockItemContent label="Sair">
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="flex items-center justify-center w-full h-full text-destructive"
+                  aria-label="Sair"
+                >
+                  <LogOut className="w-6 h-6" />
+                </button>
+              </DockItemContent>
+            </DockIcon>
+          </Dock>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

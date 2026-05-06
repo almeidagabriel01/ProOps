@@ -416,7 +416,6 @@ app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", mercadoPagoRoutes);
 app.use("/v1/ai", aiRateLimiter, aiRouter);
 app.use("/v1/ai", fieldGenRouter);
-
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   const user = req.user;
   res.json({
@@ -424,6 +423,14 @@ app.get("/authenticated", (req: express.Request, res: express.Response) => {
     uid: user?.uid || null,
     tenantId: user?.tenantId || null,
     role: user?.role || null,
+  });
+});
+
+app.use((req: express.Request, res: express.Response) => {
+  res.status(404).json({
+    message: "Not found",
+    path: sanitizeLoggedPath(req.path),
+    method: req.method,
   });
 });
 

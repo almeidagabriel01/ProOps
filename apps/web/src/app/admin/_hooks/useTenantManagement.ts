@@ -22,8 +22,10 @@ interface UseTenantManagementReturn {
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
   handleLoginAs: (tenant: Tenant) => void;
+  handleRecompute: (tenantId: string) => Promise<void>;
   isLoading: boolean;
   isSaving: boolean;
+  isRecomputing: boolean;
 }
 
 export function useTenantManagement(): UseTenantManagementReturn {
@@ -34,6 +36,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     React.useState<TenantBillingInfo | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isRecomputing, setIsRecomputing] = React.useState(false);
 
   const { setViewingTenant } = useTenant();
   const router = useRouter();
@@ -68,9 +71,16 @@ export function useTenantManagement(): UseTenantManagementReturn {
           whatsappEnabled: data.whatsappEnabled,
         });
 
-        // Update admin user plan if changed
+        // Update admin user plan if changed, then recompute plan-gated features.
         if (data.planId && data.planId !== editingData.planId) {
           await AdminService.updateUserPlan(editingData.admin.id, data.planId);
+          // Recompute ensures the plan-computed whatsappEnabled value wins over
+          // whatever the toggle wrote — important for enterprise → WhatsApp grant.
+          try {
+            await AdminService.recomputeFeatures(editingData.tenant.id);
+          } catch {
+            // Non-fatal — the plan was still updated, recompute can be done manually
+          }
         }
 
         // Update admin credentials if provided
@@ -162,6 +172,19 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setIsDialogOpen(true);
   };
 
+  const handleRecompute = async (tenantId: string) => {
+    setIsRecomputing(true);
+    try {
+      await AdminService.recomputeFeatures(tenantId);
+      toast.success("Features recomputadas com sucesso!");
+      loadTenants();
+    } catch {
+      toast.error("Erro ao recomputar features");
+    } finally {
+      setIsRecomputing(false);
+    }
+  };
+
   const handleLoginAs = (tenant: Tenant) => {
     setViewingTenant(tenant);
     toast.info(`Acessando painel de "${tenant.name}"...`);
@@ -187,8 +210,10 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDelete,
     handleLoginAs,
+    handleRecompute,
     isLoading,
     isSaving,
+    isRecomputing,
   };
 }
 

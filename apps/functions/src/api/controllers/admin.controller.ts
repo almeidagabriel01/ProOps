@@ -12,6 +12,7 @@ import {
   enforceTenantPlanLimit,
   getTenantPlanProfile,
   getTenantUsersUsage,
+  normalizePlanTier,
 } from "../../lib/tenant-plan-policy";
 import {
   normalizeBrazilPhoneNumber,
@@ -1105,6 +1106,36 @@ export const updateUserPlan = async (req: Request, res: Response) => {
       }
     }
 
+    // Sync the new planId to the tenant doc and recompute whatsappEnabled.
+    if (tenantId) {
+      try {
+        const tenantRef = db.collection("tenants").doc(tenantId);
+        const tenantPlanFields: Record<string, unknown> = {
+          planId,
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        // Write plan field directly when planId is a recognizable tier name —
+        // keeps plan and planId in sync so the resolver always reads the right tier.
+        const tierFromPlanId = normalizePlanTier(planId);
+        if (tierFromPlanId) {
+          tenantPlanFields.plan = tierFromPlanId;
+        }
+        await tenantRef.set(tenantPlanFields, { merge: true });
+        clearTenantPlanCache(tenantId);
+        const profile = await getTenantPlanProfile(tenantId);
+        const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+        await tenantRef.update({
+          plan: profile.tier,
+          whatsappEnabled: allowsWhatsApp,
+        });
+      } catch (syncErr) {
+        logger.error(
+          `[updateUserPlan] Failed to sync tenant plan for user ${userId}`,
+          { userId, tenantId, error: (syncErr as Error).message },
+        );
+      }
+    }
+
     return res.json({
       success: true,
       message: "Plano atualizado com sucesso.",
@@ -1332,7 +1363,10 @@ export const createTenant = async (req: Request, res: Response) => {
         primaryColor: String(body.primaryColor || "#3b82f6"),
         logoUrl: String(body.logoUrl || ""),
         niche: String(body.niche || ""),
-        whatsappEnabled: body.whatsappEnabled === true,
+        // whatsappEnabled is always false at creation time; it is recomputed via
+        // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
+        // rules are enforced rather than accepting an arbitrary caller value.
+        whatsappEnabled: false,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
@@ -1348,7 +1382,7 @@ export const createTenant = async (req: Request, res: Response) => {
           primaryColor: String(body.primaryColor || "#3b82f6"),
           logoUrl: String(body.logoUrl || ""),
           niche: String(body.niche || ""),
-          whatsappEnabled: body.whatsappEnabled === true,
+          whatsappEnabled: false,
           usage: {
             users: 0,
             products: 0,
@@ -1398,6 +1432,23 @@ export const createTenant = async (req: Request, res: Response) => {
         now,
       });
     });
+
+    // Recompute whatsappEnabled after the transaction using the canonical
+    // eligibility resolver. This replaces the caller-supplied value that was
+    // written as `false` above so eligibility rules are always enforced.
+    try {
+      clearTenantPlanCache(tenantId);
+      const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+      if (allowsWhatsApp) {
+        await tenantRef.update({ whatsappEnabled: true });
+        await db.collection("companies").doc(tenantId).update({ whatsappEnabled: true });
+      }
+    } catch (whatsappErr) {
+      logger.error("[createTenant] Failed to recompute whatsappEnabled", {
+        tenantId,
+        error: (whatsappErr as Error).message,
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -1927,5 +1978,74 @@ export const recomputeTenantFeatures = async (
     return res.status(500).json({
       message: "Erro ao recomputar features do tenant.",
     });
+  }
+};
+
+export const forceSetTenantPlan = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem forçar o plano.",
+      });
+    }
+
+    const tenantId = String(req.params.tenantId || "").trim();
+    const tier = normalizePlanTier(req.body?.tier);
+
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+    if (!tier) {
+      return res.status(400).json({
+        message: "tier inválido. Use: free, starter, pro ou enterprise.",
+      });
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) {
+      return res.status(404).json({ message: "Tenant não encontrado." });
+    }
+
+    const tenantData = tenantSnap.data() as Record<string, unknown>;
+    if (!tenantData.isManualSubscription) {
+      return res.status(409).json({
+        code: "NOT_MANUAL_SUBSCRIPTION",
+        message:
+          "Forçar plano só é permitido para assinaturas manuais. Tenants gerenciados pelo Stripe devem ser alterados via Stripe.",
+      });
+    }
+
+    clearTenantPlanCache(tenantId);
+    const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+
+    await tenantRef.update({
+      plan: tier,
+      scheduledPlan: null,
+      scheduledPlanAt: null,
+      scheduledPlanReason: null,
+      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
+      featuresRecomputedAt: new Date().toISOString(),
+    });
+
+    // Clear cache again after write so next read reflects new plan.
+    clearTenantPlanCache(tenantId);
+
+    logger.info("[forceSetTenantPlan] plan forced", {
+      tenantId,
+      tier,
+      uid: req.user?.uid,
+    });
+
+    return res.json({
+      tenantId,
+      tier,
+      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
+    });
+  } catch (err) {
+    logger.error("[forceSetTenantPlan] failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ message: "Erro ao forçar plano do tenant." });
   }
 };

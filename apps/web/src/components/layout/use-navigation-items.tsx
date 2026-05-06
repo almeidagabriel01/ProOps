@@ -14,8 +14,15 @@ import {
   isPageEnabledForNiche,
 } from "@/lib/niches/config";
 
+const WHATSAPP_PHONE_DIGITS = (
+  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER ?? ""
+).replace(/\D/g, "");
+const WHATSAPP_HREF = WHATSAPP_PHONE_DIGITS
+  ? `https://wa.me/${WHATSAPP_PHONE_DIGITS}`
+  : "";
+
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const { hasFinancial, hasKanban, hasWhatsApp } = usePlanLimits();
   const { hasPermission, isMaster } = usePermissions();
   const { tenant } = useTenant();
 
@@ -28,9 +35,21 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
         if (item.href === "/solutions" && item.pageId === "solutions") {
           return { ...item, label: solutionsConfig.navigationLabel };
         }
+        // Resolve WhatsApp href from env (build-time inlined NEXT_PUBLIC_*)
+        if (item.pageId === "whatsapp" && item.external) {
+          return { ...item, href: WHATSAPP_HREF };
+        }
         return item;
       })
       .filter((item) => {
+        // External items (e.g. WhatsApp wa.me link) require a resolved href.
+        if (item.external && !item.href) return false;
+        return true;
+      })
+      .filter((item) => {
+        // WhatsApp is hidden entirely for tenants without whatsappEnabled.
+        if (item.requiresWhatsApp && !hasWhatsApp) return false;
+
         // Use availabilityPageId (if set) for niche availability checks,
         // falling back to pageId. This allows /ambientes and /solutions to
         // share pageId="solutions" for permissions but have separate niche gates.
@@ -60,7 +79,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
         return true;
       });
-  }, [hasFinancial, hasKanban, isMaster, hasPermission, tenant?.niche]);
+  }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };
 }

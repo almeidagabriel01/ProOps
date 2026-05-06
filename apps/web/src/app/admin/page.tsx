@@ -26,8 +26,10 @@ export default function AdminPage() {
     handleSave,
     handleDelete,
     handleLoginAs,
+    handleRecompute,
     isLoading,
     isSaving,
+    isRecomputing,
     tenantsData,
   } = useTenantManagement();
 
@@ -131,7 +133,9 @@ export default function AdminPage() {
         onClose={() => setIsDialogOpen(false)}
         initialData={editingData}
         onSave={handleSave}
+        onRecompute={editingData ? () => handleRecompute(editingData.tenant.id) : undefined}
         isSaving={isSaving}
+        isRecomputing={isRecomputing}
       />
 
       <CopyDataDialog

@@ -20,7 +20,7 @@ export function ToastProvider() {
 
   return (
     <div data-theme={currentTheme} className={currentTheme}>
-      <Toaster key={currentTheme} theme={currentTheme} position="top-center" />
+      <Toaster key={currentTheme} theme={currentTheme} position="top-right" />
     </div>
   );
 }

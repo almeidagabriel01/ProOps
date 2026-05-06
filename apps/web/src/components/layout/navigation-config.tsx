@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Home,
   CalendarDays,
+  MessageCircle,
 } from "lucide-react";
 
 export type MenuItem = {
@@ -21,7 +22,10 @@ export type MenuItem = {
   availabilityPageId?: string;
   requiresFinancial?: boolean;
   requiresEnterprise?: boolean;
+  requiresWhatsApp?: boolean;
   masterOnly?: boolean;
+  /** Treat href as an external URL — render as <a target="_blank"> instead of <Link>. */
+  external?: boolean;
   children?: SubMenuItem[];
 };
 
@@ -98,6 +102,15 @@ export const menuItems: MenuItem[] = [
     // But use "ambientes" for niche availability so cortinas sees this item
     // while automacao sees the /solutions item (which has solutions:true).
     availabilityPageId: "ambientes",
+  },
+  {
+    icon: MessageCircle,
+    label: "WhatsApp",
+    // Resolved at runtime by useNavigationItems from NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER.
+    href: "",
+    pageId: "whatsapp",
+    requiresWhatsApp: true,
+    external: true,
   },
 ];
 

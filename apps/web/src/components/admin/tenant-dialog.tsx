@@ -17,7 +17,7 @@ import { Select } from "@/components/ui/select";
 import { TenantNiche, NICHE_LABELS } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast";
@@ -69,7 +69,9 @@ interface TenantDialogProps {
   onClose: () => void;
   initialData?: TenantBillingInfo | null;
   onSave: (data: TenantFormData) => void;
+  onRecompute?: () => Promise<void>;
   isSaving?: boolean;
+  isRecomputing?: boolean;
 }
 
 const buildTenantSnapshot = (data: TenantFormData): string =>
@@ -93,7 +95,9 @@ export function TenantDialog({
   onClose,
   initialData,
   onSave,
+  onRecompute,
   isSaving = false,
+  isRecomputing = false,
 }: TenantDialogProps) {
   const [formData, setFormData] = React.useState<TenantFormData>({
     name: "",
@@ -254,7 +258,7 @@ export function TenantDialog({
       open={isOpen}
       onOpenChange={(open) => !isSaving && !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] !flex !flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Empresa" : "Nova Empresa"}
@@ -265,15 +269,16 @@ export function TenantDialog({
               : "Preencha os dados para criar um novo ambiente."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="py-2">
-            <Tabs defaultValue="company" className="w-full">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <Tabs defaultValue="company" className="flex flex-col flex-1 min-h-0 w-full">
+            <div className="py-2 shrink-0">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="company">Empresa</TabsTrigger>
                 <TabsTrigger value="subscription">Assinatura</TabsTrigger>
                 <TabsTrigger value="access">Acesso</TabsTrigger>
               </TabsList>
-
+            </div>
+            <div className="flex-1 overflow-y-auto">
               {/* Tab: Empresa */}
               <TabsContent value="company" className="space-y-6 pt-4">
                 {/* Name */}
@@ -423,6 +428,7 @@ export function TenantDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, planId: e.target.value })
                     }
+                    disableSort
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
@@ -535,22 +541,6 @@ export function TenantDialog({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="phoneNumber" className="mb-3 block">
-                    WhatsApp / Telefone
-                  </Label>
-                  <PhoneInput
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    value={formData.phoneNumber || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phoneNumber: e.target.value })
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Número vinculado à integração do WhatsApp.
-                  </p>
-                </div>
-                <div className="space-y-1">
                   <Label htmlFor="password" className="mb-3 block">
                     Senha
                   </Label>
@@ -587,27 +577,67 @@ export function TenantDialog({
                       : "Credencial de acesso ao painel."}
                   </p>
                 </div>
-
-                <div className="flex items-center justify-between rounded-lg border p-4 mt-6">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">WhatsApp Ativo</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Habilita os menus de automações e a integração do WhatsApp
-                      Bot para essa empresa.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={formData.whatsappEnabled}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, whatsappEnabled: checked })
+                <div className="space-y-1">
+                  <Label htmlFor="phoneNumber" className="mb-3 block">
+                    WhatsApp / Telefone
+                  </Label>
+                  <PhoneInput
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={formData.phoneNumber || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phoneNumber: e.target.value })
                     }
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Número vinculado à integração do WhatsApp.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border p-4 mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">WhatsApp Ativo</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Habilita os menus de automações e a integração do WhatsApp
+                        Bot para essa empresa.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.whatsappEnabled}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, whatsappEnabled: checked })
+                      }
+                    />
+                  </div>
+                  {isEditing && onRecompute && (
+                    <div className="flex items-center gap-2 pt-1 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onRecompute}
+                        disabled={isRecomputing || isSaving}
+                        className="text-xs"
+                      >
+                        {isRecomputing ? (
+                          <RefreshCw className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 mr-1.5" />
+                        )}
+                        Recomputar pelo plano
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Sincroniza automaticamente com base no plano atual.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
-            </Tabs>
-          </div>
+            </div>
+          </Tabs>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 mt-4">
             <Button
               type="button"
               variant="outline"
