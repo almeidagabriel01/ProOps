@@ -24,7 +24,6 @@ import {
   normalizePlanTier,
   getTenantPlanProfile,
   clearTenantPlanCache,
-  setTenantPlanCacheForTest,
   TenantPlanTier,
 } from "../tenant-plan-policy";
 
