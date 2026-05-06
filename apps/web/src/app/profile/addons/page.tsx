@@ -10,6 +10,7 @@ import { AddonCard } from "@/components/ui/addon-card";
 import { AddonConfirmDialog } from "@/components/ui/addon-confirm-dialog";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
@@ -36,6 +37,7 @@ export default function AddonsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const primaryColor = useThemePrimaryColor();
   const {
     purchasedAddons,
@@ -311,6 +313,12 @@ export default function AddonsPage() {
             // Edge case: if plan is unknown, default to not included
             if (!["starter", "pro", "enterprise"].includes(normalizedTier)) {
               isIncluded = false;
+            }
+
+            // whatsapp_addon: anchor "included" to the canonical tenant flag,
+            // not to tier inference, to handle billing reconciliation drift.
+            if (addon.id === "whatsapp_addon") {
+              isIncluded = Boolean(tenant?.whatsappEnabled);
             }
 
             // Verify hierarchy just in case (optional but safer)

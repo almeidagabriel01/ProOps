@@ -59,6 +59,9 @@ export interface AddonGracePeriodInfo {
   isExpired: boolean;
 }
 
+/** Named feature flags derived from tenant/plan state. */
+export type FeatureFlag = "whatsapp";
+
 export interface PlanContextValue {
   features: PlanFeatures | null;
   isLoading: boolean;
@@ -83,6 +86,7 @@ export interface PlanContextValue {
   getUserLimit: () => string;
   planTier: PlanTier;
   refreshAddons: () => Promise<void>;
+  featureFlags: Record<FeatureFlag, boolean>;
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +473,17 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   }, [pastDueAddonsData]);
 
   // -------------------------------------------------------------------------
+  // Feature flags (derived from tenant state)
+  // -------------------------------------------------------------------------
+
+  const featureFlags = useMemo(
+    (): Record<FeatureFlag, boolean> => ({
+      whatsapp: Boolean(tenant?.whatsappEnabled),
+    }),
+    [tenant?.whatsappEnabled],
+  );
+
+  // -------------------------------------------------------------------------
   // Context value
   // -------------------------------------------------------------------------
 
@@ -497,6 +512,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       getUserLimit: () => formatLimit(mergedFeatures?.maxUsers ?? 0),
       planTier,
       refreshAddons,
+      featureFlags,
     }),
     [
       mergedFeatures,
@@ -515,6 +531,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       getUserCount,
       planTier,
       refreshAddons,
+      featureFlags,
     ],
   );
 
@@ -529,4 +546,9 @@ export function usePlanContext(): PlanContextValue {
   const ctx = useContext(PlanContext);
   if (!ctx) throw new Error("usePlanContext must be used within PlanProvider");
   return ctx;
+}
+
+export function useFeature(name: FeatureFlag): boolean {
+  const { featureFlags } = usePlanContext();
+  return featureFlags[name];
 }

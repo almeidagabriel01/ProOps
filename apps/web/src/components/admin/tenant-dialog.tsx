@@ -595,6 +595,9 @@ export function TenantDialog({
                       Habilita os menus de automações e a integração do WhatsApp
                       Bot para essa empresa.
                     </p>
+                    <p className="text-xs text-muted-foreground">
+                      Este campo é reconciliado automaticamente pelo sistema de billing. Use o botão Recomputar para sincronizar.
+                    </p>
                   </div>
                   <Switch
                     checked={formData.whatsappEnabled}

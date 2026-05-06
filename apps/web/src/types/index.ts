@@ -139,7 +139,8 @@ export type AddonType =
   | "financial"
   | "pdf_editor_partial" // 3 templates, no content editing
   | "pdf_editor_full" // Full access: all templates + content editing
-  | "crm";
+  | "crm"
+  | "whatsapp_addon";
 
 export type PurchasedAddon = {
   id: string;
@@ -160,7 +161,7 @@ export type AddonDefinition = {
   id: AddonType;
   name: string;
   description: string;
-  featureKey: keyof PlanFeatures | "extraUsers";
+  featureKey: keyof PlanFeatures | "extraUsers" | "whatsapp";
   featureValue: boolean | number; // Value to apply when active
   // IMPORTANT: Prices are NOT stored here - they come ONLY from Stripe via Cloud Functions
   // This ensures proper separation between dev/staging/production environments
