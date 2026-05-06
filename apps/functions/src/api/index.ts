@@ -416,6 +416,7 @@ app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", mercadoPagoRoutes);
 app.use("/v1/ai", aiRateLimiter, aiRouter);
 app.use("/v1/ai", fieldGenRouter);
+app.use("/v1/whatsapp", whatsappRoutes);
 
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   const user = req.user;

@@ -613,3 +613,59 @@ export const handleWebhook = async (req: Request, res: Response) => {
   }
 };
 
+export const getWhatsAppInfo = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const eligibility = await evaluateWhatsAppEligibility(tenantId);
+    if (!eligibility.allowed) {
+      return res.status(403).json({
+        message: "WhatsApp is only available on the Enterprise plan.",
+        reason: eligibility.reason,
+      });
+    }
+
+    const displayPhone = String(
+      process.env.WHATSAPP_DISPLAY_PHONE_NUMBER || "",
+    ).trim();
+    const waLink = displayPhone
+      ? `https://wa.me/${displayPhone.replace(/\D/g, "")}`
+      : null;
+
+    const now = new Date();
+    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const usageSnap = await db
+      .collection("whatsappUsage")
+      .doc(tenantId)
+      .collection("months")
+      .doc(monthKey)
+      .get();
+
+    const usageData = usageSnap.exists ? usageSnap.data() : null;
+    const totalMessages = Number(usageData?.totalMessages ?? 0);
+    const overageMessages = Number(usageData?.overageMessages ?? 0);
+
+    return res.json({
+      displayPhone: displayPhone || null,
+      waLink,
+      usage: {
+        month: monthKey,
+        totalMessages,
+        overageMessages,
+      },
+    });
+  } catch (error) {
+    logger.error("getWhatsAppInfo failed", {
+      tenantId: req.user?.tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
