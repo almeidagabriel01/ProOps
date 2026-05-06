@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Home,
   CalendarDays,
+  MessageCircle,
 } from "lucide-react";
 
 export type MenuItem = {
@@ -21,6 +22,7 @@ export type MenuItem = {
   availabilityPageId?: string;
   requiresFinancial?: boolean;
   requiresEnterprise?: boolean;
+  requiresWhatsApp?: boolean;
   masterOnly?: boolean;
   children?: SubMenuItem[];
 };
@@ -98,6 +100,13 @@ export const menuItems: MenuItem[] = [
     // But use "ambientes" for niche availability so cortinas sees this item
     // while automacao sees the /solutions item (which has solutions:true).
     availabilityPageId: "ambientes",
+  },
+  {
+    icon: MessageCircle,
+    label: "WhatsApp",
+    href: "/whatsapp",
+    pageId: "whatsapp",
+    requiresWhatsApp: true,
   },
 ];
 

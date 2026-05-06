@@ -15,7 +15,7 @@ import {
 } from "@/lib/niches/config";
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const { hasFinancial, hasKanban, hasWhatsApp } = usePlanLimits();
   const { hasPermission, isMaster } = usePermissions();
   const { tenant } = useTenant();
 
@@ -31,6 +31,9 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
         return item;
       })
       .filter((item) => {
+        // WhatsApp is hidden entirely for tenants without whatsappEnabled.
+        if (item.requiresWhatsApp && !hasWhatsApp) return false;
+
         // Use availabilityPageId (if set) for niche availability checks,
         // falling back to pageId. This allows /ambientes and /solutions to
         // share pageId="solutions" for permissions but have separate niche gates.
@@ -60,7 +63,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
         return true;
       });
-  }, [hasFinancial, hasKanban, isMaster, hasPermission, tenant?.niche]);
+  }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };
 }
