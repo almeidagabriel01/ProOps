@@ -75,17 +75,44 @@ export const applyScheduledPlanChanges = onSchedule(
         try {
           const tenantRef = db.collection("tenants").doc(tenantId);
 
-          // Apply the scheduled tier and clear the scheduled fields atomically.
-          await tenantRef.set(
-            {
-              plan: scheduledTier,
-              scheduledPlan: null,
-              scheduledPlanAt: null,
-              scheduledPlanReason: null,
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true },
-          );
+          // Re-read inside a transaction to guard against a concurrent webhook
+          // (e.g. subscription.updated) that may have already applied or changed
+          // the scheduled transition since the query snapshot was taken.
+          let transitionApplied = false;
+          await db.runTransaction(async (tx) => {
+            const fresh = await tx.get(tenantRef);
+            if (!fresh.exists) return;
+            const freshData = fresh.data() as Record<string, unknown>;
+            const freshTier = normalizePlanTier(freshData.scheduledPlan);
+            const freshAt = freshData.scheduledPlanAt as Timestamp | null | undefined;
+            // Abort if the scheduled transition was modified or cleared by a concurrent write.
+            if (
+              !freshTier ||
+              !freshAt ||
+              freshTier !== scheduledTier ||
+              freshAt.toMillis() !== scheduledPlanAt.toMillis()
+            ) {
+              return; // Concurrent write took precedence — skip.
+            }
+            if (freshAt.toMillis() > nowMs) return; // Not yet due (clock skew).
+            tx.set(
+              tenantRef,
+              {
+                plan: scheduledTier,
+                scheduledPlan: null,
+                scheduledPlanAt: null,
+                scheduledPlanReason: null,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true },
+            );
+            transitionApplied = true;
+          });
+
+          if (!transitionApplied) {
+            skipped++;
+            continue;
+          }
 
           // Recompute WhatsApp eligibility against the new tier.
           clearTenantPlanCache(tenantId);

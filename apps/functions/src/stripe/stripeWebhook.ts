@@ -130,6 +130,8 @@ async function syncTenantPlanBillingSnapshot(params: {
   tenantId: string;
   subscriptionStatus: string;
   stripePriceId?: string;
+  /** When true, clears scheduledPlan/At/Reason (use for upgrades and fresh checkouts only). */
+  clearScheduled?: boolean;
 }): Promise<void> {
   const tenantId = String(params.tenantId || "").trim();
   if (!tenantId) return;
@@ -139,6 +141,15 @@ async function syncTenantPlanBillingSnapshot(params: {
   const derivedTier = params.stripePriceId
     ? resolvePriceToTier(params.stripePriceId)
     : null;
+
+  // If we can't resolve a tier from the price, skip the plan write entirely.
+  // This prevents routine invoices (invoice.paid with no price change) from
+  // wiping a pending downgrade deferral without updating the plan field.
+  if (!derivedTier && params.clearScheduled) {
+    console.warn(
+      `[syncTenantPlanBillingSnapshot] No tier resolved for priceId=${params.stripePriceId}, skipping scheduled-field clear for tenant ${tenantId}`,
+    );
+  }
 
   await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
@@ -155,15 +166,18 @@ async function syncTenantPlanBillingSnapshot(params: {
 
     const patch: Record<string, unknown> = {
       ...lifecyclePatch,
-      // Clear any pending scheduled plan transition — the new subscription
-      // state supersedes whatever was deferred.
-      scheduledPlan: null,
-      scheduledPlanAt: null,
-      scheduledPlanReason: null,
       updatedAt: nowIso,
     };
     if (derivedTier) {
       patch.plan = derivedTier;
+      // Only clear scheduled fields when there is a resolved tier AND the caller
+      // explicitly requests it (upgrades, fresh checkouts). Routine invoice
+      // payments must NOT clear a pending downgrade deferral.
+      if (params.clearScheduled) {
+        patch.scheduledPlan = null;
+        patch.scheduledPlanAt = null;
+        patch.scheduledPlanReason = null;
+      }
     }
 
     transaction.set(tenantRef, patch, { merge: true });
@@ -591,6 +605,7 @@ async function handleCheckoutCompleted(
       tenantId,
       subscriptionStatus: subscription.status,
       stripePriceId: extractPrimaryPriceId(subscription),
+      clearScheduled: true, // fresh checkout supersedes any pending transition
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     return;
@@ -760,20 +775,23 @@ async function handleSubscriptionUpdated(
     );
   } else {
     // Upgrade, same-tier, or deferral disabled: apply plan snapshot immediately.
+    // clearScheduled=true because an upgrade supersedes any pending deferral.
     await syncTenantPlanBillingSnapshot({
       tenantId,
       subscriptionStatus: subscription.status,
       stripePriceId: primaryPriceId,
+      clearScheduled: true,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   }
 
-  // Handle cancel_at_period_end: schedule a "free" transition unless a lower
-  // downgrade is already scheduled.
+  // Handle cancel_at_period_end: always schedule a "free" transition for period end.
+  // Cancellation means the subscription will be deleted at period_end, so "free" is
+  // always the correct final state — this overwrites any earlier downgrade deferral.
   if (subscription.cancel_at_period_end && currentPeriodEndMs != null) {
     const cancelAt = Timestamp.fromMillis(currentPeriodEndMs);
     const existingScheduled = normalizePlanTier(tenantData?.scheduledPlan);
-    // Only write if no lower tier is already scheduled.
+    // Always schedule "free"; the condition is kept for idempotency (no-op if already "free").
     const shouldWriteCancel =
       !existingScheduled || compareTiers("free", existingScheduled) <= 0;
     if (shouldWriteCancel) {
@@ -906,6 +924,7 @@ async function handleSubscriptionCreated(
     tenantId,
     subscriptionStatus: subscription.status,
     stripePriceId: extractPrimaryPriceId(subscription),
+    clearScheduled: true, // new subscription supersedes any pending transition
   });
   invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   console.log(
