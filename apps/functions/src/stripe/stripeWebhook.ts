@@ -58,13 +58,21 @@ function mapStripeStatusToTenantSubscriptionStatus(status: unknown): string {
 function extractPrimaryPriceId(
   subscription: Stripe.Subscription,
 ): string | undefined {
-  const primaryItem =
-    subscription.items?.data?.find(
-      (item) => item.price?.id !== WHATSAPP_OVERAGE_PRICE_ID,
-    ) || subscription.items?.data?.[0];
-  const priceId = primaryItem?.price?.id;
-  const normalized = String(priceId || "").trim();
-  return normalized || undefined;
+  const items = subscription.items?.data ?? [];
+  // Prefer items whose price maps to a known plan tier (deterministic).
+  const tierItem = items.find((item) => {
+    const pid = String(item.price?.id || "").trim();
+    return pid && pid !== WHATSAPP_OVERAGE_PRICE_ID && resolvePriceToTier(pid) != null;
+  });
+  if (tierItem) {
+    return String(tierItem.price?.id || "").trim() || undefined;
+  }
+  // Fallback: first non-overage item, then first item.
+  const fallback =
+    items.find((item) => item.price?.id !== WHATSAPP_OVERAGE_PRICE_ID) ??
+    items[0];
+  const priceId = String(fallback?.price?.id || "").trim();
+  return priceId || undefined;
 }
 
 function isSupportedAddonType(value: unknown): value is AddonType {
@@ -141,6 +149,11 @@ async function syncTenantPlanBillingSnapshot(params: {
 
     const patch: Record<string, unknown> = {
       ...lifecyclePatch,
+      // Clear any pending scheduled plan transition — the new subscription
+      // state supersedes whatever was deferred.
+      scheduledPlan: null,
+      scheduledPlanAt: null,
+      scheduledPlanReason: null,
       updatedAt: nowIso,
     };
     if (derivedTier) {

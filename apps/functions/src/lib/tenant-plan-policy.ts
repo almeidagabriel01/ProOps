@@ -288,6 +288,12 @@ function emitAudit(input: {
   ).catch(() => undefined);
 }
 
+export function compareTiers(a: TenantPlanTier, b: TenantPlanTier): -1 | 0 | 1 {
+  const TIER_ORDER: Record<TenantPlanTier, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
+  const diff = (TIER_ORDER[a] ?? 0) - (TIER_ORDER[b] ?? 0);
+  return diff < 0 ? -1 : diff > 0 ? 1 : 0;
+}
+
 export function resolvePriceToTier(priceId: string): TenantPlanTier | null {
   if (!priceId) return null;
   const config = getPriceConfig();
@@ -400,6 +406,28 @@ async function resolveTenantPlanProfileUncached(
     tenantData?.priceId || tenantData?.stripePriceId,
   );
   const pastDueSince = toIsoStringOrUndefined(tenantData?.pastDueSince);
+
+  // Scheduled plan deferral: if a plan transition was scheduled and its
+  // effective date has passed, apply it immediately instead of the stored tier.
+  const scheduledPlanRaw = tenantData?.scheduledPlan;
+  const scheduledPlanAtRaw = tenantData?.scheduledPlanAt;
+  const scheduledTier = normalizePlanTier(scheduledPlanRaw);
+  if (
+    scheduledTier &&
+    scheduledPlanAtRaw != null &&
+    typeof (scheduledPlanAtRaw as { toMillis?: unknown }).toMillis === "function" &&
+    (scheduledPlanAtRaw as { toMillis: () => number }).toMillis() <= Date.now()
+  ) {
+    return buildProfileFromTier({
+      tenantId,
+      tier: scheduledTier,
+      subscriptionStatus,
+      stripeSubscriptionId,
+      stripePriceId,
+      pastDueSince,
+      source: "tenant.scheduledPlan_due",
+    });
+  }
 
   const directTier =
     normalizePlanTier(tenantData?.plan) ||
