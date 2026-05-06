@@ -54,7 +54,6 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 | `pdf_editor_partial` | Editor PDF parcial |
 | `pdf_editor_full` | Editor PDF completo |
 | `crm` | CRM avulso |
-| `whatsapp_addon` | WhatsApp Bot |
 
 Precos sao lidos dinamicamente do Stripe via `getPriceConfig()` de `stripeConfig.ts`. IDs de price ficam em variaveis de ambiente — nunca hardcoded no código.
 
@@ -174,7 +173,7 @@ trialEndsAt?: ISO string
 
 ```
 tenantId: string
-addonType: string               // financial | whatsapp_addon | ...
+addonType: string               // financial | pdf_editor_partial | pdf_editor_full | crm
 stripeSubscriptionId: string
 status: "active" | "past_due" | "canceled"
 cancelAtPeriodEnd: boolean
