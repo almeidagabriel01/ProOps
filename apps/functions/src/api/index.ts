@@ -16,7 +16,6 @@ import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 import { whatsappRoutes } from "./routes/whatsapp.routes";
-import { whatsappApiRoutes } from "./routes/whatsapp-api.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
@@ -417,8 +416,6 @@ app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", mercadoPagoRoutes);
 app.use("/v1/ai", aiRateLimiter, aiRouter);
 app.use("/v1/ai", fieldGenRouter);
-app.use("/v1/whatsapp", whatsappApiRoutes);
-
 app.get("/authenticated", (req: express.Request, res: express.Response) => {
   const user = req.user;
   res.json({
