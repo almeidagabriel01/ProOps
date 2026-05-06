@@ -63,17 +63,6 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     order: 4,
     availableForTiers: ["starter", "pro"],
   },
-  {
-    id: "whatsapp_addon",
-    name: "WhatsApp para Pro",
-    description:
-      "Habilite o assistente WhatsApp e receba mensagens dos seus clientes pelo número da empresa.",
-    featureKey: "whatsapp",
-    featureValue: true,
-    icon: "MessageCircle",
-    order: 5,
-    availableForTiers: ["starter", "pro"],
-  },
 ];
 
 export const AddonService = {
