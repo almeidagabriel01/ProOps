@@ -348,6 +348,7 @@ export function buildCompatDefaultTenantPlanProfile(input: {
   subscriptionStatus: string;
   stripeSubscriptionId?: string;
   stripePriceId?: string;
+  stripeCustomerId?: string;
   pastDueSince?: string;
   requestId?: string;
   route?: string;
@@ -363,6 +364,11 @@ export function buildCompatDefaultTenantPlanProfile(input: {
     source: "compat_default_starter",
   });
 
+  // Stripe-managed tenants should never fall through to compat-default — it
+  // means plan fields are missing or corrupt. Elevate to ERROR so it pages.
+  const isStripeManagedTenant = Boolean(input.stripeCustomerId);
+  const logLevel = isStripeManagedTenant ? "ERROR" : "WARN";
+
   telemetryHooks.logEvent(
     "tenant_plan_source_compat_default",
     {
@@ -374,7 +380,7 @@ export function buildCompatDefaultTenantPlanProfile(input: {
       reason: "compat_default_starter",
       status: 200,
     },
-    "WARN",
+    logLevel,
   );
   emitCounter("plan_source_compat_default", {
     requestId: input.requestId,
@@ -385,6 +391,19 @@ export function buildCompatDefaultTenantPlanProfile(input: {
     reason: "compat_default_starter",
     status: 200,
   });
+
+  if (isStripeManagedTenant) {
+    emitAudit({
+      eventType: "tenant_plan_compat_default_stripe_managed",
+      requestId: input.requestId,
+      route: input.route,
+      tenantId: input.tenantId,
+      uid: input.uid,
+      reason: "compat_default_starter",
+      source: "tenant_plan_policy",
+    });
+  }
+
   return profile;
 }
 
@@ -405,6 +424,7 @@ async function resolveTenantPlanProfileUncached(
   const stripePriceId = normalizeOptionalString(
     tenantData?.priceId || tenantData?.stripePriceId,
   );
+  const stripeCustomerId = normalizeOptionalString(tenantData?.stripeCustomerId);
   const pastDueSince = toIsoStringOrUndefined(tenantData?.pastDueSince);
 
   // Scheduled plan deferral: if a plan transition was scheduled and its
@@ -531,6 +551,7 @@ async function resolveTenantPlanProfileUncached(
     subscriptionStatus,
     stripeSubscriptionId,
     stripePriceId,
+    stripeCustomerId,
     pastDueSince,
   });
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { auth, db } from "../../init";
-import { tenantPlanAllowsWhatsApp } from "../../lib/whatsapp-eligibility";
+import { evaluateWhatsAppEligibility } from "../../lib/whatsapp-eligibility";
 import { logSecurityEvent } from "../../lib/security-observability";
 import { clearTenantPlanCache } from "../../lib/tenant-plan-policy";
 import { WebhookPayload } from "../services/whatsapp/whatsapp.types";
@@ -224,29 +224,32 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         const tenantData = tenantSnap.data()!;
 
-        const planAllows = await tenantPlanAllowsWhatsApp(tenantId);
+        let eligibility = await evaluateWhatsAppEligibility(tenantId);
 
-        if (planAllows && tenantData.whatsappEnabled !== true) {
-          // Self-heal up: flag false but plan/addon allows
-          await tenantRef.update({ whatsappEnabled: true });
+        // Second-chance: if denied but flag says enabled, the cache may be stale —
+        // clear and re-evaluate once before acting on the denial.
+        if (!eligibility.allowed && tenantData.whatsappEnabled === true) {
           clearTenantPlanCache(tenantId);
+          eligibility = await evaluateWhatsAppEligibility(tenantId);
+        }
+
+        if (eligibility.allowed && tenantData.whatsappEnabled !== true) {
+          await tenantRef.update({ whatsappEnabled: true });
           logSecurityEvent("whatsapp_flag_drift_corrected", {
             tenantId,
-            reason: "[enable] whatsappEnabled was false but plan/addon allows WhatsApp — auto-corrected",
+            reason: "[enable] whatsappEnabled was false but eligibility allows — auto-corrected",
             route: "/webhooks/whatsapp",
           }, "WARN");
-        } else if (!planAllows && tenantData.whatsappEnabled === true) {
-          // Self-heal down: flag true but plan no longer allows (e.g. downgrade or drift)
+        } else if (!eligibility.allowed && tenantData.whatsappEnabled === true) {
           await tenantRef.update({ whatsappEnabled: false });
-          clearTenantPlanCache(tenantId);
           logSecurityEvent("whatsapp_flag_drift_corrected", {
             tenantId,
-            reason: "[disable] whatsappEnabled was true but plan no longer allows WhatsApp — auto-corrected",
+            reason: `[disable] whatsappEnabled was true but eligibility denied (${eligibility.reason}) — auto-corrected`,
             route: "/webhooks/whatsapp",
           }, "WARN");
         }
 
-        if (!planAllows) {
+        if (!eligibility.allowed) {
           await sendWhatsAppMessage(
             from,
             "🚫 O WhatsApp não está disponível no plano atual da sua empresa. Para habilitar, faça upgrade para o plano Enterprise ou ative o complemento WhatsApp. Entre em contato com o administrador.",

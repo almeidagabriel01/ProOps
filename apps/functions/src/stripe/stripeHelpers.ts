@@ -245,9 +245,12 @@ export async function saveAddon(
   });
 
   if (addonType === "whatsapp_addon") {
-    await db.collection("tenants").doc(tenantId).update({
-      whatsappEnabled: true,
-    });
+    const allowed = await tenantPlanAllowsWhatsApp(tenantId);
+    if (allowed) {
+      await db.collection("tenants").doc(tenantId).update({
+        whatsappEnabled: true,
+      });
+    }
   }
 
   console.log(`Saved add-on ${addonType} for tenant ${tenantId}`);
@@ -303,10 +306,13 @@ export async function updateAddonStatus(
 
   if (addonType === "whatsapp_addon") {
     if (status === "active") {
-      await db
-        .collection("tenants")
-        .doc(tenantId)
-        .update({ whatsappEnabled: true });
+      const allowed = await tenantPlanAllowsWhatsApp(tenantId);
+      if (allowed) {
+        await db
+          .collection("tenants")
+          .doc(tenantId)
+          .update({ whatsappEnabled: true });
+      }
     } else if (status === "cancelled") {
       // Addon is already marked cancelled above, so tenantPlanAllowsWhatsApp will
       // only return true if the tenant's base plan (pro/enterprise) covers WhatsApp.

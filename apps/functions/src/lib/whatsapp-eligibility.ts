@@ -1,29 +1,81 @@
 import { db } from "../init";
 import { logger } from "./logger";
-import { getTenantPlanProfile } from "./tenant-plan-policy";
+import {
+  clearTenantPlanCache,
+  getTenantPlanProfile,
+  type TenantPlanTier,
+} from "./tenant-plan-policy";
 
-const WHATSAPP_ENABLED_TIERS = new Set<string>(["enterprise"]);
+const WHATSAPP_BASE_TIER: TenantPlanTier = "enterprise";
+const WHATSAPP_ADDON_ALLOWED_TIERS: ReadonlySet<TenantPlanTier> = new Set([
+  "starter",
+  "pro",
+]);
+
+export type WhatsAppEligibilityReason =
+  | "plan_enterprise"
+  | "plan_with_active_addon"
+  | "addon_inactive"
+  | "tier_not_eligible"
+  | "tenant_missing"
+  | "plan_resolution_failed";
+
+export type WhatsAppEligibility = {
+  allowed: boolean;
+  reason: WhatsAppEligibilityReason;
+  tier?: TenantPlanTier;
+  addonStatus?: string;
+};
+
+export async function evaluateWhatsAppEligibility(
+  tenantId: string,
+): Promise<WhatsAppEligibility> {
+  if (!tenantId) {
+    return { allowed: false, reason: "tenant_missing" };
+  }
+
+  let tier: TenantPlanTier;
+  try {
+    const profile = await getTenantPlanProfile(tenantId);
+    tier = profile.tier;
+  } catch (err) {
+    logger.warn("evaluateWhatsAppEligibility: plan resolution failed", {
+      tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { allowed: false, reason: "plan_resolution_failed" };
+  }
+
+  if (tier === WHATSAPP_BASE_TIER) {
+    return { allowed: true, reason: "plan_enterprise", tier };
+  }
+
+  if (!WHATSAPP_ADDON_ALLOWED_TIERS.has(tier)) {
+    return { allowed: false, reason: "tier_not_eligible", tier };
+  }
+
+  // tier is starter or pro — check addon
+  const addonSnap = await db
+    .collection("addons")
+    .doc(`${tenantId}_whatsapp_addon`)
+    .get();
+
+  if (!addonSnap.exists) {
+    return { allowed: false, reason: "tier_not_eligible", tier };
+  }
+
+  const addonStatus = String(addonSnap.data()?.status || "").trim();
+  if (addonStatus === "active") {
+    return { allowed: true, reason: "plan_with_active_addon", tier, addonStatus };
+  }
+
+  return { allowed: false, reason: "addon_inactive", tier, addonStatus };
+}
 
 export async function tenantPlanAllowsWhatsApp(
   tenantId: string,
 ): Promise<boolean> {
-  if (!tenantId) return false;
-
-  try {
-    const profile = await getTenantPlanProfile(tenantId);
-    if (WHATSAPP_ENABLED_TIERS.has(profile.tier)) return true;
-  } catch (err) {
-    logger.warn("tenantPlanAllowsWhatsApp: profile resolution failed", {
-      tenantId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  const addonDoc = await db
-    .collection("addons")
-    .doc(`${tenantId}_whatsapp_addon`)
-    .get();
-  return addonDoc.exists && addonDoc.data()?.status === "active";
+  return (await evaluateWhatsAppEligibility(tenantId)).allowed;
 }
 
 // Auto-enables whatsappEnabled on the tenant when a user registers their first
@@ -39,6 +91,7 @@ export async function maybeAutoEnableWhatsApp(tenantId: string): Promise<void> {
 
   if (await tenantPlanAllowsWhatsApp(tenantId)) {
     await tenantRef.update({ whatsappEnabled: true });
+    clearTenantPlanCache(tenantId);
     logger.info("whatsapp auto-enabled for tenant", { tenantId });
   }
 }

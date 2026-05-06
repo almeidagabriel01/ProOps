@@ -18,6 +18,7 @@ import {
 } from "../../stripe/stripeHelpers";
 
 import { db } from "../../init";
+import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
 import {
   assertSuperAdminClaim,
   assertTenantAdminClaim,
@@ -573,6 +574,23 @@ export const createAddonCheckoutSession = async (
       return res
         .status(400)
         .json({ message: "Invalid addon or price not configured" });
+    }
+
+    if (addonId === "whatsapp_addon") {
+      const profile = await getTenantPlanProfile(tenantId);
+      if (profile.tier === "free") {
+        return res.status(409).json({
+          code: "PLAN_REQUIRES_UPGRADE",
+          message:
+            "Faça upgrade para Starter ou Pro antes de contratar o complemento WhatsApp.",
+        });
+      }
+      if (profile.tier === "enterprise") {
+        return res.status(409).json({
+          code: "ADDON_REDUNDANT_ENTERPRISE",
+          message: "O plano Enterprise já inclui WhatsApp.",
+        });
+      }
     }
 
     const stripe = getStripe();
