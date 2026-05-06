@@ -74,6 +74,7 @@ type DockEntry = {
   icon: MenuItem["icon"];
   label: string;
   href: string;
+  external?: boolean;
   requiresFinancial?: boolean;
   requiresEnterprise?: boolean;
   pageId?: string;
@@ -243,6 +244,7 @@ export function BottomDock() {
         icon: item.icon,
         label: item.label,
         href: item.href,
+        external: item.external,
         requiresFinancial: item.requiresFinancial,
         requiresEnterprise: item.requiresEnterprise,
         pageId: item.pageId,
@@ -330,18 +332,30 @@ export function BottomDock() {
         data-active={active ? "true" : undefined}
       >
         <DockItemContent label={entry.label}>
-          <Link
-            href={entry.href}
-            className={cn(
-              "absolute inset-0 flex items-center justify-center",
-              active
-                ? "text-foreground"
-                : "text-foreground/85 hover:text-foreground",
-            )}
-            aria-label={entry.label}
-          >
-            <entry.icon className="w-6 h-6" />
-          </Link>
+          {entry.external ? (
+            <a
+              href={entry.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute inset-0 flex items-center justify-center text-foreground/85 hover:text-foreground"
+              aria-label={entry.label}
+            >
+              <entry.icon className="w-6 h-6" />
+            </a>
+          ) : (
+            <Link
+              href={entry.href}
+              className={cn(
+                "absolute inset-0 flex items-center justify-center",
+                active
+                  ? "text-foreground"
+                  : "text-foreground/85 hover:text-foreground",
+              )}
+              aria-label={entry.label}
+            >
+              <entry.icon className="w-6 h-6" />
+            </Link>
+          )}
         </DockItemContent>
       </DockIcon>
     );

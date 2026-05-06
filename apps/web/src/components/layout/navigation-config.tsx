@@ -24,6 +24,8 @@ export type MenuItem = {
   requiresEnterprise?: boolean;
   requiresWhatsApp?: boolean;
   masterOnly?: boolean;
+  /** Treat href as an external URL — render as <a target="_blank"> instead of <Link>. */
+  external?: boolean;
   children?: SubMenuItem[];
 };
 
@@ -104,9 +106,11 @@ export const menuItems: MenuItem[] = [
   {
     icon: MessageCircle,
     label: "WhatsApp",
-    href: "/whatsapp",
+    // Resolved at runtime by useNavigationItems from NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER.
+    href: "",
     pageId: "whatsapp",
     requiresWhatsApp: true,
+    external: true,
   },
 ];
 
