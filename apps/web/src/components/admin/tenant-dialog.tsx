@@ -428,6 +428,7 @@ export function TenantDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, planId: e.target.value })
                     }
+                    disableSort
                   >
                     {PLAN_OPTIONS.map((plan) => (
                       <option key={plan.value} value={plan.value}>
