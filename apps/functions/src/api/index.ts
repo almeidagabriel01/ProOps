@@ -429,6 +429,14 @@ app.get("/authenticated", (req: express.Request, res: express.Response) => {
   });
 });
 
+app.use((req: express.Request, res: express.Response) => {
+  res.status(404).json({
+    message: "Not found",
+    path: sanitizeLoggedPath(req.path),
+    method: req.method,
+  });
+});
+
 // Global error handler — must be the last middleware registered
 app.use(
   (
