@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import { auth, db } from "../../init";
+import { tenantPlanAllowsWhatsApp } from "../../lib/whatsapp-eligibility";
+import { logSecurityEvent } from "../../lib/security-observability";
+import { clearTenantPlanCache } from "../../lib/tenant-plan-policy";
 import { WebhookPayload } from "../services/whatsapp/whatsapp.types";
 import {
   verifyWhatsAppSignature,
@@ -222,11 +225,23 @@ export const handleWebhook = async (req: Request, res: Response) => {
         const tenantData = tenantSnap.data()!;
 
         if (tenantData.whatsappEnabled !== true) {
-          await sendWhatsAppMessage(
-            from,
-            "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
-          );
-          return res.status(200).send("OK");
+          // Self-heal: flag may be out of sync if a plan upgrade didn't propagate correctly
+          const planAllows = await tenantPlanAllowsWhatsApp(tenantId);
+          if (planAllows) {
+            await tenantRef.update({ whatsappEnabled: true });
+            clearTenantPlanCache(tenantId);
+            logSecurityEvent("whatsapp_flag_drift_corrected", {
+              tenantId,
+              reason: "whatsappEnabled was false but plan/addon allows WhatsApp — auto-corrected",
+              route: "/webhooks/whatsapp",
+            }, "WARN");
+          } else {
+            await sendWhatsAppMessage(
+              from,
+              "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
+            );
+            return res.status(200).send("OK");
+          }
         }
 
         const limit = tenantData.whatsappMonthlyLimit || MONTHLY_LIMIT;
