@@ -949,17 +949,26 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
   // A successful payment clears any past_due state. Re-sync the billing
   // snapshot so subscriptionStatus and pastDueSince are corrected.
-  const stripe = getStripe();
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  await syncTenantPlanBillingSnapshot({
-    tenantId,
-    subscriptionStatus: subscription.status,
-    stripePriceId: extractPrimaryPriceId(subscription),
-  });
-  invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
-  console.log(
-    `[StripeWebhook] Invoice paid for tenant ${tenantId}, subscription status synced`,
-  );
+  try {
+    const stripe = getStripe();
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: subscription.status,
+      stripePriceId: extractPrimaryPriceId(subscription),
+      // Do NOT pass clearScheduled: routine invoice payment must NOT wipe pending deferral
+    });
+    invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+    console.log(
+      `[StripeWebhook] Invoice paid for tenant ${tenantId}, subscription status synced`,
+    );
+  } catch (err) {
+    console.warn(
+      `[StripeWebhook] handleInvoicePaid: failed to sync billing snapshot for tenant ${tenantId}`,
+      (err as Error).message,
+    );
+    // Non-fatal — return 200 so Stripe does not retry on subscription-not-found errors
+  }
 }
 
 async function handleSubscriptionDeleted(
