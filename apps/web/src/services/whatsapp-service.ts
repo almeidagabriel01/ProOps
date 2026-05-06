@@ -1,5 +1,7 @@
+import { callApi } from "@/lib/api-client";
+
 export interface WhatsAppInfo {
-  displayPhoneNumber: string;
+  displayPhoneNumber: string | null;
   waLink: string | null;
   monthlyLimit: number;
   currentUsage: {
@@ -11,10 +13,5 @@ export interface WhatsAppInfo {
 }
 
 export async function getWhatsAppInfo(): Promise<WhatsAppInfo> {
-  const res = await fetch("/api/backend/whatsapp/info");
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as { code?: string }).code ?? "WHATSAPP_INFO_FAILED");
-  }
-  return res.json() as Promise<WhatsAppInfo>;
+  return callApi<WhatsAppInfo>("/api/backend/whatsapp/info", { method: "GET" });
 }
