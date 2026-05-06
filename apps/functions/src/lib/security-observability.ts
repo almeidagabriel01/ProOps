@@ -13,7 +13,9 @@ export type SecurityCounterName =
   | "ratelimit_triggered"
   | "plan_limit_blocked"
   | "plan_limit_would_block"
-  | "plan_source_compat_default";
+  | "plan_source_compat_default"
+  | "whatsapp_eligibility_denied"
+  | "whatsapp_message_dedupe_hit";
 
 type SecurityLogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -45,6 +47,8 @@ const KNOWN_COUNTERS = new Set<SecurityCounterName>([
   "plan_limit_blocked",
   "plan_limit_would_block",
   "plan_source_compat_default",
+  "whatsapp_eligibility_denied",
+  "whatsapp_message_dedupe_hit",
 ]);
 
 const DEFAULT_AUDIT_COLLECTION = "security_audit_events";

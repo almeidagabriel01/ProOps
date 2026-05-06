@@ -1,8 +1,13 @@
 import { Request, Response } from "express";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { auth, db } from "../../init";
 import { evaluateWhatsAppEligibility } from "../../lib/whatsapp-eligibility";
-import { logSecurityEvent } from "../../lib/security-observability";
+import {
+  incrementSecurityCounter,
+  logSecurityEvent,
+} from "../../lib/security-observability";
 import { clearTenantPlanCache } from "../../lib/tenant-plan-policy";
+import { logger } from "../../lib/logger";
 import { WebhookPayload } from "../services/whatsapp/whatsapp.types";
 import {
   verifyWhatsAppSignature,
@@ -117,6 +122,25 @@ export const handleWebhook = async (req: Request, res: Response) => {
         const phone = normalizePhoneNumber(from);
         const text = message.text?.body || "";
 
+        // Dedupe by message.id — Meta may retry the same event multiple times.
+        const messageId = String(message.id || "").trim();
+        if (messageId) {
+          const dedupeRef = db
+            .collection("whatsappMessageDedupe")
+            .doc(messageId);
+          const dedupeSnap = await dedupeRef.get();
+          if (dedupeSnap.exists) {
+            void incrementSecurityCounter("whatsapp_message_dedupe_hit", {
+              tenantId: undefined,
+            });
+            return res.status(200).send("OK");
+          }
+          await dedupeRef.set({
+            receivedAt: FieldValue.serverTimestamp(),
+            expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+          });
+        }
+
         const isRateLimitOk = await checkRateLimit(from);
         if (!isRateLimitOk) {
           await sendWhatsAppMessage(
@@ -176,7 +200,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           }
 
           if (claimTenantId && claimTenantId !== indexedTenantId) {
-            console.warn("[WhatsApp] claim tenant mismatch", {
+            logger.warn("[WhatsApp] claim tenant mismatch", {
               phone,
               userId: user.id,
               claimTenantId,
@@ -186,7 +210,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
             return res.status(200).send("OK");
           }
         } catch (claimError) {
-          console.error("[WhatsApp] Failed to read auth claims", claimError);
+          logger.error("[WhatsApp] Failed to read auth claims", {
+            error:
+              claimError instanceof Error
+                ? claimError.message
+                : String(claimError),
+          });
         }
         if (user.status === "inactive") {
           await sendWhatsAppMessage(from, "Seu número não está vinculado");
@@ -194,7 +223,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         if (user.tenantId && user.tenantId !== indexedTenantId) {
-          console.warn("[WhatsApp] phone index tenant mismatch", {
+          logger.warn("[WhatsApp] phone index tenant mismatch", {
             phone,
             userId: user.id,
             userTenantId: user.tenantId,
@@ -209,7 +238,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           phone.length > 4
             ? phone.slice(0, 4) + "*****" + phone.slice(-4)
             : "****";
-        console.log("[WhatsApp] resolved phone", {
+        logger.info("[WhatsApp] resolved phone", {
           phone: maskedPhone,
           userId: user.id,
           tenantId,
@@ -249,7 +278,35 @@ export const handleWebhook = async (req: Request, res: Response) => {
           }, "WARN");
         }
 
+        logger.info("whatsapp_eligibility_evaluated", {
+          tenantId,
+          tier: eligibility.tier,
+          addonStatus: eligibility.addonStatus,
+          allowed: eligibility.allowed,
+          reason: eligibility.reason,
+        });
+
         if (!eligibility.allowed) {
+          void incrementSecurityCounter("whatsapp_eligibility_denied", {
+            tenantId,
+          });
+
+          // Throttle denial replies to 1 per 5 minutes per number — prevents
+          // Meta retry floods from generating unbounded outbound messages.
+          const denyKey = `deny:${from}`;
+          const denyRef = db.collection("whatsappRateLimit").doc(denyKey);
+          const denySnap = await denyRef.get();
+          const lastDenyMs =
+            (denySnap.data()?.lastDenyAt as Timestamp | undefined)?.toMillis() ??
+            0;
+          if (Date.now() - lastDenyMs < 5 * 60 * 1000) {
+            return res.status(200).send("OK");
+          }
+          await denyRef.set(
+            { lastDenyAt: FieldValue.serverTimestamp() },
+            { merge: true },
+          );
+
           await sendWhatsAppMessage(
             from,
             "🚫 O WhatsApp não está disponível no plano atual da sua empresa. Para habilitar, faça upgrade para o plano Enterprise ou ative o complemento WhatsApp. Entre em contato com o administrador.",
