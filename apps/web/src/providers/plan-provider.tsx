@@ -70,6 +70,7 @@ export interface PlanContextValue {
   pastDueAddons: AddonGracePeriodInfo[];
   hasFinancial: boolean;
   hasKanban: boolean;
+  hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
   canCreateProposal: () => Promise<boolean>;
@@ -496,6 +497,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       pastDueAddons,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
+      hasWhatsApp: featureFlags.whatsapp,
       canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
       canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,
       canCreateProposal,
