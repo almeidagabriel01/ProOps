@@ -27,7 +27,6 @@ export class ProductsPage {
     await this.page.waitForTimeout(300);
 
     // The "Cadastrar" button appears when no exact match exists.
-    // Selector: button with text matching 'Cadastrar "label"'
     const createBtn = this.page
       .locator("button")
       .filter({ hasText: new RegExp(`Cadastrar.*${label}`, "i") })
@@ -39,26 +38,30 @@ export class ProductsPage {
       .filter({ hasText: new RegExp(`^${label}$`, "i") })
       .first();
 
+    let clickedLocator: Locator;
     try {
-      // Race: check which is visible first (500ms each)
-      const createVisible = await createBtn
-        .isVisible()
-        .catch(() => false);
+      const createVisible = await createBtn.isVisible().catch(() => false);
 
       if (createVisible) {
         await createBtn.click();
+        clickedLocator = createBtn;
       } else {
-        // Try the existing option
         await existingOption.waitFor({ state: "visible", timeout: 5000 });
         await existingOption.click();
+        clickedLocator = existingOption;
       }
     } catch {
       // Fallback: try create button with a longer wait
       await createBtn.waitFor({ state: "visible", timeout: 5000 });
       await createBtn.click();
+      clickedLocator = createBtn;
     }
 
-    await this.page.waitForTimeout(400);
+    // Wait for the dropdown to close. The dropdown is conditionally rendered
+    // ({isOpen && <div>}), so its buttons detach from the DOM when isOpen=false.
+    // For "Cadastrar", this also waits for the async Firestore write and the
+    // form's onChange to fire — both happen before setIsOpen(false) in SearchableSelect.
+    await clickedLocator.waitFor({ state: "detached", timeout: 8000 });
   }
 
   async goto(): Promise<void> {
