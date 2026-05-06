@@ -17,7 +17,7 @@ import { Select } from "@/components/ui/select";
 import { TenantNiche, NICHE_LABELS } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/toast";
@@ -69,7 +69,9 @@ interface TenantDialogProps {
   onClose: () => void;
   initialData?: TenantBillingInfo | null;
   onSave: (data: TenantFormData) => void;
+  onRecompute?: () => Promise<void>;
   isSaving?: boolean;
+  isRecomputing?: boolean;
 }
 
 const buildTenantSnapshot = (data: TenantFormData): string =>
@@ -93,7 +95,9 @@ export function TenantDialog({
   onClose,
   initialData,
   onSave,
+  onRecompute,
   isSaving = false,
+  isRecomputing = false,
 }: TenantDialogProps) {
   const [formData, setFormData] = React.useState<TenantFormData>({
     name: "",
@@ -588,23 +592,44 @@ export function TenantDialog({
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border p-4 mt-6">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">WhatsApp Ativo</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Habilita os menus de automações e a integração do WhatsApp
-                      Bot para essa empresa.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Este campo é reconciliado automaticamente pelo sistema de billing. Use o botão Recomputar para sincronizar.
-                    </p>
+                <div className="rounded-lg border p-4 mt-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">WhatsApp Ativo</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Habilita os menus de automações e a integração do WhatsApp
+                        Bot para essa empresa.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formData.whatsappEnabled}
+                      onCheckedChange={(checked) =>
+                        setFormData({ ...formData, whatsappEnabled: checked })
+                      }
+                    />
                   </div>
-                  <Switch
-                    checked={formData.whatsappEnabled}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, whatsappEnabled: checked })
-                    }
-                  />
+                  {isEditing && onRecompute && (
+                    <div className="flex items-center gap-2 pt-1 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onRecompute}
+                        disabled={isRecomputing || isSaving}
+                        className="text-xs"
+                      >
+                        {isRecomputing ? (
+                          <RefreshCw className="h-3 w-3 mr-1.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 mr-1.5" />
+                        )}
+                        Recomputar pelo plano
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Sincroniza automaticamente com base no plano atual.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

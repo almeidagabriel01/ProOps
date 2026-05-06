@@ -122,4 +122,11 @@ export const AdminService = {
       { sourceTenantId, targetTenantId }
     );
   },
+
+  recomputeFeatures: async (tenantId: string): Promise<{ whatsappEnabled: boolean }> => {
+    return await callApi<{ whatsappEnabled: boolean }>(
+      `/v1/admin/tenants/${tenantId}/recompute-features`,
+      "POST",
+    );
+  },
 };
