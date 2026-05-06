@@ -281,7 +281,6 @@ export const handleWebhook = async (req: Request, res: Response) => {
         logger.info("whatsapp_eligibility_evaluated", {
           tenantId,
           tier: eligibility.tier,
-          addonStatus: eligibility.addonStatus,
           allowed: eligibility.allowed,
           reason: eligibility.reason,
         });
@@ -309,7 +308,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
           await sendWhatsAppMessage(
             from,
-            "🚫 O WhatsApp não está disponível no plano atual da sua empresa. Para habilitar, faça upgrade para o plano Enterprise ou ative o complemento WhatsApp. Entre em contato com o administrador.",
+            "🚫 O WhatsApp não está disponível no plano atual da sua empresa. Para habilitar, faça upgrade para o plano Enterprise. Entre em contato com o administrador.",
           );
           return res.status(200).send("OK");
         }
@@ -631,11 +630,11 @@ export const getWhatsAppInfo = async (
       });
     }
 
-    const displayPhone = String(
+    const displayPhoneNumber = String(
       process.env.WHATSAPP_DISPLAY_PHONE_NUMBER || "",
     ).trim();
-    const waLink = displayPhone
-      ? `https://wa.me/${displayPhone.replace(/\D/g, "")}`
+    const waLink = displayPhoneNumber
+      ? `https://wa.me/${displayPhoneNumber.replace(/\D/g, "")}`
       : null;
 
     const now = new Date();
@@ -649,14 +648,18 @@ export const getWhatsAppInfo = async (
 
     const usageData = usageSnap.exists ? usageSnap.data() : null;
     const totalMessages = Number(usageData?.totalMessages ?? 0);
+    const includedMessages = Number(usageData?.includedMessages ?? 0);
     const overageMessages = Number(usageData?.overageMessages ?? 0);
+    const monthlyLimit = Number(process.env.WHATSAPP_MONTHLY_LIMIT) || MONTHLY_LIMIT;
 
     return res.json({
-      displayPhone: displayPhone || null,
+      displayPhoneNumber: displayPhoneNumber || null,
       waLink,
-      usage: {
+      monthlyLimit,
+      currentUsage: {
         month: monthKey,
         totalMessages,
+        includedMessages,
         overageMessages,
       },
     });

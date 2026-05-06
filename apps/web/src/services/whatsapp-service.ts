@@ -1,6 +1,6 @@
 export interface WhatsAppInfo {
   displayPhoneNumber: string;
-  waLink: string;
+  waLink: string | null;
   monthlyLimit: number;
   currentUsage: {
     month: string;

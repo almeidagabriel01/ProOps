@@ -163,7 +163,7 @@ export const migrateWhatsAppAddons = async (
             data.stripeSubscriptionId || "",
           ).trim();
 
-          if (!stripeSubscriptionId) {
+          if (!stripeSubscriptionId || (doc.data() as Record<string, unknown>).cancelAtPeriodEnd) {
             return { id: doc.id, skipped: true };
           }
 

@@ -18,7 +18,6 @@ export type WhatsAppEligibility = {
   allowed: boolean;
   reason: WhatsAppEligibilityReason;
   tier?: TenantPlanTier;
-  addonStatus?: string;
 };
 
 export async function evaluateWhatsAppEligibility(

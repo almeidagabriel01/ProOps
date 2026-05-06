@@ -15,14 +15,15 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 interface WhatsAppContactCardProps {
-  displayPhoneNumber: string;
-  waLink: string;
+  displayPhoneNumber: string | null;
+  waLink: string | null;
 }
 
 function WhatsAppContactCard({ displayPhoneNumber, waLink }: WhatsAppContactCardProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
+    if (!displayPhoneNumber) return;
     try {
       await navigator.clipboard.writeText(displayPhoneNumber);
     } catch {
@@ -54,17 +55,24 @@ function WhatsAppContactCard({ displayPhoneNumber, waLink }: WhatsAppContactCard
       <CardContent className="space-y-4">
         <div className="flex items-center justify-center py-6 bg-muted/40 rounded-lg border">
           <span className="text-3xl font-bold tracking-wide tabular-nums">
-            {displayPhoneNumber}
+            {displayPhoneNumber ?? "Não configurado"}
           </span>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button asChild className="flex-1 gap-2">
-            <a href={waLink} target="_blank" rel="noopener noreferrer">
+          {waLink ? (
+            <Button asChild className="flex-1 gap-2">
+              <a href={waLink} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                Iniciar conversa
+              </a>
+            </Button>
+          ) : (
+            <Button disabled className="flex-1 gap-2">
               <ExternalLink className="w-4 h-4" aria-hidden="true" />
               Iniciar conversa
-            </a>
-          </Button>
+            </Button>
+          )}
 
           <Button
             variant="outline"
