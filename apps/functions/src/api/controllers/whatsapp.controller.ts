@@ -249,7 +249,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         if (!planAllows) {
           await sendWhatsAppMessage(
             from,
-            "🚫 O WhatsApp não está habilitado para sua empresa. Entre em contato com o administrador.",
+            "🚫 O WhatsApp não está disponível no plano atual da sua empresa. Para habilitar, faça upgrade para o plano Enterprise ou ative o complemento WhatsApp. Entre em contato com o administrador.",
           );
           return res.status(200).send("OK");
         }

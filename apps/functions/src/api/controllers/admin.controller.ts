@@ -1105,6 +1105,26 @@ export const updateUserPlan = async (req: Request, res: Response) => {
       }
     }
 
+    // Sync the new planId to the tenant doc and recompute whatsappEnabled.
+    if (tenantId) {
+      try {
+        const tenantRef = db.collection("tenants").doc(tenantId);
+        await tenantRef.set({ planId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        clearTenantPlanCache(tenantId);
+        const profile = await getTenantPlanProfile(tenantId);
+        const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+        await tenantRef.update({
+          plan: profile.tier,
+          whatsappEnabled: allowsWhatsApp,
+        });
+      } catch (syncErr) {
+        logger.error(
+          `[updateUserPlan] Failed to sync tenant plan for user ${userId}`,
+          { userId, tenantId, error: (syncErr as Error).message },
+        );
+      }
+    }
+
     return res.json({
       success: true,
       message: "Plano atualizado com sucesso.",
@@ -1332,7 +1352,10 @@ export const createTenant = async (req: Request, res: Response) => {
         primaryColor: String(body.primaryColor || "#3b82f6"),
         logoUrl: String(body.logoUrl || ""),
         niche: String(body.niche || ""),
-        whatsappEnabled: body.whatsappEnabled === true,
+        // whatsappEnabled is always false at creation time; it is recomputed via
+        // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
+        // rules are enforced rather than accepting an arbitrary caller value.
+        whatsappEnabled: false,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
@@ -1348,7 +1371,7 @@ export const createTenant = async (req: Request, res: Response) => {
           primaryColor: String(body.primaryColor || "#3b82f6"),
           logoUrl: String(body.logoUrl || ""),
           niche: String(body.niche || ""),
-          whatsappEnabled: body.whatsappEnabled === true,
+          whatsappEnabled: false,
           usage: {
             users: 0,
             products: 0,
@@ -1398,6 +1421,23 @@ export const createTenant = async (req: Request, res: Response) => {
         now,
       });
     });
+
+    // Recompute whatsappEnabled after the transaction using the canonical
+    // eligibility resolver. This replaces the caller-supplied value that was
+    // written as `false` above so eligibility rules are always enforced.
+    try {
+      clearTenantPlanCache(tenantId);
+      const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+      if (allowsWhatsApp) {
+        await tenantRef.update({ whatsappEnabled: true });
+        await db.collection("companies").doc(tenantId).update({ whatsappEnabled: true });
+      }
+    } catch (whatsappErr) {
+      logger.error("[createTenant] Failed to recompute whatsappEnabled", {
+        tenantId,
+        error: (whatsappErr as Error).message,
+      });
+    }
 
     return res.status(201).json({
       success: true,
