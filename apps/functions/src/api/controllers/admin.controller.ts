@@ -8,7 +8,9 @@ import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
 import {
+  clearTenantPlanCache,
   enforceTenantPlanLimit,
+  getTenantPlanProfile,
   getTenantUsersUsage,
 } from "../../lib/tenant-plan-policy";
 import {
@@ -16,7 +18,10 @@ import {
   validateBrazilMobilePhone,
   validateEmailForSignup,
 } from "../../lib/contact-validation";
-import { maybeAutoEnableWhatsApp } from "../../lib/whatsapp-eligibility";
+import {
+  maybeAutoEnableWhatsApp,
+  tenantPlanAllowsWhatsApp,
+} from "../../lib/whatsapp-eligibility";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -1876,5 +1881,51 @@ export const copyTenantData = async (req: Request, res: Response) => {
     console.error("[copyTenantData] error:", error);
     const message = error instanceof Error ? error.message : "Erro ao copiar dados do tenant.";
     return res.status(500).json({ message });
+  }
+};
+
+export const recomputeTenantFeatures = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({
+        message: "Permissão negada. Apenas super admins podem recomputar features de tenant.",
+      });
+    }
+
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) {
+      return res.status(404).json({ message: "Tenant não encontrado." });
+    }
+
+    clearTenantPlanCache(tenantId);
+    const profile = await getTenantPlanProfile(tenantId);
+    const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+
+    await tenantRef.update({
+      plan: profile.tier,
+      whatsappEnabled: allowsWhatsApp,
+      featuresRecomputedAt: new Date().toISOString(),
+    });
+
+    return res.json({
+      tenantId,
+      tier: profile.tier,
+      source: profile.source,
+      whatsappEnabled: allowsWhatsApp,
+    });
+  } catch (err) {
+    console.error("[recomputeTenantFeatures] failed", err);
+    return res.status(500).json({
+      message: "Erro ao recomputar features do tenant.",
+    });
   }
 };

@@ -1,18 +1,23 @@
 import { db } from "../init";
 import { logger } from "./logger";
+import { getTenantPlanProfile } from "./tenant-plan-policy";
 
-const WHATSAPP_ENABLED_TIERS = new Set(["pro", "enterprise"]);
+const WHATSAPP_ENABLED_TIERS = new Set<string>(["pro", "enterprise"]);
 
 export async function tenantPlanAllowsWhatsApp(
   tenantId: string,
 ): Promise<boolean> {
   if (!tenantId) return false;
 
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-  if (!tenantSnap.exists) return false;
-
-  const plan = String(tenantSnap.data()?.plan || "").toLowerCase();
-  if (WHATSAPP_ENABLED_TIERS.has(plan)) return true;
+  try {
+    const profile = await getTenantPlanProfile(tenantId);
+    if (WHATSAPP_ENABLED_TIERS.has(profile.tier)) return true;
+  } catch (err) {
+    logger.warn("tenantPlanAllowsWhatsApp: profile resolution failed", {
+      tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   const addonDoc = await db
     .collection("addons")

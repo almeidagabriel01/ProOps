@@ -112,28 +112,16 @@ export async function updateUserPlan(
         );
         return;
       }
-      let isWhatsappEnabled = false;
-
-      if (planTier === "pro" || planTier === "enterprise") {
-        isWhatsappEnabled = true;
-      } else {
-        const addonDoc = await db
-          .collection("addons")
-          .doc(`${tenantId}_whatsapp_addon`)
-          .get();
-        if (addonDoc.exists && addonDoc.data()?.status === "active") {
-          isWhatsappEnabled = true;
-        }
-      }
+      const normalizedTier = String(planTier || "").trim().toLowerCase();
 
       const tenantRef = db.collection("tenants").doc(tenantId);
       const tenantSnap = await tenantRef.get();
       if (tenantSnap.exists) {
-        await tenantRef.update({
-          whatsappEnabled: isWhatsappEnabled,
-          plan: planTier,
-        });
+        await tenantRef.update({ plan: normalizedTier });
         clearTenantPlanCache(tenantId);
+
+        const isWhatsappEnabled = await tenantPlanAllowsWhatsApp(tenantId);
+        await tenantRef.update({ whatsappEnabled: isWhatsappEnabled });
       }
     }
   } catch (err) {
