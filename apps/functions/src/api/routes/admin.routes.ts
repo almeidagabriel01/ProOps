@@ -12,6 +12,7 @@ import {
   createTenant,
   deleteTenant,
   copyTenantData,
+  recomputeTenantFeatures,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -30,6 +31,7 @@ router.put("/users/:userId/subscription", updateUserSubscription);
 router.post("/tenants", createTenant);
 router.post("/tenants/copy-data", copyTenantData);
 router.delete("/tenants/:tenantId", deleteTenant);
+router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 
 router.post("/test-whatsapp-billing", testWhatsAppBilling);
 

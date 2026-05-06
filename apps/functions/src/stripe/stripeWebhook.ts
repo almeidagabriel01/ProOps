@@ -22,7 +22,7 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../lib/security-observability";
-import { clearTenantPlanCache } from "../lib/tenant-plan-policy";
+import { clearTenantPlanCache, resolvePriceToTier } from "../lib/tenant-plan-policy";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -618,12 +618,21 @@ async function handleSubscriptionUpdated(
   }
 
   const userId = String(metadata.userId || "").trim();
-  const planTier = String(metadata.planTier || "").trim();
+  let planTier = String(metadata.planTier || "").trim();
   const primaryItem =
     subscription.items.data.find(
       (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
     ) || subscription.items.data[0];
   const interval = primaryItem?.price.recurring?.interval;
+
+  // Derive planTier from price ID when subscription metadata is missing
+  // (e.g. upgrade via Customer Portal that doesn't preserve metadata.planTier).
+  if (!planTier && primaryItem?.price?.id) {
+    const derivedTier = resolvePriceToTier(primaryItem.price.id);
+    if (derivedTier) {
+      planTier = derivedTier;
+    }
+  }
 
   if (userId) {
     await assertUserTenantConsistency(userId, tenantId);

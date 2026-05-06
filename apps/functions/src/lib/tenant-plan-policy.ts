@@ -288,7 +288,7 @@ function emitAudit(input: {
   ).catch(() => undefined);
 }
 
-function resolvePriceToTier(priceId: string): TenantPlanTier | null {
+export function resolvePriceToTier(priceId: string): TenantPlanTier | null {
   if (!priceId) return null;
   const config = getPriceConfig();
   const normalizedPriceId = priceId.trim();
