@@ -270,14 +270,15 @@ export function TenantDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 overflow-y-auto py-2">
-            <Tabs defaultValue="company" className="w-full">
+          <Tabs defaultValue="company" className="flex flex-col flex-1 min-h-0 w-full">
+            <div className="py-2 shrink-0">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="company">Empresa</TabsTrigger>
                 <TabsTrigger value="subscription">Assinatura</TabsTrigger>
                 <TabsTrigger value="access">Acesso</TabsTrigger>
               </TabsList>
-
+            </div>
+            <div className="flex-1 overflow-y-auto">
               {/* Tab: Empresa */}
               <TabsContent value="company" className="space-y-6 pt-4">
                 {/* Name */}
@@ -539,22 +540,6 @@ export function TenantDialog({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="phoneNumber" className="mb-3 block">
-                    WhatsApp / Telefone
-                  </Label>
-                  <PhoneInput
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    value={formData.phoneNumber || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phoneNumber: e.target.value })
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Número vinculado à integração do WhatsApp.
-                  </p>
-                </div>
-                <div className="space-y-1">
                   <Label htmlFor="password" className="mb-3 block">
                     Senha
                   </Label>
@@ -589,6 +574,22 @@ export function TenantDialog({
                     {isEditing
                       ? "Deixe em branco para manter a atual."
                       : "Credencial de acesso ao painel."}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="phoneNumber" className="mb-3 block">
+                    WhatsApp / Telefone
+                  </Label>
+                  <PhoneInput
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={formData.phoneNumber || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phoneNumber: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Número vinculado à integração do WhatsApp.
                   </p>
                 </div>
 
@@ -632,8 +633,8 @@ export function TenantDialog({
                   )}
                 </div>
               </TabsContent>
-            </Tabs>
-          </div>
+            </div>
+          </Tabs>
 
           <DialogFooter className="shrink-0 mt-4">
             <Button
