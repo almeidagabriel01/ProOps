@@ -36,9 +36,11 @@ test.describe("AI-13: LIA rate-limit — 20 req/min per user", () => {
         body: JSON.stringify({ message: "olá", sessionId }),
       });
 
-    // Send requests one at a time until rate-limited or 30 attempts exhausted
+    // Send requests one at a time until rate-limited or 50 attempts exhausted.
+    // 50 > 2×20 so even if a 1-min window resets once mid-loop we still
+    // accumulate 20 requests in the next window and hit the limit.
     let rateLimitHit = false;
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
       const r = await postChat(`rate-limit-sess-${i}`);
       if (r.status === 429) {
         const body = (await r.json()) as Record<string, unknown>;

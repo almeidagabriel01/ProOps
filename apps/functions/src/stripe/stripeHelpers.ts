@@ -2,6 +2,7 @@ import { auth, db } from "../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 import { clearTenantPlanCache } from "../lib/tenant-plan-policy";
+import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 
 export const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
 
@@ -276,25 +277,9 @@ export async function cancelAddon(
   });
 
   if (addonType === "whatsapp_addon") {
-    // Check if their current plan entitles them to whatsapp anyway
-    // If we cancel the addon but they are 'pro' or 'enterprise', we shouldn't disable it
-    // To be safe, we disable and let the plan sync logic re-enable if needed, or query here.
-    const usersSnap = await db
-      .collection("users")
-      .where("tenantId", "==", tenantId)
-      .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
-      .limit(1)
-      .get();
-    let keepEnabled = false;
-    if (!usersSnap.empty) {
-      const userData = usersSnap.docs[0].data();
-      const planTier = userData.planId; // The tier string or plan document ID
-      // To properly verify, we should check the tier.
-      if (planTier === "pro" || planTier === "enterprise") {
-        keepEnabled = true;
-      }
-    }
-
+    // Addon is already marked cancelled above, so tenantPlanAllowsWhatsApp will
+    // only return true if the tenant's base plan (pro/enterprise) covers WhatsApp.
+    const keepEnabled = await tenantPlanAllowsWhatsApp(tenantId);
     if (!keepEnabled) {
       await db.collection("tenants").doc(tenantId).update({
         whatsappEnabled: false,
@@ -335,20 +320,9 @@ export async function updateAddonStatus(
         .doc(tenantId)
         .update({ whatsappEnabled: true });
     } else if (status === "cancelled") {
-      const usersSnap = await db
-        .collection("users")
-        .where("tenantId", "==", tenantId)
-        .where("role", "in", ["MASTER", "admin", "master", "ADMIN"])
-        .limit(1)
-        .get();
-      let keepEnabled = false;
-      if (!usersSnap.empty) {
-        const userData = usersSnap.docs[0].data();
-        const planTier = userData.planId;
-        if (planTier === "pro" || planTier === "enterprise") {
-          keepEnabled = true;
-        }
-      }
+      // Addon is already marked cancelled above, so tenantPlanAllowsWhatsApp will
+      // only return true if the tenant's base plan (pro/enterprise) covers WhatsApp.
+      const keepEnabled = await tenantPlanAllowsWhatsApp(tenantId);
       if (!keepEnabled) {
         await db
           .collection("tenants")
