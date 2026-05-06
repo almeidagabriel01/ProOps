@@ -26,42 +26,52 @@ export class ProductsPage {
     // Wait briefly for the dropdown to render
     await this.page.waitForTimeout(300);
 
-    // The "Cadastrar" button appears when no exact match exists.
     const createBtn = this.page
       .locator("button")
       .filter({ hasText: new RegExp(`Cadastrar.*${label}`, "i") })
       .first();
 
-    // The existing option appears as a button with exact label text (inside the dropdown popover)
     const existingOption = this.page
       .locator("div.absolute button")
       .filter({ hasText: new RegExp(`^${label}$`, "i") })
       .first();
 
-    let clickedLocator: Locator;
+    // Capture a stable handle to the open dropdown container BEFORE clicking.
+    // SearchableSelect renders {isOpen && <div class="...top-full...bg-popover...">},
+    // so this element exists only while the dropdown is open. Waiting for it to be
+    // removed from the DOM is the authoritative signal that the dropdown fully closed —
+    // for "Cadastrar", this happens AFTER the async Firestore write AND emitChange both
+    // complete (setIsOpen(false) is the last call in handleCreateOption).
+    // Using elementHandle() gives a stable reference that survives text/class mutations,
+    // unlike a re-querying locator which would mis-fire when "Cadastrar" → "Cadastrando...".
+    const dropdownEl = await this.page
+      .locator('div[class*="top-full"][class*="bg-popover"]')
+      .first()
+      .elementHandle({ timeout: 3000 })
+      .catch(() => null);
+
     try {
       const createVisible = await createBtn.isVisible().catch(() => false);
 
       if (createVisible) {
         await createBtn.click();
-        clickedLocator = createBtn;
       } else {
         await existingOption.waitFor({ state: "visible", timeout: 5000 });
         await existingOption.click();
-        clickedLocator = existingOption;
       }
     } catch {
-      // Fallback: try create button with a longer wait
       await createBtn.waitFor({ state: "visible", timeout: 5000 });
       await createBtn.click();
-      clickedLocator = createBtn;
     }
 
-    // Wait for the dropdown to close. The dropdown is conditionally rendered
-    // ({isOpen && <div>}), so its buttons detach from the DOM when isOpen=false.
-    // For "Cadastrar", this also waits for the async Firestore write and the
-    // form's onChange to fire — both happen before setIsOpen(false) in SearchableSelect.
-    await clickedLocator.waitFor({ state: "detached", timeout: 8000 });
+    if (dropdownEl) {
+      // Wait for the specific dropdown node to leave the DOM (closed + form updated).
+      await this.page
+        .waitForFunction((el: Element) => !document.body.contains(el), dropdownEl, { timeout: 8000 })
+        .catch(() => {});
+    } else {
+      await this.page.waitForTimeout(600);
+    }
   }
 
   async goto(): Promise<void> {
