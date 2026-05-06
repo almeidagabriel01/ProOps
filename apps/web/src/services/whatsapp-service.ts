@@ -13,5 +13,5 @@ export interface WhatsAppInfo {
 }
 
 export async function getWhatsAppInfo(): Promise<WhatsAppInfo> {
-  return callApi<WhatsAppInfo>("/api/backend/whatsapp/info", { method: "GET" });
+  return callApi<WhatsAppInfo>("/api/backend/whatsapp/info", "GET");
 }
