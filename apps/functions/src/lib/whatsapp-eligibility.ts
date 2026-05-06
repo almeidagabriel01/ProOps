@@ -7,15 +7,9 @@ import {
 } from "./tenant-plan-policy";
 
 const WHATSAPP_BASE_TIER: TenantPlanTier = "enterprise";
-const WHATSAPP_ADDON_ALLOWED_TIERS: ReadonlySet<TenantPlanTier> = new Set([
-  "starter",
-  "pro",
-]);
 
 export type WhatsAppEligibilityReason =
   | "plan_enterprise"
-  | "plan_with_active_addon"
-  | "addon_inactive"
   | "tier_not_eligible"
   | "tenant_missing"
   | "plan_resolution_failed";
@@ -50,26 +44,7 @@ export async function evaluateWhatsAppEligibility(
     return { allowed: true, reason: "plan_enterprise", tier };
   }
 
-  if (!WHATSAPP_ADDON_ALLOWED_TIERS.has(tier)) {
-    return { allowed: false, reason: "tier_not_eligible", tier };
-  }
-
-  // tier is starter or pro — check addon
-  const addonSnap = await db
-    .collection("addons")
-    .doc(`${tenantId}_whatsapp_addon`)
-    .get();
-
-  if (!addonSnap.exists) {
-    return { allowed: false, reason: "tier_not_eligible", tier };
-  }
-
-  const addonStatus = String(addonSnap.data()?.status || "").trim();
-  if (addonStatus === "active") {
-    return { allowed: true, reason: "plan_with_active_addon", tier, addonStatus };
-  }
-
-  return { allowed: false, reason: "addon_inactive", tier, addonStatus };
+  return { allowed: false, reason: "tier_not_eligible", tier };
 }
 
 export async function tenantPlanAllowsWhatsApp(

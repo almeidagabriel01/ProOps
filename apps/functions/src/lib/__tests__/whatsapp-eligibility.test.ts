@@ -2,11 +2,10 @@
  * Unit tests for whatsapp-eligibility helpers.
  *
  * tenantPlanAllowsWhatsApp():
- *  - Returns true for enterprise tier (plan-based)
- *  - Returns true when whatsapp_addon doc is active (addon-based)
- *  - Returns false for non-enterprise tiers without active addon
+ *  - Returns true only for enterprise tier (plan-based)
+ *  - Returns false for all non-enterprise tiers
  *  - Returns false for empty tenantId
- *  - Returns false when profile resolution throws (falls back to addon check)
+ *  - Returns false when profile resolution fails
  */
 
 jest.mock("../../init", () => ({ db: {}, auth: {}, adminApp: {} }));
@@ -39,18 +38,6 @@ function makeProfile(tier: TenantPlanProfile["tier"]): TenantPlanProfile {
   };
 }
 
-function mockAddonDoc(exists: boolean, status?: string) {
-  const { db } = require("../../init") as { db: any };
-  db.collection = jest.fn().mockReturnValue({
-    doc: jest.fn().mockReturnValue({
-      get: jest.fn().mockResolvedValue({
-        exists,
-        data: () => (exists ? { status: status ?? "active" } : undefined),
-      }),
-    }),
-  });
-}
-
 const TENANT = "tenant-whatsapp-test";
 
 afterEach(() => {
@@ -63,70 +50,39 @@ describe("tenantPlanAllowsWhatsApp", () => {
     expect(await tenantPlanAllowsWhatsApp("")).toBe(false);
   });
 
-  test("returns true for enterprise tier (plan-based, no addon needed)", async () => {
+  test("returns true for enterprise tier", async () => {
     setTenantPlanCacheForTest(TENANT, makeProfile("enterprise"));
-    // Addon doc should not be queried — no mock needed for db here.
-    // If it is queried and db is unmocked, it will throw — which would fail the test.
     expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(true);
   });
 
-  test("returns true for pro tier with active whatsapp_addon", async () => {
+  test("returns false for pro tier", async () => {
     setTenantPlanCacheForTest(TENANT, makeProfile("pro"));
-    mockAddonDoc(true, "active");
-    expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(true);
-  });
-
-  test("returns false for pro tier with cancelled whatsapp_addon", async () => {
-    setTenantPlanCacheForTest(TENANT, makeProfile("pro"));
-    mockAddonDoc(true, "cancelled");
     expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(false);
   });
 
-  test("returns false for starter tier without active addon", async () => {
+  test("returns false for starter tier", async () => {
     setTenantPlanCacheForTest(TENANT, makeProfile("starter"));
-    mockAddonDoc(false);
     expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(false);
   });
 
-  test("returns false for free tier without active addon", async () => {
+  test("returns false for free tier", async () => {
     setTenantPlanCacheForTest(TENANT, makeProfile("free"));
-    mockAddonDoc(false);
     expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(false);
   });
 
-  test("falls back to addon check when profile resolution throws", async () => {
-    // No cache — db.collection mock will throw on tenants query to simulate
-    // profile resolution failure, but addon query succeeds.
+  test("returns false when profile resolution fails", async () => {
     clearTenantPlanCache(TENANT);
     const { db } = require("../../init") as { db: any };
-
-    let callCount = 0;
-    db.collection = jest.fn().mockImplementation((col: string) => {
-      callCount++;
-      if (col === "tenants" && callCount <= 2) {
-        // First call: tenants/{id}.get() — throw to simulate failure
-        return {
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockRejectedValue(new Error("Firestore unavailable")),
-          }),
-          where: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          get: jest.fn().mockRejectedValue(new Error("Firestore unavailable")),
-        };
-      }
-      // Subsequent call: addons/{id}.get() — return active addon
-      return {
-        doc: jest.fn().mockReturnValue({
-          get: jest.fn().mockResolvedValue({
-            exists: true,
-            data: () => ({ status: "active" }),
-          }),
-        }),
-      };
+    db.collection = jest.fn().mockReturnValue({
+      doc: jest.fn().mockReturnValue({
+        get: jest.fn().mockRejectedValue(new Error("Firestore unavailable")),
+      }),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      get: jest.fn().mockRejectedValue(new Error("Firestore unavailable")),
     });
 
-    const result = await tenantPlanAllowsWhatsApp(TENANT);
-    expect(result).toBe(true);
+    expect(await tenantPlanAllowsWhatsApp(TENANT)).toBe(false);
   });
 });

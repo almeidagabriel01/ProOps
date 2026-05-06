@@ -13,7 +13,7 @@ import {
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "./stripeHelpers";
 import { db } from "../init";
-import { Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import Stripe from "stripe";
 import {
   attachRequestId,
@@ -88,7 +88,6 @@ function isSupportedAddonType(value: unknown): value is AddonType {
     "pdf_editor_partial",
     "pdf_editor_full",
     "crm",
-    "whatsapp_addon",
   ].includes(normalized);
 }
 
@@ -629,6 +628,13 @@ async function handleSubscriptionUpdated(
   // Handle add-on subscription updates
   if (metadata.type === "addon") {
     const addonTypeRaw = metadata.addonType;
+    // Legacy whatsapp_addon subscriptions are no longer managed — skip gracefully.
+    if (String(addonTypeRaw || "").trim() === "whatsapp_addon") {
+      console.log(
+        `[StripeWebhook] Skipping legacy whatsapp_addon subscription update ${subscription.id}`,
+      );
+      return;
+    }
     if (!isSupportedAddonType(addonTypeRaw)) {
       throw new Error("TENANT_METADATA_MISMATCH");
     }
@@ -985,6 +991,13 @@ async function handleSubscriptionDeleted(
 
   if (metadata.type === "addon") {
     const addonTypeRaw = metadata.addonType;
+    // Legacy whatsapp_addon subscriptions are no longer managed — skip gracefully.
+    if (String(addonTypeRaw || "").trim() === "whatsapp_addon") {
+      console.log(
+        `[StripeWebhook] Skipping legacy whatsapp_addon subscription deleted ${subscription.id}`,
+      );
+      return;
+    }
     if (!isSupportedAddonType(addonTypeRaw)) {
       throw new Error("TENANT_METADATA_MISMATCH");
     }
@@ -1026,12 +1039,16 @@ async function handleSubscriptionDeleted(
     },
     { merge: true },
   );
-  // Cancel whatsapp_addon before recomputing eligibility — prevents the race
-  // where base sub is deleted but addon doc still shows active briefly.
+  // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the
+  // Firestore state stays consistent after the base subscription is deleted.
+  // Remove after 2026-06-15 once all legacy addon docs have been migrated.
   const addonRef = db.collection("addons").doc(`${tenantId}_whatsapp_addon`);
   const addonSnap = await addonRef.get();
   if (addonSnap.exists && addonSnap.data()?.status === "active") {
-    await cancelAddon(tenantId, "whatsapp_addon");
+    await addonRef.update({
+      status: "cancelled",
+      expiresAt: FieldValue.serverTimestamp(),
+    });
   }
 
   // Recompute WhatsApp eligibility now that the plan has been reset to free.
