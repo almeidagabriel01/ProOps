@@ -132,3 +132,86 @@ export const reportWhatsappOverageManual = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const migrateWhatsAppAddons = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const stripe = getStripe();
+
+    const addonsSnap = await db
+      .collection("addons")
+      .where("addonType", "==", "whatsapp_addon")
+      .where("status", "==", "active")
+      .get();
+
+    const results = await Promise.allSettled(
+      addonsSnap.docs.map(
+        async (doc): Promise<{ id: string; skipped?: boolean; cancelled?: boolean }> => {
+          const data = doc.data() as {
+            stripeSubscriptionId?: string;
+            tenantId?: string;
+          };
+          const stripeSubscriptionId = String(
+            data.stripeSubscriptionId || "",
+          ).trim();
+
+          if (!stripeSubscriptionId) {
+            return { id: doc.id, skipped: true };
+          }
+
+          await stripe.subscriptions.update(stripeSubscriptionId, {
+            cancel_at_period_end: true,
+          });
+
+          await doc.ref.update({
+            cancelAtPeriodEnd: true,
+            cancelScheduledAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          return { id: doc.id, cancelled: true };
+        },
+      ),
+    );
+
+    let cancelled = 0;
+    let skipped = 0;
+    const errors: Array<{ id: string; message: string }> = [];
+
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        if (result.value.cancelled) cancelled++;
+        else skipped++;
+      } else {
+        errors.push({
+          id: "unknown",
+          message:
+            result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason),
+        });
+      }
+    }
+
+    console.log(
+      `[migrateWhatsAppAddons] processed=${addonsSnap.size} cancelled=${cancelled} skipped=${skipped} errors=${errors.length}`,
+    );
+
+    return res.json({
+      processed: addonsSnap.size,
+      cancelled,
+      skipped,
+      errors,
+    });
+  } catch (error) {
+    console.error("[Cron api] migrate-whatsapp-addons failed", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
