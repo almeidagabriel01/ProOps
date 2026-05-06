@@ -143,7 +143,7 @@ const PLAN_LIMITS_BY_TIER: Record<TenantPlanTier, TenantPlanLimits> = {
   },
 };
 
-function normalizePlanTier(value: unknown): TenantPlanTier | null {
+export function normalizePlanTier(value: unknown): TenantPlanTier | null {
   const normalized = String(value || "").trim().toLowerCase();
   if (
     normalized === "free" ||

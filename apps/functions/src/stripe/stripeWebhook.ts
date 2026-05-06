@@ -22,7 +22,13 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../lib/security-observability";
-import { clearTenantPlanCache, resolvePriceToTier } from "../lib/tenant-plan-policy";
+import {
+  clearTenantPlanCache,
+  compareTiers,
+  normalizePlanTier,
+  resolvePriceToTier,
+  TenantPlanTier,
+} from "../lib/tenant-plan-policy";
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 
@@ -615,7 +621,6 @@ async function handleSubscriptionUpdated(
 
     const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
-    // Map Stripe status to add-on status
     let addonStatus: "active" | "past_due" | "cancelled";
     switch (subscription.status) {
       case "active":
@@ -636,27 +641,57 @@ async function handleSubscriptionUpdated(
     }
 
     await updateAddonStatus(tenantId, addonType, addonStatus, currentPeriodEnd);
-    console.log(
-      `Add-on ${addonType} for tenant ${tenantId} updated to ${addonStatus}`
-    );
+    console.log(`Add-on ${addonType} for tenant ${tenantId} updated to ${addonStatus}`);
     return;
   }
 
   const userId = String(metadata.userId || "").trim();
-  let planTier = String(metadata.planTier || "").trim();
-  const primaryItem =
-    subscription.items.data.find(
-      (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
-    ) || subscription.items.data[0];
+  const primaryPriceId = extractPrimaryPriceId(subscription);
+  const primaryItem = subscription.items.data.find(
+    (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
+  ) ?? subscription.items.data[0];
   const interval = primaryItem?.price.recurring?.interval;
 
-  // Derive planTier from price ID when subscription metadata is missing
-  // (e.g. upgrade via Customer Portal that doesn't preserve metadata.planTier).
-  if (!planTier && primaryItem?.price?.id) {
-    const derivedTier = resolvePriceToTier(primaryItem.price.id);
-    if (derivedTier) {
-      planTier = derivedTier;
-    }
+  // Resolve the new plan tier from metadata or price ID.
+  const newTier: TenantPlanTier | null =
+    normalizePlanTier(metadata.planTier) ??
+    (primaryPriceId ? resolvePriceToTier(primaryPriceId) : null);
+
+  const currentPeriodEndMs = (subscription as any).current_period_end
+    ? (subscription as any).current_period_end * 1000
+    : null;
+  const currentPeriodEnd = currentPeriodEndMs ? new Date(currentPeriodEndMs) : undefined;
+
+  // Read the tenant's current raw plan tier directly from Firestore (bypassing
+  // the resolver so scheduled-plan overrides don't pollute the comparison).
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const tenantSnap = await tenantRef.get();
+  const tenantData = tenantSnap.exists
+    ? (tenantSnap.data() as Record<string, unknown> | undefined)
+    : undefined;
+  const storedTier: TenantPlanTier = normalizePlanTier(tenantData?.plan) ?? "free";
+
+  // Determine upgrade vs downgrade when tier is resolvable.
+  const deferDowngrade =
+    String(process.env.WHATSAPP_DEFER_DOWNGRADE ?? "true").trim().toLowerCase() !== "false";
+
+  const isDowngrade =
+    newTier != null && compareTiers(newTier, storedTier) < 0;
+
+  const shouldDefer =
+    isDowngrade &&
+    deferDowngrade &&
+    currentPeriodEndMs != null;
+
+  // Map Stripe status to internal status for user doc update.
+  let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
+  switch (subscription.status) {
+    case "active":   status = "ACTIVE"; break;
+    case "trialing": status = "TRIALING"; break;
+    case "past_due": status = "PAST_DUE"; break;
+    case "canceled":
+    case "unpaid":   status = "CANCELED"; break;
+    default:         status = "INACTIVE";
   }
 
   if (userId) {
@@ -666,27 +701,7 @@ async function handleSubscriptionUpdated(
       subscription = await getStripe().subscriptions.retrieve(subscription.id);
     }
 
-    let status: "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "INACTIVE";
-    switch (subscription.status) {
-      case "active":
-        status = "ACTIVE";
-        break;
-      case "trialing":
-        status = "TRIALING";
-        break;
-      case "past_due":
-        status = "PAST_DUE";
-        break;
-      case "canceled":
-      case "unpaid":
-        status = "CANCELED";
-        break;
-      default:
-        status = "INACTIVE";
-    }
-
-    const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
-
+    // Always sync subscription status on the user doc regardless of tier direction.
     await updateSubscriptionStatus(
       userId,
       status,
@@ -695,18 +710,6 @@ async function handleSubscriptionUpdated(
       subscription.cancel_at_period_end,
     );
     console.log(`User ${userId} subscription status synced to ${status}`);
-
-    if (planTier) {
-      await updateUserPlan(
-        userId,
-        planTier,
-        subscription.id,
-        interval,
-        currentPeriodEnd,
-        subscription.cancel_at_period_end,
-        subscription.status,
-      );
-    }
 
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
@@ -720,14 +723,95 @@ async function handleSubscriptionUpdated(
       whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
       whatsappOverageSubscriptionItemId: whatsappItem?.id,
     });
+
+    if (!shouldDefer && newTier) {
+      // Upgrade or same-tier: apply immediately.
+      await updateUserPlan(
+        userId,
+        newTier,
+        subscription.id,
+        interval,
+        currentPeriodEnd,
+        subscription.cancel_at_period_end,
+        subscription.status,
+      );
+    }
   }
 
-  await syncTenantPlanBillingSnapshot({
-    tenantId,
-    subscriptionStatus: subscription.status,
-    stripePriceId: extractPrimaryPriceId(subscription),
-  });
-  invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+  if (shouldDefer && newTier && currentPeriodEndMs != null) {
+    // Downgrade deferral: schedule the tier change for the period-end date.
+    // Both updateUserPlan and syncTenantPlanBillingSnapshot are intentionally
+    // skipped here — the plan on the tenant stays at storedTier until the
+    // applyScheduledPlanChanges cron fires.
+    const scheduledPlanAt = Timestamp.fromMillis(currentPeriodEndMs);
+    await tenantRef.set(
+      {
+        scheduledPlan: newTier,
+        scheduledPlanAt,
+        scheduledPlanReason: "downgrade",
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+    clearTenantPlanCache(tenantId);
+    console.log(
+      `[StripeWebhook] Downgrade deferred for tenant ${tenantId}: ` +
+      `${storedTier} → ${newTier} at ${scheduledPlanAt.toDate().toISOString()}`,
+    );
+  } else {
+    // Upgrade, same-tier, or deferral disabled: apply plan snapshot immediately.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: subscription.status,
+      stripePriceId: primaryPriceId,
+    });
+    invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+  }
+
+  // Handle cancel_at_period_end: schedule a "free" transition unless a lower
+  // downgrade is already scheduled.
+  if (subscription.cancel_at_period_end && currentPeriodEndMs != null) {
+    const cancelAt = Timestamp.fromMillis(currentPeriodEndMs);
+    const existingScheduled = normalizePlanTier(tenantData?.scheduledPlan);
+    // Only write if no lower tier is already scheduled.
+    const shouldWriteCancel =
+      !existingScheduled || compareTiers("free", existingScheduled) <= 0;
+    if (shouldWriteCancel) {
+      await tenantRef.set(
+        {
+          scheduledPlan: "free",
+          scheduledPlanAt: cancelAt,
+          scheduledPlanReason: "cancel_at_period_end",
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      clearTenantPlanCache(tenantId);
+      console.log(
+        `[StripeWebhook] Cancel-at-period-end scheduled for tenant ${tenantId} ` +
+        `at ${cancelAt.toDate().toISOString()}`,
+      );
+    }
+  } else if (!subscription.cancel_at_period_end) {
+    // Cancellation was rescinded — clear the scheduled free-tier transition
+    // only if it was set due to cancel_at_period_end (not an unrelated downgrade).
+    const scheduledReason = String(tenantData?.scheduledPlanReason || "").trim();
+    if (scheduledReason === "cancel_at_period_end") {
+      await tenantRef.set(
+        {
+          scheduledPlan: null,
+          scheduledPlanAt: null,
+          scheduledPlanReason: null,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
+      clearTenantPlanCache(tenantId);
+      console.log(
+        `[StripeWebhook] cancel_at_period_end rescinded for tenant ${tenantId}, cleared scheduled plan`,
+      );
+    }
+  }
 }
 
 async function handleInvoicePaymentFailed(
@@ -740,29 +824,123 @@ async function handleInvoicePaymentFailed(
 
   console.log(`Invoice payment failed for customer ${customerId}`);
 
-  if (subscriptionId) {
-    const tenantId = await resolveTenantIdForBillingEvent({
-      eventType: "invoice.payment_failed",
-      metadataTenantId: undefined,
-      customerId,
-      subscriptionId,
-    });
-    const stripe = getStripe();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const userId = String(subscription.metadata?.userId || "").trim();
-    await assertUserTenantConsistency(userId, tenantId);
+  if (!subscriptionId) return;
 
-    if (userId) {
-      await updateSubscriptionStatus(
-        userId,
-        "PAYMENT_FAILED",
-        `Invoice ${invoice.id} payment failed`,
-        undefined,
-        subscription.cancel_at_period_end,
-      );
-      console.log(`User ${userId} marked as PAYMENT_FAILED`);
-    }
+  const tenantId = await resolveTenantIdForBillingEvent({
+    eventType: "invoice.payment_failed",
+    metadataTenantId: undefined,
+    customerId,
+    subscriptionId,
+  });
+  const stripe = getStripe();
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const userId = String(subscription.metadata?.userId || "").trim();
+  await assertUserTenantConsistency(userId, tenantId);
+
+  if (userId) {
+    await updateSubscriptionStatus(
+      userId,
+      "PAYMENT_FAILED",
+      `Invoice ${invoice.id} payment failed`,
+      undefined,
+      subscription.cancel_at_period_end,
+    );
+    console.log(`User ${userId} marked as PAYMENT_FAILED`);
   }
+
+  // Propagate past_due status to tenant doc. Only set pastDueSince if not
+  // already set (preserves the original failure timestamp on retries).
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const tenantSnap = await tenantRef.get();
+  const tenantData = tenantSnap.exists
+    ? (tenantSnap.data() as Record<string, unknown> | undefined)
+    : undefined;
+  const nowIso = new Date().toISOString();
+  const existingPastDueSince = String(tenantData?.pastDueSince || "").trim();
+  await tenantRef.set(
+    {
+      subscriptionStatus: "past_due",
+      pastDueSince: existingPastDueSince || nowIso,
+      updatedAt: nowIso,
+    },
+    { merge: true },
+  );
+  clearTenantPlanCache(tenantId);
+  console.log(`[StripeWebhook] Tenant ${tenantId} marked past_due after invoice payment failure`);
+}
+
+async function handleSubscriptionCreated(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  // Stripe always sends customer.subscription.created before
+  // checkout.session.completed. We keep this handler cheap and idempotent:
+  // sync billing IDs and the initial subscription status snapshot only.
+  // updateUserPlan and trial-marking are handled in handleCheckoutCompleted.
+  const metadata = subscription.metadata || {};
+  if (metadata.type === "addon") {
+    // Addon created events are fully handled by checkout.session.completed.
+    return;
+  }
+
+  const subscriptionCustomerId = extractStripeCustomerId(subscription.customer);
+  const tenantId = await resolveTenantIdForBillingEvent({
+    eventType: "customer.subscription.created",
+    metadataTenantId: metadata.tenantId,
+    customerId: subscriptionCustomerId,
+    subscriptionId: subscription.id,
+  });
+
+  const whatsappItem = subscription.items.data.find(
+    (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
+  );
+
+  await upsertTenantStripeBillingData({
+    tenantId,
+    stripeCustomerId: subscriptionCustomerId,
+    stripeSubscriptionId: subscription.id,
+    whatsappOveragePriceId: WHATSAPP_OVERAGE_PRICE_ID,
+    whatsappOverageSubscriptionItemId: whatsappItem?.id,
+  });
+
+  await syncTenantPlanBillingSnapshot({
+    tenantId,
+    subscriptionStatus: subscription.status,
+    stripePriceId: extractPrimaryPriceId(subscription),
+  });
+  invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+  console.log(
+    `[StripeWebhook] Subscription created for tenant ${tenantId}, status=${subscription.status}`,
+  );
+}
+
+async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
+  const customerId = extractStripeCustomerId(invoice.customer);
+  const subscriptionId = extractStripeSubscriptionId(
+    (invoice as any).subscription,
+  );
+
+  if (!subscriptionId) return;
+
+  const tenantId = await resolveTenantIdForBillingEvent({
+    eventType: "invoice.paid",
+    metadataTenantId: undefined,
+    customerId,
+    subscriptionId,
+  });
+
+  // A successful payment clears any past_due state. Re-sync the billing
+  // snapshot so subscriptionStatus and pastDueSince are corrected.
+  const stripe = getStripe();
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  await syncTenantPlanBillingSnapshot({
+    tenantId,
+    subscriptionStatus: subscription.status,
+    stripePriceId: extractPrimaryPriceId(subscription),
+  });
+  invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+  console.log(
+    `[StripeWebhook] Invoice paid for tenant ${tenantId}, subscription status synced`,
+  );
 }
 
 async function handleSubscriptionDeleted(
@@ -806,19 +984,30 @@ async function handleSubscriptionDeleted(
       );
     }
   }
-  await db
-    .collection("tenants")
-    .doc(tenantId)
-    .set(
-      {
-        stripeSubscriptionId: null,
-        subscriptionStatus: "canceled",
-        pastDueSince: null,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true },
-    );
-  invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  await tenantRef.set(
+    {
+      plan: "free",
+      stripeSubscriptionId: null,
+      subscriptionStatus: "canceled",
+      pastDueSince: null,
+      scheduledPlan: null,
+      scheduledPlanAt: null,
+      scheduledPlanReason: null,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+  // Recompute WhatsApp eligibility now that the plan has been reset to free.
+  // Note: user doc is downgraded to "starter" above (pre-existing behaviour) while
+  // tenant is reset to "free" — these intentionally differ; the tenant tier is
+  // the authoritative source for feature gating.
+  clearTenantPlanCache(tenantId);
+  const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+  await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
+  console.log(
+    `[StripeWebhook] Tenant ${tenantId} subscription deleted, reset to free, whatsappEnabled=${allowsWhatsApp}`,
+  );
 }
 
 export const stripeWebhook = onRequest(
@@ -955,6 +1144,12 @@ export const stripeWebhook = onRequest(
             );
             break;
 
+          case "customer.subscription.created":
+            await handleSubscriptionCreated(
+              event.data.object as Stripe.Subscription
+            );
+            break;
+
           case "customer.subscription.updated":
             await handleSubscriptionUpdated(
               event.data.object as Stripe.Subscription
@@ -965,6 +1160,10 @@ export const stripeWebhook = onRequest(
             await handleSubscriptionDeleted(
               event.data.object as Stripe.Subscription
             );
+            break;
+
+          case "invoice.paid":
+            await handleInvoicePaid(event.data.object as Stripe.Invoice);
             break;
 
           case "invoice.payment_failed":
