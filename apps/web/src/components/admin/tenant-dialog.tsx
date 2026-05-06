@@ -258,7 +258,7 @@ export function TenantDialog({
       open={isOpen}
       onOpenChange={(open) => !isSaving && !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] !flex !flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Editar Empresa" : "Nova Empresa"}
@@ -269,8 +269,8 @@ export function TenantDialog({
               : "Preencha os dados para criar um novo ambiente."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="py-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto py-2">
             <Tabs defaultValue="company" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="company">Empresa</TabsTrigger>
@@ -635,7 +635,7 @@ export function TenantDialog({
             </Tabs>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 mt-4">
             <Button
               type="button"
               variant="outline"

@@ -18,6 +18,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSkeleton } from "./_components/profile-skeleton";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function ProfileContent() {
@@ -93,6 +95,15 @@ function ProfileContent() {
   return (
     <>
       <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6 min-h-[calc(100vh_-_100px)]">
+        {user?.role === "superadmin" && (
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar ao painel
+          </Link>
+        )}
         {/* Header Section */}
         <ProfileHeader
           user={effectiveUser}
