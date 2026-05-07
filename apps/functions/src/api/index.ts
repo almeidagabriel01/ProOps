@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
+import { requireActiveSubscription } from "./middleware/require-active-subscription";
 import { CORS_OPTIONS } from "../deploymentConfig";
 import { proxyImage } from "./controllers/proxy.controller";
 
@@ -381,6 +382,7 @@ app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
+app.use(requireActiveSubscription);
 app.use(protectedLimiter);
 
 app.use((req, res, next) => {
