@@ -24,6 +24,7 @@ import {
   getTenantClaim,
 } from "../../lib/request-auth";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
+import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
@@ -818,9 +819,24 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     const validInterval: BillingInterval =
       rawBillingInterval === "yearly" ? "yearly" : "monthly";
+
+    const reservation = await reserveCheckout({
+      tenantId,
+      planTier,
+      billingInterval: validInterval,
+    });
+    if (!reservation.ok) {
+      return res.status(409).json({
+        code: "RECENT_CHECKOUT_IN_FLIGHT",
+        message: "Um checkout já está em andamento. Aguarde alguns instantes.",
+        until: reservation.until,
+      });
+    }
+
     const priceId = getPriceIdForTier(planTier, validInterval);
 
     if (!priceId) {
+      await clearCheckoutReservation(tenantId).catch(() => {});
       return res
         .status(400)
         .json({ message: "Invalid plan tier or price not configured" });
@@ -1081,7 +1097,16 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       };
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const idempotencyKey = `checkout:${tenantId}:${planTier}:${validInterval}`;
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams, {
+        idempotencyKey,
+      });
+    } catch (err) {
+      await clearCheckoutReservation(tenantId).catch(() => {});
+      throw err;
+    }
 
     return res.json({ url: session.url, trialDays: trialEligible ? PRO_TRIAL_DAYS : 0 });
   } catch (error: unknown) {
