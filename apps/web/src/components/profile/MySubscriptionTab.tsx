@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/lib/toast";
 
 import {
@@ -19,6 +19,7 @@ import Link from "next/link";
 import { formatPrice } from "@/utils/format";
 import { formatDateBR, type DateValue } from "@/utils/date-format";
 import { CreditCard, Calendar, Crown, Puzzle, Check, X, ExternalLink, AlertCircle, Zap, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   AlertDialog,
@@ -160,6 +161,29 @@ export function MySubscriptionTab({
   const showManualTag = Boolean(isManualSubscription) && !hasBillingEvidence;
 
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync billing data when stale — only for superadmin since the endpoint is admin-only.
+  // For regular tenants the backend syncs automatically via webhook; skip to avoid 403.
+  useEffect(() => {
+    if (user?.role !== "superadmin") return;
+    const tenantId = user?.tenantId;
+    if (!tenantId) return;
+    const freeStatuses = ["free", undefined, null];
+    if (freeStatuses.includes(user?.subscriptionStatus as string | undefined | null)) return;
+
+    const billingSyncedAt = user?.subscriptionUpdatedAt;
+    const needsSync =
+      !billingSyncedAt ||
+      Date.now() - new Date(billingSyncedAt).getTime() > 5 * 60 * 1000;
+
+    if (needsSync) {
+      import("@/services/admin-service").then(({ AdminService }) => {
+        AdminService.forceTenantBillingSync(tenantId).catch(() => {});
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.subscriptionUpdatedAt]);
+
   const [addonToCancel, setAddonToCancel] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState(false);
@@ -427,8 +451,19 @@ export function MySubscriptionTab({
             </div>
           )}
 
+          {/* Skeleton while billing data is loading for Stripe subscriptions */}
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && isSyncing && (
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border">
+              <Calendar className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm text-muted-foreground">Próxima cobrança</p>
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          )}
+
           {/* Sync Button for missing billing info */}
-          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && (
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && !isSyncing && (
             <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
               <div className="flex items-center gap-3 flex-1">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
