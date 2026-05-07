@@ -5,6 +5,7 @@ import {
   deleteMember,
   updatePermissions,
   getAllTenantsBilling,
+  syncTenantBilling,
   updateCredentials,
   updateUserPlan,
   updateUserSubscription,
@@ -34,6 +35,7 @@ router.post("/tenants/copy-data", copyTenantData);
 router.delete("/tenants/:tenantId", deleteTenant);
 router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
+router.post("/tenants/:tenantId/sync-billing", syncTenantBilling);
 
 router.post("/test-whatsapp-billing", testWhatsAppBilling);
 
