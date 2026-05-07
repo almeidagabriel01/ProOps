@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Billing & Payment Hardening
-status: defining_requirements
+status: roadmap_ready
 last_updated: "2026-05-07T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,14 +19,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 02 — auth-multitenant
+**Current focus:** Phase 19 — Single-Writer Billing Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-07 — Milestone v4.0 Billing & Payment Hardening started
+Status: Roadmap defined — ready to plan Phase 19
+Last activity: 2026-05-07 — Milestone v4.0 roadmap created (Phases 19–24)
 
 ## Performance Metrics
 
@@ -155,6 +155,13 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 02-03]: AUTH-06 gap closed — 502 removed from backend API isolation assertion; global-setup.ts already starts Functions emulator (--only auth,firestore,storage,functions); tightened [403, 404] assertion causes hard failure if emulator unreachable
 - [Phase 02-04]: AUTH-05 redirect params stripped by ProtectedRoute client-side router.push('/login') which lacked query params; middleware returns HTTP 200 for App Router shell — client JS layer is the actual redirect mechanism. Fixed router.push to include redirect + redirect_reason params. 18/18 auth suite green.
 
+### v4.0 Architecture Decisions
+
+- [Phase 19]: Single writer pattern — extend syncTenantPlanBillingSnapshot, never create a parallel writer; top-level fields + nested subscription.* written atomically in db.runTransaction()
+- [Phase 20]: Banners depend on Phase 19 canonical billing state — deploy Phase 19 first to ensure reliable field reads
+- [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
+- [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
+
 ### Pending Todos
 
 None.
@@ -165,6 +172,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-06T19:45:27.524Z
-Stopped at: context exhaustion at 92% (2026-05-06)
+Last session: 2026-05-07T00:00:00.000Z
+Stopped at: v4.0 roadmap created (Phases 19-24)
 Resume file: None
