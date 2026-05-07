@@ -12,6 +12,11 @@ import {
   upsertTenantStripeBillingData,
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "./stripeHelpers";
+import {
+  mapStripeStatusToBilling,
+  findAndCancelDuplicateSubscriptions,
+  clearCheckoutReservation,
+} from "../billing";
 import { db } from "../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import Stripe from "stripe";
@@ -31,6 +36,7 @@ import {
 } from "../lib/tenant-plan-policy";
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
+import { logger } from "../lib/logger";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
@@ -53,12 +59,7 @@ export function invalidateTenantPlanCacheAfterWebhookUpdate(
 }
 
 function mapStripeStatusToTenantSubscriptionStatus(status: unknown): string {
-  const normalized = String(status || "").trim().toLowerCase();
-  if (normalized === "active") return "active";
-  if (normalized === "trialing") return "trialing";
-  if (normalized === "past_due") return "past_due";
-  if (normalized === "canceled" || normalized === "unpaid") return "canceled";
-  return "inactive";
+  return mapStripeStatusToBilling(String(status || "").trim().toLowerCase());
 }
 
 function extractPrimaryPriceId(
@@ -168,6 +169,7 @@ async function syncTenantPlanBillingSnapshot(params: {
     const patch: Record<string, unknown> = {
       ...lifecyclePatch,
       updatedAt: nowIso,
+      billingSyncedAt: nowIso,
       ...(params.currentPeriodEnd && { currentPeriodEnd: params.currentPeriodEnd.toISOString() }),
     };
     if (derivedTier) {
@@ -546,6 +548,22 @@ async function handleCheckoutCompleted(
   if (userId && planTier) {
     await assertUserTenantConsistency(userId, tenantId);
     const stripe = getStripe();
+
+    // Cancel duplicate subscriptions before persisting
+    const checkoutCustomerId = String(session.customer || "").trim();
+    if (checkoutCustomerId) {
+      try {
+        await findAndCancelDuplicateSubscriptions(checkoutCustomerId, {
+          keep: "oldest",
+          prorate: true,
+        });
+      } catch (err) {
+        logger.error("[handleCheckoutCompleted] duplicate cancel failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     let subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const overageItemId = await addWhatsAppOverageToSubscription(subscriptionId);
     if (overageItemId) {
@@ -611,6 +629,7 @@ async function handleCheckoutCompleted(
       currentPeriodEnd,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+    await clearCheckoutReservation(tenantId).catch(() => {});
     return;
   }
 
@@ -918,6 +937,20 @@ async function handleSubscriptionCreated(
     customerId: subscriptionCustomerId,
     subscriptionId: subscription.id,
   });
+
+  // Cancel duplicate subscriptions before persisting
+  if (subscriptionCustomerId) {
+    try {
+      await findAndCancelDuplicateSubscriptions(subscriptionCustomerId, {
+        keep: "oldest",
+        prorate: true,
+      });
+    } catch (err) {
+      logger.error("[handleSubscriptionCreated] duplicate cancel failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   const whatsappItem = subscription.items.data.find(
     (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
@@ -1229,6 +1262,7 @@ export const stripeWebhook = onRequest(
             break;
 
           case "invoice.paid":
+          case "invoice.payment_succeeded":
             await handleInvoicePaid(event.data.object as Stripe.Invoice);
             break;
 
