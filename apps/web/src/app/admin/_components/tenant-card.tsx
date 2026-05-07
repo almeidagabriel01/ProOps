@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tenant } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
-import { LogIn, Trash2, Pencil, Calendar, CheckCircle2 } from "lucide-react";
+import { LogIn, Trash2, Pencil, Calendar, CheckCircle2, Clock, XCircle, MinusCircle } from "lucide-react";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,7 +43,9 @@ export function TenantCard({
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
   const currentPeriodEnd = admin.currentPeriodEnd;
+  const cancelAtPeriodEnd = admin.subscription?.cancelAtPeriodEnd ?? false;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
+
   let formattedBillingDate: string;
   if (currentPeriodEnd) {
     const [yyyy, mm, dd] = currentPeriodEnd.split("T")[0].split("-");
@@ -53,7 +55,25 @@ export function TenantCard({
   } else {
     formattedBillingDate = "Não disponível";
   }
+
   const isPastDue = subscriptionStatus === "past_due";
+  const isCanceled = subscriptionStatus === "canceled";
+  const isInactive = subscriptionStatus === "inactive" || subscriptionStatus === "unpaid";
+  // Ativo mas com cancelamento agendado para o fim do período
+  const isCancelingAtPeriodEnd = subscriptionStatus === "active" && cancelAtPeriodEnd;
+
+  function cardBorderClass() {
+    if (isPastDue) return "border-red-500 ring-1 ring-red-500/20";
+    if (isCancelingAtPeriodEnd) return "border-amber-400 ring-1 ring-amber-400/20";
+    if (isCanceled) return "border-slate-400 ring-1 ring-slate-300/30";
+    if (isInactive) return "border-slate-300 ring-1 ring-slate-200/20 opacity-80";
+    return "";
+  }
+
+  function cardBorderTopColor() {
+    if (isPastDue || isCancelingAtPeriodEnd || isCanceled || isInactive) return undefined;
+    return tenant.primaryColor;
+  }
 
   // Controlled dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -74,11 +94,41 @@ export function TenantCard({
 
   return (
     <Card
-      className={`overflow-hidden border-t-4 hover:shadow-md transition-shadow group flex flex-col ${isPastDue ? "border-red-500 ring-1 ring-red-500/20" : ""}`}
-      style={{
-        borderTopColor: isPastDue ? undefined : tenant.primaryColor,
-      }}
+      className={`overflow-hidden border-t-4 hover:shadow-md transition-shadow group flex flex-col ${cardBorderClass()}`}
+      style={{ borderTopColor: cardBorderTopColor() }}
     >
+      {/* Banner de estado crítico — visível sem hover */}
+      {(isCancelingAtPeriodEnd || isCanceled || isInactive) && (
+        <div
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${
+            isCancelingAtPeriodEnd
+              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+              : isCanceled
+                ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400"
+          }`}
+        >
+          {isCancelingAtPeriodEnd && (
+            <>
+              <Clock className="w-3 h-3 shrink-0" />
+              Cancela em {formattedBillingDate}
+            </>
+          )}
+          {isCanceled && (
+            <>
+              <XCircle className="w-3 h-3 shrink-0" />
+              Assinatura cancelada
+            </>
+          )}
+          {isInactive && (
+            <>
+              <MinusCircle className="w-3 h-3 shrink-0" />
+              Conta inativa
+            </>
+          )}
+        </div>
+      )}
+
       <CardHeader className="pb-2 pt-6">
         <div className="flex items-start justify-between">
           <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center border p-1">
@@ -174,34 +224,67 @@ export function TenantCard({
       <CardContent className="flex-1 space-y-3 pt-2">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Status
+            {isCanceled ? (
+              <XCircle className="w-3 h-3 text-red-400" />
+            ) : isInactive ? (
+              <MinusCircle className="w-3 h-3 text-slate-400" />
+            ) : isCancelingAtPeriodEnd ? (
+              <Clock className="w-3 h-3 text-amber-500" />
+            ) : (
+              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+            )}
+            Status
           </span>
           <span
-            className={`font-medium ${subscriptionStatus === "active" ? "text-emerald-600" : isPastDue ? "text-red-600" : "text-muted-foreground"}`}
+            className={`font-medium ${
+              isCanceled
+                ? "text-red-500"
+                : isInactive
+                  ? "text-slate-400"
+                  : isCancelingAtPeriodEnd
+                    ? "text-amber-600 dark:text-amber-400"
+                    : isPastDue
+                      ? "text-red-600"
+                      : subscriptionStatus === "active"
+                        ? "text-emerald-600"
+                        : "text-muted-foreground"
+            }`}
           >
-            {subscriptionStatus === "active"
-              ? "Ativo"
-              : isPastDue
-                ? "Atrasado"
-                : subscriptionStatus === "free"
-                  ? "Gratuito"
-                  : "Inativo"}
+            {isCanceled
+              ? "Cancelado"
+              : isInactive
+                ? "Inativo"
+                : isCancelingAtPeriodEnd
+                  ? "Encerrando"
+                  : isPastDue
+                    ? "Atrasado"
+                    : subscriptionStatus === "active"
+                      ? "Ativo"
+                      : subscriptionStatus === "free"
+                        ? "Gratuito"
+                        : subscriptionStatus ?? "—"}
           </span>
         </div>
 
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground flex items-center gap-1">
             <Calendar
-              className={`w-3 h-3 ${isPastDue ? "text-red-500" : ""}`}
+              className={`w-3 h-3 ${isPastDue ? "text-red-500" : isCancelingAtPeriodEnd ? "text-amber-500" : ""}`}
             />
-            Vencimento
+            {isCancelingAtPeriodEnd ? "Encerra em" : "Vencimento"}
           </span>
           <div className="flex items-center gap-2">
             {isStaleWithNoDate ? (
               <Skeleton className="h-4 w-28" />
             ) : (
               <span
-                className={`font-medium ${isPastDue ? "text-red-600" : "text-foreground"}`}
+                className={`font-medium ${
+                  isPastDue
+                    ? "text-red-600"
+                    : isCancelingAtPeriodEnd
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-foreground"
+                }`}
               >
                 {formattedBillingDate}
               </span>
@@ -209,6 +292,11 @@ export function TenantCard({
             {isPastDue && (
               <Badge variant="destructive" className="h-4 px-1 text-[9px]">
                 !
+              </Badge>
+            )}
+            {isCancelingAtPeriodEnd && (
+              <Badge className="h-4 px-1 text-[9px] bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-400">
+                ⏱
               </Badge>
             )}
           </div>
