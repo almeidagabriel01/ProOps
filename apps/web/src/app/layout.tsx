@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://proops.com.br"
   ),
   title: {
-    default: "ProOps — ERP para automação residencial e cortinas",
+    default: "ProOps - ERP para automação residencial e cortinas",
     template: "%s | ProOps",
   },
   description:
@@ -91,7 +91,7 @@ export const metadata: Metadata = {
         url: "/opengraph-image.png",
         width: 1200,
         height: 630,
-        alt: "ProOps — ERP para gestão de serviços",
+        alt: "ProOps - ERP para gestão de serviços",
       },
     ],
   },
