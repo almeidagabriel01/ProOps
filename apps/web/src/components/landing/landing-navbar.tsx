@@ -43,6 +43,11 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isFreeAccount = currentUser?.role === "free";
+  const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
+    currentUser?.subscriptionStatus ?? "",
+  );
+  // Free or blocked accounts only get "Ver planos" + "Sair" — no ERP access, no profile
+  const showOnlyPlansCta = isFreeAccount || isBlockedAccount;
 
   const scrollToAnchor = (href: string, closeMobile = false) => {
     if (!href.startsWith("#")) return;
@@ -218,7 +223,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         </span>
                       </div>
                       <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
-                      {isFreeAccount ? (
+                      {showOnlyPlansCta ? (
                         <DropdownMenuItem
                           onClick={() => scrollToAnchor("#pricing")}
                           className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
@@ -227,21 +232,23 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                           Ver planos
                         </DropdownMenuItem>
                       ) : (
-                        <DropdownMenuItem
-                          onClick={() => router.push(appHref)}
-                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                        >
-                          <LayoutDashboard className="h-4 w-4" />
-                          Entrar no ERP
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => router.push(appHref)}
+                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            Entrar no ERP
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push("/profile")}
+                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <UserIcon className="h-4 w-4" />
+                            Meu Perfil
+                          </DropdownMenuItem>
+                        </>
                       )}
-                      <DropdownMenuItem
-                        onClick={() => router.push("/profile")}
-                        className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                      >
-                        <UserIcon className="h-4 w-4" />
-                        Meu Perfil
-                      </DropdownMenuItem>
                       <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
                       <DropdownMenuItem
                         onClick={onSignOut}
@@ -329,7 +336,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     <span className="text-sm text-black/50 dark:text-white/50 truncate max-w-[200px]">
                       {companyName}
                     </span>
-                    {isFreeAccount ? (
+                    {showOnlyPlansCta ? (
                       <button
                         type="button"
                         onClick={() => scrollToAnchor("#pricing", true)}
