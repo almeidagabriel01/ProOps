@@ -21,7 +21,6 @@ import {
 import { Tenant } from "@/types";
 import { TenantBillingInfo } from "@/services/admin-service";
 import { LogIn, Trash2, Pencil, Calendar, CheckCircle2 } from "lucide-react";
-import { calculateNextBillingDate } from "../_utils/billing-date";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 
@@ -41,14 +40,15 @@ export function TenantCard({
   onCopy,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin } = item;
-  let formattedBillingDate = "";
+  const isFreePlan = item.planId === "free";
+  let formattedBillingDate: string;
   if (admin.currentPeriodEnd) {
     const [yyyy, mm, dd] = admin.currentPeriodEnd.split("T")[0].split("-");
     formattedBillingDate = `${dd}/${mm}/${yyyy}`;
+  } else if (isFreePlan) {
+    formattedBillingDate = "—";
   } else {
-    formattedBillingDate = formatDateBR(
-      calculateNextBillingDate(tenant.createdAt, billingInterval),
-    );
+    formattedBillingDate = "Não disponível";
   }
   const isPastDue = subscriptionStatus === "past_due";
 

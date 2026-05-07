@@ -316,21 +316,19 @@ export function useLoginForm(): UseLoginFormReturn {
         // Unsafe target — fall through to role-based default redirect
       } else if (redirectReason === "session_expired") {
         const isSuperAdminRoute = target.startsWith("/admin");
-        if (!isSuperAdminRoute || user?.role === "superadmin") {
+        if (!isSuperAdminRoute) {
           window.location.replace(target);
           return;
         }
-        // Role mismatch — fall through to role-based default redirect
+        // Non-superadmin attempting to access /admin — fall through to role-based default redirect
       } else {
         router.replace(target);
         return;
       }
     }
 
-    // Default redirects based on role
-    if (user?.role === "superadmin") {
-      router.replace("/admin");
-    } else if (user?.role === "free") {
+    // Default redirects based on role (superadmin already handled above)
+    if (user?.role === "free") {
       router.replace("/");
     } else {
       const perms = user?.permissions || {};

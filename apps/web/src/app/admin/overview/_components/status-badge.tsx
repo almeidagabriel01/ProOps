@@ -17,6 +17,15 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
+  if (status === "past_due") {
+    return (
+      <Badge className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-500/20 shadow-none font-medium">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1.5" />
+        Atrasado
+      </Badge>
+    );
+  }
+
   if (status === "free") {
     return (
       <Badge

@@ -851,6 +851,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         normalizeStatus(userData.subscriptionStatus) ||
         normalizeStatus(userData.subscription?.status);
 
+      if (rawStatus === "past_due") {
+        return "past_due";
+      }
+
       const blockedStatuses = new Set([
         "inactive",
         "canceled",
