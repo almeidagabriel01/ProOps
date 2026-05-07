@@ -373,7 +373,7 @@ export async function runStripeSync(
         if (tenantId) {
           await db.collection("tenants").doc(tenantId).set(
             {
-              subscriptionStatus: subscription.status,
+              subscriptionStatus: mapStripeSubscriptionStatus(subscription.status).toLowerCase(),
               currentPeriodEnd: currentPeriodEnd.toISOString(),
               updatedAt: new Date().toISOString(),
             },
