@@ -295,6 +295,12 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
+    // Superadmins always land on /admin — ignore any ?redirect= param
+    if (user?.role === "superadmin") {
+      window.location.replace("/admin");
+      return;
+    }
+
     // If there's a redirect URL, go there
     if (redirectUrl) {
       const target = decodeURIComponent(redirectUrl);
