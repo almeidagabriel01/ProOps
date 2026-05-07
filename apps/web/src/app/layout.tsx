@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://proops.com.br"
   ),
   title: {
-    default: "ProOps - ERP para automação residencial e cortinas",
+    default: "ProOps - ERP para gestão de serviços",
     template: "%s | ProOps",
   },
   description:
