@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { AlertTriangle, CreditCard, Clock, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
@@ -16,10 +17,13 @@ interface SubscriptionGuardProps {
 const GRACE_PERIOD_DAYS = 7;
 
 export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { tenant, isLoading: isTenantLoading } = useTenant();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = React.useState(false);
   const { pastDueAddons } = usePlanLimits();
+
+  const isLoading = isAuthLoading || isTenantLoading;
 
   const shouldCheckSubscription = React.useMemo(() => {
     if (!user) return false;
@@ -27,28 +31,45 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     if (user.role === "superadmin") return false;
     // "free" role means the account has never had a paid plan — nothing to enforce
     if (user.role === "free") return false;
+    // Read subscription status preferring tenant doc (synced from Stripe via BillingSnapshot),
+    // fall back to user doc for backward compatibility during transition.
+    const status = tenant?.subscriptionStatus ?? user.subscriptionStatus;
     // subscriptionStatus "free" also means no active subscription to enforce
-    if (user.subscriptionStatus === "free") return false;
+    if (status === "free") return false;
     // Sub-users (masterId set) share their tenant's subscription — they ARE checked.
-    // Removing the old masterId bypass so blocked tenants block all members too.
     return true;
-  }, [user]);
+  }, [user, tenant?.subscriptionStatus]);
 
-  const currentPeriodEnd = user?.currentPeriodEnd;
-  const subscriptionStatus = user?.subscriptionStatus;
+  // Prefer tenant billing fields (synced from Stripe) over user fields.
+  // tenant is populated by TenantService.getTenantById which spreads the full
+  // Firestore tenant doc — billing fields added to the Tenant type flow through.
+  const subscriptionStatus = tenant?.subscriptionStatus ?? user?.subscriptionStatus;
+  const currentPeriodEnd = tenant?.currentPeriodEnd ?? user?.currentPeriodEnd ?? null;
+  const cancelAtPeriodEnd = tenant?.cancelAtPeriodEnd ?? user?.cancelAtPeriodEnd;
+  // pastDueSince is a tenant-level field set by Stripe webhook when payment fails.
+  // It is more reliable than currentPeriodEnd for calculating the grace period because
+  // currentPeriodEnd may be null or stale when Stripe hasn't renewed the period yet.
+  const pastDueSince = tenant?.pastDueSince ?? null;
+  // For backward compat: used when both pastDueSince and currentPeriodEnd are absent.
   const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
-  const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
 
   const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
     if (subscriptionStatus !== "past_due") {
       return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
     }
 
-    const referenceDate = currentPeriodEnd
-      ? new Date(currentPeriodEnd)
-      : subscriptionUpdatedAt
-        ? new Date(subscriptionUpdatedAt)
-        : new Date();
+    // Grace period reference date priority:
+    // 1. pastDueSince — set by webhook at first failed payment (most accurate)
+    // 2. currentPeriodEnd — period end when payment was due
+    // 3. subscriptionUpdatedAt — last known subscription change (fallback)
+    // 4. now — worst case: start grace from now
+    const referenceDate = pastDueSince
+      ? new Date(pastDueSince)
+      : currentPeriodEnd
+        ? new Date(currentPeriodEnd)
+        : subscriptionUpdatedAt
+          ? new Date(subscriptionUpdatedAt)
+          : new Date();
 
     const deadline = new Date(referenceDate);
     deadline.setDate(deadline.getDate() + GRACE_PERIOD_DAYS);
@@ -56,14 +77,13 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
     const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
     const remaining = Math.max(0, days);
 
     return {
       daysRemaining: remaining,
       isGracePeriodExpired: days <= 0,
     };
-  }, [subscriptionStatus, currentPeriodEnd, subscriptionUpdatedAt]);
+  }, [subscriptionStatus, pastDueSince, currentPeriodEnd, subscriptionUpdatedAt]);
 
   React.useEffect(() => {
     if (!shouldCheckSubscription || isLoading) return;
