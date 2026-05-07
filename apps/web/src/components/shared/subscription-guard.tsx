@@ -23,8 +23,14 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
   const shouldCheckSubscription = React.useMemo(() => {
     if (!user) return false;
-    if (user.role === "free" || user.role === "superadmin") return false;
-    if (user.masterId) return false;
+    // superadmin is never blocked — they must be able to access any tenant panel
+    if (user.role === "superadmin") return false;
+    // "free" role means the account has never had a paid plan — nothing to enforce
+    if (user.role === "free") return false;
+    // subscriptionStatus "free" also means no active subscription to enforce
+    if (user.subscriptionStatus === "free") return false;
+    // Sub-users (masterId set) share their tenant's subscription — they ARE checked.
+    // Removing the old masterId bypass so blocked tenants block all members too.
     return true;
   }, [user]);
 
