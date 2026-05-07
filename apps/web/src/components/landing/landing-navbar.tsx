@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LogOut, Menu, User as UserIcon, X } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Menu, Sparkles, User as UserIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { User } from "@/types";
@@ -14,7 +14,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -196,39 +195,59 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         <ChevronDown className="h-3 w-3 opacity-50" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuLabel className="font-normal">
-                        <p className="text-xs text-muted-foreground truncate">{companyName}</p>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
+                    <DropdownMenuContent
+                      align="end"
+                      className="mt-2 w-52 rounded-2xl border border-black/10 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                    >
+                      {/* Header: avatar + company name */}
+                      <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1">
+                        <Avatar className="h-8 w-8 shrink-0 border border-black/10 dark:border-white/10">
+                          {logoUrl ? (
+                            <AvatarImage src={logoUrl} alt={companyName} className="object-cover" />
+                          ) : (
+                            <AvatarFallback
+                              className="text-[10px] font-medium text-white"
+                              style={{ backgroundColor: getUserColor(avatarSeed) }}
+                            >
+                              {getInitials(avatarSeed)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="truncate text-[13px] font-semibold text-black dark:text-white">
+                          {companyName}
+                        </span>
+                      </div>
+                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
                       {isFreeAccount ? (
                         <DropdownMenuItem
                           onClick={() => scrollToAnchor("#pricing")}
-                          className="cursor-pointer"
+                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
                         >
+                          <Sparkles className="h-4 w-4" />
                           Ver planos
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuItem
                           onClick={() => router.push(appHref)}
-                          className="cursor-pointer"
+                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
                         >
+                          <LayoutDashboard className="h-4 w-4" />
                           Entrar no ERP
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
                         onClick={() => router.push("/profile")}
-                        className="cursor-pointer"
+                        className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
                       >
-                        <UserIcon className="mr-2 h-4 w-4" />
+                        <UserIcon className="h-4 w-4" />
                         Meu Perfil
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
                       <DropdownMenuItem
                         onClick={onSignOut}
-                        className="cursor-pointer text-red-600 focus:text-red-600"
+                        className="cursor-pointer gap-2 rounded-xl text-[13px] text-red-500 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:focus:bg-red-950/30 dark:focus:text-red-400"
                       >
-                        <LogOut className="mr-2 h-4 w-4" />
+                        <LogOut className="h-4 w-4" />
                         Sair
                       </DropdownMenuItem>
                     </DropdownMenuContent>
