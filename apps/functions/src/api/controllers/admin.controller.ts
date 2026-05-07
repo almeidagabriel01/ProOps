@@ -7,6 +7,7 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
+import { enqueueTenantSync, isStale } from "../../billing";
 import {
   clearTenantPlanCache,
   enforceTenantPlanLimit,
@@ -703,17 +704,38 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       primaryColor?: string;
       niche?: string;
       whatsappEnabled?: boolean;
+      subscriptionStatus?: string;
+      currentPeriodEnd?: string;
+      billingSyncedAt?: string;
     }
 
+    const cursor = String(req.query.cursor || "").trim() || null;
+    const pageSize = Math.min(Number(req.query.pageSize) || 25, 100);
+
     // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
-    const usersSnapshot = await db
+    let usersQuery: FirebaseFirestore.Query = db
       .collection("users")
       .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
-      .get();
+      .orderBy("createdAt", "desc")
+      .limit(pageSize + 1);
 
-    console.log(
-      `[getAllTenantsBilling] Found ${usersSnapshot.docs.length} master users`,
-    );
+    if (cursor) {
+      const cursorSnap = await db.collection("users").doc(cursor).get();
+      if (cursorSnap.exists) {
+        usersQuery = usersQuery.startAfter(cursorSnap);
+      }
+    }
+
+    const usersSnapshot = await usersQuery.get();
+    const hasMore = usersSnapshot.docs.length > pageSize;
+    const docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
+    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
+
+    logger.info("[getAllTenantsBilling] found users", {
+      count: docs.length,
+      hasMore,
+      cursor: cursor || undefined,
+    });
 
     // Collect unique tenant IDs and plan IDs for batch fetch
     const tenantIds = new Set<string>();
@@ -725,7 +747,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       enterprise: "Enterprise",
     };
 
-    for (const userDoc of usersSnapshot.docs) {
+    for (const userDoc of docs) {
       const userData = userDoc.data() as BillingUserData;
       const tenantId = userData.tenantId || userData.companyId;
       if (tenantId) tenantIds.add(tenantId);
@@ -897,11 +919,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     // Process all users synchronously using pre-fetched data
     const tenantsData = [];
-    for (const userDoc of usersSnapshot.docs) {
+    for (const userDoc of docs) {
       try {
         const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
-        const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {};
+        const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {} as TenantData;
 
         const rawPlanId = String(userData.planId || "free");
         // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
@@ -915,28 +937,37 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
         const effectiveStatus = deriveTenantStatus(userData);
 
+        // Prefer billing fields from tenant doc (authoritative after sync)
+        const tenantSubscriptionStatus = tenantData.subscriptionStatus || effectiveStatus;
+        const tenantCurrentPeriodEnd = tenantData.currentPeriodEnd || userData.currentPeriodEnd;
+
+        // Detect staleness and fire background sync if needed
+        const isBillingStale = isStale({
+          billingSyncedAt: tenantData.billingSyncedAt,
+          subscriptionStatus: tenantData.subscriptionStatus,
+        });
+        if (isBillingStale && tenantId) {
+          enqueueTenantSync(tenantId, "on_demand").catch(() => {});
+        }
+
         tenantsData.push({
           tenant: {
             id: tenantId || userDoc.id,
-            name:
-              (tenantData as TenantData).name ||
-              userData.companyName ||
-              "Sem nome",
-            slug: (tenantData as TenantData).slug,
-            createdAt:
-              (tenantData as TenantData).createdAt || userData.createdAt,
-            logoUrl: (tenantData as TenantData).logoUrl,
-            primaryColor: (tenantData as TenantData).primaryColor,
-            niche: (tenantData as TenantData).niche,
-            whatsappEnabled: (tenantData as TenantData).whatsappEnabled,
+            name: tenantData.name || userData.companyName || "Sem nome",
+            slug: tenantData.slug,
+            createdAt: tenantData.createdAt || userData.createdAt,
+            logoUrl: tenantData.logoUrl,
+            primaryColor: tenantData.primaryColor,
+            niche: tenantData.niche,
+            whatsappEnabled: tenantData.whatsappEnabled,
           },
           admin: {
             id: userDoc.id,
             name: userData.name || userData.displayName || "",
             email: userData.email || "",
             phoneNumber: userData.phoneNumber,
-            subscriptionStatus: userData.subscriptionStatus,
-            currentPeriodEnd: userData.currentPeriodEnd,
+            subscriptionStatus: tenantSubscriptionStatus,
+            currentPeriodEnd: tenantCurrentPeriodEnd,
             subscription: userData.subscription,
           },
           planName: planName || planId,
@@ -944,6 +975,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           subscriptionStatus: effectiveStatus,
           billingInterval: String(userData.billingInterval || "monthly"),
           planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
+          isBillingStale,
           usage: {
             users: userData.usage?.users || 0,
             proposals: userData.usage?.proposals || 0,
@@ -955,20 +987,38 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           },
         });
       } catch (docErr) {
-        console.error(
-          `[getAllTenantsBilling] Error processing user doc ${userDoc.id}, skipping:`,
-          docErr,
-        );
+        logger.error("[getAllTenantsBilling] error processing user doc", {
+          docId: userDoc.id,
+          error: docErr instanceof Error ? docErr.message : String(docErr),
+        });
       }
     }
 
-    console.log(
-      `[getAllTenantsBilling] Returning ${tenantsData.length} tenants`,
-    );
-    return res.json(tenantsData);
+    logger.info("[getAllTenantsBilling] returning tenants", { count: tenantsData.length, hasMore });
+    return res.json({ data: tenantsData, nextCursor, hasMore });
   } catch (error: unknown) {
     console.error("Error getting tenants:", error);
     return res.status(500).json({ message: "Erro ao buscar tenants." });
+  }
+};
+
+export const syncTenantBilling = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+    const { tenantId } = req.params;
+    if (!tenantId || !tenantId.trim()) {
+      return res.status(400).json({ message: "tenantId obrigatório." });
+    }
+    const snapshot = await enqueueTenantSync(tenantId, "manual");
+    return res.status(200).json({ ok: true, snapshot });
+  } catch (err) {
+    logger.error("[syncTenantBilling] error", {
+      tenantId: req.params.tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ message: "Erro ao sincronizar billing." });
   }
 };
 
