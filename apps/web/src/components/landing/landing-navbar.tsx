@@ -171,7 +171,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="flex items-center gap-2 rounded-full px-2 py-1 text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white"
+                        className="flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white"
                       >
                         <Avatar className="h-7 w-7 border border-black/10 dark:border-white/10">
                           {logoUrl ? (
@@ -196,7 +196,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
-                      align="end"
+                      align="center"
                       className="mt-2 w-52 rounded-2xl border border-black/10 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
                     >
                       {/* Header: avatar + company name */}
