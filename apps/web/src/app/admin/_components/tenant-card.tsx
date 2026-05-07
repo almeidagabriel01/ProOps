@@ -23,6 +23,7 @@ import { TenantBillingInfo } from "@/services/admin-service";
 import { LogIn, Trash2, Pencil, Calendar, CheckCircle2 } from "lucide-react";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TenantCardProps {
   item: TenantBillingInfo;
@@ -39,11 +40,14 @@ export function TenantCard({
   onLoginAs,
   onCopy,
 }: TenantCardProps) {
-  const { tenant, planName, subscriptionStatus, billingInterval, admin } = item;
+  const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
+  // Prefer top-level currentPeriodEnd (billing snapshot), fall back to nested admin field
+  const currentPeriodEnd = admin.currentPeriodEnd;
+  const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
   let formattedBillingDate: string;
-  if (admin.currentPeriodEnd) {
-    const [yyyy, mm, dd] = admin.currentPeriodEnd.split("T")[0].split("-");
+  if (currentPeriodEnd) {
+    const [yyyy, mm, dd] = currentPeriodEnd.split("T")[0].split("-");
     formattedBillingDate = `${dd}/${mm}/${yyyy}`;
   } else if (isFreePlan) {
     formattedBillingDate = "—";
@@ -194,11 +198,15 @@ export function TenantCard({
             Vencimento
           </span>
           <div className="flex items-center gap-2">
-            <span
-              className={`font-medium ${isPastDue ? "text-red-600" : "text-foreground"}`}
-            >
-              {formattedBillingDate}
-            </span>
+            {isStaleWithNoDate ? (
+              <Skeleton className="h-4 w-28" />
+            ) : (
+              <span
+                className={`font-medium ${isPastDue ? "text-red-600" : "text-foreground"}`}
+              >
+                {formattedBillingDate}
+              </span>
+            )}
             {isPastDue && (
               <Badge variant="destructive" className="h-4 px-1 text-[9px]">
                 !

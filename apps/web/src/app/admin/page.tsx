@@ -31,6 +31,10 @@ export default function AdminPage() {
     isSaving,
     isRecomputing,
     tenantsData,
+    hasMore,
+    cursorStack,
+    goNext,
+    goPrev,
   } = useTenantManagement();
 
   const [isCopyDialogOpen, setIsCopyDialogOpen] = React.useState(false);
@@ -127,6 +131,28 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {(cursorStack.length > 0 || hasMore) && (
+        <div className="flex items-center gap-2 justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goPrev}
+            disabled={cursorStack.length === 0 || isLoading}
+          >
+            Anterior
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goNext}
+            disabled={!hasMore || isLoading}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
 
       <TenantDialog
         isOpen={isDialogOpen}

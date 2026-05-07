@@ -2,12 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { Tenant } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { TenantFormData } from "@/components/admin/tenant-dialog";
+
+const PAGE_SIZE = 25;
 
 interface UseTenantManagementReturn {
   tenantsData: TenantBillingInfo[];
@@ -26,6 +30,11 @@ interface UseTenantManagementReturn {
   isLoading: boolean;
   isSaving: boolean;
   isRecomputing: boolean;
+  // Pagination
+  hasMore: boolean;
+  cursorStack: string[];
+  goNext: () => void;
+  goPrev: () => void;
 }
 
 export function useTenantManagement(): UseTenantManagementReturn {
@@ -38,14 +47,35 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [isSaving, setIsSaving] = React.useState(false);
   const [isRecomputing, setIsRecomputing] = React.useState(false);
 
+  // Pagination state
+  const [currentCursor, setCurrentCursor] = React.useState<string | null>(null);
+  const [nextCursor, setNextCursor] = React.useState<string | null>(null);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [cursorStack, setCursorStack] = React.useState<string[]>([]);
+
   const { setViewingTenant } = useTenant();
   const router = useRouter();
 
-  const loadTenants = React.useCallback(async () => {
+  const loadTenants = React.useCallback(async (cursor: string | null) => {
     try {
       setIsLoading(true);
-      const data = await AdminService.getAllTenantsBilling();
-      setTenantsData(data);
+      // Try paginated endpoint first; fall back to flat list if backend doesn't
+      // support pagination yet (returns an array instead of {items, nextCursor}).
+      const result = await AdminService.getTenantsBillingPage({
+        cursor: cursor ?? undefined,
+        pageSize: PAGE_SIZE,
+      });
+
+      if (Array.isArray(result)) {
+        // Backend returned a flat array (no pagination support yet)
+        setTenantsData(result as TenantBillingInfo[]);
+        setNextCursor(null);
+        setHasMore(false);
+      } else {
+        setTenantsData(result.items);
+        setNextCursor(result.nextCursor);
+        setHasMore(result.hasMore);
+      }
     } catch (error) {
       console.error("Failed to load tenants", error);
       toast.error("Erro ao carregar empresas");
@@ -55,8 +85,78 @@ export function useTenantManagement(): UseTenantManagementReturn {
   }, []);
 
   React.useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
+    loadTenants(currentCursor);
+  }, [loadTenants, currentCursor]);
+
+  // Firestore onSnapshot listeners for tenants with stale billing data
+  React.useEffect(() => {
+    const stale = tenantsData.filter((t) => t.isBillingStale);
+    if (stale.length === 0) return;
+
+    const unsubs: (() => void)[] = [];
+
+    for (const tenant of stale) {
+      const tenantId = tenant.tenant.id;
+      if (!tenantId) continue;
+
+      const unsub = onSnapshot(
+        doc(db, "tenants", tenantId),
+        (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          setTenantsData((prev) =>
+            prev.map((t) => {
+              if (t.tenant.id !== tenantId) return t;
+              return {
+                ...t,
+                isBillingStale: false,
+                billingSyncedAt: typeof data["billingSyncedAt"] === "string"
+                  ? data["billingSyncedAt"]
+                  : t.billingSyncedAt,
+                subscriptionStatus: typeof data["subscriptionStatus"] === "string"
+                  ? data["subscriptionStatus"]
+                  : t.subscriptionStatus,
+                admin: {
+                  ...t.admin,
+                  currentPeriodEnd: typeof data["currentPeriodEnd"] === "string"
+                    ? data["currentPeriodEnd"]
+                    : t.admin.currentPeriodEnd,
+                  subscription: typeof data["subscriptionStatus"] === "string"
+                    ? {
+                        status: data["subscriptionStatus"] as string,
+                        currentPeriodEnd: (data["currentPeriodEnd"] as string) ?? t.admin.subscription?.currentPeriodEnd ?? "",
+                        cancelAtPeriodEnd: Boolean(data["cancelAtPeriodEnd"]),
+                      }
+                    : t.admin.subscription,
+                },
+              };
+            }),
+          );
+        },
+      );
+
+      unsubs.push(unsub);
+    }
+
+    return () => unsubs.forEach((u) => u());
+    // Recompute only when the set of tenant IDs with stale billing changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantsData.filter((t) => t.isBillingStale).map((t) => t.tenant.id).join(",")]);
+
+  const goNext = React.useCallback(() => {
+    if (!nextCursor) return;
+    setCursorStack((s) => [...s, currentCursor ?? ""]);
+    setCurrentCursor(nextCursor);
+  }, [nextCursor, currentCursor]);
+
+  const goPrev = React.useCallback(() => {
+    setCursorStack((s) => {
+      const newStack = [...s];
+      const prev = newStack.pop() ?? null;
+      setCurrentCursor(prev);
+      return newStack;
+    });
+  }, []);
 
   const handleSave = async (data: TenantFormData) => {
     setIsSaving(true);
@@ -141,7 +241,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
       }
 
       setIsDialogOpen(false);
-      loadTenants();
+      loadTenants(currentCursor);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar empresa");
@@ -154,7 +254,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     try {
       await AdminService.deleteTenant(id);
       toast.success("Empresa removida com sucesso!");
-      loadTenants();
+      loadTenants(currentCursor);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao remover empresa");
@@ -177,7 +277,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     try {
       await AdminService.recomputeFeatures(tenantId);
       toast.success("Features recomputadas com sucesso!");
-      loadTenants();
+      loadTenants(currentCursor);
     } catch {
       toast.error("Erro ao recomputar features");
     } finally {
@@ -214,6 +314,9 @@ export function useTenantManagement(): UseTenantManagementReturn {
     isLoading,
     isSaving,
     isRecomputing,
+    hasMore,
+    cursorStack,
+    goNext,
+    goPrev,
   };
 }
-
