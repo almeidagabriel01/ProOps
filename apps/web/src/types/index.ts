@@ -30,6 +30,15 @@ export type Tenant = {
   trialEndsAt?: string;
   trialPlanTier?: string;
   mercadoPagoEnabled?: boolean;
+  // Billing fields (synced from Stripe via BillingSnapshot)
+  subscriptionStatus?: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "inactive" | "free";
+  currentPeriodEnd?: string | null; // ISO
+  cancelAtPeriodEnd?: boolean;
+  pastDueSince?: string | null;
+  trialEndsAt?: string | null;
+  billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
+  isBillingStale?: boolean; // flag calculada pelo backend
+  checkoutInFlightAt?: string | null;
 };
 
 export type UserOnboardingStatus = "active" | "completed" | "skipped";
