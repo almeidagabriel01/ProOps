@@ -42,7 +42,6 @@ export function TenantCard({
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
-  // Prefer top-level currentPeriodEnd (billing snapshot), fall back to nested admin field
   const currentPeriodEnd = admin.currentPeriodEnd;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
   let formattedBillingDate: string;
