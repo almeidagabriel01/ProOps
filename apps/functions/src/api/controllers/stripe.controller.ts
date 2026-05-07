@@ -23,6 +23,7 @@ import {
   assertTenantAdminClaim,
   getTenantClaim,
 } from "../../lib/request-auth";
+import { writeSecurityAuditEvent } from "../../lib/security-observability";
 import Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
@@ -1468,6 +1469,35 @@ export const previewPlanChange = async (req: Request, res: Response) => {
 
 export const createPortalSession = async (req: Request, res: Response) => {
   try {
+    // Superadmin impersonation: open portal for a specific tenant without needing
+    // the superadmin's own Stripe identity (which is often empty / 403s).
+    const targetTenantId = String(req.body?.targetTenantId || "").trim();
+    if (targetTenantId && req.user?.isSuperAdmin === true) {
+      const targetTenantSnap = await db.collection("tenants").doc(targetTenantId).get();
+      if (!targetTenantSnap.exists) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      const targetTenantData = targetTenantSnap.data() as Record<string, unknown>;
+      const targetStripeId = String(targetTenantData?.stripeCustomerId || "").trim();
+      if (!targetStripeId) {
+        return res.status(400).json({ message: "Tenant não possui cliente Stripe registrado" });
+      }
+      const appOrigin = resolveRequestOrigin(req);
+      const stripe = getStripe();
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: targetStripeId,
+        return_url: `${appOrigin}/profile`,
+      });
+      await writeSecurityAuditEvent({
+        eventType: "superadmin_portal_session",
+        uid: req.user.uid,
+        tenantId: targetTenantId,
+        reason: `superadmin opened billing portal for tenant ${targetTenantId}`,
+        route: req.path,
+      });
+      return res.json({ url: portalSession.url });
+    }
+
     const {
       userId,
       tenantId,

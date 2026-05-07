@@ -67,6 +67,7 @@ interface AddonConfirmResponse {
 interface PortalRequest {
   userId: string;
   origin?: string;
+  targetTenantId?: string;
 }
 
 interface PortalResponse {

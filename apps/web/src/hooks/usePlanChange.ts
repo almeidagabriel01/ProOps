@@ -351,15 +351,17 @@ export function usePlanChange(
   };
 
   const handleManagePayment = async () => {
-    if (!effectiveUser) return;
+    const isSuperAdminViewing = user?.role === "superadmin" && Boolean(tenant?.id);
+    if (!isSuperAdminViewing && !effectiveUser) return;
 
     setOpeningPortal(true);
 
     try {
       const { StripeService } = await import("@/services/stripe-service");
       const data = await StripeService.createPortalSession({
-        userId: effectiveUser.id,
+        userId: effectiveUser?.id || "",
         origin: window.location.origin,
+        ...(isSuperAdminViewing && tenant?.id && { targetTenantId: tenant.id }),
       });
 
       if (data.url) {
