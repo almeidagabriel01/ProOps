@@ -1,31 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: — AI Assistant
-status: unknown
-stopped_at: context exhaustion at 92% (2026-05-06)
-last_updated: "2026-05-06T19:45:27.531Z"
+milestone: v4.0
+milestone_name: Billing & Payment Hardening
+status: defining_requirements
+last_updated: "2026-05-07T00:00:00.000Z"
 progress:
-  total_phases: 14
-  completed_phases: 14
-  total_plans: 48
-  completed_plans: 48
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-13)
+See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
 **Current focus:** Phase 02 — auth-multitenant
 
 ## Current Position
 
-Phase: 02 (auth-multitenant) — EXECUTING
-Plan: 1 of 4
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-07 — Milestone v4.0 Billing & Payment Hardening started
 
 ## Performance Metrics
 

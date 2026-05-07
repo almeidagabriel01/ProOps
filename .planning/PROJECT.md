@@ -99,15 +99,25 @@ _(Definidos no Milestone v1.0 — veja REQUIREMENTS.md)_
 - Security: OWASP ZAP + validação de isolamento multi-tenant + Firestore rules audit
 - CI: GitHub Actions pipeline rodando testes em PRs + scripts locais npm
 
-## Current Milestone: v3.0 — AI Assistant (Frontend & QA)
+## Milestone History (cont.)
 
-**Goal:** Completar o milestone v3.0 implementando a interface de chat da Lia, camada de segurança e billing para IA, e suite de testes E2E que cobre todos os fluxos de IA (AI-01 a AI-12).
+### v3.0 — AI Assistant (Complete)
+
+**Goal:** Implementar a Lia (assistente IA) completa: backend SSE + Gemini, tool system com 29 ações, chat UI com streaming e confirmação, segurança & billing (ai-auth middleware, AI_LIMITS, Firestore rules), e E2E suite AI-01 a AI-12.
+
+## Current Milestone: v4.0 — Billing & Payment Hardening
+
+**Goal:** Corrigir 7 falhas críticas de billing, Stripe e MercadoPago que causam estados inconsistentes, perda de acesso e pagamentos não processados em produção.
 
 **Target features:**
 
-- Frontend Chat UI: LiaPanel (aside 420px fixed right), streaming token-a-token, LiaMessageBubble, LiaInputBar, LiaToolConfirmDialog, LiaToolResultCard, LiaTriggerButton, hook useAiChat com SSE
-- Segurança & Billing: ai-auth.middleware.ts (verificação de planId, subscriptionStatus, limite), Firestore rules para aiUsage e aiConversations, seção de uso da Lia na página de billing, warning a 80% do limite
-- Testes & QA: seed data para tenant ai-test pro, E2E AI-01 a AI-12, smoke test no CI
+- Addon fantasma cleanup (P1) — badge stale eliminado, cron de limpeza diário, script one-shot
+- Stripe cancel/past_due hardening (P2) — escritor único de billing, race condition, cache LRU, idempotência de webhook
+- Login sempre → /dashboard (P3) — remover consumo de ?redirect= no auth
+- Banners de estado (P4) — banner past_due (vermelho) e cancelAtPeriodEnd (amarelo) com CTAs
+- Bloquear cancelamento durante past_due (P5) — 409 no controller, UI desabilitada
+- MP webhook instrumentação e fix (P6) — logs estruturados, auditoria, fix por hipótese confirmada
+- Disclosure de taxa MP (P7) — preview em lançamentos, propostas, settings com tabela de %, detalhe/lista/dashboard
 
 ## Evolution
 
@@ -130,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-14 — Phase 16 complete: Lia AI security & billing enforced (AIBI-01–06). Advancing to Phase 17: lia-testes-&-qa._
+_Last updated: 2026-05-07 — Milestone v4.0 started: Billing & Payment Hardening (7 critical fixes: addon ghost, Stripe cancel/past_due, login redirect, banners, cancel block, MP webhook, MP fee disclosure)._
