@@ -995,7 +995,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
     }
 
     logger.info("[getAllTenantsBilling] returning tenants", { count: tenantsData.length, hasMore });
-    return res.json({ data: tenantsData, nextCursor, hasMore });
+    return res.json({ items: tenantsData, nextCursor, hasMore });
   } catch (error: unknown) {
     console.error("Error getting tenants:", error);
     return res.status(500).json({ message: "Erro ao buscar tenants." });

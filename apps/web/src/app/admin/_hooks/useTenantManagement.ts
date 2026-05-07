@@ -72,9 +72,9 @@ export function useTenantManagement(): UseTenantManagementReturn {
         setNextCursor(null);
         setHasMore(false);
       } else {
-        setTenantsData(result.items);
-        setNextCursor(result.nextCursor);
-        setHasMore(result.hasMore);
+        setTenantsData(result.items ?? []);
+        setNextCursor(result.nextCursor ?? null);
+        setHasMore(result.hasMore ?? false);
       }
     } catch (error) {
       console.error("Failed to load tenants", error);
