@@ -9,6 +9,7 @@ import { Check } from "lucide-react";
 import { LandingPlan } from "./use-landing-page";
 import { User } from "@/types";
 import { toast } from "@/lib/toast";
+import { ApiError } from "@/lib/api-client";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -148,6 +149,16 @@ export function LandingPricing({
 
       toast.error("Não foi possível iniciar o checkout. Tente novamente.");
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 409 &&
+        (error.data as { code?: string } | undefined)?.code === "RECENT_CHECKOUT_IN_FLIGHT"
+      ) {
+        toast.error(
+          "Você já tem um checkout aberto. Aguarde alguns instantes e tente novamente.",
+        );
+        return;
+      }
       console.error("Landing checkout error:", error);
       toast.error("Erro ao iniciar checkout. Tente novamente.");
     } finally {
