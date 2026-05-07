@@ -375,6 +375,7 @@ export async function runStripeSync(
             {
               subscriptionStatus: mapStripeSubscriptionStatus(subscription.status).toLowerCase(),
               currentPeriodEnd: currentPeriodEnd.toISOString(),
+              billingSyncedAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             },
             { merge: true },
