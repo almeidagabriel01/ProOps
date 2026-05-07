@@ -21,44 +21,10 @@ import { useTenant } from "@/providers/tenant-provider";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
+import { getUserColor, getInitials } from "@/lib/avatar-utils";
 
 interface HeaderProps {
   sidebarWidth?: number;
-}
-
-function getUserColor(name: string) {
-  const colors = [
-    "#ef4444",
-    "#f97316",
-    "#f59e0b",
-    "#84cc16",
-    "#22c55e",
-    "#10b981",
-    "#14b8a6",
-    "#06b6d4",
-    "#0ea5e9",
-    "#3b82f6",
-    "#6366f1",
-    "#8b5cf6",
-    "#a855f7",
-    "#d946ef",
-    "#ec4899",
-    "#f43f5e",
-  ];
-
-  let hash = 0;
-  for (let index = 0; index < name.length; index += 1) {
-    hash = name.charCodeAt(index) + ((hash << 5) - hash);
-  }
-
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function getInitials(name: string) {
-  const names = name.trim().split(" ").filter(Boolean);
-  if (names.length === 0) return "U";
-  if (names.length === 1) return names[0].charAt(0).toUpperCase();
-  return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
 }
 
 function HeaderSkeleton() {

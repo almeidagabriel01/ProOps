@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedGradientText } from "@/components/ui/animated-text";
 import type { User } from "@/types";
 import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
@@ -58,34 +59,41 @@ export function NicheHero({ hero, currentUser, isAuthLoading }: NicheHeroProps) 
           {hero.subtitle}
         </motion.p>
 
-        {!isAuthLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.3 }}
-            transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-wrap items-center justify-center gap-4"
-          >
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-                <Link href={appHref}>{primaryLabel}</Link>
-              </Button>
-            </motion.div>
-
-            {showSecondaryCta && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.3 }}
+          transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="flex min-h-[52px] flex-wrap items-center justify-center gap-4"
+        >
+          {isAuthLoading ? (
+            <>
+              <Skeleton className="h-12 w-44 rounded-full" />
+              <Skeleton className="h-12 w-44 rounded-full" />
+            </>
+          ) : (
+            <>
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="btn-sweep rounded-full px-8 font-semibold border-black/20 text-black hover:bg-black/[0.04] dark:border-white/20 dark:text-white dark:hover:bg-white/[0.06]"
-                >
-                  <Link href={hero.secondaryCta.href}>{hero.secondaryCta.label}</Link>
+                <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
+                  <Link href={appHref}>{primaryLabel}</Link>
                 </Button>
               </motion.div>
-            )}
-          </motion.div>
-        )}
+
+              {showSecondaryCta && (
+                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="btn-sweep rounded-full px-8 font-semibold border-black/20 text-black hover:bg-black/[0.04] dark:border-white/20 dark:text-white dark:hover:bg-white/[0.06]"
+                  >
+                    <Link href={hero.secondaryCta.href}>{hero.secondaryCta.label}</Link>
+                  </Button>
+                </motion.div>
+              )}
+            </>
+          )}
+        </motion.div>
       </div>
     </section>
   );

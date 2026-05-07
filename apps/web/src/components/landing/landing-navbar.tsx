@@ -2,12 +2,25 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
+import { getUserColor, getInitials } from "@/lib/avatar-utils";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -27,6 +40,8 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const [mobileOpen, setMobileOpen] = useState(false);
   const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
+  const router = useRouter();
+  const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isFreeAccount = currentUser?.role === "free";
 
@@ -143,39 +158,81 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
               ))}
             </div>
 
+            {/* Right cluster: [Auth Slot] [Theme Toggle] [Mobile Menu] */}
             <div className="flex shrink-0 items-center gap-3">
+              {/* Auth slot — desktop sm+ */}
               <div className="hidden items-center gap-3 sm:flex">
-                <AnimatedThemeToggler
-                  className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
-                  aria-label="Alternar tema"
-                />
-
-                {isAuthLoading ? null : currentUser ? (
+                {isAuthLoading ? (
                   <>
-                    {isFreeAccount ? (
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-4 w-24 rounded-full" />
+                  </>
+                ) : currentUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        onClick={() => scrollToAnchor("#pricing")}
-                        className="text-[13px] cursor-pointer font-medium text-black/65 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white"
+                        className="flex items-center gap-2 rounded-full px-2 py-1 text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white"
                       >
-                        Ver planos
+                        <Avatar className="h-7 w-7 border border-black/10 dark:border-white/10">
+                          {logoUrl ? (
+                            <AvatarImage
+                              src={logoUrl}
+                              alt={companyName}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <AvatarFallback
+                              className="text-[10px] font-medium text-white"
+                              style={{ backgroundColor: getUserColor(avatarSeed) }}
+                            >
+                              {getInitials(avatarSeed)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="max-w-[120px] truncate text-[13px] font-medium">
+                          {companyName}
+                        </span>
+                        <ChevronDown className="h-3 w-3 opacity-50" />
                       </button>
-                    ) : (
-                      <Link
-                        href={appHref}
-                        className="text-[13px] font-medium text-black/65 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white"
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuLabel className="font-normal">
+                        <p className="text-xs text-muted-foreground truncate">{companyName}</p>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {isFreeAccount ? (
+                        <DropdownMenuItem
+                          onClick={() => scrollToAnchor("#pricing")}
+                          className="cursor-pointer"
+                        >
+                          Ver planos
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          onClick={() => router.push(appHref)}
+                          className="cursor-pointer"
+                        >
+                          Entrar no ERP
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => router.push("/profile")}
+                        className="cursor-pointer"
                       >
-                        Entrar no ERP
-                      </Link>
-                    )}
-
-                    <button
-                      onClick={onSignOut}
-                      className="rounded-full cursor-pointer bg-black px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black/85 dark:bg-white dark:text-black dark:hover:bg-white/90"
-                    >
-                      Sair
-                    </button>
-                  </>
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        Meu Perfil
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={onSignOut}
+                        className="cursor-pointer text-red-600 focus:text-red-600"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Sair
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : (
                   <Link
                     href="/login"
@@ -186,8 +243,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 )}
               </div>
 
+              {/* Single theme toggle for all breakpoints */}
               <AnimatedThemeToggler
-                className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white md:hidden"
+                className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
                 aria-label="Alternar tema"
               />
 
@@ -242,8 +300,16 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 transition={{ delay: 0.3, duration: 0.3 }}
                 className="mt-4 flex flex-col items-center gap-4"
               >
-                {isAuthLoading ? null : currentUser ? (
+                {isAuthLoading ? (
                   <>
+                    <Skeleton className="h-5 w-32 rounded-full" />
+                    <Skeleton className="h-10 w-36 rounded-full" />
+                  </>
+                ) : currentUser ? (
+                  <>
+                    <span className="text-sm text-black/50 dark:text-white/50 truncate max-w-[200px]">
+                      {companyName}
+                    </span>
                     {isFreeAccount ? (
                       <button
                         type="button"
