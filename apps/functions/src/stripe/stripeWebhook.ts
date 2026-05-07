@@ -131,6 +131,8 @@ async function syncTenantPlanBillingSnapshot(params: {
   stripePriceId?: string;
   /** When true, clears scheduledPlan/At/Reason (use for upgrades and fresh checkouts only). */
   clearScheduled?: boolean;
+  /** When provided, persisted as currentPeriodEnd on the tenant doc. */
+  currentPeriodEnd?: Date;
 }): Promise<void> {
   const tenantId = String(params.tenantId || "").trim();
   if (!tenantId) return;
@@ -166,6 +168,7 @@ async function syncTenantPlanBillingSnapshot(params: {
     const patch: Record<string, unknown> = {
       ...lifecyclePatch,
       updatedAt: nowIso,
+      ...(params.currentPeriodEnd && { currentPeriodEnd: params.currentPeriodEnd.toISOString() }),
     };
     if (derivedTier) {
       patch.plan = derivedTier;
@@ -605,6 +608,7 @@ async function handleCheckoutCompleted(
       subscriptionStatus: subscription.status,
       stripePriceId: extractPrimaryPriceId(subscription),
       clearScheduled: true, // fresh checkout supersedes any pending transition
+      currentPeriodEnd,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     return;
@@ -787,6 +791,7 @@ async function handleSubscriptionUpdated(
       subscriptionStatus: subscription.status,
       stripePriceId: primaryPriceId,
       clearScheduled: true,
+      currentPeriodEnd,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   }
@@ -926,11 +931,15 @@ async function handleSubscriptionCreated(
     whatsappOverageSubscriptionItemId: whatsappItem?.id,
   });
 
+  const createdPeriodEnd = (subscription as any).current_period_end
+    ? new Date((subscription as any).current_period_end * 1000)
+    : undefined;
   await syncTenantPlanBillingSnapshot({
     tenantId,
     subscriptionStatus: subscription.status,
     stripePriceId: extractPrimaryPriceId(subscription),
     clearScheduled: true, // new subscription supersedes any pending transition
+    currentPeriodEnd: createdPeriodEnd,
   });
   invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   console.log(
@@ -958,11 +967,15 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   try {
     const stripe = getStripe();
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const invoicePeriodEnd = (subscription as any).current_period_end
+      ? new Date((subscription as any).current_period_end * 1000)
+      : undefined;
     await syncTenantPlanBillingSnapshot({
       tenantId,
       subscriptionStatus: subscription.status,
       stripePriceId: extractPrimaryPriceId(subscription),
       // Do NOT pass clearScheduled: routine invoice payment must NOT wipe pending deferral
+      currentPeriodEnd: invoicePeriodEnd,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     console.log(

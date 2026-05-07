@@ -369,6 +369,17 @@ export async function runStripeSync(
           currentPeriodEnd,
           subscription.cancel_at_period_end,
         );
+        const tenantId = userData.tenantId;
+        if (tenantId) {
+          await db.collection("tenants").doc(tenantId).set(
+            {
+              subscriptionStatus: subscription.status,
+              currentPeriodEnd: currentPeriodEnd.toISOString(),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true },
+          );
+        }
       }
 
       synced += 1;
