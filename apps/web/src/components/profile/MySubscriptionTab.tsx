@@ -232,13 +232,16 @@ export function MySubscriptionTab({
   };
 
   const handleConfirmCancelSubscription = async () => {
+    const isPastDueCancel = subscriptionStatus === "past_due";
     setIsCancellingSubscription(true);
     try {
       const { StripeService } = await import("@/services/stripe-service");
       const result = await StripeService.cancelSubscription();
       if (result.success) {
         toast.success(
-          "Cancelamento agendado! Seu acesso continua até o final do período pago.",
+          isPastDueCancel
+            ? "Assinatura cancelada. Seu acesso foi encerrado."
+            : "Cancelamento agendado! Seu acesso continua até o final do período pago.",
         );
         setSubscriptionToCancel(false);
         setTimeout(() => window.location.reload(), 2000);
@@ -838,16 +841,25 @@ export function MySubscriptionTab({
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Assinatura?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja cancelar sua assinatura do plano{" "}
-              <strong>{effectivePlan?.name}</strong>?
-              <br />
-              <br />
-              Seu acesso continuará ativo até{" "}
-              <strong>
-                {subscriptionCancelDate || "o final do período já pago"}
-              </strong>
-              . Após essa data, sua assinatura não será renovada automaticamente
-              e você será movido para o plano gratuito.
+              {subscriptionStatus === "past_due" ? (
+                <>
+                  Você está com pagamento pendente. Ao cancelar, seu acesso
+                  será encerrado imediatamente.
+                </>
+              ) : (
+                <>
+                  Tem certeza que deseja cancelar sua assinatura do plano{" "}
+                  <strong>{effectivePlan?.name}</strong>?
+                  <br />
+                  <br />
+                  Seu acesso continuará ativo até{" "}
+                  <strong>
+                    {subscriptionCancelDate || "o final do período já pago"}
+                  </strong>
+                  . Após essa data, sua assinatura não será renovada
+                  automaticamente e você será movido para o plano gratuito.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -867,6 +879,8 @@ export function MySubscriptionTab({
                   <Loader size="sm" className="mr-2" />
                   Cancelando...
                 </>
+              ) : subscriptionStatus === "past_due" ? (
+                "Sim, cancelar agora"
               ) : (
                 "Sim, cancelar assinatura"
               )}
