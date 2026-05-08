@@ -176,6 +176,12 @@ export async function middleware(request: NextRequest) {
           resp.headers.set("Cache-Control", "no-store");
           return resp;
         }
+      } else {
+        // billing-status returned a non-2xx HTTP error — fail closed to prevent bypass.
+        const blockedUrl = new URL("/subscription-blocked", request.url);
+        const resp = NextResponse.redirect(blockedUrl);
+        resp.headers.set("Cache-Control", "no-store");
+        return resp;
       }
     } catch {
       // Billing check infrastructure error — fail closed to prevent bypass.

@@ -9,7 +9,13 @@ export interface BillingClaimsUpdate {
 
 // past_due intentionally excluded: user still needs a valid session to access
 // the billing portal and fix payment. Revoke only on hard terminal statuses.
-const REVOKE_TOKEN_STATUSES = new Set(["canceled", "unpaid", "inactive"]);
+const REVOKE_TOKEN_STATUSES = new Set([
+  "canceled",
+  "cancelled", // British spelling — mirrors BLOCKED_STATUSES in billing-status route
+  "unpaid",
+  "inactive",
+  "payment_failed",
+]);
 
 const BATCH_CONCURRENCY = 20;
 const BATCH_SIZE = 100;

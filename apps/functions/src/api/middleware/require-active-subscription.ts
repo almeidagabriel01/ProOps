@@ -27,7 +27,7 @@ const WHITELISTED_PREFIXES = [
   "/v1/auth/",
   "/v1/billing/",
   "/v1/validation/",
-  "/v1/aux/",
+  "/v1/aux/proxy-image", // proxy-image is public; other /v1/aux/* routes are authenticated mutations
   "/health",
   "/internal/",
   "/authenticated",
