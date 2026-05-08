@@ -353,11 +353,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Firebase SDK silently refreshes the ID token every ~55 min.
     // We must keep the __session cookie in sync so the middleware
     // doesn't reject the next server-side navigation.
+    // Also checks billing claims — if the refreshed token carries a blocked
+    // subscriptionStatus (written by billing-claims.ts on cancel), sign out immediately.
+    const BLOCKED_SUBSCRIPTION_STATUSES = [
+      "canceled",
+      "cancelled",
+      "unpaid",
+      "inactive",
+      "payment_failed",
+    ];
     const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
       const skipEmailVerification =
         process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
       if (firebaseUser.emailVerified || skipEmailVerification) {
+        try {
+          const tokenResult = await firebaseUser.getIdTokenResult();
+          const subStatus = String(
+            tokenResult.claims.subscriptionStatus || "",
+          );
+          if (BLOCKED_SUBSCRIPTION_STATUSES.includes(subStatus)) {
+            await signOut(auth);
+            window.location.replace("/subscription-blocked");
+            return;
+          }
+        } catch {
+          // Token revoked — onAuthStateChanged fires with null, triggering sign-out.
+        }
         await syncServerSession(firebaseUser);
       }
     });

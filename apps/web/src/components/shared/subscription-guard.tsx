@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { CreditCard, Clock, Package } from "lucide-react";
+import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
 import { useRouter } from "next/navigation";
@@ -104,17 +105,17 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     ];
 
     if (subscriptionStatus && blockedStatuses.includes(subscriptionStatus)) {
-      router.push("/subscription-blocked");
+      router.replace("/subscription-blocked");
       return;
     }
 
     if (subscriptionStatus === "past_due" && isGracePeriodExpired) {
-      router.push("/subscription-blocked");
+      router.replace("/subscription-blocked");
       return;
     }
 
     if (isScheduledCancellationExpired) {
-      router.push("/subscription-blocked");
+      router.replace("/subscription-blocked");
     }
   }, [
     subscriptionStatus,
@@ -148,7 +149,14 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   };
 
   if (isLoading) {
-    return <>{children}</>;
+    return (
+      <div
+        className="flex h-full items-center justify-center"
+        data-testid="subscription-guard-checking"
+      >
+        <Loader size="lg" />
+      </div>
+    );
   }
 
   return (
