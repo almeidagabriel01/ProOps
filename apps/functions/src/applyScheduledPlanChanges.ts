@@ -103,6 +103,12 @@ export const applyScheduledPlanChanges = onSchedule(
                 scheduledPlanAt: null,
                 scheduledPlanReason: null,
                 updatedAt: new Date().toISOString(),
+                // Phase 19: write subscription.* counterparts inside SAME transaction (Pitfall 5 — no nested transactions)
+                "subscription.plan": scheduledTier,
+                "subscription.scheduledPlan": null,
+                "subscription.scheduledPlanAt": null,
+                "subscription.scheduledPlanReason": null,
+                "subscription.syncedAt": new Date().toISOString(),
               },
               { merge: true },
             );

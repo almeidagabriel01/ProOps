@@ -6,8 +6,7 @@ import {
   upsertTenantStripeBillingData,
   mapStripeSubscriptionStatus,
 } from "../stripe/stripeHelpers";
-import { clearTenantPlanCache } from "../lib/tenant-plan-policy";
-import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
+import { syncTenantPlanBillingSnapshot } from "../stripe/stripeWebhook";
 import { logger } from "../lib/logger";
 import {
   mapStripeStatusToBilling,
@@ -165,25 +164,20 @@ export async function syncTenantBillingFromStripe(
 
     const adminUid = usersQuery.empty ? null : usersQuery.docs[0].id;
 
-    const now = new Date().toISOString();
-    const tenantPatch: Record<string, unknown> = {
-      stripeCustomerId,
-      stripeSubscriptionId: canonical.id,
+    await syncTenantPlanBillingSnapshot({
+      tenantId: tid,
       subscriptionStatus: billingStatus,
-      stripePriceId,
-      priceId: stripePriceId,
-      plan,
-      billingInterval,
-      currentPeriodEnd,
+      stripePriceId: stripePriceId ?? undefined,
+      stripeCustomerId: stripeCustomerId ?? undefined,
+      stripeSubscriptionId: canonical.id,
+      currentPeriodEnd: currentPeriodEndDate,
       cancelAtPeriodEnd,
-      pastDueSince,
-      trialEndsAt,
-      billingSyncedAt: now,
-      billingSyncing: false,
-      updatedAt: now,
-    };
-
-    await tenantRef.set(tenantPatch, { merge: true });
+      pastDueSince: pastDueSince ?? null,
+      trialEndsAt: trialEndsAt ?? null,
+      plan: plan as import("../lib/tenant-plan-policy").TenantPlanTier,
+      billingInterval,
+      source: "cron.checkStripeSubscriptions",
+    });
 
     const whatsappItem = canonical.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
@@ -209,14 +203,7 @@ export async function syncTenantBillingFromStripe(
       );
     }
 
-    clearTenantPlanCache(tid);
-
-    const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tid);
-    await db
-      .collection("tenants")
-      .doc(tid)
-      .set({ whatsappEnabled: allowsWhatsApp }, { merge: true });
-
+    const now = new Date().toISOString();
     const snapshot: BillingSnapshot = {
       tenantId: tid,
       stripeCustomerId,
