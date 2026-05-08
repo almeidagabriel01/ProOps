@@ -490,23 +490,60 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
+    // Phase 19 canonical field — no fallback to top-level tenantData.subscriptionStatus.
+    const subscriptionMap = (tenantData?.subscription || {}) as Record<string, unknown>;
+    const subscriptionStatus = String(subscriptionMap.status || "").trim().toLowerCase();
+
+    const nowIso = new Date().toISOString();
+
+    if (subscriptionStatus === "past_due") {
+      // STATE-03: past_due → immediate cancel. Access ends NOW.
+      await stripe.subscriptions.cancel(stripeSubscriptionId);
+
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        source: "controller.cancelSubscription.past_due_immediate",
+        subscriptionStatus: "canceled",
+        plan: "free",
+        stripeSubscriptionId: null,
+        cancelAtPeriodEnd: false,
+        pastDueSince: null,
+      });
+
+      console.log(
+        `[cancelSubscription] past_due immediate cancel`,
+        JSON.stringify({ userId, tenantId, subscriptionId: stripeSubscriptionId }),
+      );
+
+      return res.json({
+        success: true,
+        message: "Subscription canceled immediately",
+        cancelAt: nowIso,
+      });
+    }
+
+    // Default path (active / trialing / etc.) — at-period-end cancel.
     const subscription = await stripe.subscriptions.update(stripeSubscriptionId, {
       cancel_at_period_end: true,
     });
 
-    const currentPeriodEnd = new Date(
-      (subscription as any).current_period_end * 1000,
-    ).toISOString();
-    const nowIso = new Date().toISOString();
+    const currentPeriodEndMs = (subscription as any).current_period_end * 1000;
+    const cancelAtSeconds = (subscription as any).cancel_at as number | null | undefined;
+    // Prefer Stripe's cancel_at (set when cancel_at_period_end=true); fall back to current_period_end.
+    const cancelAtDate = cancelAtSeconds
+      ? new Date(cancelAtSeconds * 1000)
+      : new Date(currentPeriodEndMs);
+    const currentPeriodEnd = new Date(currentPeriodEndMs).toISOString();
 
     await syncTenantPlanBillingSnapshot({
       tenantId,
-      subscriptionStatus: "active", // unchanged status; cancel scheduled for period end
+      source: "controller.cancelSubscription",
+      subscriptionStatus: "active", // unchanged — cancel scheduled for period end
       stripeSubscriptionId: subscription.id,
       cancelAtPeriodEnd: true,
+      cancelAt: cancelAtDate,            // NEW — populates subscription.cancelAt for yellow banner
       cancelScheduledAt: nowIso,
-      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
-      source: "controller.cancelSubscription",
+      currentPeriodEnd: new Date(currentPeriodEndMs),
     });
     await userRef.set(
       {
@@ -528,7 +565,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       success: true,
       message:
         "Subscription will be cancelled at the end of the billing period",
-      cancelAt: currentPeriodEnd,
+      cancelAt: cancelAtDate.toISOString(),
     });
   } catch (error: unknown) {
     console.error("[cancelSubscription] Error:", error);

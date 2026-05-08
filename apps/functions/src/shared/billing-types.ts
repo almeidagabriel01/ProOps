@@ -81,6 +81,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
     | "webhook.invoice.payment_failed"
     | "webhook.checkout.completed"
     | "controller.cancelSubscription"
+    | "controller.cancelSubscription.past_due_immediate"
     | "controller.syncSubscription"
     | "controller.confirmCheckoutSession"
     | "controller.createCheckoutSession"
