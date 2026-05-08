@@ -24,6 +24,7 @@ import {
   maybeAutoEnableWhatsApp,
   tenantPlanAllowsWhatsApp,
 } from "../../lib/whatsapp-eligibility";
+import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -1164,24 +1165,53 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     if (tenantId) {
       try {
         const tenantRef = db.collection("tenants").doc(tenantId);
-        const tenantPlanFields: Record<string, unknown> = {
-          planId,
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        // Write plan field directly when planId is a recognizable tier name —
-        // keeps plan and planId in sync so the resolver always reads the right tier.
         const tierFromPlanId = normalizePlanTier(planId);
+
+        // Read existing tenant doc BEFORE any writes — we need the current
+        // subscriptionStatus to pass to the single writer (the writer requires it
+        // and we have no Stripe context here). Pattern matches
+        // billing-sync.service.ts and stripeHelpers.upsertTenantStripeBillingData.
+        const tenantSnap = await tenantRef.get();
+        const tenantData = (tenantSnap.data() || {}) as Record<string, unknown>;
+        const existingSubscriptionStatus =
+          typeof tenantData.subscriptionStatus === "string" &&
+          tenantData.subscriptionStatus.trim()
+            ? (tenantData.subscriptionStatus as string)
+            : "active";
+
+        // (1) Write planId (raw Stripe price-id pointer) directly — NOT a
+        // billing-state field per Phase 19 schema. The plan tier is routed
+        // through the single writer below.
+        await tenantRef.set(
+          {
+            // EXEMPT: planId is a raw price-id pointer, not a Phase 19 billing-state field
+            planId,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        // (2) Route the plan tier through the single writer. We use
+        // tierFromPlanId (= normalizePlanTier(planId), computed at the top of
+        // the try block) directly — DO NOT call getTenantPlanProfile here, as
+        // it reads tenantData.plan first and would return the STALE tier
+        // (the doc has not been updated with the new tier yet). The single
+        // writer handles clearTenantPlanCache + whatsappEnabled second-write
+        // internally (Pitfall 2) — do NOT duplicate them in this block.
         if (tierFromPlanId) {
-          tenantPlanFields.plan = tierFromPlanId;
+          await syncTenantPlanBillingSnapshot({
+            tenantId,
+            subscriptionStatus: existingSubscriptionStatus,
+            plan: tierFromPlanId,
+            source: "admin.updateUserPlan",
+          });
+        } else {
+          // planId is not a recognizable tier (custom/legacy price-id) —
+          // clear the plan cache so the next read picks up planId via the
+          // resolver chain in tenant-plan-policy.ts. We do not pass plan: to
+          // the writer because we do not have a valid TenantPlanTier value.
+          clearTenantPlanCache(tenantId);
         }
-        await tenantRef.set(tenantPlanFields, { merge: true });
-        clearTenantPlanCache(tenantId);
-        const profile = await getTenantPlanProfile(tenantId);
-        const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
-        await tenantRef.update({
-          plan: profile.tier,
-          whatsappEnabled: allowsWhatsApp,
-        });
       } catch (syncErr) {
         logger.error(
           `[updateUserPlan] Failed to sync tenant plan for user ${userId}`,
@@ -2015,8 +2045,16 @@ export const recomputeTenantFeatures = async (
     const profile = await getTenantPlanProfile(tenantId);
     const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
 
+    // EXEMPT: recomputeTenantFeatures re-asserts plan from cache with no
+    // subscription-state mutation. profile.tier is read from getTenantPlanProfile
+    // (which reads the existing tenant plan, not Stripe) — routing through
+    // syncTenantPlanBillingSnapshot would require a synthetic subscriptionStatus
+    // and produce no behavior change. Remaining fields (whatsappEnabled,
+    // featuresRecomputedAt) are non-billing-state per Phase 19 schema —
+    // whatsappEnabled is the Pitfall 2 carve-out, featuresRecomputedAt is a
+    // recompute timestamp. plan field is intentionally NOT written here so the
+    // single writer remains the only path that mutates billing-state plan.
     await tenantRef.update({
-      plan: profile.tier,
       whatsappEnabled: allowsWhatsApp,
       featuresRecomputedAt: new Date().toISOString(),
     });
@@ -2070,20 +2108,46 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
       });
     }
 
-    clearTenantPlanCache(tenantId);
-    const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+    // Read existing subscriptionStatus from the doc we already loaded above.
+    // forceSetTenantPlan is a manual-subscription override (guard above ensures
+    // tenantData.isManualSubscription === true), so subscription is "active" by
+    // virtue of the operator invoking this endpoint. Use existing status when
+    // present, fall back to "active" when the field is missing or empty.
+    const existingSubscriptionStatus =
+      typeof tenantData.subscriptionStatus === "string" &&
+      tenantData.subscriptionStatus.trim()
+        ? (tenantData.subscriptionStatus as string)
+        : "active";
 
-    await tenantRef.update({
+    // Phase 19 single-writer: route plan + scheduled fields through the single
+    // writer so subscription.* stays in sync. clearScheduled: true clears
+    // scheduledPlan/At/Reason inside the same transaction. The writer handles
+    // clearTenantPlanCache + whatsappEnabled second-write internally.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: existingSubscriptionStatus,
       plan: tier,
-      scheduledPlan: null,
-      scheduledPlanAt: null,
-      scheduledPlanReason: null,
-      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
-      featuresRecomputedAt: new Date().toISOString(),
+      clearScheduled: true,
+      source: "admin.forceSetTenantPlan",
     });
 
-    // Clear cache again after write so next read reflects new plan.
-    clearTenantPlanCache(tenantId);
+    // Enterprise tier always allows WhatsApp; the single writer's internal
+    // whatsappEnabled re-evaluation already handled allowsWhatsApp for non-
+    // enterprise tiers. The enterprise-true override is preserved here for
+    // parity with previous behavior. featuresRecomputedAt is a non-billing-
+    // state recompute marker in both branches.
+    if (tier === "enterprise") {
+      // EXEMPT: whatsappEnabled enterprise override + featuresRecomputedAt are non-billing-state fields
+      await tenantRef.update({
+        whatsappEnabled: true,
+        featuresRecomputedAt: new Date().toISOString(),
+      });
+    } else {
+      // EXEMPT: featuresRecomputedAt is a non-billing-state recompute marker
+      await tenantRef.update({
+        featuresRecomputedAt: new Date().toISOString(),
+      });
+    }
 
     logger.info("[forceSetTenantPlan] plan forced", {
       tenantId,
@@ -2094,7 +2158,7 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
     return res.json({
       tenantId,
       tier,
-      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
+      whatsappEnabled: tier === "enterprise" ? true : await tenantPlanAllowsWhatsApp(tenantId),
     });
   } catch (err) {
     logger.error("[forceSetTenantPlan] failed", {

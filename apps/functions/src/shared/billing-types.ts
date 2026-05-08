@@ -89,5 +89,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
     | "helpers.updateUserPlan"
     | "helpers.runStripeSync"
     | "helpers.upsertTenantStripeBillingData"
-    | "on_demand";
+    | "on_demand"
+    | "admin.updateUserPlan"
+    | "admin.forceSetTenantPlan";
 }
