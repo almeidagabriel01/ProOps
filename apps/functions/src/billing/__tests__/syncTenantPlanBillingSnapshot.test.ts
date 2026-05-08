@@ -276,6 +276,7 @@ describe("Phase 19 Plan 03 — phase-gate audit", () => {
       "billing/billing-sync.service.ts",
       "api/controllers/stripe.controller.ts",
       "stripe/stripeHelpers.ts",
+      "api/controllers/admin.controller.ts",
     ];
     for (const f of consolidatedFiles) {
       const content = fs.readFileSync(path.join(root, f), "utf8");
@@ -329,11 +330,107 @@ describe("Phase 19 Plan 03 — phase-gate audit", () => {
       ["stripe/stripeHelpers.ts", "helpers.updateUserPlan"],
       ["stripe/stripeHelpers.ts", "helpers.runStripeSync"],
       ["stripe/stripeHelpers.ts", "helpers.upsertTenantStripeBillingData"],
+      ["api/controllers/admin.controller.ts", "admin.updateUserPlan"],
+      ["api/controllers/admin.controller.ts", "admin.forceSetTenantPlan"],
     ];
 
     for (const [file, tag] of expectedTags) {
       const content = fs.readFileSync(path.join(root, file), "utf8");
       expect(content).toContain(tag);
+    }
+  });
+
+  it("Plan 06 gap closure — admin.controller.ts has no naked billing-state writes", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    const adminContent = fs.readFileSync(
+      path.join(root, "api/controllers/admin.controller.ts"),
+      "utf8",
+    );
+
+    // 1. The recomputeTenantFeatures direct write must carry the EXEMPT comment
+    //    that justifies the remaining (non-billing-state) write.
+    expect(adminContent).toMatch(
+      /EXEMPT:\s*recomputeTenantFeatures re-asserts plan from cache/,
+    );
+
+    // 2. The planId direct write inside updateUserPlan must carry an EXEMPT
+    //    comment explaining planId is a raw price-id pointer, not billing state.
+    expect(adminContent).toMatch(
+      /EXEMPT:\s*planId is a raw price-id pointer/,
+    );
+
+    // 3. forceSetTenantPlan must clear scheduled fields via the single writer's
+    //    clearScheduled: true flag, not via direct tenantRef writes.
+    const forceFnStart = adminContent.indexOf(
+      "export const forceSetTenantPlan",
+    );
+    expect(forceFnStart).toBeGreaterThan(-1);
+    const forceFnEnd = adminContent.indexOf(
+      "\nexport ",
+      forceFnStart + 1,
+    );
+    const forceFnBody = adminContent.slice(
+      forceFnStart,
+      forceFnEnd === -1 ? adminContent.length : forceFnEnd,
+    );
+    expect(forceFnBody).toMatch(/clearScheduled:\s*true/);
+    expect(forceFnBody).toMatch(/source:\s*"admin\.forceSetTenantPlan"/);
+
+    // 3b. forceSetTenantPlan post-writer EXEMPT comments — both branches of the
+    //     enterprise/non-enterprise if must carry an EXEMPT comment for parity
+    //     with the Plan 03 audit pattern.
+    expect(forceFnBody).toMatch(
+      /EXEMPT:\s*whatsappEnabled enterprise override/,
+    );
+    expect(forceFnBody).toMatch(
+      /EXEMPT:\s*featuresRecomputedAt is a non-billing-state recompute marker/,
+    );
+
+    // 4. Inside forceSetTenantPlan, no direct tenantRef.update may carry the
+    //    bare scheduledPlan / scheduledPlanAt / scheduledPlanReason fields —
+    //    those are now cleared via clearScheduled inside the single writer.
+    const directWriteRe = /tenantRef\.(set|update)\s*\([\s\S]*?\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = directWriteRe.exec(forceFnBody)) !== null) {
+      expect(match[0]).not.toMatch(/scheduledPlan(At|Reason)?\s*:/);
+      expect(match[0]).not.toMatch(/(^|[^.\w])plan\s*:/);
+    }
+
+    // 5. Inside updateUserPlan, no direct tenantRef write may contain a bare
+    //    `plan:` (the tier field) — only the EXEMPT planId pointer is allowed.
+    const updFnStart = adminContent.indexOf("// Sync the new planId");
+    expect(updFnStart).toBeGreaterThan(-1);
+    // Slice ~80 lines forward to bound the search to this function block.
+    const updFnBody = adminContent.slice(updFnStart, updFnStart + 4000);
+    const updWriteRe = /tenantRef\.(set|update)\s*\([\s\S]*?\)/g;
+    let updMatch: RegExpExecArray | null;
+    while ((updMatch = updWriteRe.exec(updFnBody)) !== null) {
+      // bare `plan: <value>` (the tier) is forbidden; planId is allowed.
+      expect(updMatch[0]).not.toMatch(/(^|[^.\w])plan\s*:/);
+    }
+
+    // 6. updateUserPlan must call the single writer with the correct source tag
+    //    AND must pass tierFromPlanId (NOT profile.tier — getTenantPlanProfile
+    //    would resolve to the stale tier after the direct plan write was removed).
+    expect(updFnBody).toMatch(/syncTenantPlanBillingSnapshot\s*\(/);
+    expect(updFnBody).toMatch(/source:\s*"admin\.updateUserPlan"/);
+    expect(updFnBody).toMatch(/plan:\s*tierFromPlanId/);
+    // Negative assertion: the new sync block must NOT pass profile.tier as plan.
+    // (The recomputeTenantFeatures function still reads profile.tier for its
+    // JSON response, but updateUserPlan's single-writer call must not.)
+    const syncCallStart = updFnBody.indexOf("syncTenantPlanBillingSnapshot(");
+    if (syncCallStart > -1) {
+      const syncCallEnd = updFnBody.indexOf("})", syncCallStart);
+      const syncCallBody = updFnBody.slice(
+        syncCallStart,
+        syncCallEnd === -1 ? syncCallStart + 500 : syncCallEnd,
+      );
+      expect(syncCallBody).not.toMatch(/plan:\s*profile\.tier/);
     }
   });
 });
