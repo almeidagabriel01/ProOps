@@ -544,20 +544,22 @@ updatePayload["subscription.cancelAtPeriodEnd"] = cancelAtPeriodEnd ?? false;
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All open questions have been resolved during planning. Resolutions are recorded inline below.
 
 1. **BILL-08: beginStripeEventProcessing is already transactional — what is the actual remaining gap?**
    - What we know: Lines 452-479 of `stripeWebhook.ts` already wrap the check-and-set in `db.runTransaction()`. The race condition CONTEXT.md describes (two instances both read "not processing" and both proceed) is already fixed by the existing transaction.
    - What's unclear: CONTEXT.md says "wrap the check-and-set in `db.runTransaction()`" as if this isn't done. The actual unaddressed gap is the 5-minute stuck-processing window in `shouldSkipStripeEventRecord` (lines 309-327) — a crashed-mid-processing event will not be retried for 5 minutes, and Stripe may exhaust its retry schedule within that window.
-   - Recommendation: During planning, confirm with the user whether BILL-08 means (a) verify the transaction is present + write the emulator replay test only (no code change needed to the transaction), or (b) also address the 5-minute stuck window (e.g., shorten the window, or add a recovery mechanism). Do NOT assume.
+   - **RESOLVED:** Plan 01 locks BILL-08 scope to the unit-level `shouldSkipStripeEventRecord` predicate tests + a single emulator replay test that drives `beginStripeEventProcessing` directly. The 5-minute stuck-processing window is documented as ACCEPTED RISK (Stripe retry schedule >> 5 min, eventual recovery occurs after window expiry) — no production code change to the window in Phase 19. Plan 05 closes this gap by exporting `beginStripeEventProcessing` (added to Plan 02) and writing the emulator replay assertion via the primary branch (no fallback path).
 
 2. **applyScheduledPlanChanges.ts: add subscription.* writes directly inside its existing transaction**
    - What we know: This cron uses `db.runTransaction()` for its own writes. Calling `syncTenantPlanBillingSnapshot` (which also calls `db.runTransaction()`) from inside an active transaction is not supported in Firebase Admin SDK.
-   - Recommendation: Add `subscription.plan`, `subscription.scheduledPlan`, `subscription.scheduledPlanAt`, `subscription.scheduledPlanReason` writes directly inside the cron's existing transaction callback. This keeps the cron's write atomic and avoids nested transaction issues.
+   - **RESOLVED:** Plan 03 Task 1 Part B adds `subscription.plan`, `subscription.scheduledPlan`, `subscription.scheduledPlanAt`, `subscription.scheduledPlanReason`, `subscription.syncedAt` writes directly inside the cron's existing `tx.set(tenantRef, {...})` call using Firestore dotted-key notation (e.g., `"subscription.plan": scheduledTier`). NO nested transactions are introduced; NO call to `syncTenantPlanBillingSnapshot` from inside the cron transaction. The cron's outside-tx `whatsappEnabled` update is preserved as-is (Pitfall 2 pattern).
 
 3. **stripeHelpers.ts writers: direct import of syncTenantPlanBillingSnapshot or routing through billing-sync.service.ts?**
    - What we know: `updateUserPlan`, `runStripeSync`, and `upsertTenantStripeBillingData` in `stripeHelpers.ts` all write billing fields directly. `syncTenantPlanBillingSnapshot` is currently defined in `stripeWebhook.ts`.
-   - Recommendation: Move `syncTenantPlanBillingSnapshot` (and its supporting types) to a dedicated `billing-writer.ts` or `billing-types.ts` shared file so that `stripeHelpers.ts` and other files can import it without a circular dependency on `stripeWebhook.ts`. Alternatively, keep it in `stripeWebhook.ts` and import from there — verify no circular dependency exists before deciding.
+   - **RESOLVED:** Plan 03 Task 2 handles the consolidation. `syncTenantPlanBillingSnapshot` STAYS in `stripeWebhook.ts` (Plan 02 promotes it to a named export); `stripeHelpers.ts` callers (`updateUserPlan`, `runStripeSync`) import from `"./stripeWebhook"`. Direct file read confirmed no circular dependency: `stripeWebhook.ts` does NOT import from `stripeHelpers.ts`. `upsertTenantStripeBillingData` is intentionally kept as a direct write with `// PHASE 19 EXEMPT:` comment (addon-item-id upsert without an in-scope subscriptionStatus argument). No new shared `billing-writer.ts` module is introduced.
 
 ---
 

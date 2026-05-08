@@ -381,7 +381,13 @@ Plans:
 4. A duplicate Stripe event (same `eventId`) processed a second time returns HTTP 200 without re-executing any business logic — verified by replaying an event in the emulator
 
 **Architecture note**: Extend `syncTenantPlanBillingSnapshot` — do NOT create a new parallel writer. Both top-level fields and nested `subscription.*` fields must be written in a single `db.runTransaction()` call.
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
+- [ ] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
+- [ ] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
+- [ ] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
+- [ ] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
 
 ### Phase 20: Subscription State Banners + Cancel Enforcement
 
