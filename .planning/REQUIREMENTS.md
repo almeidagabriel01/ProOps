@@ -146,7 +146,7 @@
 
 - [ ] **BILL-06**: Sistema de billing usa escritor único e transacional — todos os caminhos de escrita (webhooks, controller, cron) chamam uma única função que escreve ambas as formas de dados (top-level fields + nested `subscription.*`) atomicamente via `db.runTransaction()`
 - [ ] **BILL-07**: Cache de estado de assinatura usa LRU com limite de 500 entradas e TTL de 30s, substituindo o Map global ilimitado atual
-- [ ] **BILL-08**: Todos os eventos Stripe processados com idempotência via `stripe_events/{eventId}` — replay duplicado retorna 200 sem reprocessar
+- [x] **BILL-08**: Todos os eventos Stripe processados com idempotência via `stripe_events/{eventId}` — replay duplicado retorna 200 sem reprocessar
 
 ### Subscription State UI
 
@@ -271,7 +271,7 @@
 
 | BILL-06  | Phase 19 | Pending  |
 | BILL-07  | Phase 19 | Pending  |
-| BILL-08  | Phase 19 | Pending  |
+| BILL-08  | Phase 19 | Complete |
 | STATE-01 | Phase 20 | Pending  |
 | STATE-02 | Phase 20 | Pending  |
 | STATE-03 | Phase 20 | Pending  |

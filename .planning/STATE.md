@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: executing
-stopped_at: "Completed Phase 19 Plan 02 (19-02-PLAN.md)"
-last_updated: "2026-05-08T00:37:11Z"
+stopped_at: "Completed Phase 19 Plan 05 (19-05-PLAN.md)"
+last_updated: "2026-05-08T01:00:00Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 19 (single-writer-billing-foundation) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ _Updated after each plan completion_
 | Phase 18 P01 | 113 | 2 tasks | 2 files |
 | Phase 18 P03 | 2 | 2 tasks | 4 files |
 | Phase 19 P04 | 35 | 2 tasks | 3 files |
+| Phase 19 P05 | 8 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 19 P02]: syncTenantPlanBillingSnapshot exported with full SyncTenantPlanBillingSnapshotParams; writes subscription.* atomically with top-level fields in one db.runTransaction(); all in-file handlers consolidated through it
 - [Phase 19 P02]: stripeSubscriptionId widened to string | null (both interfaces) — null-clear path needed for handleSubscriptionDeleted subscription reset
 - [Phase 19 P02]: beginStripeEventProcessing promoted to named export (visibility-only); Plan 05 BILL-08 can import it directly without fallback path
+- [Phase 19 P05]: BILL-08 verified via static import of beginStripeEventProcessing (PRIMARY BRANCH); itIfEmulator pattern skips integration test when FIRESTORE_EMULATOR_HOST is unset; finalizeStripeEventProcessing simulated in test via direct Firestore write
 - [Phase 19 P04]: resolvePlanCacheTtlMs() deleted (not deprecated) — noUnusedLocals:true enforced removal; LRU constructor uses hard-coded literal 30_000 per CONTEXT.md lock
 - [Phase 19 P04]: hasTenantPlanCacheForTest uses .get() !== undefined (not .has()) — lru-cache v11 .has() does not reliably check TTL expiry
 - [Phase 19 P04]: LRU TTL test uses real elapsed time (1200ms) — lru-cache v11 perf.now() debounce via setTimeout makes fake timers unreliable for TTL verification
