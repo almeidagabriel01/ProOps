@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, CreditCard, Mail, LogOut, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,29 +21,9 @@ export default function SubscriptionBlockedPage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    const validStatuses = ["active", "trialing"];
-    const isScheduledCancellationExpired =
-      user.cancelAtPeriodEnd &&
-      user.currentPeriodEnd &&
-      !Number.isNaN(new Date(user.currentPeriodEnd).getTime()) &&
-      new Date(user.currentPeriodEnd).getTime() <= Date.now();
-
-    if (
-      user.subscriptionStatus &&
-      validStatuses.includes(user.subscriptionStatus) &&
-      !isScheduledCancellationExpired
-    ) {
-      router.push("/");
-    }
-  }, [user, isLoading, router]);
+  // Redirect logic is now handled server-side in layout.tsx:
+  // - Active subscriptions are redirected to "/" before this page renders.
+  // - Revoked sessions (post-cancel) render this page so the user sees what happened.
 
   const handleManageBilling = async () => {
     if (!user) return;
@@ -100,7 +80,7 @@ export default function SubscriptionBlockedPage() {
     }
   };
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader size="lg" />
@@ -108,6 +88,8 @@ export default function SubscriptionBlockedPage() {
     );
   }
 
+  // user may be null when the session cookie was revoked (post past_due cancel).
+  // The server gate in layout.tsx already verified this user is blocked; render the page.
   const status = getStatusMessage();
   const StatusIcon = status.icon;
 
