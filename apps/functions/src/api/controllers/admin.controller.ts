@@ -1289,6 +1289,29 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
     // Update Subscription
     await db.collection("users").doc(userId).update(safeUpdates);
 
+    // Mirror billing fields to tenant doc so the admin card reads the updated value.
+    // getAllTenantsBilling prefers tenants.currentPeriodEnd over users.currentPeriodEnd,
+    // so without this mirror, manual edits are silently shadowed by the stale tenant value.
+    const userSnap = await db.collection("users").doc(userId).get();
+    const tenantId = userSnap.get("tenantId") as string | undefined;
+    if (tenantId) {
+      const tenantUpdates: Record<string, unknown> = {
+        billingSyncedAt: new Date().toISOString(),
+      };
+      if ("currentPeriodEnd" in safeUpdates)
+        tenantUpdates.currentPeriodEnd = safeUpdates.currentPeriodEnd;
+      if ("subscriptionStatus" in safeUpdates)
+        tenantUpdates.subscriptionStatus = safeUpdates.subscriptionStatus;
+      if ("isManualSubscription" in safeUpdates)
+        tenantUpdates.isManualSubscription = safeUpdates.isManualSubscription;
+      await db.collection("tenants").doc(tenantId).update(tenantUpdates);
+      logger.info("[admin] Manual subscription mirrored to tenant doc", {
+        userId,
+        tenantId,
+        fields: Object.keys(tenantUpdates),
+      });
+    }
+
     return res.json({
       success: true,
       message: "Assinatura atualizada com sucesso.",
