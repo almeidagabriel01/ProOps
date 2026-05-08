@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard } from "lucide-react";
 
@@ -53,17 +54,31 @@ export function BillingStateBanner({
         {icon ?? defaultIcon}
         <span className="text-sm font-medium truncate">{message}</span>
       </div>
-      <Button
-        variant={isDestructive ? "destructive" : "outline"}
-        size="sm"
-        onClick={onCta}
-        disabled={ctaDisabled}
-        title={ctaDisabled ? ctaDisabledTooltip : undefined}
-        className={buttonClass}
-        data-testid={`${dataTestid}-cta`}
-      >
-        {ctaLabel}
-      </Button>
+      {ctaDisabled && ctaDisabledTooltip ? (
+        <Tooltip content={ctaDisabledTooltip} side="top">
+          <Button
+            variant={isDestructive ? "destructive" : "outline"}
+            size="sm"
+            onClick={onCta}
+            disabled
+            className={buttonClass}
+            data-testid={`${dataTestid}-cta`}
+          >
+            {ctaLabel}
+          </Button>
+        </Tooltip>
+      ) : (
+        <Button
+          variant={isDestructive ? "destructive" : "outline"}
+          size="sm"
+          onClick={onCta}
+          disabled={ctaDisabled}
+          className={buttonClass}
+          data-testid={`${dataTestid}-cta`}
+        >
+          {ctaLabel}
+        </Button>
+      )}
     </div>
   );
 }

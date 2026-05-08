@@ -244,7 +244,13 @@ export function MySubscriptionTab({
             : "Cancelamento agendado! Seu acesso continua até o final do período pago.",
         );
         setSubscriptionToCancel(false);
-        setTimeout(() => window.location.reload(), 2000);
+        setTimeout(() => {
+          if (isPastDueCancel) {
+            window.location.href = "/subscription-blocked";
+          } else {
+            window.location.reload();
+          }
+        }, 2000);
       } else {
         throw new Error("Falha no cancelamento");
       }

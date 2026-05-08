@@ -43,9 +43,12 @@ export function ProtectedAppShell({
     }
   }, [user]);
 
-  const cancelAtFormatted = user?.cancelAt
-    ? formatDateBR(user.cancelAt, "—")
-    : "—";
+  const cancelAtFormatted =
+    user?.cancelAt
+      ? formatDateBR(user.cancelAt, "—")
+      : isCancelAtPeriodEnd && user?.currentPeriodEnd
+        ? formatDateBR(user.currentPeriodEnd, "—")
+        : "—";
 
   return (
     <div className="flex h-screen overflow-hidden bg-card">
