@@ -45,14 +45,15 @@ describe("tenant-plan-policy LRU cache (BILL-07)", () => {
     expect(hasTenantPlanCacheForTest("t-500")).toBe(true); // newest present
   });
 
-  it("entry expires after explicit TTL passes", () => {
-    jest.useFakeTimers();
+  it("entry expires after explicit TTL passes", async () => {
+    // lru-cache v11 uses performance.now() for TTL — fake timers are unreliable here.
+    // setTenantPlanCacheForTest enforces Math.max(1_000, ttlMs), so minimum TTL is 1000ms.
+    // We pass 1_000 explicitly and wait 1_200ms to confirm expiry.
     setTenantPlanCacheForTest("t-ttl", fakeProfile("t-ttl"), 1_000);
     expect(hasTenantPlanCacheForTest("t-ttl")).toBe(true);
-    jest.advanceTimersByTime(2_000);
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
     expect(hasTenantPlanCacheForTest("t-ttl")).toBe(false);
-    jest.useRealTimers();
-  });
+  }, 5_000);
 
   it("clearTenantPlanCache(id) removes a single entry", () => {
     setTenantPlanCacheForTest("a", fakeProfile("a"));
