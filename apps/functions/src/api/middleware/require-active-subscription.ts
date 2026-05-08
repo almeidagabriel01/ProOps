@@ -17,7 +17,7 @@ interface CachedBillingState {
 const BILLING_CACHE_MAX_SIZE = 500;
 const billingStateCache = new LRUCache<string, CachedBillingState>({
   max: BILLING_CACHE_MAX_SIZE,
-  ttl: 30_000, // hard-coded per CONTEXT.md decision (LRU cache replacement; no env override)
+  ttl: 5_000, // hard-coded per CONTEXT.md decision (LRU cache replacement; no env override)
 });
 
 const WHITELISTED_PREFIXES = [
@@ -27,11 +27,9 @@ const WHITELISTED_PREFIXES = [
   "/v1/auth/",
   "/v1/billing/",
   "/v1/validation/",
-  "/v1/notifications",
   "/v1/aux/",
   "/health",
   "/internal/",
-  "/v1/ai/",
   "/authenticated",
 ];
 
@@ -72,8 +70,13 @@ export async function requireActiveSubscription(
   }
 
   if (!user.hasRequiredClaims) {
-    next();
-    return;
+    // Auth middleware may have populated tenantId from users-doc fallback.
+    // If tenantId is still absent, we cannot determine subscription — allow.
+    if (!user.tenantId || !user.tenantId.trim()) {
+      next();
+      return;
+    }
+    // Fall through to billing check using the fallback tenantId.
   }
 
   const tenantId = user.tenantId;
