@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: unknown
-stopped_at: Phase 20 context gathered
-last_updated: "2026-05-08T02:37:34.693Z"
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-05-08T14:00:00.000Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 19 — single-writer-billing-foundation
+**Current focus:** Phase 20 — subscription-state-banners-cancel-enforcement
 
 ## Current Position
 
-Phase: 19 (single-writer-billing-foundation) — EXECUTING
-Plan: 1 of 6
+Phase: 20 (subscription-state-banners-cancel-enforcement) — EXECUTING
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ _Updated after each plan completion_
 | Phase 19 P05 | 8 | 1 tasks | 1 files |
 | Phase 19 P03 | 45 | 3 tasks | 5 files |
 | Phase 19 P06 | 15 | 2 tasks | 3 files |
+| Phase 20 P02 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 02-04]: AUTH-05 redirect params stripped by ProtectedRoute client-side router.push('/login') which lacked query params; middleware returns HTTP 200 for App Router shell — client JS layer is the actual redirect mechanism. Fixed router.push to include redirect + redirect_reason params. 18/18 auth suite green.
 - [Phase ?]: [Phase 19 P03]: Single-writer pattern enforced — all tenant billing-state writes route through syncTenantPlanBillingSnapshot; applyScheduledPlanChanges extends existing tx with subscription.* dotted keys (Pitfall 5); upsertTenantStripeBillingData split with EXEMPT comment for addon-item ids
 - [Phase 19 P06]: admin.controller.ts gap closure — updateUserPlan passes tierFromPlanId (not getTenantPlanProfile which reads stale tier); recomputeTenantFeatures EXEMPT (plan field removed, only whatsappEnabled+featuresRecomputedAt); forceSetTenantPlan routes plan+scheduledPlan* through single writer with clearScheduled:true
+- [Phase 20 P02]: cancelSubscription branches on tenantData.subscription?.status (Phase 19 canonical) — no fallback to tenantData.subscriptionStatus; past_due → immediate stripe.subscriptions.cancel() + single writer; at-period-end path now passes cancelAt from Stripe cancel_at field; webhook cancel_at_period_end branch populates cancelAt+cancelAtPeriodEnd; rescind branch clears both
 
 ### v4.0 Architecture Decisions
 
@@ -186,6 +188,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T02:37:34.690Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-subscription-state-banners-cancel-enforcement/20-CONTEXT.md
+Last session: 2026-05-08T14:00:00.000Z
+Stopped at: Completed 20-02-PLAN.md
+Resume file: .planning/phases/20-subscription-state-banners-cancel-enforcement/20-02-SUMMARY.md
