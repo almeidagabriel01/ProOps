@@ -18,9 +18,11 @@ const BLOCKED_STATUSES = new Set([
   "payment_failed",
 ]);
 
-// Module-level cache: survives across requests within the same warm Node.js instance.
-// 5s TTL ensures stale billing state is evicted quickly; max size prevents unbounded growth.
-const CACHE_TTL_MS = 2_000;
+// Cache disabled (TTL=0): in Vercel serverless each route handler is a separate module
+// instance — the invalidate route and this route hold separate Maps, so invalidation
+// never actually cleared this cache. Setting TTL=0 forces every check to read Firestore
+// directly, which is the only reliable gate after cancellation.
+const CACHE_TTL_MS = 0;
 const CACHE_MAX_SIZE = 1_000;
 
 function isGracePeriodActive(pastDueSince: string | null): boolean {
