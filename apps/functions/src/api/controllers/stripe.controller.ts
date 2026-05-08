@@ -493,9 +493,11 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    // Read canonical top-level field; fall back to nested map for legacy compat.
+    // Live Stripe status is source of truth — Firestore may be stale if the
+    // invoice.payment_failed webhook hasn't processed yet (e.g. past_due not synced).
     const subscriptionStatus = String(
-      tenantData?.subscriptionStatus ||
+      existingSubscription.status ||
+        tenantData?.subscriptionStatus ||
         ((tenantData?.subscription as Record<string, unknown> | undefined)
           ?.status ?? ""),
     ).trim().toLowerCase();
