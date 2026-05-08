@@ -114,6 +114,20 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     }
   }, [isBlocked, router]);
 
+  // bfcache restoration guard: when the browser restores a page from the
+  // back-forward cache (event.persisted === true), React state is stale.
+  // If the subscription became blocked while the page was cached, force a
+  // navigation to /subscription-blocked so the user never sees protected content.
+  React.useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && isBlocked) {
+        router.replace("/subscription-blocked");
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [isBlocked, router]);
+
   const addonWarnings = React.useMemo(() => {
     return pastDueAddons.filter((info) => !info.isExpired);
   }, [pastDueAddons]);
