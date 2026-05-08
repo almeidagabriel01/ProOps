@@ -69,7 +69,7 @@ completed: 2026-05-08
 
 1. **Task 1: Replace Wave 0 BILL-08 scaffold with unit + emulator integration tests** - `864c13de` (test)
 
-**Plan metadata:** _(docs commit hash — added after state updates)_
+**Plan metadata:** `550af725` (docs: complete BILL-08 verification plan)
 
 ## Files Created/Modified
 
