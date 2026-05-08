@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "@/lib/toast";
+import { auth } from "@/lib/firebase";
 
 import {
   Card,
@@ -237,23 +238,33 @@ export function MySubscriptionTab({
     try {
       const { StripeService } = await import("@/services/stripe-service");
       const result = await StripeService.cancelSubscription();
-      if (result.success) {
-        toast.success(
-          isPastDueCancel
-            ? "Assinatura cancelada. Seu acesso foi encerrado."
-            : "Cancelamento agendado! Seu acesso continua até o final do período pago.",
-        );
-        setSubscriptionToCancel(false);
-        setTimeout(() => {
-          if (isPastDueCancel) {
-            window.location.href = "/subscription-blocked";
-          } else {
-            window.location.reload();
+      if (!result.success) throw new Error("Falha no cancelamento");
+
+      if (isPastDueCancel || result.requiresReauth) {
+        // Force-refresh the ID token to pick up new billing claims set by the backend.
+        // After revokeRefreshTokens (past_due cancel), getIdToken(true) throws — catch handles it.
+        try {
+          const idToken = await auth.currentUser?.getIdToken(true);
+          if (idToken) {
+            await fetch("/api/auth/session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken }),
+            });
           }
-        }, 2000);
-      } else {
-        throw new Error("Falha no cancelamento");
+        } catch {
+          await auth.signOut();
+        }
+        toast.success("Assinatura cancelada. Seu acesso foi encerrado.");
+        window.location.replace("/subscription-blocked");
+        return;
       }
+
+      toast.success(
+        "Cancelamento agendado! Seu acesso continua até o final do período pago.",
+      );
+      setSubscriptionToCancel(false);
+      window.location.reload();
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       toast.error("Erro ao cancelar assinatura. Tente novamente.");

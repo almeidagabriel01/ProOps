@@ -230,6 +230,7 @@ export const StripeService = {
   cancelSubscription: async (): Promise<{
     success: boolean;
     cancelAt?: string;
+    requiresReauth?: boolean;
   }> => {
     return callApi("/v1/stripe/cancel-subscription", "POST", {});
   },
