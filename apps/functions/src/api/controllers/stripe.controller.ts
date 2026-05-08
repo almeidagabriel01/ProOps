@@ -490,7 +490,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    // Phase 19 canonical field — no fallback to top-level tenantData.subscriptionStatus.
+    // Phase 19 canonical field only — no fallback to the legacy top-level field.
     const subscriptionMap = (tenantData?.subscription || {}) as Record<string, unknown>;
     const subscriptionStatus = String(subscriptionMap.status || "").trim().toLowerCase();
 
