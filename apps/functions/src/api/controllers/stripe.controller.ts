@@ -493,18 +493,30 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    // Live Stripe status is source of truth — Firestore may be stale if the
-    // invoice.payment_failed webhook hasn't processed yet (e.g. past_due not synced).
-    const subscriptionStatus = String(
-      existingSubscription.status ||
-        tenantData?.subscriptionStatus ||
+    // Read both sources independently.
+    // Stripe is authoritative for live state; Firestore captures cron-driven transitions
+    // (e.g. checkStripeSubscriptions sets past_due before Stripe fires a webhook).
+    // Using || would silently drop a Firestore past_due whenever Stripe returns "active".
+    const stripeStatus = String(existingSubscription.status || "")
+      .trim()
+      .toLowerCase();
+    const firestoreStatus = String(
+      tenantData?.subscriptionStatus ||
         ((tenantData?.subscription as Record<string, unknown> | undefined)
           ?.status ?? ""),
-    ).trim().toLowerCase();
+    )
+      .trim()
+      .toLowerCase();
+    // Primary status for non-past_due logic (Stripe wins; Firestore as fallback).
+    const subscriptionStatus = stripeStatus || firestoreStatus;
+    // Either source declaring past_due triggers immediate cancel — covers both the
+    // case where Stripe is ahead of Firestore and the case where our cron is ahead of Stripe.
+    const isPastDue =
+      stripeStatus === "past_due" || firestoreStatus === "past_due";
 
     const nowIso = new Date().toISOString();
 
-    if (subscriptionStatus === "past_due") {
+    if (isPastDue) {
       // STATE-03: past_due → immediate cancel. Access ends NOW.
       await stripe.subscriptions.cancel(stripeSubscriptionId);
 
@@ -576,7 +588,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     await syncTenantPlanBillingSnapshot({
       tenantId,
       source: "controller.cancelSubscription",
-      subscriptionStatus: "active", // unchanged — cancel scheduled for period end
+      subscriptionStatus: subscriptionStatus || "active", // unchanged — cancel scheduled for period end
       stripeSubscriptionId: subscription.id,
       cancelAtPeriodEnd: true,
       cancelAt: cancelAtDate,            // NEW — populates subscription.cancelAt for yellow banner
