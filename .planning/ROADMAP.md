@@ -386,7 +386,7 @@ Plans:
 - [x] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
 - [ ] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
 - [ ] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
-- [ ] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
+- [x] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
 - [ ] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
 
 ### Phase 20: Subscription State Banners + Cancel Enforcement
@@ -492,7 +492,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 16. Lia Segurança & Billing       | 4/4            | Complete    | 2026-04-14 |
 | 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
 | 18. fix(lia) 5 correções          | 3/3            | Complete    | 2026-04-15 |
-| 19. Single-Writer Billing Foundation | 1/5         | In Progress | -          |
+| 19. Single-Writer Billing Foundation | 2/5         | In Progress | -          |
 | 20. Subscription State Banners + Cancel Enforcement | 0/TBD | Not started | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
 | 22. Login Redirect Hardening      | 0/TBD          | Not started | -          |

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: executing
-stopped_at: "Completed Phase 19 Plan 01 (19-01-PLAN.md)"
-last_updated: "2026-05-08T00:21:43Z"
+stopped_at: "Completed Phase 19 Plan 04 (19-04-PLAN.md)"
+last_updated: "2026-05-08T00:35:13Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 19 (single-writer-billing-foundation) — EXECUTING
-Plan: 2 of 5
+Plan: 4 of 5
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ _Updated after each plan completion_
 | Phase 18 P02 | 5 | 2 tasks | 3 files |
 | Phase 18 P01 | 113 | 2 tasks | 2 files |
 | Phase 18 P03 | 2 | 2 tasks | 4 files |
+| Phase 19 P04 | 35 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 19 P01]: BILL-08 scope locked as verification-only — existing db.runTransaction() in beginStripeEventProcessing prevents cross-instance race; 5-min stuck-processing window accepted risk
 - [Phase 19 P01]: billing-types.ts canonical type file for SubscriptionSnapshot + SyncTenantPlanBillingSnapshotParams — single source of truth for Plans 02-05
 - [Phase 19 P01]: lru-cache@^11.3.6 installed as direct dep (was transitive v6.0.0); LRUCache named export available for Plan 04 BILL-07
+- [Phase 19 P04]: resolvePlanCacheTtlMs() deleted (not deprecated) — noUnusedLocals:true enforced removal; LRU constructor uses hard-coded literal 30_000 per CONTEXT.md lock
+- [Phase 19 P04]: hasTenantPlanCacheForTest uses .get() !== undefined (not .has()) — lru-cache v11 .has() does not reliably check TTL expiry
+- [Phase 19 P04]: LRU TTL test uses real elapsed time (1200ms) — lru-cache v11 perf.now() debounce via setTimeout makes fake timers unreliable for TTL verification
 - [Phase 20]: Banners depend on Phase 19 canonical billing state — deploy Phase 19 first to ensure reliable field reads
 - [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
 - [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
@@ -175,4 +179,4 @@ None.
 
 Last session: 2026-05-08T00:21:43Z
 Stopped at: "Completed Phase 19 Plan 01 (19-01-PLAN.md)"
-Resume file: .planning/phases/19-single-writer-billing-foundation/19-02-PLAN.md
+Resume file: .planning/phases/19-single-writer-billing-foundation/19-05-PLAN.md
