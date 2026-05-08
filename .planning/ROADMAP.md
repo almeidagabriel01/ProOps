@@ -384,7 +384,7 @@ Plans:
 **Plans:** 5 plans
 Plans:
 - [x] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
-- [ ] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
+- [x] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
 - [ ] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
 - [x] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
 - [ ] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
