@@ -534,7 +534,7 @@ No blocking missing dependencies.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 ### 1. SubscriptionGuard past_due banner — which resolution?
 
@@ -542,9 +542,7 @@ No blocking missing dependencies.
 
 **What's unclear:** Should the SubscriptionGuard banner be (a) removed entirely, (b) restricted to expired-grace-period only, or (c) kept as-is and the new red banner only shown after grace period expires?
 
-**Recommendation:** Remove the SubscriptionGuard past_due yellow banner entirely (option a). The new persistent red banner covers the same condition more prominently. The hard-block page (`/subscription-blocked/page.tsx`) handles the expired-grace-period case. Keeping two banners adds confusion with no benefit.
-
-**Decision required before:** Wave 1 task writing for STATE-01.
+**RESOLVED:** Remove the SubscriptionGuard past_due yellow banner entirely (option a). The new persistent red banner covers the same condition more prominently. The hard-block page (`/subscription-blocked/page.tsx`) handles the expired-grace-period case. Keeping two banners adds confusion with no benefit. Implemented in 20-03 Task 2-C.
 
 ---
 
@@ -554,7 +552,7 @@ No blocking missing dependencies.
 
 **What's unclear:** Is this gap a Wave 0 task (fix webhook before implementing the banner) or Wave 1 (implement banner and webhook fix in parallel)?
 
-**Recommendation:** Fix the webhook handler in Wave 1 alongside the frontend `cancelAt` mapping. Both are required before the yellow banner is functional. They can be in separate tasks but the same wave. The fix is small: add `cancelAt: cancelAt.toDate()` to the existing `syncTenantPlanBillingSnapshot` call at line 913.
+**RESOLVED:** Fix the webhook handler in Wave 1 alongside the frontend `cancelAt` mapping. The fix adds `cancelAt: cancelAt.toDate()` to the existing `syncTenantPlanBillingSnapshot` call at line 913. Implemented in 20-02 Task 2.
 
 ---
 
@@ -564,7 +562,7 @@ No blocking missing dependencies.
 
 **What's unclear:** The existing `cancelSubscription` controller code (lines 457-539) may or may not currently pass `cancelAt` to the snapshot writer after calling `update({ cancel_at_period_end: true })`.
 
-**Recommendation:** The planner should verify lines 457-539 in detail and include a task to ensure `cancelAt` is extracted from the Stripe response and passed to the snapshot writer in the at-period-end branch. This closes the same gap from the controller path that the webhook fix closes from the webhook path.
+**RESOLVED:** Task 20-02 Task 1 verifies the at-period-end branch and ensures `cancelAt` is extracted from the Stripe response (`updated.cancel_at`) and passed to the snapshot writer. This closes the gap from the controller path, complementing the webhook fix in Task 2.
 
 ---
 

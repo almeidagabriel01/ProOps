@@ -392,18 +392,23 @@ Plans:
 
 ### Phase 20: Subscription State Banners + Cancel Enforcement
 
-**Goal**: Tenants in problematic billing states see persistent, actionable UI banners that communicate their situation and guide resolution — and the system enforces that cancellation is blocked during past_due.
+**Goal**: Tenants in problematic billing states see persistent, actionable UI banners at the top of every protected page — and past_due tenants who cancel get immediate cancellation (not a 409 block).
 **Depends on**: Phase 19
 **Requirements**: STATE-01, STATE-02, STATE-03
 **Success Criteria** (what must be TRUE):
 
 1. A tenant in `past_due` state sees a persistent red banner at the top of every page with a "Atualizar pagamento" CTA that opens the Stripe customer portal — the banner cannot be permanently dismissed
-2. A tenant with `cancelAtPeriodEnd: true` sees a persistent yellow banner showing the formatted cancellation date and a "Reativar assinatura" button
-3. A tenant in `past_due` state who clicks "Cancelar assinatura" receives an error — the controller returns 409 with code `BILLING_CANCEL_BLOCKED_PAST_DUE` and the cancel button in the UI is disabled with an explanatory tooltip
+2. A tenant with `cancelAtPeriodEnd: true` sees a persistent yellow banner showing the formatted cancellation date and a stub "Reativar assinatura" button (Phase 21 wires the endpoint)
+3. A tenant in `past_due` state who clicks "Cancelar assinatura" sees an AlertDialog warning that access ends immediately; on confirm, `stripe.subscriptions.cancel()` is called (immediate cancel) and the tenant lands on `/subscription-blocked`. There is no 409 response and no `BILLING_CANCEL_BLOCKED_PAST_DUE` code.
 4. Banners are absent for tenants in `active` state with no pending cancellation
 
-**Note**: Phase 20 depends on Phase 19 — the canonical billing state fields must be reliably written before banners can read them correctly.
-**Plans**: TBD
+**Note**: Phase 20 depends on Phase 19 — the canonical billing state fields (`subscription.status`, `subscription.cancelAtPeriodEnd`, `subscription.cancelAt`) must be reliably written before banners can read them correctly. STATE-03 changed from a 409-block to immediate-cancel during the discovery session — see `20-CONTEXT.md` for the locked decision.
+**Plans:** 4 plans
+Plans:
+- [ ] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
+- [ ] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
+- [ ] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
+- [ ] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
 **UI hint**: yes
 
 ### Phase 21: Reactivation + Addon State Cleanup
