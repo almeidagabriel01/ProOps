@@ -407,7 +407,7 @@ Plans:
 Plans:
 - [ ] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
 - [x] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
-- [ ] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
+- [x] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
 - [ ] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
 **UI hint**: yes
 
@@ -499,7 +499,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
 | 18. fix(lia) 5 correções          | 3/3            | Complete    | 2026-04-15 |
 | 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
-| 20. Subscription State Banners + Cancel Enforcement | 2/4 | In Progress | - |
+| 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
 | 22. Login Redirect Hardening      | 0/TBD          | Not started | -          |
 | 23. MP Webhook Hardening          | 0/TBD          | Not started | -          |

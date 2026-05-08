@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: unknown
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-05-08T14:00:00.000Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-05-08T13:11:31Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -175,6 +175,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 19 P04]: hasTenantPlanCacheForTest uses .get() !== undefined (not .has()) — lru-cache v11 .has() does not reliably check TTL expiry
 - [Phase 19 P04]: LRU TTL test uses real elapsed time (1200ms) — lru-cache v11 perf.now() debounce via setTimeout makes fake timers unreliable for TTL verification
 - [Phase 20]: Banners depend on Phase 19 canonical billing state — deploy Phase 19 first to ensure reliable field reads
+- [Phase 20 P03]: cancelAt mapped only from subscription.cancelAt (no top-level fallback) — Pitfall 5 from CONTEXT.md
+- [Phase 20 P03]: Shell-level banner pattern — BillingStateBanner lives in ProtectedAppShell, not SubscriptionGuard; SubscriptionGuard's showWarningBanner block removed to prevent double-banner for past_due
+- [Phase 20 P03]: Yellow banner CTA (Reativar assinatura) is disabled stub in this phase — Phase 21 wires endpoint
 - [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
 - [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
 
