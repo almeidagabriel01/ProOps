@@ -357,13 +357,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // subscriptionStatus (written by billing-claims.ts on cancel), sign out immediately.
     // For past_due we delegate the grace-period check to /api/auth/billing-status
     // (which reads Firestore) because pastDueSince is not embedded in JWT claims.
+    // "canceled"/"cancelled" excluded: these users stay logged in and are blocked
+    // from ERP access by the billing-status Firestore gate. Signing them out here
+    // would cause a login flash and force full re-authentication.
     const TERMINAL_BLOCKED_STATUSES = new Set([
-      "canceled",
-      "cancelled",
       "unpaid",
       "inactive",
       "payment_failed",
     ]);
+    const SOFT_BLOCKED_STATUSES = new Set(["canceled", "cancelled"]);
     const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
       const skipEmailVerification =
@@ -377,6 +379,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
             await signOut(auth);
             window.location.replace("/subscription-blocked");
+            return;
+          }
+          // Canceled accounts stay logged in but must not access the ERP.
+          // Sync the session first so the cookie reflects the new claims,
+          // then redirect to the blocked page if not already there.
+          if (SOFT_BLOCKED_STATUSES.has(subStatus)) {
+            await syncServerSession(firebaseUser);
+            if (!window.location.pathname.startsWith("/subscription-blocked")) {
+              window.location.replace("/subscription-blocked");
+            }
             return;
           }
           // past_due requires a grace-period check against Firestore.

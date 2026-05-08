@@ -241,16 +241,12 @@ export function MySubscriptionTab({
       if (!result.success) throw new Error("Falha no cancelamento");
 
       if (isPastDueCancel || result.requiresReauth) {
-        // Do NOT refresh the session cookie — the backend has called revokeRefreshTokens.
-        // Creating a new cookie here would bypass the checkRevoked gate because the new
-        // cookie's iat > tokensValidAfterTime. Just sign out the Firebase client; the
-        // existing revoked __session cookie will be rejected by the middleware on the
-        // next protected-route navigation.
-        try {
-          await auth.signOut();
-        } catch {
-          // ignore — Firebase client may already be stale
-        }
+        // Session stays valid — the user remains logged in. The backend already
+        // updated Firestore (subscriptionStatus: "canceled") and cleared the billing
+        // cache before returning this response. Any protected route the user visits
+        // will be blocked by the middleware billing-status gate.
+        // Do NOT call auth.signOut() here — it would flash the login screen before
+        // the /subscription-blocked redirect fires.
         toast.success("Assinatura cancelada. Seu acesso foi encerrado.");
         window.location.replace("/subscription-blocked");
         return;

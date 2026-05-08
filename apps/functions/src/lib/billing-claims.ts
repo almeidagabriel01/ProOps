@@ -7,11 +7,12 @@ export interface BillingClaimsUpdate {
   subscriptionUpdatedAt?: string;
 }
 
-// past_due intentionally excluded: user still needs a valid session to access
-// the billing portal and fix payment. Revoke only on hard terminal statuses.
+// "canceled"/"cancelled" intentionally excluded: the user stays logged in after
+// cancellation and is blocked from ERP access by the billing-status Firestore gate.
+// Revoking the session for cancellation would force a full logout, which creates a
+// flash of the login screen and a poor UX. Hard failures (unpaid, inactive,
+// payment_failed) still revoke immediately.
 const REVOKE_TOKEN_STATUSES = new Set([
-  "canceled",
-  "cancelled", // British spelling — mirrors BLOCKED_STATUSES in billing-status route
   "unpaid",
   "inactive",
   "payment_failed",
