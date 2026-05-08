@@ -85,9 +85,11 @@ export type User = {
   currentPeriodEnd?: string; // ISO Date string for expiration
   isManualSubscription?: boolean; // If true, handled by internal cron, not Stripe
   cancelAtPeriodEnd?: boolean;
+  cancelAt?: string | null; // ISO; absolute cancel date (Phase 20 yellow banner)
   subscription?: {
     status: string;
     updatedAt?: string | Date;
+    cancelAt?: string | null; // canonical Phase 19 field — surfaced via cancelAt above
   };
   subscriptionUpdatedAt?: string;
   onboarding?: UserOnboardingState;

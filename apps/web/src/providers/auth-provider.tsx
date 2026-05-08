@@ -289,6 +289,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userData.subscription?.cancelAtPeriodEnd ||
             userData.subscription?.cancel_at_period_end ||
             false,
+          // Phase 20: NO top-level fallback per CONTEXT.md decision (Pitfall 5).
+          // Read only from canonical subscription.cancelAt — null otherwise.
+          cancelAt: (userData.subscription as { cancelAt?: string | null } | undefined)?.cancelAt ?? null,
           isManualSubscription,
           onboarding: normalizeOnboardingState(userData.onboarding),
         } as User;
