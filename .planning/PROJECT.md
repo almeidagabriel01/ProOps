@@ -29,6 +29,9 @@ Propostas e gestão financeira funcionando com confiança — se tudo mais falha
 - AIBI-04: AI usage card on billing/subscription page — Validated in Phase 16: lia-seguranca-billing
 - AIBI-05: Near-limit warning banner in Lia panel — Validated in Phase 16: lia-seguranca-billing
 - AIBI-06: Firestore deny-write rules for aiUsage + aiConversations — Validated in Phase 16: lia-seguranca-billing
+- BILL-06: All billing-state writes route through single transactional writer (syncTenantPlanBillingSnapshot) — Validated in Phase 19: single-writer-billing-foundation
+- BILL-07: LRU cache bounds enforced (max 500, ttl 30s) — Validated in Phase 19: single-writer-billing-foundation
+- BILL-08: Stripe webhook idempotency — duplicate events return 200 without re-executing business logic — Validated in Phase 19: single-writer-billing-foundation
 
 - AUTH-01: Login flow E2E — Validated in Phase 02: auth-multitenant
 - AUTH-02: Session expiration redirect E2E — Validated in Phase 02: auth-multitenant
@@ -140,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-07 — Milestone v4.0 started: Billing & Payment Hardening (7 critical fixes: addon ghost, Stripe cancel/past_due, login redirect, banners, cancel block, MP webhook, MP fee disclosure)._
+_Last updated: 2026-05-07 — Phase 19 complete: Single-Writer Billing Foundation (BILL-06/07/08 validated — single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closed)._
