@@ -16,6 +16,7 @@ import {
   upsertTenantStripeBillingData,
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
+import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 
 import { db } from "../../init";
 import {
@@ -459,7 +460,6 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       userId,
       tenantId,
       customerId,
-      tenantRef,
       tenantSnap,
       userRef,
       userSnap,
@@ -499,28 +499,25 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     ).toISOString();
     const nowIso = new Date().toISOString();
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeSubscriptionId: subscription.id,
-          cancelAtPeriodEnd: true,
-          cancelScheduledAt: nowIso,
-          currentPeriodEnd,
-          updatedAt: nowIso,
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeSubscriptionId: subscription.id,
-          cancelAtPeriodEnd: true,
-          cancelScheduledAt: nowIso,
-          currentPeriodEnd,
-          updatedAt: nowIso,
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: "active", // unchanged status; cancel scheduled for period end
+      stripeSubscriptionId: subscription.id,
+      cancelAtPeriodEnd: true,
+      cancelScheduledAt: nowIso,
+      currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+      source: "controller.cancelSubscription",
+    });
+    await userRef.set(
+      {
+        stripeSubscriptionId: subscription.id,
+        cancelAtPeriodEnd: true,
+        cancelScheduledAt: nowIso,
+        currentPeriodEnd,
+        updatedAt: nowIso,
+      },
+      { merge: true },
+    );
 
     console.log(
       `[cancelSubscription] cancellation scheduled`,
@@ -606,6 +603,7 @@ export const createAddonCheckoutSession = async (
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: customerId, updatedAt: nowIso },
           { merge: true },
@@ -969,31 +967,27 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         whatsappOverageSubscriptionItemId: whatsappItem?.id,
       });
 
-      await Promise.all([
-        tenantRef.set(
-          {
-            stripeCustomerId: effectiveCustomerId || null,
-            stripeSubscriptionId: hydratedSubscription.id,
-            subscriptionStatus: status.toLowerCase(),
-            currentPeriodEnd: currentPeriodEnd.toISOString(),
-            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true },
-        ),
-        userRef.set(
-          {
-            stripeId: effectiveCustomerId || null,
-            stripeSubscriptionId: hydratedSubscription.id,
-            subscriptionStatus: status.toLowerCase(),
-            currentPeriodEnd: currentPeriodEnd.toISOString(),
-            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
-            billingInterval: validInterval,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true },
-        ),
-      ]);
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        subscriptionStatus: status.toLowerCase(),
+        stripeCustomerId: effectiveCustomerId || undefined,
+        stripeSubscriptionId: hydratedSubscription.id,
+        currentPeriodEnd: currentPeriodEnd,
+        cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+        source: "controller.createCheckoutSession",
+      });
+      await userRef.set(
+        {
+          stripeId: effectiveCustomerId || null,
+          stripeSubscriptionId: hydratedSubscription.id,
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+          billingInterval: validInterval,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
 
       await updateSubscriptionStatus(
         userId,
@@ -1026,6 +1020,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: customerId, updatedAt: nowIso },
           { merge: true },
@@ -1123,7 +1118,6 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       customerId: contextCustomerId,
       userRef,
       userSnap,
-      tenantRef,
     } = await resolveStripeUserContext(req, { allowFreeOwnerCheckout: true });
     const { sessionId } = req.body as { sessionId?: string };
 
@@ -1236,7 +1230,12 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         : undefined;
       await markTrialUsed(tenantId);
       if (trialEnd) {
-        await tenantRef.set({ trialEndsAt: trialEnd }, { merge: true });
+        await syncTenantPlanBillingSnapshot({
+          tenantId,
+          subscriptionStatus: "trialing",
+          trialEndsAt: trialEnd,
+          source: "controller.confirmCheckoutSession",
+        });
       }
     }
 
@@ -1269,28 +1268,24 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       whatsappOverageSubscriptionItemId: whatsappItem?.id,
     });
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeCustomerId: effectiveCustomerId || null,
-          stripeSubscriptionId: subscription.id,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeId: effectiveCustomerId || null,
-          stripeSubscriptionId: subscription.id,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: status.toLowerCase(),
+      stripeCustomerId: effectiveCustomerId || undefined,
+      stripeSubscriptionId: subscription.id,
+      currentPeriodEnd: currentPeriodEnd,
+      source: "controller.confirmCheckoutSession",
+    });
+    await userRef.set(
+      {
+        stripeId: effectiveCustomerId || null,
+        stripeSubscriptionId: subscription.id,
+        subscriptionStatus: status.toLowerCase(),
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
     await updateSubscriptionStatus(
       userId,
@@ -1568,6 +1563,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: stripeId, updatedAt: nowIso },
           { merge: true },
@@ -1767,7 +1763,6 @@ export const syncSubscription = async (req: Request, res: Response) => {
       customerId,
       userRef,
       userSnap,
-      tenantRef,
       tenantSnap,
     } = await resolveStripeUserContext(req);
     const userData = userSnap.exists
@@ -1822,29 +1817,23 @@ export const syncSubscription = async (req: Request, res: Response) => {
       subscription.cancel_at_period_end,
     );
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeSubscriptionId,
-          stripeCustomerId: getStripeCustomerId(
-            subscription.customer as string | Stripe.Customer | null,
-          ),
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeSubscriptionId,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: status.toLowerCase(),
+      stripeCustomerId: getStripeCustomerId(subscription.customer as string | Stripe.Customer | null) || undefined,
+      stripeSubscriptionId,
+      currentPeriodEnd,
+      source: "controller.syncSubscription",
+    });
+    await userRef.set(
+      {
+        stripeSubscriptionId,
+        subscriptionStatus: status.toLowerCase(),
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
     return res.json({
       success: true,
