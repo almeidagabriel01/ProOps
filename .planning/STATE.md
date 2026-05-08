@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: planning
-stopped_at: Phase 19 context gathered
-last_updated: "2026-05-07T22:45:06.776Z"
-last_activity: 2026-05-07 — Milestone v4.0 roadmap created (Phases 19–24)
+status: executing
+stopped_at: "Completed Phase 19 Plan 01 (19-01-PLAN.md)"
+last_updated: "2026-05-08T00:21:43Z"
 progress:
-  total_phases: 24
-  completed_phases: 16
-  total_plans: 54
-  completed_plans: 51
+  total_phases: 14
+  completed_phases: 14
+  total_plans: 48
+  completed_plans: 48
 ---
 
 # Project State
@@ -20,14 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 19 — Single-Writer Billing Foundation
+**Current focus:** Phase 19 — single-writer-billing-foundation
 
 ## Current Position
 
-Phase: Not started
-Plan: —
-Status: Roadmap defined — ready to plan Phase 19
-Last activity: 2026-05-07 — Milestone v4.0 roadmap created (Phases 19–24)
+Phase: 19 (single-writer-billing-foundation) — EXECUTING
+Plan: 2 of 5
 
 ## Performance Metrics
 
@@ -159,6 +156,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 ### v4.0 Architecture Decisions
 
 - [Phase 19]: Single writer pattern — extend syncTenantPlanBillingSnapshot, never create a parallel writer; top-level fields + nested subscription.* written atomically in db.runTransaction()
+- [Phase 19 P01]: BILL-08 scope locked as verification-only — existing db.runTransaction() in beginStripeEventProcessing prevents cross-instance race; 5-min stuck-processing window accepted risk
+- [Phase 19 P01]: billing-types.ts canonical type file for SubscriptionSnapshot + SyncTenantPlanBillingSnapshotParams — single source of truth for Plans 02-05
+- [Phase 19 P01]: lru-cache@^11.3.6 installed as direct dep (was transitive v6.0.0); LRUCache named export available for Plan 04 BILL-07
 - [Phase 20]: Banners depend on Phase 19 canonical billing state — deploy Phase 19 first to ensure reliable field reads
 - [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
 - [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
@@ -173,6 +173,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T22:45:06.773Z
-Stopped at: Phase 19 context gathered
-Resume file: .planning/phases/19-single-writer-billing-foundation/19-CONTEXT.md
+Last session: 2026-05-08T00:21:43Z
+Stopped at: "Completed Phase 19 Plan 01 (19-01-PLAN.md)"
+Resume file: .planning/phases/19-single-writer-billing-foundation/19-02-PLAN.md
