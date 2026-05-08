@@ -917,6 +917,9 @@ async function handleSubscriptionUpdated(
         scheduledPlan: "free",
         scheduledPlanAt: cancelAt,
         scheduledPlanReason: "cancel_at_period_end",
+        // Phase 20: populate canonical subscription.cancelAt + flag for yellow banner.
+        cancelAt: cancelAt.toDate(),
+        cancelAtPeriodEnd: true,
         source: "webhook.subscription.updated",
       });
       console.log(
@@ -936,6 +939,9 @@ async function handleSubscriptionUpdated(
         scheduledPlan: null,
         scheduledPlanAt: null,
         scheduledPlanReason: null,
+        // Phase 20: clear cancel state on rescind so banner disappears.
+        cancelAt: null,
+        cancelAtPeriodEnd: false,
         source: "webhook.subscription.updated",
       });
       console.log(
