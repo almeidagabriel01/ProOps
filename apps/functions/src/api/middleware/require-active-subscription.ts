@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { LRUCache } from "lru-cache";
 import { db } from "../../init";
 import { evaluateSubscriptionStatusAccess } from "../../lib/tenant-plan-policy";
 import { logger } from "../../lib/logger";
@@ -11,11 +12,13 @@ interface CachedBillingState {
   subscriptionStatus: string;
   plan: string;
   pastDueSince: string | null;
-  expiresAt: number;
 }
 
-const billingStateCache = new Map<string, CachedBillingState>();
-const BILLING_CACHE_TTL_MS = 30_000;
+const BILLING_CACHE_MAX_SIZE = 500;
+const billingStateCache = new LRUCache<string, CachedBillingState>({
+  max: BILLING_CACHE_MAX_SIZE,
+  ttl: 30_000, // hard-coded per CONTEXT.md decision (LRU cache replacement; no env override)
+});
 
 const WHITELISTED_PREFIXES = [
   "/v1/stripe/",
@@ -75,13 +78,9 @@ export async function requireActiveSubscription(
     return;
   }
 
-  let billingState: CachedBillingState;
+  let billingState: CachedBillingState | undefined = billingStateCache.get(tenantId);
 
-  const now = Date.now();
-  const cached = billingStateCache.get(tenantId);
-  if (cached && cached.expiresAt > now) {
-    billingState = cached;
-  } else {
+  if (!billingState) {
     try {
       const tenantSnap = await db.collection("tenants").doc(tenantId).get();
       if (!tenantSnap.exists) {
@@ -98,7 +97,6 @@ export async function requireActiveSubscription(
         subscriptionStatus,
         plan,
         pastDueSince,
-        expiresAt: now + BILLING_CACHE_TTL_MS,
       };
       billingStateCache.set(tenantId, billingState);
     } catch (err) {
