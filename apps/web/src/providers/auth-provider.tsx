@@ -379,7 +379,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
             await signOut(auth);
             if (!window.location.pathname.startsWith("/subscription-blocked")) {
-              window.location.replace("/subscription-blocked");
+              window.location.replace(`/subscription-blocked?reason=${subStatus}`);
             }
             return;
           }
@@ -389,7 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (SOFT_BLOCKED_STATUSES.has(subStatus)) {
             await syncServerSession(firebaseUser);
             if (!window.location.pathname.startsWith("/subscription-blocked")) {
-              window.location.replace("/subscription-blocked");
+              window.location.replace(`/subscription-blocked?reason=${subStatus}`);
             }
             return;
           }
@@ -399,11 +399,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               const res = await fetch("/api/auth/billing-status");
               if (res.ok) {
-                const data = (await res.json()) as { allowed?: boolean };
+                const data = (await res.json()) as { allowed?: boolean; status?: string };
                 if (data.allowed === false) {
                   await signOut(auth);
                   if (!window.location.pathname.startsWith("/subscription-blocked")) {
-                    window.location.replace("/subscription-blocked");
+                    // Use Firestore status (data.status) as the reason — more accurate than
+                    // the stale JWT claim (subStatus). Falls back to subStatus on mismatch.
+                    const reason = data.status || subStatus;
+                    window.location.replace(`/subscription-blocked?reason=${reason}`);
                   }
                   return;
                 }
