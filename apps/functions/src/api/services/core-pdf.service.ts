@@ -19,8 +19,6 @@
  *   buscar seus dados.
  */
 
-import { chromium } from "playwright-core";
-import chromiumPackage from "@sparticuz/chromium";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 
 // ---------------------------------------------------------------------------
@@ -122,6 +120,10 @@ export interface RenderPdfOptions {
  */
 export async function renderPageToPdfBuffer(options: RenderPdfOptions): Promise<Buffer> {
   const { url, readySelector, vercelBypassSecret } = options;
+
+  // Lazy-load to keep module initialization fast (avoids 10s timeout during Firebase spec detection)
+  const { chromium } = await import("playwright-core");
+  const chromiumPackage = (await import("@sparticuz/chromium")).default;
 
   chromiumPackage.setGraphicsMode = false;
   const executablePath = await chromiumPackage.executablePath();

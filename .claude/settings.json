@@ -146,8 +146,6 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "claude-seo@claude-seo-marketplace": true,
     "frontend-design@claude-plugins-official": true,
-    "marketing-skills@marketingskills": true,
-    "superpowers@superpowers-dev": true,
     "impeccable@impeccable": true
   },
   "defaultMode": "auto"
