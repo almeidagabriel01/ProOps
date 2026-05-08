@@ -20,7 +20,7 @@ const BLOCKED_STATUSES = new Set([
 
 // Module-level cache: survives across requests within the same warm Node.js instance.
 // 5s TTL ensures stale billing state is evicted quickly; max size prevents unbounded growth.
-const CACHE_TTL_MS = 5_000;
+const CACHE_TTL_MS = 2_000;
 const CACHE_MAX_SIZE = 1_000;
 
 function isGracePeriodActive(pastDueSince: string | null): boolean {

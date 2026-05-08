@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getAdminAuth } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +19,31 @@ export default async function Layout({ children }: { children: ReactNode }) {
   if (sessionCookie) {
     try {
       const adminAuth = getAdminAuth();
-      const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
-      const subscriptionStatus = String(decoded.subscriptionStatus || "");
+      // checkRevoked: false — revoked sessions should see this page, not be dropped to login.
+      const decoded = await adminAuth.verifySessionCookie(sessionCookie, false);
+      const tenantId = String(decoded.tenantId || "").trim();
 
-      if (ACTIVE_STATUSES.has(subscriptionStatus)) {
-        redirect("/");
+      if (tenantId) {
+        // Read Firestore directly — JWT claims may be stale after a billing status change.
+        // Using claims here can cause an infinite redirect loop when claims say "active"
+        // but Firestore already says "canceled".
+        const db = getAdminFirestore();
+        const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+        const subscriptionStatus = String(
+          (tenantSnap.data() as Record<string, unknown> | undefined)
+            ?.subscriptionStatus || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (ACTIVE_STATUSES.has(subscriptionStatus)) {
+          redirect("/");
+        }
       }
-      // Blocked status or empty claim → render the blocked page
+      // Blocked status or unknown tenant → render the blocked page
     } catch {
-      // auth/session-cookie-revoked: Fase 1 revoked tokens on cancel — the user IS blocked.
-      // Render the page so they see what happened instead of landing on a bare /login.
+      // auth/session-cookie-revoked or any verification error:
+      // Revoked sessions ARE expected here (post-cancel flow). Render the page.
     }
   }
   // No session cookie → render the page with generic blocked content

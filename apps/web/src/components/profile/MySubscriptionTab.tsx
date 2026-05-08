@@ -241,19 +241,15 @@ export function MySubscriptionTab({
       if (!result.success) throw new Error("Falha no cancelamento");
 
       if (isPastDueCancel || result.requiresReauth) {
-        // Force-refresh the ID token to pick up new billing claims set by the backend.
-        // After revokeRefreshTokens (past_due cancel), getIdToken(true) throws — catch handles it.
+        // Do NOT refresh the session cookie — the backend has called revokeRefreshTokens.
+        // Creating a new cookie here would bypass the checkRevoked gate because the new
+        // cookie's iat > tokensValidAfterTime. Just sign out the Firebase client; the
+        // existing revoked __session cookie will be rejected by the middleware on the
+        // next protected-route navigation.
         try {
-          const idToken = await auth.currentUser?.getIdToken(true);
-          if (idToken) {
-            await fetch("/api/auth/session", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ idToken }),
-            });
-          }
-        } catch {
           await auth.signOut();
+        } catch {
+          // ignore — Firebase client may already be stale
         }
         toast.success("Assinatura cancelada. Seu acesso foi encerrado.");
         window.location.replace("/subscription-blocked");

@@ -535,7 +535,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       }
 
       invalidateBillingCache(tenantId);
-      void invalidateNextjsBillingCache(tenantId); // best-effort, 2s timeout
+      await invalidateNextjsBillingCache(tenantId);
 
       await userRef.set(
         {
