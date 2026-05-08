@@ -37,6 +37,10 @@ import {
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { logger } from "../lib/logger";
+import type {
+  SyncTenantPlanBillingSnapshotParams,
+  SubscriptionSnapshot,
+} from "../shared/billing-types";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
@@ -126,15 +130,9 @@ export function buildTenantSubscriptionLifecyclePatch(input: {
   };
 }
 
-async function syncTenantPlanBillingSnapshot(params: {
-  tenantId: string;
-  subscriptionStatus: string;
-  stripePriceId?: string;
-  /** When true, clears scheduledPlan/At/Reason (use for upgrades and fresh checkouts only). */
-  clearScheduled?: boolean;
-  /** When provided, persisted as currentPeriodEnd on the tenant doc. */
-  currentPeriodEnd?: Date;
-}): Promise<void> {
+export async function syncTenantPlanBillingSnapshot(
+  params: SyncTenantPlanBillingSnapshotParams,
+): Promise<void> {
   const tenantId = String(params.tenantId || "").trim();
   if (!tenantId) return;
 
@@ -161,19 +159,46 @@ async function syncTenantPlanBillingSnapshot(params: {
 
     const lifecyclePatch = buildTenantSubscriptionLifecyclePatch({
       subscriptionStatus: params.subscriptionStatus,
-      stripePriceId: params.stripePriceId,
+      stripePriceId: params.stripePriceId ?? undefined,
       existingPastDueSince: tenantData?.pastDueSince,
       nowIso,
     });
 
+    // ---- Top-level patch (all fields kept for backward-compat per reader audit) ----
     const patch: Record<string, unknown> = {
       ...lifecyclePatch,
       updatedAt: nowIso,
       billingSyncedAt: nowIso,
-      ...(params.currentPeriodEnd && { currentPeriodEnd: params.currentPeriodEnd.toISOString() }),
+      ...(params.currentPeriodEnd != null && {
+        currentPeriodEnd: params.currentPeriodEnd.toISOString(),
+      }),
+      // Passthrough fields from parallel writers (Plan 03 consolidation targets)
+      ...("cancelAtPeriodEnd" in params && {
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+      }),
+      ...("cancelScheduledAt" in params && {
+        cancelScheduledAt: params.cancelScheduledAt,
+      }),
+      ...("stripeSubscriptionId" in params && {
+        stripeSubscriptionId: params.stripeSubscriptionId,
+      }),
+      ...("stripeCustomerId" in params && {
+        stripeCustomerId: params.stripeCustomerId,
+      }),
+      // billing-sync.service.ts writes both priceId and stripePriceId; preserve mirror
+      ...(params.stripePriceId != null && {
+        priceId: params.stripePriceId,
+        stripePriceId: params.stripePriceId,
+      }),
+      ...("trialEndsAt" in params && { trialEndsAt: params.trialEndsAt }),
+      ...("billingInterval" in params && {
+        billingInterval: params.billingInterval,
+      }),
     };
-    if (derivedTier) {
-      patch.plan = derivedTier;
+
+    const resolvedPlan = derivedTier ?? params.plan ?? null;
+    if (resolvedPlan) {
+      patch.plan = resolvedPlan;
       // Only clear scheduled fields when there is a resolved tier AND the caller
       // explicitly requests it (upgrades, fresh checkouts). Routine invoice
       // payments must NOT clear a pending downgrade deferral.
@@ -183,13 +208,72 @@ async function syncTenantPlanBillingSnapshot(params: {
         patch.scheduledPlanReason = null;
       }
     }
+    // When caller explicitly provides scheduled-plan fields (and clearScheduled is false),
+    // persist them so scheduled-plan writes (deferral, cancel_at_period_end) route through here.
+    if (!params.clearScheduled || !resolvedPlan) {
+      if ("scheduledPlan" in params) patch.scheduledPlan = params.scheduledPlan;
+      if ("scheduledPlanAt" in params) patch.scheduledPlanAt = params.scheduledPlanAt;
+      if ("scheduledPlanReason" in params) patch.scheduledPlanReason = params.scheduledPlanReason;
+    }
+
+    // ---- subscription.* nested map (new in Plan 02; written atomically with top-level) ----
+    const existingSubscription =
+      (tenantData?.subscription as Record<string, unknown> | undefined) ?? {};
+
+    const subscriptionPatch: SubscriptionSnapshot = {
+      status: lifecyclePatch.subscriptionStatus,
+      syncedAt: nowIso,
+      // Preserve pastDueSince from lifecycle logic
+      pastDueSince: lifecyclePatch.pastDueSince,
+      ...(params.eventId != null && { lastEventId: params.eventId }),
+      ...(params.cancelAtPeriodEnd != null && {
+        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
+      }),
+      ...("cancelAt" in params && {
+        cancelAt: params.cancelAt != null ? params.cancelAt.toISOString() : null,
+      }),
+      ...(params.stripeSubscriptionId !== undefined && {
+        stripeSubscriptionId: params.stripeSubscriptionId,
+      }),
+      ...(params.stripePriceId != null && {
+        stripePriceId: params.stripePriceId,
+      }),
+      ...(params.stripeCustomerId != null && {
+        stripeCustomerId: params.stripeCustomerId,
+      }),
+      ...(params.currentPeriodEnd != null && {
+        currentPeriodEnd: params.currentPeriodEnd.toISOString(),
+      }),
+      // Plan resolution
+      ...(resolvedPlan != null && { plan: resolvedPlan }),
+    };
+
+    // Apply scheduled-plan clears or explicit values to nested map
+    if (resolvedPlan && params.clearScheduled) {
+      subscriptionPatch.scheduledPlan = null;
+      subscriptionPatch.scheduledPlanAt = null;
+      subscriptionPatch.scheduledPlanReason = null;
+    } else if (!params.clearScheduled || !resolvedPlan) {
+      if ("scheduledPlan" in params) subscriptionPatch.scheduledPlan = params.scheduledPlan;
+      if ("scheduledPlanAt" in params) {
+        subscriptionPatch.scheduledPlanAt =
+          params.scheduledPlanAt instanceof Date
+            ? Timestamp.fromDate(params.scheduledPlanAt)
+            : (params.scheduledPlanAt ?? null);
+      }
+      if ("scheduledPlanReason" in params) subscriptionPatch.scheduledPlanReason = params.scheduledPlanReason;
+    }
+
+    // Merge existing subscription fields with the new patch (preserves fields not updated this call)
+    patch.subscription = { ...existingSubscription, ...subscriptionPatch };
 
     transaction.set(tenantRef, patch, { merge: true });
   });
 
   // Re-evaluate WhatsApp eligibility against the freshly-written plan.
-  // Done outside the transaction because tenantPlanAllowsWhatsApp issues
-  // additional reads (plan cache + addons doc) incompatible with a transaction.
+  // CRITICAL (Pitfall 2): tenantPlanAllowsWhatsApp reads addon docs and the plan
+  // cache — moving it inside the transaction causes lock contention and
+  // disallowed external reads. MUST remain outside the transaction.
   clearTenantPlanCache(tenantId);
   const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
   await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
@@ -442,7 +526,7 @@ async function resolveTenantIdForBillingEvent(params: {
   return resolvedTenantId;
 }
 
-async function beginStripeEventProcessing(
+export async function beginStripeEventProcessing(
   event: Stripe.Event,
 ): Promise<"skip" | "process"> {
   const eventRef = db.collection("stripe_events").doc(event.id);
@@ -788,16 +872,16 @@ async function handleSubscriptionUpdated(
     // skipped here — the plan on the tenant stays at storedTier until the
     // applyScheduledPlanChanges cron fires.
     const scheduledPlanAt = Timestamp.fromMillis(currentPeriodEndMs);
-    await tenantRef.set(
-      {
-        scheduledPlan: newTier,
-        scheduledPlanAt,
-        scheduledPlanReason: "downgrade",
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true },
-    );
-    clearTenantPlanCache(tenantId);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: subscription.status,
+      stripePriceId: primaryPriceId,
+      scheduledPlan: newTier,
+      scheduledPlanAt,
+      scheduledPlanReason: "downgrade",
+      eventId: undefined,
+      source: "webhook.subscription.updated",
+    });
     console.log(
       `[StripeWebhook] Downgrade deferred for tenant ${tenantId}: ` +
       `${storedTier} → ${newTier} at ${scheduledPlanAt.toDate().toISOString()}`,
@@ -811,6 +895,7 @@ async function handleSubscriptionUpdated(
       stripePriceId: primaryPriceId,
       clearScheduled: true,
       currentPeriodEnd,
+      source: "webhook.subscription.updated",
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   }
@@ -825,16 +910,15 @@ async function handleSubscriptionUpdated(
     const shouldWriteCancel =
       !existingScheduled || compareTiers("free", existingScheduled) <= 0;
     if (shouldWriteCancel) {
-      await tenantRef.set(
-        {
-          scheduledPlan: "free",
-          scheduledPlanAt: cancelAt,
-          scheduledPlanReason: "cancel_at_period_end",
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
-      clearTenantPlanCache(tenantId);
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        subscriptionStatus: subscription.status,
+        stripePriceId: primaryPriceId,
+        scheduledPlan: "free",
+        scheduledPlanAt: cancelAt,
+        scheduledPlanReason: "cancel_at_period_end",
+        source: "webhook.subscription.updated",
+      });
       console.log(
         `[StripeWebhook] Cancel-at-period-end scheduled for tenant ${tenantId} ` +
         `at ${cancelAt.toDate().toISOString()}`,
@@ -845,16 +929,15 @@ async function handleSubscriptionUpdated(
     // only if it was set due to cancel_at_period_end (not an unrelated downgrade).
     const scheduledReason = String(tenantData?.scheduledPlanReason || "").trim();
     if (scheduledReason === "cancel_at_period_end") {
-      await tenantRef.set(
-        {
-          scheduledPlan: null,
-          scheduledPlanAt: null,
-          scheduledPlanReason: null,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
-      clearTenantPlanCache(tenantId);
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        subscriptionStatus: subscription.status,
+        stripePriceId: primaryPriceId,
+        scheduledPlan: null,
+        scheduledPlanAt: null,
+        scheduledPlanReason: null,
+        source: "webhook.subscription.updated",
+      });
       console.log(
         `[StripeWebhook] cancel_at_period_end rescinded for tenant ${tenantId}, cleared scheduled plan`,
       );
@@ -896,24 +979,16 @@ async function handleInvoicePaymentFailed(
     console.log(`User ${userId} marked as PAYMENT_FAILED`);
   }
 
-  // Propagate past_due status to tenant doc. Only set pastDueSince if not
-  // already set (preserves the original failure timestamp on retries).
-  const tenantRef = db.collection("tenants").doc(tenantId);
-  const tenantSnap = await tenantRef.get();
-  const tenantData = tenantSnap.exists
-    ? (tenantSnap.data() as Record<string, unknown> | undefined)
-    : undefined;
-  const nowIso = new Date().toISOString();
-  const existingPastDueSince = String(tenantData?.pastDueSince || "").trim();
-  await tenantRef.set(
-    {
-      subscriptionStatus: "past_due",
-      pastDueSince: existingPastDueSince || nowIso,
-      updatedAt: nowIso,
-    },
-    { merge: true },
-  );
-  clearTenantPlanCache(tenantId);
+  // Propagate past_due status to tenant doc via the single writer.
+  // pastDueSince preservation (only set if not already set) is handled
+  // inside syncTenantPlanBillingSnapshot via buildTenantSubscriptionLifecyclePatch.
+  await syncTenantPlanBillingSnapshot({
+    tenantId,
+    subscriptionStatus: "past_due",
+    stripeSubscriptionId: subscriptionId || undefined,
+    eventId: undefined,
+    source: "webhook.invoice.payment_failed",
+  });
   console.log(`[StripeWebhook] Tenant ${tenantId} marked past_due after invoice payment failure`);
 }
 
@@ -1071,20 +1146,22 @@ async function handleSubscriptionDeleted(
       );
     }
   }
-  const tenantRef = db.collection("tenants").doc(tenantId);
-  await tenantRef.set(
-    {
-      plan: "free",
-      stripeSubscriptionId: null,
-      subscriptionStatus: "canceled",
-      pastDueSince: null,
-      scheduledPlan: null,
-      scheduledPlanAt: null,
-      scheduledPlanReason: null,
-      updatedAt: new Date().toISOString(),
-    },
-    { merge: true },
-  );
+  // Reset tenant to free plan via the single writer.
+  // syncTenantPlanBillingSnapshot handles clearTenantPlanCache and whatsappEnabled
+  // update internally (outside the transaction per Pitfall 2).
+  await syncTenantPlanBillingSnapshot({
+    tenantId,
+    subscriptionStatus: "canceled",
+    plan: "free",
+    stripeSubscriptionId: null,
+    pastDueSince: null,
+    scheduledPlan: null,
+    scheduledPlanAt: null,
+    scheduledPlanReason: null,
+    eventId: subscription.id,
+    source: "webhook.subscription.deleted",
+  });
+
   // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the
   // Firestore state stays consistent after the base subscription is deleted.
   // Remove after 2026-06-15 once all legacy addon docs have been migrated.
@@ -1096,16 +1173,8 @@ async function handleSubscriptionDeleted(
       expiresAt: FieldValue.serverTimestamp(),
     });
   }
-
-  // Recompute WhatsApp eligibility now that the plan has been reset to free.
-  // Note: user doc is downgraded to "starter" above (pre-existing behaviour) while
-  // tenant is reset to "free" — these intentionally differ; the tenant tier is
-  // the authoritative source for feature gating.
-  clearTenantPlanCache(tenantId);
-  const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
-  await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
   console.log(
-    `[StripeWebhook] Tenant ${tenantId} subscription deleted, reset to free, whatsappEnabled=${allowsWhatsApp}`,
+    `[StripeWebhook] Tenant ${tenantId} subscription deleted, reset to free`,
   );
 }
 

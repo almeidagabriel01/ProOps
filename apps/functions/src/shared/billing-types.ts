@@ -23,7 +23,7 @@ export interface SubscriptionSnapshot {
   cancelAt?: string | null; // ISO; absolute cancel date for Phase 20 banner
 
   // Stripe identifiers
-  stripeSubscriptionId?: string;
+  stripeSubscriptionId?: string | null; // null clears the field (subscription deleted)
   stripePriceId?: string;
   stripeCustomerId?: string;
 
@@ -57,7 +57,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
   subscriptionStatus: string; // required — every billing write sets it
   stripePriceId?: string;
   stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
+  stripeSubscriptionId?: string | null; // null clears the field (e.g. subscription deleted)
   currentPeriodEnd?: Date; // converted to ISO inside the function
   cancelAtPeriodEnd?: boolean;
   cancelAt?: Date | null;
