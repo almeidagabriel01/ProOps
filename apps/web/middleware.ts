@@ -172,6 +172,9 @@ export async function middleware(request: NextRequest) {
             return resp;
           }
           const blockedUrl = new URL("/subscription-blocked", request.url);
+          if (billing.status) {
+            blockedUrl.searchParams.set("reason", billing.status);
+          }
           const resp = NextResponse.redirect(blockedUrl);
           resp.headers.set("Cache-Control", "no-store");
           return resp;
@@ -179,6 +182,7 @@ export async function middleware(request: NextRequest) {
       } else {
         // billing-status returned a non-2xx HTTP error — fail closed to prevent bypass.
         const blockedUrl = new URL("/subscription-blocked", request.url);
+        blockedUrl.searchParams.set("reason", "blocked");
         const resp = NextResponse.redirect(blockedUrl);
         resp.headers.set("Cache-Control", "no-store");
         return resp;
@@ -186,6 +190,7 @@ export async function middleware(request: NextRequest) {
     } catch {
       // Billing check infrastructure error — fail closed to prevent bypass.
       const blockedUrl = new URL("/subscription-blocked", request.url);
+      blockedUrl.searchParams.set("reason", "blocked");
       const resp = NextResponse.redirect(blockedUrl);
       resp.headers.set("Cache-Control", "no-store");
       return resp;

@@ -108,11 +108,24 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
   // Secondary action: navigate to the blocked page. The render already returns
   // null above so the user never sees protected content even on the first cycle.
+  // Reason is derived here so the Firestore-snapshot-triggered redirect (which
+  // can fire before the cancel API response returns) already carries the correct
+  // ?reason param — preventing a flash of the wrong modal on /subscription-blocked.
   React.useEffect(() => {
     if (isBlocked) {
-      router.replace("/subscription-blocked");
+      let reason: string;
+      if (subscriptionStatus && BLOCKED_STATUSES.has(subscriptionStatus)) {
+        reason = subscriptionStatus;
+      } else if (subscriptionStatus === "past_due") {
+        reason = "past_due";
+      } else if (cancelAtPeriodEnd) {
+        reason = "canceled";
+      } else {
+        reason = "inactive";
+      }
+      router.replace(`/subscription-blocked?reason=${reason}`);
     }
-  }, [isBlocked, router]);
+  }, [isBlocked, router, subscriptionStatus, cancelAtPeriodEnd]);
 
   // bfcache restoration guard: when the browser restores a page from the
   // back-forward cache (event.persisted === true), React state is frozen at
