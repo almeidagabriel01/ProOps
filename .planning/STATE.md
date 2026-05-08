@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: unknown
-stopped_at: Completed 20-03-PLAN.md
-last_updated: "2026-05-08T13:11:31Z"
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-05-08T13:12:05Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -81,6 +81,7 @@ _Updated after each plan completion_
 | Phase 19 P05 | 8 | 1 tasks | 1 files |
 | Phase 19 P03 | 45 | 3 tasks | 5 files |
 | Phase 19 P06 | 15 | 2 tasks | 3 files |
+| Phase 20 P01 | 5 | 3 tasks | 3 files |
 | Phase 20 P02 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -159,6 +160,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 02-04]: AUTH-05 redirect params stripped by ProtectedRoute client-side router.push('/login') which lacked query params; middleware returns HTTP 200 for App Router shell — client JS layer is the actual redirect mechanism. Fixed router.push to include redirect + redirect_reason params. 18/18 auth suite green.
 - [Phase ?]: [Phase 19 P03]: Single-writer pattern enforced — all tenant billing-state writes route through syncTenantPlanBillingSnapshot; applyScheduledPlanChanges extends existing tx with subscription.* dotted keys (Pitfall 5); upsertTenantStripeBillingData split with EXEMPT comment for addon-item ids
 - [Phase 19 P06]: admin.controller.ts gap closure — updateUserPlan passes tierFromPlanId (not getTenantPlanProfile which reads stale tier); recomputeTenantFeatures EXEMPT (plan field removed, only whatsappEnabled+featuresRecomputedAt); forceSetTenantPlan routes plan+scheduledPlan* through single writer with clearScheduled:true
+- [Phase 20 P01]: STATE-03 wording updated — BILLING_CANCEL_BLOCKED_PAST_DUE removed; immediate-cancel path (stripe.subscriptions.cancel) is the correct behavior for past_due tenants; no 409 block
+- [Phase 20 P01]: seedBillingStateExtended writes both legacy top-level fields and Phase 19 canonical subscription.* map; restoreTenantState now deletes cancelAtPeriodEnd and subscription fields
+- [Phase 20 P01]: Wave 0 E2E stubs declared with testid contracts billing-state-banner-past-due and billing-state-banner-cancel-period-end — Plan 20-03 must match these
 - [Phase 20 P02]: cancelSubscription branches on tenantData.subscription?.status (Phase 19 canonical) — no fallback to tenantData.subscriptionStatus; past_due → immediate stripe.subscriptions.cancel() + single writer; at-period-end path now passes cancelAt from Stripe cancel_at field; webhook cancel_at_period_end branch populates cancelAt+cancelAtPeriodEnd; rescind branch clears both
 
 ### v4.0 Architecture Decisions
@@ -191,6 +195,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T14:00:00.000Z
-Stopped at: Completed 20-02-PLAN.md
-Resume file: .planning/phases/20-subscription-state-banners-cancel-enforcement/20-02-SUMMARY.md
+Last session: 2026-05-08T13:12:05Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: .planning/phases/20-subscription-state-banners-cancel-enforcement/20-01-SUMMARY.md

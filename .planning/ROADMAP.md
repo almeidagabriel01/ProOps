@@ -405,7 +405,7 @@ Plans:
 **Note**: Phase 20 depends on Phase 19 — the canonical billing state fields (`subscription.status`, `subscription.cancelAtPeriodEnd`, `subscription.cancelAt`) must be reliably written before banners can read them correctly. STATE-03 changed from a 409-block to immediate-cancel during the discovery session — see `20-CONTEXT.md` for the locked decision.
 **Plans:** 4 plans
 Plans:
-- [ ] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
+- [x] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
 - [x] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
 - [x] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
 - [ ] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
