@@ -49,6 +49,15 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
 
 const ADDON_GRACE_PERIOD_DAYS = 7;
 
+const BLOCKED_SUBSCRIPTION_STATUSES = new Set([
+  "canceled",
+  "cancelled",
+  "unpaid",
+  "inactive",
+  "payment_failed",
+  "past_due",
+]);
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -262,6 +271,14 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (BLOCKED_SUBSCRIPTION_STATUSES.has(tenant?.subscriptionStatus ?? "")) {
+        setPurchasedAddons([]);
+        setPurchasedAddonsData([]);
+        setPastDueAddonsData([]);
+        setIsAddonsLoading(false);
+        return;
+      }
+
       try {
         const allAddons = await AddonService.getAddonsWithPastDue(tenant.id);
 
@@ -284,6 +301,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         setPurchasedAddonsData(effectiveAddons);
         setPastDueAddonsData(pastDueAddons);
       } catch (error) {
+        if ((error as { code?: string })?.code === "permission-denied") {
+          setIsAddonsLoading(false);
+          return;
+        }
         console.error("Error loading add-ons:", error);
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
@@ -314,12 +335,19 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (BLOCKED_SUBSCRIPTION_STATUSES.has(tenant?.subscriptionStatus ?? "")) {
+      setPurchasedAddons([]);
+      setPurchasedAddonsData([]);
+      return;
+    }
+
     try {
       const addons = await AddonService.getAddonsForTenant(tenant.id);
       const addonTypes = addons.map((a) => a.addonType);
       setPurchasedAddons(addonTypes);
       setPurchasedAddonsData(addons);
     } catch (error) {
+      if ((error as { code?: string })?.code === "permission-denied") return;
       console.error("Error loading add-ons:", error);
       setPurchasedAddons([]);
       setPurchasedAddonsData([]);

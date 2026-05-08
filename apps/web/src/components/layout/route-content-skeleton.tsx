@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleton";
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/transactions/_components/financial-skeleton";
@@ -23,8 +23,9 @@ import { useTenant } from "@/providers/tenant-provider";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
 
 /** Simple spinner used for create/edit sub-routes instead of the full page skeleton */
-function SpinnerFallback({ message = "Carregando..." }: { message?: string }) {
-  return <Loader variant="contained" label={message} />;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function SpinnerFallback({ message: _message }: { message?: string } = {}) {
+  return <FullPageLoading />;
 }
 
 export function RouteContentSkeleton({ pathname }: { pathname: string }) {

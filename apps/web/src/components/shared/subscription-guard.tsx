@@ -4,7 +4,7 @@ import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { CreditCard, Clock, Package } from "lucide-react";
-import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
 import { useRouter } from "next/navigation";
@@ -150,14 +150,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   };
 
   if (isLoading) {
-    return (
-      <div
-        className="flex h-full items-center justify-center"
-        data-testid="subscription-guard-checking"
-      >
-        <Loader size="lg" />
-      </div>
-    );
+    return <FullPageLoading />;
   }
 
   if (isBlocked) {
