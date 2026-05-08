@@ -21,6 +21,9 @@ import type { NextRequest } from "next/server";
 // ROUTE CONFIGURATION
 // ============================================
 
+// Routes that bypass the billing gate (accessible even when subscription is blocked)
+const BILLING_ALLOWED_ROUTES = ["/subscription-blocked"];
+
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
   "/",
@@ -62,6 +65,18 @@ function isPublicRoute(pathname: string): boolean {
 
 function shouldSkip(pathname: string): boolean {
   return SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern));
+}
+
+function isBillingAllowed(pathname: string): boolean {
+  return BILLING_ALLOWED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/"),
+  );
+}
+
+interface BillingStatusResponse {
+  allowed: boolean;
+  status: string;
+  reason?: string;
 }
 
 // ============================================
@@ -125,9 +140,54 @@ export async function middleware(request: NextRequest) {
     return resp;
   }
 
-  // This middleware only checks session presence.
-  // Authorization is enforced server-side using verified/revocation-checked tokens.
-  // Legacy JS-readable cookie remains login hint only during phase A rollout.
+  // Billing gate: verify subscription status via Node.js route (supports firebase-admin).
+  // Skipped for BILLING_ALLOWED_ROUTES so blocked users can still reach /subscription-blocked.
+  // No client-side cache — the route call is ~50ms and other layers (backend, Firestore Rules)
+  // are the primary enforcement; this gate prevents SSR of protected pages before HTML is served.
+  if (!isBillingAllowed(pathname)) {
+    try {
+      const billingRes = await fetch(
+        new URL("/api/auth/billing-status", request.url).toString(),
+        { headers: { cookie: request.headers.get("cookie") ?? "" } },
+      );
+      if (billingRes.ok) {
+        const billing = (await billingRes.json()) as BillingStatusResponse;
+        if (!billing.allowed) {
+          if (
+            billing.reason === "session_revoked" ||
+            billing.reason === "session_expired"
+          ) {
+            const loginUrl = new URL("/login", request.url);
+            loginUrl.searchParams.set("reason", billing.reason);
+            const resp = NextResponse.redirect(loginUrl);
+            resp.cookies.set({
+              name: "__session",
+              value: "",
+              httpOnly: true,
+              secure: request.nextUrl.protocol === "https:",
+              sameSite: "lax",
+              path: "/",
+              maxAge: 0,
+            });
+            return resp;
+          }
+          const blockedUrl = new URL("/subscription-blocked", request.url);
+          const resp = NextResponse.redirect(blockedUrl);
+          resp.headers.set("Cache-Control", "no-store");
+          return resp;
+        }
+      }
+    } catch {
+      // Billing check failure → fail open; backend middleware and Firestore Rules still enforce.
+    }
+  }
+
+  // Add Cache-Control: no-store on the subscription-blocked page to prevent bfcache restoring stale state.
+  if (isBillingAllowed(pathname)) {
+    const resp = NextResponse.next();
+    resp.headers.set("Cache-Control", "no-store, must-revalidate");
+    return resp;
+  }
 
   return NextResponse.next();
 }
