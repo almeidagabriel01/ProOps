@@ -51,40 +51,45 @@ export function ProtectedAppShell({
         : "—";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-card">
-      <div className="flex-1 flex flex-col bg-background overflow-hidden">
-        <Header sidebarWidth={0} />
-        {user !== null && isPastDue && (
-          <BillingStateBanner
-            variant="destructive"
-            message="Seu pagamento está em atraso. Regularize para manter o acesso."
-            ctaLabel={isOpeningPortal ? "Abrindo..." : "Atualizar pagamento"}
-            onCta={handleOpenPortal}
-            ctaDisabled={isOpeningPortal}
-            dataTestid="billing-state-banner-past-due"
-          />
-        )}
-        {user !== null && isCancelAtPeriodEnd && (
-          <BillingStateBanner
-            variant="warning"
-            message={`Sua assinatura será cancelada em ${cancelAtFormatted}. Reativar?`}
-            ctaLabel="Reativar assinatura"
-            onCta={() => {}}
-            ctaDisabled
-            ctaDisabledTooltip="Disponível em breve"
-            dataTestid="billing-state-banner-cancel-period-end"
-          />
-        )}
-        <SubscriptionGuard>
+    // SubscriptionGuard wraps the ENTIRE shell — Header and BottomDock included.
+    // Previously it only wrapped <main>, so the header/dock flashed briefly before
+    // the guard's redirect landed. Now the guard blocks the whole tree: while
+    // loading it shows a full-screen spinner, while blocked it returns null (no
+    // shell renders at all before the redirect to /subscription-blocked fires).
+    <SubscriptionGuard>
+      <div className="flex h-screen overflow-hidden bg-card">
+        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+          <Header sidebarWidth={0} />
+          {user !== null && isPastDue && (
+            <BillingStateBanner
+              variant="destructive"
+              message="Seu pagamento está em atraso. Regularize para manter o acesso."
+              ctaLabel={isOpeningPortal ? "Abrindo..." : "Atualizar pagamento"}
+              onCta={handleOpenPortal}
+              ctaDisabled={isOpeningPortal}
+              dataTestid="billing-state-banner-past-due"
+            />
+          )}
+          {user !== null && isCancelAtPeriodEnd && (
+            <BillingStateBanner
+              variant="warning"
+              message={`Sua assinatura será cancelada em ${cancelAtFormatted}. Reativar?`}
+              ctaLabel="Reativar assinatura"
+              onCta={() => {}}
+              ctaDisabled
+              ctaDisabledTooltip="Disponível em breve"
+              dataTestid="billing-state-banner-cancel-period-end"
+            />
+          )}
           <main id="main-content" className="flex-1 p-8 overflow-y-auto">
             {children}
           </main>
-        </SubscriptionGuard>
-        <AppOnboarding />
+          <AppOnboarding />
+        </div>
+        <BottomDock />
+        {/* Only render Lia for paid plan users; undefined planTier = still loading, null user = auth loading, role "free" = free plan */}
+        {planTier !== undefined && user !== null && user.role !== "free" && <LiaContainer />}
       </div>
-      <BottomDock />
-      {/* Only render Lia for paid plan users; undefined planTier = still loading, null user = auth loading, role "free" = free plan */}
-      {planTier !== undefined && user !== null && user.role !== "free" && <LiaContainer />}
-    </div>
+    </SubscriptionGuard>
   );
 }
