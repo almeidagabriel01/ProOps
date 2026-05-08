@@ -45,6 +45,10 @@ function normalizePastDueSince(value: unknown): string | null {
   return null;
 }
 
+export function invalidateBillingCache(tenantId: string): void {
+  billingStateCache.delete(tenantId);
+}
+
 export async function requireActiveSubscription(
   req: Request,
   res: Response,
@@ -110,10 +114,9 @@ export async function requireActiveSubscription(
     }
   }
 
-  const { subscriptionStatus, plan, pastDueSince } = billingState;
+  const { subscriptionStatus, pastDueSince } = billingState;
 
   if (
-    plan === "free" ||
     subscriptionStatus === "free" ||
     subscriptionStatus === "" ||
     subscriptionStatus === "active" ||

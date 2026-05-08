@@ -37,6 +37,8 @@ import {
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { logger } from "../lib/logger";
+import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
+import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type {
   SyncTenantPlanBillingSnapshotParams,
   SubscriptionSnapshot,
@@ -949,6 +951,29 @@ async function handleSubscriptionUpdated(
       );
     }
   }
+
+  // Propagate billing status into Auth claims for access-affecting status changes.
+  const currentStripeStatus = subscription.status;
+  if (
+    currentStripeStatus === "past_due" ||
+    currentStripeStatus === "canceled" ||
+    currentStripeStatus === "unpaid"
+  ) {
+    invalidateBillingCache(tenantId);
+    await applyBillingClaimsToTenantUsers(tenantId, {
+      subscriptionStatus:
+        currentStripeStatus === "unpaid" ? "canceled" : currentStripeStatus,
+      ...(currentStripeStatus === "canceled" || currentStripeStatus === "unpaid"
+        ? { subscriptionPlan: "free" }
+        : {}),
+    }).catch((err) =>
+      logger.warn("billing_claims: subscription_updated_claims_error", {
+        tenantId,
+        stripeStatus: currentStripeStatus,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
 }
 
 async function handleInvoicePaymentFailed(
@@ -995,6 +1020,17 @@ async function handleInvoicePaymentFailed(
     eventId: undefined,
     source: "webhook.invoice.payment_failed",
   });
+
+  invalidateBillingCache(tenantId);
+  await applyBillingClaimsToTenantUsers(tenantId, {
+    subscriptionStatus: "past_due",
+  }).catch((err) =>
+    logger.warn("billing_claims: invoice_payment_failed_claims_error", {
+      tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+
   console.log(`[StripeWebhook] Tenant ${tenantId} marked past_due after invoice payment failure`);
 }
 
@@ -1167,6 +1203,17 @@ async function handleSubscriptionDeleted(
     eventId: subscription.id,
     source: "webhook.subscription.deleted",
   });
+
+  invalidateBillingCache(tenantId);
+  await applyBillingClaimsToTenantUsers(tenantId, {
+    subscriptionStatus: "canceled",
+    subscriptionPlan: "free",
+  }).catch((err) =>
+    logger.warn("billing_claims: subscription_deleted_claims_error", {
+      tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
 
   // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the
   // Firestore state stays consistent after the base subscription is deleted.

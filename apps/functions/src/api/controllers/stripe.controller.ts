@@ -17,6 +17,8 @@ import {
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
 import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { applyBillingClaimsToTenantUsers } from "../../lib/billing-claims";
+import { invalidateBillingCache } from "../middleware/require-active-subscription";
 
 import { db } from "../../init";
 import {
@@ -510,6 +512,20 @@ export const cancelSubscription = async (req: Request, res: Response) => {
         pastDueSince: null,
       });
 
+      // Propagate canceled status into custom claims and revoke tokens for all
+      // tenant users. Errors are non-fatal — webhook will reconcile on next event.
+      await applyBillingClaimsToTenantUsers(tenantId, {
+        subscriptionStatus: "canceled",
+        subscriptionPlan: "free",
+      }).catch((err) => {
+        console.error("[cancelSubscription] billing_claims_error", {
+          tenantId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+
+      invalidateBillingCache(tenantId);
+
       console.log(
         `[cancelSubscription] past_due immediate cancel`,
         JSON.stringify({ userId, tenantId, subscriptionId: stripeSubscriptionId }),
@@ -519,6 +535,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
         success: true,
         message: "Subscription canceled immediately",
         cancelAt: nowIso,
+        requiresReauth: true,
       });
     }
 
