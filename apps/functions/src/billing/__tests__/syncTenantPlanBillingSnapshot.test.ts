@@ -260,3 +260,80 @@ describe("syncTenantPlanBillingSnapshot (BILL-06 single writer)", () => {
     expect(isNaN(Date.parse(sub.syncedAt as string))).toBe(false);
   });
 });
+
+// ---- Phase 19 Plan 03: Phase-gate audit + per-source traceability ----
+
+describe("Phase 19 Plan 03 — phase-gate audit", () => {
+  it("phase gate: only single writer + EXEMPT callers write billing state to tenants/{id}", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    // Files that previously had parallel billing-state writes: must now import the single writer
+    const consolidatedFiles = [
+      "billing/billing-sync.service.ts",
+      "api/controllers/stripe.controller.ts",
+      "stripe/stripeHelpers.ts",
+    ];
+    for (const f of consolidatedFiles) {
+      const content = fs.readFileSync(path.join(root, f), "utf8");
+      expect(content).toContain("syncTenantPlanBillingSnapshot");
+    }
+
+    // applyScheduledPlanChanges.ts cannot call the writer (nested transactions — Pitfall 5);
+    // it extends its existing transaction with subscription.* dotted keys instead.
+    const applyContent = fs.readFileSync(
+      path.join(root, "applyScheduledPlanChanges.ts"),
+      "utf8",
+    );
+    expect(applyContent).toContain('"subscription.plan"');
+    expect(applyContent).not.toContain("syncTenantPlanBillingSnapshot");
+
+    // upsertTenantStripeBillingData: must route stripeCustomerId/stripeSubscriptionId through
+    // the single writer and NOT write them via tenantRef directly.
+    const helpers = fs.readFileSync(path.join(root, "stripe/stripeHelpers.ts"), "utf8");
+    const fnStart = helpers.indexOf("export async function upsertTenantStripeBillingData");
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextExportIdx = helpers.indexOf("\nexport ", fnStart + 1);
+    const fnBody = helpers.slice(fnStart, nextExportIdx === -1 ? helpers.length : nextExportIdx);
+
+    // Must call the single writer
+    expect(fnBody).toMatch(/syncTenantPlanBillingSnapshot\s*\(/);
+
+    // Direct tenantRef.set/update calls inside this function must NOT contain billing-state fields
+    const directWriteRe = /tenantRef\.(set|update)\s*\([^)]*\)/gs;
+    let match: RegExpExecArray | null;
+    while ((match = directWriteRe.exec(fnBody)) !== null) {
+      expect(match[0]).not.toMatch(/stripeCustomerId|stripeSubscriptionId/);
+    }
+
+    // Addon-only direct write must carry the EXEMPT comment
+    expect(fnBody).toMatch(/EXEMPT:\s*addon-item identifiers/);
+  });
+
+  it("every consolidated caller passes a unique 'source' tag to syncTenantPlanBillingSnapshot", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    const expectedTags: [string, string][] = [
+      ["api/controllers/stripe.controller.ts", "controller.cancelSubscription"],
+      ["api/controllers/stripe.controller.ts", "controller.confirmCheckoutSession"],
+      ["api/controllers/stripe.controller.ts", "controller.syncSubscription"],
+      ["api/controllers/stripe.controller.ts", "controller.createCheckoutSession"],
+      ["billing/billing-sync.service.ts", "cron.checkStripeSubscriptions"],
+      ["stripe/stripeHelpers.ts", "helpers.updateUserPlan"],
+      ["stripe/stripeHelpers.ts", "helpers.runStripeSync"],
+      ["stripe/stripeHelpers.ts", "helpers.upsertTenantStripeBillingData"],
+    ];
+
+    for (const [file, tag] of expectedTags) {
+      const content = fs.readFileSync(path.join(root, file), "utf8");
+      expect(content).toContain(tag);
+    }
+  });
+});

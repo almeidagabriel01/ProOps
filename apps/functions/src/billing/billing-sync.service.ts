@@ -67,10 +67,12 @@ export async function syncTenantBillingFromStripe(
       billingSyncing: false,
       source: opts.source,
     };
+    // EXEMPT: sync timestamp only — no billing-state fields (subscriptionStatus/plan/stripePriceId absent)
     await tenantRef.set({ billingSyncedAt: freeSnapshot.billingSyncedAt }, { merge: true });
     return freeSnapshot;
   }
 
+  // EXEMPT: billingSyncing control-plane flag — not a billing-state field
   await tenantRef.set({ billingSyncing: true }, { merge: true });
 
   try {
@@ -129,6 +131,7 @@ export async function syncTenantBillingFromStripe(
         billingSyncing: false,
         source: opts.source,
       };
+      // EXEMPT: billingSyncing control-plane flag + sync timestamp only — no billing-state fields
       await tenantRef.set(
         { billingSyncing: false, billingSyncedAt: emptySnapshot.billingSyncedAt },
         { merge: true },
@@ -230,6 +233,7 @@ export async function syncTenantBillingFromStripe(
     });
     throw err;
   } finally {
+    // EXEMPT: billingSyncing control-plane flag — best-effort cleanup, no billing-state fields
     await tenantRef.set({ billingSyncing: false }, { merge: true }).catch(() => {
       // best-effort cleanup
     });
