@@ -17,6 +17,14 @@ interface SubscriptionGuardProps {
 
 const GRACE_PERIOD_DAYS = 7;
 
+const BLOCKED_STATUSES = new Set([
+  "canceled",
+  "cancelled",
+  "unpaid",
+  "inactive",
+  "payment_failed",
+]);
+
 export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { tenant, isLoading: isTenantLoading } = useTenant();
@@ -32,102 +40,80 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     if (user.role === "superadmin") return false;
     // "free" role means the account has never had a paid plan — nothing to enforce
     if (user.role === "free") return false;
-    // Read subscription status preferring tenant doc (synced from Stripe via BillingSnapshot),
-    // fall back to user doc for backward compatibility during transition.
     const status = tenant?.subscriptionStatus ?? user.subscriptionStatus;
     // subscriptionStatus "free" also means no active subscription to enforce
     if (status === "free") return false;
-    // Sub-users (masterId set) share their tenant's subscription — they ARE checked.
     return true;
   }, [user, tenant?.subscriptionStatus]);
 
   // Prefer tenant billing fields (synced from Stripe) over user fields.
-  // tenant is populated by TenantService.getTenantById which spreads the full
-  // Firestore tenant doc — billing fields added to the Tenant type flow through.
   const subscriptionStatus = tenant?.subscriptionStatus ?? user?.subscriptionStatus;
   const currentPeriodEnd = tenant?.currentPeriodEnd ?? user?.currentPeriodEnd ?? null;
   const cancelAtPeriodEnd = tenant?.cancelAtPeriodEnd ?? user?.cancelAtPeriodEnd;
-  // pastDueSince is a tenant-level field set by Stripe webhook when payment fails.
-  // It is more reliable than currentPeriodEnd for calculating the grace period because
-  // currentPeriodEnd may be null or stale when Stripe hasn't renewed the period yet.
+  // pastDueSince is set by the Stripe webhook at the first failed payment attempt.
+  // If absent for a past_due tenant, we treat the grace period as expired to match
+  // the behavior of billing-status/route.ts and require-active-subscription.ts.
   const pastDueSince = tenant?.pastDueSince ?? null;
-  // For backward compat: used when both pastDueSince and currentPeriodEnd are absent.
-  const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
 
   const { isGracePeriodExpired } = React.useMemo(() => {
     if (subscriptionStatus !== "past_due") {
       return { isGracePeriodExpired: false };
     }
-
-    // Grace period reference date priority:
-    // 1. pastDueSince — set by webhook at first failed payment (most accurate)
-    // 2. currentPeriodEnd — period end when payment was due
-    // 3. subscriptionUpdatedAt — last known subscription change (fallback)
-    // 4. now — worst case: start grace from now
-    const referenceDate = pastDueSince
-      ? new Date(pastDueSince)
-      : currentPeriodEnd
-        ? new Date(currentPeriodEnd)
-        : subscriptionUpdatedAt
-          ? new Date(subscriptionUpdatedAt)
-          : new Date();
-
-    const deadline = new Date(referenceDate);
-    deadline.setDate(deadline.getDate() + GRACE_PERIOD_DAYS);
-
-    const now = new Date();
-    const diffTime = deadline.getTime() - now.getTime();
-    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return {
-      isGracePeriodExpired: days <= 0,
-    };
-  }, [subscriptionStatus, pastDueSince, currentPeriodEnd, subscriptionUpdatedAt]);
-
-  React.useEffect(() => {
-    if (!shouldCheckSubscription || isLoading) return;
-
-    let isScheduledCancellationExpired = false;
-    if (cancelAtPeriodEnd && currentPeriodEnd) {
-      const periodEndDate = new Date(currentPeriodEnd);
-      if (!Number.isNaN(periodEndDate.getTime())) {
-        isScheduledCancellationExpired =
-          periodEndDate.getTime() <= new Date().getTime();
-      }
+    if (!pastDueSince) {
+      // No reference date — consistent with billing-status route: treat as expired.
+      return { isGracePeriodExpired: true };
     }
+    const referenceMs = Date.parse(pastDueSince);
+    if (!Number.isFinite(referenceMs)) {
+      return { isGracePeriodExpired: true };
+    }
+    const graceMs = GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+    return { isGracePeriodExpired: Date.now() - referenceMs > graceMs };
+  }, [subscriptionStatus, pastDueSince]);
 
-    const blockedStatuses = [
-      "canceled",
-      "cancelled",
-      "unpaid",
-      "inactive",
-      "payment_failed",
-    ];
+  // Compute block decision synchronously during render so children are never
+  // painted when the subscription is blocked. The redirect is a side effect
+  // and stays in useEffect, but returning null here prevents the flash of
+  // unprotected content that would otherwise occur before useEffect runs.
+  const isBlocked = React.useMemo(() => {
+    if (!shouldCheckSubscription || isLoading) return false;
 
-    if (subscriptionStatus && blockedStatuses.includes(subscriptionStatus)) {
-      router.replace("/subscription-blocked");
-      return;
+    if (subscriptionStatus && BLOCKED_STATUSES.has(subscriptionStatus)) {
+      return true;
     }
 
     if (subscriptionStatus === "past_due" && isGracePeriodExpired) {
-      router.replace("/subscription-blocked");
-      return;
+      return true;
     }
 
-    if (isScheduledCancellationExpired) {
-      router.replace("/subscription-blocked");
+    if (cancelAtPeriodEnd && currentPeriodEnd) {
+      const periodEndDate = new Date(currentPeriodEnd);
+      if (
+        !Number.isNaN(periodEndDate.getTime()) &&
+        periodEndDate.getTime() <= Date.now()
+      ) {
+        return true;
+      }
     }
+
+    return false;
   }, [
-    subscriptionStatus,
     shouldCheckSubscription,
     isLoading,
-    router,
+    subscriptionStatus,
     isGracePeriodExpired,
     cancelAtPeriodEnd,
     currentPeriodEnd,
   ]);
 
-  // Filter add-on warnings to show only non-expired ones
+  // Secondary action: navigate to the blocked page. The render already returns
+  // null above so the user never sees protected content even on the first cycle.
+  React.useEffect(() => {
+    if (isBlocked) {
+      router.replace("/subscription-blocked");
+    }
+  }, [isBlocked, router]);
+
   const addonWarnings = React.useMemo(() => {
     return pastDueAddons.filter((info) => !info.isExpired);
   }, [pastDueAddons]);
@@ -157,6 +143,10 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
         <Loader size="lg" />
       </div>
     );
+  }
+
+  if (isBlocked) {
+    return null;
   }
 
   return (

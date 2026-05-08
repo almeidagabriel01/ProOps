@@ -355,13 +355,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // doesn't reject the next server-side navigation.
     // Also checks billing claims — if the refreshed token carries a blocked
     // subscriptionStatus (written by billing-claims.ts on cancel), sign out immediately.
-    const BLOCKED_SUBSCRIPTION_STATUSES = [
+    // For past_due we delegate the grace-period check to /api/auth/billing-status
+    // (which reads Firestore) because pastDueSince is not embedded in JWT claims.
+    const TERMINAL_BLOCKED_STATUSES = new Set([
       "canceled",
       "cancelled",
       "unpaid",
       "inactive",
       "payment_failed",
-    ];
+    ]);
     const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
       const skipEmailVerification =
@@ -372,10 +374,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const subStatus = String(
             tokenResult.claims.subscriptionStatus || "",
           );
-          if (BLOCKED_SUBSCRIPTION_STATUSES.includes(subStatus)) {
+          if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
             await signOut(auth);
             window.location.replace("/subscription-blocked");
             return;
+          }
+          // past_due requires a grace-period check against Firestore.
+          // JWT claims don't carry pastDueSince, so we ask the server.
+          if (subStatus === "past_due") {
+            try {
+              const res = await fetch("/api/auth/billing-status");
+              if (res.ok) {
+                const data = (await res.json()) as { allowed?: boolean };
+                if (data.allowed === false) {
+                  await signOut(auth);
+                  window.location.replace("/subscription-blocked");
+                  return;
+                }
+              }
+            } catch {
+              // Network error — fail open; middleware and Firestore rules are the final gate.
+            }
           }
         } catch {
           // Token revoked — onAuthStateChanged fires with null, triggering sign-out.
