@@ -163,6 +163,17 @@ No new network endpoints, auth paths, file access patterns, or schema changes in
 - **Plan 20-03 (frontend banners):** Must implement `data-testid="billing-state-banner-past-due"` and `data-testid="billing-state-banner-cancel-period-end"` to make Wave 0 stubs green
 - **Plan 20-04 (cancel dialog):** Must implement "Sim, cancelar agora" confirm button copy
 
+## Self-Check: PASSED
+
+- `tests/e2e/billing/billing-state-banners.spec.ts` — FOUND
+- `tests/e2e/seed/data/billing.ts` — FOUND
+- `.planning/REQUIREMENTS.md` — FOUND
+- `.planning/phases/20-subscription-state-banners-cancel-enforcement/20-01-SUMMARY.md` — FOUND
+- Commit `00296674` — FOUND (docs: STATE-03 wording)
+- Commit `a223ebac` — FOUND (test: seedBillingStateExtended)
+- Commit `52e5cb98` — FOUND (test: E2E stubs)
+- Commit `dd101c80` — FOUND (docs: metadata)
+
 ---
 *Phase: 20-subscription-state-banners-cancel-enforcement*
 *Completed: 2026-05-08*
