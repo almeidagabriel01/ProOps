@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: Lia Frontend Chat UI** - LiaPanel, streaming SSE, message bubbles, tool dialogs, useAiChat hook (completed 2026-04-14)
 - [x] **Phase 16: Lia Seguranca & Billing** - ai-auth middleware, AI_LIMITS, Firestore rules, billing page AI usage (completed 2026-04-14)
 - [x] **Phase 17: Lia Testes & QA** - E2E AI-01-12, seed tenant ai-test pro, CI smoke test (completed 2026-04-15)
-- [x] **Phase 19: Single-Writer Billing Foundation** - Transactional single writer, LRU cache, Stripe idempotency (completed 2026-05-08)
+- [x] **Phase 19: Single-Writer Billing Foundation** - Transactional single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closure (completed 2026-05-07)
 - [ ] **Phase 20: Subscription State Banners + Cancel Enforcement** - past_due banner, cancelAtPeriodEnd banner, cancel block 409
 - [ ] **Phase 21: Reactivation + Addon State Cleanup** - Reactivate endpoint, stale addon badge fix, daily cleanup cron
 - [ ] **Phase 22: Login Redirect Hardening** - Always redirect to /dashboard post-login, remove redirect= consumption
@@ -381,13 +381,14 @@ Plans:
 4. A duplicate Stripe event (same `eventId`) processed a second time returns HTTP 200 without re-executing any business logic — verified by replaying an event in the emulator
 
 **Architecture note**: Extend `syncTenantPlanBillingSnapshot` — do NOT create a new parallel writer. Both top-level fields and nested `subscription.*` fields must be written in a single `db.runTransaction()` call.
-**Plans:** 5/5 plans complete
+**Plans:** 6/6 plans complete
 Plans:
 - [x] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
 - [x] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
 - [x] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
 - [x] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
 - [x] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
+- [x] 19-06-PLAN.md — Gap closure: route admin.controller.ts billing-state writers through single writer; extend phase-gate audit
 
 ### Phase 20: Subscription State Banners + Cancel Enforcement
 
@@ -492,7 +493,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 16. Lia Segurança & Billing       | 4/4            | Complete    | 2026-04-14 |
 | 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
 | 18. fix(lia) 5 correções          | 3/3            | Complete    | 2026-04-15 |
-| 19. Single-Writer Billing Foundation | 5/5 | Complete   | 2026-05-08 |
+| 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
 | 20. Subscription State Banners + Cancel Enforcement | 0/TBD | Not started | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
 | 22. Login Redirect Hardening      | 0/TBD          | Not started | -          |

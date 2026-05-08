@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: Phase complete — ready for verification
-stopped_at: Completed Phase 19 Plan 03 (19-03-PLAN.md)
-last_updated: "2026-05-08T00:56:57.202Z"
+status: unknown
+stopped_at: Completed Phase 19 Plan 06 (19-06-PLAN.md)
+last_updated: "2026-05-07T00:00:00.000Z"
 progress:
   total_phases: 14
   completed_phases: 14
   total_plans: 48
   completed_plans: 48
-  percent: 100
 ---
 
 # Project State
@@ -25,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 19 (single-writer-billing-foundation) — EXECUTING
-Plan: 5 of 5
+Plan: 1 of 6
 
 ## Performance Metrics
 
@@ -81,6 +80,7 @@ _Updated after each plan completion_
 | Phase 19 P04 | 35 | 2 tasks | 3 files |
 | Phase 19 P05 | 8 | 1 tasks | 1 files |
 | Phase 19 P03 | 45 | 3 tasks | 5 files |
+| Phase 19 P06 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -157,6 +157,7 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 02-03]: AUTH-06 gap closed — 502 removed from backend API isolation assertion; global-setup.ts already starts Functions emulator (--only auth,firestore,storage,functions); tightened [403, 404] assertion causes hard failure if emulator unreachable
 - [Phase 02-04]: AUTH-05 redirect params stripped by ProtectedRoute client-side router.push('/login') which lacked query params; middleware returns HTTP 200 for App Router shell — client JS layer is the actual redirect mechanism. Fixed router.push to include redirect + redirect_reason params. 18/18 auth suite green.
 - [Phase ?]: [Phase 19 P03]: Single-writer pattern enforced — all tenant billing-state writes route through syncTenantPlanBillingSnapshot; applyScheduledPlanChanges extends existing tx with subscription.* dotted keys (Pitfall 5); upsertTenantStripeBillingData split with EXEMPT comment for addon-item ids
+- [Phase 19 P06]: admin.controller.ts gap closure — updateUserPlan passes tierFromPlanId (not getTenantPlanProfile which reads stale tier); recomputeTenantFeatures EXEMPT (plan field removed, only whatsappEnabled+featuresRecomputedAt); forceSetTenantPlan routes plan+scheduledPlan* through single writer with clearScheduled:true
 
 ### v4.0 Architecture Decisions
 
