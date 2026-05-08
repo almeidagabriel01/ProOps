@@ -248,7 +248,7 @@ export function MySubscriptionTab({
         // Do NOT call auth.signOut() here — it would flash the login screen before
         // the /subscription-blocked redirect fires.
         toast.success("Assinatura cancelada. Seu acesso foi encerrado.");
-        window.location.replace("/subscription-blocked");
+        window.location.replace("/subscription-blocked?reason=canceled");
         return;
       }
 

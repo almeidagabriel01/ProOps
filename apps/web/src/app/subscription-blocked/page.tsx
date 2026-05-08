@@ -1,7 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CreditCard, Mail, LogOut, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,10 +16,13 @@ import {
 } from "@/components/ui/card";
 import { StripeService } from "@/services/stripe-service";
 import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 
-export default function SubscriptionBlockedPage() {
+function SubscriptionBlockedContent() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reasonParam = searchParams.get("reason");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -51,7 +56,7 @@ export default function SubscriptionBlockedPage() {
   };
 
   const getStatusMessage = () => {
-    switch (user?.subscriptionStatus) {
+    switch (reasonParam || user?.subscriptionStatus) {
       case "unpaid":
       case "past_due":
       case "payment_failed":
@@ -81,11 +86,7 @@ export default function SubscriptionBlockedPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+    return <FullPageLoading />;
   }
 
   // user may be null when the session cookie was revoked (post past_due cancel).
@@ -165,5 +166,13 @@ export default function SubscriptionBlockedPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SubscriptionBlockedPage() {
+  return (
+    <Suspense fallback={<FullPageLoading />}>
+      <SubscriptionBlockedContent />
+    </Suspense>
   );
 }
