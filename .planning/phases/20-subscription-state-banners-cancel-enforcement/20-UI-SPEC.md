@@ -43,8 +43,7 @@ Declared values (multiples of 4):
 | 3xl | 64px | Not used in banner component |
 
 Exceptions:
-- Banner height is content-driven (minimum `py-3` = 12px top/bottom padding). This 12px value is the existing pattern from Pattern 1 in RESEARCH.md and matches the `subscription-guard.tsx` inner card padding. Acceptable 4-point deviation.
-- Touch target for banner CTA button: `size="sm"` = `h-8` (32px) — within 44px minimum only for secondary utility actions on non-critical paths. The CTA is not the only path to fix billing (Stripe portal also available from profile page), so 32px is acceptable.
+- Touch target for banner CTA button: `size="sm"` = `h-8` (32px) — below the 44px minimum. Acceptable for a secondary utility action on a non-critical surface; the Stripe portal is also reachable from the profile page.
 
 Source: RESEARCH.md Pattern 1 (verified from `subscription-guard.tsx` lines 166–200)
 
@@ -54,17 +53,17 @@ Source: RESEARCH.md Pattern 1 (verified from `subscription-guard.tsx` lines 166�
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Banner body | 14px (`text-sm`) | 400 (regular) | 1.5 (default) |
-| Banner label / CTA | 14px (`text-sm`) | 600 (semibold, `font-medium` in Tailwind = 500; use `font-semibold` for label) | 1.25 |
+| Dense meta / badge | 12px (`text-xs`) | 400 (regular) | 1.4 |
+| Banner body / label | 14px (`text-sm`) | 400 (regular) or 600 (`font-semibold` for CTA) | 1.5 |
 | AlertDialog title | 16px (`text-base`) | 600 (`font-semibold`) | 1.2 |
-| AlertDialog description | 14px (`text-sm`) | 400 | 1.5 |
+| Section heading | 24px (`text-2xl`) | 700 (`font-bold`) — pre-existing in MySubscriptionTab | 1.2 |
 
 Notes:
-- Only 2 font sizes used in this phase: 14px (banner + dialog body) and 16px (dialog title).
-- Only 2 weights used: 400 (regular) and 600 (semibold).
-- Existing banner in `subscription-guard.tsx` uses `text-sm font-semibold` for the heading and `text-xs` for sub-copy — Phase 20 banner uses `text-sm` throughout (no sub-copy line, message fits in one sentence).
+- 4 sizes covering all surfaces Phase 20 touches: 12px (dense meta, existing codebase pattern), 14px (banner body + dialog description), 16px (dialog title), 24px (MySubscriptionTab section heading — pre-existing, not changed, but the new cancel dialog renders in that context).
+- 2 weights in new code introduced by this phase: 400 (regular) and 600 (semibold). The 700 (`font-bold`) on the section heading is pre-existing and not introduced by this phase.
+- Phase 20's new surfaces (banner + new AlertDialog copy) exclusively use 14px/400, 14px/600, and 16px/600.
 
-Source: `subscription-guard.tsx` lines 174–179; shadcn AlertDialog defaults
+Source: `subscription-guard.tsx` lines 174–179; shadcn AlertDialog defaults; `MySubscriptionTab.tsx` line 379
 
 ---
 
@@ -78,7 +77,7 @@ Source: `subscription-guard.tsx` lines 174–179; shadcn AlertDialog defaults
 | Destructive | `--destructive` (oklch 0.577 0.245 27.325 light / oklch 0.5 0.2 25 dark) | Red banner background tint, red banner CTA button |
 | Warning (no CSS var) | Tailwind `yellow-50 / yellow-400 / yellow-800` (light); `yellow-950/90 / yellow-600 / yellow-200` (dark) | Yellow banner background, border, text |
 
-Accent reserved for: the "Atualizar pagamento" button in the red banner (destructive variant overrides accent) and primary actions outside this component. Warning palette is NOT a new CSS variable — uses raw Tailwind yellow utilities matching the existing `subscription-guard.tsx` past_due banner pattern.
+Accent reserved for: primary action buttons outside the banner. Warning palette is NOT a new CSS variable — uses raw Tailwind yellow utilities matching the existing `subscription-guard.tsx` past_due banner pattern (lines 166–169).
 
 Source: `apps/web/src/app/globals.css`, `subscription-guard.tsx` lines 166–169
 
@@ -178,7 +177,7 @@ Source: CONTEXT.md locked decision
 - On success: `window.location.href = result.url` (redirects to Stripe portal).
 - Return URL: `window.location.href` (current page) — same as existing `handleManageBilling` pattern.
 - On error: reset `isRedirecting`, banner remains. No toast, no error message to user (matches existing `subscription-guard.tsx` error handling at line 155).
-- Button label during loading: "Aguarde..." (or spinner + "Abrindo...") — match existing `subscription-guard.tsx` pattern ("Abrindo...").
+- Button label during loading: "Abrindo..." — matches existing `subscription-guard.tsx` pattern.
 
 ### Past_due Cancel AlertDialog
 - Opens when `past_due` tenant clicks "Cancelar assinatura" in `MySubscriptionTab.tsx`.
