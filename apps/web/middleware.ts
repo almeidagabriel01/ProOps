@@ -178,7 +178,11 @@ export async function middleware(request: NextRequest) {
         }
       }
     } catch {
-      // Billing check failure → fail open; backend middleware and Firestore Rules still enforce.
+      // Billing check infrastructure error — fail closed to prevent bypass.
+      const blockedUrl = new URL("/subscription-blocked", request.url);
+      const resp = NextResponse.redirect(blockedUrl);
+      resp.headers.set("Cache-Control", "no-store");
+      return resp;
     }
   }
 
