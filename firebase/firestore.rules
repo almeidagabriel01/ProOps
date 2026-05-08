@@ -187,29 +187,18 @@ service cloud.firestore {
      */
     function tenantSubscriptionAllowsRead(resourceTenantId) {
       let claimStatus = getAuthSubscriptionStatus();
-
-      // Fast path: JWT claim confirms an allowed status — no Firestore read.
-      if (claimStatus == 'active' || claimStatus == 'trialing' || claimStatus == 'free') {
-        return true;
-      }
-
-      // Fast path: JWT claim confirms terminal block — no Firestore read.
-      if (claimStatus in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed']) {
-        return false;
-      }
-
-      // Ambiguous (claim is '' or 'past_due'): read authoritative state from tenant doc.
-      // This get() fires only for ~1% of requests (stale/absent claims or past_due).
-      if (!isAuthenticated() || resourceTenantId == '') {
-        return true; // No context to verify — fail open; backend layers still gate.
-      }
-
-      let s = exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
-               ? string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
-               : '';
-
-      // Firestore confirms terminal block (handles stale-claim/Firestore discrepancies).
-      return !(s in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed']);
+      let isAllowedClaim = claimStatus == 'active' || claimStatus == 'trialing' || claimStatus == 'free';
+      let isBlockedClaim = claimStatus in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed'];
+      // isAllowedClaim/isBlockedClaim are pure string comparisons — safe in let bindings.
+      // exists()/get() are in the return expression where && short-circuits reliably
+      // (emulator evaluates all let bindings eagerly; return expression respects &&).
+      return isAllowedClaim
+             || (!isBlockedClaim
+                 && isAuthenticated()
+                 && resourceTenantId != ''
+                 && (!exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
+                     || !(string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
+                          in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed'])));
     }
 
     /**
