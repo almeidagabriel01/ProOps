@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { billingCache } from "@/lib/billing-cache";
+import type { CachedBillingState } from "@/lib/billing-cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,17 +18,10 @@ const BLOCKED_STATUSES = new Set([
   "payment_failed",
 ]);
 
-interface CachedBillingState {
-  subscriptionStatus: string;
-  pastDueSince: string | null;
-  cachedAt: number;
-}
-
 // Module-level cache: survives across requests within the same warm Node.js instance.
-// 30s TTL mirrors require-active-subscription.ts; max size prevents unbounded growth.
-const CACHE_TTL_MS = 30_000;
+// 5s TTL ensures stale billing state is evicted quickly; max size prevents unbounded growth.
+const CACHE_TTL_MS = 5_000;
 const CACHE_MAX_SIZE = 1_000;
-const billingCache = new Map<string, CachedBillingState>();
 
 function isGracePeriodActive(pastDueSince: string | null): boolean {
   if (!pastDueSince) return false;
