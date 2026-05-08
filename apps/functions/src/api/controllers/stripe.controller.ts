@@ -507,12 +507,27 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     )
       .trim()
       .toLowerCase();
+    // Also read from the user document — custom claims (which drive the UI badge)
+    // are written to users/{uid} by applyBillingClaimsToTenantUsers, but the
+    // tenant document may lag behind if the cron/webhook only updated the user doc.
+    const userDocStatus = String(
+      userData?.subscriptionStatus ||
+        (userData?.subscription as Record<string, unknown> | undefined)
+          ?.status ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
     // Primary status for non-past_due logic (Stripe wins; Firestore as fallback).
-    const subscriptionStatus = stripeStatus || firestoreStatus;
-    // Either source declaring past_due triggers immediate cancel — covers both the
-    // case where Stripe is ahead of Firestore and the case where our cron is ahead of Stripe.
+    const subscriptionStatus = stripeStatus || firestoreStatus || userDocStatus;
+    // Any source declaring past_due triggers immediate cancel:
+    //   stripeStatus   — Stripe ahead of Firestore (payment_failed webhook not yet processed)
+    //   firestoreStatus — cron ahead of Stripe (checkStripeSubscriptions set past_due)
+    //   userDocStatus  — claims/user-doc ahead of tenant-doc (applyBillingClaimsToTenantUsers ran)
     const isPastDue =
-      stripeStatus === "past_due" || firestoreStatus === "past_due";
+      stripeStatus === "past_due" ||
+      firestoreStatus === "past_due" ||
+      userDocStatus === "past_due";
 
     const nowIso = new Date().toISOString();
 
