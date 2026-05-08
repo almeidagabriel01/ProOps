@@ -518,8 +518,12 @@ export const cancelSubscription = async (req: Request, res: Response) => {
 
     if (isPastDue) {
       // STATE-03: past_due → immediate cancel. Access ends NOW.
-      await stripe.subscriptions.cancel(stripeSubscriptionId);
-
+      //
+      // CRITICAL ORDER: Firestore is updated to "canceled" FIRST so the billing
+      // gate immediately blocks the user even if the Stripe API call below fails
+      // (e.g. subscription already cancelled, test env without a real Stripe sub,
+      // transient network error). The Stripe webhook / checkStripeSubscriptions
+      // cron will reconcile Stripe state on the next event.
       await syncTenantPlanBillingSnapshot({
         tenantId,
         source: "controller.cancelSubscription.past_due_immediate",
@@ -530,16 +534,27 @@ export const cancelSubscription = async (req: Request, res: Response) => {
         pastDueSince: null,
       });
 
-      // Propagate canceled status into custom claims and revoke tokens for all
-      // tenant users. Errors are non-fatal — webhook will reconcile on next event.
+      // Cancel on Stripe — non-fatal after Firestore is already updated.
+      try {
+        await stripe.subscriptions.cancel(stripeSubscriptionId);
+      } catch (stripeErr) {
+        console.error("[cancelSubscription] past_due_stripe_cancel_error", {
+          tenantId,
+          subscriptionId: stripeSubscriptionId,
+          error:
+            stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
+        });
+      }
+
+      // Propagate canceled status into custom claims. Errors are non-fatal —
+      // billing-status reads Firestore directly (CACHE_TTL_MS=0), so the billing
+      // gate is already enforced by the Firestore write above.
       try {
         await applyBillingClaimsToTenantUsers(tenantId, {
           subscriptionStatus: "canceled",
           subscriptionPlan: "free",
         });
       } catch (err) {
-        // Partial failure: some users may retain stale claims. Backend middleware
-        // (TTL 5s) and billing-status route will catch them within seconds.
         console.error("[cancelSubscription] billing_claims_partial_failure", {
           tenantId,
           error: err instanceof Error ? err.message : String(err),
