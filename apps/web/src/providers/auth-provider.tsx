@@ -378,7 +378,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
           if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
             await signOut(auth);
-            window.location.replace("/subscription-blocked");
+            if (!window.location.pathname.startsWith("/subscription-blocked")) {
+              window.location.replace("/subscription-blocked");
+            }
             return;
           }
           // Canceled accounts stay logged in but must not access the ERP.
@@ -400,7 +402,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const data = (await res.json()) as { allowed?: boolean };
                 if (data.allowed === false) {
                   await signOut(auth);
-                  window.location.replace("/subscription-blocked");
+                  if (!window.location.pathname.startsWith("/subscription-blocked")) {
+                    window.location.replace("/subscription-blocked");
+                  }
                   return;
                 }
               }
