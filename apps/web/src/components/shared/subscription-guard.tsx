@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { AlertTriangle, CreditCard, Clock, Package } from "lucide-react";
+import { CreditCard, Clock, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StripeService } from "@/services/stripe-service";
 import { useRouter } from "next/navigation";
@@ -53,9 +53,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   // For backward compat: used when both pastDueSince and currentPeriodEnd are absent.
   const subscriptionUpdatedAt = user?.subscriptionUpdatedAt;
 
-  const { daysRemaining, isGracePeriodExpired } = React.useMemo(() => {
+  const { isGracePeriodExpired } = React.useMemo(() => {
     if (subscriptionStatus !== "past_due") {
-      return { daysRemaining: GRACE_PERIOD_DAYS, isGracePeriodExpired: false };
+      return { isGracePeriodExpired: false };
     }
 
     // Grace period reference date priority:
@@ -77,10 +77,8 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
     const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const remaining = Math.max(0, days);
 
     return {
-      daysRemaining: remaining,
       isGracePeriodExpired: days <= 0,
     };
   }, [subscriptionStatus, pastDueSince, currentPeriodEnd, subscriptionUpdatedAt]);
@@ -128,11 +126,6 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     currentPeriodEnd,
   ]);
 
-  const showWarningBanner =
-    shouldCheckSubscription &&
-    subscriptionStatus === "past_due" &&
-    !isGracePeriodExpired;
-
   // Filter add-on warnings to show only non-expired ones
   const addonWarnings = React.useMemo(() => {
     return pastDueAddons.filter((info) => !info.isExpired);
@@ -160,53 +153,11 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
   return (
     <>
-      {/* Plan subscription warning */}
-      {showWarningBanner && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 max-w-md animate-in slide-in-from-top-4 fade-in duration-300">
-          <div className="bg-yellow-50 dark:bg-yellow-950/90 border border-yellow-400 dark:border-yellow-600 rounded-xl shadow-lg p-4 backdrop-blur-sm">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded-full">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-                  Pagamento Pendente
-                </h4>
-                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                  Sua assinatura está com pagamento atrasado. Atualize para
-                  evitar a perda de acesso.
-                </p>
-                <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-yellow-800 dark:text-yellow-200">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>
-                    {daysRemaining === 1
-                      ? "Último dia para regularizar"
-                      : `${daysRemaining} dias restantes`}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleManageBilling}
-                  disabled={isRedirecting}
-                  className="mt-3 h-8 text-xs border-yellow-500 text-yellow-700 hover:bg-yellow-100 dark:border-yellow-500 dark:text-yellow-300 dark:hover:bg-yellow-900/50"
-                >
-                  <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                  {isRedirecting ? "Abrindo..." : "Atualizar Pagamento"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add-on payment warnings */}
       {addonWarnings.map((info, index) => {
         const addonDef = AddonService.getAddonDefinition(info.addon.addonType);
         const addonName = addonDef?.name || info.addon.addonType;
-        const topOffset = showWarningBanner
-          ? 44 + (index + 1) * 8
-          : 20 + index * 8;
+        const topOffset = 20 + index * 8;
 
         return (
           <div
