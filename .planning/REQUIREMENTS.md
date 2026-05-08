@@ -152,7 +152,7 @@
 
 - [ ] **STATE-01**: Tenant em `past_due` vê banner vermelho persistente no topo do layout com CTA "Atualizar pagamento" que abre portal Stripe; não pode ser dispensado permanentemente
 - [ ] **STATE-02**: Tenant com `cancelAtPeriodEnd: true` vê banner amarelo com data de cancelamento formatada e botão "Reativar assinatura"
-- [ ] **STATE-03**: Tenant em `past_due` não consegue cancelar assinatura — controller retorna 409 com código `BILLING_CANCEL_BLOCKED_PAST_DUE`, botão de cancelar fica desabilitado com tooltip explicativo no UI
+- [ ] **STATE-03**: Tenant em `past_due` que clica "Cancelar assinatura" vê AlertDialog com aviso de cancelamento imediato; ao confirmar, controller chama `stripe.subscriptions.cancel()` (cancelamento imediato — acesso encerra agora). Tenant `active`/`trialing` mantém o fluxo at-period-end existente. O botão de cancelar permanece habilitado; não há bloqueio 409.
 - [ ] **STATE-04**: Tenant com `cancelAtPeriodEnd: true` consegue reativar assinatura com 1 clique via endpoint `POST /api/stripe/subscription/reactivate`
 
 ### Addon State
