@@ -19,6 +19,7 @@ import {
 import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 import { applyBillingClaimsToTenantUsers } from "../../lib/billing-claims";
 import { invalidateBillingCache } from "../middleware/require-active-subscription";
+import { invalidateNextjsBillingCache } from "../../lib/billing-cache-invalidation";
 
 import { db } from "../../init";
 import {
@@ -492,9 +493,12 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
-    // Phase 19 canonical field only — no fallback to the legacy top-level field.
-    const subscriptionMap = (tenantData?.subscription || {}) as Record<string, unknown>;
-    const subscriptionStatus = String(subscriptionMap.status || "").trim().toLowerCase();
+    // Read canonical top-level field; fall back to nested map for legacy compat.
+    const subscriptionStatus = String(
+      tenantData?.subscriptionStatus ||
+        ((tenantData?.subscription as Record<string, unknown> | undefined)
+          ?.status ?? ""),
+    ).trim().toLowerCase();
 
     const nowIso = new Date().toISOString();
 
@@ -514,17 +518,32 @@ export const cancelSubscription = async (req: Request, res: Response) => {
 
       // Propagate canceled status into custom claims and revoke tokens for all
       // tenant users. Errors are non-fatal — webhook will reconcile on next event.
-      await applyBillingClaimsToTenantUsers(tenantId, {
-        subscriptionStatus: "canceled",
-        subscriptionPlan: "free",
-      }).catch((err) => {
-        console.error("[cancelSubscription] billing_claims_error", {
+      try {
+        await applyBillingClaimsToTenantUsers(tenantId, {
+          subscriptionStatus: "canceled",
+          subscriptionPlan: "free",
+        });
+      } catch (err) {
+        // Partial failure: some users may retain stale claims. Backend middleware
+        // (TTL 5s) and billing-status route will catch them within seconds.
+        console.error("[cancelSubscription] billing_claims_partial_failure", {
           tenantId,
           error: err instanceof Error ? err.message : String(err),
         });
-      });
+      }
 
       invalidateBillingCache(tenantId);
+      void invalidateNextjsBillingCache(tenantId); // best-effort, 2s timeout
+
+      await userRef.set(
+        {
+          cancelAtPeriodEnd: false,
+          subscriptionStatus: "canceled",
+          canceledAt: nowIso,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      );
 
       console.log(
         `[cancelSubscription] past_due immediate cancel`,
