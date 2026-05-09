@@ -39,6 +39,14 @@ export type Tenant = {
   billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
   isBillingStale?: boolean; // flag calculada pelo backend
   checkoutInFlightAt?: string | null;
+  /** Nested subscription map written by syncTenantPlanBillingSnapshot */
+  subscription?: {
+    status?: string;
+    unitAmount?: number | null; // centavos (Stripe unit_amount)
+    currency?: string | null; // e.g. "brl"
+    syncedAt?: string;
+    [key: string]: unknown;
+  };
 };
 
 export type UserOnboardingStatus = "active" | "completed" | "skipped";

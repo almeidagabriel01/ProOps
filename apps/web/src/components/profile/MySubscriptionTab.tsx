@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, UserPlan, PurchasedAddon, PlanFeatures } from "@/types";
+import { User, UserPlan, PurchasedAddon, PlanFeatures, Tenant } from "@/types";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
@@ -43,6 +43,8 @@ interface MySubscriptionTabProps {
   handleManagePayment: () => void;
   openingPortal: boolean;
   isMaster: boolean;
+  /** Tenant document — provides the Stripe price snapshot (unitAmount in centavos). */
+  tenant?: Tenant | null;
 }
 
 const statusLabels: Record<
@@ -120,6 +122,7 @@ export function MySubscriptionTab({
   handleManagePayment,
   openingPortal,
   isMaster,
+  tenant,
 }: MySubscriptionTabProps) {
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
   const effectivePlan =
@@ -315,12 +318,37 @@ export function MySubscriptionTab({
 
   const statusInfo = statusLabels[subscriptionStatus] || statusLabels.active;
 
-  // Calculate monthly price (using effectivePlan)
+  // Prefer the actual Stripe price snapshot stored on the tenant doc.
+  // Falls back to the live tier lookup for manual subscriptions without Stripe.
+  const snapshotUnitAmount = tenant?.subscription?.unitAmount;
+  const snapshotPriceInBRL =
+    typeof snapshotUnitAmount === "number" && snapshotUnitAmount !== null
+      ? snapshotUnitAmount / 100
+      : null;
+
   const monthlyPrice =
-    effectivePlan?.pricing?.monthly || effectivePlan?.price || 0;
-  const yearlyPrice = effectivePlan?.pricing?.yearly || 0;
+    billingInterval === "monthly"
+      ? (snapshotPriceInBRL ?? effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0)
+      : (effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0);
+  const yearlyPrice =
+    billingInterval === "yearly"
+      ? (snapshotPriceInBRL ?? effectivePlan?.pricing?.yearly ?? 0)
+      : (effectivePlan?.pricing?.yearly ?? 0);
   const currentPrice =
     billingInterval === "yearly" ? yearlyPrice : monthlyPrice;
+
+  // Detect price drift: snapshot differs from what the live tier table says.
+  // Only meaningful when the user has a Stripe subscription (not manual).
+  const liveTierPrice =
+    billingInterval === "yearly"
+      ? (effectivePlan?.pricing?.yearly ?? 0)
+      : (effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0);
+  const hasPriceDrift =
+    snapshotPriceInBRL !== null &&
+    !isManualSubscription &&
+    hasStripeSubscription &&
+    Math.round(snapshotPriceInBRL * 100) !== Math.round(liveTierPrice * 100);
+
   const isEnterprisePlan = effectivePlan?.tier === "enterprise";
 
   // Get addon details
@@ -426,6 +454,11 @@ export function MySubscriptionTab({
                     <p className="text-sm text-muted-foreground">
                       /{billingInterval === "yearly" ? "ano" : "mês"}
                     </p>
+                    {hasPriceDrift && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Próxima renovação: {formatPrice(liveTierPrice)}
+                      </p>
+                    )}
                   </>
                 )}
               </div>

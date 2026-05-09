@@ -189,6 +189,7 @@ function ProfileContent() {
                 handleManagePayment={handleManagePayment}
                 openingPortal={openingPortal}
                 isMaster={isMaster}
+                tenant={tenant}
               />
             </motion.div>
           </TabsContent>
