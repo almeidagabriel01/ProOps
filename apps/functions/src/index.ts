@@ -26,6 +26,7 @@ export { checkDueDates } from "./checkDueDates";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
 export { reportWhatsappOverage } from "./reportWhatsappOverage";
 export { applyScheduledPlanChanges } from "./applyScheduledPlanChanges";
+export { checkPriceChanges } from "./checkPriceChanges";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 
 // 3. Webhooks

@@ -11,7 +11,8 @@ export type NotificationType =
   | "transaction_due_reminder"
   | "proposal_expiring"
   | "system"
-  | "transaction_viewed";
+  | "transaction_viewed"
+  | "price_change";
 
 export type DueToastType = "transaction_due_reminder" | "proposal_expiring";
 
