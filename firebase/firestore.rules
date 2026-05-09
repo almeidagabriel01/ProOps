@@ -530,6 +530,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // EMAIL AUDIT — written exclusively by Cloud Functions (Admin SDK)
+    // Super admins can read for operational monitoring; no tenant-level access needed
+    match /email_audit/{auditId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     match /calendar_integrations/{integrationId} {
       allow read, write: if false;
     }
