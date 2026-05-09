@@ -68,6 +68,10 @@ export interface TenantBillingInfo {
   // Billing snapshot fields (present when API returns billing data)
   isBillingStale?: boolean;
   billingSyncedAt?: string;
+  unitAmount?: number | null;
+  currency?: string | null;
+  stripeSubscriptionId?: string | null;
+  priceChangeNotifiedFor?: string | null;
 }
 
 export interface TenantBillingPage {
@@ -155,5 +159,26 @@ export const AdminService = {
       `/v1/admin/tenants/${tenantId}/recompute-features`,
       "POST",
     );
+  },
+
+  migrateTenantPrices: async (
+    tenantIds: string[],
+    prorationBehavior: "none" | "create_prorations" = "none",
+  ): Promise<{
+    migrated: number;
+    skipped: number;
+    failed: number;
+    results: {
+      tenantId: string;
+      status: "migrated" | "skipped" | "failed";
+      reason?: string;
+      fromPriceId?: string;
+      toPriceId?: string;
+    }[];
+  }> => {
+    return await callApi("/v1/admin/tenants/migrate-prices", "POST", {
+      tenantIds,
+      prorationBehavior,
+    });
   },
 };

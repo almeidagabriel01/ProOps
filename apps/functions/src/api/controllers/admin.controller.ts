@@ -25,6 +25,8 @@ import {
   tenantPlanAllowsWhatsApp,
 } from "../../lib/whatsapp-eligibility";
 import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { getStripe } from "../../stripe/stripeConfig";
+import { detectPriceDrift } from "../../billing/price-drift";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -710,6 +712,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       billingSyncedAt?: string;
       unitAmount?: number | null;
       currency?: string | null;
+      stripeSubscriptionId?: string | null;
+      priceChangeNotifiedFor?: string | null;
       subscription?: {
         unitAmount?: number | null;
         currency?: string | null;
@@ -985,6 +989,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
           unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
           currency: tenantData?.currency ?? tenantData?.subscription?.currency ?? "brl",
+          stripeSubscriptionId: tenantData?.stripeSubscriptionId ?? null,
+          priceChangeNotifiedFor: tenantData?.priceChangeNotifiedFor ?? null,
           isBillingStale,
           usage: {
             users: userData.usage?.users || 0,
@@ -2198,4 +2204,142 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
     });
     return res.status(500).json({ message: "Erro ao forçar plano do tenant." });
   }
+};
+
+type MigratePricesResult = {
+  tenantId: string;
+  status: "migrated" | "skipped" | "failed";
+  reason?: string;
+  fromPriceId?: string;
+  toPriceId?: string;
+};
+
+export const migrateTenantPrices = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  if (!isSuperAdminClaim(req)) {
+    res.status(403).json({ error: "FORBIDDEN" });
+    return;
+  }
+
+  const { tenantIds, prorationBehavior = "none" } = req.body as {
+    tenantIds?: string[];
+    prorationBehavior?: "none" | "create_prorations";
+  };
+
+  if (!Array.isArray(tenantIds) || tenantIds.length === 0) {
+    res
+      .status(400)
+      .json({ error: "tenantIds is required and must be a non-empty array" });
+    return;
+  }
+  if (tenantIds.length > 50) {
+    res.status(400).json({ error: "Maximum 50 tenants per request" });
+    return;
+  }
+
+  const stripe = getStripe();
+  const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
+
+  const results: MigratePricesResult[] = [];
+
+  for (const tenantId of tenantIds) {
+    try {
+      const tenantRef = db.collection("tenants").doc(tenantId);
+      const tenantSnap = await tenantRef.get();
+
+      if (!tenantSnap.exists) {
+        results.push({ tenantId, status: "skipped", reason: "tenant not found" });
+        continue;
+      }
+
+      const tenantData = tenantSnap.data() as Record<string, unknown>;
+      const drift = detectPriceDrift({
+        stripePriceId: tenantData.stripePriceId as string | undefined,
+        priceId: tenantData.priceId as string | undefined,
+        billingInterval: tenantData.billingInterval as string | undefined,
+        isManualSubscription: Boolean(tenantData.isManualSubscription),
+        stripeSubscriptionId: tenantData.stripeSubscriptionId as
+          | string
+          | undefined,
+      });
+
+      if (!drift.hasDrift) {
+        results.push({ tenantId, status: "skipped", reason: "no drift detected" });
+        continue;
+      }
+
+      const stripeSubscriptionId = String(
+        tenantData.stripeSubscriptionId ?? "",
+      ).trim();
+      const subscription = await stripe.subscriptions.retrieve(
+        stripeSubscriptionId,
+        { expand: ["items"] },
+      );
+
+      if (subscription.cancel_at_period_end) {
+        results.push({
+          tenantId,
+          status: "skipped",
+          reason: "subscription canceling at period end",
+        });
+        continue;
+      }
+
+      const planItem = subscription.items.data.find(
+        (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
+      );
+
+      if (!planItem) {
+        results.push({
+          tenantId,
+          status: "failed",
+          reason: "no plan item found in subscription",
+        });
+        continue;
+      }
+
+      await stripe.subscriptions.update(stripeSubscriptionId, {
+        items: [{ id: planItem.id, price: drift.expectedPriceId! }],
+        proration_behavior: prorationBehavior,
+      });
+
+      await tenantRef.update({
+        priceChangeNotifiedFor: null,
+        priceChangeNotifiedAt: null,
+      });
+
+      results.push({
+        tenantId,
+        status: "migrated",
+        fromPriceId: drift.currentPriceId ?? undefined,
+        toPriceId: drift.expectedPriceId ?? undefined,
+      });
+
+      logger.info("[migrateTenantPrices] migrated", {
+        tenantId,
+        fromPriceId: drift.currentPriceId,
+        toPriceId: drift.expectedPriceId,
+        prorationBehavior,
+        requestedBy: req.user?.uid,
+      });
+    } catch (err) {
+      logger.error("[migrateTenantPrices] error", {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      results.push({
+        tenantId,
+        status: "failed",
+        reason: err instanceof Error ? err.message : "unknown error",
+      });
+    }
+  }
+
+  const migrated = results.filter((r) => r.status === "migrated").length;
+  const skipped = results.filter((r) => r.status === "skipped").length;
+  const failed = results.filter((r) => r.status === "failed").length;
+
+  res.json({ migrated, skipped, failed, results });
 };
