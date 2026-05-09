@@ -21,6 +21,8 @@ export interface BillingSnapshot {
   billingSyncedAt: string;
   billingSyncing: boolean;
   source: "webhook" | "cron" | "on_demand" | "manual";
+  unitAmount?: number | null;
+  currency?: string | null;
 }
 
 export interface DuplicateCancelResult {

@@ -37,6 +37,10 @@ export interface SubscriptionSnapshot {
   scheduledPlanAt?: Timestamp | null;
   scheduledPlanReason?: string | null;
 
+  // Pricing snapshot
+  unitAmount?: number | null; // Stripe price unit_amount in smallest currency unit (centavos)
+  currency?: string | null; // e.g. "brl"
+
   // Audit metadata
   syncedAt?: string; // ISO; written every call
   lastEventId?: string; // Stripe event id when call originated from a webhook
@@ -70,6 +74,10 @@ export interface SyncTenantPlanBillingSnapshotParams {
   scheduledPlanReason?: string | null;
   billingInterval?: "monthly" | "yearly";
 
+  // Pricing snapshot
+  unitAmount?: number | null; // when provided, written directly; when undefined, auto-fetched from Stripe
+  currency?: string | null;
+
   // Behavior flags
   clearScheduled?: boolean; // upgrades/fresh checkouts only — clears scheduledPlan/At/Reason
 
@@ -92,5 +100,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
     | "helpers.upsertTenantStripeBillingData"
     | "on_demand"
     | "admin.updateUserPlan"
-    | "admin.forceSetTenantPlan";
+    | "admin.forceSetTenantPlan"
+    | "cron.checkPriceChanges"
+    | "admin.migrateTenantPrice";
 }

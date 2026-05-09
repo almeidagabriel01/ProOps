@@ -153,6 +153,24 @@ export async function syncTenantPlanBillingSnapshot(
     );
   }
 
+  // Auto-fetch unit_amount from Stripe when stripePriceId is present but unitAmount not explicitly set
+  let resolvedUnitAmount = params.unitAmount;
+  let resolvedCurrency = params.currency;
+  if (params.stripePriceId && resolvedUnitAmount === undefined) {
+    try {
+      const stripe = getStripe();
+      const price = await stripe.prices.retrieve(params.stripePriceId);
+      resolvedUnitAmount = price.unit_amount;
+      resolvedCurrency = price.currency ?? null;
+    } catch (err) {
+      logger.error("[syncTenantPlanBillingSnapshot] failed to retrieve price amount", {
+        priceId: params.stripePriceId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      // Non-fatal: continue without unitAmount
+    }
+  }
+
   await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
     const tenantData = tenantSnap.exists
@@ -196,6 +214,8 @@ export async function syncTenantPlanBillingSnapshot(
       ...("billingInterval" in params && {
         billingInterval: params.billingInterval,
       }),
+      ...(resolvedUnitAmount !== undefined && { unitAmount: resolvedUnitAmount }),
+      ...(resolvedCurrency !== undefined && { currency: resolvedCurrency }),
     };
 
     const resolvedPlan = derivedTier ?? params.plan ?? null;
@@ -248,6 +268,8 @@ export async function syncTenantPlanBillingSnapshot(
       }),
       // Plan resolution
       ...(resolvedPlan != null && { plan: resolvedPlan }),
+      ...(resolvedUnitAmount !== undefined && { unitAmount: resolvedUnitAmount }),
+      ...(resolvedCurrency !== undefined && { currency: resolvedCurrency }),
     };
 
     // Apply scheduled-plan clears or explicit values to nested map

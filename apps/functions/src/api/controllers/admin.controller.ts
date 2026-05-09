@@ -708,6 +708,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       subscriptionStatus?: string;
       currentPeriodEnd?: string;
       billingSyncedAt?: string;
+      unitAmount?: number | null;
+      currency?: string | null;
+      subscription?: {
+        unitAmount?: number | null;
+        currency?: string | null;
+        [key: string]: unknown;
+      };
     }
 
     const cursor = String(req.query.cursor || "").trim() || null;
@@ -976,6 +983,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           subscriptionStatus: effectiveStatus,
           billingInterval: String(userData.billingInterval || "monthly"),
           planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
+          unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
+          currency: tenantData?.currency ?? tenantData?.subscription?.currency ?? "brl",
           isBillingStale,
           usage: {
             users: userData.usage?.users || 0,
