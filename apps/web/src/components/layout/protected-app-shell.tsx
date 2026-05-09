@@ -7,6 +7,7 @@ import { SubscriptionGuard } from "@/components/shared/subscription-guard";
 import { AppOnboarding } from "@/components/onboarding/app-onboarding";
 import { LiaContainer } from "@/components/lia/lia-container";
 import { BillingStateBanner } from "@/components/layout/billing-state-banner";
+import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
 import { StripeService } from "@/services/stripe-service";
@@ -60,6 +61,7 @@ export function ProtectedAppShell({
       <div className="flex h-screen overflow-hidden bg-card">
         <div className="flex-1 flex flex-col bg-background overflow-hidden">
           <Header sidebarWidth={0} />
+          <PriceChangeBanner />
           {user !== null && isPastDue && (
             <BillingStateBanner
               variant="destructive"

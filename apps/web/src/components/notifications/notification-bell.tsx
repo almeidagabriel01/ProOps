@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Bell, Clock, FileText, X } from "lucide-react";
+import { AlertTriangle, Bell, Clock, FileText, TrendingUp, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +22,19 @@ function getNotificationIcon(type: NotificationType) {
       return Clock;
     case NotificationType.PROPOSAL_EXPIRING:
       return AlertTriangle;
+    case NotificationType.PRICE_CHANGE:
+      return TrendingUp;
     default:
       return FileText;
+  }
+}
+
+function getNotificationIconClassName(type: NotificationType): string {
+  switch (type) {
+    case NotificationType.PRICE_CHANGE:
+      return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
+    default:
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -210,9 +221,9 @@ export function NotificationBell() {
             </div>
           ) : (
             notifications.map((notification) => {
-              const Icon = getNotificationIcon(
-                notification.type as NotificationType,
-              );
+              const notifType = notification.type as NotificationType;
+              const Icon = getNotificationIcon(notifType);
+              const iconClassName = getNotificationIconClassName(notifType);
               const linkHref = getNotificationLink(notification);
               const isExpanded = expandedIds.has(notification.id);
               const canExpand = notification.message.length > 120;
@@ -230,7 +241,7 @@ export function NotificationBell() {
                   >
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 mt-1">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-muted text-muted-foreground">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconClassName}`}>
                           <Icon className="w-5 h-5" />
                         </div>
                       </div>
