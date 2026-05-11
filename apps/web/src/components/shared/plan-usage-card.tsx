@@ -134,6 +134,7 @@ export function PlanUsageCard({
   className,
   data,
 }: PlanUsageCardProps) {
+  // data-testid is set on the outermost element in each variant below
   // Use provided data or fetch from hook
   const hookData = usePlanUsage();
   const {
@@ -161,7 +162,7 @@ export function PlanUsageCard({
 
   if (variant === "profile") {
     return (
-      <Card className={cn("flex flex-col", className)}>
+      <Card data-testid="plan-usage-card" className={cn("flex flex-col", className)}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">

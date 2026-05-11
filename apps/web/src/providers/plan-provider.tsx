@@ -409,36 +409,40 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   const getProposalCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
+    if (user?.role?.toLowerCase() === "free") return 0;
     const q = query(
       collection(db, "proposals"),
       where("tenantId", "==", tenant.id),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
-  }, [tenant]);
+  }, [tenant, user]);
 
   const getClientCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
+    if (user?.role?.toLowerCase() === "free") return 0;
     const q = query(
       collection(db, "clients"),
       where("tenantId", "==", tenant.id),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
-  }, [tenant]);
+  }, [tenant, user]);
 
   const getProductCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
+    if (user?.role?.toLowerCase() === "free") return 0;
     const q = query(
       collection(db, "products"),
       where("tenantId", "==", tenant.id),
     );
     const snapshot = await getDocs(q);
     return snapshot.size;
-  }, [tenant]);
+  }, [tenant, user]);
 
   const getUserCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
+    if (user?.role?.toLowerCase() === "free") return 0;
     if (user?.role?.toLowerCase() === "member") return 0;
     const q = query(
       collection(db, "users"),

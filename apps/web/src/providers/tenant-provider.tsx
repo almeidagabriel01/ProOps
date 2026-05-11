@@ -350,6 +350,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                 setTenantOwner(null);
                 setTenantOwnerPlanName(null);
               }
+            } else if (user?.role?.toLowerCase() === "free") {
+              // Free users own their own bootstrap tenant — no listing query needed
+              setTenantOwner(null);
+              setTenantOwnerPlanName(null);
             } else if (!user?.masterId) {
               // Admin/Master/SuperAdmin: query users in tenant to find owner
               const q = query(

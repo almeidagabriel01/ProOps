@@ -24,6 +24,7 @@ export function OverviewTab({
   isMaster,
   planUsageData,
 }: OverviewTabProps) {
+  const isFree = user?.role?.toLowerCase() === "free";
   const [hasPasswordProvider, setHasPasswordProvider] = useState(true);
 
   useEffect(() => {
@@ -46,14 +47,14 @@ export function OverviewTab({
         {hasPasswordProvider ? (
           <PasswordForm />
         ) : (
-          <PlanUsageCard variant="profile" data={planUsageData} />
+          !isFree && <PlanUsageCard variant="profile" data={planUsageData} />
         )}
         {isMaster && <MercadoPagoConnectCard />}
       </div>
       {/* Right Column: Organization + Plan Usage */}
       <div className="flex flex-col gap-6">
         <OrganizationForm tenant={tenant} isMaster={isMaster} />
-        {hasPasswordProvider && (
+        {!isFree && hasPasswordProvider && (
           <PlanUsageCard variant="profile" data={planUsageData} />
         )}
       </div>
