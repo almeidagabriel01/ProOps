@@ -28,6 +28,8 @@ import {
   getTenantClaim,
 } from "../../lib/request-auth";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
+import { normalizePlanTier } from "../../lib/tenant-plan-policy";
+import { isAddonAvailableForTier } from "../../shared/addon-definitions";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import Stripe from "stripe";
 
@@ -740,6 +742,27 @@ export const createAddonCheckoutSession = async (
     const tenantData = tenantSnap.exists
       ? (tenantSnap.data() as Record<string, unknown> | undefined)
       : undefined;
+
+    // Backend tier enforcement — frontend check alone is insufficient (API is public).
+    // Resolves tier from planId/planTier on the tenant doc, same precedence as normalizePlanTier.
+    const tenantTier = normalizePlanTier(tenantData?.planTier) ||
+      normalizePlanTier(tenantData?.planId) ||
+      normalizePlanTier(tenantData?.plan);
+    if (!isAddonAvailableForTier(addonId, tenantTier)) {
+      void writeSecurityAuditEvent({
+        eventType: "plan_violation",
+        tenantId,
+        uid: userId,
+        route: req.path,
+        status: 403,
+        reason: `ADDON_NOT_AVAILABLE_FOR_TIER: addon=${addonId} tier=${tenantTier ?? "unknown"}`,
+        source: "stripe.controller.createAddonCheckoutSession",
+      });
+      return res.status(403).json({
+        message: "Este add-on não está disponível para o seu plano atual.",
+        code: "ADDON_NOT_AVAILABLE_FOR_TIER",
+      });
+    }
 
     customerId =
       customerId ||
