@@ -235,6 +235,13 @@ export const StripeService = {
     return callApi("/v1/stripe/cancel-subscription", "POST", {});
   },
 
+  reactivateSubscription: async (): Promise<{
+    success: boolean;
+    message?: string;
+  }> => {
+    return callApi("/v1/stripe/reactivate-subscription", "POST", {});
+  },
+
   createPortalSession: async (data: PortalRequest): Promise<PortalResponse> => {
     try {
       const response = await callApi<PortalResponse>(

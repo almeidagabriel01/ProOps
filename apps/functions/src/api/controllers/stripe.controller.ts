@@ -703,6 +703,107 @@ export const cancelSubscription = async (req: Request, res: Response) => {
   }
 };
 
+export const reactivateSubscription = async (req: Request, res: Response) => {
+  try {
+    const {
+      userId,
+      tenantId,
+      customerId,
+      tenantSnap,
+      userRef,
+      userSnap,
+    } = await resolveStripeUserContext(req);
+
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown>)
+      : {};
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown>)
+      : {};
+
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        "",
+    ).trim();
+    if (!stripeSubscriptionId) {
+      return res.status(400).json({ message: "No active subscription found" });
+    }
+
+    const stripe = getStripe();
+    const existingSubscription =
+      await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
+
+    if (!existingSubscription.cancel_at_period_end) {
+      return res.status(400).json({
+        message: "Subscription is not scheduled for cancellation",
+        code: "NOT_SCHEDULED_FOR_CANCELLATION",
+      });
+    }
+
+    const subscription = await stripe.subscriptions.update(stripeSubscriptionId, {
+      cancel_at_period_end: false,
+    });
+
+    const subscriptionStatus = String(subscription.status || "active");
+    const currentPeriodEnd = new Date(
+      (subscription as any).current_period_end * 1000,
+    );
+    const nowIso = new Date().toISOString();
+
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      source: "controller.reactivateSubscription",
+      subscriptionStatus,
+      stripeSubscriptionId: subscription.id,
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      cancelScheduledAt: null,
+      currentPeriodEnd,
+    });
+
+    try {
+      await applyBillingClaimsToTenantUsers(tenantId, {
+        subscriptionStatus,
+      });
+    } catch (err) {
+      console.error("[reactivateSubscription] billing_claims_partial_failure", {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    invalidateBillingCache(tenantId);
+    await invalidateNextjsBillingCache(tenantId);
+
+    await userRef.set(
+      {
+        cancelAtPeriodEnd: false,
+        cancelAt: null,
+        cancelScheduledAt: null,
+        updatedAt: nowIso,
+      },
+      { merge: true },
+    );
+
+    console.log(
+      `[reactivateSubscription] reactivated`,
+      JSON.stringify({ userId, tenantId, subscriptionId: subscription.id }),
+    );
+
+    return res.json({
+      success: true,
+      message: "Subscription reactivated successfully",
+    });
+  } catch (error: unknown) {
+    console.error("[reactivateSubscription] Error:", error);
+    return res
+      .status(getErrorStatus(error))
+      .json({ message: getErrorMessage(error), success: false });
+  }
+};
+
 export const createAddonCheckoutSession = async (
   req: Request,
   res: Response,
