@@ -692,7 +692,11 @@ export class TransactionPaymentService {
     const effectiveEnvironment: string =
       mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
 
-    const accessToken = mpData.accessToken;
+    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
+    const accessToken =
+      effectiveEnvironment === "sandbox" && sandboxAccessToken
+        ? sandboxAccessToken
+        : mpData.accessToken;
 
     const statementDescriptor = ((tenantSnap.data()?.name as string) || "ProOps").slice(0, 22);
 
@@ -904,7 +908,12 @@ export class TransactionPaymentService {
       throw new Error("MP_NOT_CONFIGURED");
     }
 
-    const effectiveAccessToken = mpData.accessToken;
+    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
+    const attemptEnvironment = (attemptsSnap.docs[0].data() as { environment?: string }).environment;
+    const effectiveAccessToken =
+      attemptEnvironment === "sandbox" && sandboxAccessToken
+        ? sandboxAccessToken
+        : mpData.accessToken;
 
     const mpResponse = await axios.get<{
       id: number;

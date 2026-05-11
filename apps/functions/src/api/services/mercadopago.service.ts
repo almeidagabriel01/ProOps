@@ -311,7 +311,10 @@ export class MercadoPagoService {
     const environment: MercadoPagoEnvironment =
       mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
 
-    const publicKey = mpData.publicKey;
+    const publicKey =
+      environment === "sandbox" && process.env.MERCADOPAGO_SANDBOX_PUBLIC_KEY
+        ? process.env.MERCADOPAGO_SANDBOX_PUBLIC_KEY
+        : mpData.publicKey;
 
     let sellerTestEmail: string | undefined;
     if (environment === "sandbox") {
