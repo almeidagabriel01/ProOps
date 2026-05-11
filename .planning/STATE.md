@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
 status: executing
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-05-11T19:35:00Z"
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-05-11T19:40:00Z"
 progress:
   total_phases: 14
   completed_phases: 14
   total_plans: 50
-  completed_plans: 49
+  completed_plans: 50
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 ## Current Position
 
-Phase: 23 (mp-webhook-hardening) — EXECUTING
-Plan: 2 of 2
+Phase: 23 (mp-webhook-hardening) — COMPLETE
+Plan: 2 of 2 (all complete)
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ _Updated after each plan completion_
 | Phase 22 P01 | 15 | 3 tasks | 5 files |
 | Phase 22 P02 | 5 | 1 tasks | 1 files |
 | Phase 23 P01 | 45 | 3 tasks | 2 files |
+| Phase 23 P02 | 25 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,9 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 23 P01]: 5-minute PROCESSING_STUCK_WINDOW_MS mirrors Stripe BILL-08 accepted risk — MP delivery retries occur hours apart
 - [Phase 23 P01]: void mockedAxios suppresses noUnusedLocals tsc error while preserving jest.mock("axios") scaffold for Plan 02 Task 2
 - [Phase 23 P01]: webhookEvents collection covered by catch-all DENY in firestore.rules — no explicit rule needed
+- [Phase 23 P02]: Zero net_received_amount treated as missing (not zero-fee) — sandbox MP payments return net=0; guard: typeof net === "number" && net > 0
+- [Phase 23 P02]: freshAxios pattern for MPWH-03 unit tests — jest.resetModules() creates new module registry; top-level mockedAxios becomes stale; require("axios") inside test body gets the fresh instance the dynamically-required handlePaymentEvent uses
+- [Phase 23 P02]: CLAUDE.md Bug Fix Policy verified via git-stash workflow — 3 MPWH-03 tests fail without fix, 3 pass with fix
 
 ### Pending Todos
 
@@ -204,6 +208,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-11T19:35:00Z
-Stopped at: Completed 23-01-PLAN.md (MPWH-01 + MPWH-02)
-Resume file: .planning/phases/23-mp-webhook-hardening/23-02-PLAN.md
+Last session: 2026-05-11T19:40:00Z
+Stopped at: Completed 23-02-PLAN.md (MPWH-03 + MPWH-04) — Phase 23 complete
+Resume file: None

@@ -464,7 +464,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
-- [ ] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
+- [x] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
 
 ### Phase 24: MP Fee Configuration + Preview
 
@@ -512,5 +512,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
 | 22. Login Redirect Hardening      | 2/2            | Complete    | 2026-05-11 |
-| 23. MP Webhook Hardening          | 0/2            | Not started | -          |
+| 23. MP Webhook Hardening          | 2/2            | Complete    | 2026-05-11 |
 | 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |
