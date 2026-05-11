@@ -24,8 +24,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 16: Lia Seguranca & Billing** - ai-auth middleware, AI_LIMITS, Firestore rules, billing page AI usage (completed 2026-04-14)
 - [x] **Phase 17: Lia Testes & QA** - E2E AI-01-12, seed tenant ai-test pro, CI smoke test (completed 2026-04-15)
 - [x] **Phase 19: Single-Writer Billing Foundation** - Transactional single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closure (completed 2026-05-07)
-- [ ] **Phase 20: Subscription State Banners + Cancel Enforcement** - past_due banner, cancelAtPeriodEnd banner, cancel block 409
-- [ ] **Phase 21: Reactivation + Addon State Cleanup** - Reactivate endpoint, stale addon badge fix, daily cleanup cron
+- [x] **Phase 20: Subscription State Banners + Cancel Enforcement** - past_due banner, cancelAtPeriodEnd banner, cancel block 409 (completed 2026-05-11)
+- [x] **Phase 21: Reactivation + Addon State Cleanup** - Reactivate endpoint, stale addon badge fix, daily cleanup cron (completed 2026-05-11)
 - [ ] **Phase 22: Login Redirect Hardening** - Always redirect to /dashboard post-login, remove redirect= consumption
 - [ ] **Phase 23: MP Webhook Hardening** - Structured logs, idempotency, external_reference fallback, fee persistence
 - [ ] **Phase 24: MP Fee Configuration + Preview** - Admin fee config, checkout preview, transaction detail gross/fee/net block
@@ -442,7 +442,10 @@ Plans:
 3. A superadmin who logs in is taken to `/admin` regardless of any URL parameters
 
 **Note**: AUTH-05 has been moved to Out of Scope. Only the consumption of `redirect=` is removed. The `redirect_reason=` handling for the session-expired toast must be preserved.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
+- [ ] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
 **UI hint**: yes
 
 ### Phase 23: MP Webhook Hardening
@@ -505,6 +508,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
 | 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
-| 22. Login Redirect Hardening      | 0/TBD          | Not started | -          |
+| 22. Login Redirect Hardening      | 0/2            | Not started | -          |
 | 23. MP Webhook Hardening          | 0/TBD          | Not started | -          |
 | 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |
