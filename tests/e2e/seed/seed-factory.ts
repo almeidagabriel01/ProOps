@@ -91,6 +91,7 @@ export async function clearAll(): Promise<void> {
     "user-admin-beta",
     "user-member-beta",
     "user-free",
+    "user-superadmin",
     "ai-admin-uid",
     "ai-member-uid",
     "ai-starter-uid",
