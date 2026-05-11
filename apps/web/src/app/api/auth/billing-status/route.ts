@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
-import { billingCache } from "@/lib/billing-cache";
-import type { CachedBillingState } from "@/lib/billing-cache";
+import { unstable_cache } from "next/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,12 +17,10 @@ const BLOCKED_STATUSES = new Set([
   "payment_failed",
 ]);
 
-// Cache disabled (TTL=0): in Vercel serverless each route handler is a separate module
-// instance — the invalidate route and this route hold separate Maps, so invalidation
-// never actually cleared this cache. Setting TTL=0 forces every check to read Firestore
-// directly, which is the only reliable gate after cancellation.
-const CACHE_TTL_MS = 0;
-const CACHE_MAX_SIZE = 1_000;
+// 60-second TTL backed by Next.js Data Cache (shared across Vercel instances).
+// Invalidated immediately after billing state changes via revalidateTag in the
+// /api/auth/billing-status/invalidate endpoint (called by the backend webhook handler).
+const BILLING_CACHE_TTL_SECONDS = 60;
 
 function isGracePeriodActive(pastDueSince: string | null): boolean {
   if (!pastDueSince) return false;
@@ -54,44 +51,30 @@ function isBillingAllowed(
   return true;
 }
 
+function createBillingStateFetcher(tenantId: string) {
+  return unstable_cache(
+    async () => {
+      const db = getAdminFirestore();
+      const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+      if (!tenantSnap.exists) {
+        return { subscriptionStatus: "", pastDueSince: null };
+      }
+      const data = tenantSnap.data() as Record<string, unknown> | undefined;
+      const subscriptionStatus = String(data?.subscriptionStatus || "").trim().toLowerCase();
+      const pastDueSince =
+        typeof data?.pastDueSince === "string" && data.pastDueSince ? data.pastDueSince : null;
+      return { subscriptionStatus, pastDueSince };
+    },
+    [`billing-state-${tenantId}`],
+    { revalidate: BILLING_CACHE_TTL_SECONDS, tags: [`billing-status:${tenantId}`] },
+  );
+}
+
 async function resolveBillingState(tenantId: string): Promise<{
   subscriptionStatus: string;
   pastDueSince: string | null;
 }> {
-  const now = Date.now();
-  const cached = billingCache.get(tenantId);
-  if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
-    return cached;
-  }
-
-  const db = getAdminFirestore();
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-
-  if (!tenantSnap.exists) {
-    return { subscriptionStatus: "", pastDueSince: null };
-  }
-
-  const data = tenantSnap.data() as Record<string, unknown> | undefined;
-  // Read top-level subscriptionStatus (written by billing-claims.ts and Stripe webhook).
-  // NOT the nested subscription.status — that field is legacy and may be stale.
-  const subscriptionStatus = String(data?.subscriptionStatus || "")
-    .trim()
-    .toLowerCase();
-  const pastDueSince =
-    typeof data?.pastDueSince === "string" && data.pastDueSince
-      ? data.pastDueSince
-      : null;
-
-  const state: CachedBillingState = { subscriptionStatus, pastDueSince, cachedAt: now };
-
-  if (billingCache.size >= CACHE_MAX_SIZE) {
-    // Evict oldest entry to keep memory bounded
-    const oldestKey = billingCache.keys().next().value;
-    if (oldestKey !== undefined) billingCache.delete(oldestKey);
-  }
-  billingCache.set(tenantId, state);
-
-  return state;
+  return createBillingStateFetcher(tenantId)();
 }
 
 export async function GET(req: NextRequest) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { billingCache } from "@/lib/billing-cache";
+import { revalidateTag } from "next/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tenantId required" }, { status: 400 });
   }
 
-  billingCache.delete(tenantId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)(`billing-status:${tenantId}`);
   return new NextResponse(null, { status: 204 });
 }
