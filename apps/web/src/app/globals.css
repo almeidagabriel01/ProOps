@@ -478,6 +478,13 @@ html.theme-transitioning * {
 }
 
 /* Custom Sileo Notification Overrides */
+
+/* Elevate toasts above Radix Dialog (which is z-50). Both default to z-index:50,
+   but Dialog renders later in the DOM and wins the stacking order. */
+[data-sileo-viewport] {
+  z-index: 9999 !important;
+}
+
 [data-sileo-viewport] [data-sileo-pill],
 [data-sileo-viewport] [data-sileo-body] {
   fill: var(--sileo-toast-bg) !important;
