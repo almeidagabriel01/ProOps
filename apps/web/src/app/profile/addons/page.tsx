@@ -381,10 +381,14 @@ export default function AddonsPage() {
                 const cancelDate = addonData?.currentPeriodEnd
                   ? formatDateBR(addonData.currentPeriodEnd)
                   : null;
-
-                const isRedundant = !availableAddons.find(
-                  (a) => a.id === addonType,
-                );
+                const isPeriodExpired = addonData?.currentPeriodEnd
+                  ? new Date(addonData.currentPeriodEnd) < new Date()
+                  : false;
+                const isIncludedInPlan = planTier
+                  ? !addon.availableForTiers.includes(planTier as PlanTier)
+                  : false;
+                const showCancelBadge =
+                  isScheduledCancel && !isPeriodExpired && !isIncludedInPlan;
 
                 return (
                   <div
@@ -398,7 +402,7 @@ export default function AddonsPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold">{addon.name}</h4>
-                          {isScheduledCancel ? (
+                          {showCancelBadge ? (
                             <Badge variant="destructive" className="text-xs">
                               Cancelando em {cancelDate}
                             </Badge>
@@ -411,7 +415,7 @@ export default function AddonsPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {addon.description}
                         </p>
-                        {isScheduledCancel && cancelDate && (
+                        {showCancelBadge && cancelDate && (
                           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
                             <Calendar className="w-3 h-3" />
                             Ativo até {cancelDate}
@@ -420,7 +424,7 @@ export default function AddonsPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Cobrança: Mensal
                         </p>
-                        {isRedundant && (
+                        {isIncludedInPlan && (
                           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
                             <Sparkles className="w-3 h-3" />
                             Já incluso no seu plano atual
@@ -429,7 +433,7 @@ export default function AddonsPage() {
                       </div>
                     </div>
 
-                    {!isScheduledCancel && (
+                    {!isScheduledCancel && !isPeriodExpired && !isIncludedInPlan && (
                       <Button
                         variant="outline"
                         size="sm"

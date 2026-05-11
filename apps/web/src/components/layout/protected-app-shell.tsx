@@ -24,6 +24,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
+  const [isReactivating, setIsReactivating] = React.useState(false);
   const registerMain = useRegisterScrollContainer();
 
   React.useEffect(() => {
@@ -69,6 +70,19 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const handleReactivate = React.useCallback(async () => {
+    if (!user) return;
+    setIsReactivating(true);
+    try {
+      await StripeService.reactivateSubscription();
+      router.refresh();
+    } catch (error) {
+      console.error("[ProtectedAppShell] Failed to reactivate subscription:", error);
+    } finally {
+      setIsReactivating(false);
+    }
+  }, [user, router]);
+
   const cancelAtFormatted =
     user?.cancelAt
       ? formatDateBR(user.cancelAt, "—")
@@ -96,10 +110,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
             <BillingStateBanner
               variant="warning"
               message={`Sua assinatura será cancelada em ${cancelAtFormatted}. Reativar?`}
-              ctaLabel="Reativar assinatura"
-              onCta={() => {}}
-              ctaDisabled
-              ctaDisabledTooltip="Disponível em breve"
+              ctaLabel={isReactivating ? "Reativando..." : "Reativar assinatura"}
+              onCta={handleReactivate}
+              ctaDisabled={isReactivating}
               dataTestid="billing-state-banner-cancel-period-end"
             />
           )}

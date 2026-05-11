@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, UserPlan, PurchasedAddon, PlanFeatures, Tenant } from "@/types";
+import { User, UserPlan, PurchasedAddon, PlanFeatures, Tenant, PlanTier } from "@/types";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
@@ -799,8 +799,24 @@ export function MySubscriptionTab({
                             );
                             const isCancelled = addonInfo?.cancelAtPeriodEnd;
                             const cancelDate = addonInfo?.currentPeriodEnd;
+                            const isPeriodExpired = cancelDate
+                              ? new Date(cancelDate) < new Date()
+                              : false;
+                            const addonDef = ADDON_DEFINITIONS.find(
+                              (a) => a.id === module.id,
+                            );
+                            const planTierStr =
+                              effectivePlan?.tier || user?.planId;
+                            const isIncludedInPlan =
+                              addonDef && planTierStr
+                                ? !addonDef.availableForTiers.includes(
+                                    planTierStr as PlanTier,
+                                  )
+                                : false;
+                            const showCancelBadge =
+                              isCancelled && !isPeriodExpired && !isIncludedInPlan;
 
-                            if (isCancelled) {
+                            if (showCancelBadge) {
                               return (
                                 <Badge
                                   variant="outline"
@@ -809,6 +825,10 @@ export function MySubscriptionTab({
                                   Cancelando {formatDate(cancelDate)}
                                 </Badge>
                               );
+                            }
+
+                            if (isIncludedInPlan || isPeriodExpired) {
+                              return null;
                             }
 
                             return (
