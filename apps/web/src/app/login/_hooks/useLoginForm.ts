@@ -393,10 +393,11 @@ export function useLoginForm(): UseLoginFormReturn {
   ]);
 
   React.useEffect(() => {
+    if (user) return;
     if (redirectReason === "session_expired") {
       toast.warning("Sua sessão expirou. Entre novamente para continuar.");
     }
-  }, [redirectReason]);
+  }, [redirectReason, user]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
