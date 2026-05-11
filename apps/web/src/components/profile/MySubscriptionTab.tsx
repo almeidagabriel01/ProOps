@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 import { auth } from "@/lib/firebase";
 
@@ -127,6 +128,8 @@ export function MySubscriptionTab({
   tenant,
   onAddonCancelled,
 }: MySubscriptionTabProps) {
+  const router = useRouter();
+
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
   const effectivePlan =
     userPlan ||
@@ -274,7 +277,7 @@ export function MySubscriptionTab({
         "Cancelamento agendado! Seu acesso continua até o final do período pago.",
       );
       setSubscriptionToCancel(false);
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       toast.error("Erro ao cancelar assinatura. Tente novamente.");

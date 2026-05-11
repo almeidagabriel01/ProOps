@@ -28,7 +28,7 @@ import {
   getTenantClaim,
 } from "../../lib/request-auth";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
-import { normalizePlanTier } from "../../lib/tenant-plan-policy";
+import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
 import { isAddonAvailableForTier } from "../../shared/addon-definitions";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
@@ -748,10 +748,10 @@ export const createAddonCheckoutSession = async (
       : undefined;
 
     // Backend tier enforcement — frontend check alone is insufficient (API is public).
-    // Resolves tier from planId/planTier on the tenant doc, same precedence as normalizePlanTier.
-    const tenantTier = normalizePlanTier(tenantData?.planTier) ||
-      normalizePlanTier(tenantData?.planId) ||
-      normalizePlanTier(tenantData?.plan);
+    // Uses the full resolver (including plans/{planId} Firestore fallback) to handle
+    // tenants whose planId is a document ID rather than a plain tier string.
+    const tenantPlanProfile = await getTenantPlanProfile(tenantId);
+    const tenantTier = tenantPlanProfile.tier;
     if (!isAddonAvailableForTier(addonId, tenantTier)) {
       void writeSecurityAuditEvent({
         eventType: "plan_violation",
@@ -759,7 +759,7 @@ export const createAddonCheckoutSession = async (
         uid: userId,
         route: req.path,
         status: 403,
-        reason: `ADDON_NOT_AVAILABLE_FOR_TIER: addon=${addonId} tier=${tenantTier ?? "unknown"}`,
+        reason: `ADDON_NOT_AVAILABLE_FOR_TIER: addon=${addonId} tier=${tenantTier}`,
         source: "stripe.controller.createAddonCheckoutSession",
       });
       return res.status(403).json({
