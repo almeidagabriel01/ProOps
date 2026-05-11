@@ -250,13 +250,21 @@ export const processCardPayment = async (req: Request, res: Response): Promise<v
         error.mpStatus === 401 || error.mpStatus >= 500 ? 502 : error.mpStatus === 429 ? 429 : 400;
       const isInvalidUsers =
         error.mpMessage?.toLowerCase().includes("invalid users") ||
-        error.mpCause?.some((c) => String(c.code) === "106" || c.description?.toLowerCase().includes("invalid users"));
+        error.mpMessage?.toLowerCase().includes("invalid test user") ||
+        error.mpCause?.some(
+          (c) =>
+            String(c.code) === "106" ||
+            String(c.code) === "2034" ||
+            String(c.code) === "2198" ||
+            c.description?.toLowerCase().includes("invalid users") ||
+            c.description?.toLowerCase().includes("invalid test user"),
+        );
       const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : isInvalidUsers ? "MP_INVALID_PAYER" : "MP_REJECTED";
       const message =
         error.mpStatus === 401
           ? "Integração Mercado Pago precisa ser reconectada"
           : isInvalidUsers
-            ? "E-mail do pagador inválido. Em ambiente de teste, use qualquer e-mail comum (gmail/hotmail/etc.), diferente do e-mail do vendedor."
+            ? "E-mail do pagador inválido para o ambiente de teste. Use exatamente \"test@testuser.com\" (único e-mail universal aceito em sandbox) ou um e-mail de Test User criado no painel de contas de teste (formato test_user_NNNN@testuser.com)."
             : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
       res.status(mpStatusCode).json({
         code,

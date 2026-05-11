@@ -13,6 +13,7 @@ const CardPayment = dynamic(
 interface CardPaymentBrickProps {
   publicKey: string;
   amount: number;
+  payerEmail?: string;
   onSubmit: (formData: CardPaymentFormData) => Promise<void>;
   onError?: (error: unknown) => void;
 }
@@ -23,6 +24,7 @@ const formatBRL = (value: number) =>
 export function CardPaymentBrick({
   publicKey,
   amount,
+  payerEmail,
   onSubmit,
   onError,
 }: CardPaymentBrickProps) {
@@ -37,7 +39,7 @@ export function CardPaymentBrick({
 
   return (
     <CardPayment
-      initialization={{ amount }}
+      initialization={{ amount, ...(payerEmail ? { payer: { email: payerEmail } } : {}) }}
       customization={{
         paymentMethods: { maxInstallments: 12, minInstallments: 1 },
         visual: { style: { theme: "default" }, texts: { formSubmit: `Pagar ${formatBRL(amount)}` } },

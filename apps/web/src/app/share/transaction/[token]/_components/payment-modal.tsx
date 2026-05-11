@@ -505,8 +505,9 @@ export function PaymentModal({
                         </p>
                       )}
                       <p>
-                        Use qualquer e-mail comum (gmail, hotmail, etc.),{" "}
-                        <strong>diferente do e-mail do vendedor</strong> acima.
+                        O campo de e-mail já está preenchido com{" "}
+                        <code className="bg-muted px-1 rounded">test@testuser.com</code>{" "}
+                        — único e-mail aceito pelo Mercado Pago em sandbox. Não altere.
                       </p>
                       <p>
                         Cartão de teste:{" "}
@@ -521,6 +522,7 @@ export function PaymentModal({
                   <CardPaymentBrick
                     publicKey={mpConfig.publicKey}
                     amount={transaction.amount}
+                    payerEmail={mpConfig.environment === "sandbox" ? "test@testuser.com" : undefined}
                     onSubmit={handleCardSubmit}
                     onError={(e) => {
                       setCardError("Erro no formulário de pagamento.");
