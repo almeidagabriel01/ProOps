@@ -46,9 +46,6 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
     currentUser?.subscriptionStatus ?? "",
   );
-  // Free or blocked accounts only get "Ver planos" + "Sair" — no ERP access, no profile
-  const showOnlyPlansCta = isFreeAccount || isBlockedAccount;
-
   const scrollToAnchor = (href: string, closeMobile = false) => {
     if (!href.startsWith("#")) return;
 
@@ -223,7 +220,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         </span>
                       </div>
                       <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
-                      {showOnlyPlansCta ? (
+                      {isBlockedAccount ? (
                         <DropdownMenuItem
                           onClick={() => scrollToAnchor("#pricing")}
                           className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
@@ -231,6 +228,23 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                           <Sparkles className="h-4 w-4" />
                           Ver planos
                         </DropdownMenuItem>
+                      ) : isFreeAccount ? (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => scrollToAnchor("#pricing")}
+                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Ver planos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push("/profile")}
+                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <UserIcon className="h-4 w-4" />
+                            Meu Perfil
+                          </DropdownMenuItem>
+                        </>
                       ) : (
                         <>
                           <DropdownMenuItem
@@ -336,7 +350,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     <span className="text-sm text-black/50 dark:text-white/50 truncate max-w-[200px]">
                       {companyName}
                     </span>
-                    {showOnlyPlansCta ? (
+                    {isBlockedAccount ? (
                       <button
                         type="button"
                         onClick={() => scrollToAnchor("#pricing", true)}
@@ -344,6 +358,23 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       >
                         Ver planos
                       </button>
+                    ) : isFreeAccount ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => scrollToAnchor("#pricing", true)}
+                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        >
+                          Ver planos
+                        </button>
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileOpen(false)}
+                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        >
+                          Meu Perfil
+                        </Link>
+                      </>
                     ) : (
                       <Link
                         href={appHref}

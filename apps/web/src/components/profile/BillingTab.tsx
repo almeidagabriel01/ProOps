@@ -149,6 +149,7 @@ export function BillingTab({
               onUpgrade={handleUpgrade}
               onDowngrade={handleDowngrade}
               isMaster={isMaster}
+              isFree={isFree}
               isTrialing={isTrialing}
               isActivePlan={isActivePlan}
               trialEndsAt={isTrialing ? trialEndsAt : undefined}

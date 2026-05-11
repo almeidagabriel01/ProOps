@@ -98,7 +98,7 @@ function ProfileContent() {
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6">
+      <div className="space-y-6 max-w-5xl mx-auto px-4 md:px-6">
         {user?.role === "superadmin" && (
           <Link
             href="/admin"

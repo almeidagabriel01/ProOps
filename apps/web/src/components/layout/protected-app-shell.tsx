@@ -76,7 +76,7 @@ export function ProtectedAppShell({
     // shell renders at all before the redirect to /subscription-blocked fires).
     <SubscriptionGuard>
       <div className="flex h-screen overflow-hidden bg-card">
-        <div className="flex-1 flex flex-col bg-background overflow-hidden">
+        <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
           {user !== null && isPastDue && (
@@ -119,7 +119,7 @@ export function ProtectedAppShell({
               dataTestid="banner-addons-past-due"
             />
           )}
-          <main id="main-content" className="flex-1 p-8 overflow-y-auto">
+          <main id="main-content" className="flex-1 min-h-0 p-8 overflow-y-auto">
             {children}
           </main>
           <AppOnboarding />
