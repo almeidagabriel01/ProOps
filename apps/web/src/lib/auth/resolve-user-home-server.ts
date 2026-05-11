@@ -2,6 +2,7 @@ import "server-only";
 
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { isSubscriptionBlocked, HARD_BLOCKED_STATUSES } from "./subscription-blocked-statuses";
+import { PAGE_ROUTE_MAP, ORDERED_MEMBER_PAGES } from "./resolve-user-home";
 
 export { HARD_BLOCKED_STATUSES, isSubscriptionBlocked };
 export { PAGE_ROUTE_MAP, ORDERED_MEMBER_PAGES, resolveUserHome } from "./resolve-user-home";
@@ -83,32 +84,6 @@ export function resolveServerHome(userData: ServerUserData): string {
   if (isAdminLike) return "/dashboard";
 
   if (permissions["dashboard"]?.canView === true) return "/dashboard";
-
-  const ORDERED_MEMBER_PAGES = [
-    "kanban",
-    "proposals",
-    "clients",
-    "products",
-    "services",
-    "spreadsheets",
-    "transactions",
-    "wallet",
-    "financial",
-    "profile",
-  ] as const;
-
-  const PAGE_ROUTE_MAP: Record<string, string> = {
-    kanban: "/crm",
-    proposals: "/proposals",
-    clients: "/contacts",
-    products: "/products",
-    services: "/services",
-    spreadsheets: "/spreadsheets",
-    transactions: "/transactions",
-    wallet: "/wallets",
-    financial: "/transactions",
-    profile: "/profile",
-  };
 
   const firstAllowed = ORDERED_MEMBER_PAGES.find(
     (page) => permissions[page]?.canView === true || page === "profile",
