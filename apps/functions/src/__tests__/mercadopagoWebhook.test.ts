@@ -12,8 +12,9 @@
 // jest.mock must be hoisted above imports. ts-jest hoists automatically.
 jest.mock("axios");
 import axios from "axios";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Scaffolding for Plan 02 Task 2. Reference suppresses noUnusedLocals.
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+void mockedAxios; // Plan 02 Task 2 will replace this with real usage
 
 import { createHmac } from "crypto";
 import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing } from "../mercadopagoWebhook";

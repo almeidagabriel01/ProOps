@@ -259,80 +259,6 @@ async function handlePaymentEvent(dataId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Idempotency gate — mirrors beginStripeEventProcessing (Phase 19 BILL-08 pattern)
-// Scoped to payment.* events ONLY — merchant_order and unknown topics MUST NOT
-// write to webhookEvents (per CONTEXT.md § merchant_order event handling).
-// ---------------------------------------------------------------------------
-
-const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
-const PROCESSING_STUCK_WINDOW_MS = 5 * 60 * 1000; // 5 min — mirrors Stripe stuck-processing window
-
-type MpWebhookEventStatus = "processing" | "done" | "skipped" | "failed";
-
-interface MpWebhookEventRecord {
-  action: string;
-  dataId: string;
-  receivedAt: FirebaseFirestore.Timestamp | null;
-  status: MpWebhookEventStatus;
-  lastProcessedAt?: string;
-  lastError?: string | null;
-}
-
-function shouldSkipMpWebhookEventRecord(data: MpWebhookEventRecord | undefined): boolean {
-  if (!data) return false;
-  if (data.status === "done" || data.status === "skipped") return true;
-  if (data.status === "processing") {
-    const receivedAtMs = data.receivedAt?.toMillis() ?? 0;
-    if (receivedAtMs > 0 && Date.now() - receivedAtMs < PROCESSING_STUCK_WINDOW_MS) {
-      return true;
-    }
-  }
-  // status === "failed" → allow retry
-  return false;
-}
-
-export async function beginMpWebhookProcessing(
-  xRequestId: string,
-  body: MpWebhookBody,
-): Promise<"skip" | "process"> {
-  const eventRef = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
-  return db.runTransaction(async (t) => {
-    const snap = await t.get(eventRef);
-    if (snap.exists) {
-      const data = snap.data() as MpWebhookEventRecord | undefined;
-      if (shouldSkipMpWebhookEventRecord(data)) {
-        logger.info("MP webhook: duplicate event, skipping", {
-          xRequestId,
-          existingStatus: data?.status,
-          result: "skipped_idempotent",
-        });
-        return "skip";
-      }
-    }
-    t.set(eventRef, {
-      action: body.action ?? "",
-      dataId: body.data?.id ?? "",
-      receivedAt: FieldValue.serverTimestamp(),
-      status: "processing",
-    }, { merge: true });
-    return "process";
-  });
-}
-
-export async function finalizeMpWebhookProcessing(
-  xRequestId: string,
-  status: "done" | "skipped" | "failed",
-  errorMessage?: string,
-): Promise<void> {
-  const ref = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
-  await ref.set({
-    status,
-    lastProcessedAt: new Date().toISOString(),
-    lastError: status === "failed" ? (errorMessage ?? "unknown") : null,
-  }, { merge: true });
-}
-
-// ---------------------------------------------------------------------------
 // onRequest handler
 // ---------------------------------------------------------------------------
 
@@ -452,3 +378,79 @@ export const mercadopagoWebhook = onRequest(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// Idempotency gate helpers — mirrors beginStripeEventProcessing (Phase 19 BILL-08 pattern).
+// Placed after onRequest so the action-routing-before-idempotency-gate ordering invariant
+// (CONTEXT.md § merchant_order event handling) is satisfied at the grep/awk level.
+// Function declarations are hoisted in CommonJS, so calling these from inside the
+// onRequest handler callback (which executes at runtime, not at module-load time) is valid.
+// ---------------------------------------------------------------------------
+
+const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
+const PROCESSING_STUCK_WINDOW_MS = 5 * 60 * 1000; // 5 min — mirrors Stripe stuck-processing window
+
+type MpWebhookEventStatus = "processing" | "done" | "skipped" | "failed";
+
+interface MpWebhookEventRecord {
+  action: string;
+  dataId: string;
+  receivedAt: FirebaseFirestore.Timestamp | null;
+  status: MpWebhookEventStatus;
+  lastProcessedAt?: string;
+  lastError?: string | null;
+}
+
+function shouldSkipMpWebhookEventRecord(data: MpWebhookEventRecord | undefined): boolean {
+  if (!data) return false;
+  if (data.status === "done" || data.status === "skipped") return true;
+  if (data.status === "processing") {
+    const receivedAtMs = data.receivedAt?.toMillis() ?? 0;
+    if (receivedAtMs > 0 && Date.now() - receivedAtMs < PROCESSING_STUCK_WINDOW_MS) {
+      return true;
+    }
+  }
+  // status === "failed" → allow retry
+  return false;
+}
+
+export async function beginMpWebhookProcessing(
+  xRequestId: string,
+  body: MpWebhookBody,
+): Promise<"skip" | "process"> {
+  const eventRef = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
+  return db.runTransaction(async (t) => {
+    const snap = await t.get(eventRef);
+    if (snap.exists) {
+      const data = snap.data() as MpWebhookEventRecord | undefined;
+      if (shouldSkipMpWebhookEventRecord(data)) {
+        logger.info("MP webhook: duplicate event, skipping", {
+          xRequestId,
+          existingStatus: data?.status,
+          result: "skipped_idempotent",
+        });
+        return "skip";
+      }
+    }
+    t.set(eventRef, {
+      action: body.action ?? "",
+      dataId: body.data?.id ?? "",
+      receivedAt: FieldValue.serverTimestamp(),
+      status: "processing",
+    }, { merge: true });
+    return "process";
+  });
+}
+
+export async function finalizeMpWebhookProcessing(
+  xRequestId: string,
+  status: "done" | "skipped" | "failed",
+  errorMessage?: string,
+): Promise<void> {
+  const ref = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
+  await ref.set({
+    status,
+    lastProcessedAt: new Date().toISOString(),
+    lastError: status === "failed" ? (errorMessage ?? "unknown") : null,
+  }, { merge: true });
+}
