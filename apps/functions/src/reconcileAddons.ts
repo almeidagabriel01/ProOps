@@ -13,6 +13,7 @@ export interface ReconcileResult {
   corrected: number;
   alerts: number;
   errors: number;
+  cleaned: number;
   dryRun: boolean;
 }
 
@@ -40,6 +41,7 @@ export async function runAddonReconciliation(
     corrected: 0,
     alerts: 0,
     errors: 0,
+    cleaned: 0,
     dryRun,
   };
 
@@ -198,6 +200,71 @@ export async function runAddonReconciliation(
   return result;
 }
 
+/**
+ * Marks addons with expired currentPeriodEnd as cancelled.
+ * Uses a 24-hour buffer to allow Stripe webhooks to fire before we clean up,
+ * preventing false-positive Case 2 alerts in runAddonReconciliation.
+ */
+async function cleanupExpiredAddons(dryRun = false): Promise<number> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  let cleaned = 0;
+  let lastDocId: string | undefined;
+
+  while (true) {
+    let q = db
+      .collection("addons")
+      .where("cancelAtPeriodEnd", "==", true)
+      .limit(PAGE_LIMIT);
+
+    if (lastDocId) {
+      const lastDoc = await db.collection("addons").doc(lastDocId).get();
+      if (lastDoc.exists) {
+        q = q.startAfter(lastDoc);
+      }
+    }
+
+    const snap = await q.get();
+    if (snap.empty) break;
+
+    lastDocId = snap.docs[snap.docs.length - 1].id;
+
+    for (const addonDoc of snap.docs) {
+      const data = addonDoc.data() as Record<string, unknown>;
+      const rawPeriodEnd = data.currentPeriodEnd;
+      if (!rawPeriodEnd) continue;
+
+      const periodEndDate = new Date(String(rawPeriodEnd));
+      if (Number.isNaN(periodEndDate.getTime()) || periodEndDate > cutoff) continue;
+
+      const tenantId = String(data.tenantId || "").trim();
+      const addonType = String(data.addonType || "").trim();
+      const nowIso = new Date().toISOString();
+
+      if (!dryRun) {
+        await addonDoc.ref.update({
+          status: "cancelled",
+          cancelAtPeriodEnd: false,
+          expiresAt: String(rawPeriodEnd),
+          updatedAt: nowIso,
+          reconcilerNote: "cleanup_expired_period",
+        });
+      }
+
+      logger.info("[reconcileAddons] Cleaned up expired addon", {
+        tenantId,
+        addonType,
+        currentPeriodEnd: String(rawPeriodEnd),
+        dryRun,
+      });
+      cleaned++;
+    }
+
+    if (snap.docs.length < PAGE_LIMIT) break;
+  }
+
+  return cleaned;
+}
+
 async function notifySuperAdmins(result: ReconcileResult): Promise<void> {
   try {
     const superAdminsSnap = await db
@@ -211,6 +278,7 @@ async function notifySuperAdmins(result: ReconcileResult): Promise<void> {
     const message =
       `Reconciliação concluída. Processados: ${result.processed}, ` +
       `corrigidos: ${result.corrected}, alertas: ${result.alerts}` +
+      (result.cleaned > 0 ? `, expirados limpos: ${result.cleaned}` : "") +
       (result.errors > 0 ? `, erros: ${result.errors}` : "") +
       (result.dryRun ? " [dry run]" : "") +
       ".";
@@ -280,9 +348,11 @@ export const reconcileAddons = onSchedule(
 
     const result = await runAddonReconciliation(false);
 
+    result.cleaned = await cleanupExpiredAddons(false);
+
     logger.info("[reconcileAddons] Completed", result as unknown as Record<string, unknown>);
 
-    if (result.corrected > 0 || result.alerts > 0 || result.errors > 0) {
+    if (result.corrected > 0 || result.alerts > 0 || result.errors > 0 || result.cleaned > 0) {
       await notifySuperAdmins(result);
     }
   },
