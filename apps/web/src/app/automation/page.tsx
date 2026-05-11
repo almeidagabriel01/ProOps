@@ -131,7 +131,8 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
     wasIntersectingRef.current = false;
     isSentinelVisibleRef.current = false;
 
-    if (window.scrollY > 0) {
+    const scroller = document.getElementById("main-content");
+    if ((scroller?.scrollTop ?? 0) > 0) {
       hasUserInteractedRef.current = true;
     }
   }, [enabled]);
@@ -142,7 +143,8 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
     isLoadingMoreRef.current = false;
     wasIntersectingRef.current = false;
     isSentinelVisibleRef.current = false;
-    hasUserInteractedRef.current = window.scrollY > 0;
+    const scroller = document.getElementById("main-content");
+    hasUserInteractedRef.current = (scroller?.scrollTop ?? 0) > 0;
   }, [items.length, batchSize, resetKey]);
 
   const loadMore = React.useCallback(() => {
@@ -188,13 +190,14 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
       }
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    const scrollContainer = document.getElementById("main-content") ?? window;
+    scrollContainer.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      scrollContainer.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("keydown", onKeyDown);

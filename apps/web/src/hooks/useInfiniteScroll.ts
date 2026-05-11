@@ -267,14 +267,18 @@ export function useInfiniteScroll<T>(
     const unlockIfNotScrollable = () => {
       if (!allowAutoLoadUntilScrollable) return;
 
-      const doc = document.documentElement;
-      if (doc.scrollHeight <= window.innerHeight + 16) {
+      const mainContent = document.getElementById("main-content");
+      const scroller = mainContent ?? document.documentElement;
+      const viewHeight = mainContent ? scroller.clientHeight : window.innerHeight;
+      if (scroller.scrollHeight <= viewHeight + 16) {
         unlockLoading();
       }
     };
 
     const handleScroll = () => {
-      if (window.scrollY > 24) {
+      const mainContent = document.getElementById("main-content");
+      const scrollTop = mainContent ? mainContent.scrollTop : window.scrollY;
+      if (scrollTop > 24) {
         unlockLoading();
       }
     };
@@ -293,7 +297,9 @@ export function useInfiniteScroll<T>(
       }
     };
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const mainContent = document.getElementById("main-content");
+    const scrollContainer: EventTarget = mainContent ?? window;
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true } as AddEventListenerOptions);
     window.addEventListener("wheel", handleWheel, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
@@ -302,7 +308,7 @@ export function useInfiniteScroll<T>(
     unlockIfNotScrollable();
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      scrollContainer.removeEventListener("scroll", handleScroll);
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("keydown", handleKeyDown);
