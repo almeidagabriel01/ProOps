@@ -408,7 +408,7 @@ Plans:
 - [x] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
 - [x] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
 - [x] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
-- [ ] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
+- [x] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
 **UI hint**: yes
 
 ### Phase 21: Reactivation + Addon State Cleanup
@@ -423,7 +423,11 @@ Plans:
 3. Addons that are included in the tenant's current plan do not display the "Cancelando em X" badge regardless of their Firestore `cancelAtPeriodEnd` field value
 4. The daily cleanup cron marks addons with expired `currentPeriodEnd` as `status: 'canceled', cancelAtPeriodEnd: false` — confirmed by inspecting Firestore after a simulated cron run
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [x] 21-01-PLAN.md — Backend: reactivateSubscription endpoint (STATE-04) + stripe-service.ts + route registration
+- [x] 21-02-PLAN.md — Frontend: wire reactivation CTA in ProtectedAppShell + fix stale "Cancelando em X" badges (ADDON-01)
+- [x] 21-03-PLAN.md — Backend: cleanupExpiredAddons() step in reconcileAddons cron (ADDON-02)
 **UI hint**: yes
 
 ### Phase 22: Login Redirect Hardening
