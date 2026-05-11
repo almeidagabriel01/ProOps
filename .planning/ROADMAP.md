@@ -461,7 +461,10 @@ Plans:
 4. After a confirmed MP payment, the transaction document contains `mpFeeAmount`, `mpNetAmount`, and `mpGrossAmount` fields with the values returned by the MP payment API
 
 **Architecture note (highest risk)**: HMAC signature uses a formatted string `id:<x>;request-id:<x>;ts:<x>` — the semicolon-separated format is required. Additionally, `merchant_order` topic events fire before `payment` topic events; the webhook must handle topic-based routing correctly and not assume payment data is available on first receipt.
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
+- [ ] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
 
 ### Phase 24: MP Fee Configuration + Preview
 
@@ -509,5 +512,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
 | 22. Login Redirect Hardening      | 2/2            | Complete    | 2026-05-11 |
-| 23. MP Webhook Hardening          | 0/TBD          | Not started | -          |
+| 23. MP Webhook Hardening          | 0/2            | Not started | -          |
 | 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |
