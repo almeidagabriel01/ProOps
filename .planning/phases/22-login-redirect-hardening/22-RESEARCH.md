@@ -405,22 +405,22 @@ test('login with redirect_reason=session_expired → warning toast visible', asy
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`proops_just_logged_out` cleanup effect: simplify or leave?**
    - What we know: After this phase, `redirect=` will never appear in the URL, so `params.delete('redirect')` becomes a no-op.
    - What's unclear: Whether Claude's discretion should simplify the effect to only `params.delete('redirect_reason')`.
-   - Recommendation: Simplify. Remove the `params.delete('redirect')` line to reflect the new reality. This makes the code honest without breaking anything.
+   - RESOLVED: Simplify. Remove the `params.delete('redirect')` line to reflect the new reality. This makes the code honest without breaking anything. Implemented in Plan 22-01 Task 1 Step 4.
 
 2. **`isPathAllowedForUser` function: delete or leave in `resolve-user-home.ts`?**
    - What we know: After `useLoginForm.ts` stops importing it, the only callers are the unit tests in `__tests__/is-path-allowed.test.ts` (which import it directly from `resolve-user-home.ts`).
    - What's unclear: Whether the planner should delete the function and its tests, or leave it as a utility.
-   - Recommendation: Leave the function in `resolve-user-home.ts`. Its unit tests provide a spec for the path-validation logic that may be useful again. The removal work is out of scope of LOGIN-01 and deletion of a tested utility carries risk for zero benefit to this phase.
+   - RESOLVED: Leave the function in `resolve-user-home.ts`. Its unit tests provide a spec for the path-validation logic that may be useful again. The removal work is out of scope of LOGIN-01 and deletion of a tested utility carries risk for zero benefit to this phase.
 
 3. **Toast assertion in E2E — reliable selector?**
    - What we know: Sileo's Toaster renders via Radix/Sonner. The toast-provider renders at `top-center`.
    - What's unclear: The exact Playwright-visible selector for a Sileo toast.
-   - Recommendation: Use `page.locator('[data-sonner-toast]').first()` or fall back to `page.getByRole('status').first()`. Accept this as a LOW-certainty selector that may need a data-testid on the Toaster in a future phase if flaky.
+   - RESOLVED: Use `page.locator('[data-sonner-toast]').first()` with `page.getByRole('status').first()` as fallback. Implemented in Plan 22-02 Task 1. Accept as a LOW-certainty selector that may need a data-testid in a future phase if flaky.
 
 ---
 
