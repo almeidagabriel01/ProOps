@@ -1,6 +1,7 @@
 import { WHATSAPP_OVERAGE_PRICE_ID } from "../stripe/stripeHelpers";
 import { resolvePriceToTier } from "../lib/tenant-plan-policy";
 import type { BillingStatus } from "./billing-types";
+import { classifySubscription } from "./subscription-classifier";
 
 export function mapStripeStatusToBilling(status: string): BillingStatus {
   switch (status) {
@@ -63,9 +64,5 @@ export function isMainPlanSubscription(subscription: {
   metadata?: Record<string, string> | null;
   items: { data: Array<{ price: { id: string } }> };
 }): boolean {
-  if (subscription.metadata?.type === "addon") return false;
-  const allOverage = subscription.items.data.every(
-    (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
-  );
-  return !allOverage;
+  return classifySubscription(subscription) === "main";
 }

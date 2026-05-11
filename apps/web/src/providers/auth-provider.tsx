@@ -377,24 +377,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             tokenResult.claims.subscriptionStatus || "",
           );
           if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
+            // Sign out so the user must re-authenticate. The server-side middleware
+            // redirects to /subscription-blocked on any subsequent navigation —
+            // keeping redirect logic in one place prevents false positives from stale JWT claims.
             await signOut(auth);
-            if (!window.location.pathname.startsWith("/subscription-blocked")) {
-              window.location.replace(`/subscription-blocked?reason=${subStatus}`);
-            }
             return;
           }
-          // Canceled accounts stay logged in but must not access the ERP.
-          // Sync the session first so the cookie reflects the new claims,
-          // then redirect to the blocked page if not already there.
+          // Canceled accounts stay logged in. Sync the session cookie so it reflects
+          // the new claims. The middleware handles blocking on the next navigation.
           if (SOFT_BLOCKED_STATUSES.has(subStatus)) {
             await syncServerSession(firebaseUser);
-            if (!window.location.pathname.startsWith("/subscription-blocked")) {
-              window.location.replace(`/subscription-blocked?reason=${subStatus}`);
-            }
             return;
           }
-          // past_due requires a grace-period check against Firestore.
-          // JWT claims don't carry pastDueSince, so we ask the server.
+          // past_due: check the server for the grace-period decision.
+          // JWT claims don't carry pastDueSince, so we ask the billing-status endpoint.
           if (subStatus === "past_due") {
             try {
               const res = await fetch("/api/auth/billing-status");
@@ -402,12 +398,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const data = (await res.json()) as { allowed?: boolean; status?: string };
                 if (data.allowed === false) {
                   await signOut(auth);
-                  if (!window.location.pathname.startsWith("/subscription-blocked")) {
-                    // Use Firestore status (data.status) as the reason — more accurate than
-                    // the stale JWT claim (subStatus). Falls back to subStatus on mismatch.
-                    const reason = data.status || subStatus;
-                    window.location.replace(`/subscription-blocked?reason=${reason}`);
-                  }
                   return;
                 }
               }

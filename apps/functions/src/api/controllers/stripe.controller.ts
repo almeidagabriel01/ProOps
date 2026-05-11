@@ -799,16 +799,29 @@ export const createAddonCheckoutSession = async (
 
     const appOrigin = resolveRequestOrigin(req);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
-      customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appOrigin}/profile/addons?success=true`,
-      cancel_url: `${appOrigin}/profile/addons?canceled=true`,
-      metadata: { userId, addonType: addonId, tenantId, type: "addon" },
-      allow_promotion_codes: true,
-    });
+    // Idempotency key: bucketed by 30-minute window so double-clicks within
+    // the same window reuse the existing session instead of creating duplicates.
+    const idempotencyKey = `addon-checkout:${tenantId}:${addonId}:${Math.floor(Date.now() / (1000 * 60 * 30))}`;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${appOrigin}/profile/addons?success=true`,
+        cancel_url: `${appOrigin}/profile/addons?canceled=true`,
+        metadata: { userId, addonType: addonId, tenantId, type: "addon" },
+        // subscription_data.metadata is propagated to the created Subscription object.
+        // Without this, subscription.metadata is empty and webhook handlers cannot
+        // distinguish addon subscriptions from main plan subscriptions.
+        subscription_data: {
+          metadata: { type: "addon", addonType: addonId, tenantId, userId },
+        },
+        allow_promotion_codes: true,
+      },
+      { idempotencyKey },
+    );
 
     return res.json({ url: session.url });
   } catch (error: unknown) {

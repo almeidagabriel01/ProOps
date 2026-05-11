@@ -1,7 +1,7 @@
 import { getStripe } from "../stripe/stripeConfig";
 import { writeSecurityAuditEvent } from "../lib/security-observability";
 import { logger } from "../lib/logger";
-import { isMainPlanSubscription } from "./billing-mappers";
+import { classifySubscription } from "./subscription-classifier";
 import type { DuplicateCancelResult } from "./billing-types";
 
 const ACTIVE_STATUSES = ["active", "trialing", "past_due"] as const;
@@ -39,7 +39,7 @@ export async function findAndCancelDuplicateSubscriptions(
   });
 
   const eligible = (list.data as unknown as SubShape[]).filter(
-    (sub) => isMainPlanSubscription(sub) && isActiveStatus(sub.status),
+    (sub) => classifySubscription(sub) === "main" && isActiveStatus(sub.status),
   );
 
   if (eligible.length <= 1) {
@@ -47,6 +47,23 @@ export async function findAndCancelDuplicateSubscriptions(
   }
 
   const sorted = [...eligible].sort((a, b) => a.created - b.created);
+
+  // Race-window guard: if the newest main-plan subscription was created within
+  // the last 90 seconds, it is likely from an active checkout session that
+  // has not yet been confirmed via checkout.session.completed. Skip cleanup
+  // to prevent canceling a subscription the user just paid for.
+  const RACE_WINDOW_SECONDS = 90;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const newest = sorted[sorted.length - 1];
+  if (newest && nowSec - newest.created < RACE_WINDOW_SECONDS) {
+    logger.info("findAndCancelDuplicateSubscriptions: race window active, skipping cleanup", {
+      customerId,
+      newestSubId: newest.id,
+      ageSeconds: nowSec - newest.created,
+    });
+    return { kept: sorted[0].id, canceled: [] };
+  }
+
   const kept = opts.keep === "oldest" ? sorted[0] : sorted[sorted.length - 1];
   const toCancel = sorted.filter((sub) => sub.id !== kept.id);
 

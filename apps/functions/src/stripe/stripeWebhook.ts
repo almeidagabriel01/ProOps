@@ -16,6 +16,7 @@ import {
   mapStripeStatusToBilling,
   findAndCancelDuplicateSubscriptions,
   clearCheckoutReservation,
+  classifySubscription,
 } from "../billing";
 import { db } from "../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -1063,12 +1064,14 @@ async function handleSubscriptionCreated(
   // checkout.session.completed. We keep this handler cheap and idempotent:
   // sync billing IDs and the initial subscription status snapshot only.
   // updateUserPlan and trial-marking are handled in handleCheckoutCompleted.
-  const metadata = subscription.metadata || {};
-  if (metadata.type === "addon") {
-    // Addon created events are fully handled by checkout.session.completed.
+  // Classify before any DB reads. Addon subscriptions are fully handled by
+  // checkout.session.completed — returning early here also avoids the timing
+  // issue where the addons doc doesn't exist yet at subscription.created time.
+  if (classifySubscription(subscription) === "addon") {
     return;
   }
 
+  const metadata = subscription.metadata || {};
   const subscriptionCustomerId = extractStripeCustomerId(subscription.customer);
   const tenantId = await resolveTenantIdForBillingEvent({
     eventType: "customer.subscription.created",
@@ -1174,20 +1177,39 @@ async function handleSubscriptionDeleted(
     subscriptionId: subscription.id,
   });
 
-  if (metadata.type === "addon") {
+  if (classifySubscription(subscription) === "addon") {
     const addonTypeRaw = metadata.addonType;
-    // Legacy whatsapp_addon subscriptions are no longer managed — skip gracefully.
     if (String(addonTypeRaw || "").trim() === "whatsapp_addon") {
-      console.log(
-        `[StripeWebhook] Skipping legacy whatsapp_addon subscription deleted ${subscription.id}`,
-      );
+      logger.info("[handleSubscriptionDeleted] Skipping legacy whatsapp_addon subscription", {
+        subscriptionId: subscription.id,
+      });
       return;
     }
     if (!isSupportedAddonType(addonTypeRaw)) {
-      throw new Error("TENANT_METADATA_MISMATCH");
+      // Classified as addon via price-ID fallback but addonType missing in metadata
+      // (pre-fix subscription). Skip rather than throw to prevent Stripe retry loop.
+      logger.warn("[handleSubscriptionDeleted] addon without valid addonType, skipping", {
+        subscriptionId: subscription.id,
+        addonTypeRaw: addonTypeRaw ?? "(missing)",
+      });
+      return;
     }
-    const addonType = addonTypeRaw;
-    await cancelAddon(tenantId, addonType);
+    await cancelAddon(tenantId, addonTypeRaw);
+    return;
+  }
+
+  // Identity guard: only mark tenant as canceled if this subscription IS the
+  // tenant's current main plan. An orphaned or mis-classified subscription deletion
+  // must never corrupt the tenant billing state.
+  const tenantDocSnap = await db.collection("tenants").doc(tenantId).get();
+  const tenantDocData = tenantDocSnap.data() as Record<string, unknown> | undefined;
+  const currentMainSubId = String(tenantDocData?.stripeSubscriptionId || "").trim();
+  if (currentMainSubId && currentMainSubId !== subscription.id) {
+    logger.warn("[handleSubscriptionDeleted] ignoring deletion of non-current subscription", {
+      tenantId,
+      deletedSubId: subscription.id,
+      currentSubId: currentMainSubId,
+    });
     return;
   }
 
