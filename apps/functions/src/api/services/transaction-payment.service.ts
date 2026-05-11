@@ -692,15 +692,7 @@ export class TransactionPaymentService {
     const effectiveEnvironment: string =
       mpData.environment ?? (mpData.liveMode ? "production" : "sandbox");
 
-    // In sandbox, both the card token and the payment must be in the same MP context.
-    // The card token is created with MERCADOPAGO_SANDBOX_PUBLIC_KEY (integrator's test key),
-    // so the payment must also use the integrator's test access token.
-    // In production, the seller's OAuth credentials are used directly.
-    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
-    const accessToken =
-      effectiveEnvironment === "sandbox" && sandboxAccessToken
-        ? sandboxAccessToken
-        : mpData.accessToken;
+    const accessToken = mpData.accessToken;
 
     const statementDescriptor = ((tenantSnap.data()?.name as string) || "ProOps").slice(0, 22);
 
@@ -907,19 +899,12 @@ export class TransactionPaymentService {
       throw new Error("PAYMENT_NOT_FOUND");
     }
 
-    const attemptDoc = attemptsSnap.docs[0];
-
     const mpData = await MercadoPagoService.getMercadoPagoData(tenantId);
     if (!mpData) {
       throw new Error("MP_NOT_CONFIGURED");
     }
 
-    const sandboxAccessToken = process.env.MERCADOPAGO_SANDBOX_ACCESS_TOKEN;
-    const attemptEnvironment = (attemptDoc.data() as { environment?: string }).environment;
-    const effectiveAccessToken =
-      attemptEnvironment === "sandbox" && sandboxAccessToken
-        ? sandboxAccessToken
-        : mpData.accessToken;
+    const effectiveAccessToken = mpData.accessToken;
 
     const mpResponse = await axios.get<{
       id: number;

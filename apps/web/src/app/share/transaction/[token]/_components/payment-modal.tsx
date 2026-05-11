@@ -505,10 +505,8 @@ export function PaymentModal({
                         </p>
                       )}
                       <p>
-                        No painel MP Developer → <strong>"Contas de teste"</strong>, crie um usuário
-                        comprador. Use o e-mail gerado{" "}
-                        (<code className="bg-muted px-1 rounded">test_user_...@testuser.com</code>){" "}
-                        no campo de e-mail abaixo — diferente do e-mail do vendedor acima.
+                        Use qualquer e-mail comum (gmail, hotmail, etc.),{" "}
+                        <strong>diferente do e-mail do vendedor</strong> acima.
                       </p>
                       <p>
                         Cartão de teste:{" "}
