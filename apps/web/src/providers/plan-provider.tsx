@@ -49,13 +49,16 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
 
 const ADDON_GRACE_PERIOD_DAYS = 7;
 
+// past_due is intentionally excluded: backend enforces a 7-day grace period
+// (ADDON_GRACE_PERIOD_DAYS). Addons remain accessible during this window and
+// the top banner already warns the user. Zeroing addons here contradicted the
+// backend grace period and created false "access lost" complaints.
 const BLOCKED_SUBSCRIPTION_STATUSES = new Set([
   "canceled",
   "cancelled",
   "unpaid",
   "inactive",
   "payment_failed",
-  "past_due",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -342,10 +345,24 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const addons = await AddonService.getAddonsForTenant(tenant.id);
-      const addonTypes = addons.map((a) => a.addonType);
-      setPurchasedAddons(addonTypes);
-      setPurchasedAddonsData(addons);
+      const allAddons = await AddonService.getAddonsWithPastDue(tenant.id);
+
+      const activeAddons = allAddons.filter((a) => a.status === "active");
+      const pastDueAddons = allAddons.filter((a) => a.status === "past_due");
+
+      const now = new Date();
+      const validPastDueAddons = pastDueAddons.filter((addon) => {
+        if (!addon.currentPeriodEnd) return true;
+        const periodEnd = new Date(addon.currentPeriodEnd);
+        const deadline = new Date(periodEnd);
+        deadline.setDate(deadline.getDate() + ADDON_GRACE_PERIOD_DAYS);
+        return now < deadline;
+      });
+
+      const effectiveAddons = [...activeAddons, ...validPastDueAddons];
+      setPurchasedAddons(effectiveAddons.map((a) => a.addonType));
+      setPurchasedAddonsData(effectiveAddons);
+      setPastDueAddonsData(pastDueAddons);
     } catch (error) {
       if ((error as { code?: string })?.code === "permission-denied") return;
       console.error("Error loading add-ons:", error);
