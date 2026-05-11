@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 19: Single-Writer Billing Foundation** - Transactional single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closure (completed 2026-05-07)
 - [x] **Phase 20: Subscription State Banners + Cancel Enforcement** - past_due banner, cancelAtPeriodEnd banner, cancel block 409 (completed 2026-05-11)
 - [x] **Phase 21: Reactivation + Addon State Cleanup** - Reactivate endpoint, stale addon badge fix, daily cleanup cron (completed 2026-05-11)
-- [ ] **Phase 22: Login Redirect Hardening** - Always redirect to /dashboard post-login, remove redirect= consumption
+- [x] **Phase 22: Login Redirect Hardening** - Always redirect to /dashboard post-login, remove redirect= consumption (completed 2026-05-11)
 - [ ] **Phase 23: MP Webhook Hardening** - Structured logs, idempotency, external_reference fallback, fee persistence
 - [ ] **Phase 24: MP Fee Configuration + Preview** - Admin fee config, checkout preview, transaction detail gross/fee/net block
 
@@ -442,7 +442,7 @@ Plans:
 3. A superadmin who logs in is taken to `/admin` regardless of any URL parameters
 
 **Note**: AUTH-05 has been moved to Out of Scope. Only the consumption of `redirect=` is removed. The `redirect_reason=` handling for the session-expired toast must be preserved.
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
 - [x] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
