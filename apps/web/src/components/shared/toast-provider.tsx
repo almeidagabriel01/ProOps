@@ -2,20 +2,12 @@
 
 import { Toaster } from "sileo";
 import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
 
 export function ToastProvider() {
   const { resolvedTheme } = useTheme();
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
-  if (!mounted) {
-    return null;
-  }
-
+  // Render immediately (no mount gate) so sileo's store.position is set before
+  // page-load effects fire. Both SSR and initial CSR resolve to "light", so
+  // there is no hydration mismatch; key remount handles theme switches.
   const currentTheme = resolvedTheme === "dark" ? "dark" : "light";
 
   return (
