@@ -279,9 +279,17 @@ The existing `useEffect` on mount (lines 280–296 of `useLoginForm.ts`) deletes
 **How to avoid:** This is the correct behavior: the toast is intended to show on the login PAGE before the user re-authenticates — not after. The toast fires when `redirectReason === 'session_expired'` is present, which happens when the user has been bounced to the login page. At that point `user` is `null` (session expired), so the redirect effect does nothing. The toast is visible while the user fills in credentials.
 **Warning signs:** Manual test: navigate to `/login?redirect_reason=session_expired` while logged out — toast should appear immediately.
 
+### Pitfall 6: Vestigial `redirectReason` dependency in the outer redirect `useEffect`
+**What goes wrong:** After `handleRedirectAfterAuth` is rebuilt without `redirectReason` in its closure, the outer redirect `useEffect` (lines 391–400 of `useLoginForm.ts`) still lists `redirectReason` in its dependency array. The `react-hooks/exhaustive-deps` ESLint rule will flag `redirectReason` as a spurious dependency since `handleRedirectAfterAuth` no longer captures it.
+**Why it happens:** The dep array was correct before the change. After rebuilding `handleRedirectAfterAuth` to not read `redirectReason`, the dep becomes vestigial — it was tracking a value the callback consumed, but now does not.
+**How to avoid:** After simplifying `handleRedirectAfterAuth`, remove `redirectReason` from the outer redirect `useEffect` dependency array. Updated array: `[user, isLoading, isSessionSynced, handleRedirectAfterAuth, getGoogleSetupTarget, setIsEmailVerificationPending]`.
+**Warning signs:** `npm run lint` in `apps/web/` reports a `react-hooks/exhaustive-deps` lint error flagging `redirectReason` as an unnecessary dependency.
+
 ---
 
 ## Code Examples
+
+Verified patterns from official sources:
 
 ### Updated `handleRedirectAfterAuth` (simplified)
 ```typescript
