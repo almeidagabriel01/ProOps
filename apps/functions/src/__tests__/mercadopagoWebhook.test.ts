@@ -15,7 +15,7 @@ import axios from "axios";
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 import { createHmac } from "crypto";
-import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing, parseExternalReference } from "../mercadopagoWebhook";
+import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing, parseExternalReference, deriveMpFeeFields } from "../mercadopagoWebhook";
 
 // ---------------------------------------------------------------------------
 // Block A — HMAC manifest format (unit)
@@ -342,5 +342,49 @@ describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", (
     );
     expect(freshAxios.get).toHaveBeenCalledTimes(1);
     loggerWarnSpy.mockRestore();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Block E — deriveMpFeeFields (unit)
+// ---------------------------------------------------------------------------
+
+describe("MP webhook — deriveMpFeeFields (unit)", () => {
+  it("returns gross+net+fee when transaction_details.net_received_amount is positive", () => {
+    const result = deriveMpFeeFields({
+      id: 1, status: "approved", transaction_amount: 100,
+      transaction_details: { net_received_amount: 95 },
+    });
+    expect(result).toEqual({
+      mpGrossAmount: 100, mpNetAmount: 95, mpFeeAmount: 5,
+    });
+  });
+
+  it("returns only mpGrossAmount when transaction_details is undefined", () => {
+    const result = deriveMpFeeFields({
+      id: 1, status: "approved", transaction_amount: 100,
+    });
+    expect(result).toEqual({ mpGrossAmount: 100 });
+    expect(result).not.toHaveProperty("mpNetAmount");
+    expect(result).not.toHaveProperty("mpFeeAmount");
+  });
+
+  it("returns only mpGrossAmount when net_received_amount is 0 (sandbox edge case)", () => {
+    const result = deriveMpFeeFields({
+      id: 1, status: "approved", transaction_amount: 100,
+      transaction_details: { net_received_amount: 0 },
+    });
+    expect(result).toEqual({ mpGrossAmount: 100 });
+    expect(result).not.toHaveProperty("mpNetAmount");
+  });
+
+  it("handles non-integer cents correctly (gross=10.50, net=9.97 -> fee=0.53)", () => {
+    const result = deriveMpFeeFields({
+      id: 1, status: "approved", transaction_amount: 10.50,
+      transaction_details: { net_received_amount: 9.97 },
+    });
+    expect(result.mpGrossAmount).toBe(10.50);
+    expect(result.mpNetAmount).toBe(9.97);
+    expect(result.mpFeeAmount).toBeCloseTo(0.53, 2);
   });
 });
