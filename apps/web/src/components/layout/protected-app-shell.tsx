@@ -11,16 +11,33 @@ import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
 import { StripeService } from "@/services/stripe-service";
+import { AddonService } from "@/services/addon-service";
 import { formatDateBR } from "@/utils/date-format";
+import { useRouter } from "next/navigation";
 
 export function ProtectedAppShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { planTier } = usePlanLimits();
+  const { planTier, pastDueAddons } = usePlanLimits();
   const { user } = useAuth();
+  const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
+
+  const activePastDueAddons = React.useMemo(
+    () => pastDueAddons.filter((info) => !info.isExpired),
+    [pastDueAddons],
+  );
+
+  const singlePastDueAddonName = React.useMemo(() => {
+    if (activePastDueAddons.length !== 1) return null;
+    const info = activePastDueAddons[0];
+    return (
+      AddonService.getAddonDefinition(info.addon.addonType)?.name ??
+      info.addon.addonType
+    );
+  }, [activePastDueAddons]);
 
   const subscriptionStatus = user?.subscriptionStatus;
   const isPastDue = subscriptionStatus === "past_due";
@@ -81,6 +98,25 @@ export function ProtectedAppShell({
               ctaDisabled
               ctaDisabledTooltip="Disponível em breve"
               dataTestid="billing-state-banner-cancel-period-end"
+            />
+          )}
+          {user !== null && activePastDueAddons.length === 1 && (
+            <BillingStateBanner
+              variant="warning"
+              message={`Add-on ${singlePastDueAddonName}: pagamento em atraso. Regularize para evitar o cancelamento.`}
+              ctaLabel={isOpeningPortal ? "Abrindo..." : "Atualizar pagamento"}
+              onCta={handleOpenPortal}
+              ctaDisabled={isOpeningPortal}
+              dataTestid="banner-addon-past-due"
+            />
+          )}
+          {user !== null && activePastDueAddons.length > 1 && (
+            <BillingStateBanner
+              variant="warning"
+              message={`${activePastDueAddons.length} add-ons com pagamento em atraso. Regularize para evitar o cancelamento.`}
+              ctaLabel="Ver add-ons"
+              onCta={() => router.push("/profile/addons")}
+              dataTestid="banner-addons-past-due"
             />
           )}
           <main id="main-content" className="flex-1 p-8 overflow-y-auto">
