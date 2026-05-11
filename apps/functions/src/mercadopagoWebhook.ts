@@ -102,24 +102,86 @@ export function validateMPSignature(req: { headers: Record<string, string | stri
 }
 
 export async function handlePaymentEvent(dataId: string): Promise<void> {
-  // 1. Find payment attempt by mpPaymentId
+  // 1. PRIMARY: direct lookup by mpPaymentId (existing behavior — unchanged)
   const attemptsSnap = await db
     .collection(PAYMENT_ATTEMPTS_COLLECTION)
     .where("mpPaymentId", "==", dataId)
     .limit(1)
     .get();
 
-  if (attemptsSnap.empty) {
-    logger.info("MP webhook: no payment attempt found, ignoring", { mpPaymentId: dataId });
-    return;
-  }
+  let attemptDoc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot;
+  let attempt: { transactionId: string; tenantId: string; status: string };
+  let lookupResult: "primary" | "fallback_resolved";
 
-  const attemptDoc = attemptsSnap.docs[0];
-  const attempt = attemptDoc.data() as {
-    transactionId: string;
-    tenantId: string;
-    status: string;
-  };
+  if (!attemptsSnap.empty) {
+    attemptDoc = attemptsSnap.docs[0];
+    attempt = attemptDoc.data() as { transactionId: string; tenantId: string; status: string };
+    lookupResult = "primary";
+  } else {
+    // 2. FALLBACK: Checkout Pro path — preferenceId stored in mpPaymentId, real payment.id differs.
+    //    Call MP API with PLATFORM token (we don't know tenantId yet), parse external_reference,
+    //    look up payment_attempts.doc(attemptId) directly.
+    const platformToken = process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN;
+    if (!platformToken) {
+      logger.warn("MP webhook: fallback unavailable — MERCADOPAGO_PLATFORM_ACCESS_TOKEN not configured", {
+        mpPaymentId: dataId,
+        lookup_result: "not_found",
+      });
+      return; // outer handler in onRequest will finalize webhookEvents → "done", HTTP 200
+    }
+
+    let mpFallbackResponse: MpPaymentResponse;
+    try {
+      const resp = await axios.get<MpPaymentResponse>(
+        `${MP_API_BASE}/v1/payments/${dataId}`,
+        { headers: { Authorization: `Bearer ${platformToken}` } },
+      );
+      mpFallbackResponse = resp.data;
+    } catch (err) {
+      logger.warn("MP webhook: fallback MP API call failed", {
+        mpPaymentId: dataId,
+        error: err instanceof Error ? err.message : String(err),
+        lookup_result: "not_found",
+      });
+      return; // expected unresolvable — outer handler responds 200
+    }
+
+    const parsed = parseExternalReference(mpFallbackResponse.external_reference);
+    if (!parsed) {
+      logger.warn("MP webhook: fallback failed — external_reference missing or malformed", {
+        mpPaymentId: dataId,
+        externalReference: mpFallbackResponse.external_reference ?? null,
+        action: "payment",
+        lookup_result: "not_found",
+      });
+      return;
+    }
+
+    const attemptRef = db.collection(PAYMENT_ATTEMPTS_COLLECTION).doc(parsed.attemptId);
+    const attemptSnap = await attemptRef.get();
+    if (!attemptSnap.exists) {
+      logger.warn("MP webhook: fallback failed — payment_attempts doc not found", {
+        mpPaymentId: dataId,
+        attemptId: parsed.attemptId,
+        transactionId: parsed.transactionId,
+        externalReference: mpFallbackResponse.external_reference,
+        lookup_result: "not_found",
+      });
+      return;
+    }
+
+    attemptDoc = attemptSnap;
+    attempt = attemptSnap.data() as { transactionId: string; tenantId: string; status: string };
+    lookupResult = "fallback_resolved";
+
+    logger.info("MP webhook: payment attempt resolved via fallback", {
+      mpPaymentId: dataId,
+      attemptId: parsed.attemptId,
+      transactionId: parsed.transactionId,
+      tenantId: attempt.tenantId,
+      lookup_result: lookupResult,
+    });
+  }
 
   const { transactionId, tenantId } = attempt;
 

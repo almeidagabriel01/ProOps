@@ -276,7 +276,13 @@ describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", (
   it("returns without throwing when axios.get throws a network error (Behavior 2)", async () => {
     // Arrange: token present, axios rejects on the fallback call.
     process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN = "test-platform-token";
-    mockedAxios.get.mockRejectedValueOnce(new Error("ECONNRESET: connection lost"));
+
+    // Dynamic require pulls the freshly-evaluated module with the "../init" doMock in effect.
+    // We also require axios from the same fresh module registry so the mock setup applies to
+    // the same axios instance that handlePaymentEvent will use after jest.resetModules().
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const freshAxios = require("axios") as jest.Mocked<typeof import("axios").default>;
+    freshAxios.get.mockRejectedValueOnce(new Error("ECONNRESET: connection lost"));
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { handlePaymentEvent } = require("../mercadopagoWebhook");
@@ -293,8 +299,8 @@ describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", (
         lookup_result: "not_found",
       }),
     );
-    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-    expect(mockedAxios.get).toHaveBeenCalledWith(
+    expect(freshAxios.get).toHaveBeenCalledTimes(1);
+    expect(freshAxios.get).toHaveBeenCalledWith(
       expect.stringContaining("/v1/payments/999"),
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: "Bearer test-platform-token" }),
@@ -306,7 +312,11 @@ describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", (
   it("returns without throwing when MP response has undefined external_reference (Behavior 3)", async () => {
     // Arrange: token present, axios resolves with a response missing external_reference.
     process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN = "test-platform-token";
-    mockedAxios.get.mockResolvedValueOnce({
+
+    // Dynamic require from the same fresh module registry as handlePaymentEvent will use.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const freshAxios = require("axios") as jest.Mocked<typeof import("axios").default>;
+    freshAxios.get.mockResolvedValueOnce({
       data: {
         id: 999,
         status: "approved",
@@ -330,7 +340,7 @@ describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", (
         lookup_result: "not_found",
       }),
     );
-    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    expect(freshAxios.get).toHaveBeenCalledTimes(1);
     loggerWarnSpy.mockRestore();
   });
 });
