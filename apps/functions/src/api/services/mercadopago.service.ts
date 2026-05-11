@@ -36,6 +36,7 @@ export interface TenantMpPublicConfig {
   publicKey: string;
   environment: MercadoPagoEnvironment;
   sellerTestEmail?: string;
+  testBuyerEmail?: string;
 }
 
 const REFRESH_AHEAD_SECONDS = 10 * 60; // 10 minutos
@@ -328,6 +329,7 @@ export class MercadoPagoService {
         // non-critical — proceed without seller email
       }
     }
-    return { publicKey, environment, sellerTestEmail };
+    const testBuyerEmail = environment === "sandbox" ? (process.env.MERCADOPAGO_SANDBOX_BUYER_EMAIL ?? undefined) : undefined;
+    return { publicKey, environment, sellerTestEmail, testBuyerEmail };
   }
 }
