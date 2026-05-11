@@ -444,7 +444,7 @@ Plans:
 **Note**: AUTH-05 has been moved to Out of Scope. Only the consumption of `redirect=` is removed. The `redirect_reason=` handling for the session-expired toast must be preserved.
 **Plans:** 2 plans
 Plans:
-- [ ] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
+- [x] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
 - [ ] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
 **UI hint**: yes
 

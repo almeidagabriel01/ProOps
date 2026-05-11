@@ -162,7 +162,7 @@
 
 ### Login Redirect
 
-- [ ] **LOGIN-01**: Após login bem-sucedido, usuário é sempre redirecionado para `/dashboard` (ou `/admin` se superadmin), independente de parâmetros `?redirect=` na URL
+- [x] **LOGIN-01**: Após login bem-sucedido, usuário é sempre redirecionado para `/dashboard` (ou `/admin` se superadmin), independente de parâmetros `?redirect=` na URL
 
 ### MercadoPago Webhook
 
@@ -278,7 +278,7 @@
 | STATE-04 | Phase 21 | Pending  |
 | ADDON-01 | Phase 21 | Pending  |
 | ADDON-02 | Phase 21 | Pending  |
-| LOGIN-01 | Phase 22 | Pending  |
+| LOGIN-01 | Phase 22 | Complete |
 | MPWH-01  | Phase 23 | Pending  |
 | MPWH-02  | Phase 23 | Pending  |
 | MPWH-03  | Phase 23 | Pending  |

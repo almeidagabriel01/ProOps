@@ -4,12 +4,12 @@ milestone: v3.0
 milestone_name: — AI Assistant
 status: unknown
 stopped_at: Phase 22 context gathered
-last_updated: "2026-05-11T15:03:02.693Z"
+last_updated: "2026-05-11T15:33:06.064Z"
 progress:
-  total_phases: 24
-  completed_phases: 18
-  total_plans: 64
-  completed_plans: 61
+  total_phases: 14
+  completed_phases: 14
+  total_plans: 48
+  completed_plans: 48
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 20 — subscription-state-banners-cancel-enforcement
+**Current focus:** Phase 22 — login-redirect-hardening
 
 ## Current Position
 
-Phase: 20 (subscription-state-banners-cancel-enforcement) — EXECUTING
-Plan: 3 of 4
+Phase: 22 (login-redirect-hardening) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -83,6 +83,7 @@ _Updated after each plan completion_
 | Phase 19 P06 | 15 | 2 tasks | 3 files |
 | Phase 20 P01 | 5 | 3 tasks | 3 files |
 | Phase 20 P02 | 15 | 2 tasks | 3 files |
+| Phase 22 P01 | 15 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,8 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 20 P03]: Shell-level banner pattern — BillingStateBanner lives in ProtectedAppShell, not SubscriptionGuard; SubscriptionGuard's showWarningBanner block removed to prevent double-banner for past_due
 - [Phase 20 P03]: Yellow banner CTA (Reativar assinatura) is disabled stub in this phase — Phase 21 wires endpoint
 - [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
+- [Phase 22 P01]: redirectReason kept in UseLoginFormReturn — consumed by session-recovery useEffect and toast useEffect; tightening deferred to future cleanup
+- [Phase 22 P01]: SeedUserFreeRole added to users.ts (not only ai.ts) — pre-existing type mismatch (USER_FREE typed as SeedUser with role:"free") fixed alongside SeedUserSuperadminRole addition
 - [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
 
 ### Pending Todos
@@ -195,6 +198,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-11T15:03:02.682Z
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-login-redirect-hardening/22-CONTEXT.md
+Last session: 2026-05-11T15:40:25Z
+Stopped at: Phase 22 Plan 01 complete — ready for Plan 02 (E2E tests)
+Resume file: .planning/phases/22-login-redirect-hardening/22-02-PLAN.md
