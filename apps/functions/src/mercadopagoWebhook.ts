@@ -49,7 +49,7 @@ interface MpPaymentResponse {
   date_approved?: string;
 }
 
-function validateMPSignature(req: { headers: Record<string, string | string[] | undefined> }, body: MpWebhookBody): boolean {
+export function validateMPSignature(req: { headers: Record<string, string | string[] | undefined> }, body: MpWebhookBody): boolean {
   const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
   if (!webhookSecret) return false;
 
@@ -66,7 +66,7 @@ function validateMPSignature(req: { headers: Record<string, string | string[] | 
   const providedHmac = v1Match[1];
   const dataId = body.data?.id || "";
 
-  const manifest = `${xRequestId};${dataId};${ts}`;
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const expected = createHmac("sha256", webhookSecret).update(manifest).digest("hex");
 
   try {
@@ -258,6 +258,84 @@ async function handlePaymentEvent(dataId: string): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Idempotency gate — mirrors beginStripeEventProcessing (Phase 19 BILL-08 pattern)
+// Scoped to payment.* events ONLY — merchant_order and unknown topics MUST NOT
+// write to webhookEvents (per CONTEXT.md § merchant_order event handling).
+// ---------------------------------------------------------------------------
+
+const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
+const PROCESSING_STUCK_WINDOW_MS = 5 * 60 * 1000; // 5 min — mirrors Stripe stuck-processing window
+
+type MpWebhookEventStatus = "processing" | "done" | "skipped" | "failed";
+
+interface MpWebhookEventRecord {
+  action: string;
+  dataId: string;
+  receivedAt: FirebaseFirestore.Timestamp | null;
+  status: MpWebhookEventStatus;
+  lastProcessedAt?: string;
+  lastError?: string | null;
+}
+
+function shouldSkipMpWebhookEventRecord(data: MpWebhookEventRecord | undefined): boolean {
+  if (!data) return false;
+  if (data.status === "done" || data.status === "skipped") return true;
+  if (data.status === "processing") {
+    const receivedAtMs = data.receivedAt?.toMillis() ?? 0;
+    if (receivedAtMs > 0 && Date.now() - receivedAtMs < PROCESSING_STUCK_WINDOW_MS) {
+      return true;
+    }
+  }
+  // status === "failed" → allow retry
+  return false;
+}
+
+export async function beginMpWebhookProcessing(
+  xRequestId: string,
+  body: MpWebhookBody,
+): Promise<"skip" | "process"> {
+  const eventRef = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
+  return db.runTransaction(async (t) => {
+    const snap = await t.get(eventRef);
+    if (snap.exists) {
+      const data = snap.data() as MpWebhookEventRecord | undefined;
+      if (shouldSkipMpWebhookEventRecord(data)) {
+        logger.info("MP webhook: duplicate event, skipping", {
+          xRequestId,
+          existingStatus: data?.status,
+          result: "skipped_idempotent",
+        });
+        return "skip";
+      }
+    }
+    t.set(eventRef, {
+      action: body.action ?? "",
+      dataId: body.data?.id ?? "",
+      receivedAt: FieldValue.serverTimestamp(),
+      status: "processing",
+    }, { merge: true });
+    return "process";
+  });
+}
+
+export async function finalizeMpWebhookProcessing(
+  xRequestId: string,
+  status: "done" | "skipped" | "failed",
+  errorMessage?: string,
+): Promise<void> {
+  const ref = db.collection(WEBHOOK_EVENTS_COLLECTION).doc(xRequestId);
+  await ref.set({
+    status,
+    lastProcessedAt: new Date().toISOString(),
+    lastError: status === "failed" ? (errorMessage ?? "unknown") : null,
+  }, { merge: true });
+}
+
+// ---------------------------------------------------------------------------
+// onRequest handler
+// ---------------------------------------------------------------------------
+
 export const mercadopagoWebhook = onRequest(
   {
     region: "southamerica-east1",
@@ -279,36 +357,98 @@ export const mercadopagoWebhook = onRequest(
     }
 
     const body = req.body as MpWebhookBody;
+    const xRequestId = (req.headers["x-request-id"] as string | undefined) ?? "";
 
-    if (!validateMPSignature(req, body)) {
+    logger.info("MP webhook: received", {
+      xRequestId,
+      xSignaturePresent: !!req.headers["x-signature"], // boolean only — NEVER log raw value
+      action: body.action ?? "unknown",
+      type: (body as { type?: string }).type ?? null, // also log topic for diagnosing merchant_order
+      dataId: body.data?.id ?? null,
+    });
+
+    const hmacValid = validateMPSignature(req, body);
+    if (!hmacValid) {
       logger.warn("MP webhook: invalid signature", {
-        xSignature: req.headers["x-signature"],
-        xRequestId: req.headers["x-request-id"],
+        xRequestId,
+        action: body.action ?? "unknown",
+        hmacValid: false,
       });
       // Retorna 200 para evitar retries do MP em caso de misconfiguration de secret
       res.status(200).send("OK");
       return;
     }
 
-    const { action, data } = body;
+    logger.info("MP webhook: hmac validated", { xRequestId, hmacValid: true, action: body.action });
 
-    if (
-      (action === "payment.updated" || action === "payment.created") &&
-      data?.id
-    ) {
-      try {
-        await handlePaymentEvent(data.id);
-      } catch (err) {
-        logger.error("MP webhook: error handling payment event", {
-          action,
-          dataId: data.id,
-          error: err instanceof Error ? err.message : String(err),
+    const { action, data } = body;
+    const topic = (body as { type?: string }).type;
+
+    // Step 1: Action routing BEFORE idempotency gate.
+    // Non-payment events return 200 with NO Firestore writes (per CONTEXT.md § merchant_order event handling).
+    if (action !== "payment.created" && action !== "payment.updated") {
+      if (topic === "merchant_order") {
+        logger.info("MP webhook: ignoring merchant_order event", {
+          xRequestId,
+          action: action ?? null,
+          type: topic,
+          dataId: data?.id ?? null,
+        });
+      } else {
+        // Truly unknown / unhandled topic — warn (per CONTEXT.md: unknown topics → log warn)
+        logger.warn("MP webhook: unhandled topic", {
+          xRequestId,
+          action: action ?? null,
+          type: topic ?? null,
+          dataId: data?.id ?? null,
         });
       }
-    } else {
-      logger.info("MP webhook: ignoring unhandled action", { action });
+      res.status(200).send("OK");
+      return; // NO beginMpWebhookProcessing call, NO webhookEvents document write
     }
 
-    res.status(200).send("OK");
+    // Step 2: Sanity — payment events MUST carry data.id
+    if (!data?.id) {
+      logger.warn("MP webhook: payment event missing data.id", {
+        xRequestId,
+        action,
+      });
+      res.status(200).send("OK");
+      return; // NO Firestore writes — malformed payment event is not an idempotency concern
+    }
+
+    // Step 3: xRequestId presence guard — cannot idempotency-gate without a key
+    if (!xRequestId) {
+      logger.warn("MP webhook: missing x-request-id header", {
+        action,
+        result: "missing_request_id",
+      });
+      res.status(200).send("OK");
+      return;
+    }
+
+    // Step 4: Idempotency gate (payment.* ONLY)
+    const decision = await beginMpWebhookProcessing(xRequestId, body);
+    if (decision === "skip") {
+      res.status(200).send("OK");
+      return; // log already emitted inside beginMpWebhookProcessing
+    }
+
+    // Step 5: Process payment event — unexpected errors → status:"failed" → HTTP 500 so MP retries
+    try {
+      await handlePaymentEvent(data.id);
+      await finalizeMpWebhookProcessing(xRequestId, "done");
+      res.status(200).send("OK");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error("MP webhook: unexpected error after idempotency gate", {
+        xRequestId,
+        action: body.action,
+        dataId: body.data?.id,
+        error: message,
+      });
+      await finalizeMpWebhookProcessing(xRequestId, "failed", message);
+      res.status(500).send("Internal Server Error");
+    }
   },
 );
