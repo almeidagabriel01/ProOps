@@ -45,6 +45,8 @@ interface MySubscriptionTabProps {
   isMaster: boolean;
   /** Tenant document — provides the Stripe price snapshot (unitAmount in centavos). */
   tenant?: Tenant | null;
+  /** Called after an addon is successfully cancelled so the parent can refresh the addon list without a full page reload. */
+  onAddonCancelled?: () => Promise<void>;
 }
 
 const statusLabels: Record<
@@ -123,6 +125,7 @@ export function MySubscriptionTab({
   openingPortal,
   isMaster,
   tenant,
+  onAddonCancelled,
 }: MySubscriptionTabProps) {
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
   const effectivePlan =
@@ -212,8 +215,12 @@ export function MySubscriptionTab({
         );
       }
       setAddonToCancel(null);
-      // Optional: Trigger a refresh or sync
-      setTimeout(() => window.location.reload(), 2000);
+      // Invalidate client-side cache and refresh addon list in-place.
+      if (tenant?.id) {
+        const { AddonService } = await import("@/services/addon-service");
+        AddonService.invalidateCache(tenant.id);
+      }
+      await onAddonCancelled?.();
     } catch (error) {
       console.error("Error cancelling addon:", error);
       toast.error("Erro ao cancelar módulo. Tente novamente.");

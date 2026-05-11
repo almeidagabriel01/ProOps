@@ -27,7 +27,7 @@ function ProfileContent() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { isMaster } = usePermissions();
   const planUsageData = usePlanUsage();
-  const { purchasedAddons, purchasedAddonsData } = usePlanLimits();
+  const { purchasedAddons, purchasedAddonsData, refreshAddons } = usePlanLimits();
 
   const {
     effectiveUser,
@@ -190,6 +190,7 @@ function ProfileContent() {
                 openingPortal={openingPortal}
                 isMaster={isMaster}
                 tenant={tenant}
+                onAddonCancelled={refreshAddons}
               />
             </motion.div>
           </TabsContent>
