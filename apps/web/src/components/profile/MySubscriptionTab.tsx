@@ -202,9 +202,15 @@ export function MySubscriptionTab({
       await StripeService.cancelAddon({
         addonId: addonToCancel,
       });
-      toast.success(
-        "Módulo cancelado com sucesso. A alteração será refletida em breve.",
-      );
+      if (isAddonPastDue) {
+        toast.success(
+          "Módulo cancelado imediatamente. O acesso à funcionalidade foi encerrado.",
+        );
+      } else {
+        toast.success(
+          "Módulo cancelado com sucesso. A alteração será refletida em breve.",
+        );
+      }
       setAddonToCancel(null);
       // Optional: Trigger a refresh or sync
       setTimeout(() => window.location.reload(), 2000);
@@ -360,6 +366,7 @@ export function MySubscriptionTab({
   const addonToCancelInfo = addonToCancel
     ? addonsData.find((addon) => addon.addonType === addonToCancel)
     : null;
+  const isAddonPastDue = addonToCancelInfo?.status === "past_due";
   const addonCancelDate = (() => {
     const purchasedDate = normalizeDate(addonToCancelInfo?.purchasedAt);
     if (!purchasedDate) {
@@ -842,11 +849,22 @@ export function MySubscriptionTab({
               ?
               <br />
               <br />
-              <br />
-              Seu acesso continuará ativo até{" "}
-              <strong>{addonCancelDate || "o fim do período já pago"}</strong>.
-              Após essa data, o acesso às funcionalidades deste módulo será
-              revogado e não haverá renovação automática.
+              {isAddonPastDue ? (
+                <>
+                  Este módulo está com pagamento em atraso. O cancelamento
+                  ocorrerá <strong>imediatamente</strong> e o acesso às
+                  funcionalidades será revogado agora.
+                </>
+              ) : (
+                <>
+                  Seu acesso continuará ativo até{" "}
+                  <strong>
+                    {addonCancelDate || "o fim do período já pago"}
+                  </strong>
+                  . Após essa data, o acesso às funcionalidades deste módulo
+                  será revogado e não haverá renovação automática.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
