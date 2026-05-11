@@ -17,7 +17,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 void mockedAxios; // Plan 02 Task 2 will replace this with real usage
 
 import { createHmac } from "crypto";
-import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing } from "../mercadopagoWebhook";
+import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing, parseExternalReference } from "../mercadopagoWebhook";
 
 // ---------------------------------------------------------------------------
 // Block A — HMAC manifest format (unit)
@@ -153,4 +153,37 @@ describe("MP webhook — idempotency gate + structured entry log (integration)",
     },
     15_000,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Block C — parseExternalReference (unit)
+// ---------------------------------------------------------------------------
+
+describe("MP webhook — parseExternalReference (unit)", () => {
+  it("returns { transactionId, attemptId } for canonical format 'tx123:att456'", () => {
+    expect(parseExternalReference("tx123:att456")).toEqual({
+      transactionId: "tx123",
+      attemptId: "att456",
+    });
+  });
+
+  it("returns null when ref is undefined, null, or empty string", () => {
+    expect(parseExternalReference(undefined)).toBeNull();
+    expect(parseExternalReference(null)).toBeNull();
+    expect(parseExternalReference("")).toBeNull();
+  });
+
+  it("returns null when ref has no colon (malformed)", () => {
+    expect(parseExternalReference("no-colon-here")).toBeNull();
+  });
+
+  it("returns null when ref has more than one colon", () => {
+    expect(parseExternalReference("a:b:c")).toBeNull();
+  });
+
+  it("returns null when either segment is empty after trim", () => {
+    expect(parseExternalReference(":att456")).toBeNull();
+    expect(parseExternalReference("tx123:")).toBeNull();
+    expect(parseExternalReference("  :  ")).toBeNull();
+  });
 });

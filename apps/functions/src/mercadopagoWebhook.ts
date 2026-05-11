@@ -45,8 +45,30 @@ interface MpWebhookBody {
 interface MpPaymentResponse {
   id: number;
   status: string;
-  transaction_amount: number;
+  transaction_amount: number;           // gross
   date_approved?: string;
+  transaction_details?: {
+    net_received_amount?: number;       // net after MP platform fees (MPWH-04)
+  };
+  external_reference?: string;          // "<transactionId>:<attemptId>" (MPWH-03 fallback)
+}
+
+/**
+ * Parses MP payment external_reference field.
+ * Format guaranteed by transaction-payment.service.ts (lines 311, 428, 538, 748):
+ *   `${transactionId}:${attemptId}`
+ * Returns null if the reference is missing, malformed, or either segment is empty.
+ */
+export function parseExternalReference(
+  ref: string | undefined | null,
+): { transactionId: string; attemptId: string } | null {
+  if (!ref || typeof ref !== "string") return null;
+  const parts = ref.split(":");
+  if (parts.length !== 2) return null;
+  const transactionId = parts[0].trim();
+  const attemptId = parts[1].trim();
+  if (!transactionId || !attemptId) return null;
+  return { transactionId, attemptId };
 }
 
 export function validateMPSignature(req: { headers: Record<string, string | string[] | undefined> }, body: MpWebhookBody): boolean {
@@ -79,7 +101,7 @@ export function validateMPSignature(req: { headers: Record<string, string | stri
   }
 }
 
-async function handlePaymentEvent(dataId: string): Promise<void> {
+export async function handlePaymentEvent(dataId: string): Promise<void> {
   // 1. Find payment attempt by mpPaymentId
   const attemptsSnap = await db
     .collection(PAYMENT_ATTEMPTS_COLLECTION)
