@@ -39,6 +39,13 @@ export function ProtectedAppShell({
     );
   }, [activePastDueAddons]);
 
+  React.useEffect(() => {
+    document.documentElement.dataset.shell = "locked";
+    return () => {
+      delete document.documentElement.dataset.shell;
+    };
+  }, []);
+
   const subscriptionStatus = user?.subscriptionStatus;
   const isPastDue = subscriptionStatus === "past_due";
   const isCancelAtPeriodEnd = !isPastDue && user?.cancelAtPeriodEnd === true;
