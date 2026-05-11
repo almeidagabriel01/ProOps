@@ -26,6 +26,7 @@ Propostas e gestão financeira funcionando com confiança — se tudo mais falha
 - AIBI-01: Free tier 403 at AI chat endpoint — Validated in Phase 16: lia-seguranca-billing
 - AIBI-02: Inactive subscription 403 at AI chat endpoint — Validated in Phase 16: lia-seguranca-billing
 - AIBI-03: Monthly limit 429 + UI input disabled — Validated in Phase 16: lia-seguranca-billing
+- LOGIN-01: Post-login redirect ignores ?redirect= param, superadmin routes to /admin, session-expired toast — Validated in Phase 22: login-redirect-hardening
 - AIBI-04: AI usage card on billing/subscription page — Validated in Phase 16: lia-seguranca-billing
 - AIBI-05: Near-limit warning banner in Lia panel — Validated in Phase 16: lia-seguranca-billing
 - AIBI-06: Firestore deny-write rules for aiUsage + aiConversations — Validated in Phase 16: lia-seguranca-billing
@@ -143,4 +144,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-05-07 — Phase 19 complete: Single-Writer Billing Foundation (BILL-06/07/08 validated — single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closed)._
+_Last updated: 2026-05-11 — Phase 22 complete: Login Redirect Hardening (LOGIN-01 validated — open-redirect surface closed, redirect= param stripped, session-expired toast, E2E spec rewritten)._
