@@ -11,6 +11,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Never merge to `main`** — only the user does that.
 - **PRs are only created targeting `develop`**, never `main`. The user is the sole author of PRs to `main`.
 
+## Bug Fix Policy
+
+Every confirmed bug fix **must** include automated test coverage for the exact failing scenario and the closest reasonable variants, committed in the same PR as the fix. The test must fail without the fix and pass with it.
+
+Choose the layer that best isolates the regression:
+
+- **Pure functions / helpers**: Vitest unit test in `apps/web/src/**/__tests__/*.test.ts` (or Jest in `apps/functions/src/**/*.test.ts`)
+- **Firestore security rules**: `@firebase/rules-unit-testing` test in `tests/firestore-rules/*.test.ts`
+- **User-facing flows** (auth, redirects, guards, UI permissions): Playwright E2E in `tests/e2e/**/*.spec.ts`
+- **API / backend handlers**: Jest test in `apps/functions/`
+
+Coverage requirement: include the exact reported scenario **plus** variants that exercise the same code path with different role/permission/subscription combinations. A bug found on a free user almost always implies tests for paying/superadmin/blocked variants as well.
+
+Run `npm run test:web` for unit tests, `npm run test:rules` for Firestore rules, `npm run test:e2e` for the full E2E suite.
+
+---
+
 ## Project Overview
 
 ProOps is a multi-tenant SaaS platform (proposals, CRM, finances, team, integrations).

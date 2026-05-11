@@ -32,6 +32,10 @@
 - JSDoc for public functions in services and helpers
 - CLAUDE.md files document architecture decisions and module contracts — keep them updated when changing module behavior
 
+## Bug Fix Testing
+
+Every bug fix requires test coverage — see the **Bug Fix Policy** section in the root `CLAUDE.md` for the full requirement, layer selection guide, and run commands.
+
 ## General Coding
 - Don't add features, error handling, or validation beyond what is asked
 - Don't add docstrings/comments to code you didn't change
