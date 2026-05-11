@@ -8,9 +8,10 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
-import { ShieldX, ArrowLeft, Home, LogOut } from "lucide-react";
+import { ShieldX, Home, LogOut } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 export default function ForbiddenPage() {
   const router = useRouter();
@@ -48,42 +49,9 @@ export default function ForbiddenPage() {
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
-            onClick={() => router.back()}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar
-          </button>
-
-          <button
             onClick={() => {
-              // Smart redirect: Check permissions and find first allowed page
-              // Similar logic to login redirect
-              const perms = user?.permissions || {};
-              const userRole = user?.role;
-              const isAdmin = ["admin", "superadmin", "MASTER"].includes(
-                userRole || "",
-              );
-
-              const canViewDashboard =
-                isAdmin || perms["dashboard"]?.canView === true;
-
-              if (canViewDashboard) {
-                router.push("/dashboard");
-              } else {
-                const pages = [
-                  "proposals",
-                  "clients",
-                  "products",
-                  "services",
-                  "financial",
-                  "profile",
-                ];
-                const firstAllowed = pages.find(
-                  (page) => perms[page]?.canView === true || page === "profile",
-                );
-                router.push(firstAllowed ? `/${firstAllowed}` : "/login");
-              }
+              const home = resolveUserHome(user ?? null);
+              router.push(home.path);
             }}
             className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors"
           >

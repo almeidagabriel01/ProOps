@@ -154,17 +154,19 @@ export function PermissionsProvider({
           canEdit: data.canEdit ?? false,
           canDelete: data.canDelete ?? false,
         };
-        if (!pages["profile"]) {
-          pages["profile"] = {
-            pageId: "profile",
-            pageSlug: "/profile",
-            canView: true,
-            canCreate: false,
-            canEdit: true,
-            canDelete: false,
-          };
-        }
       });
+
+      // Garante fallback de profile para todos os users (mesmo subcoleção vazia)
+      if (!pages["profile"]) {
+        pages["profile"] = {
+          pageId: "profile",
+          pageSlug: "/profile",
+          canView: true,
+          canCreate: false,
+          canEdit: true,
+          canDelete: false,
+        };
+      }
 
       // 4. MASTER users have ALL permissions by default
       // No need to check for specific pages - MASTER bypasses permission checks

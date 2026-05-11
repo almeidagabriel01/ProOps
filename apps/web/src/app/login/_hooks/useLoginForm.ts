@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import {
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -327,58 +328,9 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     }
 
-    // Default redirects based on role (superadmin already handled above)
-    if (user?.role === "free") {
-      router.replace("/");
-    } else {
-      const perms = user?.permissions || {};
-      const userRole = user?.role;
-      const isAdmin = ["admin", "superadmin", "MASTER"].includes(
-        userRole || "",
-      );
-
-      const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
-
-      if (canViewDashboard) {
-        router.replace("/dashboard");
-      } else {
-        const pages = [
-          "kanban",
-          "proposals",
-          "clients",
-          "products",
-          "services",
-          "spreadsheets",
-          "transactions",
-          "wallet",
-          "financial", // fallback for older perms
-          "profile",
-        ];
-
-        const routeMap: Record<string, string> = {
-          kanban: "/crm",
-          proposals: "/proposals",
-          clients: "/contacts",
-          products: "/products",
-          services: "/services",
-          spreadsheets: "/spreadsheets",
-          transactions: "/transactions",
-          wallet: "/wallets",
-          financial: "/transactions",
-          profile: "/profile",
-        };
-
-        const firstAllowed = pages.find(
-          (page) => perms[page]?.canView === true || page === "profile",
-        );
-
-        if (firstAllowed && routeMap[firstAllowed]) {
-          router.replace(routeMap[firstAllowed]);
-        } else {
-          router.replace("/403");
-        }
-      }
-    }
+    // Default redirect based on role and permissions
+    const home = resolveUserHome(user ?? null);
+    router.replace(home.path);
   }, [redirectUrl, redirectReason, router, user]);
 
   // If already logged in, redirect
