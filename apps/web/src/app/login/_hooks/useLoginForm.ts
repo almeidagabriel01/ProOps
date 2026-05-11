@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { resolveUserHome, isPathAllowedForUser } from "@/lib/auth/resolve-user-home";
 import {
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -276,6 +276,25 @@ export function useLoginForm(): UseLoginFormReturn {
     [searchParams],
   );
 
+  // On mount: clear sticky ?redirect params left over from an explicit logout
+  React.useEffect(() => {
+    try {
+      if (sessionStorage.getItem("proops_just_logged_out")) {
+        sessionStorage.removeItem("proops_just_logged_out");
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("redirect") || params.has("redirect_reason")) {
+          params.delete("redirect");
+          params.delete("redirect_reason");
+          const query = params.toString();
+          window.history.replaceState(null, "", query ? `/login?${query}` : "/login");
+        }
+      }
+    } catch {
+      // noop — SSR or storage disabled
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Get redirect URL from query params
   const redirectUrl = searchParams.get("redirect");
   const redirectReason = searchParams.get("redirect_reason");
@@ -315,6 +334,8 @@ export function useLoginForm(): UseLoginFormReturn {
       })();
       if (!isSameOrigin) {
         // Unsafe target — fall through to role-based default redirect
+      } else if (!isPathAllowedForUser(target, user ?? null)) {
+        // Target not permitted for this role — fall through to role-based default redirect
       } else if (redirectReason === "session_expired") {
         const isSuperAdminRoute = target.startsWith("/admin");
         if (!isSuperAdminRoute) {

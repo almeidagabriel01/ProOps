@@ -82,3 +82,21 @@ export function resolveUserHome(user: User | null): ResolvedHome {
   // 8. Fallback absoluto → landing (nunca retornar /403 — é destino de erro, não de home)
   return { kind: "landing", path: "/" };
 }
+
+export function isPathAllowedForUser(path: string, user: User | null): boolean {
+  if (!user) return false;
+  const role = (user.role ?? "").toLowerCase();
+
+  if (role === "superadmin") {
+    return path === "/admin" || path.startsWith("/admin/");
+  }
+
+  if (role === "free") {
+    const allowed = new Set(["/", "/subscribe", "/subscription-blocked"]);
+    const base = path.split("?")[0];
+    return allowed.has(base) || base.startsWith("/subscribe/");
+  }
+
+  // Paying users (admin, master, member, etc.): any internal route except /admin
+  return !path.startsWith("/admin");
+}

@@ -525,6 +525,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     isLoggingOutRef.current = true;
     try {
+      try {
+        sessionStorage.setItem("proops_just_logged_out", "1");
+      } catch {
+        // SSR or storage disabled
+      }
       await clearServerSession();
       await signOut(auth);
       clearViewingTenantId();
