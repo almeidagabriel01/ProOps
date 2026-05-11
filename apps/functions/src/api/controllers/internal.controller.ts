@@ -467,3 +467,31 @@ export const checkPriceChangesManual = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const reconcileAddonsManual = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const dryRun =
+      String(req.query.dryRun || req.body?.dryRun || "false").trim().toLowerCase() === "true";
+
+    const { runAddonReconciliation } = await import("../../reconcileAddons");
+    const result = await runAddonReconciliation(dryRun);
+
+    logger.info("[reconcileAddons manual] completed", result as unknown as Record<string, unknown>);
+
+    return res.json(result);
+  } catch (error) {
+    logger.error("[reconcileAddons manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};

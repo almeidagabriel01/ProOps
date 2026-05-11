@@ -28,6 +28,7 @@ export { reportWhatsappOverage } from "./reportWhatsappOverage";
 export { applyScheduledPlanChanges } from "./applyScheduledPlanChanges";
 export { checkPriceChanges } from "./checkPriceChanges";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
+export { reconcileAddons } from "./reconcileAddons";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

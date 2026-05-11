@@ -30,6 +30,7 @@ import {
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
 import { normalizePlanTier } from "../../lib/tenant-plan-policy";
 import { isAddonAvailableForTier } from "../../shared/addon-definitions";
+import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import Stripe from "stripe";
 
@@ -436,26 +437,29 @@ export const cancelAddon = async (req: Request, res: Response) => {
     const nowIso = new Date().toISOString();
 
     if (isPastDue) {
-      // Firestore-first: mark as cancelled immediately so the feature gate takes effect
-      // even if the Stripe API call below fails.
+      // Stripe-first: cancel on Stripe before touching Firestore.
+      // If Stripe says the subscription is already gone (resource_missing / 404),
+      // treat that as success and proceed to mark Firestore as cancelled.
+      // Any other Stripe error propagates to the caller (502) so Firestore is not
+      // left in a diverged state where the user is blocked but Stripe keeps billing.
+      try {
+        await stripe.subscriptions.cancel(stripeSubscriptionId);
+      } catch (stripeErr) {
+        const stripeCode = (stripeErr as Stripe.errors.StripeError)?.code;
+        const stripeStatus = (stripeErr as Stripe.errors.StripeError)?.statusCode;
+        const alreadyCanceled = stripeCode === "resource_missing" || stripeStatus === 404;
+        if (!alreadyCanceled) {
+          throw stripeErr;
+        }
+        // Subscription already absent in Stripe — fall through to Firestore update.
+      }
+
       await addonRef.update({
         status: "cancelled",
         cancelAtPeriodEnd: false,
         expiresAt: nowIso,
         updatedAt: nowIso,
       });
-
-      // Cancel on Stripe — non-fatal after Firestore is already updated.
-      try {
-        await stripe.subscriptions.cancel(stripeSubscriptionId);
-      } catch (stripeErr) {
-        console.error("[cancelAddon] past_due_stripe_cancel_error", {
-          tenantId,
-          addonId,
-          subscriptionId: stripeSubscriptionId,
-          error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
-        });
-      }
 
       invalidateBillingCache(tenantId);
       await invalidateNextjsBillingCache(tenantId);
@@ -824,24 +828,37 @@ export const createAddonCheckoutSession = async (
               existingAddonSubscription.id,
               { cancel_at_period_end: false },
             );
-            await addonRef.set(
-              {
+            // Stripe was updated successfully. Wrap Firestore write so that a
+            // transient Firestore failure does not surface as a 500 to the user —
+            // Stripe is source-of-truth and the reconciliation cron will correct
+            // any divergence within 6 hours.
+            try {
+              await addonRef.set(
+                {
+                  tenantId,
+                  addonType: addonId,
+                  stripeSubscriptionId: reactivatedSubscription.id,
+                  status:
+                    reactivatedSubscription.status === "past_due"
+                      ? "past_due"
+                      : "active",
+                  cancelAtPeriodEnd: false,
+                  cancelScheduledAt: null,
+                  currentPeriodEnd: new Date(
+                    (reactivatedSubscription as any).current_period_end * 1000,
+                  ).toISOString(),
+                  updatedAt: new Date().toISOString(),
+                },
+                { merge: true },
+              );
+            } catch (firestoreErr) {
+              logger.warn("[createAddonCheckoutSession] Firestore write failed after Stripe reactivation — reconciliation cron will correct", {
                 tenantId,
-                addonType: addonId,
+                addonId,
                 stripeSubscriptionId: reactivatedSubscription.id,
-                status:
-                  reactivatedSubscription.status === "past_due"
-                    ? "past_due"
-                    : "active",
-                cancelAtPeriodEnd: false,
-                cancelScheduledAt: null,
-                currentPeriodEnd: new Date(
-                  (reactivatedSubscription as any).current_period_end * 1000,
-                ).toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              { merge: true },
-            );
+                error: firestoreErr instanceof Error ? firestoreErr.message : String(firestoreErr),
+              });
+            }
 
             return res.json({
               success: true,
